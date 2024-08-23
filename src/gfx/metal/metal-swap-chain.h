@@ -6,6 +6,8 @@
 #include "metal-device.h"
 #include "metal-texture.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 
@@ -27,7 +29,7 @@ public:
     ISwapchain::Desc m_desc;
     WindowHandle m_windowHandle;
     CA::MetalLayer* m_metalLayer = nullptr;
-    ShortList<RefPtr<TextureResourceImpl>> m_images;
+    short_vector<RefPtr<TextureResourceImpl>> m_images;
     NS::SharedPtr<CA::MetalDrawable> m_currentDrawable;
     Index m_currentImageIndex = -1;
     MTL::PixelFormat m_metalFormat = MTL::PixelFormat::PixelFormatInvalid;

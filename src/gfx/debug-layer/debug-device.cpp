@@ -19,6 +19,8 @@
 #include "debug-transient-heap.h"
 #include "debug-vertex-layout.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 namespace gfx
@@ -627,12 +629,12 @@ Result DebugDevice::waitForFences(
     GfxCount fenceCount, IFence** fences, uint64_t* values , bool waitForAll, uint64_t timeout)
 {
     SLANG_GFX_API_FUNC;
-    ShortList<IFence*> innerFences;
+    short_vector<IFence*> innerFences;
     for (GfxCount i = 0; i < fenceCount; i++)
     {
-        innerFences.add(getInnerObj(fences[i]));
+        innerFences.push_back(getInnerObj(fences[i]));
     }
-    return baseObject->waitForFences(fenceCount, innerFences.getArrayView().getBuffer(), values, waitForAll, timeout);
+    return baseObject->waitForFences(fenceCount, innerFences.data(), values, waitForAll, timeout);
 }
 
 Result DebugDevice::getTextureAllocationInfo(

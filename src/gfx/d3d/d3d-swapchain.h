@@ -6,6 +6,8 @@
 #include "../renderer-shared.h"
 #include "d3d-util.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 class D3DSwapchainBase
@@ -150,7 +152,7 @@ public:
     virtual IUnknown* getOwningDevice() = 0;
     ISwapchain::Desc m_desc;
     ComPtr<IDXGISwapChain2> m_swapChain;
-    Slang::ShortList<Slang::RefPtr<TextureResource>> m_images;
+    short_vector<Slang::RefPtr<TextureResource>> m_images;
 };
 
 }

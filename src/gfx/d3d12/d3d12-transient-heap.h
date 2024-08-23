@@ -3,6 +3,8 @@
 
 #include "d3d12-base.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 namespace gfx
@@ -32,8 +34,8 @@ public:
         ComPtr<ID3D12CommandQueue> queue;
         ComPtr<ID3D12Fence> fence = nullptr;
     };
-    ShortList<QueueWaitInfo, 4> m_waitInfos;
-    ShortList<HANDLE, 4> m_waitHandles;
+    short_vector<QueueWaitInfo, 4> m_waitInfos;
+    short_vector<HANDLE, 4> m_waitHandles;
 
     QueueWaitInfo& getQueueWaitInfo(uint32_t queueIndex);
     // During command submission, we need all the descriptor tables that get
@@ -41,8 +43,8 @@ public:
     //
     // We will thus keep a single heap of each type that we hope will hold
     // all the descriptors that actually get needed in a frame.
-    ShortList<D3D12DescriptorHeap, 4> m_viewHeaps; // Cbv, Srv, Uav
-    ShortList<D3D12DescriptorHeap, 4> m_samplerHeaps; // Heap for samplers
+    short_vector<D3D12DescriptorHeap, 4> m_viewHeaps; // Cbv, Srv, Uav
+    short_vector<D3D12DescriptorHeap, 4> m_samplerHeaps; // Heap for samplers
     int32_t m_currentViewHeapIndex = -1;
     int32_t m_currentSamplerHeapIndex = -1;
     bool m_canResize = false;

@@ -3,6 +3,8 @@
 
 #include "metal-base.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 namespace gfx
@@ -34,7 +36,7 @@ class FramebufferImpl : public FramebufferBase
 public:
     BreakableReference<DeviceImpl> m_device;
     RefPtr<FramebufferLayoutImpl> m_layout;
-    ShortList<RefPtr<TextureResourceViewImpl>> m_renderTargetViews;
+    short_vector<RefPtr<TextureResourceViewImpl>> m_renderTargetViews;
     RefPtr<TextureResourceViewImpl> m_depthStencilView;
     uint32_t m_width;
     uint32_t m_height;

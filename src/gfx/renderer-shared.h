@@ -8,6 +8,8 @@
 
 #include "resource-desc-utils.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 
@@ -338,12 +340,12 @@ struct ExtendedShaderObjectType
 
 struct ExtendedShaderObjectTypeList
 {
-    Slang::ShortList<ShaderComponentID, 16> componentIDs;
-    Slang::ShortList<slang::SpecializationArg, 16> components;
+    short_vector<ShaderComponentID, 16> componentIDs;
+    short_vector<slang::SpecializationArg, 16> components;
     void add(const ExtendedShaderObjectType& component)
     {
-        componentIDs.add(component.componentID);
-        components.add(slang::SpecializationArg{ slang::SpecializationArg::Kind::Type, {component.slangType} });
+        componentIDs.push_back(component.componentID);
+        components.push_back(slang::SpecializationArg{ slang::SpecializationArg::Kind::Type, {component.slangType} });
     }
     void addRange(const ExtendedShaderObjectTypeList& list)
     {
@@ -366,7 +368,7 @@ struct ExtendedShaderObjectTypeList
     }
     Slang::Index getCount() const
     {
-        return componentIDs.getCount();
+        return componentIDs.size();
     }
 };
 
@@ -1045,7 +1047,7 @@ protected:
 struct ComponentKey
 {
     Slang::UnownedStringSlice typeName;
-    Slang::ShortList<ShaderComponentID> specializationArgs;
+    short_vector<ShaderComponentID> specializationArgs;
     Slang::HashCode hash;
     Slang::HashCode getHashCode() const
     {
@@ -1062,7 +1064,7 @@ struct ComponentKey
 struct PipelineKey
 {
     PipelineStateBase* pipeline;
-    Slang::ShortList<ShaderComponentID> specializationArgs;
+    short_vector<ShaderComponentID> specializationArgs;
     Slang::HashCode hash;
     Slang::HashCode getHashCode() const
     {
@@ -1078,9 +1080,9 @@ struct PipelineKey
     {
         if (pipeline != other.pipeline)
             return false;
-        if (specializationArgs.getCount() != other.specializationArgs.getCount())
+        if (specializationArgs.size() != other.specializationArgs.size())
             return false;
-        for (Slang::Index i = 0; i < other.specializationArgs.getCount(); i++)
+        for (Slang::Index i = 0; i < other.specializationArgs.size(); i++)
         {
             if (specializationArgs[i] != other.specializationArgs[i])
                 return false;
@@ -1092,7 +1094,7 @@ struct PipelineKey
 struct OwningComponentKey
 {
     Slang::String typeName;
-    Slang::ShortList<ShaderComponentID> specializationArgs;
+    short_vector<ShaderComponentID> specializationArgs;
     Slang::HashCode hash;
     Slang::HashCode getHashCode() const
     {
@@ -1103,9 +1105,9 @@ struct OwningComponentKey
     {
         if (typeName != other.typeName)
             return false;
-        if (specializationArgs.getCount() != other.specializationArgs.getCount())
+        if (specializationArgs.size() != other.specializationArgs.size())
             return false;
-        for (Slang::Index i = 0; i < other.specializationArgs.getCount(); i++)
+        for (Slang::Index i = 0; i < other.specializationArgs.size(); i++)
         {
             if (specializationArgs[i] != other.specializationArgs[i])
                 return false;

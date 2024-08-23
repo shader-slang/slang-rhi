@@ -14,6 +14,8 @@
 
 #include "vk-helper-functions.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 namespace gfx
@@ -252,7 +254,7 @@ void ResourceCommandEncoder::uploadBufferData(
 void ResourceCommandEncoder::textureBarrier(
     GfxCount count, ITextureResource* const* textures, ResourceState src, ResourceState dst)
 {
-    ShortList<VkImageMemoryBarrier, 16> barriers;
+    short_vector<VkImageMemoryBarrier, 16> barriers;
 
     for (GfxIndex i = 0; i < count; i++)
     {
@@ -271,7 +273,7 @@ void ResourceCommandEncoder::textureBarrier(
         barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
         barrier.srcAccessMask = calcAccessFlags(src);
         barrier.dstAccessMask = calcAccessFlags(dst);
-        barriers.add(barrier);
+        barriers.push_back(barrier);
     }
 
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
@@ -288,7 +290,7 @@ void ResourceCommandEncoder::textureBarrier(
         0,
         nullptr,
         (uint32_t)count,
-        barriers.getArrayView().getBuffer());
+        barriers.data());
 }
 
 // TODO: Change size_t to Count?
@@ -860,7 +862,7 @@ void ResourceCommandEncoder::textureSubresourceBarrier(
     ResourceState src,
     ResourceState dst)
 {
-    ShortList<VkImageMemoryBarrier> barriers;
+    short_vector<VkImageMemoryBarrier> barriers;
     auto image = static_cast<TextureResourceImpl*>(texture);
     auto desc = image->getDesc();
 
@@ -876,7 +878,7 @@ void ResourceCommandEncoder::textureSubresourceBarrier(
     barrier.subresourceRange.levelCount = subresourceRange.mipLevelCount;
     barrier.srcAccessMask = calcAccessFlags(src);
     barrier.dstAccessMask = calcAccessFlags(dst);
-    barriers.add(barrier);
+    barriers.push_back(barrier);
 
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
     VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
@@ -891,8 +893,8 @@ void ResourceCommandEncoder::textureSubresourceBarrier(
         nullptr,
         0,
         nullptr,
-        (uint32_t)barriers.getCount(),
-        barriers.getArrayView().getBuffer());
+        (uint32_t)barriers.size(),
+        barriers.data());
 }
 
 void ResourceCommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
@@ -931,7 +933,7 @@ void RenderCommandEncoder::beginPass(IRenderPassLayout* renderPass, IFramebuffer
     beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     beginInfo.framebuffer = framebufferImpl->m_handle;
     beginInfo.renderPass = renderPassImpl->m_renderPass;
-    uint32_t targetCount = (uint32_t)framebufferImpl->renderTargetViews.getCount();
+    uint32_t targetCount = (uint32_t)framebufferImpl->renderTargetViews.size();
     if (framebufferImpl->depthStencilView)
         targetCount++;
     beginInfo.clearValueCount = targetCount;
@@ -1247,8 +1249,8 @@ void RayTracingCommandEncoder::_memoryBarrier(
     AccessFlag srcAccess,
     AccessFlag destAccess)
 {
-    ShortList<VkBufferMemoryBarrier> memBarriers;
-    memBarriers.setCount(count);
+    short_vector<VkBufferMemoryBarrier> memBarriers;
+    memBarriers.resize(count);
     for (int i = 0; i < count; i++)
     {
         memBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -1274,8 +1276,8 @@ void RayTracingCommandEncoder::_memoryBarrier(
         0,
         0,
         nullptr,
-        (uint32_t)memBarriers.getCount(),
-        memBarriers.getArrayView().getBuffer(),
+        (uint32_t)memBarriers.size(),
+        memBarriers.data(),
         0,
         nullptr);
 }
@@ -1286,14 +1288,13 @@ void RayTracingCommandEncoder::_queryAccelerationStructureProperties(
     GfxCount queryCount,
     AccelerationStructureQueryDesc* queryDescs)
 {
-    ShortList<VkAccelerationStructureKHR> vkHandles;
-    vkHandles.setCount(accelerationStructureCount);
+    short_vector<VkAccelerationStructureKHR> vkHandles;
+    vkHandles.resize(accelerationStructureCount);
     for (GfxIndex i = 0; i < accelerationStructureCount; i++)
     {
         vkHandles[i] =
             static_cast<AccelerationStructureImpl*>(accelerationStructures[i])->m_vkHandle;
     }
-    auto vkHandlesView = vkHandles.getArrayView();
     for (GfxIndex i = 0; i < queryCount; i++)
     {
         VkQueryType queryType;
@@ -1323,7 +1324,7 @@ void RayTracingCommandEncoder::_queryAccelerationStructureProperties(
         m_commandBuffer->m_renderer->m_api.vkCmdWriteAccelerationStructuresPropertiesKHR(
             m_commandBuffer->m_commandBuffer,
             accelerationStructureCount,
-            vkHandlesView.getBuffer(),
+            vkHandles.data(),
             queryType,
             queryPool,
             queryDescs[i].firstQueryIndex);

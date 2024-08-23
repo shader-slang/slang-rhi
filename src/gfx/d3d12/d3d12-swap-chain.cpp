@@ -24,7 +24,7 @@ Result SwapchainImpl::init(
     SLANG_RETURN_ON_FAIL(m_swapChain->QueryInterface(m_swapChain3.writeRef()));
     for (GfxIndex i = 0; i < swapchainDesc.imageCount; i++)
     {
-        m_frameEvents.add(CreateEventEx(
+        m_frameEvents.push_back(CreateEventEx(
             nullptr,
             FALSE,
             CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET,
@@ -63,7 +63,7 @@ void SwapchainImpl::createSwapchainBufferImages()
         RefPtr<TextureResourceImpl> image = new TextureResourceImpl(imageDesc);
         image->m_resource.setResource(d3dResource.get());
         image->m_defaultState = D3D12_RESOURCE_STATE_PRESENT;
-        m_images.add(image);
+        m_images.push_back(image);
     }
     for (auto evt : m_frameEvents)
         SetEvent(evt);

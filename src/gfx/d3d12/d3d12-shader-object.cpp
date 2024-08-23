@@ -184,8 +184,8 @@ Result ShaderObjectImpl::init(
         // The doubling here is because any buffer resource could
         // have a counter buffer associated with it, which we 
         // also need to ensure isn't destroyed prematurely.
-        m_boundResources.setCount(resourceCount);
-        m_boundCounterResources.setCount(resourceCount);
+        m_boundResources.resize(resourceCount);
+        m_boundCounterResources.resize(resourceCount);
     }
     if (auto samplerCount = layout->getSamplerSlotCount())
     {
@@ -516,7 +516,7 @@ Result ShaderObjectImpl::prepareToBindAsParameterBlock(
         // root parameter.
         //
         auto tableRootParamIndex = rootParamIndex++;
-        context->pendingTableBindings->add(PendingDescriptorTableBinding{ tableRootParamIndex, table.getGpuHandle() });
+        context->pendingTableBindings->push_back(PendingDescriptorTableBinding{ tableRootParamIndex, table.getGpuHandle() });
     }
     if (auto descriptorCount = specializedLayout->getTotalSamplerDescriptorCount())
     {
@@ -539,7 +539,7 @@ Result ShaderObjectImpl::prepareToBindAsParameterBlock(
         // root parameter.
         //
         auto tableRootParamIndex = rootParamIndex++;
-        context->pendingTableBindings->add(PendingDescriptorTableBinding{ tableRootParamIndex, table.getGpuHandle() });
+        context->pendingTableBindings->push_back(PendingDescriptorTableBinding{ tableRootParamIndex, table.getGpuHandle() });
     }
 
     return SLANG_OK;
@@ -614,7 +614,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     // descriptor table) to represent its values.
     //
     BindingOffset subOffset = offset;
-    ShortList<PendingDescriptorTableBinding> pendingTableBindings;
+    short_vector<PendingDescriptorTableBinding> pendingTableBindings;
     auto oldPendingTableBindings = context->pendingTableBindings;
     context->pendingTableBindings = &pendingTableBindings;
 
@@ -1079,7 +1079,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     ComPtr<slang::IComponentType> specializedComponentType;
     ComPtr<slang::IBlob> diagnosticBlob;
     auto result = getLayout()->getSlangProgram()->specialize(
-        specializationArgs.components.getArrayView().getBuffer(),
+        specializationArgs.components.data(),
         specializationArgs.getCount(),
         specializedComponentType.writeRef(),
         diagnosticBlob.writeRef());
@@ -1154,7 +1154,7 @@ Result RootShaderObjectImpl::bindAsRoot(
     // need to bind the entry points into the same descriptor set that is
     // being used for the root object.
 
-    ShortList<PendingDescriptorTableBinding> pendingTableBindings;
+    short_vector<PendingDescriptorTableBinding> pendingTableBindings;
     auto oldPendingTableBindings = context->pendingTableBindings;
     context->pendingTableBindings = &pendingTableBindings;
 

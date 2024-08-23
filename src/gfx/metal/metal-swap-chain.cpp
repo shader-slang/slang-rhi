@@ -26,7 +26,7 @@ void SwapchainImpl::getWindowSize(int& widthOut, int& heightOut) const
 
 void SwapchainImpl::createImages()
 {
-    m_images.setCount(m_desc.imageCount);
+    m_images.resize(m_desc.imageCount);
     for (GfxCount i = 0; i < m_desc.imageCount; ++i)
     {
         ITextureResource::Desc imageDesc = {};

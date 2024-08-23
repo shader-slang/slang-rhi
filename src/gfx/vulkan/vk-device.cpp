@@ -22,6 +22,7 @@
 #include "core/slang-platform.h"
 
 #include "utils/static_vector.h"
+#include "utils/short_vector.h"
 
 #include <algorithm>
 #include <vector>
@@ -2514,18 +2515,18 @@ Result DeviceImpl::createFence(const IFence::Desc& desc, IFence** outFence)
 Result DeviceImpl::waitForFences(
     GfxCount fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
 {
-    ShortList<VkSemaphore> semaphores;
+    short_vector<VkSemaphore> semaphores;
     for (GfxIndex i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = static_cast<FenceImpl*>(fences[i]);
-        semaphores.add(fenceImpl->m_semaphore);
+        semaphores.push_back(fenceImpl->m_semaphore);
     }
     VkSemaphoreWaitInfo waitInfo;
     waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
     waitInfo.pNext = NULL;
     waitInfo.flags = 0;
     waitInfo.semaphoreCount = 1;
-    waitInfo.pSemaphores = semaphores.getArrayView().getBuffer();
+    waitInfo.pSemaphores = semaphores.data();
     waitInfo.pValues = fenceValues;
     auto result = m_api.vkWaitSemaphores(m_api.m_device, &waitInfo, timeout);
     if (result == VK_TIMEOUT)

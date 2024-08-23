@@ -4,6 +4,8 @@
 #include "d3d12-base.h"
 #include "d3d12-resource-views.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 namespace d3d12
@@ -14,7 +16,7 @@ using namespace Slang;
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
 public:
-    ShortList<IFramebufferLayout::TargetLayout> m_renderTargets;
+    short_vector<IFramebufferLayout::TargetLayout> m_renderTargets;
     bool m_hasDepthStencil = false;
     IFramebufferLayout::TargetLayout m_depthStencil;
 };
@@ -22,14 +24,14 @@ public:
 class FramebufferImpl : public FramebufferBase
 {
 public:
-    ShortList<RefPtr<ResourceViewImpl>> renderTargetViews;
+    short_vector<RefPtr<ResourceViewImpl>> renderTargetViews;
     RefPtr<ResourceViewImpl> depthStencilView;
-    ShortList<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
+    short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
     struct Color4f
     {
         float values[4];
     };
-    ShortList<Color4f> renderTargetClearValues;
+    short_vector<Color4f> renderTargetClearValues;
     D3D12_CPU_DESCRIPTOR_HANDLE depthStencilDescriptor;
     DepthStencilClearValue depthStencilClearValue;
 };

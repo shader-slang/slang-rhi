@@ -5,6 +5,8 @@
 #include "metal-pipeline-state.h"
 #include "metal-render-pass.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 
@@ -164,12 +166,12 @@ public:
     RefPtr<FramebufferImpl> m_framebuffer;
     NS::SharedPtr<MTL::RenderPassDescriptor> m_renderPassDesc;
 
-    ShortList<MTL::Viewport, 16> m_viewports;
-    ShortList<MTL::ScissorRect, 16> m_scissorRects;
+    short_vector<MTL::Viewport, 16> m_viewports;
+    short_vector<MTL::ScissorRect, 16> m_scissorRects;
     MTL::PrimitiveType m_primitiveType = MTL::PrimitiveTypeTriangle;
 
-    ShortList<MTL::Buffer*, 16> m_vertexBuffers;
-    ShortList<NS::UInteger, 16> m_vertexBufferOffsets;
+    short_vector<MTL::Buffer*, 16> m_vertexBuffers;
+    short_vector<NS::UInteger, 16> m_vertexBufferOffsets;
 
     MTL::Buffer* m_indexBuffer = nullptr;
     NS::UInteger m_indexBufferOffset = 0;

@@ -9,6 +9,8 @@
 #include "core/slang-short-list.h"
 #include "core/slang-basic.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 namespace gfx {
@@ -281,18 +283,18 @@ class D3D12LinearExpandingDescriptorHeap : public Slang::RefObject
     D3D12_DESCRIPTOR_HEAP_TYPE m_type;
     D3D12_DESCRIPTOR_HEAP_FLAGS m_flag;
     int m_chunkSize;
-    Slang::ShortList<D3D12DescriptorHeap, 4> m_subHeaps;
+    short_vector<D3D12DescriptorHeap, 4> m_subHeaps;
     int32_t m_subHeapIndex;
 
 public:
     Slang::Result newSubHeap()
     {
         m_subHeapIndex++;
-        if (m_subHeapIndex <= m_subHeaps.getCount())
+        if (m_subHeapIndex <= m_subHeaps.size())
         {
             D3D12DescriptorHeap subHeap;
             SLANG_RETURN_ON_FAIL(subHeap.init(m_device, m_chunkSize, m_type, m_flag));
-            m_subHeaps.add(Slang::_Move(subHeap));
+            m_subHeaps.push_back(Slang::_Move(subHeap));
         }
         return SLANG_OK;
     }

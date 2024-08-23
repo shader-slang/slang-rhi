@@ -3,6 +3,8 @@
 
 #include "d3d12-base.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 namespace d3d12
@@ -19,7 +21,7 @@ public:
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<IDXGISwapChain3> m_swapChain3;
     ComPtr<ID3D12Fence> m_fence;
-    ShortList<HANDLE, kMaxNumRenderFrames> m_frameEvents;
+    short_vector<HANDLE, kMaxNumRenderFrames> m_frameEvents;
     uint64_t fenceValue = 0;
     Result init(DeviceImpl* renderer, const ISwapchain::Desc& swapchainDesc, WindowHandle window);
 

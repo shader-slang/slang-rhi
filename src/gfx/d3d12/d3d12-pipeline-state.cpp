@@ -69,7 +69,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             {
                 auto framebufferLayout =
                     static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-                const int numRenderTargets = int(framebufferLayout->m_renderTargets.getCount());
+                const int numRenderTargets = int(framebufferLayout->m_renderTargets.size());
 
                 if (framebufferLayout->m_hasDepthStencil)
                 {
@@ -79,7 +79,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 else
                 {
                     psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-                    if (framebufferLayout->m_renderTargets.getCount())
+                    if (framebufferLayout->m_renderTargets.size())
                     {
                         psoDesc.SampleDesc.Count = framebufferLayout->m_renderTargets[0].sampleCount;
                     }

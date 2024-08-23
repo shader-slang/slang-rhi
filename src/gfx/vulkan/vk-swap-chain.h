@@ -6,6 +6,8 @@
 #include "vk-device.h"
 #include "vk-texture.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 namespace gfx
@@ -31,7 +33,7 @@ public:
     ISwapchain::Desc m_desc;
     VkFormat m_vkformat;
     RefPtr<CommandQueueImpl> m_queue;
-    ShortList<RefPtr<TextureResourceImpl>> m_images;
+    short_vector<RefPtr<TextureResourceImpl>> m_images;
     RefPtr<DeviceImpl> m_renderer;
     VulkanApi* m_api;
     uint32_t m_currentImageIndex = 0;

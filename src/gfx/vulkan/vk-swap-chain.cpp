@@ -172,7 +172,7 @@ Result SwapchainImpl::createSwapchainAndImages()
         image->m_imageMemory = 0;
         image->m_vkformat = m_vkformat;
         image->m_isWeakImageReference = true;
-        m_images.add(image);
+        m_images.push_back(image);
     }
     return SLANG_OK;
 }
@@ -297,7 +297,7 @@ Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& desc, W
 
 Result SwapchainImpl::getImage(GfxIndex index, ITextureResource** outResource)
 {
-    if (m_images.getCount() <= (Index)index)
+    if (m_images.size() <= (Index)index)
         return SLANG_FAIL;
     returnComPtr(outResource, m_images[index]);
     return SLANG_OK;
@@ -349,7 +349,7 @@ Result SwapchainImpl::present()
 
 int SwapchainImpl::acquireNextImage()
 {
-    if (!m_images.getCount())
+    if (!m_images.size())
     {
         m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
         return -1;

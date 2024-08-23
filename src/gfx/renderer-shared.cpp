@@ -847,7 +847,10 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     OwningComponentKey owningTypeKey;
     owningTypeKey.hash = key.hash;
     owningTypeKey.typeName = key.typeName;
-    owningTypeKey.specializationArgs.addRange(key.specializationArgs);
+    for (const auto& specializationArg : key.specializationArgs)
+    {
+        owningTypeKey.specializationArgs.push_back(specializationArg);
+    }
     ShaderComponentID resultId = static_cast<ShaderComponentID>(componentIds.getCount());
     componentIds[owningTypeKey] = resultId;
     return resultId;
@@ -888,7 +891,7 @@ Result ShaderObjectBase::_getSpecializedShaderObjectType(ExtendedShaderObjectTyp
     {
         shaderObjectType.slangType = getRenderer()->slangContext.session->specializeType(
             _getElementTypeLayout()->getType(),
-            specializationArgs.components.getArrayView().getBuffer(), specializationArgs.getCount());
+            specializationArgs.components.data(), specializationArgs.getCount());
         shaderObjectType.componentID = getRenderer()->shaderCache.getComponentId(shaderObjectType.slangType);
     }
     *outType = shaderObjectType;
@@ -1129,7 +1132,10 @@ Result RendererBase::maybeSpecializePipeline(
         // Construct a shader cache key that represents the specialized shader kernels.
         PipelineKey pipelineKey;
         pipelineKey.pipeline = currentPipeline;
-        pipelineKey.specializationArgs.addRange(specializationArgs.componentIDs);
+        for (const auto& componentID : specializationArgs.componentIDs)
+        {
+            pipelineKey.specializationArgs.push_back(componentID);
+        }
         pipelineKey.updateHash();
 
         RefPtr<PipelineStateBase> specializedPipelineState = shaderCache.getSpecializedPipelineState(pipelineKey);
@@ -1144,7 +1150,7 @@ Result RendererBase::maybeSpecializePipeline(
             ComPtr<slang::IComponentType> specializedComponentType;
             ComPtr<slang::IBlob> diagnosticBlob;
             auto compileRs = unspecializedProgram->linkedProgram->specialize(
-                specializationArgs.components.getArrayView().getBuffer(),
+                specializationArgs.components.data(),
                 specializationArgs.getCount(),
                 specializedComponentType.writeRef(),
                 diagnosticBlob.writeRef());

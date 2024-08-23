@@ -1220,7 +1220,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     ComPtr<slang::IComponentType> specializedComponentType;
     ComPtr<slang::IBlob> diagnosticBlob;
     auto result = getLayout()->getSlangProgram()->specialize(
-        specializationArgs.components.getArrayView().getBuffer(),
+        specializationArgs.components.data(),
         specializationArgs.getCount(),
         specializedComponentType.writeRef(),
         diagnosticBlob.writeRef());

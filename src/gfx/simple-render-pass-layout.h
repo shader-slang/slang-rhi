@@ -9,6 +9,8 @@
 #include "core/slang-com-object.h"
 #include "core/slang-basic.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 
@@ -21,7 +23,7 @@ public:
     IRenderPassLayout* getInterface(const Slang::Guid& guid);
 
 public:
-    Slang::ShortList<TargetAccessDesc> m_renderTargetAccesses;
+    short_vector<TargetAccessDesc> m_renderTargetAccesses;
     TargetAccessDesc m_depthStencilAccess;
     bool m_hasDepthStencil;
     void init(const IRenderPassLayout::Desc& desc);

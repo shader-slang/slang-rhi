@@ -33,7 +33,7 @@ Result FramebufferImpl::init(DeviceImpl* device, const IFramebuffer::Desc& desc)
 {
     m_device = device;
     m_layout = static_cast<FramebufferLayoutImpl*>(desc.layout);
-    m_renderTargetViews.setCount(desc.renderTargetCount);
+    m_renderTargetViews.resize(desc.renderTargetCount);
     for (Index i = 0; i < desc.renderTargetCount; ++i)
     {
         m_renderTargetViews[i] = static_cast<TextureResourceViewImpl*>(desc.renderTargetViews[i]);

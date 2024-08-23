@@ -4,6 +4,7 @@
 #include "vk-base.h"
 
 #include "utils/static_vector.h"
+#include "utils/short_vector.h"
 
 namespace gfx
 {
@@ -40,7 +41,7 @@ class FramebufferImpl : public FramebufferBase
 {
 public:
     VkFramebuffer m_handle;
-    ShortList<ComPtr<IResourceView>> renderTargetViews;
+    short_vector<ComPtr<IResourceView>> renderTargetViews;
     ComPtr<IResourceView> depthStencilView;
     uint32_t m_width;
     uint32_t m_height;

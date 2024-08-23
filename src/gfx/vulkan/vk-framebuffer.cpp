@@ -162,7 +162,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
         numTargets++;
     static_vector<VkImageView, kMaxTargets> imageViews;
     imageViews.resize(numTargets);
-    renderTargetViews.setCount(desc.renderTargetCount);
+    renderTargetViews.resize(desc.renderTargetCount);
     for (GfxIndex i = 0; i < desc.renderTargetCount; ++i)
     {
         auto resourceView = static_cast<TextureResourceViewImpl*>(desc.renderTargetViews[i]);

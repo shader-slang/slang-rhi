@@ -5,6 +5,8 @@
 #include "d3d12-device.h"
 #include "d3d12-fence.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 namespace d3d12
@@ -38,15 +40,15 @@ CommandQueueImpl::~CommandQueueImpl()
 void CommandQueueImpl::executeCommandBuffers(
     GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
 {
-    ShortList<ID3D12CommandList*> commandLists;
+    short_vector<ID3D12CommandList*> commandLists;
     for (GfxCount i = 0; i < count; i++)
     {
         auto cmdImpl = static_cast<CommandBufferImpl*>(commandBuffers[i]);
-        commandLists.add(cmdImpl->m_cmdList);
+        commandLists.push_back(cmdImpl->m_cmdList);
     }
     if (count > 0)
     {
-        m_d3dQueue->ExecuteCommandLists((UINT)count, commandLists.getArrayView().getBuffer());
+        m_d3dQueue->ExecuteCommandLists((UINT)count, commandLists.data());
 
         m_fenceValue++;
 

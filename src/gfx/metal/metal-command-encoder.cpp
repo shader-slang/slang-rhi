@@ -272,7 +272,7 @@ Result RenderCommandEncoder::bindPipelineWithRootObject(
 
 void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewports)
 {
-    m_viewports.setCount(count);
+    m_viewports.resize(count);
     for (GfxIndex i = 0; i < count; ++i)
     {
         const auto& viewport = viewports[i];
@@ -288,7 +288,7 @@ void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewport
 
 void RenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRect* rects)
 {
-    m_scissorRects.setCount(count);
+    m_scissorRects.resize(count);
     for (GfxIndex i = 0; i < count; ++i)
     {
         const auto& rect = rects[i];
@@ -311,9 +311,9 @@ void RenderCommandEncoder::setVertexBuffers(
     IBufferResource* const* buffers,
     const Offset* offsets)
 {
-    Index count = Math::Max(m_vertexBuffers.getCount(), Index(startSlot + slotCount));
-    m_vertexBuffers.setCount(count);
-    m_vertexBufferOffsets.setCount(count);
+    Index count = Math::Max(m_vertexBuffers.size(), Index(startSlot + slotCount));
+    m_vertexBuffers.resize(count);
+    m_vertexBufferOffsets.resize(count);
 
     for (Index i = 0; i < Index(slotCount); i++)
     {
@@ -366,13 +366,13 @@ Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
     auto program = static_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
     m_commandBuffer->m_rootObject.bindAsRoot(&bindingContext, program->m_rootObjectLayout);
 
-    for (Index i = 0; i < m_vertexBuffers.getCount(); ++i)
+    for (Index i = 0; i < m_vertexBuffers.size(); ++i)
     {
         encoder->setVertexBuffer(m_vertexBuffers[i], m_vertexBufferOffsets[i], m_currentPipeline->m_vertexBufferOffset + i);
     }
 
-    encoder->setViewports(m_viewports.getArrayView().getBuffer(), m_viewports.getCount());
-    encoder->setScissorRects(m_scissorRects.getArrayView().getBuffer(), m_scissorRects.getCount());
+    encoder->setViewports(m_viewports.data(), m_viewports.size());
+    encoder->setScissorRects(m_scissorRects.data(), m_scissorRects.size());
 
     const RasterizerDesc& rasterDesc = pipeline->desc.graphics.rasterizer;
     const DepthStencilDesc& depthStencilDesc = pipeline->desc.graphics.depthStencil;

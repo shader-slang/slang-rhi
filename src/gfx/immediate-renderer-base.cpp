@@ -6,11 +6,12 @@
 #include "core/slang-blob.h"
 #include "command-encoder-com-forward.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 using Slang::RefPtr;
 using Slang::List;
-using Slang::ShortList;
 using Slang::ListBlob;
 using Slang::Index;
 using Slang::RefObject;
@@ -281,7 +282,7 @@ public:
             // Encode clear commands.
             m_writer->setFramebuffer(framebuffer);
             uint32_t clearMask = 0;
-            for (Index i = 0; i < renderPass->m_renderTargetAccesses.getCount(); i++)
+            for (Index i = 0; i < renderPass->m_renderTargetAccesses.size(); i++)
             {
                 auto& access = renderPass->m_renderTargetAccesses[i];
                 // Clear.
@@ -575,16 +576,16 @@ public:
                 break;
             case CommandName::SetVertexBuffers:
                 {
-                    ShortList<IBufferResource*> bufferResources;
+                    short_vector<IBufferResource*> bufferResources;
                     for (uint32_t i = 0; i < cmd.operands[1]; i++)
                     {
-                        bufferResources.add(
+                        bufferResources.push_back(
                             m_writer.getObject<BufferResource>(cmd.operands[2] + i));
                     }
                     m_renderer->setVertexBuffers(
                         cmd.operands[0],
                         cmd.operands[1],
-                        bufferResources.getArrayView().getBuffer(),
+                        bufferResources.data(),
                         m_writer.getData<Offset>(cmd.operands[3]));
                 }
                 break;

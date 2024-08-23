@@ -8,6 +8,8 @@
 #include "core/slang-short-list.h"
 #include "core/slang-list.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 #ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
@@ -38,7 +40,7 @@ struct BindingContext
     DeviceImpl* device;
     D3D12_DESCRIPTOR_HEAP_TYPE
         outOfMemoryHeap; // The type of descriptor heap that is OOM during binding.
-    ShortList<PendingDescriptorTableBinding>* pendingTableBindings;
+    short_vector<PendingDescriptorTableBinding>* pendingTableBindings;
 };
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op);

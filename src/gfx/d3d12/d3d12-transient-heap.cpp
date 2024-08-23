@@ -15,7 +15,7 @@ using namespace Slang;
 Result TransientResourceHeapImpl::synchronize()
 {
     WaitForMultipleObjects(
-        (DWORD)m_waitHandles.getCount(), m_waitHandles.getArrayView().getBuffer(), TRUE, INFINITE);
+        (DWORD)m_waitHandles.size(), m_waitHandles.data(), TRUE, INFINITE);
     m_waitHandles.clear();
     return SLANG_OK;
 }
@@ -46,7 +46,7 @@ Result TransientResourceHeapImpl::finish()
         {
             waitInfo.queue->Signal(waitInfo.fence, waitInfo.waitValue);
             waitInfo.fence->SetEventOnCompletion(waitInfo.waitValue, waitInfo.fenceEvent);
-            m_waitHandles.add(waitInfo.fenceEvent);
+            m_waitHandles.push_back(waitInfo.fenceEvent);
         }
     }
     return SLANG_OK;
@@ -55,13 +55,13 @@ Result TransientResourceHeapImpl::finish()
 TransientResourceHeapImpl::QueueWaitInfo& TransientResourceHeapImpl::getQueueWaitInfo(
     uint32_t queueIndex)
 {
-    if (queueIndex < (uint32_t)m_waitInfos.getCount())
+    if (queueIndex < (uint32_t)m_waitInfos.size())
     {
         return m_waitInfos[queueIndex];
     }
-    auto oldCount = m_waitInfos.getCount();
-    m_waitInfos.setCount(queueIndex + 1);
-    for (auto i = oldCount; i < m_waitInfos.getCount(); i++)
+    auto oldCount = m_waitInfos.size();
+    m_waitInfos.resize(queueIndex + 1);
+    for (auto i = oldCount; i < m_waitInfos.size(); i++)
     {
         m_waitInfos[i].waitValue = 0;
         m_waitInfos[i].fenceEvent = CreateEventEx(nullptr, FALSE, 0, EVENT_ALL_ACCESS);
@@ -150,7 +150,7 @@ Result TransientResourceHeapImpl::init(
 Result TransientResourceHeapImpl::allocateNewViewDescriptorHeap(DeviceImpl* device)
 {
     auto nextHeapIndex = m_currentViewHeapIndex + 1;
-    if (nextHeapIndex < m_viewHeaps.getCount())
+    if (nextHeapIndex < m_viewHeaps.size())
     {
         m_viewHeaps[nextHeapIndex].deallocateAll();
         m_currentViewHeapIndex = nextHeapIndex;
@@ -163,15 +163,15 @@ Result TransientResourceHeapImpl::allocateNewViewDescriptorHeap(DeviceImpl* devi
         m_viewHeapSize,
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
         D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
-    m_currentViewHeapIndex = (int32_t)m_viewHeaps.getCount();
-    m_viewHeaps.add(_Move(viewHeap));
+    m_currentViewHeapIndex = (int32_t)m_viewHeaps.size();
+    m_viewHeaps.push_back(_Move(viewHeap));
     return SLANG_OK;
 }
 
 Result TransientResourceHeapImpl::allocateNewSamplerDescriptorHeap(DeviceImpl* device)
 {
     auto nextHeapIndex = m_currentSamplerHeapIndex + 1;
-    if (nextHeapIndex < m_samplerHeaps.getCount())
+    if (nextHeapIndex < m_samplerHeaps.size())
     {
         m_samplerHeaps[nextHeapIndex].deallocateAll();
         m_currentSamplerHeapIndex = nextHeapIndex;
@@ -184,8 +184,8 @@ Result TransientResourceHeapImpl::allocateNewSamplerDescriptorHeap(DeviceImpl* d
         m_samplerHeapSize,
         D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
         D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
-    m_currentSamplerHeapIndex = (int32_t)m_samplerHeaps.getCount();
-    m_samplerHeaps.add(_Move(samplerHeap));
+    m_currentSamplerHeapIndex = (int32_t)m_samplerHeaps.size();
+    m_samplerHeaps.push_back(_Move(samplerHeap));
     return SLANG_OK;
 }
 

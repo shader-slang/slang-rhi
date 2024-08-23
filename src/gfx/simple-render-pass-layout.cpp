@@ -14,7 +14,7 @@ IRenderPassLayout* SimpleRenderPassLayout::getInterface(const Slang::Guid& guid)
 
 void SimpleRenderPassLayout::init(const IRenderPassLayout::Desc& desc)
 {
-    m_renderTargetAccesses.setCount(desc.renderTargetCount);
+    m_renderTargetAccesses.resize(desc.renderTargetCount);
     for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
         m_renderTargetAccesses[i] = desc.renderTargetAccess[i];
     m_hasDepthStencil = (desc.depthStencilAccess != nullptr);

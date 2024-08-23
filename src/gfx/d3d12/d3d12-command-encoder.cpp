@@ -14,6 +14,8 @@
 
 #include "d3d12-helper-functions.h"
 
+#include "utils/short_vector.h"
+
 namespace gfx
 {
 namespace d3d12
@@ -142,7 +144,7 @@ Result PipelineCommandEncoder::_bindRenderState(
 void ResourceCommandEncoderImpl::bufferBarrier(
     GfxCount count, IBufferResource* const* buffers, ResourceState src, ResourceState dst)
 {
-    ShortList<D3D12_RESOURCE_BARRIER, 16> barriers;
+    short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;
     for (GfxIndex i = 0; i < count; i++)
     {
         auto bufferImpl = static_cast<BufferResourceImpl*>(buffers[i]);
@@ -167,12 +169,12 @@ void ResourceCommandEncoderImpl::bufferBarrier(
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore)
                 continue;
         }
-        barriers.add(barrier);
+        barriers.push_back(barrier);
     }
-    if (barriers.getCount())
+    if (!barriers.empty())
     {
         m_commandBuffer->m_cmdList4->ResourceBarrier(
-            (UINT)barriers.getCount(), barriers.getArrayView().getBuffer());
+            (UINT)barriers.size(), barriers.data());
     }
 }
 
@@ -638,14 +640,14 @@ void ResourceCommandEncoderImpl::textureSubresourceBarrier(
 {
     auto textureImpl = static_cast<TextureResourceImpl*>(texture);
 
-    ShortList<D3D12_RESOURCE_BARRIER> barriers;
+    short_vector<D3D12_RESOURCE_BARRIER> barriers;
     D3D12_RESOURCE_BARRIER barrier;
     barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
     if (src == dst && src == ResourceState::UnorderedAccess)
     {
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
         barrier.UAV.pResource = textureImpl->m_resource.getResource();
-        barriers.add(barrier);
+        barriers.push_back(barrier);
     }
     else
     {
@@ -674,13 +676,13 @@ void ResourceCommandEncoderImpl::textureSubresourceBarrier(
                         planeIndex,
                         textureImpl->getDesc()->numMipLevels,
                         textureImpl->getDesc()->arraySize);
-                    barriers.add(barrier);
+                    barriers.push_back(barrier);
                 }
             }
         }
     }
     m_commandBuffer->m_cmdList->ResourceBarrier(
-        (UINT)barriers.getCount(), barriers.getArrayView().getBuffer());
+        (UINT)barriers.size(), barriers.data());
 }
 
 void ResourceCommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
@@ -735,7 +737,7 @@ void ResourceCommandEncoderImpl::uploadBufferData(
 void ResourceCommandEncoderImpl::textureBarrier(
     GfxCount count, ITextureResource* const* textures, ResourceState src, ResourceState dst)
 {
-    ShortList<D3D12_RESOURCE_BARRIER> barriers;
+    short_vector<D3D12_RESOURCE_BARRIER> barriers;
 
     for (GfxIndex i = 0; i < count; i++)
     {
@@ -764,12 +766,12 @@ void ResourceCommandEncoderImpl::textureBarrier(
                 arraySize = 1;
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
         }
-        barriers.add(barrier);
+        barriers.push_back(barrier);
     }
-    if (barriers.getCount())
+    if (!barriers.empty())
     {
         m_commandBuffer->m_cmdList->ResourceBarrier(
-            (UINT)barriers.getCount(), barriers.getArrayView().getBuffer());
+            (UINT)barriers.size(), barriers.data());
     }
 }
 
@@ -799,15 +801,15 @@ void RenderCommandEncoderImpl::init(
         return;
     }
     m_d3dCmdList->OMSetRenderTargets(
-        (UINT)framebuffer->renderTargetViews.getCount(),
-        framebuffer->renderTargetDescriptors.getArrayView().getBuffer(),
+        (UINT)framebuffer->renderTargetViews.size(),
+        framebuffer->renderTargetDescriptors.data(),
         FALSE,
         framebuffer->depthStencilView ? &framebuffer->depthStencilDescriptor : nullptr);
 
     // Issue clear commands based on render pass set up.
-    for (Index i = 0; i < framebuffer->renderTargetViews.getCount(); i++)
+    for (Index i = 0; i < framebuffer->renderTargetViews.size(); i++)
     {
-        if (i >= renderPass->m_renderTargetAccesses.getCount())
+        if (i >= renderPass->m_renderTargetAccesses.size())
             continue;
 
         auto& access = renderPass->m_renderTargetAccesses[i];
@@ -1058,7 +1060,7 @@ void RenderCommandEncoderImpl::endEncoding()
     if (!m_framebuffer)
         return;
     // Issue clear commands based on render pass set up.
-    for (Index i = 0; i < m_renderPass->m_renderTargetAccesses.getCount(); i++)
+    for (Index i = 0; i < m_renderPass->m_renderTargetAccesses.size(); i++)
     {
         auto& access = m_renderPass->m_renderTargetAccesses[i];
 

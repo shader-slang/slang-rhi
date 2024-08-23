@@ -18,6 +18,8 @@
 
 #include "d3d12-helper-functions.h"
 
+#include "utils/short_vector.h"
+
 #ifdef _DEBUG
 #    define ENABLE_DEBUG_LAYER 1
 #else
@@ -672,11 +674,11 @@ Result DeviceImpl::initialize(const Desc& desc)
             // CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL) can fail if the runtime/driver does not yet know the
             // specified highest shader model. Therefore we assemble a list of shader models to check and
             // walk it from highest to lowest to find the supported shader model.
-            Slang::ShortList<D3D_SHADER_MODEL> shaderModels;
+            short_vector<D3D_SHADER_MODEL> shaderModels;
             if (m_extendedDesc.highestShaderModel != 0)
-                shaderModels.add((D3D_SHADER_MODEL)m_extendedDesc.highestShaderModel);
+                shaderModels.push_back((D3D_SHADER_MODEL)m_extendedDesc.highestShaderModel);
             for (int i = SLANG_COUNT_OF(kKnownShaderModels) - 1; i >= 0; --i)
-                shaderModels.add(kKnownShaderModels[i].shaderModel);
+                shaderModels.push_back(kKnownShaderModels[i].shaderModel);
             for (D3D_SHADER_MODEL shaderModel : shaderModels)
             {
                 shaderModelData.HighestShaderModel = shaderModel;
@@ -1685,9 +1687,9 @@ Result DeviceImpl::createBufferView(
 Result DeviceImpl::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFb)
 {
     RefPtr<FramebufferImpl> framebuffer = new FramebufferImpl();
-    framebuffer->renderTargetViews.setCount(desc.renderTargetCount);
-    framebuffer->renderTargetDescriptors.setCount(desc.renderTargetCount);
-    framebuffer->renderTargetClearValues.setCount(desc.renderTargetCount);
+    framebuffer->renderTargetViews.resize(desc.renderTargetCount);
+    framebuffer->renderTargetDescriptors.resize(desc.renderTargetCount);
+    framebuffer->renderTargetClearValues.resize(desc.renderTargetCount);
     for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
     {
         framebuffer->renderTargetViews[i] =
@@ -1738,7 +1740,7 @@ Result DeviceImpl::createFramebufferLayout(
     IFramebufferLayout::Desc const& desc, IFramebufferLayout** outLayout)
 {
     RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_renderTargets.setCount(desc.renderTargetCount);
+    layout->m_renderTargets.resize(desc.renderTargetCount);
     for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
     {
         layout->m_renderTargets[i] = desc.renderTargets[i];
@@ -2080,17 +2082,17 @@ Result DeviceImpl::createFence(const IFence::Desc& desc, IFence** outFence)
 Result DeviceImpl::waitForFences(
     GfxCount fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
 {
-    ShortList<HANDLE> waitHandles;
+    short_vector<HANDLE> waitHandles;
     for (GfxCount i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = static_cast<FenceImpl*>(fences[i]);
-        waitHandles.add(fenceImpl->getWaitEvent());
+        waitHandles.push_back(fenceImpl->getWaitEvent());
         SLANG_RETURN_ON_FAIL(
             fenceImpl->m_fence->SetEventOnCompletion(fenceValues[i], fenceImpl->getWaitEvent()));
     }
     auto result = WaitForMultipleObjects(
         fenceCount,
-        waitHandles.getArrayView().getBuffer(),
+        waitHandles.data(),
         waitForAll ? TRUE : FALSE,
         timeout == kTimeoutInfinite ? INFINITE : (DWORD)(timeout / 1000000));
     if (result == WAIT_TIMEOUT)

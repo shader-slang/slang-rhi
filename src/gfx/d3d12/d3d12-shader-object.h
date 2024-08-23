@@ -5,6 +5,8 @@
 #include "d3d12-helper-functions.h"
 #include "d3d12-submitter.h"
 
+#include "utils/short_vector.h"
+
 #include <vector>
 
 namespace gfx
@@ -198,8 +200,8 @@ public:
     /// A cached descriptor set on GPU heap.
     DescriptorSet m_cachedGPUDescriptorSet;
 
-    ShortList<RefPtr<Resource>, 8> m_boundResources;
-    ShortList<RefPtr<Resource>, 8> m_boundCounterResources;
+    short_vector<RefPtr<Resource>, 8> m_boundResources;
+    short_vector<RefPtr<Resource>, 8> m_boundCounterResources;
     std::vector<D3D12_GPU_VIRTUAL_ADDRESS> m_rootArguments;
     /// A constant buffer used to stored ordinary data for this object
     /// and existential-type sub-objects.
