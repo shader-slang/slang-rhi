@@ -731,7 +731,7 @@ namespace Slang
         auto result = std::filesystem::relative(p2, p1, ec);
         if (ec)
             return path;
-        return String(UnownedStringSlice(result.generic_u8string().c_str()));
+        // return String(UnownedStringSlice(result.generic_u8string().c_str()));
     }
 
     SlangResult Path::remove(const String& path)
