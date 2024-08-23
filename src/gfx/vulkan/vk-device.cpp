@@ -19,7 +19,7 @@
 
 #include "vk-helper-functions.h"
 
-#include "source/core/slang-platform.h"
+#include "core/slang-platform.h"
 
 #ifdef GFX_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"

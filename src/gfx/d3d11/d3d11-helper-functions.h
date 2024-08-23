@@ -3,7 +3,7 @@
 
 #include "slang-gfx.h"
 #include "d3d11-base.h"
-#include "../../../source/core/slang-list.h"
+#include "core/slang-list.h"
 
 namespace gfx
 {

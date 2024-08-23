@@ -3,7 +3,7 @@
 
 #include "slang-gfx.h"
 #include "cuda-base.h"
-#include "../../../source/core/slang-list.h"
+#include "core/slang-list.h"
 
 namespace gfx
 {

@@ -1,7 +1,7 @@
 // render.cpp
 #include "renderer-shared.h"
-#include "../../source/core/slang-math.h"
-#include "../../source/core/slang-blob.h"
+#include "core/slang-math.h"
+#include "core/slang-blob.h"
 #include "open-gl/render-gl.h"
 #include "debug-layer/debug-device.h"
 
@@ -257,7 +257,8 @@ extern "C"
         {
 #if SLANG_ENABLE_DIRECTX
         case DeviceType::DirectX11:
-            SLANG_RETURN_ON_FAIL(getD3D11Adapters(adapters));
+            // TODO_GFX_REMOVE
+            // SLANG_RETURN_ON_FAIL(getD3D11Adapters(adapters));
             break;
         case DeviceType::DirectX12:
             SLANG_RETURN_ON_FAIL(getD3D12Adapters(adapters));
@@ -304,7 +305,8 @@ extern "C"
 #if SLANG_ENABLE_DIRECTX
         case DeviceType::DirectX11:
             {
-                return createD3D11Device(desc, outDevice);
+                // TODO_GFX_REMOVE 
+                // return createD3D11Device(desc, outDevice);
             }
         case DeviceType::DirectX12:
             {
@@ -314,7 +316,8 @@ extern "C"
 #if SLANG_WINDOWS_FAMILY
         case DeviceType::OpenGl:
             {
-                return createGLDevice(desc, outDevice);
+                // TODO_GFX_REMOVE 
+                // return createGLDevice(desc, outDevice);
             }
         case DeviceType::Vulkan:
             {
