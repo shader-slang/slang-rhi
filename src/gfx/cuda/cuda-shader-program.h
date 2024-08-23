@@ -5,6 +5,8 @@
 #include "cuda-context.h"
 #include "cuda-shader-object-layout.h"
 
+#include <string>
+
 namespace gfx
 {
 #ifdef GFX_ENABLE_CUDA
@@ -18,7 +20,7 @@ class ShaderProgramImpl : public ShaderProgramBase
 public:
     CUmodule cudaModule = nullptr;
     CUfunction cudaKernel;
-    String kernelName;
+    std::string kernelName;
     RefPtr<RootShaderObjectLayoutImpl> layout;
     RefPtr<CUDAContext> cudaContext;
     ~ShaderProgramImpl();

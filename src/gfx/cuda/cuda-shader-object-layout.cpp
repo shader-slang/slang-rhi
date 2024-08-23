@@ -131,7 +131,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, s
 
 }
 
-int RootShaderObjectLayoutImpl::getKernelIndex(UnownedStringSlice kernelName)
+int RootShaderObjectLayoutImpl::getKernelIndex(std::string_view kernelName)
 {
     for (int i = 0; i < (int)programLayout->getEntryPointCount(); i++)
     {

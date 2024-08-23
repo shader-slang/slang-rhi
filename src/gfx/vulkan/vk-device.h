@@ -4,6 +4,8 @@
 #include "vk-base.h"
 #include "vk-framebuffer.h"
 
+#include <string>
+
 namespace gfx
 {
 
@@ -172,7 +174,7 @@ public:
     // DeviceImpl members.
 
     DeviceInfo m_info;
-    String m_adapterName;
+    std::string m_adapterName;
 
     VkDebugReportCallbackEXT m_debugReportCallback = VK_NULL_HANDLE;
 

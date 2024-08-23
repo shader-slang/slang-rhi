@@ -6,6 +6,8 @@
 #include "../simple-transient-resource-heap.h"
 #include "metal-framebuffer.h"
 
+#include <string>
+
 namespace gfx
 {
 
@@ -127,7 +129,7 @@ public:
 
 public:
     DeviceInfo m_info;
-    String m_adapterName;
+    std::string m_adapterName;
 
     bool captureEnabled() const { return std::getenv("MTL_CAPTURE") != nullptr; }
 

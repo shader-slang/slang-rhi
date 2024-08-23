@@ -2,6 +2,8 @@
 #pragma once
 #include "cuda-base.h"
 
+#include <string_view>
+
 namespace gfx
 {
 #ifdef GFX_ENABLE_CUDA
@@ -66,7 +68,7 @@ public:
     std::vector<RefPtr<ShaderObjectLayoutImpl>> entryPointLayouts;
     RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ProgramLayout* inProgramLayout);
 
-    int getKernelIndex(UnownedStringSlice kernelName);
+    int getKernelIndex(std::string_view kernelName);
 
     void getKernelThreadGroupSize(int kernelIndex, UInt* threadGroupSizes);
 };

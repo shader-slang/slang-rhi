@@ -83,12 +83,10 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * rtProps.shaderGroupBaseAlignment;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto shaderGroupIndexPtr =
-            pipelineImpl->shaderGroupNameToIndex.tryGetValue(shaderGroupName);
-        if (!shaderGroupIndexPtr)
+        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->shaderGroupNameToIndex.end())
             continue;
-
-        auto shaderGroupIndex = *shaderGroupIndexPtr;
+        auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
         memset(dstHandlePtr + handleSize, 0, rtProps.shaderGroupBaseAlignment - handleSize);
@@ -99,12 +97,10 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * handleSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto shaderGroupIndexPtr =
-            pipelineImpl->shaderGroupNameToIndex.tryGetValue(shaderGroupName);
-        if (!shaderGroupIndexPtr)
+        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->shaderGroupNameToIndex.end())
             continue;
-
-        auto shaderGroupIndex = *shaderGroupIndexPtr;
+        auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
     }
@@ -114,12 +110,10 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * handleSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto shaderGroupIndexPtr =
-            pipelineImpl->shaderGroupNameToIndex.tryGetValue(shaderGroupName);
-        if (!shaderGroupIndexPtr)
+        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->shaderGroupNameToIndex.end())
             continue;
-
-        auto shaderGroupIndex = *shaderGroupIndexPtr;
+        auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
     }
@@ -129,12 +123,10 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * handleSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto shaderGroupIndexPtr =
-            pipelineImpl->shaderGroupNameToIndex.tryGetValue(shaderGroupName);
-        if (!shaderGroupIndexPtr)
+        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->shaderGroupNameToIndex.end())
             continue;
-
-        auto shaderGroupIndex = *shaderGroupIndexPtr;
+        auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
     }

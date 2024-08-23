@@ -429,7 +429,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::getFeatures(
     {
         for (Index i = 0; i < m_features.size(); i++)
         {
-            outFeatures[i] = m_features[i].getUnownedSlice().begin();
+            outFeatures[i] = m_features[i].data();
         }
     }
     if (outFeatureCount)
@@ -439,7 +439,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::getFeatures(
 
 SLANG_NO_THROW bool SLANG_MCALL RendererBase::hasFeature(const char* featureName)
 {
-    return std::any_of(m_features.begin(), m_features.end(), [&](const String& feature) {
+    return std::any_of(m_features.begin(), m_features.end(), [&](const std::string& feature) {
         return feature == featureName;
     });
 }
@@ -754,10 +754,15 @@ Result RendererBase::getShaderObjectLayout(
     ShaderObjectLayoutBase** outLayout)
 {
     RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
-    if (!m_shaderObjectLayoutCache.tryGetValue(typeLayout, shaderObjectLayout))
+    auto it = m_shaderObjectLayoutCache.find(typeLayout);
+    if (it != m_shaderObjectLayoutCache.end())
+    {
+        shaderObjectLayout = it->second;
+    }
+    else
     {
         SLANG_RETURN_ON_FAIL(createShaderObjectLayout(session, typeLayout, shaderObjectLayout.writeRef()));
-        m_shaderObjectLayoutCache.add(typeLayout, shaderObjectLayout);
+        m_shaderObjectLayoutCache.emplace(typeLayout, shaderObjectLayout);
     }
     *outLayout = shaderObjectLayout.detach();
     return SLANG_OK;
@@ -794,7 +799,7 @@ Result RendererBase::resetShaderCacheStats()
 ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
 {
     ComponentKey key;
-    key.typeName = UnownedStringSlice(type->getName());
+    key.typeName = type->getName() ? type->getName() : "";
     switch (type->getKind())
     {
     case slang::TypeReflection::Kind::Specialized:
@@ -818,7 +823,7 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
                 }
             }
             builder.appendChar('>');
-            key.typeName = builder.getUnownedSlice();
+            key.typeName = std::string_view(builder.getUnownedSlice().begin(), builder.getUnownedSlice().end());
             key.updateHash();
             return getComponentId(key);
         }
@@ -831,7 +836,7 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
     return getComponentId(key);
 }
 
-ShaderComponentID ShaderCache::getComponentId(UnownedStringSlice name)
+ShaderComponentID ShaderCache::getComponentId(std::string_view name)
 {
     ComponentKey key;
     key.typeName = name;
@@ -841,18 +846,11 @@ ShaderComponentID ShaderCache::getComponentId(UnownedStringSlice name)
 
 ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
 {
-    ShaderComponentID componentId = 0;
-    if (componentIds.tryGetValue(key, componentId))
-        return componentId;
-    OwningComponentKey owningTypeKey;
-    owningTypeKey.hash = key.hash;
-    owningTypeKey.typeName = key.typeName;
-    for (const auto& specializationArg : key.specializationArgs)
-    {
-        owningTypeKey.specializationArgs.push_back(specializationArg);
-    }
-    ShaderComponentID resultId = static_cast<ShaderComponentID>(componentIds.getCount());
-    componentIds[owningTypeKey] = resultId;
+    auto it = componentIds.find(key);
+    if (it != componentIds.end())
+        return it->second;
+    ShaderComponentID resultId = static_cast<ShaderComponentID>(componentIds.size());
+    componentIds.emplace(key, resultId);
     return resultId;
 }
 
@@ -1247,23 +1245,23 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
     if (auto srcObj = dynamic_cast<MutableRootShaderObject*>(object))
     {
         setData(gfx::ShaderOffset(), srcObj->m_data.data(), (size_t)srcObj->m_data.size()); // TODO: Change size_t to Count?
-        for (auto& kv : srcObj->m_objects)
+        for (auto it : srcObj->m_objects)
         {
             ComPtr<IShaderObject> subObject;
-            SLANG_RETURN_ON_FAIL(kv.value->getCurrentVersion(transientHeap, subObject.writeRef()));
-            setObject(kv.key, subObject);
+            SLANG_RETURN_ON_FAIL(it.second->getCurrentVersion(transientHeap, subObject.writeRef()));
+            setObject(it.first, subObject);
         }
-        for (auto& kv : srcObj->m_resources)
+        for (auto it : srcObj->m_resources)
         {
-            setResource(kv.key, kv.value.Ptr());
+            setResource(it.first, it.second.Ptr());
         }
-        for (auto& kv : srcObj->m_samplers)
+        for (auto it : srcObj->m_samplers)
         {
-            setSampler(kv.key, kv.value.Ptr());
+            setSampler(it.first, it.second.Ptr());
         }
-        for (auto& kv : srcObj->m_specializationArgs)
+        for (auto it : srcObj->m_specializationArgs)
         {
-            setSpecializationArgs(kv.key, kv.value.data(), (uint32_t)kv.value.size());
+            setSpecializationArgs(it.first, it.second.data(), (uint32_t)it.second.size());
         }
         return SLANG_OK;
     }

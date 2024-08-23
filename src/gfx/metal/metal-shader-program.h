@@ -4,6 +4,8 @@
 #include "metal-base.h"
 #include "metal-shader-object-layout.h"
 
+#include <string>
+
 namespace gfx
 {
 
@@ -21,7 +23,7 @@ public:
     struct Module
     {
         SlangStage stage;
-        String entryPointName;
+        std::string entryPointName;
         ComPtr<ISlangBlob> code;
         NS::SharedPtr<MTL::Library> library;
     };

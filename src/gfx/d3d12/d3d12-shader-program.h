@@ -5,6 +5,7 @@
 #include "d3d12-shader-object-layout.h"
 
 #include <vector>
+#include <string>
 
 namespace gfx
 {
@@ -17,7 +18,7 @@ struct ShaderBinary
 {
     SlangStage stage;
     slang::EntryPointReflection* entryPointInfo;
-    String actualEntryPointNameInAPI;
+    std::string actualEntryPointNameInAPI;
     std::vector<uint8_t> code;
 };
 

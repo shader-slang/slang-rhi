@@ -5,6 +5,8 @@
 #include "../d3d/d3d-util.h"
 #include "d3d12-buffer.h"
 
+#include <map>
+
 namespace gfx
 {
 namespace d3d12
@@ -21,7 +23,7 @@ public:
     D3D12Descriptor m_descriptor;
 
     // StructuredBuffer descriptors for different strides.
-    Dictionary<uint32_t, D3D12Descriptor> m_mapBufferStrideToDescriptor;
+    std::map<uint32_t, D3D12Descriptor> m_mapBufferStrideToDescriptor;
 
     RefPtr<D3D12GeneralExpandingDescriptorHeap> m_allocator;
 

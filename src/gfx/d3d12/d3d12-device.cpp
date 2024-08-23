@@ -19,6 +19,7 @@
 #include "d3d12-helper-functions.h"
 
 #include "utils/short_vector.h"
+#include "utils/string.h"
 
 #ifdef _DEBUG
 #    define ENABLE_DEBUG_LAYER 1
@@ -875,8 +876,8 @@ Result DeviceImpl::initialize(const Desc& desc)
     {
         DXGI_ADAPTER_DESC adapterDesc;
         m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
-        m_adapterName = String::fromWString(adapterDesc.Description);
-        m_info.adapterName = m_adapterName.begin();
+        m_adapterName = from_wstring(adapterDesc.Description);
+        m_info.adapterName = m_adapterName.data();
     }
 
     // Initialize DXR interface.

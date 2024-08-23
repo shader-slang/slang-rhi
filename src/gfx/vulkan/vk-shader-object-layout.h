@@ -8,6 +8,7 @@
 #include "utils/static_vector.h"
 
 #include <vector>
+#include <map>
 
 namespace gfx
 {
@@ -161,7 +162,7 @@ public:
         Index m_varyingInputCount = 0;
         Index m_varyingOutputCount = 0;
         std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
-        Dictionary<Index, Index> m_mapSpaceToDescriptorSetIndex;
+        std::map<Index, Index> m_mapSpaceToDescriptorSetIndex;
 
         /// The number of descriptor sets allocated by child/descendent objects
         uint32_t m_childDescriptorSetCount = 0;

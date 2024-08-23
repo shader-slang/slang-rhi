@@ -5,6 +5,8 @@
 #include "d3d12-pipeline-state.h"
 #include "d3d12-transient-heap.h"
 
+#include "utils/string.h"
+
 namespace gfx
 {
 namespace d3d12
@@ -54,11 +56,11 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     void* stagingPtr = nullptr;
     stagingBuffer->map(nullptr, &stagingPtr);
 
-    auto copyShaderIdInto = [&](void* dest, String& name, const ShaderRecordOverwrite& overwrite)
+    auto copyShaderIdInto = [&](void* dest, std::string& name, const ShaderRecordOverwrite& overwrite)
     {
-        if (name.getLength())
+        if (!name.empty())
         {
-            void* shaderId = stateObjectProperties->GetShaderIdentifier(name.toWString().begin());
+            void* shaderId = stateObjectProperties->GetShaderIdentifier(to_wstring(name).data());
             memcpy(dest, shaderId, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         }
         if (overwrite.size)

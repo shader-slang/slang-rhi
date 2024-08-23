@@ -50,7 +50,7 @@ public:
     D3D12DeviceExtendedDesc m_extendedDesc;
 
     DeviceInfo m_info;
-    String m_adapterName;
+    std::string m_adapterName;
 
     bool m_isInitialized = false;
 

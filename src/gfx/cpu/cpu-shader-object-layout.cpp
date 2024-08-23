@@ -146,7 +146,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, s
 
 }
 
-int RootShaderObjectLayoutImpl::getKernelIndex(UnownedStringSlice kernelName)
+int RootShaderObjectLayoutImpl::getKernelIndex(std::string_view kernelName)
 {
     auto entryPointCount = (int) m_programLayout->getEntryPointCount();
     for(int i = 0; i < entryPointCount; i++)

@@ -10,6 +10,12 @@
 
 #include "utils/short_vector.h"
 
+#include <string>
+#include <string_view>
+#include <map>
+#include <unordered_map>
+#include <memory>
+
 namespace gfx
 {
 
@@ -221,7 +227,7 @@ protected:
 
     IResource::Type m_type;
     InteropHandle sharedHandle = {};
-    Slang::String m_debugName;
+    std::string m_debugName;
 };
 
 class BufferResource : public IBufferResource, public Resource
@@ -251,7 +257,7 @@ public:
     }
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override
     {
-        return m_debugName.getBuffer();
+        return m_debugName.data();
     }
 
 protected:
@@ -285,7 +291,7 @@ public:
     }
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override
     {
-        return m_debugName.getBuffer();
+        return m_debugName.data();
     }
 
 protected:
@@ -926,26 +932,26 @@ enum class PipelineType
 
 struct OwnedHitGroupDesc
 {
-    Slang::String hitGroupName;
-    Slang::String closestHitEntryPoint;
-    Slang::String anyHitEntryPoint;
-    Slang::String intersectionEntryPoint;
+    std::string hitGroupName;
+    std::string closestHitEntryPoint;
+    std::string anyHitEntryPoint;
+    std::string intersectionEntryPoint;
 
     void set(const HitGroupDesc& desc)
     {
-        hitGroupName = desc.hitGroupName;
-        closestHitEntryPoint = desc.closestHitEntryPoint;
-        anyHitEntryPoint = desc.anyHitEntryPoint;
-        intersectionEntryPoint = desc.intersectionEntryPoint;
+        hitGroupName = desc.hitGroupName ? desc.hitGroupName : "";
+        closestHitEntryPoint = desc.closestHitEntryPoint ? desc.closestHitEntryPoint : "";
+        anyHitEntryPoint = desc.anyHitEntryPoint ? desc.anyHitEntryPoint : "";
+        intersectionEntryPoint = desc.intersectionEntryPoint ? desc.intersectionEntryPoint : "";
     }
 
     HitGroupDesc get()
     {
         HitGroupDesc desc;
-        desc.hitGroupName = hitGroupName.getBuffer();
-        desc.closestHitEntryPoint = closestHitEntryPoint.getBuffer();
-        desc.anyHitEntryPoint = anyHitEntryPoint.getBuffer();
-        desc.intersectionEntryPoint = intersectionEntryPoint.getBuffer();
+        desc.hitGroupName = hitGroupName.data();
+        desc.closestHitEntryPoint = closestHitEntryPoint.data();
+        desc.anyHitEntryPoint = anyHitEntryPoint.data();
+        desc.intersectionEntryPoint = intersectionEntryPoint.data();
         return desc;
     }
 };
@@ -962,6 +968,11 @@ struct OwnedRayTracingPipelineStateDesc
 
     RayTracingPipelineStateDesc get()
     {
+        // TODO horrible hack to update the c-strings after this struct is copied.
+        for (int32_t i = 0; i < hitGroupDescs.size(); i++)
+        {
+            hitGroupDescs[i] = hitGroups[i].get();
+        }
         RayTracingPipelineStateDesc desc;
         desc.program = program.Ptr();
         desc.hitGroupCount = (int32_t)hitGroupDescs.size();
@@ -976,12 +987,14 @@ struct OwnedRayTracingPipelineStateDesc
     void set(const RayTracingPipelineStateDesc& inDesc)
     {
         program = static_cast<ShaderProgramBase*>(inDesc.program);
+        hitGroups.resize(inDesc.hitGroupCount);
+        hitGroupDescs.resize(inDesc.hitGroupCount);
         for (int32_t i = 0; i < inDesc.hitGroupCount; i++)
         {
             OwnedHitGroupDesc ownedHitGroupDesc;
             ownedHitGroupDesc.set(inDesc.hitGroups[i]);
-            hitGroups.push_back(ownedHitGroupDesc);
-            hitGroupDescs.push_back(ownedHitGroupDesc.get());
+            hitGroups[i] = ownedHitGroupDesc;
+            hitGroupDescs[i] = hitGroups[i].get();
         }
         maxRecursion = inDesc.maxRecursion;
         maxRayPayloadSize = inDesc.maxRayPayloadSize;
@@ -1046,7 +1059,7 @@ protected:
 
 struct ComponentKey
 {
-    Slang::UnownedStringSlice typeName;
+    std::string typeName;
     short_vector<ShaderComponentID> specializationArgs;
     Slang::HashCode hash;
     Slang::HashCode getHashCode() const
@@ -1055,10 +1068,24 @@ struct ComponentKey
     }
     void updateHash()
     {
-        hash = typeName.getHashCode();
+        hash = std::hash<std::string_view>()(typeName);
         for (auto& arg : specializationArgs)
             hash = Slang::combineHash(hash, arg);
     }
+    template<typename KeyType>
+    bool operator==(const KeyType& other) const
+    {
+        if (typeName != other.typeName)
+            return false;
+        if (specializationArgs.size() != other.specializationArgs.size())
+            return false;
+        for (Slang::Index i = 0; i < other.specializationArgs.size(); i++)
+        {
+            if (specializationArgs[i] != other.specializationArgs[i])
+                return false;
+        }
+        return true;
+    }    
 };
 
 struct PipelineKey
@@ -1091,44 +1118,19 @@ struct PipelineKey
     }
 };
 
-struct OwningComponentKey
-{
-    Slang::String typeName;
-    short_vector<ShaderComponentID> specializationArgs;
-    Slang::HashCode hash;
-    Slang::HashCode getHashCode() const
-    {
-        return hash;
-    }
-    template<typename KeyType>
-    bool operator==(const KeyType& other) const
-    {
-        if (typeName != other.typeName)
-            return false;
-        if (specializationArgs.size() != other.specializationArgs.size())
-            return false;
-        for (Slang::Index i = 0; i < other.specializationArgs.size(); i++)
-        {
-            if (specializationArgs[i] != other.specializationArgs[i])
-                return false;
-        }
-        return true;
-    }
-};
-
 // A cache from specialization keys to a specialized `ShaderKernel`.
 class ShaderCache : public Slang::RefObject
 {
 public:
     ShaderComponentID getComponentId(slang::TypeReflection* type);
-    ShaderComponentID getComponentId(Slang::UnownedStringSlice name);
+    ShaderComponentID getComponentId(std::string_view name);
     ShaderComponentID getComponentId(ComponentKey key);
 
     Slang::RefPtr<PipelineStateBase> getSpecializedPipelineState(PipelineKey programKey)
     {
-        Slang::RefPtr<PipelineStateBase> result;
-        if (specializedPipelines.tryGetValue(programKey, result))
-            return result;
+        auto it = specializedPipelines.find(programKey);
+        if (it != specializedPipelines.end())
+            return it->second;
         return nullptr;
     }
     void addSpecializedPipeline(
@@ -1141,8 +1143,17 @@ public:
     }
 
 protected:
-    Slang::OrderedDictionary<OwningComponentKey, ShaderComponentID> componentIds;
-    Slang::OrderedDictionary<PipelineKey, Slang::RefPtr<PipelineStateBase>> specializedPipelines;
+    struct ComponentKeyHasher
+    {
+        std::size_t operator()(const ComponentKey& k) const { return (std::size_t)k.getHashCode(); }
+    };
+    struct PipelineKeyHasher
+    {
+        std::size_t operator()(const PipelineKey& k) const { return (std::size_t)k.getHashCode(); }
+    };
+
+    std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
+    std::unordered_map<PipelineKey, Slang::RefPtr<PipelineStateBase>, PipelineKeyHasher> specializedPipelines;
 };
 
 class TransientResourceHeapBase : public ITransientResourceHeap, public Slang::ComObject
@@ -1179,7 +1190,7 @@ class ShaderTableBase
     , public Slang::ComObject
 {
 public:
-    std::vector<Slang::String> m_shaderGroupNames;
+    std::vector<std::string> m_shaderGroupNames;
     std::vector<ShaderRecordOverwrite> m_recordOverwrites;
 
     uint32_t m_rayGenShaderCount;
@@ -1187,7 +1198,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    Slang::Dictionary<PipelineStateBase*, Slang::RefPtr<BufferResource>> m_deviceBuffers;
+    std::map<PipelineStateBase*, Slang::RefPtr<BufferResource>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Slang::Guid& guid)
@@ -1207,12 +1218,11 @@ public:
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder)
     {
-        if (auto ptr = m_deviceBuffers.tryGetValue(pipeline))
-        {
-            return ptr->Ptr();
-        }
+        auto it = m_deviceBuffers.find(pipeline);
+        if (it != m_deviceBuffers.end())
+            return it->second.Ptr();
         auto result = createDeviceBuffer(pipeline, transientHeap, encoder);
-        m_deviceBuffers[pipeline] = result;
+        m_deviceBuffers.emplace(pipeline, result);
         return result;
     }
 
@@ -1385,14 +1395,14 @@ public:
 protected:
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL initialize(const Desc& desc);
 protected:
-    std::vector<Slang::String> m_features;
+    std::vector<std::string> m_features;
 public:
     SlangContext slangContext;
     ShaderCache shaderCache;
 
     Slang::RefPtr<Slang::PersistentCache> persistentShaderCache;
 
-    Slang::Dictionary<slang::TypeLayoutReflection*, Slang::RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
+    std::map<slang::TypeLayoutReflection*, Slang::RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
     Slang::ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
 };
 

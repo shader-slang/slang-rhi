@@ -6,6 +6,8 @@
 #include "cuda-context.h"
 #include "cuda-helper-functions.h"
 
+#include <string>
+
 namespace gfx
 {
 #ifdef GFX_ENABLE_CUDA
@@ -29,7 +31,7 @@ private:
     CUdevice m_device = 0;
     RefPtr<CUDAContext> m_context;
     DeviceInfo m_info;
-    String m_adapterName;
+    std::string m_adapterName;
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) override;

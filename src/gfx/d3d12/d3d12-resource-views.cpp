@@ -143,9 +143,10 @@ SlangResult ResourceViewInternalImpl::getBufferDescriptorForBinding(
     D3D12Descriptor& outDescriptor)
 {
     // Look for an existing descriptor from the cache if it exists.
-    if (auto descriptor = m_mapBufferStrideToDescriptor.tryGetValue(bufferStride))
+    auto it = m_mapBufferStrideToDescriptor.find(bufferStride);
+    if (it != m_mapBufferStrideToDescriptor.end())
     {
-        outDescriptor = *descriptor;
+        outDescriptor = it->second;
         return SLANG_OK;
     }
 

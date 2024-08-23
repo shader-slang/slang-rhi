@@ -3,6 +3,9 @@
 #include "debug-base.h"
 
 #include <vector>
+#include <string>
+#include <map>
+#include <unordered_map>
 
 namespace gfx
 {
@@ -71,7 +74,7 @@ public:
 
 public:
     // Type name of an ordinary shader object.
-    Slang::String m_typeName;
+    std::string m_typeName;
 
     // The slang Type of an ordinary shader object. This is null for root objects.
     slang::TypeReflection* m_slangType = nullptr;
@@ -83,9 +86,13 @@ public:
     DebugDevice* m_device;
 
     std::vector<Slang::RefPtr<DebugShaderObject>> m_entryPoints;
-    Slang::Dictionary<ShaderOffsetKey, Slang::RefPtr<DebugShaderObject>> m_objects;
-    Slang::Dictionary<ShaderOffsetKey, Slang::RefPtr<DebugResourceView>> m_resources;
-    Slang::Dictionary<ShaderOffsetKey, Slang::RefPtr<DebugSamplerState>> m_samplers;
+    struct ShaderOffsetKeyHasher
+    {
+        Slang::HashCode operator()(const ShaderOffsetKey& key) const { return key.getHashCode(); }
+    };
+    std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugShaderObject>, ShaderOffsetKeyHasher> m_objects;
+    std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugResourceView>, ShaderOffsetKeyHasher> m_resources;
+    std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugSamplerState>, ShaderOffsetKeyHasher> m_samplers;
     Slang::HashSet<SlangInt> m_initializedBindingRanges;
 };
 

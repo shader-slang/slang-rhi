@@ -3,6 +3,7 @@
 #include "cpu-base.h"
 
 #include <vector>
+#include <string_view>
 
 namespace gfx
 {
@@ -92,7 +93,7 @@ public:
 
     RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::ProgramLayout* programLayout);
 
-    int getKernelIndex(UnownedStringSlice kernelName);
+    int getKernelIndex(std::string_view kernelName);
     void getKernelThreadGroupSize(int kernelIndex, UInt* threadGroupSizes);
 
     EntryPointLayoutImpl* getEntryPoint(Index index);

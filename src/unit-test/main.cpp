@@ -101,6 +101,9 @@ int main(int argc, char **argv)
     for (int i = 0; i < module->getTestCount(); ++i)
     {
         auto name = module->getTestName(i);
+        // if (name != std::string("RayTracingTestAVulkan"))
+        //     continue;
+
         auto func = module->getTestFunc(i);
         for (auto api : {Slang::RenderApiFlag::Vulkan, Slang::RenderApiFlag::D3D12})
         {

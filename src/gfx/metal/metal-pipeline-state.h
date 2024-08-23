@@ -3,6 +3,9 @@
 
 #include "metal-base.h"
 
+#include <map>
+#include <string>
+
 namespace gfx
 {
 
@@ -39,7 +42,7 @@ public:
 class RayTracingPipelineStateImpl : public PipelineStateImpl
 {
 public:
-    Dictionary<String, Index> shaderGroupNameToIndex;
+    std::map<std::string, Index> shaderGroupNameToIndex;
     Int shaderGroupCount;
 
     RayTracingPipelineStateImpl(DeviceImpl* device);

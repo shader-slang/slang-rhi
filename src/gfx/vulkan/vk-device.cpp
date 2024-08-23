@@ -15,7 +15,6 @@
 #include "vk-swap-chain.h"
 #include "vk-transient-heap.h"
 #include "vk-vertex-layout.h"
-#include "vk-pipeline-dump-layer.h"
 
 #include "vk-helper-functions.h"
 
@@ -26,6 +25,8 @@
 
 #include <algorithm>
 #include <vector>
+#include <set>
+#include <string>
 
 #ifdef GFX_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"
@@ -41,20 +42,8 @@ using namespace Slang;
 namespace vk
 {
 
-static bool shouldDumpPipeline()
-{
-    StringBuilder dumpPipelineSettings;
-    PlatformUtil::getEnvironmentVariable(toSlice("SLANG_GFX_DUMP_PIPELINE"), dumpPipelineSettings);
-    return dumpPipelineSettings.produceString() == "1";
-}
-
 DeviceImpl::~DeviceImpl()
 {
-    if (shouldDumpPipeline())
-    {
-        writePipelineDump(toSlice("gfx-vk-pipeline-dump.bin"));
-    }
-
     // Check the device queue is valid else, we can't wait on it..
     if (m_deviceQueue.isValid())
     {
@@ -374,7 +363,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         VkPhysicalDeviceProperties basicProps = {};
         m_api.vkGetPhysicalDeviceProperties(physicalDevice, &basicProps);
         m_adapterName = basicProps.deviceName;
-        m_info.adapterName = m_adapterName.begin();
+        m_info.adapterName = m_adapterName.data();
     }
 
     // Query the available extensions
@@ -385,9 +374,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     extensions.resize(extensionCount);
     m_api.vkEnumerateDeviceExtensionProperties(
         m_api.m_physicalDevice, NULL, &extensionCount, extensions.data());
-    HashSet<String> extensionNames;
+    std::set<std::string> extensionNames;
     for (const auto& e : extensions)
-        extensionNames.add(e.extensionName);
+        extensionNames.emplace(e.extensionName);
 
     std::vector<const char*> deviceExtensions;
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -892,7 +881,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 {
                     break;
                 }
-                hasAll &= std::any_of(m_features.begin(), m_features.end(), [&](const String& f) {
+                hasAll &= std::any_of(m_features.begin(), m_features.end(), [&](const std::string& f) {
                     return f == feature;
                 });
             }
@@ -969,11 +958,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
 
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
-
-    if (shouldDumpPipeline())
-    {
-        installPipelineDumpLayer(m_api);
-    }
 
     return SLANG_OK;
 }

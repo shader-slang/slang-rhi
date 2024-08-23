@@ -11,6 +11,8 @@
 #include "utils/static_vector.h"
 
 #include <vector>
+#include <map>
+#include <string>
 
 namespace gfx
 {
@@ -355,14 +357,14 @@ RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
     : PipelineStateImpl(device)
 {}
 uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
-    const Dictionary<String, Index>& entryPointNameToIndex, const char* name)
+    const std::map<std::string, Index>& entryPointNameToIndex, const char* name)
 {
     if (!name)
         return VK_SHADER_UNUSED_KHR;
 
-    auto indexPtr = entryPointNameToIndex.tryGetValue(String(name));
-    if (indexPtr)
-        return (uint32_t)*indexPtr;
+    auto it = entryPointNameToIndex.find(name);
+    if (it != entryPointNameToIndex.end())
+        return (uint32_t)it->second;
     // TODO: Error reporting?
     return VK_SHADER_UNUSED_KHR;
 }
@@ -384,14 +386,14 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
 
     // Build Dictionary from entry point name to entry point index (stageCreateInfos index)
     // for all hit shaders - findShaderIndexByName
-    Dictionary<String, Index> entryPointNameToIndex;
+    std::map<std::string, Index> entryPointNameToIndex;
 
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroupInfos;
     for (uint32_t i = 0; i < raytracingPipelineInfo.stageCount; ++i)
     {
         auto stageCreateInfo = programImpl->m_stageCreateInfos[i];
         auto entryPointName = programImpl->m_entryPointNames[i];
-        entryPointNameToIndex.add(entryPointName, i);
+        entryPointNameToIndex.emplace(entryPointName, i);
         if (stageCreateInfo.stage &
             (VK_SHADER_STAGE_ANY_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
              VK_SHADER_STAGE_INTERSECTION_BIT_KHR))
@@ -411,31 +413,31 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
         auto shaderGroupName = entryPointName;
         auto shaderGroupIndex = shaderGroupInfos.size();
         shaderGroupInfos.push_back(shaderGroupInfo);
-        shaderGroupNameToIndex.add(shaderGroupName, shaderGroupIndex);
+        shaderGroupNameToIndex.emplace(shaderGroupName, shaderGroupIndex);
     }
 
-    for (int32_t i = 0; i < desc.rayTracing.hitGroupDescs.size(); ++i)
+    for (int32_t i = 0; i < desc.rayTracing.hitGroups.size(); ++i)
     {
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
             VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
-        auto& groupDesc = desc.rayTracing.hitGroupDescs[i];
+        auto& groupDesc = desc.rayTracing.hitGroups[i];
 
         shaderGroupInfo.pNext = nullptr;
-        shaderGroupInfo.type = (groupDesc.intersectionEntryPoint)
+        shaderGroupInfo.type = (!groupDesc.intersectionEntryPoint.empty())
                                    ? VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR
                                    : VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
         shaderGroupInfo.generalShader = VK_SHADER_UNUSED_KHR;
         shaderGroupInfo.closestHitShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.closestHitEntryPoint);
+            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.closestHitEntryPoint.c_str());
         shaderGroupInfo.anyHitShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.anyHitEntryPoint);
+            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.anyHitEntryPoint.c_str());
         shaderGroupInfo.intersectionShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint);
+            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint.c_str());
         shaderGroupInfo.pShaderGroupCaptureReplayHandle = nullptr;
 
         auto shaderGroupIndex = shaderGroupInfos.size();
         shaderGroupInfos.push_back(shaderGroupInfo);
-        shaderGroupNameToIndex.add(String(groupDesc.hitGroupName), shaderGroupIndex);
+        shaderGroupNameToIndex.emplace(groupDesc.hitGroupName, shaderGroupIndex);
     }
 
     raytracingPipelineInfo.groupCount = (uint32_t)shaderGroupInfos.size();

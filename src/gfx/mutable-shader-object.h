@@ -6,6 +6,7 @@
 #include "renderer-shared.h"
 
 #include <vector>
+#include <map>
 
 namespace gfx
 {
@@ -85,8 +86,8 @@ namespace gfx
             TShaderObjectLayoutImpl,
             MutableShaderObjectData> Super;
     protected:
-        Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
-        Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
+        std::map<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
+        std::map<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
         Slang::OrderedHashSet<ShaderOffset> m_objectOffsets;
         VersionedObjectPool<ShaderObjectBase> m_shaderObjectVersions;
         bool m_dirty = true;
@@ -183,10 +184,10 @@ namespace gfx
             Slang::RefPtr<ShaderObjectBase> object =
                 allocateShaderObject(static_cast<TransientResourceHeapBase*>(transientHeap));
             SLANG_RETURN_ON_FAIL(object->setData(ShaderOffset(), this->m_data.getBuffer(), this->m_data.getCount()));
-            for (auto res : m_resources)
-                SLANG_RETURN_ON_FAIL(object->setResource(res.key, res.value));
-            for (auto sampler : m_samplers)
-                SLANG_RETURN_ON_FAIL(object->setSampler(sampler.key, sampler.value));
+            for (auto it : m_resources)
+                SLANG_RETURN_ON_FAIL(object->setResource(it.first, it.second));
+            for (auto it : m_samplers)
+                SLANG_RETURN_ON_FAIL(object->setSampler(it.first, it.second));
             for (auto offset : m_objectOffsets)
             {
                 if (offset.bindingRangeIndex < 0)
@@ -232,10 +233,10 @@ namespace gfx
     {
     public:
         std::vector<uint8_t> m_data;
-        Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
-        Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
-        Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<ShaderObjectBase>> m_objects;
-        Slang::OrderedDictionary<ShaderOffset, std::vector<slang::SpecializationArg>> m_specializationArgs;
+        std::map<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
+        std::map<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
+        std::map<ShaderOffset, Slang::RefPtr<ShaderObjectBase>> m_objects;
+        std::map<ShaderOffset, std::vector<slang::SpecializationArg>> m_specializationArgs;
         std::vector<Slang::RefPtr<MutableRootShaderObject>> m_entryPoints;
         Slang::RefPtr<BufferResource> m_constantBufferOverride;
         slang::TypeLayoutReflection* m_elementTypeLayout;
@@ -305,10 +306,10 @@ namespace gfx
         {
             *object = nullptr;
 
-            Slang::RefPtr<ShaderObjectBase> subObject;
-            if (m_objects.tryGetValue(offset, subObject))
+            auto it = m_objects.find(offset);
+            if (it != m_objects.end())
             {
-                returnComPtr(object, subObject);
+                returnComPtr(object, it->second);
             }
             return SLANG_OK;
         }

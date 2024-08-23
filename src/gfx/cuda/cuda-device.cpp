@@ -198,7 +198,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
         char deviceName[256];
         cuDeviceGetName(deviceName, sizeof(deviceName), m_device);
         m_adapterName = deviceName;
-        m_info.adapterName = m_adapterName.begin();
+        m_info.adapterName = m_adapterName.data();
         m_info.timestampFrequency = 1000000;
     }
 

@@ -86,8 +86,10 @@ Result DebugShaderObject::getObject(ShaderOffset const& offset, IShaderObject** 
     auto resultCode = baseObject->getObject(offset, innerObject.writeRef());
     SLANG_RETURN_ON_FAIL(resultCode);
     RefPtr<DebugShaderObject> debugShaderObject;
-    if (m_objects.tryGetValue(ShaderOffsetKey{offset}, debugShaderObject))
+    auto it = m_objects.find(ShaderOffsetKey{offset});
+    if (it != m_objects.end())
     {
+        debugShaderObject = it->second;
         if (debugShaderObject->baseObject == innerObject)
         {
             returnComPtr(object, debugShaderObject);
@@ -97,7 +99,7 @@ Result DebugShaderObject::getObject(ShaderOffset const& offset, IShaderObject** 
     debugShaderObject = new DebugShaderObject();
     debugShaderObject->baseObject = innerObject;
     debugShaderObject->m_typeName = innerObject->getElementTypeLayout()->getName();
-    m_objects[ShaderOffsetKey{offset}] = debugShaderObject;
+    m_objects.emplace(ShaderOffsetKey{offset}, debugShaderObject);
     returnComPtr(object, debugShaderObject);
     return resultCode;
 }

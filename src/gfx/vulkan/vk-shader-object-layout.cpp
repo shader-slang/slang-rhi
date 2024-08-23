@@ -11,17 +11,17 @@ namespace vk
 
 Index ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(Index space)
 {
-    Index index;
-    if (m_mapSpaceToDescriptorSetIndex.tryGetValue(space, index))
-        return index;
+    auto it = m_mapSpaceToDescriptorSetIndex.find(space);
+    if (it != m_mapSpaceToDescriptorSetIndex.end())
+        return it->second;
 
     DescriptorSetInfo info = {};
     info.space = space;
 
-    index = m_descriptorSetBuildInfos.size();
+    Index index = m_descriptorSetBuildInfos.size();
     m_descriptorSetBuildInfos.push_back(info);
 
-    m_mapSpaceToDescriptorSetIndex.add(space, index);
+    m_mapSpaceToDescriptorSetIndex.emplace(space, index);
     return index;
 }
 

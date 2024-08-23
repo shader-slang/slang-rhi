@@ -26,7 +26,7 @@ public:
     BreakableReference<DeviceImpl> m_device;
 
     std::vector<VkPipelineShaderStageCreateInfo> m_stageCreateInfos;
-    std::vector<String> m_entryPointNames;
+    std::vector<std::string> m_entryPointNames;
     std::vector<ComPtr<ISlangBlob>> m_codeBlobs; //< To keep storage of code in scope
     std::vector<VkShaderModule> m_modules;
     RefPtr<RootShaderObjectLayout> m_rootObjectLayout;

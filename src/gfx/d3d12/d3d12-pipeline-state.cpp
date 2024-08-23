@@ -457,25 +457,25 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     {
         auto& hitGroup = desc.rayTracing.hitGroups[i];
         D3D12_HIT_GROUP_DESC hitGroupDesc = {};
-        hitGroupDesc.Type = hitGroup.intersectionEntryPoint.getLength() == 0
+        hitGroupDesc.Type = hitGroup.intersectionEntryPoint.empty()
             ? D3D12_HIT_GROUP_TYPE_TRIANGLES
             : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
 
-        if (hitGroup.anyHitEntryPoint.getLength())
+        if (!hitGroup.anyHitEntryPoint.empty())
         {
-            hitGroupDesc.AnyHitShaderImport = getWStr(hitGroup.anyHitEntryPoint.getBuffer());
+            hitGroupDesc.AnyHitShaderImport = getWStr(hitGroup.anyHitEntryPoint.data());
         }
-        if (hitGroup.closestHitEntryPoint.getLength())
+        if (!hitGroup.closestHitEntryPoint.empty())
         {
             hitGroupDesc.ClosestHitShaderImport =
-                getWStr(hitGroup.closestHitEntryPoint.getBuffer());
+                getWStr(hitGroup.closestHitEntryPoint.data());
         }
-        if (hitGroup.intersectionEntryPoint.getLength())
+        if (!hitGroup.intersectionEntryPoint.empty())
         {
             hitGroupDesc.IntersectionShaderImport =
-                getWStr(hitGroup.intersectionEntryPoint.getBuffer());
+                getWStr(hitGroup.intersectionEntryPoint.data());
         }
-        hitGroupDesc.HitGroupExport = getWStr(hitGroup.hitGroupName.getBuffer());
+        hitGroupDesc.HitGroupExport = getWStr(hitGroup.hitGroupName.data());
 
         D3D12_STATE_SUBOBJECT hitGroupSubObject = {};
         hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;

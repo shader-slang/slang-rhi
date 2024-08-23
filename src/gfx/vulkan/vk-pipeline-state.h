@@ -3,6 +3,9 @@
 
 #include "vk-base.h"
 
+#include <map>
+#include <string>
+
 namespace gfx
 {
 
@@ -44,13 +47,13 @@ public:
 class RayTracingPipelineStateImpl : public PipelineStateImpl
 {
 public:
-    Dictionary<String, Index> shaderGroupNameToIndex;
+    std::map<std::string, Index> shaderGroupNameToIndex;
     Int shaderGroupCount;
 
     RayTracingPipelineStateImpl(DeviceImpl* device);
 
     uint32_t findEntryPointIndexByName(
-        const Dictionary<String, Index>& entryPointNameToIndex, const char* name);
+        const std::map<std::string, Index>& entryPointNameToIndex, const char* name);
 
     Result createVKRayTracingPipelineState();
 
