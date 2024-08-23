@@ -5,7 +5,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -44,5 +43,4 @@ Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

@@ -3,7 +3,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -79,7 +78,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(RendererBase* renderer, slang::IS
         bindingRangeInfo.uniformOffset = uniformOffset;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
         bindingRangeInfo.isSpecializable = m_elementTypeLayout->isBindingRangeSpecializable(r);
-                m_bindingRanges.add(bindingRangeInfo);
+                m_bindingRanges.push_back(bindingRangeInfo);
     }
 
     SlangInt subObjectRangeCount = m_elementTypeLayout->getSubObjectRangeCount();
@@ -107,7 +106,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(RendererBase* renderer, slang::IS
         SubObjectRangeInfo subObjectRange;
         subObjectRange.bindingRangeIndex = bindingRangeIndex;
         subObjectRange.layout = subObjectLayout;
-        subObjectRanges.add(subObjectRange);
+        subObjectRanges.push_back(subObjectRange);
     }
 }
 
@@ -115,7 +114,7 @@ Index ShaderObjectLayoutImpl::getResourceCount() const { return m_resourceCount;
 Index ShaderObjectLayoutImpl::getSubObjectCount() const { return m_subObjectCount; }
 std::vector<SubObjectRangeInfo>& ShaderObjectLayoutImpl::getSubObjectRanges() { return subObjectRanges; }
 BindingRangeInfo ShaderObjectLayoutImpl::getBindingRange(Index index) { return m_bindingRanges[index]; }
-Index ShaderObjectLayoutImpl::getBindingRangeCount() const { return m_bindingRanges.getCount(); }
+Index ShaderObjectLayoutImpl::getBindingRangeCount() const { return m_bindingRanges.size(); }
 
 RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ProgramLayout* inProgramLayout)
     : ShaderObjectLayoutImpl(renderer, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout())
@@ -123,7 +122,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, s
 {
     for (UInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
-        entryPointLayouts.add(new ShaderObjectLayoutImpl(
+        entryPointLayouts.push_back(new ShaderObjectLayoutImpl(
             renderer,
             programLayout->getSession(),
             programLayout->getEntryPointByIndex(i)->getTypeLayout()));
@@ -151,5 +150,4 @@ void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, UInt*
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

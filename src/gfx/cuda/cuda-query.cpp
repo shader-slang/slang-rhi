@@ -3,7 +3,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -44,5 +43,4 @@ SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

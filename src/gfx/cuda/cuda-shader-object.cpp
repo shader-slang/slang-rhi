@@ -8,7 +8,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -124,8 +123,8 @@ SlangResult ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* type
     // Note: the counts here are the *total* number of resources/sub-objects
     // and not just the number of resource/sub-object ranges.
     //
-    resources.setCount(typeLayout->getResourceCount());
-    m_objects.setCount(typeLayout->getSubObjectCount());
+    resources.resize(typeLayout->getResourceCount());
+    m_objects.resize(typeLayout->getSubObjectCount());
 
     for (auto subObjectRange : getLayout()->subObjectRanges)
     {
@@ -205,7 +204,7 @@ SLANG_NO_THROW Result SLANG_MCALL
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
     SLANG_ASSERT(bindingRangeIndex >= 0);
-    SLANG_ASSERT(bindingRangeIndex < layout->m_bindingRanges.getCount());
+    SLANG_ASSERT(bindingRangeIndex < layout->m_bindingRanges.size());
 
     auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
 
@@ -318,14 +317,14 @@ SlangResult RootShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* 
     {
         RefPtr<EntryPointShaderObjectImpl> object = new EntryPointShaderObjectImpl();
         SLANG_RETURN_ON_FAIL(object->init(device, entryPoint));
-        entryPointObjects.add(object);
+        entryPointObjects.push_back(object);
     }
     return SLANG_OK;
 }
 
 SLANG_NO_THROW GfxCount SLANG_MCALL RootShaderObjectImpl::getEntryPointCount()
 {
-    return (GfxCount)entryPointObjects.getCount();
+    return (GfxCount)entryPointObjects.size();
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
@@ -346,5 +345,4 @@ Result RootShaderObjectImpl::collectSpecializationArgs(ExtendedShaderObjectTypeL
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

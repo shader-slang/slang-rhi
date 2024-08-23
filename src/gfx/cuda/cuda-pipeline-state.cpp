@@ -3,7 +3,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -18,5 +17,4 @@ void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

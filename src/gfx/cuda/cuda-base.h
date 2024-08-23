@@ -2,8 +2,7 @@
 // Shared header file for CUDA implementation
 #pragma once
 
-#ifdef GFX_ENABLE_CUDA
-#include <cuda.h>
+#include "cuda-api.h"
 #include "core/slang-basic.h"
 #include "core/slang-blob.h"
 #include "core/slang-std-writers.h"
@@ -29,8 +28,6 @@
 #       include <optix_function_table_definition.h>
 #       include <optix_stubs.h>
 #   endif
-
-#endif
 
 namespace gfx
 {

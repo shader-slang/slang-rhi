@@ -13,7 +13,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -178,13 +177,13 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
 
     {
         // Not clear how to detect half support on CUDA. For now we'll assume we have it
-        m_features.add("half");
+        m_features.push_back("half");
         
         // CUDA has support for realtime clock
-        m_features.add("realtime-clock");
+        m_features.push_back("realtime-clock");
 
         // Allows use of a ptr like type
-        m_features.add("has-ptr");
+        m_features.push_back("has-ptr");
     }
 
     // Initialize DeviceInfo
@@ -1008,7 +1007,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createProgram(
     SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&cudaProgram->cudaModule, kernelCode->getBufferPointer()));
     cudaProgram->kernelName = desc.slangGlobalScope->getLayout()->getEntryPointByIndex(0)->getName();
     SLANG_CUDA_RETURN_ON_FAIL(cuModuleGetFunction(
-        &cudaProgram->cudaKernel, cudaProgram->cudaModule, cudaProgram->kernelName.getBuffer()));
+        &cudaProgram->cudaKernel, cudaProgram->cudaModule, cudaProgram->kernelName.data()));
 
     auto slangGlobalScope = desc.slangGlobalScope;
     if (slangGlobalScope)
@@ -1198,5 +1197,4 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readBufferResource(
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

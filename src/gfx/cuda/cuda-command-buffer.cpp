@@ -3,7 +3,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -58,5 +57,4 @@ SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::getNativeHandle(InteropHand
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

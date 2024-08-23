@@ -8,7 +8,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -88,7 +87,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     // Find out thread group size from program reflection.
     auto& kernelName = currentPipeline->shaderProgram->kernelName;
     auto programLayout = static_cast<RootShaderObjectLayoutImpl*>(currentRootObject->getLayout());
-    int kernelId = programLayout->getKernelIndex(kernelName.getUnownedSlice());
+    int kernelId = programLayout->getKernelIndex(kernelName);
     SLANG_ASSERT(kernelId != -1);
     UInt threadGroupSize[3];
     programLayout->getKernelThreadGroupSize(kernelId, threadGroupSize);
@@ -216,5 +215,4 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

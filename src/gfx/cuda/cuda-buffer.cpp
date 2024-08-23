@@ -5,7 +5,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -47,5 +46,4 @@ Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

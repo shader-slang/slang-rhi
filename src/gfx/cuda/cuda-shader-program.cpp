@@ -3,7 +3,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -16,5 +15,4 @@ ShaderProgramImpl::~ShaderProgramImpl()
 }
 
 } // namespace cuda
-#endif
 } // namespace gfx

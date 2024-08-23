@@ -4,7 +4,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -28,5 +27,4 @@ public:
 };
 
 } // namespace cuda
-#endif
 } // namespace gfx

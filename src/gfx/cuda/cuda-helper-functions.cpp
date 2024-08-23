@@ -5,7 +5,6 @@
 
 namespace gfx
 {
-#ifdef GFX_ENABLE_CUDA
 using namespace Slang;
 
 namespace cuda
@@ -108,20 +107,5 @@ Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevi
     returnComPtr(outDevice, result);
     return SLANG_OK;
 }
-#else
-
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
-{
-    SLANG_UNUSED(outAdapters);
-    return SLANG_FAIL;
-}
-
-Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice)
-{
-    SLANG_UNUSED(desc);
-    *outDevice = nullptr;
-    return SLANG_FAIL;
-}
-#endif
 
 } // namespace gfx
