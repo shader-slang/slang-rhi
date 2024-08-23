@@ -86,11 +86,6 @@ namespace gfx_test
         runTestImpl(computeTrivialTestImpl, unitTestContext, Slang::RenderApiFlag::D3D12);
     }
 
-    SLANG_UNIT_TEST(computeTrivialD3D11)
-    {
-        runTestImpl(computeTrivialTestImpl, unitTestContext, Slang::RenderApiFlag::D3D11);
-    }
-
     SLANG_UNIT_TEST(computeTrivialVulkan)
     {
         runTestImpl(computeTrivialTestImpl, unitTestContext, Slang::RenderApiFlag::Vulkan);

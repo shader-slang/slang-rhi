@@ -1099,11 +1099,6 @@ namespace gfx_test
         }
     }
 
-    SLANG_UNIT_TEST(FormatTestsD3D11)
-    {
-        runTestImpl(formatTestsImpl, unitTestContext, Slang::RenderApiFlag::D3D11);
-    }
-
 #if SLANG_WINDOWS_FAMILY
     SLANG_UNIT_TEST(FormatTestsD3D12)
     {

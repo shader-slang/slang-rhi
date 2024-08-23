@@ -482,7 +482,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     // Initialize DeviceInfo
     {
-        m_info.deviceType = DeviceType::DirectX12;
+        m_info.deviceType = DeviceType::D3D12;
         m_info.bindingStyle = BindingStyle::DirectX;
         m_info.projectionStyle = ProjectionStyle::DirectX;
         m_info.apiName = "Direct3D 12";

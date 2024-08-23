@@ -119,11 +119,6 @@ namespace gfx_test
     //    runTestImpl(mutableShaderObjectTestImpl, unitTestContext, Slang::RenderApiFlag::CPU);
     //}
 
-    SLANG_UNIT_TEST(mutableShaderObjectD3D11)
-    {
-        runTestImpl(mutableShaderObjectTestImpl, unitTestContext, Slang::RenderApiFlag::D3D11);
-    }
-
     SLANG_UNIT_TEST(mutableShaderObjectD3D12)
     {
         runTestImpl(mutableShaderObjectTestImpl, unitTestContext, Slang::RenderApiFlag::D3D12);

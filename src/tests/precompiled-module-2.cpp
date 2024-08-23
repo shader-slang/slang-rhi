@@ -40,7 +40,7 @@ namespace gfx_test
             SlangCompileTarget target;
             switch (device->getDeviceInfo().deviceType)
             {
-            case gfx::DeviceType::DirectX12:
+            case gfx::DeviceType::D3D12:
                 target = SLANG_DXIL;
                 break;
             default:
@@ -88,7 +88,7 @@ namespace gfx_test
         slang::TargetDesc targetDesc = {};
         switch (device->getDeviceInfo().deviceType)
         {
-        case gfx::DeviceType::DirectX12:
+        case gfx::DeviceType::D3D12:
             targetDesc.format = SLANG_DXIL;
             targetDesc.profile = device->getSlangSession()->getGlobalSession()->findProfile("sm_6_1");
             break;

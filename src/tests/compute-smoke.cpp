@@ -102,11 +102,6 @@ namespace gfx_test
         runTestImpl(computeSmokeTestImpl, unitTestContext, Slang::RenderApiFlag::D3D12);
     }
 
-    SLANG_UNIT_TEST(computeSmokeD3D11)
-    {
-        runTestImpl(computeSmokeTestImpl, unitTestContext, Slang::RenderApiFlag::D3D11);
-    }
-
     SLANG_UNIT_TEST(computeSmokeVulkan)
     {
         runTestImpl(computeSmokeTestImpl, unitTestContext, Slang::RenderApiFlag::Vulkan);

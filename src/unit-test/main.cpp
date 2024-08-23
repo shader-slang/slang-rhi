@@ -110,7 +110,7 @@ int main(int argc, char **argv)
     }
     if (reporter.m_failCount > 0)
     {
-        printf("Failed %d tests\n", reporter.m_failCount);
+        printf("Failed %lld tests\n", reporter.m_failCount);
         return 1;
     }
     return 0;

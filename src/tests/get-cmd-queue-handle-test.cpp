@@ -46,11 +46,8 @@ namespace gfx_test
         IDevice::Desc deviceDesc = {};
         switch (api)
         {
-        case Slang::RenderApiFlag::D3D11:
-            deviceDesc.deviceType = gfx::DeviceType::DirectX11;
-            break;
         case Slang::RenderApiFlag::D3D12:
-            deviceDesc.deviceType = gfx::DeviceType::DirectX12;
+            deviceDesc.deviceType = gfx::DeviceType::D3D12;
             break;
         case Slang::RenderApiFlag::Vulkan:
             deviceDesc.deviceType = gfx::DeviceType::Vulkan;

@@ -498,16 +498,6 @@ namespace gfx_test
         test.run();
     }
 
-    SLANG_UNIT_TEST(drawInstancedD3D11)
-    {
-        runTestImpl(drawTestImpl<DrawInstancedTest>, unitTestContext, Slang::RenderApiFlag::D3D11);
-    }
-
-    SLANG_UNIT_TEST(drawIndexedInstancedD3D11)
-    {
-        runTestImpl(drawTestImpl<DrawIndexedInstancedTest>, unitTestContext, Slang::RenderApiFlag::D3D11);
-    }
-
     SLANG_UNIT_TEST(drawInstancedD3D12)
     {
         runTestImpl(drawTestImpl<DrawInstancedTest>, unitTestContext, Slang::RenderApiFlag::D3D12);

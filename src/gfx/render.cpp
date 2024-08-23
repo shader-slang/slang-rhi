@@ -2,7 +2,6 @@
 #include "renderer-shared.h"
 #include "core/slang-math.h"
 #include "core/slang-blob.h"
-#include "open-gl/render-gl.h"
 #include "debug-layer/debug-device.h"
 
 #include <cstring>
@@ -10,14 +9,12 @@
 namespace gfx {
 using namespace Slang;
 
-Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
-Result SLANG_MCALL getD3D11Adapters(List<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getD3D12Adapters(List<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getVKAdapters(List<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getMetalAdapters(List<AdapterInfo>& outAdapters);
@@ -256,17 +253,9 @@ extern "C"
         switch (type)
         {
 #if SLANG_ENABLE_DIRECTX
-        case DeviceType::DirectX11:
-            // TODO_GFX_REMOVE
-            // SLANG_RETURN_ON_FAIL(getD3D11Adapters(adapters));
-            break;
-        case DeviceType::DirectX12:
+        case DeviceType::D3D12:
             SLANG_RETURN_ON_FAIL(getD3D12Adapters(adapters));
             break;
-#endif
-#if SLANG_WINDOWS_FAMILY
-        case DeviceType::OpenGl:
-            return SLANG_E_NOT_IMPLEMENTED;
 #endif
 #if SLANG_WINDOWS_FAMILY || SLANG_LINUX_FAMILY
         // Assume no Vulkan or CUDA on MacOS or Cygwin
@@ -303,22 +292,12 @@ extern "C"
         switch (desc->deviceType)
         {
 #if SLANG_ENABLE_DIRECTX
-        case DeviceType::DirectX11:
-            {
-                // TODO_GFX_REMOVE 
-                // return createD3D11Device(desc, outDevice);
-            }
-        case DeviceType::DirectX12:
+        case DeviceType::D3D12:
             {
                 return createD3D12Device(desc, outDevice);
             }
 #endif
 #if SLANG_WINDOWS_FAMILY
-        case DeviceType::OpenGl:
-            {
-                // TODO_GFX_REMOVE 
-                // return createGLDevice(desc, outDevice);
-            }
         case DeviceType::Vulkan:
             {
                 return createVKDevice(desc, outDevice);
@@ -326,16 +305,10 @@ extern "C"
         case DeviceType::Default:
             {
                 IDevice::Desc newDesc = *desc;
-                newDesc.deviceType = DeviceType::DirectX12;
+                newDesc.deviceType = DeviceType::D3D12;
                 if (_createDevice(&newDesc, outDevice) == SLANG_OK)
                     return SLANG_OK;
                 newDesc.deviceType = DeviceType::Vulkan;
-                if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                    return SLANG_OK;
-                newDesc.deviceType = DeviceType::DirectX11;
-                if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                    return SLANG_OK;
-                newDesc.deviceType = DeviceType::OpenGl;
                 if (_createDevice(&newDesc, outDevice) == SLANG_OK)
                     return SLANG_OK;
                 return SLANG_FAIL;
@@ -436,12 +409,8 @@ extern "C"
             return "Unknown";
         case gfx::DeviceType::Default:
             return "Default";
-        case gfx::DeviceType::DirectX11:
-            return "DirectX11";
-        case gfx::DeviceType::DirectX12:
-            return "DirectX12";
-        case gfx::DeviceType::OpenGl:
-            return "OpenGL";
+        case gfx::DeviceType::D3D12:
+            return "D3D12";
         case gfx::DeviceType::Vulkan:
             return "Vulkan";
         case gfx::DeviceType::Metal:
@@ -461,7 +430,6 @@ extern "C"
         switch (style)
         {
         case ProjectionStyle::DirectX:
-        case ProjectionStyle::OpenGl:
             {
                 static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
                 ::memcpy(projMatrix, kIdentity, sizeof(kIdentity));
