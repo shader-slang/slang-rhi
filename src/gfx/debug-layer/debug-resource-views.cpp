@@ -12,35 +12,35 @@ namespace debug
 
 IResourceView::Desc* DebugResourceView::getViewDesc()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->getViewDesc();
 }
 
 Result DebugResourceView::getNativeHandle(InteropHandle* outNativeHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->getNativeHandle(outNativeHandle);
 }
 
 DeviceAddress DebugAccelerationStructure::getDeviceAddress()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->getDeviceAddress();
 }
 
 Result DebugAccelerationStructure::getNativeHandle(InteropHandle* outNativeHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->getNativeHandle(outNativeHandle);
 }
 
 IResourceView::Desc* DebugAccelerationStructure::getViewDesc()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->getViewDesc();
 }

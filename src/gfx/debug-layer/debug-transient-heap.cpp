@@ -31,19 +31,19 @@ SlangResult DebugTransientResourceHeap::queryInterface(SlangUUID const& uuid, vo
 
 Result DebugTransientResourceHeap::synchronizeAndReset()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->synchronizeAndReset();
 }
 
 Result DebugTransientResourceHeap::finish()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->finish();
 }
 
 Result DebugTransientResourceHeap::createCommandBuffer(ICommandBuffer** outCommandBuffer)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer();
     outObject->m_transientHeap = this;
     auto result = baseObject->createCommandBuffer(outObject->baseObject.writeRef());
@@ -76,7 +76,7 @@ Result DebugTransientResourceHeapD3D12::allocateTransientDescriptorTable(
     Offset& outDescriptorOffset,
     void** outD3DDescriptorHeapHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->allocateTransientDescriptorTable(
         type, count, outDescriptorOffset, outD3DDescriptorHeapHandle);

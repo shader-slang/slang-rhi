@@ -12,25 +12,25 @@ namespace debug
 
 IResource::Type DebugTextureResource::getType()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getType();
 }
 
 ITextureResource::Desc* DebugTextureResource::getDesc()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getDesc();
 }
 
 Result DebugTextureResource::getNativeResourceHandle(InteropHandle* outHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getNativeResourceHandle(outHandle);
 }
 
 Result DebugTextureResource::getSharedHandle(InteropHandle* outHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getSharedHandle(outHandle);
 }
 

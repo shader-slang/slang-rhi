@@ -46,8 +46,8 @@ struct SetCurrentFuncRAII
     SetCurrentFuncRAII(const char* funcName) { _currentFunctionName = funcName; }
     ~SetCurrentFuncRAII() { _currentFunctionName = nullptr; }
 };
-#define SLANG_GFX_API_FUNC SetCurrentFuncRAII setFuncNameRAII(SLANG_FUNC_SIG)
-#define SLANG_GFX_API_FUNC_NAME(x) SetCurrentFuncRAII setFuncNameRAII(x)
+#define SLANG_RHI_API_FUNC SetCurrentFuncRAII setFuncNameRAII(SLANG_FUNC_SIG)
+#define SLANG_RHI_API_FUNC_NAME(x) SetCurrentFuncRAII setFuncNameRAII(x)
 
 /// Returns the public API function name from a `SLANG_FUNC_SIG` string.
 String _gfxGetFuncName(const char* input);
@@ -115,14 +115,14 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
     }
 #define GFX_DIAGNOSE_ERROR_FORMAT(...) GFX_DIAGNOSE_FORMAT(DebugMessageType::Error, __VA_ARGS__)
 
-#define SLANG_GFX_DEBUG_GET_INTERFACE_IMPL(typeName)                                    \
+#define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                    \
     I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                 \
     {                                                                                   \
         return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName) \
                     ? static_cast<I##typeName*>(this)                                   \
                     : nullptr;                                                          \
     }
-#define SLANG_GFX_DEBUG_GET_INTERFACE_IMPL_PARENT(typeName, parentType)                   \
+#define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(typeName, parentType)                   \
     I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                   \
     {                                                                                     \
         return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName || \
@@ -133,7 +133,7 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 
 // Utility conversion functions to get Debug* object or the inner object from a user provided
 // pointer.
-#define SLANG_GFX_DEBUG_GET_OBJ_IMPL(type)                                         \
+#define SLANG_RHI_DEBUG_GET_OBJ_IMPL(type)                                         \
     inline Debug##type* getDebugObj(I##type* ptr)                                  \
     {                                                                              \
         return static_cast<Debug##type*>(static_cast<DebugObject<I##type>*>(ptr)); \
@@ -146,7 +146,7 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
         return debugObj->baseObject;                                               \
     }
 
-#define SLANG_GFX_DEBUG_GET_OBJ_IMPL_UNOWNED(type)                                        \
+#define SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(type)                                        \
     inline Debug##type* getDebugObj(I##type* ptr)                                         \
     {                                                                                     \
         return static_cast<Debug##type*>(static_cast<UnownedDebugObject<I##type>*>(ptr)); \
@@ -159,30 +159,30 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
         return debugObj->baseObject;                                                      \
     }
 
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(Device)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(BufferResource)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(TextureResource)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(CommandBuffer)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(CommandQueue)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputeCommandEncoder)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL_UNOWNED(RenderCommandEncoder)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL_UNOWNED(ResourceCommandEncoder)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL_UNOWNED(RayTracingCommandEncoder)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(Framebuffer)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(FramebufferLayout)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(InputLayout)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(RenderPassLayout)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(PipelineState)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(ResourceView)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(SamplerState)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(ShaderObject)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(ShaderProgram)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(Swapchain)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(TransientResourceHeap)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(QueryPool)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(AccelerationStructure)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(Fence)
-SLANG_GFX_DEBUG_GET_OBJ_IMPL(ShaderTable)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(Device)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(BufferResource)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(TextureResource)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandBuffer)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandQueue)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputeCommandEncoder)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RenderCommandEncoder)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ResourceCommandEncoder)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RayTracingCommandEncoder)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(Framebuffer)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(FramebufferLayout)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(InputLayout)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(RenderPassLayout)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(PipelineState)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(ResourceView)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(SamplerState)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderObject)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderProgram)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(Swapchain)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(TransientResourceHeap)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(QueryPool)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(AccelerationStructure)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderTable)
 
 void validateAccelerationStructureBuildInputs(
     const IAccelerationStructure::BuildInputs& buildInputs);

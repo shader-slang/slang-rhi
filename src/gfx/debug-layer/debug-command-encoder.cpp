@@ -21,7 +21,7 @@ namespace debug
 
 void DebugComputeCommandEncoder::endEncoding()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     isOpen = false;
     baseObject->endEncoding();
 }
@@ -30,7 +30,7 @@ Result DebugComputeCommandEncoder::bindPipeline(
     IPipelineState* state,
     IShaderObject** outRootShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     auto innerState = getInnerObj(state);
     IShaderObject* innerRootObject = nullptr;
@@ -44,26 +44,26 @@ Result DebugComputeCommandEncoder::bindPipeline(
 Result DebugComputeCommandEncoder::bindPipelineWithRootObject(
     IPipelineState* state, IShaderObject* rootObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
 }
 
 Result DebugComputeCommandEncoder::dispatchCompute(int x, int y, int z)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->dispatchCompute(x, y, z);
 }
 
 Result DebugComputeCommandEncoder::dispatchComputeIndirect(
     IBufferResource* cmdBuffer, Offset offset)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->dispatchComputeIndirect(getInnerObj(cmdBuffer), offset);
 }
 
 void DebugRenderCommandEncoder::endEncoding()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     isOpen = false;
     baseObject->endEncoding();
 }
@@ -72,7 +72,7 @@ Result DebugRenderCommandEncoder::bindPipeline(
     IPipelineState* state,
     IShaderObject** outRootShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     auto innerState = getInnerObj(state);
     IShaderObject* innerRootObject = nullptr;
@@ -86,25 +86,25 @@ Result DebugRenderCommandEncoder::bindPipeline(
 Result DebugRenderCommandEncoder::bindPipelineWithRootObject(
     IPipelineState* state, IShaderObject* rootObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
 }
 
 void DebugRenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewports)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     baseObject->setViewports(count, viewports);
 }
 
 void DebugRenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRect* scissors)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     baseObject->setScissorRects(count, scissors);
 }
 
 void DebugRenderCommandEncoder::setPrimitiveTopology(PrimitiveTopology topology)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     baseObject->setPrimitiveTopology(topology);
 }
 
@@ -114,7 +114,7 @@ void DebugRenderCommandEncoder::setVertexBuffers(
     IBufferResource* const* buffers,
     const Offset* offsets)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     std::vector<IBufferResource*> innerBuffers;
     for (GfxIndex i = 0; i < slotCount; i++)
@@ -127,21 +127,21 @@ void DebugRenderCommandEncoder::setVertexBuffers(
 void DebugRenderCommandEncoder::setIndexBuffer(
     IBufferResource* buffer, Format indexFormat, Offset offset)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     auto innerBuffer = static_cast<DebugBufferResource*>(buffer)->baseObject.get();
     baseObject->setIndexBuffer(innerBuffer, indexFormat, offset);
 }
 
 Result DebugRenderCommandEncoder::draw(GfxCount vertexCount, GfxIndex startVertex)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->draw(vertexCount, startVertex);
 }
 
 Result DebugRenderCommandEncoder::drawIndexed(
     GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->drawIndexed(indexCount, startIndex, baseVertex);
 }
 
@@ -152,7 +152,7 @@ Result DebugRenderCommandEncoder::drawIndirect(
     IBufferResource* countBuffer,
     Offset countOffset)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->drawIndirect(
         maxDrawCount, getInnerObj(argBuffer), argOffset, getInnerObj(countBuffer), countOffset);
 }
@@ -164,21 +164,21 @@ Result DebugRenderCommandEncoder::drawIndexedIndirect(
     IBufferResource* countBuffer,
     Offset countOffset)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->drawIndexedIndirect(
         maxDrawCount, getInnerObj(argBuffer), argOffset, getInnerObj(countBuffer), countOffset);
 }
 
 void DebugRenderCommandEncoder::setStencilReference(uint32_t referenceValue)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->setStencilReference(referenceValue);
 }
 
 Result DebugRenderCommandEncoder::setSamplePositions(
     GfxCount samplesPerPixel, GfxCount pixelCount, const SamplePosition* samplePositions)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->setSamplePositions(samplesPerPixel, pixelCount, samplePositions);
 }
 
@@ -188,7 +188,7 @@ Result DebugRenderCommandEncoder::drawInstanced(
     GfxIndex startVertex,
     GfxIndex startInstanceLocation)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->drawInstanced(
         vertexCount, instanceCount, startVertex, startInstanceLocation);
 }
@@ -200,27 +200,27 @@ Result DebugRenderCommandEncoder::drawIndexedInstanced(
     GfxIndex baseVertexLocation,
     GfxIndex startInstanceLocation)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->drawIndexedInstanced(
         indexCount, instanceCount, startIndexLocation, baseVertexLocation, startInstanceLocation);
 }
 
 Result DebugRenderCommandEncoder::drawMeshTasks(int x, int y, int z)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->drawMeshTasks(x, y, z);
 }
 
 void DebugResourceCommandEncoder::endEncoding()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     isOpen = false;
     baseObject->endEncoding();
 }
 
 void DebugResourceCommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->writeTimestamp(static_cast<DebugQueryPool*>(pool)->baseObject, index);
 }
 
@@ -231,7 +231,7 @@ void DebugResourceCommandEncoderImpl::copyBuffer(
     Offset srcOffset,
     Size size)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     auto dstImpl = static_cast<DebugBufferResource*>(dst);
     auto srcImpl = static_cast<DebugBufferResource*>(src);
     getBaseResourceEncoder()->copyBuffer(
@@ -244,7 +244,7 @@ void DebugResourceCommandEncoderImpl::uploadBufferData(
     Size size,
     void* data)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     auto dstImpl = static_cast<DebugBufferResource*>(dst);
     getBaseResourceEncoder()->uploadBufferData(dstImpl->baseObject, offset, size, data);
 }
@@ -255,7 +255,7 @@ void DebugResourceCommandEncoderImpl::textureBarrier(
     ResourceState src,
     ResourceState dst)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     std::vector<ITextureResource*> innerTextures;
     for (GfxIndex i = 0; i < count; i++)
@@ -271,7 +271,7 @@ void DebugResourceCommandEncoderImpl::bufferBarrier(
     ResourceState src,
     ResourceState dst)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     std::vector<IBufferResource*> innerBuffers;
     for(GfxIndex i = 0; i < count; i++)
@@ -292,7 +292,7 @@ void DebugResourceCommandEncoderImpl::copyTexture(
     ITextureResource::Offset3D srcOffset,
     ITextureResource::Extents extent)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->copyTexture(
         getInnerObj(dst),
         dstState,
@@ -313,7 +313,7 @@ void DebugResourceCommandEncoderImpl::uploadTextureData(
     ITextureResource::SubresourceData* subResourceData,
     GfxCount subResourceDataCount)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->uploadTextureData(
         getInnerObj(dst), subResourceRange, offset, extent, subResourceData, subResourceDataCount);
 }
@@ -321,7 +321,7 @@ void DebugResourceCommandEncoderImpl::uploadTextureData(
 void DebugResourceCommandEncoderImpl::clearResourceView(
     IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     switch (view->getViewDesc()->type)
     {
     case IResourceView::Type::DepthStencil:
@@ -345,7 +345,7 @@ void DebugResourceCommandEncoderImpl::resolveResource(
     ResourceState destState,
     SubresourceRange destRange)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->resolveResource(
         getInnerObj(source), sourceState, sourceRange, getInnerObj(dest), destState, destRange);
 }
@@ -353,7 +353,7 @@ void DebugResourceCommandEncoderImpl::resolveResource(
 void DebugResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool, GfxIndex index, GfxCount count, IBufferResource* buffer, Offset offset)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->resolveQuery(getInnerObj(queryPool), index, count, getInnerObj(buffer), offset);
 }
 
@@ -368,7 +368,7 @@ void DebugResourceCommandEncoderImpl::copyTextureToBuffer(
     ITextureResource::Offset3D srcOffset,
     ITextureResource::Extents extent)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->copyTextureToBuffer(
         getInnerObj(dst), dstOffset, dstSize, dstRowStride, getInnerObj(src), srcState, srcSubresource, srcOffset, extent);
 }
@@ -379,26 +379,26 @@ void DebugResourceCommandEncoderImpl::textureSubresourceBarrier(
     ResourceState src,
     ResourceState dst)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->textureSubresourceBarrier(
         getInnerObj(texture), subresourceRange, src, dst);
 }
 
 void DebugResourceCommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->beginDebugEvent(name, rgbColor);
 }
 
 void DebugResourceCommandEncoderImpl::endDebugEvent()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     getBaseResourceEncoder()->endDebugEvent();
 }
 
 void DebugRayTracingCommandEncoder::endEncoding()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     isOpen = false;
     baseObject->endEncoding();
 }
@@ -408,7 +408,7 @@ void DebugRayTracingCommandEncoder::buildAccelerationStructure(
     GfxCount propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     IAccelerationStructure::BuildDesc innerDesc = desc;
     innerDesc.dest = getInnerObj(innerDesc.dest);
     innerDesc.source = getInnerObj(innerDesc.source);
@@ -431,7 +431,7 @@ void DebugRayTracingCommandEncoder::copyAccelerationStructure(
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     auto innerDest = getInnerObj(dest);
     auto innerSrc = getInnerObj(src);
     baseObject->copyAccelerationStructure(innerDest, innerSrc, mode);
@@ -443,7 +443,7 @@ void DebugRayTracingCommandEncoder::queryAccelerationStructureProperties(
     GfxCount queryCount,
     AccelerationStructureQueryDesc* queryDescs)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     std::vector<IAccelerationStructure*> innerAS;
     for (GfxIndex i = 0; i < accelerationStructureCount; i++)
     {
@@ -466,7 +466,7 @@ void DebugRayTracingCommandEncoder::serializeAccelerationStructure(
     DeviceAddress dest,
     IAccelerationStructure* source)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     baseObject->serializeAccelerationStructure(dest, getInnerObj(source));
 }
 
@@ -474,14 +474,14 @@ void DebugRayTracingCommandEncoder::deserializeAccelerationStructure(
     IAccelerationStructure* dest,
     DeviceAddress source)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     baseObject->deserializeAccelerationStructure(getInnerObj(dest), source);
 }
 
 Result DebugRayTracingCommandEncoder::bindPipeline(
     IPipelineState* state, IShaderObject** outRootObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     auto innerPipeline = getInnerObj(state);
     IShaderObject* innerRootObject = nullptr;
     commandBuffer->rootObject.reset();
@@ -494,7 +494,7 @@ Result DebugRayTracingCommandEncoder::bindPipeline(
 Result DebugRayTracingCommandEncoder::bindPipelineWithRootObject(
     IPipelineState* state, IShaderObject* rootObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
 }
 
@@ -505,7 +505,7 @@ Result DebugRayTracingCommandEncoder::dispatchRays(
     GfxCount height,
     GfxCount depth)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->dispatchRays(rayGenShaderIndex, getInnerObj(shaderTable), width, height, depth);
 }
 

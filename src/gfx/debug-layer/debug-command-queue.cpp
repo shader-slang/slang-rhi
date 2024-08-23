@@ -18,13 +18,13 @@ namespace debug
 
 const ICommandQueue::Desc& DebugCommandQueue::getDesc()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getDesc();
 }
 
 void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     std::vector<ICommandBuffer*> innerCommandBuffers;
     for (GfxIndex i = 0; i < count; i++)
     {
@@ -57,14 +57,14 @@ void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* co
 
 void DebugCommandQueue::waitOnHost()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     baseObject->waitOnHost();
 }
 
 Result DebugCommandQueue::waitForFenceValuesOnDevice(
     GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     std::vector<IFence*> innerFences;
     for (GfxIndex i = 0; i < fenceCount; ++i)
     {
@@ -75,7 +75,7 @@ Result DebugCommandQueue::waitForFenceValuesOnDevice(
 
 Result DebugCommandQueue::getNativeHandle(InteropHandle* outHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getNativeHandle(outHandle);
 }
 

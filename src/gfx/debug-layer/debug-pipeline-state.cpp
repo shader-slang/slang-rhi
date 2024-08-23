@@ -12,7 +12,7 @@ namespace debug
 
 Result DebugPipelineState::getNativeHandle(InteropHandle* outHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getNativeHandle(outHandle);
 }
 

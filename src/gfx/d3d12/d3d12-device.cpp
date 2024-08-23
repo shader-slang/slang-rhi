@@ -27,11 +27,11 @@
 #    define ENABLE_DEBUG_LAYER 0
 #endif
 
-#ifdef GFX_NVAPI
+#ifdef SLANG_RHI_NVAPI
 #    include "../nvapi/nvapi-include.h"
 #endif
 
-#ifdef GFX_NV_AFTERMATH
+#ifdef SLANG_RHI_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
@@ -47,7 +47,7 @@ using namespace Slang;
 static const uint32_t D3D_FEATURE_LEVEL_12_2 = 0xc200;
 
 
-#if GFX_NV_AFTERMATH
+#if SLANG_RHI_NV_AFTERMATH
 /* static */const bool DeviceImpl::g_isAftermathEnabled = true;
 #else
 /* static */const bool DeviceImpl::g_isAftermathEnabled = false;
@@ -390,7 +390,7 @@ Result DeviceImpl::_createDevice(
     }
 
 
-#ifdef GFX_NV_AFTERMATH
+#ifdef SLANG_RHI_NV_AFTERMATH
     {
         if ((deviceCheckFlags & DeviceCheckFlag::UseDebug) && g_isAftermathEnabled)
         {
@@ -634,7 +634,7 @@ Result DeviceImpl::initialize(const Desc& desc)
             return SLANG_E_NOT_AVAILABLE;
         }
 
-#ifdef GFX_NVAPI
+#ifdef SLANG_RHI_NVAPI
         // From DOCS: Applications are expected to bind null UAV to this slot.
         // NOTE! We don't currently do this, but doesn't seem to be a problem.
 

@@ -15,7 +15,7 @@ namespace debug
 
 const ISwapchain::Desc& DebugSwapchain::getDesc()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     desc = baseObject->getDesc();
     desc.queue = queue.Ptr();
     return desc;
@@ -23,7 +23,7 @@ const ISwapchain::Desc& DebugSwapchain::getDesc()
 
 Result DebugSwapchain::getImage(GfxIndex index, ITextureResource** outResource)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     maybeRebuildImageList();
     if (index > (GfxCount)m_images.size())
     {
@@ -38,19 +38,19 @@ Result DebugSwapchain::getImage(GfxIndex index, ITextureResource** outResource)
 
 Result DebugSwapchain::present()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->present();
 }
 
 int DebugSwapchain::acquireNextImage()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->acquireNextImage();
 }
 
 Result DebugSwapchain::resize(GfxCount width, GfxCount height)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     for (auto& image : m_images)
     {
         if (image->debugGetReferenceCount() != 1)
@@ -67,19 +67,19 @@ Result DebugSwapchain::resize(GfxCount width, GfxCount height)
 
 bool DebugSwapchain::isOccluded()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->isOccluded();
 }
 
 Result DebugSwapchain::setFullScreenMode(bool mode)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->setFullScreenMode(mode);
 }
 
 void DebugSwapchain::maybeRebuildImageList()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     if (m_images.empty())
         return;
     m_images.clear();

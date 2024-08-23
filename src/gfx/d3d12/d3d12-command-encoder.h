@@ -296,7 +296,6 @@ public:
         drawMeshTasks(int x, int y, int z) override;
 };
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
 class RayTracingCommandEncoderImpl
     : public IRayTracingCommandEncoder
     , public ResourceCommandEncoderImpl
@@ -343,7 +342,6 @@ public:
         GfxCount depth) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
 };
-#endif
 
 } // namespace d3d12
 } // namespace gfx

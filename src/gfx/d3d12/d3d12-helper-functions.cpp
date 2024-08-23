@@ -1,7 +1,7 @@
 // d3d12-helper-functions.cpp
 #include "d3d12-helper-functions.h"
 
-#ifdef GFX_NVAPI
+#ifdef SLANG_RHI_NVAPI
 #    include "../nvapi/nvapi-include.h"
 #endif
 
@@ -26,7 +26,7 @@ namespace d3d12
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
 {
-#ifdef GFX_NVAPI
+#ifdef SLANG_RHI_NVAPI
     {
         bool isSupported;
         NvAPI_Status status =

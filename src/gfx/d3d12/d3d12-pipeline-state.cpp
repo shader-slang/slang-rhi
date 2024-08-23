@@ -1,7 +1,7 @@
 // d3d12-ray-tracing.cpp
 #include "d3d12-pipeline-state.h"
 
-#ifdef GFX_NVAPI
+#ifdef SLANG_RHI_NVAPI
 #    include "../nvapi/nvapi-include.h"
 #endif
 
@@ -292,7 +292,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 programImpl->m_shaders[0].code.data(),
                 SIZE_T(programImpl->m_shaders[0].code.size()) };
 
-#ifdef GFX_NVAPI
+#ifdef SLANG_RHI_NVAPI
             if (m_device->m_nvapi)
             {
                 // Also fill the extension structure.

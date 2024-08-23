@@ -28,7 +28,7 @@
 #include <set>
 #include <string>
 
-#ifdef GFX_NV_AFTERMATH
+#ifdef SLANG_RHI_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
@@ -907,7 +907,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     m_queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
     assert(m_queueFamilyIndex >= 0);
 
-#if defined(GFX_NV_AFTERMATH)
+#if defined(SLANG_RHI_NV_AFTERMATH)
     VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};
 
     {

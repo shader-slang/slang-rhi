@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#define GFX_CUDA_SYM(x) x = nullptr;
+#define CUDA_SYM(x) x = nullptr;
 
 #include "cuda-api.h"
 
-#if GFX_USE_DYNAMIC_CUDA
+#if SLANG_RHI_USE_DYNAMIC_CUDA
 
 #include "slang-gfx.h"
 
@@ -225,7 +225,7 @@ void gfxCudaApiShutdown()
     gCudaApiModule = nullptr;
 }
 
-#else // GFX_USE_DYNAMIC_CUDA
+#else // SLANG_RHI_USE_DYNAMIC_CUDA
 
 bool gfxCudaApiInit()
 {
@@ -234,4 +234,4 @@ bool gfxCudaApiInit()
 
 void gfxCudaApiShutdown() { }
 
-#endif // GFX_USE_DYNAMIC_CUDA
+#endif // SLANG_RHI_USE_DYNAMIC_CUDA

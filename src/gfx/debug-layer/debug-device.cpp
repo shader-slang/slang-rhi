@@ -51,33 +51,33 @@ Result DebugDevice::getNativeDeviceHandles(InteropHandles* outHandles)
 
 Result DebugDevice::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->getFeatures(outFeatures, bufferSize, outFeatureCount);
 }
 
 Result DebugDevice::getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getFormatSupportedResourceStates(format, outStates);
 }
 
 DebugDevice::DebugDevice()
 {
-    SLANG_GFX_API_FUNC_NAME("CreateDevice");
+    SLANG_RHI_API_FUNC_NAME("CreateDevice");
     GFX_DIAGNOSE_INFO("Debug layer is enabled.");
 }
 
 SLANG_NO_THROW bool SLANG_MCALL DebugDevice::hasFeature(const char* feature)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->hasFeature(feature);
 }
 
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     return baseObject->getSlangSession(outSlangSession);
 }
@@ -86,7 +86,7 @@ Result DebugDevice::createTransientResourceHeap(
     const ITransientResourceHeap::Desc& desc,
     ITransientResourceHeap** outHeap)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugTransientResourceHeap> outObject = new DebugTransientResourceHeap();
     auto result = baseObject->createTransientResourceHeap(desc, outObject->baseObject.writeRef());
@@ -101,7 +101,7 @@ Result DebugDevice::createTextureResource(
     const ITextureResource::SubresourceData* initData,
     ITextureResource** outResource)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugTextureResource> outObject = new DebugTextureResource();
     auto result =
@@ -117,7 +117,7 @@ Result DebugDevice::createTextureFromNativeHandle(
     const ITextureResource::Desc& srcDesc,
     ITextureResource** outResource)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugTextureResource> outObject = new DebugTextureResource();
     auto result = baseObject->createTextureFromNativeHandle(handle, srcDesc, outObject->baseObject.writeRef());
@@ -133,7 +133,7 @@ Result DebugDevice::createTextureFromSharedHandle(
     const size_t size,
     ITextureResource** outResource)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugTextureResource> outObject = new DebugTextureResource();
     auto result = baseObject->createTextureFromSharedHandle(handle, srcDesc, size, outObject->baseObject.writeRef());
@@ -148,7 +148,7 @@ Result DebugDevice::createBufferResource(
     const void* initData,
     IBufferResource** outResource)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
     auto result = baseObject->createBufferResource(desc, initData, outObject->baseObject.writeRef());
@@ -163,7 +163,7 @@ Result DebugDevice::createBufferFromNativeHandle(
     const IBufferResource::Desc& srcDesc,
     IBufferResource** outResource)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
     auto result = baseObject->createBufferFromNativeHandle(handle, srcDesc, outObject->baseObject.writeRef());
@@ -178,7 +178,7 @@ Result DebugDevice::createBufferFromSharedHandle(
     const IBufferResource::Desc& srcDesc,
     IBufferResource** outResource)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
     auto result = baseObject->createBufferFromSharedHandle(handle, srcDesc, outObject->baseObject.writeRef());
@@ -190,7 +190,7 @@ Result DebugDevice::createBufferFromSharedHandle(
 
 Result DebugDevice::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugSamplerState> outObject = new DebugSamplerState();
     auto result = baseObject->createSamplerState(desc, outObject->baseObject.writeRef());
@@ -205,7 +205,7 @@ Result DebugDevice::createTextureView(
     IResourceView::Desc const& desc,
     IResourceView** outView)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugResourceView> outObject = new DebugResourceView();
     auto result = baseObject->createTextureView(
@@ -224,7 +224,7 @@ Result DebugDevice::createBufferView(
     IResourceView::Desc const& desc,
     IResourceView** outView)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugResourceView> outObject = new DebugResourceView();
     auto result = baseObject->createBufferView(
@@ -242,7 +242,7 @@ Result DebugDevice::getAccelerationStructurePrebuildInfo(
     const IAccelerationStructure::BuildInputs& buildInputs,
     IAccelerationStructure::PrebuildInfo* outPrebuildInfo)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     validateAccelerationStructureBuildInputs(buildInputs);
     return baseObject->getAccelerationStructurePrebuildInfo(buildInputs, outPrebuildInfo);
 }
@@ -251,7 +251,7 @@ Result DebugDevice::createAccelerationStructure(
     const IAccelerationStructure::CreateDesc& desc,
     IAccelerationStructure** outAS)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     auto innerDesc = desc;
     innerDesc.buffer = getInnerObj(innerDesc.buffer);
     RefPtr<DebugAccelerationStructure> outObject = new DebugAccelerationStructure();
@@ -266,7 +266,7 @@ Result DebugDevice::createFramebufferLayout(
     IFramebufferLayout::Desc const& desc,
     IFramebufferLayout** outFrameBuffer)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugFramebufferLayout> outObject = new DebugFramebufferLayout();
     auto result = baseObject->createFramebufferLayout(desc, outObject->baseObject.writeRef());
@@ -278,7 +278,7 @@ Result DebugDevice::createFramebufferLayout(
 
 Result DebugDevice::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFrameBuffer)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     auto innerDesc = desc;
     innerDesc.layout = getInnerObj(desc.layout);
@@ -303,7 +303,7 @@ Result DebugDevice::createRenderPassLayout(
     const IRenderPassLayout::Desc& desc,
     IRenderPassLayout** outRenderPassLayout)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     auto innerDesc = desc;
     innerDesc.framebufferLayout = getInnerObj(desc.framebufferLayout);
@@ -320,7 +320,7 @@ Result DebugDevice::createSwapchain(
     WindowHandle window,
     ISwapchain** outSwapchain)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     auto innerDesc = desc;
     innerDesc.queue = getInnerObj(desc.queue);
@@ -337,7 +337,7 @@ Result DebugDevice::createInputLayout(
     IInputLayout::Desc const& desc,
     IInputLayout** outLayout)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugInputLayout> outObject = new DebugInputLayout();
     auto result = baseObject->createInputLayout(
@@ -350,7 +350,7 @@ Result DebugDevice::createInputLayout(
 
 Result DebugDevice::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugCommandQueue> outObject = new DebugCommandQueue();
     auto result = baseObject->createCommandQueue(desc, outObject->baseObject.writeRef());
@@ -365,7 +365,7 @@ Result DebugDevice::createShaderObject(
     ShaderObjectContainerType containerType,
     IShaderObject** outShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto typeName = type->getName();
@@ -386,7 +386,7 @@ Result DebugDevice::createShaderObject2(
     ShaderObjectContainerType containerType,
     IShaderObject** outShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto typeName = type->getName();
@@ -406,7 +406,7 @@ Result DebugDevice::createMutableShaderObject(
     ShaderObjectContainerType containerType,
     IShaderObject** outShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto typeName = type->getName();
@@ -427,7 +427,7 @@ Result DebugDevice::createMutableShaderObject2(
     ShaderObjectContainerType containerType,
     IShaderObject** outShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto typeName = type->getName();
@@ -445,7 +445,7 @@ Result DebugDevice::createMutableShaderObject2(
 Result DebugDevice::createMutableRootShaderObject(
     IShaderProgram* program, IShaderObject** outRootObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto result = baseObject->createMutableRootShaderObject(
         getInnerObj(program), outObject->baseObject.writeRef());
@@ -461,7 +461,7 @@ Result DebugDevice::createMutableRootShaderObject(
 Result DebugDevice::createShaderObjectFromTypeLayout(
     slang::TypeLayoutReflection* typeLayout, IShaderObject** outShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto result = baseObject->createShaderObjectFromTypeLayout(typeLayout, outObject->baseObject.writeRef());
@@ -479,7 +479,7 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
 Result DebugDevice::createMutableShaderObjectFromTypeLayout(
     slang::TypeLayoutReflection* typeLayout, IShaderObject** outShaderObject)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto result = baseObject->createMutableShaderObjectFromTypeLayout(
         typeLayout, outObject->baseObject.writeRef());
@@ -497,7 +497,7 @@ Result DebugDevice::createMutableShaderObjectFromTypeLayout(
 Result DebugDevice::createProgram(
     const IShaderProgram::Desc& desc, IShaderProgram** outProgram, ISlangBlob** outDiagnostics)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderProgram> outObject = new DebugShaderProgram();
     auto result = baseObject->createProgram(desc, outObject->baseObject.writeRef(), outDiagnostics);
@@ -511,7 +511,7 @@ Result DebugDevice::createProgram(
 Result DebugDevice::createProgram2(
     const IShaderProgram::CreateDesc2& desc, IShaderProgram** outProgram, ISlangBlob** outDiagnostics)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     IShaderProgram::Desc desc1 = {};
     RefPtr<DebugShaderProgram> outObject = new DebugShaderProgram();
     auto result = baseObject->createProgram2(desc, outObject->baseObject.writeRef(), outDiagnostics);
@@ -527,7 +527,7 @@ Result DebugDevice::createGraphicsPipelineState(
     const GraphicsPipelineStateDesc& desc,
     IPipelineState** outState)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     GraphicsPipelineStateDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
@@ -546,7 +546,7 @@ Result DebugDevice::createComputePipelineState(
     const ComputePipelineStateDesc& desc,
     IPipelineState** outState)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     ComputePipelineStateDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
@@ -564,7 +564,7 @@ Result DebugDevice::createRayTracingPipelineState(
     const RayTracingPipelineStateDesc& desc,
     IPipelineState** outState)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
 
     RayTracingPipelineStateDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
@@ -585,7 +585,7 @@ SlangResult DebugDevice::readTextureResource(
     size_t* outRowPitch,
     size_t* outPixelSize)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->readTextureResource(
         getInnerObj(resource), state, outBlob, outRowPitch, outPixelSize);
 }
@@ -596,19 +596,19 @@ SlangResult DebugDevice::readBufferResource(
     size_t size,
     ISlangBlob** outBlob)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->readBufferResource(getInnerObj(buffer), offset, size, outBlob);
 }
 
 const DeviceInfo& DebugDevice::getDeviceInfo() const
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getDeviceInfo();
 }
 
 Result DebugDevice::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     RefPtr<DebugQueryPool> result = new DebugQueryPool();
     result->desc = desc;
     SLANG_RETURN_ON_FAIL(baseObject->createQueryPool(desc, result->baseObject.writeRef()));
@@ -618,7 +618,7 @@ Result DebugDevice::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** o
 
 Result DebugDevice::createFence(const IFence::Desc& desc, IFence** outFence)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     RefPtr<DebugFence> result = new DebugFence();
     SLANG_RETURN_ON_FAIL(baseObject->createFence(desc, result->baseObject.writeRef()));
     returnComPtr(outFence, result);
@@ -628,7 +628,7 @@ Result DebugDevice::createFence(const IFence::Desc& desc, IFence** outFence)
 Result DebugDevice::waitForFences(
     GfxCount fenceCount, IFence** fences, uint64_t* values , bool waitForAll, uint64_t timeout)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     short_vector<IFence*> innerFences;
     for (GfxCount i = 0; i < fenceCount; i++)
     {
@@ -640,19 +640,19 @@ Result DebugDevice::waitForFences(
 Result DebugDevice::getTextureAllocationInfo(
     const ITextureResource::Desc& desc, size_t* outSize, size_t* outAlignment)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getTextureAllocationInfo(desc, outSize, outAlignment);
 }
 
 Result DebugDevice::getTextureRowAlignment(size_t* outAlignment)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getTextureRowAlignment(outAlignment);
 }
 
 Result DebugDevice::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     RefPtr<DebugShaderTable> result = new DebugShaderTable();
     SLANG_RETURN_ON_FAIL(baseObject->createShaderTable(desc, result->baseObject.writeRef()));
     returnComPtr(outTable, result);

@@ -15,7 +15,7 @@ namespace debug
 
 DebugCommandBuffer::DebugCommandBuffer()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     m_renderCommandEncoder.commandBuffer = this;
     m_computeCommandEncoder.commandBuffer = this;
     m_resourceCommandEncoder.commandBuffer = this;
@@ -36,7 +36,7 @@ void DebugCommandBuffer::encodeRenderCommands(
     IFramebuffer* framebuffer,
     IRenderCommandEncoder** outEncoder)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
     auto innerRenderPass = getInnerObj(renderPass);
@@ -52,7 +52,7 @@ void DebugCommandBuffer::encodeRenderCommands(
 
 void DebugCommandBuffer::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
     m_computeCommandEncoder.isOpen = true;
@@ -69,7 +69,7 @@ void DebugCommandBuffer::encodeComputeCommands(IComputeCommandEncoder** outEncod
 
 void DebugCommandBuffer::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
     m_resourceCommandEncoder.isOpen = true;
@@ -86,7 +86,7 @@ void DebugCommandBuffer::encodeResourceCommands(IResourceCommandEncoder** outEnc
 
 void DebugCommandBuffer::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
     m_rayTracingCommandEncoder.isOpen = true;
@@ -103,7 +103,7 @@ void DebugCommandBuffer::encodeRayTracingCommands(IRayTracingCommandEncoder** ou
 
 void DebugCommandBuffer::close()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     if (!isOpen)
     {
         GFX_DIAGNOSE_ERROR("command buffer is already closed.");
@@ -132,13 +132,13 @@ void DebugCommandBuffer::close()
 
 Result DebugCommandBuffer::getNativeHandle(InteropHandle* outHandle)
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     return baseObject->getNativeHandle(outHandle);
 }
 
 void DebugCommandBuffer::invalidateDescriptorHeapBinding()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     ComPtr<ICommandBufferD3D12> cmdBuf;
     if (SLANG_FAILED(baseObject->queryInterface(SlangUUID SLANG_UUID_ICommandBufferD3D12, (void**)cmdBuf.writeRef())))
     {
@@ -150,7 +150,7 @@ void DebugCommandBuffer::invalidateDescriptorHeapBinding()
 
 void DebugCommandBuffer::ensureInternalDescriptorHeapsBound()
 {
-    SLANG_GFX_API_FUNC;
+    SLANG_RHI_API_FUNC;
     ComPtr<ICommandBufferD3D12> cmdBuf;
     if (SLANG_FAILED(baseObject->queryInterface(SlangUUID SLANG_UUID_ICommandBufferD3D12, (void**)cmdBuf.writeRef())))
     {

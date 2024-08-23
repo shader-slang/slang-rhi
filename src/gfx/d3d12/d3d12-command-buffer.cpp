@@ -60,7 +60,7 @@ void CommandBufferImpl::init(
     reinit();
 
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList6>(m_cmdList6.writeRef());
-if (m_cmdList6)
+    if (m_cmdList6)
     {
         m_cmdList4 = m_cmdList6;
         m_cmdList1 = m_cmdList6;

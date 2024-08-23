@@ -8,7 +8,7 @@ static SlangResult g_initStatus = SLANG_E_UNINITIALIZED;
 
 /* static */SlangResult NVAPIUtil::initialize()
 {
-#ifdef GFX_NVAPI
+#ifdef SLANG_RHI_NVAPI
     if (g_initStatus == SLANG_E_UNINITIALIZED)
     {
         NvAPI_Status ret = NVAPI_OK;

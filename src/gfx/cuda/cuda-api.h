@@ -1,11 +1,11 @@
 #pragma once
 
-#define GFX_USE_DYNAMIC_CUDA 1
+#define SLANG_RHI_USE_DYNAMIC_CUDA 1
 
 bool gfxCudaApiInit();
 void gfxCudaApiShutdown();
 
-#if GFX_USE_DYNAMIC_CUDA
+#if SLANG_RHI_USE_DYNAMIC_CUDA
 
 #include <cstdint>
 #include <cstdlib>
@@ -684,106 +684,106 @@ struct CUmemLocation {
 #define CU_DEVICE_CPU ((CUdevice)-1)
 #define CU_DEVICE_INVALID ((CUdevice)-2)
 
-#if !defined(GFX_CUDA_SYM)
-#define GFX_CUDA_SYM(x) extern x;
+#if !defined(CUDA_SYM)
+#define CUDA_SYM(x) extern x;
 #endif
 
 // clang-format off
-GFX_CUDA_SYM(CUresult (*cuGetErrorString)(CUresult, const char**));
-GFX_CUDA_SYM(CUresult (*cuGetErrorName)(CUresult, const char**));
-GFX_CUDA_SYM(CUresult (*cuInit)(unsigned int));
-GFX_CUDA_SYM(CUresult (*cuDriverGetVersion)(int*));
-GFX_CUDA_SYM(CUresult (*cuDeviceGet)(CUdevice*, int));
-GFX_CUDA_SYM(CUresult (*cuDeviceGetCount)(int*));
-GFX_CUDA_SYM(CUresult (*cuDeviceGetName)(char*, int, CUdevice));
-GFX_CUDA_SYM(CUresult (*cuDeviceGetUuid)(CUuuid*, CUdevice));
-GFX_CUDA_SYM(CUresult (*cuDeviceGetLuid)(char*, unsigned int*, CUdevice));
-GFX_CUDA_SYM(CUresult (*cuDeviceTotalMem)(size_t*, CUdevice));
-GFX_CUDA_SYM(CUresult (*cuDeviceGetAttribute)(int*, CUdevice_attribute, CUdevice));
-GFX_CUDA_SYM(CUresult (*cuDevicePrimaryCtxRetain)(CUcontext*, CUdevice));
-GFX_CUDA_SYM(CUresult (*cuDevicePrimaryCtxRelease)(CUdevice));
-GFX_CUDA_SYM(CUresult (*cuDevicePrimaryCtxReset)(CUdevice));
-GFX_CUDA_SYM(CUresult (*cuCtxCreate)(CUcontext*, unsigned int, CUdevice)); // NEW
-GFX_CUDA_SYM(CUresult (*cuCtxDestroy)(CUcontext)); // NEW
-GFX_CUDA_SYM(CUresult (*cuCtxPushCurrent)(CUcontext));
-GFX_CUDA_SYM(CUresult (*cuCtxPopCurrent)(CUcontext*));
-GFX_CUDA_SYM(CUresult (*cuCtxSetCurrent)(CUcontext));
-GFX_CUDA_SYM(CUresult (*cuCtxGetCurrent)(CUcontext*));
-GFX_CUDA_SYM(CUresult (*cuCtxGetDevice)(CUdevice*));
-GFX_CUDA_SYM(CUresult (*cuCtxSynchronize)());
+CUDA_SYM(CUresult (*cuGetErrorString)(CUresult, const char**));
+CUDA_SYM(CUresult (*cuGetErrorName)(CUresult, const char**));
+CUDA_SYM(CUresult (*cuInit)(unsigned int));
+CUDA_SYM(CUresult (*cuDriverGetVersion)(int*));
+CUDA_SYM(CUresult (*cuDeviceGet)(CUdevice*, int));
+CUDA_SYM(CUresult (*cuDeviceGetCount)(int*));
+CUDA_SYM(CUresult (*cuDeviceGetName)(char*, int, CUdevice));
+CUDA_SYM(CUresult (*cuDeviceGetUuid)(CUuuid*, CUdevice));
+CUDA_SYM(CUresult (*cuDeviceGetLuid)(char*, unsigned int*, CUdevice));
+CUDA_SYM(CUresult (*cuDeviceTotalMem)(size_t*, CUdevice));
+CUDA_SYM(CUresult (*cuDeviceGetAttribute)(int*, CUdevice_attribute, CUdevice));
+CUDA_SYM(CUresult (*cuDevicePrimaryCtxRetain)(CUcontext*, CUdevice));
+CUDA_SYM(CUresult (*cuDevicePrimaryCtxRelease)(CUdevice));
+CUDA_SYM(CUresult (*cuDevicePrimaryCtxReset)(CUdevice));
+CUDA_SYM(CUresult (*cuCtxCreate)(CUcontext*, unsigned int, CUdevice)); // NEW
+CUDA_SYM(CUresult (*cuCtxDestroy)(CUcontext)); // NEW
+CUDA_SYM(CUresult (*cuCtxPushCurrent)(CUcontext));
+CUDA_SYM(CUresult (*cuCtxPopCurrent)(CUcontext*));
+CUDA_SYM(CUresult (*cuCtxSetCurrent)(CUcontext));
+CUDA_SYM(CUresult (*cuCtxGetCurrent)(CUcontext*));
+CUDA_SYM(CUresult (*cuCtxGetDevice)(CUdevice*));
+CUDA_SYM(CUresult (*cuCtxSynchronize)());
 
-GFX_CUDA_SYM(CUresult (*cuMemGetInfo)(size_t*, size_t*));
-GFX_CUDA_SYM(CUresult (*cuMemAlloc)(CUdeviceptr*, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemFree)(CUdeviceptr));
-GFX_CUDA_SYM(CUresult (*cuMemAllocHost)(void**, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemFreeHost)(void*));
-GFX_CUDA_SYM(CUresult (*cuMemAllocManaged)(CUdeviceptr*, size_t, unsigned int));
-GFX_CUDA_SYM(CUresult (*cuMemcpy)(CUdeviceptr, CUdeviceptr, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemcpyHtoD)(CUdeviceptr, const void*, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemcpyDtoH)(void*, CUdeviceptr, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemcpyDtoD)(CUdeviceptr, CUdeviceptr, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemcpy2D)(const CUDA_MEMCPY2D*));
-GFX_CUDA_SYM(CUresult (*cuMemcpy2DUnaligned)(const CUDA_MEMCPY2D*));
-GFX_CUDA_SYM(CUresult (*cuMemcpy3D)(const CUDA_MEMCPY3D*));
-GFX_CUDA_SYM(CUresult (*cuMemcpyAsync)(CUdeviceptr, CUdeviceptr, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemcpyHtoDAsync)(CUdeviceptr, const void*, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemcpyDtoHAsync)(void*, CUdeviceptr, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemcpyDtoDAsync)(CUdeviceptr, CUdeviceptr, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemcpy2DAsync)(const CUDA_MEMCPY2D*, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemcpy3DAsync)(const CUDA_MEMCPY3D*, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemsetD8)(CUdeviceptr, unsigned char, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemsetD16)(CUdeviceptr, unsigned short, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemsetD32)(CUdeviceptr, unsigned int, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemsetD2D8)(CUdeviceptr, size_t, unsigned char, size_t, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemsetD2D16)(CUdeviceptr, size_t, unsigned short, size_t, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemsetD2D32)(CUdeviceptr, size_t, unsigned int, size_t, size_t));
-GFX_CUDA_SYM(CUresult (*cuMemsetD8Async)(CUdeviceptr, unsigned char, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemsetD16Async)(CUdeviceptr, unsigned short, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemsetD32Async)(CUdeviceptr, unsigned int, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemsetD2D8Async)(CUdeviceptr, size_t, unsigned char, size_t, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemsetD2D16Async)(CUdeviceptr, size_t, unsigned short, size_t, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemsetD2D32Async)(CUdeviceptr, size_t, unsigned int, size_t, size_t, CUstream));
-GFX_CUDA_SYM(CUresult (*cuMemAdvise)(CUdeviceptr, size_t, CUmem_advise, CUmemLocation));
-GFX_CUDA_SYM(CUresult (*cuStreamCreate)(CUstream*, unsigned int));
-GFX_CUDA_SYM(CUresult (*cuStreamCreateWithPriority)(CUstream*, unsigned int, int));
-GFX_CUDA_SYM(CUresult (*cuStreamWaitEvent)(CUstream, CUevent, unsigned int));
-GFX_CUDA_SYM(CUresult (*cuStreamSynchronize)(CUstream));
-GFX_CUDA_SYM(CUresult (*cuStreamDestroy)(CUstream));
-GFX_CUDA_SYM(CUresult (*cuEventCreate)(CUevent*, unsigned int));
-GFX_CUDA_SYM(CUresult (*cuEventRecord)(CUevent, CUstream));
-GFX_CUDA_SYM(CUresult (*cuEventQuery)(CUevent));
-GFX_CUDA_SYM(CUresult (*cuEventSynchronize)(CUevent));
-GFX_CUDA_SYM(CUresult (*cuEventDestroy)(CUevent));
-GFX_CUDA_SYM(CUresult (*cuEventElapsedTime)(float*, CUevent, CUevent));
-GFX_CUDA_SYM(CUresult (*cuImportExternalMemory)(CUexternalMemory*, const CUDA_EXTERNAL_MEMORY_HANDLE_DESC*));
-GFX_CUDA_SYM(CUresult (*cuExternalMemoryGetMappedBuffer)(CUdeviceptr*, CUexternalMemory, const CUDA_EXTERNAL_MEMORY_BUFFER_DESC*));
-GFX_CUDA_SYM(CUresult (*cuExternalMemoryGetMappedMipmappedArray)(CUmipmappedArray*, CUexternalMemory, const CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC*));
-GFX_CUDA_SYM(CUresult (*cuDestroyExternalMemory)(CUexternalMemory));
-GFX_CUDA_SYM(CUresult (*cuImportExternalSemaphore)(CUexternalSemaphore*, const CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC*));
-GFX_CUDA_SYM(CUresult (*cuSignalExternalSemaphoresAsync)(const CUexternalSemaphore*, const CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS*, unsigned int, CUstream));
-GFX_CUDA_SYM(CUresult (*cuWaitExternalSemaphoresAsync)(const CUexternalSemaphore*, const CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS*, unsigned int, CUstream));
-GFX_CUDA_SYM(CUresult (*cuDestroyExternalSemaphore)(CUexternalSemaphore));
+CUDA_SYM(CUresult (*cuMemGetInfo)(size_t*, size_t*));
+CUDA_SYM(CUresult (*cuMemAlloc)(CUdeviceptr*, size_t));
+CUDA_SYM(CUresult (*cuMemFree)(CUdeviceptr));
+CUDA_SYM(CUresult (*cuMemAllocHost)(void**, size_t));
+CUDA_SYM(CUresult (*cuMemFreeHost)(void*));
+CUDA_SYM(CUresult (*cuMemAllocManaged)(CUdeviceptr*, size_t, unsigned int));
+CUDA_SYM(CUresult (*cuMemcpy)(CUdeviceptr, CUdeviceptr, size_t));
+CUDA_SYM(CUresult (*cuMemcpyHtoD)(CUdeviceptr, const void*, size_t));
+CUDA_SYM(CUresult (*cuMemcpyDtoH)(void*, CUdeviceptr, size_t));
+CUDA_SYM(CUresult (*cuMemcpyDtoD)(CUdeviceptr, CUdeviceptr, size_t));
+CUDA_SYM(CUresult (*cuMemcpy2D)(const CUDA_MEMCPY2D*));
+CUDA_SYM(CUresult (*cuMemcpy2DUnaligned)(const CUDA_MEMCPY2D*));
+CUDA_SYM(CUresult (*cuMemcpy3D)(const CUDA_MEMCPY3D*));
+CUDA_SYM(CUresult (*cuMemcpyAsync)(CUdeviceptr, CUdeviceptr, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemcpyHtoDAsync)(CUdeviceptr, const void*, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemcpyDtoHAsync)(void*, CUdeviceptr, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemcpyDtoDAsync)(CUdeviceptr, CUdeviceptr, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemcpy2DAsync)(const CUDA_MEMCPY2D*, CUstream));
+CUDA_SYM(CUresult (*cuMemcpy3DAsync)(const CUDA_MEMCPY3D*, CUstream));
+CUDA_SYM(CUresult (*cuMemsetD8)(CUdeviceptr, unsigned char, size_t));
+CUDA_SYM(CUresult (*cuMemsetD16)(CUdeviceptr, unsigned short, size_t));
+CUDA_SYM(CUresult (*cuMemsetD32)(CUdeviceptr, unsigned int, size_t));
+CUDA_SYM(CUresult (*cuMemsetD2D8)(CUdeviceptr, size_t, unsigned char, size_t, size_t));
+CUDA_SYM(CUresult (*cuMemsetD2D16)(CUdeviceptr, size_t, unsigned short, size_t, size_t));
+CUDA_SYM(CUresult (*cuMemsetD2D32)(CUdeviceptr, size_t, unsigned int, size_t, size_t));
+CUDA_SYM(CUresult (*cuMemsetD8Async)(CUdeviceptr, unsigned char, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemsetD16Async)(CUdeviceptr, unsigned short, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemsetD32Async)(CUdeviceptr, unsigned int, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemsetD2D8Async)(CUdeviceptr, size_t, unsigned char, size_t, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemsetD2D16Async)(CUdeviceptr, size_t, unsigned short, size_t, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemsetD2D32Async)(CUdeviceptr, size_t, unsigned int, size_t, size_t, CUstream));
+CUDA_SYM(CUresult (*cuMemAdvise)(CUdeviceptr, size_t, CUmem_advise, CUmemLocation));
+CUDA_SYM(CUresult (*cuStreamCreate)(CUstream*, unsigned int));
+CUDA_SYM(CUresult (*cuStreamCreateWithPriority)(CUstream*, unsigned int, int));
+CUDA_SYM(CUresult (*cuStreamWaitEvent)(CUstream, CUevent, unsigned int));
+CUDA_SYM(CUresult (*cuStreamSynchronize)(CUstream));
+CUDA_SYM(CUresult (*cuStreamDestroy)(CUstream));
+CUDA_SYM(CUresult (*cuEventCreate)(CUevent*, unsigned int));
+CUDA_SYM(CUresult (*cuEventRecord)(CUevent, CUstream));
+CUDA_SYM(CUresult (*cuEventQuery)(CUevent));
+CUDA_SYM(CUresult (*cuEventSynchronize)(CUevent));
+CUDA_SYM(CUresult (*cuEventDestroy)(CUevent));
+CUDA_SYM(CUresult (*cuEventElapsedTime)(float*, CUevent, CUevent));
+CUDA_SYM(CUresult (*cuImportExternalMemory)(CUexternalMemory*, const CUDA_EXTERNAL_MEMORY_HANDLE_DESC*));
+CUDA_SYM(CUresult (*cuExternalMemoryGetMappedBuffer)(CUdeviceptr*, CUexternalMemory, const CUDA_EXTERNAL_MEMORY_BUFFER_DESC*));
+CUDA_SYM(CUresult (*cuExternalMemoryGetMappedMipmappedArray)(CUmipmappedArray*, CUexternalMemory, const CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC*));
+CUDA_SYM(CUresult (*cuDestroyExternalMemory)(CUexternalMemory));
+CUDA_SYM(CUresult (*cuImportExternalSemaphore)(CUexternalSemaphore*, const CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC*));
+CUDA_SYM(CUresult (*cuSignalExternalSemaphoresAsync)(const CUexternalSemaphore*, const CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS*, unsigned int, CUstream));
+CUDA_SYM(CUresult (*cuWaitExternalSemaphoresAsync)(const CUexternalSemaphore*, const CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS*, unsigned int, CUstream));
+CUDA_SYM(CUresult (*cuDestroyExternalSemaphore)(CUexternalSemaphore));
 
 // NEW
-GFX_CUDA_SYM(CUresult (*cuModuleGetFunction)(CUfunction*, CUmodule, const char*));
-GFX_CUDA_SYM(CUresult (*cuModuleGetGlobal)(CUdeviceptr*, size_t*, CUmodule, const char*));
-GFX_CUDA_SYM(CUresult (*cuModuleGetTexRef)(CUtexref*, CUmodule, const char*));
-GFX_CUDA_SYM(CUresult (*cuModuleLoad)(CUmodule*, const char*));
-GFX_CUDA_SYM(CUresult (*cuModuleLoadData)(CUmodule*, const void*));
-GFX_CUDA_SYM(CUresult (*cuModuleUnload)(CUmodule hmod));
+CUDA_SYM(CUresult (*cuModuleGetFunction)(CUfunction*, CUmodule, const char*));
+CUDA_SYM(CUresult (*cuModuleGetGlobal)(CUdeviceptr*, size_t*, CUmodule, const char*));
+CUDA_SYM(CUresult (*cuModuleGetTexRef)(CUtexref*, CUmodule, const char*));
+CUDA_SYM(CUresult (*cuModuleLoad)(CUmodule*, const char*));
+CUDA_SYM(CUresult (*cuModuleLoadData)(CUmodule*, const void*));
+CUDA_SYM(CUresult (*cuModuleUnload)(CUmodule hmod));
 
-GFX_CUDA_SYM(CUresult (*cuLaunchKernel)(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, CUstream, void **, void **));
-GFX_CUDA_SYM(CUresult (*cuMipmappedArrayGetLevel)(CUarray*, CUmipmappedArray, unsigned int));
-GFX_CUDA_SYM(CUresult (*cuArrayCreate)(CUarray*, const CUDA_ARRAY_DESCRIPTOR*));
-GFX_CUDA_SYM(CUresult (*cuArrayDestroy)(CUarray));
-GFX_CUDA_SYM(CUresult (*cuArrayGetDescriptor)(CUDA_ARRAY_DESCRIPTOR*, CUarray));
-GFX_CUDA_SYM(CUresult (*cuMipmappedArrayCreate)(CUmipmappedArray*, const CUDA_ARRAY3D_DESCRIPTOR*, unsigned int));
-GFX_CUDA_SYM(CUresult (*cuMipmappedArrayDestroy)(CUmipmappedArray));
-GFX_CUDA_SYM(CUresult (*cuArray3DCreate)(CUarray*, const CUDA_ARRAY3D_DESCRIPTOR*));
-GFX_CUDA_SYM(CUresult (*cuSurfObjectCreate)(CUsurfObject*, const CUDA_RESOURCE_DESC*));
-GFX_CUDA_SYM(CUresult (*cuSurfObjectDestroy)(CUsurfObject));
-GFX_CUDA_SYM(CUresult (*cuTexObjectCreate)(CUtexObject*, const CUDA_RESOURCE_DESC*, const CUDA_TEXTURE_DESC*, const CUDA_RESOURCE_VIEW_DESC*));
-GFX_CUDA_SYM(CUresult (*cuTexObjectDestroy)(CUtexObject));
+CUDA_SYM(CUresult (*cuLaunchKernel)(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, CUstream, void **, void **));
+CUDA_SYM(CUresult (*cuMipmappedArrayGetLevel)(CUarray*, CUmipmappedArray, unsigned int));
+CUDA_SYM(CUresult (*cuArrayCreate)(CUarray*, const CUDA_ARRAY_DESCRIPTOR*));
+CUDA_SYM(CUresult (*cuArrayDestroy)(CUarray));
+CUDA_SYM(CUresult (*cuArrayGetDescriptor)(CUDA_ARRAY_DESCRIPTOR*, CUarray));
+CUDA_SYM(CUresult (*cuMipmappedArrayCreate)(CUmipmappedArray*, const CUDA_ARRAY3D_DESCRIPTOR*, unsigned int));
+CUDA_SYM(CUresult (*cuMipmappedArrayDestroy)(CUmipmappedArray));
+CUDA_SYM(CUresult (*cuArray3DCreate)(CUarray*, const CUDA_ARRAY3D_DESCRIPTOR*));
+CUDA_SYM(CUresult (*cuSurfObjectCreate)(CUsurfObject*, const CUDA_RESOURCE_DESC*));
+CUDA_SYM(CUresult (*cuSurfObjectDestroy)(CUsurfObject));
+CUDA_SYM(CUresult (*cuTexObjectCreate)(CUtexObject*, const CUDA_RESOURCE_DESC*, const CUDA_TEXTURE_DESC*, const CUDA_RESOURCE_VIEW_DESC*));
+CUDA_SYM(CUresult (*cuTexObjectDestroy)(CUtexObject));
 // clang-format on
 
 
@@ -813,8 +813,8 @@ enum CUmemAttach_flags {
     CU_MEM_ATTACH_SINGLE = 0x4,
 };
 
-#else // GFX_USE_DYNAMIC_CUDA
+#else // SLANG_RHI_USE_DYNAMIC_CUDA
 
 #include <cuda.h>
 
-#endif // GFX_USE_DYNAMIC_CUDA
+#endif // SLANG_RHI_USE_DYNAMIC_CUDA

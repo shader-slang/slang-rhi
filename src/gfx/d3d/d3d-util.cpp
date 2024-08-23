@@ -14,7 +14,7 @@
 #include "core/slang-basic.h"
 #include "core/slang-platform.h"
 
-#ifdef GFX_NV_AFTERMATH
+#ifdef SLANG_RHI_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
@@ -896,7 +896,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
         return SLANG_OK;
     }
 
-#if GFX_NV_AFTERMATH
+#if SLANG_RHI_NV_AFTERMATH
     {
         GFSDK_Aftermath_CrashDump_Status status = GFSDK_Aftermath_CrashDump_Status_Unknown;
         if (GFSDK_Aftermath_GetCrashDumpStatus(&status) != GFSDK_Aftermath_Result_Success)
