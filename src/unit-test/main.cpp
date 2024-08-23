@@ -86,11 +86,9 @@ int main(int argc, char **argv)
 {
     slang::IGlobalSession* slangGlobalSession;
     slang::createGlobalSession(&slangGlobalSession);
-    Slang::RenderApiFlags enabledApis = Slang::RenderApiFlag::Vulkan | Slang::RenderApiFlag::D3D12;
 
     UnitTestContext context;
     context.slangGlobalSession = slangGlobalSession;
-    context.enabledApis = enabledApis;
     context.workDirectory = ".";
     context.executableDirectory = ".";
 
