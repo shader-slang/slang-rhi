@@ -149,7 +149,7 @@ public:
 
     std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
 
-    Index getBindingRangeCount() { return m_bindingRanges.getCount(); }
+    Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
     BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
 

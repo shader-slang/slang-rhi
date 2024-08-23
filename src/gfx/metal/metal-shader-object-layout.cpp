@@ -75,24 +75,24 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
                 m_subObjectCount += count;
             }
             m_bufferCount += count;
-            m_bufferRanges.add(r);
+            m_bufferRanges.push_back(r);
             break;
         case slang::BindingType::Sampler:
             bindingRangeInfo.baseIndex = m_samplerCount;
             m_samplerCount += count;
-            m_samplerRanges.add(r);
+            m_samplerRanges.push_back(r);
             break;
         case slang::BindingType::Texture:
         case slang::BindingType::MutableTexture:
             bindingRangeInfo.baseIndex = m_textureCount;
             m_textureCount += count;
-            m_textureRanges.add(r);
+            m_textureRanges.push_back(r);
             break;
         case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableTypedBuffer:
             bindingRangeInfo.baseIndex = m_textureCount;
             m_textureCount += count;
-            m_textureRanges.add(r);
+            m_textureRanges.push_back(r);
             break;
         default:
             break;
@@ -130,7 +130,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             bindingRangeInfo.registerOffset = (uint32_t)registerOffset;
         }
 
-        m_bindingRanges.add(bindingRangeInfo);
+        m_bindingRanges.push_back(bindingRangeInfo);
     }
 
     SlangInt subObjectRangeCount = typeLayout->getSubObjectRangeCount();
@@ -204,7 +204,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         }
         subObjectRange.layout = subObjectLayout;
 
-        m_subObjectRanges.add(subObjectRange);
+        m_subObjectRanges.push_back(subObjectRange);
     }
     return SLANG_OK;
 }
@@ -283,7 +283,7 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
     EntryPointInfo info;
     info.layout = entryPointLayout;
     info.offset = BindingOffset(slangEntryPoint->getVarLayout());
-    m_entryPoints.add(info);
+    m_entryPoints.push_back(info);
 }
 
 Result RootShaderObjectLayoutImpl::create(

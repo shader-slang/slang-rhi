@@ -127,15 +127,15 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
         memset(m_data.getBuffer(), 0, uniformSize);
     }
 
-    m_buffers.setCount(layout->getBufferCount());
-    m_textures.setCount(layout->getTextureCount());
-    m_samplers.setCount(layout->getSamplerCount());
+    m_buffers.resize(layout->getBufferCount());
+    m_textures.resize(layout->getTextureCount());
+    m_samplers.resize(layout->getSamplerCount());
 
     // If the layout specifies that we have any sub-objects, then
     // we need to size the array to account for them.
     //
     Index subObjectCount = layout->getSubObjectCount();
-    m_objects.setCount(subObjectCount);
+    m_objects.resize(subObjectCount);
 
     for (auto subObjectRangeInfo : layout->getSubObjectRanges())
     {
@@ -708,7 +708,7 @@ Result RootShaderObjectImpl::bindAsRoot(
     // Once the state stored in the root shader object itself has been bound,
     // we turn our attention to the entry points and their parameters.
     //
-    auto entryPointCount = m_entryPoints.getCount();
+    auto entryPointCount = m_entryPoints.size();
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = m_entryPoints[i];
@@ -739,7 +739,7 @@ Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* l
         RefPtr<ShaderObjectImpl> entryPoint;
         SLANG_RETURN_ON_FAIL(
             ShaderObjectImpl::create(device, entryPointInfo.layout, entryPoint.writeRef()));
-        m_entryPoints.add(entryPoint);
+        m_entryPoints.push_back(entryPoint);
     }
 
     return SLANG_OK;

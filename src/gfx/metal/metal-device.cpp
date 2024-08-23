@@ -77,7 +77,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
 
     if (m_hasArgumentBufferTier2)
     {
-        m_features.add("argument-buffer-tier-2");
+        m_features.push_back("argument-buffer-tier-2");
     }
 
     SLANG_RETURN_ON_FAIL(slangContext.initialize(

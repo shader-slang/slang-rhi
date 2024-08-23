@@ -223,7 +223,7 @@ void RenderCommandEncoder::beginPass(IRenderPassLayout* renderPass, IFramebuffer
     m_renderPassDesc->setRenderTargetWidth(m_framebuffer->m_width);
     m_renderPassDesc->setRenderTargetHeight(m_framebuffer->m_height);
 
-    for (Index i = 0; i < m_framebuffer->m_renderTargetViews.getCount(); ++i)
+    for (Index i = 0; i < m_framebuffer->m_renderTargetViews.size(); ++i)
     {
         TextureResourceViewImpl* renderTargetView = m_framebuffer->m_renderTargetViews[i];
         MTL::RenderPassColorAttachmentDescriptor* colorAttachment = m_renderPassDesc->colorAttachments()->object(i);
@@ -311,7 +311,7 @@ void RenderCommandEncoder::setVertexBuffers(
     IBufferResource* const* buffers,
     const Offset* offsets)
 {
-    Index count = Math::Max(m_vertexBuffers.size(), Index(startSlot + slotCount));
+    Index count = Math::Max(m_vertexBuffers.size(), size_t(startSlot + slotCount));
     m_vertexBuffers.resize(count);
     m_vertexBufferOffsets.resize(count);
 

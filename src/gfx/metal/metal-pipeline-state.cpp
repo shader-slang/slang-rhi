@@ -58,7 +58,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
 
     for (const ShaderProgramImpl::Module& module : programImpl->m_modules)
     {
-        auto functionName = MetalUtil::createString(module.entryPointName.getBuffer());
+        auto functionName = MetalUtil::createString(module.entryPointName.data());
         NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
         if (!function)
             return SLANG_FAIL;
@@ -94,7 +94,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     // pd->setAlphaToOneEnabled(); // Currently not supported by gfx
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < framebufferLayoutImpl->m_renderTargets.getCount(); ++i)
+    for (Index i = 0; i < framebufferLayoutImpl->m_renderTargets.size(); ++i)
     {
         const IFramebufferLayout::TargetLayout& targetLayout = framebufferLayoutImpl->m_renderTargets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
@@ -178,7 +178,7 @@ Result PipelineStateImpl::createMetalComputePipelineState()
         return SLANG_FAIL;
 
     const ShaderProgramImpl::Module& module = programImpl->m_modules[0];
-    auto functionName = MetalUtil::createString(module.entryPointName.getBuffer());
+    auto functionName = MetalUtil::createString(module.entryPointName.data());
     NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
     if (!function)
         return SLANG_FAIL;
