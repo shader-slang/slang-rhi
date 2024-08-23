@@ -3,7 +3,7 @@
 
 #include "core/slang-basic.h"
 #include "metal-api.h"
-#include "slang-gfx.h"
+#include "slang-rhi.h"
 
 namespace gfx {
 

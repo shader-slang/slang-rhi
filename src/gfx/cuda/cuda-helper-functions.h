@@ -1,7 +1,7 @@
 // cuda-helper-functions.h
 #pragma once
 
-#include "slang-gfx.h"
+#include "slang-rhi.h"
 #include "cuda-base.h"
 #include "core/slang-list.h"
 

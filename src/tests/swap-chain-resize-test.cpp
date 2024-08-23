@@ -1,7 +1,7 @@
 #if 0 // TODO_GFX_REMOVE
 #include "unit-test/slang-unit-test.h"
 
-#include "slang-gfx.h"
+#include "slang-rhi.h"
 #include "gfx-test-util.h"
 #include "gfx-util/shader-cursor.h"
 #include "tools/platform/window.h"

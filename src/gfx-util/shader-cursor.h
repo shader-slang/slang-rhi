@@ -1,6 +1,6 @@
 #pragma once
 
-#include "slang-gfx.h"
+#include "slang-rhi.h"
 
 namespace gfx
 {

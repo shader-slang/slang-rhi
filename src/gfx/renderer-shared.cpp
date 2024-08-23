@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <string_view>
 
 using namespace Slang;
 
@@ -823,7 +824,7 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
                 }
             }
             builder.appendChar('>');
-            key.typeName = std::string_view(builder.getUnownedSlice().begin(), builder.getUnownedSlice().end());
+            key.typeName = std::string_view(builder.getUnownedSlice().begin(), builder.getUnownedSlice().getLength());
             key.updateHash();
             return getComponentId(key);
         }

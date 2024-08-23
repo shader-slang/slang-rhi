@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(slang-gfx)
+project(slang-rhi)
 
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
@@ -47,28 +47,29 @@ file(GLOB GFX_SOURCES
     src/gfx/nvapi/*.cpp
     src/gfx/debug-layer/*.cpp
 )
-add_library(slang-gfx STATIC)
-target_sources(slang-gfx PRIVATE ${GFX_SOURCES})
-target_compile_definitions(slang-gfx
+add_library(slang-rhi STATIC)
+target_sources(slang-rhi PRIVATE ${GFX_SOURCES})
+target_include_directories(slang-rhi PUBLIC include)
+target_compile_definitions(slang-rhi
     PRIVATE
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
-target_compile_features(slang-gfx PRIVATE cxx_std_20)
-target_link_libraries(slang-gfx PRIVATE slang-core Vulkan::Headers slang)
+target_compile_features(slang-rhi PRIVATE cxx_std_20)
+target_link_libraries(slang-rhi PRIVATE slang-core Vulkan::Headers slang)
 
 file(GLOB TEST_SOURCES
     src/tests/*.cpp
     src/unit-test/*.cpp
     src/gfx-util/*.cpp
 )
-add_executable(slang-gfx-tests)
-target_sources(slang-gfx-tests PRIVATE ${TEST_SOURCES})
-target_compile_definitions(slang-gfx-tests
+add_executable(slang-rhi-tests)
+target_sources(slang-rhi-tests PRIVATE ${TEST_SOURCES})
+target_compile_definitions(slang-rhi-tests
     PRIVATE
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
-target_compile_features(slang-gfx-tests PRIVATE cxx_std_20)
-target_include_directories(slang-gfx-tests PRIVATE src)
-target_link_libraries(slang-gfx-tests PRIVATE slang-core slang-gfx stb)
+target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
+target_include_directories(slang-rhi-tests PRIVATE src)
+target_link_libraries(slang-rhi-tests PRIVATE slang-core slang-rhi stb)

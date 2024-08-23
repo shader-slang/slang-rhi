@@ -4,7 +4,7 @@
 // Provide a simple no-op implementation for `ITransientResourceHeap` for targets that
 // already support version management.
 
-#include "slang-gfx.h"
+#include "slang-rhi.h"
 
 namespace gfx
 {

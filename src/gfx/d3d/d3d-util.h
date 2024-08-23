@@ -11,7 +11,7 @@
 
 #include "../flag-combiner.h"
 
-#include "slang-gfx.h"
+#include "slang-rhi.h"
 
 #include <d3dcommon.h>
 #include <dxgiformat.h>

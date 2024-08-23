@@ -85,9 +85,7 @@ enum class DeviceType
 {
     Unknown,
     Default,
-    DirectX11,
-    DirectX12,
-    OpenGl,
+    D3D12,
     Vulkan,
     Metal,
     CPU,
@@ -99,7 +97,6 @@ enum class DeviceType
 enum class ProjectionStyle
 {
     Unknown,
-    OpenGl,
     DirectX,
     Vulkan,
     Metal,
@@ -112,7 +109,6 @@ enum class BindingStyle
 {
     Unknown,
     DirectX,
-    OpenGl,
     Vulkan,
     Metal,
     CPU,

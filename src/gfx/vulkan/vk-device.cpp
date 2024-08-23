@@ -176,8 +176,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     if (handles[0].handleValue == 0)
     {
         VkApplicationInfo applicationInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-        applicationInfo.pApplicationName = "slang-gfx";
-        applicationInfo.pEngineName = "slang-gfx";
+        applicationInfo.pApplicationName = "slang-rhi";
+        applicationInfo.pEngineName = "slang-rhi";
         applicationInfo.apiVersion = VK_API_VERSION_1_1;
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;

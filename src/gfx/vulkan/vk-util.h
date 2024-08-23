@@ -3,7 +3,7 @@
 
 #include "core/slang-basic.h"
 #include "vk-api.h"
-#include "slang-gfx.h"
+#include "slang-rhi.h"
 
 #include <vector>
 
