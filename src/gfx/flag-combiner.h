@@ -1,5 +1,4 @@
-#ifndef GFX_FLAG_COMBINER_H
-#define GFX_FLAG_COMBINER_H
+#pragma once
 
 #include <vector>
 
@@ -66,5 +65,3 @@ protected:
 };
 
 } // namespace gfx
-
-#endif // GFX_FLAG_COMBINER_H
