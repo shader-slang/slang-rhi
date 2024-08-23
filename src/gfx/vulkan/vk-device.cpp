@@ -23,6 +23,9 @@
 
 #include "utils/static_vector.h"
 
+#include <algorithm>
+#include <vector>
+
 #ifdef GFX_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
@@ -112,9 +115,9 @@ VkBool32 DeviceImpl::handleDebugMessage(
     // pMsg can be really big (it can be assembler dump for example)
     // Use a dynamic buffer to store
     Size bufferSize = strlen(pMsg) + 1 + 1024;
-    List<char> bufferArray;
-    bufferArray.setCount(bufferSize);
-    char* buffer = bufferArray.getBuffer();
+    std::vector<char> bufferArray;
+    bufferArray.resize(bufferSize);
+    char* buffer = bufferArray.data();
 
     sprintf_s(buffer, bufferSize, "%s: %s %d: %s\n", pLayerPrefix, severity, msgCode, pMsg);
 
@@ -240,9 +243,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             uint32_t layerCount;
             m_api.vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
-            List<VkLayerProperties> availableLayers;
-            availableLayers.setCount(layerCount);
-            m_api.vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.getBuffer());
+            std::vector<VkLayerProperties> availableLayers;
+            availableLayers.resize(layerCount);
+            m_api.vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
             for (auto& layer : availableLayers)
             {
@@ -329,10 +332,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         SLANG_VK_RETURN_ON_FAIL(
             m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
 
-        List<VkPhysicalDevice> physicalDevices;
-        physicalDevices.setCount(numPhysicalDevices);
+        std::vector<VkPhysicalDevice> physicalDevices;
+        physicalDevices.resize(numPhysicalDevices);
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(
-            instance, &numPhysicalDevices, physicalDevices.getBuffer()));
+            instance, &numPhysicalDevices, physicalDevices.data()));
 
         // Use first physical device by default.
         Index selectedDeviceIndex = 0;
@@ -341,7 +344,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         if (m_desc.adapterLUID)
         {
             selectedDeviceIndex = -1;
-            for (Index i = 0; i < physicalDevices.getCount(); ++i)
+            for (Index i = 0; i < physicalDevices.size(); ++i)
             {
                 if (vk::getAdapterLUID(m_api, physicalDevices[i]) == *m_desc.adapterLUID)
                 {
@@ -353,7 +356,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 return SLANG_E_NOT_FOUND;
         }
 
-        if (selectedDeviceIndex >= physicalDevices.getCount())
+        if (selectedDeviceIndex >= physicalDevices.size())
             return SLANG_FAIL;
 
         physicalDevice = physicalDevices[selectedDeviceIndex];
@@ -377,19 +380,19 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     uint32_t extensionCount = 0;
     m_api.vkEnumerateDeviceExtensionProperties(
         m_api.m_physicalDevice, NULL, &extensionCount, NULL);
-    Slang::List<VkExtensionProperties> extensions;
-    extensions.setCount(extensionCount);
+    std::vector<VkExtensionProperties> extensions;
+    extensions.resize(extensionCount);
     m_api.vkEnumerateDeviceExtensionProperties(
-        m_api.m_physicalDevice, NULL, &extensionCount, extensions.getBuffer());
+        m_api.m_physicalDevice, NULL, &extensionCount, extensions.data());
     HashSet<String> extensionNames;
     for (const auto& e : extensions)
         extensionNames.add(e.extensionName);
 
-    List<const char*> deviceExtensions;
-    deviceExtensions.add(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    deviceExtensions.add(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
+    std::vector<const char*> deviceExtensions;
+    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
 #if SLANG_APPLE_FAMILY
-    deviceExtensions.add("VK_KHR_portability_subset");
+    deviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
 
     VkDeviceCreateInfo deviceCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
@@ -545,25 +548,25 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         if (deviceFeatures2.features.shaderResourceMinLod)
         {
-            m_features.add("shader-resource-min-lod");
+            m_features.push_back("shader-resource-min-lod");
         }
         if (deviceFeatures2.features.shaderFloat64)
         {
-            m_features.add("double");
+            m_features.push_back("double");
         }
         if (deviceFeatures2.features.shaderInt64)
         {
-            m_features.add("int64");
+            m_features.push_back("int64");
         }
         if (deviceFeatures2.features.shaderInt16)
         {
-            m_features.add("int16");
+            m_features.push_back("int16");
         }
         // If we have float16 features then enable
         if (extendedFeatures.vulkan12Features.shaderFloat16)
         {
             // We have half support
-            m_features.add("half");
+            m_features.push_back("half");
         }
 
         const auto addFeatureExtension = [&](const bool feature, auto& featureStruct, const char* extension = nullptr){
@@ -573,7 +576,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             {
                 if(!extensionNames.contains(extension))
                     return false;
-                deviceExtensions.add(extension);
+                deviceExtensions.push_back(extension);
             }
             featureStruct.pNext = (void*)deviceCreateInfo.pNext;
             deviceCreateInfo.pNext = &featureStruct;
@@ -591,7 +594,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             const static auto fs = {__VA_ARGS__}; \
             if(addFeatureExtension(s.m, s, e)) \
                 for(const auto& p : fs) \
-                    m_features.add(p); \
+                    m_features.push_back(p); \
         } while(0)
 
         SIMPLE_EXTENSION_FEATURE(
@@ -635,9 +638,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         {
             extendedFeatures.accelerationStructureFeatures.pNext = (void*)deviceCreateInfo.pNext;
             deviceCreateInfo.pNext = &extendedFeatures.accelerationStructureFeatures;
-            deviceExtensions.add(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
-            deviceExtensions.add(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
-            m_features.add("acceleration-structure");
+            deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+            deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+            m_features.push_back("acceleration-structure");
 
             // These both depend on VK_KHR_acceleration_structure
 
@@ -734,16 +737,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #undef SIMPLE_EXTENSION_FEATURE
 
         if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
-            m_features.add("atomic-int64");
+            m_features.push_back("atomic-int64");
 
         if (extendedFeatures.vulkan12Features.timelineSemaphore)
-            m_features.add("timeline-semaphore");
+            m_features.push_back("timeline-semaphore");
 
         if (extendedFeatures.vulkan12Features.shaderSubgroupExtendedTypes)
-            m_features.add("shader-subgroup-extended-types");
+            m_features.push_back("shader-subgroup-extended-types");
 
         if (extendedFeatures.vulkan12Features.bufferDeviceAddress)
-            m_features.add("buffer-device-address");
+            m_features.push_back("buffer-device-address");
 
         if (_hasAnySetBits(
                 extendedFeatures.vulkan12Features,
@@ -780,84 +783,84 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
            | VK_SUBGROUP_FEATURE_QUAD_BIT
            | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV))
         {
-            m_features.add("wave-ops");
+            m_features.push_back("wave-ops");
         }
 
         if (extensionNames.contains("VK_KHR_external_memory"))
         {
-            deviceExtensions.add(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+            deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
 #if SLANG_WINDOWS_FAMILY
             if (extensionNames.contains("VK_KHR_external_memory_win32"))
             {
-                deviceExtensions.add(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+                deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
             }
 #else
             if (extensionNames.contains("VK_KHR_external_memory_fd"))
             {
-                deviceExtensions.add(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+                deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
             }
 #endif
-            m_features.add("external-memory");
+            m_features.push_back("external-memory");
         }
         if (extensionNames.contains(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
+            deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
 #if SLANG_WINDOWS_FAMILY
             if (extensionNames.contains(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME))
             {
-                deviceExtensions.add(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
+                deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
             }
 #else
             if (extensionNames.contains(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME))
             {
-                deviceExtensions.add(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+                deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
             }
 #endif
-            m_features.add("external-semaphore");
+            m_features.push_back("external-semaphore");
         }
         if (extensionNames.contains(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
-            m_features.add("conservative-rasterization-3");
-            m_features.add("conservative-rasterization-2");
-            m_features.add("conservative-rasterization-1");
+            deviceExtensions.push_back(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
+            m_features.push_back("conservative-rasterization-3");
+            m_features.push_back("conservative-rasterization-2");
+            m_features.push_back("conservative-rasterization-1");
         }
         if (extensionNames.contains(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+            deviceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             if (extensionNames.contains(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
             {
-                deviceExtensions.add(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+                deviceExtensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
             }
         }
         if (extensionNames.contains(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
+            deviceExtensions.push_back(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
         }
         if (extensionNames.contains(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
-            m_features.add("nvx-binary-import");
+            deviceExtensions.push_back(VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
+            m_features.push_back("nvx-binary-import");
         }
         if (extensionNames.contains(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
-            m_features.add("nvx-image-view-handle");
+            deviceExtensions.push_back(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
+            m_features.push_back("nvx-image-view-handle");
         }
         if (extensionNames.contains(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
-            m_features.add("push-descriptor");
+            deviceExtensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+            m_features.push_back("push-descriptor");
         }
         if (extensionNames.contains(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-            m_features.add("barycentrics");
+            deviceExtensions.push_back(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+            m_features.push_back("barycentrics");
         }
         if (extensionNames.contains(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
         {
-            deviceExtensions.add(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
-            m_features.add("shader-subgroup-partitioned");
+            deviceExtensions.push_back(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
+            m_features.push_back("shader-subgroup-partitioned");
         }
 
         // Derive approximate DX12 shader model.
@@ -888,11 +891,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 {
                     break;
                 }
-                hasAll &= m_features.contains(feature);
+                hasAll &= std::any_of(m_features.begin(), m_features.end(), [&](const String& f) {
+                    return f == feature;
+                });
             }
             if (hasAll)
             {
-                m_features.add(sm);
+                m_features.push_back(sm);
             }
             else
             {
@@ -902,11 +907,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     if (m_api.m_module->isSoftware())
     {
-        m_features.add("software-device");
+        m_features.push_back("software-device");
     }
     else
     {
-        m_features.add("hardware-device");
+        m_features.push_back("hardware-device");
     }
 
     m_queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
@@ -918,11 +923,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     {
         // Enable NV_device_diagnostic_checkpoints extension to be able to
         // use Aftermath event markers.
-        deviceExtensions.add(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
+        deviceExtensions.push_back(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
 
         // Enable NV_device_diagnostics_config extension to configure Aftermath
         // features.
-        deviceExtensions.add(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
+        deviceExtensions.push_back(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
 
         // Set up device creation info for Aftermath feature flag configuration.
         VkDeviceDiagnosticsConfigFlagsNV aftermathFlags =
@@ -950,8 +955,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
 
-        deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.getCount());
-        deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.getBuffer();
+        deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
+        deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
         if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) !=
             VK_SUCCESS)
@@ -1137,7 +1142,7 @@ SlangResult DeviceImpl::readTextureResource(
 {
     auto textureImpl = static_cast<TextureResourceImpl*>(texture);
 
-    List<uint8_t> blobData;
+    std::vector<uint8_t> blobData;
 
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
@@ -1147,7 +1152,7 @@ SlangResult DeviceImpl::readTextureResource(
     Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
 
-    List<TextureResource::Extents> mipSizes;
+    std::vector<TextureResource::Extents> mipSizes;
 
     const int numMipMaps = desc->numMipLevels;
     auto arraySize = calcEffectiveArraySize(*desc);
@@ -1162,14 +1167,14 @@ SlangResult DeviceImpl::readTextureResource(
         auto rowSizeInBytes = calcRowSize(desc->format, mipSize.width);
         auto numRows = calcNumRows(desc->format, mipSize.height);
 
-        mipSizes.add(mipSize);
+        mipSizes.push_back(mipSize);
 
         bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
     }
     // Calculate the total size taking into account the array
     bufferSize *= arraySize;
 
-    blobData.setCount(Count(bufferSize));
+    blobData.resize(Count(bufferSize));
 
     VKBufferHandleRAII staging;
     SLANG_RETURN_ON_FAIL(staging.init(
@@ -1185,7 +1190,7 @@ SlangResult DeviceImpl::readTextureResource(
     Offset dstOffset = 0;
     for (int i = 0; i < arraySize; ++i)
     {
-        for (Index j = 0; j < mipSizes.getCount(); ++j)
+        for (Index j = 0; j < mipSizes.size(); ++j)
         {
             const auto& mipSize = mipSizes[j];
 
@@ -1220,7 +1225,7 @@ SlangResult DeviceImpl::readTextureResource(
     SLANG_RETURN_ON_FAIL(
         m_api.vkMapMemory(m_device, staging.m_memory, 0, bufferSize, 0, &mappedData));
 
-    ::memcpy(blobData.getBuffer(), mappedData, bufferSize);
+    ::memcpy(blobData.data(), mappedData, bufferSize);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
 
     *outPixelSize = pixelSize;
@@ -1237,9 +1242,8 @@ SlangResult DeviceImpl::readBufferResource(
 {
     BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(inBuffer);
 
-    List<uint8_t> blobData;
-
-    blobData.setCount(size);
+    std::vector<uint8_t> blobData;
+    blobData.resize(size);
 
     // create staging buffer
     VKBufferHandleRAII staging;
@@ -1264,7 +1268,7 @@ SlangResult DeviceImpl::readBufferResource(
     void* mappedData = nullptr;
     SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
 
-    ::memcpy(blobData.getBuffer(), mappedData, size);
+    ::memcpy(blobData.data(), mappedData, size);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
 
     auto blob = ListBlob::moveCreate(blobData);
@@ -1289,7 +1293,7 @@ Result DeviceImpl::getAccelerationStructurePrebuildInfo(
         m_api.m_device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
         &geomInfoBuilder.buildInfo,
-        geomInfoBuilder.primitiveCounts.getBuffer(),
+        geomInfoBuilder.primitiveCounts.data(),
         &sizeInfo);
     outPrebuildInfo->resultDataMaxSize = (Size)sizeInfo.accelerationStructureSize;
     outPrebuildInfo->scratchDataSize = (Size)sizeInfo.buildScratchSize;
@@ -1615,7 +1619,7 @@ Result DeviceImpl::createTextureResource(
     VKBufferHandleRAII uploadBuffer;
     if (initData)
     {
-        List<TextureResource::Extents> mipSizes;
+        std::vector<TextureResource::Extents> mipSizes;
 
         VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
@@ -1631,7 +1635,7 @@ Result DeviceImpl::createTextureResource(
             auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
             auto numRows = calcNumRows(desc.format, mipSize.height);
 
-            mipSizes.add(mipSize);
+            mipSizes.push_back(mipSize);
 
             bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
         }
@@ -1645,7 +1649,7 @@ Result DeviceImpl::createTextureResource(
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
 
-        assert(mipSizes.getCount() == numMipMaps);
+        assert(mipSizes.size() == numMipMaps);
 
         // Copy into upload buffer
         {
@@ -1659,7 +1663,7 @@ Result DeviceImpl::createTextureResource(
             Offset dstSubresourceOffset = 0;
             for (int i = 0; i < arraySize; ++i)
             {
-                for (Index j = 0; j < mipSizes.getCount(); ++j)
+                for (Index j = 0; j < mipSizes.size(); ++j)
                 {
                     const auto& mipSize = mipSizes[j];
 
@@ -1802,7 +1806,7 @@ Result DeviceImpl::createTextureResource(
             Offset srcOffset = 0;
             for (int i = 0; i < arraySize; ++i)
             {
-                for (Index j = 0; j < mipSizes.getCount(); ++j)
+                for (Index j = 0; j < mipSizes.size(); ++j)
                 {
                     const auto& mipSize = mipSizes[j];
 
@@ -2136,14 +2140,14 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
     HashSet<VkFormat> presentableFormats;
     // TODO: enable this once we have VK_GOOGLE_surfaceless_query.
 #if 0
-    List<VkSurfaceFormatKHR> surfaceFormats;
+    std::vector<VkSurfaceFormatKHR> surfaceFormats;
 
     uint32_t surfaceFormatCount = 0;
     m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(
         m_api.m_physicalDevice, VK_NULL_HANDLE, &surfaceFormatCount, nullptr);
 
-    surfaceFormats.setCount(surfaceFormatCount);
-    m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(m_api.m_physicalDevice, VK_NULL_HANDLE, &surfaceFormatCount, surfaceFormats.getBuffer());
+    surfaceFormats.resize(surfaceFormatCount);
+    m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(m_api.m_physicalDevice, VK_NULL_HANDLE, &surfaceFormatCount, surfaceFormats.data());
     for (auto surfaceFormat : surfaceFormats)
     {
         presentableFormats.add(surfaceFormat.format);
@@ -2335,8 +2339,8 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
 {
     RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);
 
-    List<VkVertexInputAttributeDescription>& dstAttributes = layout->m_attributeDescs;
-    List<VkVertexInputBindingDescription>& dstStreams = layout->m_streamDescs;
+    std::vector<VkVertexInputAttributeDescription>& dstAttributes = layout->m_attributeDescs;
+    std::vector<VkVertexInputBindingDescription>& dstStreams = layout->m_streamDescs;
 
     auto elements = desc.inputElements;
     Int numElements = desc.inputElementCount;
@@ -2344,8 +2348,8 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
     auto srcVertexStreams = desc.vertexStreams;
     Int vertexStreamCount = desc.vertexStreamCount;
 
-    dstAttributes.setCount(numElements);
-    dstStreams.setCount(vertexStreamCount);
+    dstAttributes.resize(numElements);
+    dstStreams.resize(vertexStreamCount);
 
     for (Int i = 0; i < vertexStreamCount; i++)
     {

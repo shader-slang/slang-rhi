@@ -49,7 +49,7 @@ namespace cpu
 
         // Can support pointers (or something akin to that)
         {
-            m_features.add("has-ptr");
+            m_features.push_back("has-ptr");
         }
 
         return SLANG_OK;

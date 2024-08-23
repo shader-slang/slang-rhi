@@ -3,6 +3,8 @@
 
 #include "metal-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -20,7 +22,7 @@ enum
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
 public:
-    List<IFramebufferLayout::TargetLayout> m_renderTargets;
+    std::vector<IFramebufferLayout::TargetLayout> m_renderTargets;
     IFramebufferLayout::TargetLayout m_depthStencil;
 
 public:

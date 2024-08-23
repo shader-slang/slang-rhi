@@ -273,10 +273,10 @@ Result DeviceImpl::captureTextureToSurface(
 
         SLANG_RETURN_ON_FAIL(dxResource->Map(0, &readRange, reinterpret_cast<void**>(&data)));
 
-        List<uint8_t> blobData;
+        std::vector<uint8_t> blobData;
 
-        blobData.setCount(bufferSize);
-        memcpy(blobData.getBuffer(), data, bufferSize);
+        blobData.resize(bufferSize);
+        memcpy(blobData.data(), data, bufferSize);
         dxResource->Unmap(0, nullptr);
 
         auto resultBlob = Slang::ListBlob::moveCreate(blobData);
@@ -309,14 +309,14 @@ Result DeviceImpl::_createDevice(
     ComPtr<IDXGIFactory> dxgiFactory;
     SLANG_RETURN_ON_FAIL(D3DUtil::createFactory(deviceCheckFlags, dxgiFactory));
 
-    List<ComPtr<IDXGIAdapter>> dxgiAdapters;
+    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
     SLANG_RETURN_ON_FAIL(
         D3DUtil::findAdapters(deviceCheckFlags, adapterLUID, dxgiFactory, dxgiAdapters));
 
     ComPtr<ID3D12Device> device;
     ComPtr<IDXGIAdapter> adapter;
 
-    for (Index i = 0; i < dxgiAdapters.getCount(); ++i)
+    for (Index i = 0; i < dxgiAdapters.size(); ++i)
     {
         IDXGIAdapter* dxgiAdapter = dxgiAdapters[i];
         if (SLANG_SUCCEEDED(
@@ -616,11 +616,11 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     if (m_deviceInfo.m_isSoftware)
     {
-        m_features.add("software-device");
+        m_features.push_back("software-device");
     }
     else
     {
-        m_features.add("hardware-device");
+        m_features.push_back("hardware-device");
     }
 
     // NVAPI
@@ -645,16 +645,16 @@ Result DeviceImpl::initialize(const Desc& desc)
 
         if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
         {
-            m_features.add("atomic-int64");
+            m_features.push_back("atomic-int64");
         }
         if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
         {
-            m_features.add("atomic-float");
+            m_features.push_back("atomic-float");
         }
 
         // If we have NVAPI well assume we have realtime clock
         {
-            m_features.add("realtime-clock");
+            m_features.push_back("realtime-clock");
         }
 
         m_nvapi = true;
@@ -688,7 +688,7 @@ Result DeviceImpl::initialize(const Desc& desc)
             if (m_deviceInfo.m_isWarp == false && shaderModelData.HighestShaderModel >= D3D_SHADER_MODEL_6_2)
             {
                 // With sm_6_2 we have half
-                m_features.add("half");
+                m_features.push_back("half");
             }
         }
         {
@@ -698,30 +698,30 @@ Result DeviceImpl::initialize(const Desc& desc)
             {
                 // Check double precision support
                 if (options.DoublePrecisionFloatShaderOps)
-                    m_features.add("double");
+                    m_features.push_back("double");
 
                 // Check conservative-rasterization support
                 auto conservativeRasterTier = options.ConservativeRasterizationTier;
                 if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_3)
                 {
-                    m_features.add("conservative-rasterization-3");
-                    m_features.add("conservative-rasterization-2");
-                    m_features.add("conservative-rasterization-1");
+                    m_features.push_back("conservative-rasterization-3");
+                    m_features.push_back("conservative-rasterization-2");
+                    m_features.push_back("conservative-rasterization-1");
                 }
                 else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_2)
                 {
-                    m_features.add("conservative-rasterization-2");
-                    m_features.add("conservative-rasterization-1");
+                    m_features.push_back("conservative-rasterization-2");
+                    m_features.push_back("conservative-rasterization-1");
                 }
                 else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_1)
                 {
-                    m_features.add("conservative-rasterization-1");
+                    m_features.push_back("conservative-rasterization-1");
                 }
 
                 // Check rasterizer ordered views support
                 if (options.ROVsSupported)
                 {
-                    m_features.add("rasterizer-ordered-views");
+                    m_features.push_back("rasterizer-ordered-views");
                 }
             }
         }
@@ -732,7 +732,7 @@ Result DeviceImpl::initialize(const Desc& desc)
             {
                 // Check wave operations support
                 if (options.WaveOps)
-                    m_features.add("wave-ops");
+                    m_features.push_back("wave-ops");
             }
         }
         {
@@ -744,11 +744,11 @@ Result DeviceImpl::initialize(const Desc& desc)
                 switch (options.ProgrammableSamplePositionsTier)
                 {
                 case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_2:
-                    m_features.add("programmable-sample-positions-2");
-                    m_features.add("programmable-sample-positions-1");
+                    m_features.push_back("programmable-sample-positions-2");
+                    m_features.push_back("programmable-sample-positions-1");
                     break;
                 case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_1:
-                    m_features.add("programmable-sample-positions-1");
+                    m_features.push_back("programmable-sample-positions-1");
                     break;
                 default:
                     break;
@@ -763,7 +763,7 @@ Result DeviceImpl::initialize(const Desc& desc)
                 // Check barycentrics support
                 if (options.BarycentricsSupported)
                 {
-                    m_features.add("barycentrics");
+                    m_features.push_back("barycentrics");
                 }
             }
         }
@@ -775,11 +775,11 @@ Result DeviceImpl::initialize(const Desc& desc)
             {
                 if (options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
                 {
-                    m_features.add("ray-tracing");
+                    m_features.push_back("ray-tracing");
                 }
                 if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
                 {
-                    m_features.add("ray-query");
+                    m_features.push_back("ray-query");
                 }
             }
         }
@@ -791,7 +791,7 @@ Result DeviceImpl::initialize(const Desc& desc)
             {
                 if (options.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
                 {
-                    m_features.add("mesh-shader");
+                    m_features.push_back("mesh-shader");
                 }
             }
         }
@@ -889,7 +889,7 @@ Result DeviceImpl::initialize(const Desc& desc)
     {
         if (sm.shaderModel <= shaderModelData.HighestShaderModel)
         {
-            m_features.add(sm.profileName);
+            m_features.push_back(sm.profileName);
             profileName = sm.profileName;
             compileTarget = sm.compileTarget;
         }
@@ -1089,12 +1089,12 @@ Result DeviceImpl::createTextureResource(
     }
 
     // Calculate the layout
-    List<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
-    layouts.setCount(numMipMaps);
-    List<UInt64> mipRowSizeInBytes;
-    mipRowSizeInBytes.setCount(srcDesc.numMipLevels);
-    List<UInt32> mipNumRows;
-    mipNumRows.setCount(numMipMaps);
+    std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
+    layouts.resize(numMipMaps);
+    std::vector<UInt64> mipRowSizeInBytes;
+    mipRowSizeInBytes.resize(srcDesc.numMipLevels);
+    std::vector<UInt32> mipNumRows;
+    mipNumRows.resize(numMipMaps);
 
     // NOTE! This is just the size for one array upload -> not for the whole texture
     UInt64 requiredSize = 0;
@@ -1103,9 +1103,9 @@ Result DeviceImpl::createTextureResource(
         0,
         srcDesc.numMipLevels,
         0,
-        layouts.begin(),
-        mipNumRows.begin(),
-        mipRowSizeInBytes.begin(),
+        layouts.data(),
+        mipNumRows.data(),
+        mipRowSizeInBytes.data(),
         &requiredSize);
 
     // Sub resource indexing
@@ -1781,12 +1781,12 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
         const char* text = inputElements[i].semanticName;
         textSize += text ? (::strlen(text) + 1) : 0;
     }
-    layout->m_text.setCount(textSize);
-    char* textPos = layout->m_text.getBuffer();
+    layout->m_text.resize(textSize);
+    char* textPos = layout->m_text.data();
 
-    List<D3D12_INPUT_ELEMENT_DESC>& elements = layout->m_elements;
+    std::vector<D3D12_INPUT_ELEMENT_DESC>& elements = layout->m_elements;
     SLANG_ASSERT(inputElementCount > 0);
-    elements.setCount(inputElementCount);
+    elements.resize(inputElementCount);
 
     for (Int i = 0; i < inputElementCount; ++i)
     {
@@ -1814,7 +1814,7 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
     }
 
     auto& vertexStreamStrides = layout->m_vertexStreamStrides;
-    vertexStreamStrides.setCount(vertexStreamCount);
+    vertexStreamStrides.resize(vertexStreamCount);
     for (GfxIndex i = 0; i < vertexStreamCount; ++i)
     {
         vertexStreamStrides[i] = (UINT)vertexStreams[i].stride;
@@ -1873,7 +1873,7 @@ Result DeviceImpl::readBufferResource(
         buffer->getDesc()->memoryType != MemoryType::ReadBack ? stageBuf : resource;
 
     // Map and copy
-    List<uint8_t> blobData;
+    std::vector<uint8_t> blobData;
     {
         UINT8* data;
         D3D12_RANGE readRange = { 0, size };
@@ -1882,8 +1882,8 @@ Result DeviceImpl::readBufferResource(
             stageBufRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&data)));
 
         // Copy to memory buffer
-        blobData.setCount(size);
-        ::memcpy(blobData.getBuffer(), data, size);
+        blobData.resize(size);
+        ::memcpy(blobData.data(), data, size);
 
         stageBufRef.getResource()->Unmap(0, nullptr);
     }

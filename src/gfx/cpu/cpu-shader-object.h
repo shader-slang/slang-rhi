@@ -4,6 +4,8 @@
 
 #include "cpu-shader-object-layout.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -14,7 +16,7 @@ namespace cpu
 class CPUShaderObjectData
 {
 public:
-    Slang::List<char> m_ordinaryData;
+    std::vector<char> m_ordinaryData;
     // Any "ordinary" / uniform data for this object
     Slang::RefPtr<BufferResourceImpl> m_bufferResource;
     Slang::RefPtr<BufferResourceViewImpl> m_bufferView;
@@ -39,7 +41,7 @@ class ShaderObjectImpl
     typedef ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, CPUShaderObjectData> Super;
 
 public:
-    List<RefPtr<ResourceViewImpl>> m_resources;
+    std::vector<RefPtr<ResourceViewImpl>> m_resources;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
         init(IDevice* device, ShaderObjectLayoutImpl* typeLayout);
@@ -88,7 +90,7 @@ public:
     RootShaderObjectLayoutImpl* getLayout();
 
     EntryPointShaderObjectImpl* getEntryPoint(Index index);
-    List<RefPtr<EntryPointShaderObjectImpl>> m_entryPoints;
+    std::vector<RefPtr<EntryPointShaderObjectImpl>> m_entryPoints;
 
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

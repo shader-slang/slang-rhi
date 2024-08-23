@@ -5,6 +5,8 @@
 #include "core/slang-com-object.h"
 #include "renderer-shared.h"
 
+#include <vector>
+
 namespace gfx
 {
     class ShaderObjectLayoutBase;
@@ -23,11 +25,11 @@ namespace gfx
                 return (transientHeap->getVersion() != transientHeapVersion);
             }
         };
-        Slang::List<ObjectVersion> objects;
+        std::vector<ObjectVersion> objects;
         SlangInt lastAllocationIndex = -1;
         ObjectVersion& allocate(TransientResourceHeapBase* currentTransientHeap)
         {
-            for (SlangInt i = 0; i < objects.getCount(); i++)
+            for (SlangInt i = 0; i < objects.size(); i++)
             {
                 auto& object = objects[i];
                 if (object.canRecycle())
@@ -41,9 +43,9 @@ namespace gfx
             ObjectVersion v;
             v.transientHeap = currentTransientHeap;
             v.transientHeapVersion = currentTransientHeap->getVersion();
-            objects.add(v);
-            lastAllocationIndex = objects.getCount() - 1;
-            return objects.getLast();
+            objects.push_back(v);
+            lastAllocationIndex = objects.size() - 1;
+            return objects.back();
         }
         ObjectVersion& getLastAllocation() { return objects[lastAllocationIndex]; }
     };
@@ -52,13 +54,13 @@ namespace gfx
     {
     public:
         // Any "ordinary" / uniform data for this object
-        Slang::List<char> m_ordinaryData;
+        std::vector<char> m_ordinaryData;
 
         bool m_dirty = true;
 
-        Slang::Index getCount() { return m_ordinaryData.getCount(); }
-        void setCount(Slang::Index count) { m_ordinaryData.setCount(count); }
-        char* getBuffer() { return m_ordinaryData.getBuffer(); }
+        Slang::Index getCount() { return m_ordinaryData.size(); }
+        void setCount(Slang::Index count) { m_ordinaryData.resize(count); }
+        char* getBuffer() { return m_ordinaryData.data(); }
         void markDirty() { m_dirty = true; }
 
         // We don't actually create any GPU buffers here, since they will be handled
@@ -111,7 +113,7 @@ namespace gfx
             auto layoutImpl = static_cast<TShaderObjectLayoutImpl*>(layout);
             this->m_layout = layoutImpl;
             Slang::Index subObjectCount = layoutImpl->getSubObjectCount();
-            this->m_objects.setCount(subObjectCount);
+            this->m_objects.resize(subObjectCount);
             auto dataSize = layoutImpl->getElementTypeLayout()->getSize();
             assert(dataSize >= 0);
             this->m_data.setCount(dataSize);
@@ -229,12 +231,12 @@ namespace gfx
     class MutableRootShaderObject : public ShaderObjectBase
     {
     public:
-        Slang::List<uint8_t> m_data;
+        std::vector<uint8_t> m_data;
         Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
         Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
         Slang::OrderedDictionary<ShaderOffset, Slang::RefPtr<ShaderObjectBase>> m_objects;
-        Slang::OrderedDictionary<ShaderOffset, Slang::List<slang::SpecializationArg>> m_specializationArgs;
-        Slang::List<Slang::RefPtr<MutableRootShaderObject>> m_entryPoints;
+        Slang::OrderedDictionary<ShaderOffset, std::vector<slang::SpecializationArg>> m_specializationArgs;
+        std::vector<Slang::RefPtr<MutableRootShaderObject>> m_entryPoints;
         Slang::RefPtr<BufferResource> m_constantBufferOverride;
         slang::TypeLayoutReflection* m_elementTypeLayout;
 
@@ -242,8 +244,8 @@ namespace gfx
         {
             this->m_device = device;
             m_elementTypeLayout = entryPointLayout;
-            m_data.setCount(entryPointLayout->getSize());
-            memset(m_data.begin(), 0, m_data.getCount());
+            m_data.resize(entryPointLayout->getSize());
+            memset(m_data.data(), 0, m_data.size());
         }
 
         MutableRootShaderObject(RendererBase* device, Slang::RefPtr<ShaderProgramBase> program)
@@ -257,10 +259,10 @@ namespace gfx
                 Slang::RefPtr<MutableRootShaderObject> entryPointObject =
                     new MutableRootShaderObject(device, slangEntryPoint->getTypeLayout()->getElementTypeLayout());
 
-                m_entryPoints.add(entryPointObject);
+                m_entryPoints.push_back(entryPointObject);
             }
-            m_data.setCount(programLayout->getGlobalParamsTypeLayout()->getSize());
-            memset(m_data.begin(), 0, m_data.getCount());
+            m_data.resize(programLayout->getGlobalParamsTypeLayout()->getSize());
+            memset(m_data.data(), 0, m_data.size());
             m_elementTypeLayout = programLayout->getGlobalParamsTypeLayout();
         }
 
@@ -278,7 +280,7 @@ namespace gfx
 
         virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override
         {
-            return (GfxCount)m_entryPoints.getCount();
+            return (GfxCount)m_entryPoints.size();
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -292,9 +294,9 @@ namespace gfx
             setData(ShaderOffset const& offset, void const* data, Size size) override
         {
             auto newSize = Slang::Index(size + offset.uniformOffset);
-            if (newSize > m_data.getCount())
-                m_data.setCount((Slang::Index)newSize);
-            memcpy(m_data.begin() + offset.uniformOffset, data, size);
+            if (newSize > m_data.size())
+                m_data.resize((Slang::Index)newSize);
+            memcpy(m_data.data() + offset.uniformOffset, data, size);
             return SLANG_OK;
         }
 
@@ -344,8 +346,11 @@ namespace gfx
             const slang::SpecializationArg* args,
             GfxCount count) override
         {
-            Slang::List<slang::SpecializationArg> specArgs;
-            specArgs.addRange(args, count);
+            std::vector<slang::SpecializationArg> specArgs;
+            for (GfxIndex i = 0; i < count; i++)
+            {
+                specArgs.push_back(args[i]);
+            }
             m_specializationArgs[offset] = specArgs;
             return SLANG_OK;
         }
@@ -365,12 +370,12 @@ namespace gfx
 
         virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override
         {
-            return m_data.begin();
+            return m_data.data();
         }
 
         virtual SLANG_NO_THROW Size SLANG_MCALL getSize() override
         {
-            return (Size)m_data.getCount();
+            return (Size)m_data.size();
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL

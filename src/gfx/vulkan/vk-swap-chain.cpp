@@ -6,6 +6,8 @@
 
 #include "utils/static_vector.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -84,13 +86,13 @@ Result SwapchainImpl::createSwapchainAndImages()
     }
 
     VkPresentModeKHR presentMode;
-    List<VkPresentModeKHR> presentModes;
+    std::vector<VkPresentModeKHR> presentModes;
     uint32_t numPresentModes = 0;
     m_api->vkGetPhysicalDeviceSurfacePresentModesKHR(
         m_api->m_physicalDevice, m_surface, &numPresentModes, nullptr);
-    presentModes.setCount(numPresentModes);
+    presentModes.resize(numPresentModes);
     m_api->vkGetPhysicalDeviceSurfacePresentModesKHR(
-        m_api->m_physicalDevice, m_surface, &numPresentModes, presentModes.getBuffer());
+        m_api->m_physicalDevice, m_surface, &numPresentModes, presentModes.data());
 
     {
         int numCheckPresentOptions = 3;
@@ -108,7 +110,7 @@ Result SwapchainImpl::createSwapchainAndImages()
         // Find the first option that's available on the device
         for (int j = 0; j < numCheckPresentOptions; j++)
         {
-            if (presentModes.indexOf(presentOptions[j]) != Index(-1))
+            if (std::find(presentModes.begin(), presentModes.end(), presentOptions[j]) != presentModes.end())
             {
                 presentMode = presentOptions[j];
                 break;
@@ -145,11 +147,11 @@ Result SwapchainImpl::createSwapchainAndImages()
 
     uint32_t numSwapChainImages = 0;
     m_api->vkGetSwapchainImagesKHR(m_api->m_device, m_swapChain, &numSwapChainImages, nullptr);
-    List<VkImage> vkImages;
+    std::vector<VkImage> vkImages;
     {
-        vkImages.setCount(numSwapChainImages);
+        vkImages.resize(numSwapChainImages);
         m_api->vkGetSwapchainImagesKHR(
-            m_api->m_device, m_swapChain, &numSwapChainImages, vkImages.getBuffer());
+            m_api->m_device, m_swapChain, &numSwapChainImages, vkImages.data());
     }
 
     for (GfxIndex i = 0; i < m_desc.imageCount; i++)
@@ -189,10 +191,10 @@ SwapchainImpl::~SwapchainImpl()
 #endif
 }
 
-Index SwapchainImpl::_indexOfFormat(List<VkSurfaceFormatKHR>& formatsIn, VkFormat format)
+Index SwapchainImpl::_indexOfFormat(std::vector<VkSurfaceFormatKHR>& formatsIn, VkFormat format)
 {
-    const Index numFormats = formatsIn.getCount();
-    const VkSurfaceFormatKHR* formats = formatsIn.getBuffer();
+    const Index numFormats = formatsIn.size();
+    const VkSurfaceFormatKHR* formats = formatsIn.data();
 
     for (Index i = 0; i < numFormats; ++i)
     {
@@ -252,23 +254,23 @@ Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& desc, W
         m_api->m_physicalDevice, renderer->m_queueFamilyIndex, m_surface, &supported);
 
     uint32_t numSurfaceFormats = 0;
-    List<VkSurfaceFormatKHR> surfaceFormats;
+    std::vector<VkSurfaceFormatKHR> surfaceFormats;
     m_api->vkGetPhysicalDeviceSurfaceFormatsKHR(
         m_api->m_physicalDevice, m_surface, &numSurfaceFormats, nullptr);
-    surfaceFormats.setCount(int(numSurfaceFormats));
+    surfaceFormats.resize(int(numSurfaceFormats));
     m_api->vkGetPhysicalDeviceSurfaceFormatsKHR(
-        m_api->m_physicalDevice, m_surface, &numSurfaceFormats, surfaceFormats.getBuffer());
+        m_api->m_physicalDevice, m_surface, &numSurfaceFormats, surfaceFormats.data());
 
     // Look for a suitable format
-    List<VkFormat> formats;
-    formats.add(VulkanUtil::getVkFormat(desc.format));
+    std::vector<VkFormat> formats;
+    formats.push_back(VulkanUtil::getVkFormat(desc.format));
     // HACK! To check for a different format if couldn't be found
     if (desc.format == Format::R8G8B8A8_UNORM)
     {
-        formats.add(VK_FORMAT_B8G8R8A8_UNORM);
+        formats.push_back(VK_FORMAT_B8G8R8A8_UNORM);
     }
 
-    for (Index i = 0; i < formats.getCount(); ++i)
+    for (Index i = 0; i < formats.size(); ++i)
     {
         VkFormat format = formats[i];
         if (_indexOfFormat(surfaceFormats, format) >= 0)
@@ -313,7 +315,7 @@ Result SwapchainImpl::present()
 {
     // If there are pending fence wait operations, flush them as an
     // empty vkQueueSubmit.
-    if (m_queue->m_pendingWaitFences.getCount() != 0)
+    if (!m_queue->m_pendingWaitFences.empty())
     {
         m_queue->queueSubmitImpl(0, nullptr, nullptr, 0);
     }

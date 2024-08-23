@@ -5,6 +5,8 @@
 #include "cuda-buffer.h"
 #include "cuda-resource-views.h"
 
+#include <vector>
+
 namespace gfx
 {
 #ifdef GFX_ENABLE_CUDA
@@ -19,7 +21,7 @@ public:
     bool isHostOnly = false;
     Slang::RefPtr<BufferResourceImpl> m_bufferResource;
     Slang::RefPtr<ResourceViewImpl> m_bufferView;
-    Slang::List<uint8_t> m_cpuBuffer;
+    std::vector<uint8_t> m_cpuBuffer;
 
     Result setCount(Index count);
     Slang::Index getCount();
@@ -39,7 +41,7 @@ class ShaderObjectImpl
         Super;
 
 public:
-    List<RefPtr<ResourceViewImpl>> resources;
+    std::vector<RefPtr<ResourceViewImpl>> resources;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
         init(IDevice* device, ShaderObjectLayoutImpl* typeLayout);
@@ -79,7 +81,7 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override;
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override;
 public:
-    List<RefPtr<EntryPointShaderObjectImpl>> entryPointObjects;
+    std::vector<RefPtr<EntryPointShaderObjectImpl>> entryPointObjects;
     virtual SLANG_NO_THROW Result SLANG_MCALL
         init(IDevice* device, ShaderObjectLayoutImpl* typeLayout) override;
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;

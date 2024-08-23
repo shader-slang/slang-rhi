@@ -18,8 +18,8 @@ Index ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(Index space)
     DescriptorSetInfo info = {};
     info.space = space;
 
-    index = m_descriptorSetBuildInfos.getCount();
-    m_descriptorSetBuildInfos.add(info);
+    index = m_descriptorSetBuildInfos.size();
+    m_descriptorSetBuildInfos.push_back(info);
 
     m_mapSpaceToDescriptorSetIndex.add(space, index);
     return index;
@@ -152,7 +152,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 
-            descriptorSetInfo.vkBindings.add(vkBindingRangeDesc);
+            descriptorSetInfo.vkBindings.push_back(vkBindingRangeDesc);
         }
     }
 
@@ -283,7 +283,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
         vkBindingRangeDesc.descriptorCount = 1;
         vkBindingRangeDesc.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-        descriptorSetInfo.vkBindings.add(vkBindingRangeDesc);
+        descriptorSetInfo.vkBindings.push_back(vkBindingRangeDesc);
     }
 
     _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
@@ -313,10 +313,10 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsPushConstantBuffer(
         vkPushConstantRange.size = ordinaryDataSize;
         vkPushConstantRange.stageFlags = VK_SHADER_STAGE_ALL; // TODO: be more clever
 
-        while ((uint32_t)m_ownPushConstantRanges.getCount() <= pushConstantRangeIndex)
+        while ((uint32_t)m_ownPushConstantRanges.size() <= pushConstantRangeIndex)
         {
             VkPushConstantRange emptyRange = {0};
-            m_ownPushConstantRanges.add(emptyRange);
+            m_ownPushConstantRanges.push_back(emptyRange);
         }
 
         m_ownPushConstantRanges[pushConstantRangeIndex] = vkPushConstantRange;
@@ -422,7 +422,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             bindingRangeInfo.bindingOffset = uint32_t(bindingOffset);
         }
 
-        m_bindingRanges.add(bindingRangeInfo);
+        m_bindingRanges.push_back(bindingRangeInfo);
     }
 
     SlangInt subObjectRangeCount = typeLayout->getSubObjectRangeCount();
@@ -513,7 +513,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             break;
         }
 
-        m_subObjectRanges.add(subObjectRange);
+        m_subObjectRanges.push_back(subObjectRange);
     }
 }
 
@@ -641,8 +641,8 @@ Result ShaderObjectLayoutImpl::_init(Builder const* builder)
     {
         VkDescriptorSetLayoutCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        createInfo.pBindings = descriptorSetInfo.vkBindings.getBuffer();
-        createInfo.bindingCount = (uint32_t)descriptorSetInfo.vkBindings.getCount();
+        createInfo.pBindings = descriptorSetInfo.vkBindings.data();
+        createInfo.bindingCount = (uint32_t)descriptorSetInfo.vkBindings.size();
         VkDescriptorSetLayout vkDescSetLayout;
         SLANG_RETURN_ON_FAIL(renderer->m_api.vkCreateDescriptorSetLayout(
             renderer->m_api.m_device, &createInfo, nullptr, &vkDescSetLayout));
@@ -699,7 +699,7 @@ RootShaderObjectLayout::~RootShaderObjectLayout()
 
 Index RootShaderObjectLayout::findEntryPointIndex(VkShaderStageFlags stage)
 {
-    auto entryPointCount = m_entryPoints.getCount();
+    auto entryPointCount = m_entryPoints.size();
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = m_entryPoints[i];
@@ -783,11 +783,11 @@ Result RootShaderObjectLayout::_init(Builder const* builder)
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)m_vkDescriptorSetLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = m_vkDescriptorSetLayouts.data();
-    if (m_allPushConstantRanges.getCount())
+    if (m_allPushConstantRanges.size())
     {
         pipelineLayoutCreateInfo.pushConstantRangeCount =
-            (uint32_t)m_allPushConstantRanges.getCount();
-        pipelineLayoutCreateInfo.pPushConstantRanges = m_allPushConstantRanges.getBuffer();
+            (uint32_t)m_allPushConstantRanges.size();
+        pipelineLayoutCreateInfo.pPushConstantRanges = m_allPushConstantRanges.data();
     }
     SLANG_RETURN_ON_FAIL(m_renderer->m_api.vkCreatePipelineLayout(
         m_renderer->m_api.m_device, &pipelineLayoutCreateInfo, nullptr, &m_pipelineLayout));
@@ -885,7 +885,7 @@ Result RootShaderObjectLayout::addAllPushConstantRangesRec(ShaderObjectLayoutImp
         pushConstantRange.offset = m_totalPushConstantSize;
         m_totalPushConstantSize += pushConstantRange.size;
 
-        m_allPushConstantRanges.add(pushConstantRange);
+        m_allPushConstantRanges.push_back(pushConstantRange);
     }
 
     SLANG_RETURN_ON_FAIL(addChildPushConstantRangesRec(layout));
@@ -977,7 +977,7 @@ void RootShaderObjectLayout::Builder::addEntryPoint(EntryPointLayout* entryPoint
     //
     _addDescriptorRangesAsValue(entryPointVarLayout->getTypeLayout(), entryPointOffset);
 
-    m_entryPoints.add(info);
+    m_entryPoints.push_back(info);
 }
 
 } // namespace vk

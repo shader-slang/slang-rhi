@@ -26,7 +26,7 @@ public:
         NS::SharedPtr<MTL::Library> library;
     };
 
-    List<Module> m_modules;
+    std::vector<Module> m_modules;
 
     ShaderProgramImpl(DeviceImpl* device);
     ~ShaderProgramImpl();

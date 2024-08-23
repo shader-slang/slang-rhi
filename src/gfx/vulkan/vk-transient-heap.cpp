@@ -15,9 +15,9 @@ namespace vk
 void TransientResourceHeapImpl::advanceFence()
 {
     m_fenceIndex++;
-    if (m_fenceIndex >= m_fences.getCount())
+    if (m_fenceIndex >= m_fences.size())
     {
-        m_fences.setCount(m_fenceIndex + 1);
+        m_fences.resize(m_fenceIndex + 1);
         VkFenceCreateInfo fenceCreateInfo = {};
         fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -60,7 +60,7 @@ TransientResourceHeapImpl::~TransientResourceHeapImpl()
 
 Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuffer)
 {
-    if (m_commandBufferAllocId < (uint32_t)m_commandBufferPool.getCount())
+    if (m_commandBufferAllocId < (uint32_t)m_commandBufferPool.size())
     {
         auto result = m_commandBufferPool[m_commandBufferAllocId];
         result->m_transientHeap.establishStrongReference();
@@ -72,7 +72,7 @@ Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuf
 
     RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl();
     SLANG_RETURN_ON_FAIL(commandBuffer->init(m_device, m_commandPool, this));
-    m_commandBufferPool.add(commandBuffer);
+    m_commandBufferPool.push_back(commandBuffer);
     m_commandBufferAllocId++;
     returnComPtr(outCmdBuffer, commandBuffer);
     return SLANG_OK;
@@ -83,7 +83,7 @@ Result TransientResourceHeapImpl::synchronizeAndReset()
     m_commandBufferAllocId = 0;
     auto& api = m_device->m_api;
     if (api.vkWaitForFences(
-            api.m_device, (uint32_t)m_fences.getCount(), m_fences.getBuffer(), 1, UINT64_MAX) !=
+            api.m_device, (uint32_t)m_fences.size(), m_fences.data(), 1, UINT64_MAX) !=
         VK_SUCCESS)
     {
         return SLANG_FAIL;

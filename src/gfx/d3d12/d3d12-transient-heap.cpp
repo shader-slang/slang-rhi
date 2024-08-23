@@ -191,7 +191,7 @@ Result TransientResourceHeapImpl::allocateNewSamplerDescriptorHeap(DeviceImpl* d
 
 Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuffer)
 {
-    if ((Index)m_commandListAllocId < m_commandBufferPool.getCount())
+    if ((Index)m_commandListAllocId < m_commandBufferPool.size())
     {
         auto result =
             static_cast<CommandBufferImpl*>(m_commandBufferPool[m_commandListAllocId].Ptr());
@@ -209,10 +209,10 @@ Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuf
         nullptr,
         IID_PPV_ARGS(cmdList.writeRef())));
 
-    m_d3dCommandListPool.add(cmdList);
+    m_d3dCommandListPool.push_back(cmdList);
     RefPtr<CommandBufferImpl> cmdBuffer = new CommandBufferImpl();
     cmdBuffer->init(m_device, cmdList, this);
-    m_commandBufferPool.add(cmdBuffer);
+    m_commandBufferPool.push_back(cmdBuffer);
     ++m_commandListAllocId;
     returnComPtr(outCmdBuffer, cmdBuffer);
     return SLANG_OK;

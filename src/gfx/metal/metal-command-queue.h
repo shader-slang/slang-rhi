@@ -30,7 +30,7 @@ public:
         RefPtr<FenceImpl> fence;
         uint64_t waitValue;
     };
-    List<FenceWaitInfo> m_pendingWaitFences;
+    std::vector<FenceWaitInfo> m_pendingWaitFences;
 
     ~CommandQueueImpl();
 

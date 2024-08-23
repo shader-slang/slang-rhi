@@ -643,10 +643,10 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
     }
     if (buildInputs.kind == IAccelerationStructure::Kind::BottomLevel)
     {
-        m_geometryInfos.setCount(buildInputs.descCount);
-        primitiveCounts.setCount(buildInputs.descCount);
+        m_geometryInfos.resize(buildInputs.descCount);
+        primitiveCounts.resize(buildInputs.descCount);
         memset(
-            m_geometryInfos.getBuffer(),
+            m_geometryInfos.data(),
             0,
             sizeof(VkAccelerationStructureGeometryKHR) * buildInputs.descCount);
         for (int i = 0; i < buildInputs.descCount; i++)
@@ -720,7 +720,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
             }
         }
         buildInfo.geometryCount = buildInputs.descCount;
-        buildInfo.pGeometries = m_geometryInfos.getBuffer();
+        buildInfo.pGeometries = m_geometryInfos.data();
     }
     else
     {
@@ -731,7 +731,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
         m_vkInstanceInfo.geometry.instances.data.deviceAddress = buildInputs.instanceDescs;
         buildInfo.pGeometries = &m_vkInstanceInfo;
         buildInfo.geometryCount = 1;
-        primitiveCounts.setCount(1);
+        primitiveCounts.resize(1);
         primitiveCounts[0] = buildInputs.descCount;
     }
     return SLANG_OK;

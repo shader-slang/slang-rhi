@@ -760,13 +760,13 @@ SLANG_NO_THROW SlangResult SLANG_MCALL ImmediateRendererBase::readBufferResource
     size_t size,
     ISlangBlob** outBlob)
 {
-    List<uint8_t> blobData;
+    std::vector<uint8_t> blobData;
 
-    blobData.setCount((Index)size);
+    blobData.resize((Index)size);
     auto content = (uint8_t*)map(buffer, gfx::MapFlavor::HostRead);
     if (!content)
         return SLANG_FAIL;
-    memcpy(blobData.getBuffer(), content + offset, size);
+    memcpy(blobData.data(), content + offset, size);
     unmap(buffer, offset, size);
 
     auto blob = ListBlob::moveCreate(blobData);

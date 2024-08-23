@@ -68,8 +68,8 @@ Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* ob
     if (m_isMutable)
     {
         auto subObjectIndex = getSubObjectIndex(offset);
-        if (subObjectIndex >= m_subObjectVersions.getCount())
-            m_subObjectVersions.setCount(subObjectIndex + 1);
+        if (subObjectIndex >= m_subObjectVersions.size())
+            m_subObjectVersions.resize(subObjectIndex + 1);
         m_subObjectVersions[subObjectIndex] = static_cast<ShaderObjectImpl*>(object)->m_version;
         m_version++;
     }
@@ -159,11 +159,11 @@ Result ShaderObjectImpl::init(
         m_data.setCount(uniformSize);
         memset(m_data.getBuffer(), 0, uniformSize);
     }
-    m_rootArguments.setCount(layout->getOwnUserRootParameterCount());
+    m_rootArguments.resize(layout->getOwnUserRootParameterCount());
     memset(
-        m_rootArguments.getBuffer(),
+        m_rootArguments.data(),
         0,
-        sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_rootArguments.getCount());
+        sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_rootArguments.size());
     // Each shader object will own CPU descriptor heap memory
     // for any resource or sampler descriptors it might store
     // as part of its value.
@@ -196,7 +196,7 @@ Result ShaderObjectImpl::init(
     // we need to size the array to account for them.
     //
     Index subObjectCount = layout->getSubObjectSlotCount();
-    m_objects.setCount(subObjectCount);
+    m_objects.resize(subObjectCount);
 
     for (auto subObjectRangeInfo : layout->getSubObjectRanges())
     {
@@ -425,7 +425,7 @@ void ShaderObjectImpl::updateSubObjectsRecursive()
     if (!m_isMutable)
         return;
     auto& subObjectRanges = getLayout()->getSubObjectRanges();
-    for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.getCount();
+    for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.size();
         subObjectRangeIndex++)
     {
         auto const& subObjectRange = subObjectRanges[subObjectRangeIndex];
@@ -440,7 +440,7 @@ void ShaderObjectImpl::updateSubObjectsRecursive()
             if (!subObject)
                 continue;
             subObject->updateSubObjectsRecursive();
-            if (m_subObjectVersions.getCount() > objectIndex && m_subObjectVersions[objectIndex] != m_objects[objectIndex]->m_version)
+            if (m_subObjectVersions.size() > objectIndex && m_subObjectVersions[objectIndex] != m_objects[objectIndex]->m_version)
             {
                 ShaderOffset offset;
                 offset.bindingRangeIndex = (GfxIndex)subObjectRange.bindingRangeIndex;
@@ -561,7 +561,7 @@ bool ShaderObjectImpl::checkIfCachedDescriptorSetIsValidRecursive(BindingContext
         return false;
 
     auto& subObjectRanges = getLayout()->getSubObjectRanges();
-    for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.getCount();
+    for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.size();
         subObjectRangeIndex++)
     {
         auto const& subObjectRange = subObjectRanges[subObjectRangeIndex];
@@ -750,7 +750,7 @@ Result ShaderObjectImpl::_bindImpl(
     // Next we iterate over the sub-object ranges and bind anything they require.
     //
     auto& subObjectRanges = specializedLayout->getSubObjectRanges();
-    auto subObjectRangeCount = subObjectRanges.getCount();
+    auto subObjectRangeCount = subObjectRanges.size();
     for (Index i = 0; i < subObjectRangeCount; i++)
     {
         auto& subObjectRange = specializedLayout->getSubObjectRange(i);
@@ -813,7 +813,7 @@ Result ShaderObjectImpl::_bindImpl(
 Result ShaderObjectImpl::bindRootArguments(BindingContext* context, uint32_t& index)
 {
     auto layoutImpl = getLayout();
-    for (Index i = 0; i < m_rootArguments.getCount(); i++)
+    for (Index i = 0; i < m_rootArguments.size(); i++)
     {
         switch (layoutImpl->getRootParameterInfo(i).type)
         {
@@ -1015,7 +1015,7 @@ RootShaderObjectLayoutImpl* RootShaderObjectImpl::getLayout()
     return static_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr());
 }
 
-GfxCount RootShaderObjectImpl::getEntryPointCount() { return (GfxCount)m_entryPoints.getCount(); }
+GfxCount RootShaderObjectImpl::getEntryPointCount() { return (GfxCount)m_entryPoints.size(); }
 
 SlangResult RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
 {
@@ -1117,7 +1117,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     // TODO: Well, if we move to the specialization model described above then maybe
     // we *will* want entry points to do their own specialization work...
     //
-    auto entryPointCount = m_entryPoints.getCount();
+    auto entryPointCount = m_entryPoints.size();
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPointInfo = specializedLayout->getEntryPoint(i);
@@ -1170,7 +1170,7 @@ Result RootShaderObjectImpl::bindAsRoot(
     SLANG_RETURN_ON_FAIL(
         Super::bindAsConstantBuffer(context, descriptorSet, rootOffset, specializedLayout));
 
-    auto entryPointCount = m_entryPoints.getCount();
+    auto entryPointCount = m_entryPoints.size();
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = m_entryPoints[i];
@@ -1208,7 +1208,7 @@ Result RootShaderObjectImpl::resetImpl(
         SLANG_RETURN_ON_FAIL(
             ShaderObjectImpl::create(device, entryPointInfo.layout, entryPoint.writeRef()));
         entryPoint->m_isMutable = isMutable;
-        m_entryPoints.add(entryPoint);
+        m_entryPoints.push_back(entryPoint);
     }
     return SLANG_OK;
 }

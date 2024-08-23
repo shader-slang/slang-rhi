@@ -207,7 +207,7 @@ public:
     RefPtr<RenderPassLayoutImpl> m_renderPass;
     RefPtr<FramebufferImpl> m_framebuffer;
 
-    List<BoundVertexBuffer> m_boundVertexBuffers;
+    std::vector<BoundVertexBuffer> m_boundVertexBuffers;
 
     RefPtr<BufferResourceImpl> m_boundIndexBuffer;
 

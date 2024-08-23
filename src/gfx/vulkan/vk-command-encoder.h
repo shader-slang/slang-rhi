@@ -4,6 +4,8 @@
 #include "vk-base.h"
 #include "vk-pipeline-state.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -180,8 +182,8 @@ class RenderCommandEncoder
     }
 
 public:
-    List<VkViewport> m_viewports;
-    List<VkRect2D> m_scissorRects;
+    std::vector<VkViewport> m_viewports;
+    std::vector<VkRect2D> m_scissorRects;
 
 public:
     void beginPass(IRenderPassLayout* renderPass, IFramebuffer* framebuffer);

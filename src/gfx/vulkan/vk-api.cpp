@@ -1,7 +1,9 @@
 // vk-api.cpp
 #include "vk-api.h"
 
-#include "core/slang-list.h"
+#include <vector>
+
+#include <cassert>
 
 namespace gfx {
 using namespace Slang;
@@ -128,9 +130,9 @@ int VulkanApi::findQueue(VkQueueFlags reqFlags) const
     uint32_t numQueueFamilies = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &numQueueFamilies, nullptr);
 
-    Slang::List<VkQueueFamilyProperties> queueFamilies;
-    queueFamilies.setCount(numQueueFamilies);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &numQueueFamilies, queueFamilies.getBuffer());
+    std::vector<VkQueueFamilyProperties> queueFamilies;
+    queueFamilies.resize(numQueueFamilies);
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &numQueueFamilies, queueFamilies.data());
 
     // Find a queue that can service our needs
     //VkQueueFlags reqQueueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;

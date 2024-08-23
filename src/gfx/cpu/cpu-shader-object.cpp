@@ -14,17 +14,17 @@ namespace cpu
 
 Index CPUShaderObjectData::getCount()
 {
-    return m_ordinaryData.getCount();
+    return m_ordinaryData.size();
 }
 
 void CPUShaderObjectData::setCount(Index count)
 {
-    m_ordinaryData.setCount(count);
+    m_ordinaryData.resize(count);
 }
 
 char* CPUShaderObjectData::getBuffer()
 {
-    return m_ordinaryData.getBuffer();
+    return m_ordinaryData.data();
 }
 
 CPUShaderObjectData::~CPUShaderObjectData()
@@ -56,8 +56,8 @@ ResourceViewBase* CPUShaderObjectData::getResourceView(
         m_bufferView = new BufferResourceViewImpl(viewDesc, m_bufferResource);
 
     }
-    m_bufferResource->getDesc()->sizeInBytes = m_ordinaryData.getCount();
-    m_bufferResource->m_data = m_ordinaryData.getBuffer();
+    m_bufferResource->getDesc()->sizeInBytes = m_ordinaryData.size();
+    m_bufferResource->m_data = m_ordinaryData.data();
     return m_bufferView.Ptr();
 }
 
@@ -84,8 +84,8 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayou
     // Note: the counts here are the *total* number of resources/sub-objects
     // and not just the number of resource/sub-object ranges.
     //
-    m_resources.setCount(typeLayout->getResourceCount());
-    m_objects.setCount(typeLayout->getSubObjectCount());
+    m_resources.resize(typeLayout->getResourceCount());
+    m_objects.resize(typeLayout->getSubObjectCount());
 
     for (auto subObjectRange : getLayout()->subObjectRanges)
     {
@@ -160,7 +160,7 @@ SLANG_NO_THROW Result SLANG_MCALL
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
     SLANG_ASSERT(bindingRangeIndex >= 0);
-    SLANG_ASSERT(bindingRangeIndex < layout->m_bindingRanges.getCount());
+    SLANG_ASSERT(bindingRangeIndex < layout->m_bindingRanges.size());
 
     auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
     auto viewIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
@@ -273,7 +273,7 @@ Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* p
     {
         RefPtr<EntryPointShaderObjectImpl> object = new EntryPointShaderObjectImpl();
         SLANG_RETURN_ON_FAIL(object->init(device, entryPoint));
-        m_entryPoints.add(object);
+        m_entryPoints.push_back(object);
     }
     return SLANG_OK;
 }
@@ -290,7 +290,7 @@ EntryPointShaderObjectImpl* RootShaderObjectImpl::getEntryPoint(Index index)
 
 SLANG_NO_THROW GfxCount SLANG_MCALL RootShaderObjectImpl::getEntryPointCount()
 {
-    return (GfxCount)m_entryPoints.getCount();
+    return (GfxCount)m_entryPoints.size();
 }
 
 SLANG_NO_THROW Result SLANG_MCALL

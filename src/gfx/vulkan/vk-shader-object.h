@@ -7,6 +7,9 @@
 #include "vk-shader-object-layout.h"
 #include "vk-helper-functions.h"
 
+#include <vector>
+#include <span>
+
 namespace gfx
 {
 
@@ -89,37 +92,37 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews);
+        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeTexelBufferDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews);
+        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeTextureSamplerDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        ArrayView<CombinedTextureSamplerSlot> slots);
+        std::span<CombinedTextureSamplerSlot> slots);
 
     static void writeAccelerationStructureDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews);
+        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeTextureDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews);
+        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeSamplerDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        ArrayView<RefPtr<SamplerStateImpl>> samplers);
+        std::span<RefPtr<SamplerStateImpl>> samplers);
 
     bool shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap);
 
@@ -169,11 +172,11 @@ public:
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout);
 
-    List<RefPtr<ResourceViewInternalBase>> m_resourceViews;
+    std::vector<RefPtr<ResourceViewInternalBase>> m_resourceViews;
 
-    List<RefPtr<SamplerStateImpl>> m_samplers;
+    std::vector<RefPtr<SamplerStateImpl>> m_samplers;
 
-    List<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
+    std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
 
     // The transient constant buffer that holds the GPU copy of the constant data,
     // weak referenced.
@@ -241,7 +244,7 @@ public:
 
     RootShaderObjectLayout* getSpecializedLayout();
 
-    List<RefPtr<EntryPointShaderObject>> const& getEntryPoints() const;
+    std::vector<RefPtr<EntryPointShaderObject>> const& getEntryPoints() const;
 
     virtual GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
@@ -263,7 +266,7 @@ public:
 protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
-    List<RefPtr<EntryPointShaderObject>> m_entryPoints;
+    std::vector<RefPtr<EntryPointShaderObject>> m_entryPoints;
 };
 
 class MutableRootShaderObjectImpl : public RootShaderObjectImpl

@@ -159,10 +159,10 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
                 rootInfo.type = IResourceView::Type::UnorderedAccess;
                 break;
             }
-            bindingRangeInfo.baseIndex = (uint32_t)m_rootParamsInfo.getCount();
+            bindingRangeInfo.baseIndex = (uint32_t)m_rootParamsInfo.size();
             for (uint32_t i = 0; i < count; i++)
             {
-                m_rootParamsInfo.add(rootInfo);
+                m_rootParamsInfo.push_back(rootInfo);
             }
         }
         else
@@ -207,7 +207,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
                 break;
             }
         }
-        m_bindingRanges.add(bindingRangeInfo);
+        m_bindingRanges.push_back(bindingRangeInfo);
     }
 
     // At this point we've computed the number of resources/samplers that
@@ -401,7 +401,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
         m_totalCounts.sampler += rangeSamplerCount;
         m_childRootParameterCount += rangeRootParamCount;
 
-        m_subObjectRanges.add(subObjectRange);
+        m_subObjectRanges.push_back(subObjectRange);
     }
 
     // Once we have added up the resource usage from all the sub-objects
@@ -461,7 +461,7 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
     // TODO(tfoley): Check this to make sure it is reasonable...
     m_childRootParameterCount += entryPointLayout->getChildRootParameterCount();
 
-    m_entryPoints.add(info);
+    m_entryPoints.push_back(info);
 }
 
 Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::translateDescriptorRangeType(
@@ -504,8 +504,8 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::translateDescriptor
 
 uint32_t RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorSet()
 {
-    auto result = (uint32_t)m_descriptorSets.getCount();
-    m_descriptorSets.add(DescriptorSetLayout{});
+    auto result = (uint32_t)m_descriptorSets.size();
+    m_descriptorSets.push_back(DescriptorSetLayout{});
     return result;
 }
 
@@ -538,7 +538,7 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
         rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         rootParam.Descriptor.RegisterSpace = spaceIndex;
         rootParam.Descriptor.ShaderRegister = registerIndex;
-        m_rootParameters.add(rootParam);
+        m_rootParameters.push_back(rootParam);
         return SLANG_OK;
     }
 
@@ -553,12 +553,12 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
 
     if (range.RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
     {
-        descriptorSet.m_samplerRanges.add(range);
+        descriptorSet.m_samplerRanges.push_back(range);
         descriptorSet.m_samplerCount += range.NumDescriptors;
     }
     else
     {
-        descriptorSet.m_resourceRanges.add(range);
+        descriptorSet.m_resourceRanges.push_back(range);
         descriptorSet.m_resourceCount += range.NumDescriptors;
     }
 
@@ -862,32 +862,32 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
 
 D3D12_ROOT_SIGNATURE_DESC1& RootShaderObjectLayoutImpl::RootSignatureDescBuilder::build()
 {
-    for (Index i = 0; i < m_descriptorSets.getCount(); i++)
+    for (Index i = 0; i < m_descriptorSets.size(); i++)
     {
         auto& descriptorSet = m_descriptorSets[i];
-        if (descriptorSet.m_resourceRanges.getCount())
+        if (descriptorSet.m_resourceRanges.size())
         {
             D3D12_ROOT_PARAMETER1 rootParam = {};
             rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             rootParam.DescriptorTable.NumDescriptorRanges =
-                (UINT)descriptorSet.m_resourceRanges.getCount();
+                (UINT)descriptorSet.m_resourceRanges.size();
             rootParam.DescriptorTable.pDescriptorRanges =
-                descriptorSet.m_resourceRanges.getBuffer();
-            m_rootParameters.add(rootParam);
+                descriptorSet.m_resourceRanges.data();
+            m_rootParameters.push_back(rootParam);
         }
-        if (descriptorSet.m_samplerRanges.getCount())
+        if (descriptorSet.m_samplerRanges.size())
         {
             D3D12_ROOT_PARAMETER1 rootParam = {};
             rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
             rootParam.DescriptorTable.NumDescriptorRanges =
-                (UINT)descriptorSet.m_samplerRanges.getCount();
-            rootParam.DescriptorTable.pDescriptorRanges = descriptorSet.m_samplerRanges.getBuffer();
-            m_rootParameters.add(rootParam);
+                (UINT)descriptorSet.m_samplerRanges.size();
+            rootParam.DescriptorTable.pDescriptorRanges = descriptorSet.m_samplerRanges.data();
+            m_rootParameters.push_back(rootParam);
         }
     }
 
-    m_rootSignatureDesc.NumParameters = UINT(m_rootParameters.getCount());
-    m_rootSignatureDesc.pParameters = m_rootParameters.getBuffer();
+    m_rootSignatureDesc.NumParameters = UINT(m_rootParameters.size());
+    m_rootSignatureDesc.pParameters = m_rootParameters.data();
 
     // TODO: static samplers should be reasonably easy to support...
     m_rootSignatureDesc.NumStaticSamplers = 0;

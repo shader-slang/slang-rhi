@@ -7,6 +7,8 @@
 
 #include "utils/static_vector.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -128,7 +130,7 @@ public:
 
     struct DescriptorSetInfo
     {
-        List<VkDescriptorSetLayoutBinding> vkBindings;
+        std::vector<VkDescriptorSetLayoutBinding> vkBindings;
         Slang::Int space = -1;
         VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     };
@@ -149,8 +151,8 @@ public:
         /// instead of a single object.
         ShaderObjectContainerType m_containerType = ShaderObjectContainerType::None;
 
-        List<BindingRangeInfo> m_bindingRanges;
-        List<SubObjectRangeInfo> m_subObjectRanges;
+        std::vector<BindingRangeInfo> m_bindingRanges;
+        std::vector<SubObjectRangeInfo> m_subObjectRanges;
 
         Index m_resourceViewCount = 0;
         Index m_samplerCount = 0;
@@ -158,7 +160,7 @@ public:
         Index m_subObjectCount = 0;
         Index m_varyingInputCount = 0;
         Index m_varyingOutputCount = 0;
-        List<DescriptorSetInfo> m_descriptorSetBuildInfos;
+        std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
         Dictionary<Index, Index> m_mapSpaceToDescriptorSetIndex;
 
         /// The number of descriptor sets allocated by child/descendent objects
@@ -168,7 +170,7 @@ public:
         uint32_t m_totalBindingCount = 0;
 
         /// The push-constant ranges that belong to this object itself (if any)
-        List<VkPushConstantRange> m_ownPushConstantRanges;
+        std::vector<VkPushConstantRange> m_ownPushConstantRanges;
 
         /// The number of push-constant ranges owned by child/descendent objects
         uint32_t m_childPushConstantRangeCount = 0;
@@ -226,12 +228,12 @@ public:
     /// Get the number of descriptor sets that are allocated for this object itself
     /// (if it needed to be bound as a parameter block).
     ///
-    uint32_t getOwnDescriptorSetCount() { return uint32_t(m_descriptorSetInfos.getCount()); }
+    uint32_t getOwnDescriptorSetCount() { return uint32_t(m_descriptorSetInfos.size()); }
 
     /// Get information about the descriptor sets that would be allocated to
     /// represent this object itself as a parameter block.
     ///
-    List<DescriptorSetInfo> const& getOwnDescriptorSets() { return m_descriptorSetInfos; }
+    std::vector<DescriptorSetInfo> const& getOwnDescriptorSets() { return m_descriptorSetInfos; }
 
     /// Get the number of descriptor sets that would need to be allocated and bound
     /// to represent the children of this object if it were bound as a parameter
@@ -260,13 +262,13 @@ public:
     uint32_t getTotalBindingCount() { return m_totalBindingCount; }
 
     /// Get the list of push constant ranges required to bind the state of this object itself.
-    List<VkPushConstantRange> const& getOwnPushConstantRanges() const
+    std::vector<VkPushConstantRange> const& getOwnPushConstantRanges() const
     {
         return m_ownPushConstantRanges;
     }
 
     /// Get the number of push constant ranges required to bind the state of this object itself.
-    uint32_t getOwnPushConstantRangeCount() { return (uint32_t)m_ownPushConstantRanges.getCount(); }
+    uint32_t getOwnPushConstantRangeCount() { return (uint32_t)m_ownPushConstantRanges.size(); }
 
     /// Get the number of push constant ranges required to bind the state of the (transitive)
     /// children of this object.
@@ -281,9 +283,9 @@ public:
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
-    List<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
 
-    Index getBindingRangeCount() { return m_bindingRanges.getCount(); }
+    Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
     BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
@@ -293,7 +295,7 @@ public:
     Index getSubObjectCount() { return m_subObjectCount; }
 
     SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    List<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
 
     DeviceImpl* getDevice();
 
@@ -302,20 +304,20 @@ public:
 protected:
     Result _init(Builder const* builder);
 
-    List<DescriptorSetInfo> m_descriptorSetInfos;
-    List<BindingRangeInfo> m_bindingRanges;
+    std::vector<DescriptorSetInfo> m_descriptorSetInfos;
+    std::vector<BindingRangeInfo> m_bindingRanges;
     Index m_resourceViewCount = 0;
     Index m_samplerCount = 0;
     Index m_combinedTextureSamplerCount = 0;
     Index m_subObjectCount = 0;
-    List<VkPushConstantRange> m_ownPushConstantRanges;
+    std::vector<VkPushConstantRange> m_ownPushConstantRanges;
     uint32_t m_childPushConstantRangeCount = 0;
 
     uint32_t m_childDescriptorSetCount = 0;
     uint32_t m_totalBindingCount = 0;
     uint32_t m_totalOrdinaryDataSize = 0;
 
-    List<SubObjectRangeInfo> m_subObjectRanges;
+    std::vector<SubObjectRangeInfo> m_subObjectRanges;
 };
 
 class EntryPointLayout : public ShaderObjectLayoutImpl
@@ -384,7 +386,7 @@ public:
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
-        List<EntryPointInfo> m_entryPoints;
+        std::vector<EntryPointInfo> m_entryPoints;
 
         /// Offset to apply to "pending" data from this object, sub-objects, and entry points
         SimpleBindingOffset m_pendingDataOffset;
@@ -394,7 +396,7 @@ public:
 
     EntryPointInfo const& getEntryPoint(Index index) { return m_entryPoints[index]; }
 
-    List<EntryPointInfo> const& getEntryPoints() const { return m_entryPoints; }
+    std::vector<EntryPointInfo> const& getEntryPoints() const { return m_entryPoints; }
 
     static Result create(
         DeviceImpl* renderer,
@@ -409,7 +411,7 @@ public:
 
     /// Get all of the push constant ranges that will be bound for this object and all
     /// (transitive) sub-objects
-    List<VkPushConstantRange> const& getAllPushConstantRanges() { return m_allPushConstantRanges; }
+    std::vector<VkPushConstantRange> const& getAllPushConstantRanges() { return m_allPushConstantRanges; }
 
 protected:
     Result _init(Builder const* builder);
@@ -435,10 +437,10 @@ protected:
 public:
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
-    List<EntryPointInfo> m_entryPoints;
+    std::vector<EntryPointInfo> m_entryPoints;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
-    List<VkPushConstantRange> m_allPushConstantRanges;
+    std::vector<VkPushConstantRange> m_allPushConstantRanges;
     uint32_t m_totalPushConstantSize = 0;
 
     SimpleBindingOffset m_pendingDataOffset;

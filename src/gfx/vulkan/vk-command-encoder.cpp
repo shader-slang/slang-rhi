@@ -14,6 +14,8 @@
 
 #include "vk-helper-functions.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -121,13 +123,13 @@ Result PipelineCommandEncoder::bindRootShaderObjectImpl(RootShaderObjectImpl* ro
     context.pipelineLayout = specializedLayout->m_pipelineLayout;
     context.device = m_device;
     context.descriptorSetAllocator = &m_commandBuffer->m_transientHeap->m_descSetAllocator;
-    context.pushConstantRanges = specializedLayout->getAllPushConstantRanges().getArrayView();
+    context.pushConstantRanges = std::span(specializedLayout->getAllPushConstantRanges());
 
     // The context includes storage for the descriptor sets we will bind,
     // and the number of sets we need to make space for is determined
     // by the specialized program layout.
     //
-    List<VkDescriptorSet> descriptorSetsStorage;
+    std::vector<VkDescriptorSet> descriptorSetsStorage;
 
     context.descriptorSets = &descriptorSetsStorage;
 
@@ -145,15 +147,15 @@ Result PipelineCommandEncoder::bindRootShaderObjectImpl(RootShaderObjectImpl* ro
     // Once we've filled in all the descriptor sets, we bind them
     // to the pipeline at once.
     //
-    if (descriptorSetsStorage.getCount() > 0)
+    if (descriptorSetsStorage.size() > 0)
     {
         m_device->m_api.vkCmdBindDescriptorSets(
             m_commandBuffer->m_commandBuffer,
             bindPoint,
             specializedLayout->m_pipelineLayout,
             0,
-            (uint32_t)descriptorSetsStorage.getCount(),
-            descriptorSetsStorage.getBuffer(),
+            (uint32_t)descriptorSetsStorage.size(),
+            descriptorSetsStorage.data(),
             0,
             nullptr);
     }
@@ -293,7 +295,7 @@ void ResourceCommandEncoder::textureBarrier(
 void ResourceCommandEncoder::bufferBarrier(
     GfxCount count, IBufferResource* const* buffers, ResourceState src, ResourceState dst)
 {
-    List<VkBufferMemoryBarrier> barriers;
+    std::vector<VkBufferMemoryBarrier> barriers;
     barriers.reserve(count);
 
     for (GfxIndex i = 0; i < count; i++)
@@ -308,7 +310,7 @@ void ResourceCommandEncoder::bufferBarrier(
         barrier.offset = 0;
         barrier.size = bufferImpl->getDesc()->sizeInBytes;
 
-        barriers.add(barrier);
+        barriers.push_back(barrier);
     }
 
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
@@ -322,8 +324,8 @@ void ResourceCommandEncoder::bufferBarrier(
         0,
         0,
         nullptr,
-        (uint32_t)count,
-        barriers.getBuffer(),
+        (uint32_t)barriers.size(),
+        barriers.data(),
         0,
         nullptr);
 }
@@ -424,7 +426,7 @@ void ResourceCommandEncoder::uploadTextureData(
 
     auto& vkApi = m_commandBuffer->m_renderer->m_api;
     auto dstImpl = static_cast<TextureResourceImpl*>(dst);
-    List<TextureResource::Extents> mipSizes;
+    std::vector<TextureResource::Extents> mipSizes;
 
     VkCommandBuffer commandBuffer = m_commandBuffer->m_commandBuffer;
     auto& desc = *dstImpl->getDesc();
@@ -440,7 +442,7 @@ void ResourceCommandEncoder::uploadTextureData(
         auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
         auto numRows = calcNumRows(desc.format, mipSize.height);
 
-        mipSizes.add(mipSize);
+        mipSizes.push_back(mipSize);
 
         bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
     }
@@ -466,7 +468,7 @@ void ResourceCommandEncoder::uploadTextureData(
         Offset dstSubresourceOffset = 0;
         for (GfxIndex i = 0; i < subResourceRange.layerCount; ++i)
         {
-            for (GfxIndex j = 0; j < (GfxCount)mipSizes.getCount(); ++j)
+            for (GfxIndex j = 0; j < (GfxCount)mipSizes.size(); ++j)
             {
                 const auto& mipSize = mipSizes[j];
 
@@ -509,7 +511,7 @@ void ResourceCommandEncoder::uploadTextureData(
         Offset srcOffset = uploadBufferOffset;
         for (GfxIndex i = 0; i < subResourceRange.layerCount; ++i)
         {
-            for (GfxIndex j = 0; j < (GfxCount)mipSizes.getCount(); ++j)
+            for (GfxIndex j = 0; j < (GfxCount)mipSizes.size(); ++j)
             {
                 const auto& mipSize = mipSizes[j];
 
@@ -964,7 +966,7 @@ void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewport
     static const int kMaxViewports = 8; // TODO: base on device caps
     assert(count <= kMaxViewports);
 
-    m_viewports.setCount(count);
+    m_viewports.resize(count);
     for (GfxIndex ii = 0; ii < count; ++ii)
     {
         auto& inViewport = viewports[ii];
@@ -979,7 +981,7 @@ void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewport
     }
 
     auto& api = *m_api;
-    api.vkCmdSetViewport(m_vkCommandBuffer, 0, uint32_t(count), m_viewports.getBuffer());
+    api.vkCmdSetViewport(m_vkCommandBuffer, 0, uint32_t(count), m_viewports.data());
 }
 
 void RenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRect* rects)
@@ -987,7 +989,7 @@ void RenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRect* re
     static const int kMaxScissorRects = 8; // TODO: base on device caps
     assert(count <= kMaxScissorRects);
 
-    m_scissorRects.setCount(count);
+    m_scissorRects.resize(count);
     for (GfxIndex ii = 0; ii < count; ++ii)
     {
         auto& inRect = rects[ii];
@@ -1000,7 +1002,7 @@ void RenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRect* re
     }
 
     auto& api = *m_api;
-    api.vkCmdSetScissor(m_vkCommandBuffer, 0, uint32_t(count), m_scissorRects.getBuffer());
+    api.vkCmdSetScissor(m_vkCommandBuffer, 0, uint32_t(m_scissorRects.size()), m_scissorRects.data());
 }
 
 void RenderCommandEncoder::setPrimitiveTopology(PrimitiveTopology topology)
@@ -1349,9 +1351,9 @@ void RayTracingCommandEncoder::buildAccelerationStructure(
     }
     geomInfoBuilder.buildInfo.scratchData.deviceAddress = desc.scratchData;
 
-    List<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
-    rangeInfos.setCount(geomInfoBuilder.primitiveCounts.getCount());
-    for (Index i = 0; i < geomInfoBuilder.primitiveCounts.getCount(); i++)
+    std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
+    rangeInfos.resize(geomInfoBuilder.primitiveCounts.size());
+    for (Index i = 0; i < geomInfoBuilder.primitiveCounts.size(); i++)
     {
         auto& rangeInfo = rangeInfos[i];
         rangeInfo.primitiveCount = geomInfoBuilder.primitiveCounts[i];
@@ -1360,7 +1362,7 @@ void RayTracingCommandEncoder::buildAccelerationStructure(
         rangeInfo.transformOffset = 0;
     }
 
-    auto rangeInfoPtr = rangeInfos.getBuffer();
+    auto rangeInfoPtr = rangeInfos.data();
     m_commandBuffer->m_renderer->m_api.vkCmdBuildAccelerationStructuresKHR(
         m_commandBuffer->m_commandBuffer, 1, &geomInfoBuilder.buildInfo, &rangeInfoPtr);
 

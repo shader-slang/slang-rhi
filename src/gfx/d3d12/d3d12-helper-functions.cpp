@@ -591,9 +591,9 @@ Result createNullDescriptor(
 void translatePostBuildInfoDescs(
     int propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs,
-    List<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs)
+    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs)
 {
-    postBuildInfoDescs.setCount(propertyQueryCount);
+    postBuildInfoDescs.resize(propertyQueryCount);
     for (int i = 0; i < propertyQueryCount; i++)
     {
         switch (queryDescs[i].queryType)
@@ -631,9 +631,9 @@ void translatePostBuildInfoDescs(
 
 } // namespace d3d12
 
-Result SLANG_MCALL getD3D12Adapters(List<AdapterInfo>& outAdapters)
+Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
 {
-    List<ComPtr<IDXGIAdapter>> dxgiAdapters;
+    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
     SLANG_RETURN_ON_FAIL(D3DUtil::findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
 
     outAdapters.clear();
@@ -647,7 +647,7 @@ Result SLANG_MCALL getD3D12Adapters(List<AdapterInfo>& outAdapters)
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
         info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);
-        outAdapters.add(info);
+        outAdapters.push_back(info);
     }
     return SLANG_OK;
 }

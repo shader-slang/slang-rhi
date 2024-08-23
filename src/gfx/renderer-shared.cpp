@@ -8,6 +8,9 @@
 
 #include "slang.h"
 
+#include <algorithm>
+#include <vector>
+
 using namespace Slang;
 
 namespace gfx
@@ -422,21 +425,23 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::getNativeDeviceHandles(InteropHa
 SLANG_NO_THROW Result SLANG_MCALL RendererBase::getFeatures(
     const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
 {
-    if (bufferSize >= (UInt)m_features.getCount())
+    if (bufferSize >= (UInt)m_features.size())
     {
-        for (Index i = 0; i < m_features.getCount(); i++)
+        for (Index i = 0; i < m_features.size(); i++)
         {
             outFeatures[i] = m_features[i].getUnownedSlice().begin();
         }
     }
     if (outFeatureCount)
-        *outFeatureCount = (GfxCount)m_features.getCount();
+        *outFeatureCount = (GfxCount)m_features.size();
     return SLANG_OK;
 }
 
 SLANG_NO_THROW bool SLANG_MCALL RendererBase::hasFeature(const char* featureName)
 {
-    return m_features.findFirstIndex([&](Slang::String x) { return x == featureName; }) != -1;
+    return std::any_of(m_features.begin(), m_features.end(), [&](const String& feature) {
+        return feature == featureName;
+    });
 }
 
 Result RendererBase::getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates)
@@ -589,8 +594,8 @@ Result RendererBase::createProgram2(
             SLANG_RELEASE_ASSERT(false);
     }
 
-    Slang::List<ComPtr<slang::IComponentType>> componentTypes;
-    componentTypes.add(ComPtr<slang::IComponentType>(module));
+    std::vector<ComPtr<slang::IComponentType>> componentTypes;
+    componentTypes.push_back(ComPtr<slang::IComponentType>(module));
 
     if (desc.entryPointCount == 0)
     {
@@ -598,7 +603,7 @@ Result RendererBase::createProgram2(
         {
             ComPtr<slang::IEntryPoint> entryPoint;
             SLANG_RETURN_ON_FAIL(module->getDefinedEntryPoint(i, entryPoint.writeRef()));
-            componentTypes.add(ComPtr<slang::IComponentType>(entryPoint.get()));
+            componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
         }
     }
     else
@@ -607,18 +612,18 @@ Result RendererBase::createProgram2(
         {
             ComPtr<slang::IEntryPoint> entryPoint;
             SLANG_RETURN_ON_FAIL(module->findEntryPointByName(desc.entryPointNames[i], entryPoint.writeRef()));
-            componentTypes.add(ComPtr<slang::IComponentType>(entryPoint.get()));
+            componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
         }
     }
 
-    Slang::List<slang::IComponentType*> rawComponentTypes;
+    std::vector<slang::IComponentType*> rawComponentTypes;
     for (auto& compType : componentTypes)
-        rawComponentTypes.add(compType.get());
+        rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
     SlangResult result = slangSession->createCompositeComponentType(
-        rawComponentTypes.getBuffer(),
-        rawComponentTypes.getCount(),
+        rawComponentTypes.data(),
+        rawComponentTypes.size(),
         linkedProgram.writeRef(),
         diagnosticsBlob.writeRef());
     SLANG_RETURN_ON_FAIL(result);
@@ -942,10 +947,10 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
         desc.elementSize = (int)elementLayout->getSize();
         desc.format = Format::Unknown;
         desc.type = IResource::Type::Buffer;
-        desc.sizeInBytes = (Size)m_ordinaryData.getCount();
+        desc.sizeInBytes = (Size)m_ordinaryData.size();
         ComPtr<IBufferResource> bufferResource;
         SLANG_RETURN_NULL_ON_FAIL(device->createBufferResource(
-            desc, m_ordinaryData.getBuffer(), bufferResource.writeRef()));
+            desc, m_ordinaryData.data(), bufferResource.writeRef()));
         m_structuredBuffer = static_cast<BufferResource*>(bufferResource.get());
 
         // Create read-only (shader-resource) and mutable (unordered access) views.
@@ -982,16 +987,16 @@ void ShaderProgramBase::init(const IShaderProgram::Desc& inDesc)
     slangGlobalScope = desc.slangGlobalScope;
     for (GfxIndex i = 0; i < desc.entryPointCount; i++)
     {
-        slangEntryPoints.add(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
+        slangEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
     }
 
     auto session = desc.slangGlobalScope ? desc.slangGlobalScope->getSession() : nullptr;
     if (desc.linkingStyle == IShaderProgram::LinkingStyle::SingleProgram)
     {
-        List<slang::IComponentType*> components;
+        std::vector<slang::IComponentType*> components;
         if (desc.slangGlobalScope)
         {
-            components.add(desc.slangGlobalScope);
+            components.push_back(desc.slangGlobalScope);
         }
         for (GfxIndex i = 0; i < desc.entryPointCount; i++)
         {
@@ -999,10 +1004,10 @@ void ShaderProgramBase::init(const IShaderProgram::Desc& inDesc)
             {
                 session = desc.slangEntryPoints[i]->getSession();
             }
-            components.add(desc.slangEntryPoints[i]);
+            components.push_back(desc.slangEntryPoints[i]);
         }
         session->createCompositeComponentType(
-            components.getBuffer(), components.getCount(), linkedProgram.writeRef());
+            components.data(), components.size(), linkedProgram.writeRef());
     }
     else
     {
@@ -1015,11 +1020,11 @@ void ShaderProgramBase::init(const IShaderProgram::Desc& inDesc)
                 ComPtr<slang::IComponentType> linkedEntryPoint;
                 session->createCompositeComponentType(
                     entryPointComponents, 2, linkedEntryPoint.writeRef());
-                linkedEntryPoints.add(linkedEntryPoint);
+                linkedEntryPoints.push_back(linkedEntryPoint);
             }
             else
             {
-                linkedEntryPoints.add(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
+                linkedEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
             }
         }
         linkedProgram = desc.slangGlobalScope;
@@ -1053,7 +1058,7 @@ Result ShaderProgramBase::compileShaders(RendererBase* device)
         return SLANG_OK;
     };
 
-    if (linkedEntryPoints.getCount() == 0)
+    if (linkedEntryPoints.size() == 0)
     {
         // If the user does not explicitly specify entry point components, find them from
         // `linkedEntryPoints`.
@@ -1089,7 +1094,7 @@ bool ShaderProgramBase::isMeshShaderProgram() const
 {
     // Similar to above, interrogate either explicity specified entry point
     // componenets or the ones in the linked program entry point array
-    if(linkedEntryPoints.getCount())
+    if(linkedEntryPoints.size())
     {
         for(const auto& e : linkedEntryPoints)
             if(e->getLayout()->getEntryPointByIndex(0)->getStage() == SLANG_STAGE_MESH)
@@ -1235,7 +1240,7 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
 {
     if (auto srcObj = dynamic_cast<MutableRootShaderObject*>(object))
     {
-        setData(gfx::ShaderOffset(), srcObj->m_data.begin(), (size_t)srcObj->m_data.getCount()); // TODO: Change size_t to Count?
+        setData(gfx::ShaderOffset(), srcObj->m_data.data(), (size_t)srcObj->m_data.size()); // TODO: Change size_t to Count?
         for (auto& kv : srcObj->m_objects)
         {
             ComPtr<IShaderObject> subObject;
@@ -1252,7 +1257,7 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
         }
         for (auto& kv : srcObj->m_specializationArgs)
         {
-            setSpecializationArgs(kv.key, kv.value.begin(), (uint32_t)kv.value.getCount());
+            setSpecializationArgs(kv.key, kv.value.data(), (uint32_t)kv.value.size());
         }
         return SLANG_OK;
     }
@@ -1269,50 +1274,50 @@ Result ShaderTableBase::init(const IShaderTable::Desc& desc)
     m_recordOverwrites.reserve(desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount);
     for (GfxIndex i = 0; i < desc.rayGenShaderCount; i++)
     {
-        m_shaderGroupNames.add(desc.rayGenShaderEntryPointNames[i]);
+        m_shaderGroupNames.push_back(desc.rayGenShaderEntryPointNames[i]);
         if (desc.rayGenShaderRecordOverwrites)
         {
-            m_recordOverwrites.add(desc.rayGenShaderRecordOverwrites[i]);
+            m_recordOverwrites.push_back(desc.rayGenShaderRecordOverwrites[i]);
         }
         else
         {
-            m_recordOverwrites.add(ShaderRecordOverwrite{});
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
         }
     }
     for (GfxIndex i = 0; i < desc.missShaderCount; i++)
     {
-        m_shaderGroupNames.add(desc.missShaderEntryPointNames[i]);
+        m_shaderGroupNames.push_back(desc.missShaderEntryPointNames[i]);
         if (desc.missShaderRecordOverwrites)
         {
-            m_recordOverwrites.add(desc.missShaderRecordOverwrites[i]);
+            m_recordOverwrites.push_back(desc.missShaderRecordOverwrites[i]);
         }
         else
         {
-            m_recordOverwrites.add(ShaderRecordOverwrite{});
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
         }
     }
     for (GfxIndex i = 0; i < desc.hitGroupCount; i++)
     {
-        m_shaderGroupNames.add(desc.hitGroupNames[i]);
+        m_shaderGroupNames.push_back(desc.hitGroupNames[i]);
         if (desc.hitGroupRecordOverwrites)
         {
-            m_recordOverwrites.add(desc.hitGroupRecordOverwrites[i]);
+            m_recordOverwrites.push_back(desc.hitGroupRecordOverwrites[i]);
         }
         else
         {
-            m_recordOverwrites.add(ShaderRecordOverwrite{});
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
         }
     }
     for (GfxIndex i = 0; i < desc.callableShaderCount; i++)
     {
-        m_shaderGroupNames.add(desc.callableShaderEntryPointNames[i]);
+        m_shaderGroupNames.push_back(desc.callableShaderEntryPointNames[i]);
         if (desc.callableShaderRecordOverwrites)
         {
-            m_recordOverwrites.add(desc.callableShaderRecordOverwrites[i]);
+            m_recordOverwrites.push_back(desc.callableShaderRecordOverwrites[i]);
         }
         else
         {
-            m_recordOverwrites.add(ShaderRecordOverwrite{});
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
         }
     }
     return SLANG_OK;

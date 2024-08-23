@@ -9,6 +9,8 @@
 #include "core/slang-short-list.h"
 #include "core/slang-basic.h"
 
+#include <vector>
+
 namespace gfx {
 
 /*! \brief A simple class to manage an underlying Dx12 Descriptor Heap. Allocations are made linearly in order. It is not possible to free
@@ -156,22 +158,22 @@ class D3D12GeneralExpandingDescriptorHeap : public Slang::RefObject
     D3D12_DESCRIPTOR_HEAP_TYPE m_type;
     D3D12_DESCRIPTOR_HEAP_FLAGS m_flag;
     int m_chunkSize;
-    Slang::List<Slang::RefPtr<D3D12GeneralDescriptorHeap>> m_subHeaps;
-    Slang::List<int> m_subHeapStartingIndex;
+    std::vector<Slang::RefPtr<D3D12GeneralDescriptorHeap>> m_subHeaps;
+    std::vector<int> m_subHeapStartingIndex;
 
 public:
     Slang::Result newSubHeap()
     {
         Slang::RefPtr<D3D12GeneralDescriptorHeap> subHeap = new D3D12GeneralDescriptorHeap();
         SLANG_RETURN_ON_FAIL(subHeap->init(m_device, m_chunkSize, m_type, m_flag));
-        m_subHeaps.add(subHeap);
-        if (m_subHeapStartingIndex.getCount())
+        m_subHeaps.push_back(subHeap);
+        if (m_subHeapStartingIndex.size())
         {
-            m_subHeapStartingIndex.add(m_subHeapStartingIndex.getLast() + m_subHeaps.getLast()->getSize());
+            m_subHeapStartingIndex.push_back(m_subHeapStartingIndex.back() + m_subHeaps.back()->getSize());
         }
         else
         {
-            m_subHeapStartingIndex.add(0);
+            m_subHeapStartingIndex.push_back(0);
         }
         return SLANG_OK;
     }
@@ -179,7 +181,7 @@ public:
     int getSubHeapIndex(int descriptorIndex) const
     {
         Slang::Index l = 0;
-        Slang::Index r = m_subHeapStartingIndex.getCount();
+        Slang::Index r = m_subHeapStartingIndex.size();
         while (l < r - 1)
         {
             Slang::Index m = l + (r - l) / 2;
@@ -224,13 +226,13 @@ public:
 
     int allocate(int count)
     {
-        auto result = m_subHeaps.getLast()->allocate(count);
+        auto result = m_subHeaps.back()->allocate(count);
         if (result == -1)
         {
             newSubHeap();
             return allocate(count);
         }
-        return result + m_subHeapStartingIndex.getLast();
+        return result + m_subHeapStartingIndex.back();
     }
 
     Slang::Result allocate(D3D12Descriptor* outDescriptor)

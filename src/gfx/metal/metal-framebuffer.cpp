@@ -16,7 +16,7 @@ Result FramebufferLayoutImpl::init(const IFramebufferLayout::Desc& desc)
 {
     for (Index i = 0; i < desc.renderTargetCount; ++i)
     {
-        m_renderTargets.add(desc.renderTargets[i]);
+        m_renderTargets.push_back(desc.renderTargets[i]);
     }
     if (desc.depthStencil)
     {

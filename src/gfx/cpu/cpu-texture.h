@@ -2,6 +2,8 @@
 #pragma once
 #include "cpu-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -122,7 +124,7 @@ public:
         int64_t strides[kMaxRank+1];
         int64_t offset;
     };
-    List<MipLevel>  m_mipLevels;
+    std::vector<MipLevel>  m_mipLevels;
     void*           m_data = nullptr;
 };
 

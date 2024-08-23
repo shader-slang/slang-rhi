@@ -40,7 +40,7 @@ VkDescriptorPool DescriptorSetAllocator::newPool()
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     SLANG_VK_CHECK(m_api->vkCreateDescriptorPool(
         m_api->m_device, &descriptorPoolInfo, nullptr, &descriptorPool));
-    pools.add(descriptorPool);
+    pools.push_back(descriptorPool);
     return descriptorPool;
 }
 
@@ -58,7 +58,7 @@ VulkanDescriptorSet DescriptorSetAllocator::allocate(VkDescriptorSetLayout layou
         return rs;
     }
     // If allocation from last pool fails, try all existing pools.
-    for (Slang::Index i = 0; i < pools.getCount() - 1; i++)
+    for (Slang::Index i = 0; i < pools.size() - 1; i++)
     {
         allocInfo.descriptorPool = pools[i];
         if (m_api->vkAllocateDescriptorSets(m_api->m_device, &allocInfo, &rs.handle) == VK_SUCCESS)

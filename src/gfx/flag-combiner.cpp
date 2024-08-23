@@ -1,5 +1,7 @@
 #include "flag-combiner.h"
 
+#include "core/slang-common.h"
+
 namespace gfx {
 using namespace Slang;
 
@@ -21,11 +23,11 @@ void FlagCombiner::add(uint32_t flags, ChangeType type)
     }
 }
 
-void FlagCombiner::calcCombinations(List<uint32_t>& outCombinations) const
+void FlagCombiner::calcCombinations(std::vector<uint32_t>& outCombinations) const
 {
     const int numCombinations = getNumCombinations();
-    outCombinations.setCount(numCombinations);
-    uint32_t* dstCombinations = outCombinations.getBuffer();
+    outCombinations.resize(numCombinations);
+    uint32_t* dstCombinations = outCombinations.data();
     for (int i = 0; i < numCombinations; ++i)
     {
         dstCombinations[i] = getCombination(i);

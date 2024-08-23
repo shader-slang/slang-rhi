@@ -113,7 +113,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(RendererBase* renderer, slang::IS
 
 Index ShaderObjectLayoutImpl::getResourceCount() const { return m_resourceCount; }
 Index ShaderObjectLayoutImpl::getSubObjectCount() const { return m_subObjectCount; }
-List<SubObjectRangeInfo>& ShaderObjectLayoutImpl::getSubObjectRanges() { return subObjectRanges; }
+std::vector<SubObjectRangeInfo>& ShaderObjectLayoutImpl::getSubObjectRanges() { return subObjectRanges; }
 BindingRangeInfo ShaderObjectLayoutImpl::getBindingRange(Index index) { return m_bindingRanges[index]; }
 Index ShaderObjectLayoutImpl::getBindingRangeCount() const { return m_bindingRanges.getCount(); }
 

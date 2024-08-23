@@ -4,6 +4,8 @@
 #include "metal-base.h"
 #include "metal-helper-functions.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -111,17 +113,17 @@ public:
         slang::ISession* m_session;
         slang::TypeLayoutReflection* m_elementTypeLayout;
 
-        List<BindingRangeInfo> m_bindingRanges;
-        List<SubObjectRangeInfo> m_subObjectRanges;
+        std::vector<BindingRangeInfo> m_bindingRanges;
+        std::vector<SubObjectRangeInfo> m_subObjectRanges;
 
         /// The indices of the binding ranges that represent buffers
-        List<Index> m_bufferRanges;
+        std::vector<Index> m_bufferRanges;
 
         /// The indices of the binding ranges that represent textures
-        List<Index> m_textureRanges;
+        std::vector<Index> m_textureRanges;
 
         /// The indices of the binding ranges that represent samplers
-        List<Index> m_samplerRanges;
+        std::vector<Index> m_samplerRanges;
 
         Index m_bufferCount = 0;
         Index m_textureCount = 0;
@@ -145,7 +147,7 @@ public:
         slang::TypeLayoutReflection* elementType,
         ShaderObjectLayoutImpl** outLayout);
 
-    List<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
 
     Index getBindingRangeCount() { return m_bindingRanges.getCount(); }
 
@@ -157,7 +159,7 @@ public:
     Index getSubObjectCount() { return m_subObjectCount; }
 
     SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    List<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
 
     RendererBase* getRenderer() { return m_renderer; }
 
@@ -167,13 +169,13 @@ public:
     }
 
     /// Get the indices that represent all the buffer ranges in this type
-    List<Index> const& getBufferRanges() const { return m_bufferRanges; }
+    std::vector<Index> const& getBufferRanges() const { return m_bufferRanges; }
 
     /// Get the indices that reprsent all the texture ranges in this type
-    List<Index> const& getTextureRanges() const { return m_textureRanges; }
+    std::vector<Index> const& getTextureRanges() const { return m_textureRanges; }
 
     /// Get the indices that represnet all the sampler ranges in this type
-    List<Index> const& getSamplerRanges() const { return m_samplerRanges; }
+    std::vector<Index> const& getSamplerRanges() const { return m_samplerRanges; }
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
@@ -181,16 +183,16 @@ public:
 protected:
     Result _init(Builder const* builder);
 
-    List<BindingRangeInfo> m_bindingRanges;
-    List<Index> m_bufferRanges;
-    List<Index> m_textureRanges;
-    List<Index> m_samplerRanges;
+    std::vector<BindingRangeInfo> m_bindingRanges;
+    std::vector<Index> m_bufferRanges;
+    std::vector<Index> m_textureRanges;
+    std::vector<Index> m_samplerRanges;
     Index m_bufferCount = 0;
     Index m_textureCount = 0;
     Index m_samplerCount = 0;
     Index m_subObjectCount = 0;
     uint32_t m_totalOrdinaryDataSize = 0;
-    List<SubObjectRangeInfo> m_subObjectRanges;
+    std::vector<SubObjectRangeInfo> m_subObjectRanges;
     // The type layout to use when the shader object is bind as a parameter block.
     slang::TypeLayoutReflection* m_parameterBlockTypeLayout = nullptr;
 };
@@ -225,12 +227,12 @@ public:
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
-        List<EntryPointInfo> m_entryPoints;
+        std::vector<EntryPointInfo> m_entryPoints;
     };
 
     EntryPointInfo& getEntryPoint(Index index) { return m_entryPoints[index]; }
 
-    List<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
+    std::vector<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
 
     static Result create(
         RendererBase* renderer,
@@ -247,7 +249,7 @@ protected:
     ComPtr<slang::IComponentType>   m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
 
-    List<EntryPointInfo> m_entryPoints;
+    std::vector<EntryPointInfo> m_entryPoints;
 };
 
 } // namespace metal

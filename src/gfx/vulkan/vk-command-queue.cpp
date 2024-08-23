@@ -65,7 +65,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(
         FenceWaitInfo waitInfo;
         waitInfo.fence = static_cast<FenceImpl*>(fences[i]);
         waitInfo.waitValue = waitValues[i];
-        m_pendingWaitFences.add(waitInfo);
+        m_pendingWaitFences.push_back(waitInfo);
     }
     return SLANG_OK;
 }
@@ -79,9 +79,9 @@ void CommandQueueImpl::queueSubmitImpl(
     {
         auto cmdBufImpl = static_cast<CommandBufferImpl*>(commandBuffers[i]);
         if (!cmdBufImpl->m_isPreCommandBufferEmpty)
-            m_submitCommandBuffers.add(cmdBufImpl->m_preCommandBuffer);
+            m_submitCommandBuffers.push_back(cmdBufImpl->m_preCommandBuffer);
         auto vkCmdBuf = cmdBufImpl->m_commandBuffer;
-        m_submitCommandBuffers.add(vkCmdBuf);
+        m_submitCommandBuffers.push_back(vkCmdBuf);
     }
     static_vector<VkSemaphore, 2> signalSemaphores;
     static_vector<uint64_t, 2> signalValues;
@@ -93,8 +93,8 @@ void CommandQueueImpl::queueSubmitImpl(
     VkPipelineStageFlags stageFlag[] = {
         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
     submitInfo.pWaitDstStageMask = stageFlag;
-    submitInfo.commandBufferCount = (uint32_t)m_submitCommandBuffers.getCount();
-    submitInfo.pCommandBuffers = m_submitCommandBuffers.getBuffer();
+    submitInfo.commandBufferCount = (uint32_t)m_submitCommandBuffers.size();
+    submitInfo.pCommandBuffers = m_submitCommandBuffers.data();
     static_vector<VkSemaphore, 3> waitSemaphores;
     static_vector<uint64_t, 3> waitValues;
     for (auto s : m_pendingWaitSemaphores)

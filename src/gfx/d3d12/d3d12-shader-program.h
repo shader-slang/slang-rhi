@@ -4,6 +4,8 @@
 #include "d3d12-base.h"
 #include "d3d12-shader-object-layout.h"
 
+#include <vector>
+
 namespace gfx
 {
 namespace d3d12
@@ -16,14 +18,14 @@ struct ShaderBinary
     SlangStage stage;
     slang::EntryPointReflection* entryPointInfo;
     String actualEntryPointNameInAPI;
-    List<uint8_t> code;
+    std::vector<uint8_t> code;
 };
 
 class ShaderProgramImpl : public ShaderProgramBase
 {
 public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
-    List<ShaderBinary> m_shaders;
+    std::vector<ShaderBinary> m_shaders;
 
     virtual Result createShaderModule(
         slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode) override;

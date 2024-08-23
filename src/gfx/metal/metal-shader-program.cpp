@@ -37,7 +37,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
         return SLANG_E_INVALID_ARG;
     }
 
-    m_modules.add(module);
+    m_modules.push_back(module);
     return SLANG_OK;
 }
 

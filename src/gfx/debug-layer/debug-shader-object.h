@@ -2,6 +2,8 @@
 #pragma once
 #include "debug-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -80,7 +82,7 @@ public:
 
     DebugDevice* m_device;
 
-    Slang::List<Slang::RefPtr<DebugShaderObject>> m_entryPoints;
+    std::vector<Slang::RefPtr<DebugShaderObject>> m_entryPoints;
     Slang::Dictionary<ShaderOffsetKey, Slang::RefPtr<DebugShaderObject>> m_objects;
     Slang::Dictionary<ShaderOffsetKey, Slang::RefPtr<DebugResourceView>> m_resources;
     Slang::Dictionary<ShaderOffsetKey, Slang::RefPtr<DebugSamplerState>> m_samplers;

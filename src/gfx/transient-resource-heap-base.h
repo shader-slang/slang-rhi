@@ -24,8 +24,8 @@ public:
     uint32_t m_alignment;
     ResourceStateSet m_allowedStates;
 
-    Slang::List<StagingBufferPage> m_pages;
-    Slang::List<Slang::RefPtr<TBufferResource>> m_largeAllocations;
+    std::vector<StagingBufferPage> m_pages;
+    std::vector<Slang::RefPtr<TBufferResource>> m_largeAllocations;
 
     Slang::Index m_pageAllocCounter = 0;
     size_t m_offsetAllocCounter = 0;
@@ -49,7 +49,7 @@ public:
     {
         m_pageAllocCounter = 0;
         m_offsetAllocCounter = 0;
-        m_largeAllocations.clearAndDeallocate();
+        m_largeAllocations.clear();
     }
 
     Result newStagingBufferPage()
@@ -69,7 +69,7 @@ public:
 
         page.resource = static_cast<TBufferResource*>(bufferPtr.get());
         page.size = pageSize;
-        m_pages.add(page);
+        m_pages.push_back(page);
         return SLANG_OK;
     }
 
@@ -85,7 +85,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             m_device->createBufferResource(bufferDesc, nullptr, bufferPtr.writeRef()));
         auto bufferImpl = static_cast<TBufferResource*>(bufferPtr.get());
-        m_largeAllocations.add(bufferImpl);
+        m_largeAllocations.push_back(bufferImpl);
         return SLANG_OK;
     }
 
@@ -95,14 +95,14 @@ public:
         {
             newLargeBuffer(size);
             Allocation result;
-            result.resource = m_largeAllocations.getLast();
+            result.resource = m_largeAllocations.back();
             result.offset = 0;
             return result;
         }
 
         size_t bufferAllocOffset = alignUp(m_offsetAllocCounter, m_alignment);
         Slang::Index bufferId = -1;
-        for (Slang::Index i = m_pageAllocCounter; i < m_pages.getCount(); i++)
+        for (Slang::Index i = m_pageAllocCounter; i < m_pages.size(); i++)
         {
             auto cb = m_pages[i].resource.Ptr();
             if (bufferAllocOffset + size <= cb->getDesc()->sizeInBytes)
@@ -117,7 +117,7 @@ public:
         if (bufferId == -1)
         {
             newStagingBufferPage();
-            bufferId = m_pages.getCount() - 1;
+            bufferId = m_pages.size() - 1;
         }
         // Sub allocate from current page.
         Allocation result;

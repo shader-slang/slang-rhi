@@ -76,7 +76,7 @@ AdapterLUID getAdapterLUID(int deviceIndex)
     return luid;
 }
 
-Result SLANG_MCALL getAdapters(List<AdapterInfo>& outAdapters)
+Result SLANG_MCALL getAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     int deviceCount;
     SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
@@ -88,7 +88,7 @@ Result SLANG_MCALL getAdapters(List<AdapterInfo>& outAdapters)
         AdapterInfo info = {};
         SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
         info.luid = getAdapterLUID(deviceIndex);
-        outAdapters.add(info);
+        outAdapters.push_back(info);
     }
 
     return SLANG_OK;
@@ -96,7 +96,7 @@ Result SLANG_MCALL getAdapters(List<AdapterInfo>& outAdapters)
 
 } // namespace cuda
 
-Result SLANG_MCALL getCUDAAdapters(List<AdapterInfo>& outAdapters)
+Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     return cuda::getAdapters(outAdapters);
 }
@@ -110,7 +110,7 @@ Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevi
 }
 #else
 
-Result SLANG_MCALL getCUDAAdapters(List<AdapterInfo>& outAdapters)
+Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     SLANG_UNUSED(outAdapters);
     return SLANG_FAIL;

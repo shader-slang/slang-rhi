@@ -18,6 +18,8 @@
 #include <dxgi.h>
 #include <d3d12.h>
 
+#include <vector>
+
 #if defined(__ID3D12Device5_FWD_DEFINED__) && defined(__ID3D12GraphicsCommandList4_FWD_DEFINED__)
 #    define SLANG_GFX_HAS_DXR_SUPPORT 1
 #else
@@ -82,9 +84,9 @@ class D3DUtil
     static Slang::SharedLibrary::Handle getDxgiModule();
 
         /// Find adapters
-    static SlangResult findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, IDXGIFactory* dxgiFactory, Slang::List<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters);
+    static SlangResult findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, IDXGIFactory* dxgiFactory, std::vector<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters);
         /// Find adapters
-    static SlangResult findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, Slang::List<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters);
+    static SlangResult findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, std::vector<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters);
 
     static AdapterLUID getAdapterLUID(IDXGIAdapter* dxgiAdapter);
 
@@ -132,7 +134,7 @@ struct D3DAccelerationStructureInputsBuilder
 {
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
-    Slang::List<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs;
+    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs;
     Slang::Result build(
         const IAccelerationStructure::BuildInputs& buildInputs,
         IDebugCallback* callback);

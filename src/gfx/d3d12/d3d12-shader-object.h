@@ -5,6 +5,8 @@
 #include "d3d12-helper-functions.h"
 #include "d3d12-submitter.h"
 
+#include <vector>
+
 namespace gfx
 {
 namespace d3d12
@@ -198,7 +200,7 @@ public:
 
     ShortList<RefPtr<Resource>, 8> m_boundResources;
     ShortList<RefPtr<Resource>, 8> m_boundCounterResources;
-    List<D3D12_GPU_VIRTUAL_ADDRESS> m_rootArguments;
+    std::vector<D3D12_GPU_VIRTUAL_ADDRESS> m_rootArguments;
     /// A constant buffer used to stored ordinary data for this object
     /// and existential-type sub-objects.
     ///
@@ -222,7 +224,7 @@ public:
     /// The version of this mutable shader object when the gpu descriptor table is cached.
     uint32_t m_cachedGPUDescriptorSetVersion = -1;
     /// The versions of bound subobjects.
-    List<uint32_t> m_subObjectVersions;
+    std::vector<uint32_t> m_subObjectVersions;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///
@@ -279,7 +281,7 @@ public:
 protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
-    List<RefPtr<ShaderObjectImpl>> m_entryPoints;
+    std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
 };
 
 class MutableRootShaderObjectImpl : public RootShaderObjectImpl

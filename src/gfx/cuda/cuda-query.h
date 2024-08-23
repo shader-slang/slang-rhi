@@ -14,7 +14,7 @@ class QueryPoolImpl : public QueryPoolBase
 {
 public:
     // The event object for each query. Owned by the pool.
-    List<CUevent> m_events;
+    std::vector<CUevent> m_events;
 
     // The event that marks the starting point.
     CUevent m_startEvent;

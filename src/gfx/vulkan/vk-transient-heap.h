@@ -5,6 +5,8 @@
 #include "vk-buffer.h"
 #include "vk-command-buffer.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -22,9 +24,9 @@ private:
 public:
     VkCommandPool m_commandPool;
     DescriptorSetAllocator m_descSetAllocator;
-    List<VkFence> m_fences;
+    std::vector<VkFence> m_fences;
     Index m_fenceIndex = -1;
-    List<RefPtr<CommandBufferImpl>> m_commandBufferPool;
+    std::vector<RefPtr<CommandBufferImpl>> m_commandBufferPool;
     uint32_t m_commandBufferAllocId = 0;
     VkFence getCurrentFence() { return m_fences[m_fenceIndex]; }
     void advanceFence();

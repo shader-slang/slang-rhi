@@ -113,5 +113,9 @@ int main(int argc, char **argv)
         printf("Failed %lld tests\n", reporter.m_failCount);
         return 1;
     }
-    return 0;
+    else
+    {
+        printf("SUCCESS!\n");
+        return 0;
+    }
 }

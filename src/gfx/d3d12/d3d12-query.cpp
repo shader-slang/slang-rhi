@@ -192,13 +192,13 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
         m_device->submitResourceCommandsAndWait(encodeInfo);
         void* ptr = nullptr;
         stageBuf.getResource()->Map(0, nullptr, &ptr);
-        m_result.setCount(m_count * m_stride);
-        memcpy(m_result.getBuffer(), ptr, m_result.getCount());
+        m_result.resize(m_count * m_stride);
+        memcpy(m_result.data(), ptr, m_result.size());
 
         m_resultDirty = false;
     }
 
-    memcpy(data, m_result.getBuffer() + queryIndex * m_stride, count * m_stride);
+    memcpy(data, m_result.data() + queryIndex * m_stride, count * m_stride);
 
     return SLANG_OK;
 }

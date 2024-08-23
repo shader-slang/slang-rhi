@@ -10,6 +10,8 @@
 
 #include "debug-helper-functions.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -114,12 +116,12 @@ void DebugRenderCommandEncoder::setVertexBuffers(
 {
     SLANG_GFX_API_FUNC;
 
-    List<IBufferResource*> innerBuffers;
+    std::vector<IBufferResource*> innerBuffers;
     for (GfxIndex i = 0; i < slotCount; i++)
     {
-        innerBuffers.add(static_cast<DebugBufferResource*>(buffers[i])->baseObject.get());
+        innerBuffers.push_back(static_cast<DebugBufferResource*>(buffers[i])->baseObject.get());
     }
-    baseObject->setVertexBuffers(startSlot, slotCount, innerBuffers.getBuffer(), offsets);
+    baseObject->setVertexBuffers(startSlot, slotCount, innerBuffers.data(), offsets);
 }
 
 void DebugRenderCommandEncoder::setIndexBuffer(
@@ -255,12 +257,12 @@ void DebugResourceCommandEncoderImpl::textureBarrier(
 {
     SLANG_GFX_API_FUNC;
 
-    List<ITextureResource*> innerTextures;
+    std::vector<ITextureResource*> innerTextures;
     for (GfxIndex i = 0; i < count; i++)
     {
-        innerTextures.add(static_cast<DebugTextureResource*>(textures[i])->baseObject.get());
+        innerTextures.push_back(static_cast<DebugTextureResource*>(textures[i])->baseObject.get());
     }
-    getBaseResourceEncoder()->textureBarrier(count, innerTextures.getBuffer(), src, dst);
+    getBaseResourceEncoder()->textureBarrier(count, innerTextures.data(), src, dst);
 }
 
 void DebugResourceCommandEncoderImpl::bufferBarrier(
@@ -271,12 +273,12 @@ void DebugResourceCommandEncoderImpl::bufferBarrier(
 {
     SLANG_GFX_API_FUNC;
 
-    List<IBufferResource*> innerBuffers;
+    std::vector<IBufferResource*> innerBuffers;
     for(GfxIndex i = 0; i < count; i++)
     {
-        innerBuffers.add(static_cast<DebugBufferResource*>(buffers[i])->baseObject.get());
+        innerBuffers.push_back(static_cast<DebugBufferResource*>(buffers[i])->baseObject.get());
     }
-    getBaseResourceEncoder()->bufferBarrier(count, innerBuffers.getBuffer(), src, dst);
+    getBaseResourceEncoder()->bufferBarrier(count, innerBuffers.data(), src, dst);
 }
 
 void DebugResourceCommandEncoderImpl::copyTexture(
@@ -410,15 +412,18 @@ void DebugRayTracingCommandEncoder::buildAccelerationStructure(
     IAccelerationStructure::BuildDesc innerDesc = desc;
     innerDesc.dest = getInnerObj(innerDesc.dest);
     innerDesc.source = getInnerObj(innerDesc.source);
-    List<AccelerationStructureQueryDesc> innerQueryDescs;
-    innerQueryDescs.addRange(queryDescs, propertyQueryCount);
+    std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
+    for (size_t i = 0; i < propertyQueryCount; ++i)
+    {
+        innerQueryDescs.push_back(queryDescs[i]);
+    }
     for (auto& innerQueryDesc : innerQueryDescs)
     {
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
     validateAccelerationStructureBuildInputs(desc.inputs);
     baseObject->buildAccelerationStructure(
-        innerDesc, propertyQueryCount, innerQueryDescs.getBuffer());
+        innerDesc, propertyQueryCount, innerQueryDescs.data());
 }
 
 void DebugRayTracingCommandEncoder::copyAccelerationStructure(
@@ -439,19 +444,22 @@ void DebugRayTracingCommandEncoder::queryAccelerationStructureProperties(
     AccelerationStructureQueryDesc* queryDescs)
 {
     SLANG_GFX_API_FUNC;
-    List<IAccelerationStructure*> innerAS;
+    std::vector<IAccelerationStructure*> innerAS;
     for (GfxIndex i = 0; i < accelerationStructureCount; i++)
     {
-        innerAS.add(getInnerObj(accelerationStructures[i]));
+        innerAS.push_back(getInnerObj(accelerationStructures[i]));
     }
-    List<AccelerationStructureQueryDesc> innerQueryDescs;
-    innerQueryDescs.addRange(queryDescs, queryCount);
+    std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
+    for (size_t i = 0; i < queryCount; ++i)
+    {
+        innerQueryDescs.push_back(queryDescs[i]);
+    }
     for (auto& innerQueryDesc : innerQueryDescs)
     {
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
     baseObject->queryAccelerationStructureProperties(
-        accelerationStructureCount, innerAS.getBuffer(), queryCount, innerQueryDescs.getBuffer());
+        accelerationStructureCount, innerAS.data(), queryCount, innerQueryDescs.data());
 }
 
 void DebugRayTracingCommandEncoder::serializeAccelerationStructure(

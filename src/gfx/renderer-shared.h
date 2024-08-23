@@ -453,16 +453,16 @@ class SimpleShaderObjectData
 {
 public:
     // Any "ordinary" / uniform data for this object
-    Slang::List<char> m_ordinaryData;
+    std::vector<char> m_ordinaryData;
     // The structured buffer resource used when the object represents a structured buffer.
     Slang::RefPtr<BufferResource> m_structuredBuffer;
     // The structured buffer resource view used when the object represents a structured buffer.
     Slang::RefPtr<ResourceViewBase> m_structuredBufferView;
     Slang::RefPtr<ResourceViewBase> m_rwStructuredBufferView;
 
-    Slang::Index getCount() { return m_ordinaryData.getCount(); }
-    void setCount(Slang::Index count) { m_ordinaryData.setCount(count); }
-    char* getBuffer() { return m_ordinaryData.getBuffer(); }
+    Slang::Index getCount() { return m_ordinaryData.size(); }
+    void setCount(Slang::Index count) { m_ordinaryData.resize(count); }
+    char* getBuffer() { return m_ordinaryData.data(); }
 
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
@@ -572,8 +572,8 @@ class ShaderObjectBaseImpl : public ShaderObjectBase
 {
 protected:
     TShaderObjectData m_data;
-    Slang::List<Slang::RefPtr<TShaderObjectImpl>> m_objects;
-    Slang::List<Slang::RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
+    std::vector<Slang::RefPtr<TShaderObjectImpl>> m_objects;
+    std::vector<Slang::RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
 
     // Specialization args for a StructuredBuffer object.
     ExtendedShaderObjectTypeList m_structuredBufferSpecializationArgs;
@@ -631,11 +631,11 @@ public:
             // We are setting an element into a `StructuredBuffer` object.
             // We need to hold a reference to the element object, as well as
             // writing uniform data to the plain buffer.
-            if (offset.bindingArrayIndex >= m_objects.getCount())
+            if (offset.bindingArrayIndex >= m_objects.size())
             {
-                m_objects.setCount(offset.bindingArrayIndex + 1);
+                m_objects.resize(offset.bindingArrayIndex + 1);
                 auto stride = layout->getElementTypeLayout()->getStride();
-                m_data.setCount(m_objects.getCount() * stride);
+                m_data.setCount(m_objects.size() * stride);
             }
             m_objects[offset.bindingArrayIndex] = subObject;
 
@@ -804,8 +804,8 @@ public:
         auto bindingRangeIndex = offset.bindingRangeIndex;
         auto bindingRange = layout->getBindingRange(bindingRangeIndex);
         Slang::Index objectIndex = bindingRange.subObjectIndex + offset.bindingArrayIndex;
-        if (objectIndex >= m_userProvidedSpecializationArgs.getCount())
-            m_userProvidedSpecializationArgs.setCount(objectIndex + 1);
+        if (objectIndex >= m_userProvidedSpecializationArgs.size())
+            m_userProvidedSpecializationArgs.resize(objectIndex + 1);
         if (!m_userProvidedSpecializationArgs[objectIndex])
         {
             m_userProvidedSpecializationArgs[objectIndex] =
@@ -834,14 +834,14 @@ public:
     Desc desc;
 
     Slang::ComPtr<slang::IComponentType> slangGlobalScope;
-    Slang::List<ComPtr<slang::IComponentType>> slangEntryPoints;
+    std::vector<ComPtr<slang::IComponentType>> slangEntryPoints;
 
     // Linked program when linkingStyle is GraphicsCompute, or the original global scope
     // when linking style is RayTracing.
     Slang::ComPtr<slang::IComponentType> linkedProgram;
 
     // Linked program for each entry point when linkingStyle is RayTracing.
-    Slang::List<Slang::ComPtr<slang::IComponentType>> linkedEntryPoints;
+    std::vector<Slang::ComPtr<slang::IComponentType>> linkedEntryPoints;
 
     void init(const IShaderProgram::Desc& desc);
 
@@ -951,8 +951,8 @@ struct OwnedHitGroupDesc
 struct OwnedRayTracingPipelineStateDesc
 {
     Slang::RefPtr<ShaderProgramBase> program;
-    Slang::List<OwnedHitGroupDesc> hitGroups;
-    Slang::List<HitGroupDesc> hitGroupDescs;
+    std::vector<OwnedHitGroupDesc> hitGroups;
+    std::vector<HitGroupDesc> hitGroupDescs;
     int maxRecursion = 0;
     Size maxRayPayloadSize = 0;
     Size maxAttributeSizeInBytes = 8;
@@ -962,8 +962,8 @@ struct OwnedRayTracingPipelineStateDesc
     {
         RayTracingPipelineStateDesc desc;
         desc.program = program.Ptr();
-        desc.hitGroupCount = (int32_t)hitGroupDescs.getCount();
-        desc.hitGroups = hitGroupDescs.getBuffer();
+        desc.hitGroupCount = (int32_t)hitGroupDescs.size();
+        desc.hitGroups = hitGroupDescs.data();
         desc.maxRecursion = maxRecursion;
         desc.maxRayPayloadSize = maxRayPayloadSize;
         desc.maxAttributeSizeInBytes = maxAttributeSizeInBytes;
@@ -978,8 +978,8 @@ struct OwnedRayTracingPipelineStateDesc
         {
             OwnedHitGroupDesc ownedHitGroupDesc;
             ownedHitGroupDesc.set(inDesc.hitGroups[i]);
-            hitGroups.add(ownedHitGroupDesc);
-            hitGroupDescs.add(ownedHitGroupDesc.get());
+            hitGroups.push_back(ownedHitGroupDesc);
+            hitGroupDescs.push_back(ownedHitGroupDesc.get());
         }
         maxRecursion = inDesc.maxRecursion;
         maxRayPayloadSize = inDesc.maxRayPayloadSize;
@@ -1177,8 +1177,8 @@ class ShaderTableBase
     , public Slang::ComObject
 {
 public:
-    Slang::List<Slang::String> m_shaderGroupNames;
-    Slang::List<ShaderRecordOverwrite> m_recordOverwrites;
+    std::vector<Slang::String> m_shaderGroupNames;
+    std::vector<ShaderRecordOverwrite> m_recordOverwrites;
 
     uint32_t m_rayGenShaderCount;
     uint32_t m_missShaderCount;
@@ -1383,7 +1383,7 @@ public:
 protected:
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL initialize(const Desc& desc);
 protected:
-    Slang::List<Slang::String> m_features;
+    std::vector<Slang::String> m_features;
 public:
     SlangContext slangContext;
     ShaderCache shaderCache;
@@ -1491,7 +1491,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
     // existential types (and therefore require specialization) will results in a sub-object
     // range in the type layout. This allows us to simply scan the sub-object ranges to find
     // out all specialization arguments.
-    Slang::Index subObjectRangeCount = subObjectRanges.getCount();
+    Slang::Index subObjectRangeCount = subObjectRanges.size();
 
     for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount;
         subObjectRangeIndex++)
@@ -1514,7 +1514,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
             if (!subObject)
                 continue;
 
-            if (objectIndex < m_userProvidedSpecializationArgs.getCount() &&
+            if (objectIndex < m_userProvidedSpecializationArgs.size() &&
                 m_userProvidedSpecializationArgs[objectIndex])
             {
                 args.addRange(*m_userProvidedSpecializationArgs[objectIndex]);

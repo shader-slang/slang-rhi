@@ -510,7 +510,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
     // Work space for holding data for uploading if it needs to be rearranged
     if (initData)
     {
-        List<uint8_t> workspace;
+        std::vector<uint8_t> workspace;
         for (int mipLevel = 0; mipLevel < desc.numMipLevels; ++mipLevel)
         {
             int mipWidth = width >> mipLevel;
@@ -566,7 +566,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
 
                 const size_t mipSizeInBytes = faceSizeInBytes * faceCount;
-                workspace.setCount(mipSizeInBytes);
+                workspace.resize(mipSizeInBytes);
 
                 // We need to add the face data from each mip
                 // We iterate over face count so we copy all of the cubemap faces
@@ -575,10 +575,10 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                     const auto srcData = initData[mipLevel + j * desc.numMipLevels].data;
                     // Copy over to the workspace to make contiguous
                     ::memcpy(
-                        workspace.begin() + faceSizeInBytes * j, srcData, faceSizeInBytes);
+                        workspace.data() + faceSizeInBytes * j, srcData, faceSizeInBytes);
                 }
 
-                srcDataPtr = workspace.getBuffer();
+                srcDataPtr = workspace.data();
             }
             else
             {
@@ -586,18 +586,18 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 {
                     size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
 
-                    workspace.setCount(faceSizeInBytes * 6);
+                    workspace.resize(faceSizeInBytes * 6);
                     // Copy the data over to make contiguous
                     for (Index j = 0; j < 6; j++)
                     {
                         const auto srcData =
                             initData[mipLevel + j * desc.numMipLevels].data;
                         ::memcpy(
-                            workspace.getBuffer() + faceSizeInBytes * j,
+                            workspace.data() + faceSizeInBytes * j,
                             srcData,
                             faceSizeInBytes);
                     }
-                    srcDataPtr = workspace.getBuffer();
+                    srcDataPtr = workspace.data();
                 }
                 else
                 {
@@ -1141,7 +1141,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
 {
     auto textureImpl = static_cast<TextureResourceImpl*>(texture);
 
-    List<uint8_t> blobData;
+    std::vector<uint8_t> blobData;
 
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
@@ -1151,7 +1151,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
     size_t pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     size_t rowPitch = width * pixelSize;
     size_t size = height * rowPitch;
-    blobData.setCount((Index)size);
+    blobData.resize((Index)size);
 
     CUDA_MEMCPY2D copyParam;
     memset(&copyParam, 0, sizeof(copyParam));
@@ -1160,7 +1160,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
     copyParam.srcArray = textureImpl->m_cudaArray;
 
     copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
-    copyParam.dstHost = blobData.getBuffer();
+    copyParam.dstHost = blobData.data();
     copyParam.dstPitch = rowPitch;
     copyParam.WidthInBytes = copyParam.dstPitch;
     copyParam.Height = height;
@@ -1183,11 +1183,11 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readBufferResource(
 {
     auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
 
-    List<uint8_t> blobData;
+    std::vector<uint8_t> blobData;
 
-    blobData.setCount((Index)size);
+    blobData.resize((Index)size);
     cuMemcpy(
-        (CUdeviceptr)blobData.getBuffer(),
+        (CUdeviceptr)blobData.data(),
         (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset),
         size);
 

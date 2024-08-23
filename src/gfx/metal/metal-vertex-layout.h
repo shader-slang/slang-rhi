@@ -3,6 +3,8 @@
 
 #include "metal-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -14,8 +16,8 @@ namespace metal
 class InputLayoutImpl : public InputLayoutBase
 {
 public:
-    List<InputElementDesc> m_inputElements;
-    List<VertexStreamDesc> m_vertexStreams;
+    std::vector<InputElementDesc> m_inputElements;
+    std::vector<VertexStreamDesc> m_vertexStreams;
 
     Result init(const IInputLayout::Desc& desc);
     NS::SharedPtr<MTL::VertexDescriptor> createVertexDescriptor(NS::UInteger vertexBufferIndexOffset);

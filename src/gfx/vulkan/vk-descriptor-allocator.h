@@ -5,6 +5,8 @@
 #include "vk-api.h"
 #include "core/slang-list.h"
 
+#include <vector>
+
 namespace gfx
 {
 struct VulkanDescriptorSet
@@ -15,13 +17,13 @@ struct VulkanDescriptorSet
 class DescriptorSetAllocator
 {
 public:
-    Slang::List<VkDescriptorPool> pools;
+    std::vector<VkDescriptorPool> pools;
     const VulkanApi* m_api;
     VkDescriptorPool newPool();
     VkDescriptorPool getPool()
     {
-        if (pools.getCount())
-            return pools.getLast();
+        if (!pools.empty())
+            return pools.back();
         return newPool();
     }
     VulkanDescriptorSet allocate(VkDescriptorSetLayout layout);

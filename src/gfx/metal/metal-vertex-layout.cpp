@@ -18,11 +18,11 @@ Result InputLayoutImpl::init(const IInputLayout::Desc& desc)
         {
             return SLANG_E_INVALID_ARG;
         }
-        m_inputElements.add(desc.inputElements[i]);
+        m_inputElements.push_back(desc.inputElements[i]);
     }
     for (Index i = 0; i < desc.vertexStreamCount; i++)
     {
-        m_vertexStreams.add(desc.vertexStreams[i]);
+        m_vertexStreams.push_back(desc.vertexStreams[i]);
     }
     return SLANG_OK;
 }
@@ -31,7 +31,7 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
 {
     NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor = NS::TransferPtr(MTL::VertexDescriptor::alloc()->init());
 
-    for (Index i = 0; i < m_inputElements.getCount(); i++)
+    for (Index i = 0; i < m_inputElements.size(); i++)
     {
         const auto& inputElement = m_inputElements[i];
         MTL::VertexAttributeDescriptor* desc = vertexDescriptor->attributes()->object(i);
@@ -41,7 +41,7 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
         desc->setFormat(metalFormat);
     }
 
-    for (Index i = 0; i < m_vertexStreams.getCount(); i++)
+    for (Index i = 0; i < m_vertexStreams.size(); i++)
     {
         const auto& vertexStream = m_vertexStreams[i];
         MTL::VertexBufferLayoutDescriptor* desc = vertexDescriptor->layouts()->object(i + vertexBufferIndexOffset);

@@ -6,6 +6,8 @@
 
 #include "vk-helper-functions.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -58,17 +60,17 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     void* stagingPtr = nullptr;
     stagingBuffer->map(nullptr, &stagingPtr);
 
-    List<uint8_t> handles;
+    std::vector<uint8_t> handles;
     auto handleCount = pipelineImpl->shaderGroupCount;
     auto totalHandleSize = handleSize * handleCount;
-    handles.setCount(totalHandleSize);
+    handles.resize(totalHandleSize);
     auto result = vkApi.vkGetRayTracingShaderGroupHandlesKHR(
         m_device->m_device,
         pipelineImpl->m_pipeline,
         0,
         (uint32_t)handleCount,
         totalHandleSize,
-        handles.getBuffer());
+        handles.data());
 
     uint8_t* stagingBufferPtr = (uint8_t*)stagingPtr + stagingBufferOffset;
     auto subTablePtr = stagingBufferPtr;
@@ -87,7 +89,7 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
             continue;
 
         auto shaderGroupIndex = *shaderGroupIndexPtr;
-        auto srcHandlePtr = handles.getBuffer() + shaderGroupIndex * handleSize;
+        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
         memset(dstHandlePtr + handleSize, 0, rtProps.shaderGroupBaseAlignment - handleSize);
     }
@@ -103,7 +105,7 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
             continue;
 
         auto shaderGroupIndex = *shaderGroupIndexPtr;
-        auto srcHandlePtr = handles.getBuffer() + shaderGroupIndex * handleSize;
+        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
     }
     subTablePtr += m_missTableSize;
@@ -118,7 +120,7 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
             continue;
 
         auto shaderGroupIndex = *shaderGroupIndexPtr;
-        auto srcHandlePtr = handles.getBuffer() + shaderGroupIndex * handleSize;
+        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
     }
     subTablePtr += m_hitTableSize;
@@ -133,7 +135,7 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
             continue;
 
         auto shaderGroupIndex = *shaderGroupIndexPtr;
-        auto srcHandlePtr = handles.getBuffer() + shaderGroupIndex * handleSize;
+        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
     }
     subTablePtr += m_callableTableSize;

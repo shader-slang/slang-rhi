@@ -66,17 +66,17 @@ VkPipelineShaderStageCreateInfo ShaderProgramImpl::compileEntryPoint(
 Result ShaderProgramImpl::createShaderModule(
     slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
-    m_codeBlobs.add(kernelCode);
+    m_codeBlobs.push_back(kernelCode);
     VkShaderModule shaderModule;
     auto realEntryPointName = entryPointInfo->getNameOverride();
     const char* spirvBinaryEntryPointName = "main";
-    m_stageCreateInfos.add(compileEntryPoint(
+    m_stageCreateInfos.push_back(compileEntryPoint(
         spirvBinaryEntryPointName,
         kernelCode,
         (VkShaderStageFlagBits)VulkanUtil::getShaderStage(entryPointInfo->getStage()),
         shaderModule));
-    m_entryPointNames.add(realEntryPointName);
-    m_modules.add(shaderModule);
+    m_entryPointNames.push_back(realEntryPointName);
+    m_modules.push_back(shaderModule);
     return SLANG_OK;
 }
 

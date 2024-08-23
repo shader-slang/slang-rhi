@@ -1,0 +1,2 @@
+replace std::vector<char> with std::vector<uint8_t>
+search for .getBuffer() .getCount() .add()

@@ -35,7 +35,7 @@ target_compile_definitions(slang-core
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
-target_compile_features(slang-core PRIVATE cxx_std_17)
+target_compile_features(slang-core PRIVATE cxx_std_20)
 
 file(GLOB GFX_SOURCES 
     src/gfx/*.cpp
@@ -54,7 +54,7 @@ target_compile_definitions(slang-gfx
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
-target_compile_features(slang-gfx PRIVATE cxx_std_17)
+target_compile_features(slang-gfx PRIVATE cxx_std_20)
 target_link_libraries(slang-gfx PRIVATE slang-core Vulkan::Headers slang)
 
 file(GLOB TEST_SOURCES
@@ -69,6 +69,6 @@ target_compile_definitions(slang-gfx-tests
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
-target_compile_features(slang-gfx-tests PRIVATE cxx_std_17)
+target_compile_features(slang-gfx-tests PRIVATE cxx_std_20)
 target_include_directories(slang-gfx-tests PRIVATE src)
 target_link_libraries(slang-gfx-tests PRIVATE slang-core slang-gfx stb)

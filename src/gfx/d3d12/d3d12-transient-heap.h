@@ -3,6 +3,8 @@
 
 #include "d3d12-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 namespace d3d12
@@ -19,8 +21,8 @@ private:
 
 public:
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-    List<ComPtr<ID3D12GraphicsCommandList>> m_d3dCommandListPool;
-    List<RefPtr<RefObject>> m_commandBufferPool;
+    std::vector<ComPtr<ID3D12GraphicsCommandList>> m_d3dCommandListPool;
+    std::vector<RefPtr<RefObject>> m_commandBufferPool;
     uint32_t m_commandListAllocId = 0;
     // Wait values for each command queue.
     struct QueueWaitInfo

@@ -5,6 +5,8 @@
 #include "cuda-base.h"
 #include "core/slang-list.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -102,7 +104,7 @@ AdapterLUID getAdapterLUID(int deviceIndex);
 } // namespace cuda
 #endif
 
-Result SLANG_MCALL getCUDAAdapters(List<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
 

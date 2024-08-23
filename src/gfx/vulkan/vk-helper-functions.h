@@ -5,6 +5,9 @@
 #include "core/slang-blob.h"
 #include "vk-util.h"
 
+#include <vector>
+#include <span>
+
 // Vulkan has a different coordinate system to ogl
 // http://anki3d.org/vulkan-coordinate-system/
 #ifndef ENABLE_VALIDATION_LAYER
@@ -140,10 +143,10 @@ struct RootBindingContext
     DeviceImpl* device;
 
     /// The descriptor sets that are being allocated and bound
-    List<VkDescriptorSet>* descriptorSets;
+    std::vector<VkDescriptorSet>* descriptorSets;
 
     /// Information about all the push-constant ranges that should be bound
-    ConstArrayView<VkPushConstantRange> pushConstantRanges;
+    std::span<const VkPushConstantRange> pushConstantRanges;
 };
 
 Size calcRowSize(Format format, int width);
@@ -177,7 +180,7 @@ AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicaDevice);
 
 } // namespace vk
 
-Result SLANG_MCALL getVKAdapters(List<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outRenderer);
 

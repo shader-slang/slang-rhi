@@ -52,7 +52,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(
         FenceWaitInfo waitInfo;
         waitInfo.fence = static_cast<FenceImpl*>(fences[i]);
         waitInfo.waitValue = waitValues[i];
-        m_pendingWaitFences.add(waitInfo);
+        m_pendingWaitFences.push_back(waitInfo);
     }
     return SLANG_OK;
 }
@@ -62,7 +62,7 @@ void CommandQueueImpl::queueSubmitImpl(
 {
     // If there are any pending wait fences, encode them to a new command buffer.
     // Metal ensures that command buffers are executed in the order they are committed.
-    if (m_pendingWaitFences.getCount() > 0)
+    if (m_pendingWaitFences.size() > 0)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
         for (const auto& fenceInfo : m_pendingWaitFences)

@@ -3,6 +3,8 @@
 
 #include "d3d12-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 namespace d3d12
@@ -134,9 +136,9 @@ public:
         RendererBase* m_renderer;
         slang::ISession* m_session;
         slang::TypeLayoutReflection* m_elementTypeLayout;
-        List<BindingRangeInfo> m_bindingRanges;
-        List<SubObjectRangeInfo> m_subObjectRanges;
-        List<RootParameterInfo> m_rootParamsInfo;
+        std::vector<BindingRangeInfo> m_bindingRanges;
+        std::vector<SubObjectRangeInfo> m_subObjectRanges;
+        std::vector<RootParameterInfo> m_rootParamsInfo;
 
         /// The number of sub-objects (not just sub-object *ranges*) stored in instances of this
         /// layout
@@ -173,9 +175,9 @@ public:
         slang::TypeLayoutReflection* elementType,
         ShaderObjectLayoutImpl** outLayout);
 
-    List<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
 
-    Index getBindingRangeCount() { return m_bindingRanges.getCount(); }
+    Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
     BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
@@ -195,14 +197,14 @@ public:
         return m_totalCounts.resource - getOrdinaryDataBufferCount();
     }
 
-    uint32_t getOwnUserRootParameterCount() { return (uint32_t)m_rootParamsInfo.getCount(); }
+    uint32_t getOwnUserRootParameterCount() { return (uint32_t)m_rootParamsInfo.size(); }
     uint32_t getTotalRootTableParameterCount() { return m_totalCounts.rootParam; }
     uint32_t getChildRootParameterCount() { return m_childRootParameterCount; }
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
     SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    List<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
 
     RendererBase* getRenderer() { return m_renderer; }
 
@@ -213,9 +215,9 @@ public:
 protected:
     Result init(Builder* builder);
 
-    List<BindingRangeInfo> m_bindingRanges;
-    List<SubObjectRangeInfo> m_subObjectRanges;
-    List<RootParameterInfo> m_rootParamsInfo;
+    std::vector<BindingRangeInfo> m_bindingRanges;
+    std::vector<SubObjectRangeInfo> m_subObjectRanges;
+    std::vector<RootParameterInfo> m_rootParamsInfo;
 
     BindingOffset m_ownCounts;
     BindingOffset m_totalCounts;
@@ -256,17 +258,17 @@ public:
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
-        List<EntryPointInfo> m_entryPoints;
+        std::vector<EntryPointInfo> m_entryPoints;
     };
 
     EntryPointInfo& getEntryPoint(Index index) { return m_entryPoints[index]; }
 
-    List<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
+    std::vector<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
 
     struct DescriptorSetLayout
     {
-        List<D3D12_DESCRIPTOR_RANGE1> m_resourceRanges;
-        List<D3D12_DESCRIPTOR_RANGE1> m_samplerRanges;
+        std::vector<D3D12_DESCRIPTOR_RANGE1> m_resourceRanges;
+        std::vector<D3D12_DESCRIPTOR_RANGE1> m_samplerRanges;
         uint32_t m_resourceCount = 0;
         uint32_t m_samplerCount = 0;
     };
@@ -282,9 +284,9 @@ public:
         // We will use one descriptor set for the global scope and one additional
         // descriptor set for each `ParameterBlock` binding range in the shader object
         // hierarchy, regardless of the shader's `space` indices.
-        List<DescriptorSetLayout> m_descriptorSets;
-        List<D3D12_ROOT_PARAMETER1> m_rootParameters;
-        List<D3D12_ROOT_PARAMETER1> m_rootDescTableParameters;
+        std::vector<DescriptorSetLayout> m_descriptorSets;
+        std::vector<D3D12_ROOT_PARAMETER1> m_rootParameters;
+        std::vector<D3D12_ROOT_PARAMETER1> m_rootDescTableParameters;
 
         D3D12_ROOT_SIGNATURE_DESC1 m_rootSignatureDesc = {};
 
@@ -485,7 +487,7 @@ protected:
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
 
-    List<EntryPointInfo> m_entryPoints;
+    std::vector<EntryPointInfo> m_entryPoints;
 
 public:
     ComPtr<ID3D12RootSignature> m_rootSignature;

@@ -13,8 +13,8 @@ Result QueryPoolImpl::init(const IQueryPool::Desc& desc)
 {
     cuEventCreate(&m_startEvent, 0);
     cuEventRecord(m_startEvent, 0);
-    m_events.setCount(desc.count);
-    for (SlangInt i = 0; i < m_events.getCount(); i++)
+    m_events.resize(desc.count);
+    for (SlangInt i = 0; i < m_events.size(); i++)
     {
         cuEventCreate(&m_events[i], 0);
     }

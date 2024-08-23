@@ -2,6 +2,8 @@
 #pragma once
 #include "debug-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -30,7 +32,7 @@ public:
     Desc desc;
 
 private:
-    Slang::List<Slang::RefPtr<DebugTextureResource>> m_images;
+    std::vector<Slang::RefPtr<DebugTextureResource>> m_images;
     void maybeRebuildImageList();
 };
 

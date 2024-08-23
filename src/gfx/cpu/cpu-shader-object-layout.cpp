@@ -1,6 +1,8 @@
 // cpu-shader-object-layout.cpp
 #include "cpu-shader-object-layout.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -82,7 +84,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(RendererBase* renderer, slang::IS
         bindingRangeInfo.uniformOffset = uniformOffset;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
         bindingRangeInfo.isSpecializable = m_elementTypeLayout->isBindingRangeSpecializable(r);
-        m_bindingRanges.add(bindingRangeInfo);
+        m_bindingRanges.push_back(bindingRangeInfo);
     }
 
     SlangInt subObjectRangeCount = m_elementTypeLayout->getSubObjectRangeCount();
@@ -110,7 +112,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(RendererBase* renderer, slang::IS
         SubObjectRangeInfo subObjectRange;
         subObjectRange.bindingRangeIndex = bindingRangeIndex;
         subObjectRange.layout = subObjectLayout;
-        subObjectRanges.add(subObjectRange);
+        subObjectRanges.push_back(subObjectRange);
     }
 }
 
@@ -121,9 +123,9 @@ size_t ShaderObjectLayoutImpl::getSize()
 
 Index ShaderObjectLayoutImpl::getResourceCount() const { return m_resourceCount; }
 Index ShaderObjectLayoutImpl::getSubObjectCount() const { return m_subObjectCount; }
-List<SubObjectRangeInfo>& ShaderObjectLayoutImpl::getSubObjectRanges() { return subObjectRanges; }
+std::vector<SubObjectRangeInfo>& ShaderObjectLayoutImpl::getSubObjectRanges() { return subObjectRanges; }
 BindingRangeInfo ShaderObjectLayoutImpl::getBindingRange(Index index) { return m_bindingRanges[index]; }
-Index ShaderObjectLayoutImpl::getBindingRangeCount() const { return m_bindingRanges.getCount(); }
+Index ShaderObjectLayoutImpl::getBindingRangeCount() const { return m_bindingRanges.size(); }
 
 const char* EntryPointLayoutImpl::getEntryPointName()
 {
@@ -136,7 +138,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, s
 {
     for (UInt i =0; i< programLayout->getEntryPointCount(); i++)
     {
-        m_entryPointLayouts.add(new EntryPointLayoutImpl(
+        m_entryPointLayouts.push_back(new EntryPointLayoutImpl(
             renderer,
             session,
             programLayout->getEntryPointByIndex(i)));

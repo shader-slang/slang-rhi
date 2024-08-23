@@ -562,7 +562,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     }
 }
 
-/* static */SlangResult D3DUtil::findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, List<ComPtr<IDXGIAdapter>>& outDxgiAdapters)
+/* static */SlangResult D3DUtil::findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters)
 {
     ComPtr<IDXGIFactory> factory;
     SLANG_RETURN_ON_FAIL(createFactory(flags, factory));
@@ -934,7 +934,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
     return SLANG_OK;
 }
 
-/* static */SlangResult D3DUtil::findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, IDXGIFactory* dxgiFactory, List<ComPtr<IDXGIAdapter>>& outDxgiAdapters)
+/* static */SlangResult D3DUtil::findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters)
 {
     outDxgiAdapters.clear();
 
@@ -947,7 +947,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
             dxgiFactory4->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.writeRef()));
             if (!adapterLUID || D3DUtil::getAdapterLUID(warpAdapter) == *adapterLUID)
             {
-                outDxgiAdapters.add(warpAdapter);
+                outDxgiAdapters.push_back(warpAdapter);
             }
         }
     }
@@ -981,7 +981,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
         // If the right type then add it
         if ((deviceFlags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && (flags & DeviceCheckFlag::UseHardwareDevice) != 0)
         {
-            outDxgiAdapters.add(dxgiAdapter);
+            outDxgiAdapters.push_back(dxgiAdapter);
         }
     }
 
@@ -995,8 +995,8 @@ Result D3DAccelerationStructureInputsBuilder::build(
 {
     if (buildInputs.geometryDescs)
     {
-        geomDescs.setCount(buildInputs.descCount);
-        for (Index i = 0; i < geomDescs.getCount(); i++)
+        geomDescs.resize(buildInputs.descCount);
+        for (Index i = 0; i < geomDescs.size(); i++)
         {
             auto& inputGeomDesc = buildInputs.geometryDescs[i];
             geomDescs[i].Flags = translateGeometryFlags(inputGeomDesc.flags);
@@ -1043,7 +1043,7 @@ Result D3DAccelerationStructureInputsBuilder::build(
         break;
     case IAccelerationStructure::Kind::BottomLevel:
         desc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-        desc.pGeometryDescs = geomDescs.getBuffer();
+        desc.pGeometryDescs = geomDescs.data();
         break;
     }
     desc.Flags = (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS)buildInputs.flags;

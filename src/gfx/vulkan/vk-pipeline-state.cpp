@@ -10,6 +10,8 @@
 
 #include "utils/static_vector.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -83,11 +85,11 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
         const auto& srcAttributeDescs = inputLayoutImpl->m_attributeDescs;
         const auto& srcStreamDescs = inputLayoutImpl->m_streamDescs;
 
-        vertexInputInfo.vertexBindingDescriptionCount = (uint32_t)srcStreamDescs.getCount();
-        vertexInputInfo.pVertexBindingDescriptions = srcStreamDescs.getBuffer();
+        vertexInputInfo.vertexBindingDescriptionCount = (uint32_t)srcStreamDescs.size();
+        vertexInputInfo.pVertexBindingDescriptions = srcStreamDescs.data();
 
-        vertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)srcAttributeDescs.getCount();
-        vertexInputInfo.pVertexAttributeDescriptions = srcAttributeDescs.getBuffer();
+        vertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)srcAttributeDescs.size();
+        vertexInputInfo.pVertexAttributeDescriptions = srcAttributeDescs.data();
     }
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
@@ -163,14 +165,14 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
 
     auto targetCount =
         GfxCount(Math::Min(framebufferLayoutImpl->m_renderTargetCount, (uint32_t)blendDesc.targetCount));
-    List<VkPipelineColorBlendAttachmentState> colorBlendTargets;
+    std::vector<VkPipelineColorBlendAttachmentState> colorBlendTargets;
 
     // Regardless of whether blending is enabled, Vulkan always applies the color write mask
     // operation, so if there is no blending then we need to add an attachment that defines
     // the color write mask to ensure colors are actually written.
     if (targetCount == 0)
     {
-        colorBlendTargets.setCount(1);
+        colorBlendTargets.resize(1);
         auto& vkBlendDesc = colorBlendTargets[0];
         memset(&vkBlendDesc, 0, sizeof(vkBlendDesc));
         vkBlendDesc.blendEnable = VK_FALSE;
@@ -184,7 +186,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     }
     else
     {
-        colorBlendTargets.setCount(targetCount);
+        colorBlendTargets.resize(targetCount);
         for (GfxIndex i = 0; i < targetCount; ++i)
         {
             auto& gfxBlendDesc = blendDesc.targets[i];
@@ -210,8 +212,8 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     colorBlending.logicOpEnable = VK_FALSE; // TODO: D3D12 has per attachment logic op (and
                                             // both have way more than one op)
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = (uint32_t)colorBlendTargets.getCount();
-    colorBlending.pAttachments = colorBlendTargets.getBuffer();
+    colorBlending.attachmentCount = (uint32_t)colorBlendTargets.size();
+    colorBlending.pAttachments = colorBlendTargets.data();
     colorBlending.blendConstants[0] = 0.0f;
     colorBlending.blendConstants[1] = 0.0f;
     colorBlending.blendConstants[2] = 0.0f;
@@ -254,14 +256,14 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     VkGraphicsPipelineCreateInfo pipelineInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
 
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (programImpl->m_stageCreateInfos.getCount() == 0)
+    if (programImpl->m_stageCreateInfos.empty())
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
     }
 
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = (uint32_t)programImpl->m_stageCreateInfos.getCount();
-    pipelineInfo.pStages = programImpl->m_stageCreateInfos.getBuffer();
+    pipelineInfo.stageCount = (uint32_t)programImpl->m_stageCreateInfos.size();
+    pipelineInfo.pStages = programImpl->m_stageCreateInfos.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -296,7 +298,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
 Result PipelineStateImpl::createVKComputePipelineState()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (programImpl->m_stageCreateInfos.getCount() == 0)
+    if (programImpl->m_stageCreateInfos.empty())
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
     }
@@ -367,7 +369,7 @@ uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
 Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (programImpl->m_stageCreateInfos.getCount() == 0)
+    if (programImpl->m_stageCreateInfos.empty())
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
     }
@@ -377,14 +379,14 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
     raytracingPipelineInfo.pNext = nullptr;
     raytracingPipelineInfo.flags = translateRayTracingPipelineFlags(desc.rayTracing.flags);
 
-    raytracingPipelineInfo.stageCount = (uint32_t)programImpl->m_stageCreateInfos.getCount();
-    raytracingPipelineInfo.pStages = programImpl->m_stageCreateInfos.getBuffer();
+    raytracingPipelineInfo.stageCount = (uint32_t)programImpl->m_stageCreateInfos.size();
+    raytracingPipelineInfo.pStages = programImpl->m_stageCreateInfos.data();
 
     // Build Dictionary from entry point name to entry point index (stageCreateInfos index)
     // for all hit shaders - findShaderIndexByName
     Dictionary<String, Index> entryPointNameToIndex;
 
-    List<VkRayTracingShaderGroupCreateInfoKHR> shaderGroupInfos;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroupInfos;
     for (uint32_t i = 0; i < raytracingPipelineInfo.stageCount; ++i)
     {
         auto stageCreateInfo = programImpl->m_stageCreateInfos[i];
@@ -407,12 +409,12 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
 
         // For groups with a single entry point, the group name is the entry point name.
         auto shaderGroupName = entryPointName;
-        auto shaderGroupIndex = shaderGroupInfos.getCount();
-        shaderGroupInfos.add(shaderGroupInfo);
+        auto shaderGroupIndex = shaderGroupInfos.size();
+        shaderGroupInfos.push_back(shaderGroupInfo);
         shaderGroupNameToIndex.add(shaderGroupName, shaderGroupIndex);
     }
 
-    for (int32_t i = 0; i < desc.rayTracing.hitGroupDescs.getCount(); ++i)
+    for (int32_t i = 0; i < desc.rayTracing.hitGroupDescs.size(); ++i)
     {
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
             VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
@@ -431,13 +433,13 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
             findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint);
         shaderGroupInfo.pShaderGroupCaptureReplayHandle = nullptr;
 
-        auto shaderGroupIndex = shaderGroupInfos.getCount();
-        shaderGroupInfos.add(shaderGroupInfo);
+        auto shaderGroupIndex = shaderGroupInfos.size();
+        shaderGroupInfos.push_back(shaderGroupInfo);
         shaderGroupNameToIndex.add(String(groupDesc.hitGroupName), shaderGroupIndex);
     }
 
-    raytracingPipelineInfo.groupCount = (uint32_t)shaderGroupInfos.getCount();
-    raytracingPipelineInfo.pGroups = shaderGroupInfos.getBuffer();
+    raytracingPipelineInfo.groupCount = (uint32_t)shaderGroupInfos.size();
+    raytracingPipelineInfo.pGroups = shaderGroupInfos.data();
 
     raytracingPipelineInfo.maxPipelineRayRecursionDepth = (uint32_t)desc.rayTracing.maxRecursion;
 
@@ -465,7 +467,7 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
         &raytracingPipelineInfo,
         nullptr,
         &m_pipeline));
-    shaderGroupCount = shaderGroupInfos.getCount();
+    shaderGroupCount = shaderGroupInfos.size();
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {

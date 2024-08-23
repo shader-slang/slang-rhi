@@ -21,6 +21,8 @@
 #include "debug-transient-heap.h"
 #include "debug-vertex-layout.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -54,7 +56,7 @@ template <typename... TArgs>
 char* _gfxDiagnoseFormat(
     char* buffer, // Initial buffer to output formatted string.
     size_t shortBufferSize, // Size of the initial buffer.
-    List<char>& bufferArray, // A list for allocating a large buffer if needed.
+    std::vector<char>& bufferArray, // A list for allocating a large buffer if needed.
     const char* format, // The format string.
     TArgs... args)
 {
@@ -63,9 +65,9 @@ char* _gfxDiagnoseFormat(
         return buffer;
     if (length > 255)
     {
-        bufferArray.setCount(length + 1);
-        buffer = bufferArray.getBuffer();
-        sprintf_s(buffer, bufferArray.getCount(), format, args...);
+        bufferArray.resize(length + 1);
+        buffer = bufferArray.data();
+        sprintf_s(buffer, bufferArray.size(), format, args...);
     }
     return buffer;
 }
@@ -74,7 +76,7 @@ template <typename... TArgs>
 void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 {
     char shortBuffer[256];
-    List<char> bufferArray;
+    std::vector<char> bufferArray;
     auto buffer =
         _gfxDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, args...);
     getDebugCallback()->handleMessage(type, DebugMessageSource::Layer, buffer);
@@ -101,7 +103,7 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 #define GFX_DIAGNOSE_FORMAT(type, format, ...)                                            \
     {                                                                                     \
         char shortBuffer[256];                                                            \
-        List<char> bufferArray;                                                           \
+        std::vector<char> bufferArray;                                                    \
         auto message = _gfxDiagnoseFormat(                                                \
             shortBuffer, sizeof(shortBuffer), bufferArray, format, __VA_ARGS__);          \
         _gfxDiagnoseImpl(                                                                 \

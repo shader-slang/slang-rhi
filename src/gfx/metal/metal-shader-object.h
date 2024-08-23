@@ -7,6 +7,8 @@
 
 #include "metal-helper-functions.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -139,13 +141,13 @@ public:
     // of simple arrays.
 
     /// The buffers that are part of the state of this object
-    List<RefPtr<BufferResourceViewImpl>> m_buffers;
+    std::vector<RefPtr<BufferResourceViewImpl>> m_buffers;
 
     /// The textures that are part of the state of this object
-    List<RefPtr<TextureResourceViewImpl>> m_textures;
+    std::vector<RefPtr<TextureResourceViewImpl>> m_textures;
 
     /// The samplers that are part of the state of this object
-    List<RefPtr<SamplerStateImpl>> m_samplers;
+    std::vector<RefPtr<SamplerStateImpl>> m_samplers;
 
     /// A constant buffer used to stored ordinary data for this object
     /// and existential-type sub-objects.
@@ -196,7 +198,7 @@ public:
         RootShaderObjectLayoutImpl* specializedLayout);
 
 protected:
-    List<RefPtr<ShaderObjectImpl>> m_entryPoints;
+    std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
 };
 
 } // namespace metal

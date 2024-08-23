@@ -10,7 +10,7 @@ namespace cpu
 
 Result QueryPoolImpl::init(const IQueryPool::Desc& desc)
 {
-    m_queries.setCount(desc.count);
+    m_queries.resize(desc.count);
     return SLANG_OK;
 }
 

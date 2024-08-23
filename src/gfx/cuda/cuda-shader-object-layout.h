@@ -44,8 +44,8 @@ struct SubObjectRangeInfo
 class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
 {
 public:
-    List<SubObjectRangeInfo> subObjectRanges;
-    List<BindingRangeInfo> m_bindingRanges;
+    std::vector<SubObjectRangeInfo> subObjectRanges;
+    std::vector<BindingRangeInfo> m_bindingRanges;
 
     Index m_subObjectCount = 0;
     Index m_resourceCount = 0;
@@ -54,7 +54,7 @@ public:
 
     Index getResourceCount() const;
     Index getSubObjectCount() const;
-    List<SubObjectRangeInfo>& getSubObjectRanges();
+    std::vector<SubObjectRangeInfo>& getSubObjectRanges();
     BindingRangeInfo getBindingRange(Index index);
     Index getBindingRangeCount() const;
 };
@@ -63,7 +63,7 @@ class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
 {
 public:
     slang::ProgramLayout* programLayout = nullptr;
-    List<RefPtr<ShaderObjectLayoutImpl>> entryPointLayouts;
+    std::vector<RefPtr<ShaderObjectLayoutImpl>> entryPointLayouts;
     RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ProgramLayout* inProgramLayout);
 
     int getKernelIndex(UnownedStringSlice kernelName);

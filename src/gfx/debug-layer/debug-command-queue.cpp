@@ -7,6 +7,8 @@
 
 #include "debug-helper-functions.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -23,13 +25,13 @@ const ICommandQueue::Desc& DebugCommandQueue::getDesc()
 void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
 {
     SLANG_GFX_API_FUNC;
-    List<ICommandBuffer*> innerCommandBuffers;
+    std::vector<ICommandBuffer*> innerCommandBuffers;
     for (GfxIndex i = 0; i < count; i++)
     {
         auto cmdBufferIn = commandBuffers[i];
         auto cmdBufferImpl = getDebugObj(cmdBufferIn);
         auto innerCmdBuffer = getInnerObj(cmdBufferIn);
-        innerCommandBuffers.add(innerCmdBuffer);
+        innerCommandBuffers.push_back(innerCmdBuffer);
         if (cmdBufferImpl->isOpen)
         {
             GFX_DIAGNOSE_ERROR_FORMAT(
@@ -46,7 +48,7 @@ void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* co
             }
         }
     }
-    baseObject->executeCommandBuffers(count, innerCommandBuffers.getBuffer(), getInnerObj(fence), valueToSignal);
+    baseObject->executeCommandBuffers(count, innerCommandBuffers.data(), getInnerObj(fence), valueToSignal);
     if (fence)
     {
         getDebugObj(fence)->maxValueToSignal = Math::Max(getDebugObj(fence)->maxValueToSignal, valueToSignal);
@@ -63,12 +65,12 @@ Result DebugCommandQueue::waitForFenceValuesOnDevice(
     GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {
     SLANG_GFX_API_FUNC;
-    List<IFence*> innerFences;
+    std::vector<IFence*> innerFences;
     for (GfxIndex i = 0; i < fenceCount; ++i)
     {
-        innerFences.add(getInnerObj(fences[i]));
+        innerFences.push_back(getInnerObj(fences[i]));
     }
-    return baseObject->waitForFenceValuesOnDevice(fenceCount, innerFences.getBuffer(), waitValues);
+    return baseObject->waitForFenceValuesOnDevice(fenceCount, innerFences.data(), waitValues);
 }
 
 Result DebugCommandQueue::getNativeHandle(InteropHandle* outHandle)

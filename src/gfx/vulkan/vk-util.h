@@ -5,6 +5,8 @@
 #include "vk-api.h"
 #include "slang-gfx.h"
 
+#include <vector>
+
 // Macros to make testing vulkan return codes simpler
 
 /// SLANG_VK_RETURN_ON_FAIL can be used in a similar way to SLANG_RETURN_ON_FAIL macro, except it will turn a vulkan failure into Slang::Result in the process
@@ -111,14 +113,14 @@ struct AccelerationStructureBuildGeometryInfoBuilder
 public:
     VkAccelerationStructureBuildGeometryInfoKHR buildInfo = {
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR};
-    Slang::List<uint32_t> primitiveCounts;
+    std::vector<uint32_t> primitiveCounts;
 
     Slang::Result build(
         const IAccelerationStructure::BuildInputs& buildInputs,
         IDebugCallback* debugCallback);
 
 private:
-    Slang::List<VkAccelerationStructureGeometryKHR> m_geometryInfos;
+    std::vector<VkAccelerationStructureGeometryKHR> m_geometryInfos;
     VkAccelerationStructureGeometryKHR m_vkInstanceInfo = {
         VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
 };

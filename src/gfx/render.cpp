@@ -4,6 +4,7 @@
 #include "core/slang-blob.h"
 #include "debug-layer/debug-device.h"
 
+#include <vector>
 #include <cstring>
 
 namespace gfx {
@@ -15,10 +16,10 @@ Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outDev
 Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
-Result SLANG_MCALL getD3D12Adapters(List<AdapterInfo>& outAdapters);
-Result SLANG_MCALL getVKAdapters(List<AdapterInfo>& outAdapters);
-Result SLANG_MCALL getMetalAdapters(List<AdapterInfo>& outAdapters);
-Result SLANG_MCALL getCUDAAdapters(List<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL reportD3DLiveObjects();
 
@@ -248,7 +249,7 @@ extern "C"
 
     SLANG_GFX_API SlangResult SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
     {
-        List<AdapterInfo> adapters;
+        std::vector<AdapterInfo> adapters;
 
         switch (type)
         {
@@ -280,7 +281,7 @@ extern "C"
             return SLANG_E_INVALID_ARG;
         }
 
-        auto adaptersBlob = RawBlob::create(adapters.getBuffer(), adapters.getCount() * sizeof(AdapterInfo));
+        auto adaptersBlob = RawBlob::create(adapters.data(), adapters.size() * sizeof(AdapterInfo));
         if (outAdaptersBlob)
             returnComPtr(outAdaptersBlob, adaptersBlob);
 

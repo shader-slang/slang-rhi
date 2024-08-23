@@ -5,6 +5,8 @@
 #include "d3d12-device.h"
 #include "d3d12-buffer.h"
 
+#include <vector>
+
 namespace gfx
 {
 namespace d3d12
@@ -54,7 +56,7 @@ public:
     QueryType m_queryType;
     RefPtr<BufferResourceImpl> m_bufferResource;
     RefPtr<DeviceImpl> m_device;
-    List<uint8_t> m_result;
+    std::vector<uint8_t> m_result;
     bool m_resultDirty = true;
     uint32_t m_stride = 0;
     uint32_t m_count = 0;

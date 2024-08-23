@@ -4,6 +4,8 @@
 #include "vk-device.h"
 #include "vk-util.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -476,7 +478,7 @@ AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicalDevice)
 
 } // namespace vk
 
-Result SLANG_MCALL getVKAdapters(List<AdapterInfo>& outAdapters)
+Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     for (int forceSoftware = 0; forceSoftware <= 1; forceSoftware++)
     {
@@ -511,9 +513,9 @@ Result SLANG_MCALL getVKAdapters(List<AdapterInfo>& outAdapters)
             uint32_t numPhysicalDevices = 0;
             SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
 
-            List<VkPhysicalDevice> physicalDevices;
-            physicalDevices.setCount(numPhysicalDevices);
-            SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.getBuffer()));
+            std::vector<VkPhysicalDevice> physicalDevices;
+            physicalDevices.resize(numPhysicalDevices);
+            SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data()));
 
             for (const auto& physicalDevice : physicalDevices)
             {
@@ -524,7 +526,7 @@ Result SLANG_MCALL getVKAdapters(List<AdapterInfo>& outAdapters)
                 info.vendorID = props.vendorID;
                 info.deviceID = props.deviceID;
                 info.luid = vk::getAdapterLUID(api, physicalDevice);
-                outAdapters.add(info);
+                outAdapters.push_back(info);
             }
         }
 

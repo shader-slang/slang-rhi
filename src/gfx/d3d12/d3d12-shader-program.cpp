@@ -14,10 +14,10 @@ Result ShaderProgramImpl::createShaderModule(
     ShaderBinary shaderBin;
     shaderBin.stage = entryPointInfo->getStage();
     shaderBin.entryPointInfo = entryPointInfo;
-    shaderBin.code.addRange(
+    shaderBin.code.assign(
         reinterpret_cast<const uint8_t*>(kernelCode->getBufferPointer()),
-        (Index)kernelCode->getBufferSize());
-    m_shaders.add(_Move(shaderBin));
+        reinterpret_cast<const uint8_t*>(kernelCode->getBufferPointer()) + (size_t)kernelCode->getBufferSize());
+    m_shaders.push_back(_Move(shaderBin));
     return SLANG_OK;
 }
 

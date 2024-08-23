@@ -162,15 +162,15 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
         }
 #endif
 
-    m_resourceViews.setCount(layout->getResourceViewCount());
-    m_samplers.setCount(layout->getSamplerCount());
-    m_combinedTextureSamplers.setCount(layout->getCombinedTextureSamplerCount());
+    m_resourceViews.resize(layout->getResourceViewCount());
+    m_samplers.resize(layout->getSamplerCount());
+    m_combinedTextureSamplers.resize(layout->getCombinedTextureSamplerCount());
 
     // If the layout specifies that we have any sub-objects, then
     // we need to size the array to account for them.
     //
     Index subObjectCount = layout->getSubObjectCount();
-    m_objects.setCount(subObjectCount);
+    m_objects.resize(subObjectCount);
 
     for (auto subObjectRangeInfo : layout->getSubObjectRanges())
     {
@@ -357,11 +357,11 @@ void ShaderObjectImpl::writePlainBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews)
+    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.getCount();
+    Index count = resourceViews.size();
     for (Index i = 0; i < count; ++i)
     {
         VkDescriptorBufferInfo bufferInfo = {};
@@ -396,11 +396,11 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews)
+    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.getCount();
+    Index count = resourceViews.size();
     for (Index i = 0; i < count; ++i)
     {
         VkBufferView bufferView = VK_NULL_HANDLE;
@@ -430,11 +430,11 @@ void ShaderObjectImpl::writeTextureSamplerDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    ArrayView<CombinedTextureSamplerSlot> slots)
+    std::span<CombinedTextureSamplerSlot> slots)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = slots.getCount();
+    Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
         auto texture = slots[i].textureView;
@@ -471,11 +471,11 @@ void ShaderObjectImpl::writeAccelerationStructureDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews)
+    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.getCount();
+    Index count = resourceViews.size();
     for (Index i = 0; i < count; ++i)
     {
         auto accelerationStructure =
@@ -509,11 +509,11 @@ void ShaderObjectImpl::writeTextureDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    ArrayView<RefPtr<ResourceViewInternalBase>> resourceViews)
+    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.getCount();
+    Index count = resourceViews.size();
     for (Index i = 0; i < count; ++i)
     {
         VkDescriptorImageInfo imageInfo = {};
@@ -546,11 +546,11 @@ void ShaderObjectImpl::writeSamplerDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    ArrayView<RefPtr<SamplerStateImpl>> samplers)
+    std::span<RefPtr<SamplerStateImpl>> samplers)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = samplers.getCount();
+    Index count = samplers.size();
     for (Index i = 0; i < count; ++i)
     {
         auto sampler = samplers[i];
@@ -657,7 +657,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                m_resourceViews.getArrayView(baseIndex, count));
+                std::span(m_resourceViews.begin() + baseIndex, count));
             break;
         case slang::BindingType::MutableTexture:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -666,7 +666,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                m_resourceViews.getArrayView(baseIndex, count));
+                std::span(m_resourceViews.begin() + baseIndex, count));
             break;
         case slang::BindingType::CombinedTextureSampler:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -675,7 +675,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                m_combinedTextureSamplers.getArrayView(baseIndex, count));
+                std::span(m_combinedTextureSamplers.begin() + baseIndex, count));
             break;
 
         case slang::BindingType::Sampler:
@@ -685,7 +685,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_SAMPLER,
-                m_samplers.getArrayView(baseIndex, count));
+                std::span(m_samplers.begin() + baseIndex, count));
             break;
 
         case slang::BindingType::RawBuffer:
@@ -696,7 +696,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                m_resourceViews.getArrayView(baseIndex, count));
+                std::span(m_resourceViews.begin() + baseIndex, count));
             break;
 
         case slang::BindingType::TypedBuffer:
@@ -706,7 +706,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-                m_resourceViews.getArrayView(baseIndex, count));
+                std::span(m_resourceViews.begin() + baseIndex, count));
             break;
         case slang::BindingType::MutableTypedBuffer:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -715,7 +715,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-                m_resourceViews.getArrayView(baseIndex, count));
+                std::span(m_resourceViews.begin() + baseIndex, count));
             break;
         case slang::BindingType::RayTracingAccelerationStructure:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -724,7 +724,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-                m_resourceViews.getArrayView(baseIndex, count));
+                std::span(m_resourceViews.begin() + baseIndex, count));
             break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:
@@ -850,7 +850,7 @@ Result ShaderObjectImpl::allocateDescriptorSets(
     BindingOffset const& offset,
     ShaderObjectLayoutImpl* specializedLayout)
 {
-    assert(specializedLayout->getOwnDescriptorSets().getCount() <= 1);
+    assert(specializedLayout->getOwnDescriptorSets().size() <= 1);
     // The number of sets to allocate and their layouts was already pre-computed
     // as part of the shader object layout, so we use that information here.
     //
@@ -865,7 +865,7 @@ Result ShaderObjectImpl::allocateDescriptorSets(
         // we can bind all the descriptor sets to the pipeline when the
         // time comes.
         //
-        (*context.descriptorSets).add(descriptorSetHandle);
+        (*context.descriptorSets).push_back(descriptorSetHandle);
     }
 
     return SLANG_OK;
@@ -883,7 +883,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     // not the sets for any parent object(s).
     //
     BindingOffset offset = inOffset;
-    offset.bindingSet = (uint32_t)context.descriptorSets->getCount();
+    offset.bindingSet = (uint32_t)context.descriptorSets->size();
     offset.binding = 0;
 
     // TODO: We should also be writing to `offset.pending` here,
@@ -900,7 +900,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     //
     SLANG_RETURN_ON_FAIL(allocateDescriptorSets(encoder, context, offset, specializedLayout));
 
-    assert(offset.bindingSet < (uint32_t)context.descriptorSets->getCount());
+    assert(offset.bindingSet < (uint32_t)context.descriptorSets->size());
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(encoder, context, offset, specializedLayout));
 
     return SLANG_OK;
@@ -1075,12 +1075,12 @@ RootShaderObjectLayout* RootShaderObjectImpl::getSpecializedLayout()
     return static_cast<RootShaderObjectLayout*>(m_specializedLayout.Ptr());
 }
 
-List<RefPtr<EntryPointShaderObject>> const& RootShaderObjectImpl::getEntryPoints() const
+std::vector<RefPtr<EntryPointShaderObject>> const& RootShaderObjectImpl::getEntryPoints() const
 {
     return m_entryPoints;
 }
 
-GfxCount RootShaderObjectImpl::getEntryPointCount() { return (GfxCount)m_entryPoints.getCount(); }
+GfxCount RootShaderObjectImpl::getEntryPointCount() { return (GfxCount)m_entryPoints.size(); }
 
 Result RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
 {
@@ -1093,7 +1093,7 @@ Result RootShaderObjectImpl::copyFrom(IShaderObject* object, ITransientResourceH
     SLANG_RETURN_ON_FAIL(Super::copyFrom(object, transientHeap));
     if (auto srcObj = dynamic_cast<MutableRootShaderObject*>(object))
     {
-        for (Index i = 0; i < srcObj->m_entryPoints.getCount(); i++)
+        for (Index i = 0; i < srcObj->m_entryPoints.size(); i++)
         {
             m_entryPoints[i]->copyFrom(srcObj->m_entryPoints[i], transientHeap);
         }
@@ -1130,7 +1130,7 @@ Result RootShaderObjectImpl::bindAsRoot(
 
     SLANG_RETURN_ON_FAIL(bindAsValue(encoder, context, offset, layout));
 
-    auto entryPointCount = layout->getEntryPoints().getCount();
+    auto entryPointCount = layout->getEntryPoints().size();
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = m_entryPoints[i];
@@ -1168,7 +1168,7 @@ Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayout* layou
         RefPtr<EntryPointShaderObject> entryPoint;
         SLANG_RETURN_ON_FAIL(
             EntryPointShaderObject::create(device, entryPointInfo.layout, entryPoint.writeRef()));
-        m_entryPoints.add(entryPoint);
+        m_entryPoints.push_back(entryPoint);
     }
 
     return SLANG_OK;
@@ -1245,7 +1245,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     // TODO: Well, if we move to the specialization model described above then maybe
     // we *will* want entry points to do their own specialization work...
     //
-    auto entryPointCount = m_entryPoints.getCount();
+    auto entryPointCount = m_entryPoints.size();
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPointInfo = specializedLayout->getEntryPoint(i);

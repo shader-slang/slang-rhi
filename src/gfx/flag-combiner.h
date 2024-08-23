@@ -1,7 +1,7 @@
 #ifndef GFX_FLAG_COMBINER_H
 #define GFX_FLAG_COMBINER_H
 
-#include "core/slang-list.h"
+#include <vector>
 
 namespace gfx {
 
@@ -46,7 +46,7 @@ public:
         /// flags will change with the highest frequency
     void add(uint32_t flags, ChangeType changeType);
         /// Calculate all of the combinations and place in an array
-    void calcCombinations(Slang::List<uint32_t>& outCombinations) const;
+    void calcCombinations(std::vector<uint32_t>& outCombinations) const;
 
         /// Reset back to initial state
     void reset(); 

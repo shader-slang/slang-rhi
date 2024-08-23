@@ -31,10 +31,16 @@ namespace gfx
             slangSessionDesc.searchPathCount = desc.searchPathCount;
             slangSessionDesc.searchPaths = desc.searchPaths;
             slangSessionDesc.preprocessorMacroCount = desc.preprocessorMacroCount + additionalMacros.getCount();
-            Slang::List<slang::PreprocessorMacroDesc> macros;
-            macros.addRange(desc.preprocessorMacros, desc.preprocessorMacroCount);
-            macros.addRange(additionalMacros.getBuffer(), additionalMacros.getCount());
-            slangSessionDesc.preprocessorMacros = macros.getBuffer();
+            std::vector<slang::PreprocessorMacroDesc> macros;
+            for (GfxCount i = 0; i < desc.preprocessorMacroCount; i++)
+            {
+                macros.push_back(desc.preprocessorMacros[i]);
+            }
+            for (GfxCount i = 0; i < additionalMacros.getCount(); i++)
+            {
+                macros.push_back(additionalMacros[i]);
+            }
+            slangSessionDesc.preprocessorMacros = macros.data();
             slang::TargetDesc targetDesc = {};
             targetDesc.format = compileTarget;
             auto targetProfile = desc.targetProfile;

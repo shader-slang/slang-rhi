@@ -2,6 +2,8 @@
 #pragma once
 #include "metal-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -117,7 +119,7 @@ struct RenderBindingContext : public BindingContext
 
 } // namespace metal
 
-Result SLANG_MCALL getMetalAdapters(List<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outRenderer);
 
 } // namespace gfx

@@ -25,12 +25,12 @@ Result DebugSwapchain::getImage(GfxIndex index, ITextureResource** outResource)
 {
     SLANG_GFX_API_FUNC;
     maybeRebuildImageList();
-    if (index > (GfxCount)m_images.getCount())
+    if (index > (GfxCount)m_images.size())
     {
         GFX_DIAGNOSE_ERROR_FORMAT(
             "`index`(%d) must not exceed total number of images (%d) in the swapchain.",
             index,
-            (uint32_t)m_images.getCount());
+            (uint32_t)m_images.size());
     }
     returnComPtr(outResource, m_images[index]);
     return SLANG_OK;
@@ -61,7 +61,7 @@ Result DebugSwapchain::resize(GfxCount width, GfxCount height)
             break;
         }
     }
-    m_images.clearAndDeallocate();
+    m_images.clear();
     return baseObject->resize(width, height);
 }
 
@@ -80,14 +80,14 @@ Result DebugSwapchain::setFullScreenMode(bool mode)
 void DebugSwapchain::maybeRebuildImageList()
 {
     SLANG_GFX_API_FUNC;
-    if (m_images.getCount() != 0)
+    if (m_images.empty())
         return;
-    m_images.clearAndDeallocate();
+    m_images.clear();
     for (GfxIndex i = 0; i < baseObject->getDesc().imageCount; i++)
     {
         RefPtr<DebugTextureResource> image = new DebugTextureResource();
         baseObject->getImage(i, image->baseObject.writeRef());
-        m_images.add(image);
+        m_images.push_back(image);
     }
 }
 

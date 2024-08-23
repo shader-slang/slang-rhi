@@ -51,7 +51,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
         return SLANG_OK;
 
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (programImpl->m_shaders.getCount() == 0)
+    if (programImpl->m_shaders.size() == 0)
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
     }
@@ -184,13 +184,13 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 switch (shaderBin.stage)
                 {
                 case SLANG_STAGE_FRAGMENT:
-                    meshDesc.PS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    meshDesc.PS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 case SLANG_STAGE_AMPLIFICATION:
-                    meshDesc.AS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    meshDesc.AS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 case SLANG_STAGE_MESH:
-                    meshDesc.MS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    meshDesc.MS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 default:
                     getDebugCallback()->handleMessage(
@@ -227,19 +227,19 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 switch (shaderBin.stage)
                 {
                 case SLANG_STAGE_VERTEX:
-                    graphicsDesc.VS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    graphicsDesc.VS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 case SLANG_STAGE_FRAGMENT:
-                    graphicsDesc.PS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    graphicsDesc.PS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 case SLANG_STAGE_DOMAIN:
-                    graphicsDesc.DS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    graphicsDesc.DS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 case SLANG_STAGE_HULL:
-                    graphicsDesc.HS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    graphicsDesc.HS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 case SLANG_STAGE_GEOMETRY:
-                    graphicsDesc.GS = { shaderBin.code.getBuffer(), SIZE_T(shaderBin.code.getCount()) };
+                    graphicsDesc.GS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
                     break;
                 default:
                     getDebugCallback()->handleMessage(
@@ -253,8 +253,8 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             if (inputLayoutImpl)
             {
                 graphicsDesc.InputLayout = {
-                    inputLayoutImpl->m_elements.getBuffer(),
-                    UINT(inputLayoutImpl->m_elements.getCount()) };
+                    inputLayoutImpl->m_elements.data(),
+                    UINT(inputLayoutImpl->m_elements.size()) };
             }
 
             fillCommonGraphicsState(graphicsDesc);
@@ -289,8 +289,8 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 ? static_cast<ID3D12RootSignature*>(desc.compute.d3d12RootSignatureOverride)
                 : programImpl->m_rootObjectLayout->m_rootSignature;
             computeDesc.CS = {
-                programImpl->m_shaders[0].code.getBuffer(),
-                SIZE_T(programImpl->m_shaders[0].code.getCount()) };
+                programImpl->m_shaders[0].code.data(),
+                SIZE_T(programImpl->m_shaders[0].code.size()) };
 
 #ifdef GFX_NVAPI
             if (m_device->m_nvapi)
@@ -377,7 +377,7 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     auto slangGlobalScope = program->linkedProgram;
     auto programLayout = slangGlobalScope->getLayout();
 
-    List<D3D12_STATE_SUBOBJECT> subObjects;
+    std::vector<D3D12_STATE_SUBOBJECT> subObjects;
     ChunkedList<D3D12_DXIL_LIBRARY_DESC> dxilLibraries;
     ChunkedList<D3D12_HIT_GROUP_DESC> hitGroups;
     ChunkedList<ComPtr<ISlangBlob>> codeBlobs;
@@ -402,7 +402,7 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     D3D12_STATE_SUBOBJECT pipelineConfigSubobject = {};
     pipelineConfigSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1;
     pipelineConfigSubobject.pDesc = &pipelineConfig;
-    subObjects.add(pipelineConfigSubobject);
+    subObjects.push_back(pipelineConfigSubobject);
 
     auto compileShader = [&](slang::EntryPointLayout* entryPointInfo,
         slang::IComponentType* component,
@@ -433,10 +433,10 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
         D3D12_STATE_SUBOBJECT dxilSubObject = {};
         dxilSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
         dxilSubObject.pDesc = dxilLibraries.add(library);
-        subObjects.add(dxilSubObject);
+        subObjects.push_back(dxilSubObject);
         return SLANG_OK;
     };
-    if (program->linkedEntryPoints.getCount() == 0)
+    if (program->linkedEntryPoints.empty())
     {
         for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
         {
@@ -453,7 +453,7 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
         }
     }
 
-    for (Index i = 0; i < desc.rayTracing.hitGroupDescs.getCount(); i++)
+    for (Index i = 0; i < desc.rayTracing.hitGroupDescs.size(); i++)
     {
         auto& hitGroup = desc.rayTracing.hitGroups[i];
         D3D12_HIT_GROUP_DESC hitGroupDesc = {};
@@ -480,7 +480,7 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
         D3D12_STATE_SUBOBJECT hitGroupSubObject = {};
         hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
         hitGroupSubObject.pDesc = hitGroups.add(hitGroupDesc);
-        subObjects.add(hitGroupSubObject);
+        subObjects.push_back(hitGroupSubObject);
     }
 
     D3D12_RAYTRACING_SHADER_CONFIG shaderConfig = {};
@@ -491,14 +491,14 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     D3D12_STATE_SUBOBJECT shaderConfigSubObject = {};
     shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
     shaderConfigSubObject.pDesc = &shaderConfig;
-    subObjects.add(shaderConfigSubObject);
+    subObjects.push_back(shaderConfigSubObject);
 
     D3D12_GLOBAL_ROOT_SIGNATURE globalSignatureDesc = {};
     globalSignatureDesc.pGlobalRootSignature = program->m_rootObjectLayout->m_rootSignature.get();
     D3D12_STATE_SUBOBJECT globalSignatureSubobject = {};
     globalSignatureSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
     globalSignatureSubobject.pDesc = &globalSignatureDesc;
-    subObjects.add(globalSignatureSubobject);
+    subObjects.push_back(globalSignatureSubobject);
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
@@ -508,8 +508,8 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
 
     D3D12_STATE_OBJECT_DESC rtpsoDesc = {};
     rtpsoDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
-    rtpsoDesc.NumSubobjects = (UINT)subObjects.getCount();
-    rtpsoDesc.pSubobjects = subObjects.getBuffer();
+    rtpsoDesc.NumSubobjects = (UINT)subObjects.size();
+    rtpsoDesc.pSubobjects = subObjects.data();
     SLANG_RETURN_ON_FAIL(
         m_device->m_device5->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(m_stateObject.writeRef())));
 

@@ -955,9 +955,9 @@ void RenderCommandEncoderImpl::setVertexBuffers(
 {
     {
         const Index num = startSlot + slotCount;
-        if (num > m_boundVertexBuffers.getCount())
+        if (num > m_boundVertexBuffers.size())
         {
-            m_boundVertexBuffers.setCount(num);
+            m_boundVertexBuffers.resize(num);
         }
     }
 
@@ -1003,7 +1003,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
         {
             int numVertexViews = 0;
             D3D12_VERTEX_BUFFER_VIEW vertexViews[16];
-            for (Index i = 0; i < m_boundVertexBuffers.getCount(); i++)
+            for (Index i = 0; i < m_boundVertexBuffers.size(); i++)
             {
                 const BoundVertexBuffer& boundVertexBuffer = m_boundVertexBuffers[i];
                 BufferResourceImpl* buffer = boundVertexBuffer.m_buffer;
@@ -1275,10 +1275,10 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
     builder.build(desc.inputs, getDebugCallback());
     buildDesc.Inputs = builder.desc;
 
-    List<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
+    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
     translatePostBuildInfoDescs(propertyQueryCount, queryDescs, postBuildInfoDescs);
     m_commandBuffer->m_cmdList4->BuildRaytracingAccelerationStructure(
-        &buildDesc, (UINT)propertyQueryCount, postBuildInfoDescs.getBuffer());
+        &buildDesc, (UINT)propertyQueryCount, postBuildInfoDescs.data());
 }
 
 void RayTracingCommandEncoderImpl::copyAccelerationStructure(
@@ -1312,14 +1312,14 @@ void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
     GfxCount queryCount,
     AccelerationStructureQueryDesc* queryDescs)
 {
-    List<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
-    List<DeviceAddress> asAddresses;
-    asAddresses.setCount(accelerationStructureCount);
+    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
+    std::vector<DeviceAddress> asAddresses;
+    asAddresses.resize(accelerationStructureCount);
     for (GfxIndex i = 0; i < accelerationStructureCount; i++)
         asAddresses[i] = accelerationStructures[i]->getDeviceAddress();
     translatePostBuildInfoDescs(queryCount, queryDescs, postBuildInfoDescs);
     m_commandBuffer->m_cmdList4->EmitRaytracingAccelerationStructurePostbuildInfo(
-        postBuildInfoDescs.getBuffer(), (UINT)accelerationStructureCount, asAddresses.getBuffer());
+        postBuildInfoDescs.data(), (UINT)accelerationStructureCount, asAddresses.data());
 }
 
 void RayTracingCommandEncoderImpl::serializeAccelerationStructure(

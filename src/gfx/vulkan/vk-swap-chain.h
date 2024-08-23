@@ -6,6 +6,8 @@
 #include "vk-device.h"
 #include "vk-texture.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -47,7 +49,7 @@ public:
 public:
     ~SwapchainImpl();
 
-    static Index _indexOfFormat(List<VkSurfaceFormatKHR>& formatsIn, VkFormat format);
+    static Index _indexOfFormat(std::vector<VkSurfaceFormatKHR>& formatsIn, VkFormat format);
 
     Result init(DeviceImpl* renderer, const ISwapchain::Desc& desc, WindowHandle window);
 

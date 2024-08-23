@@ -4,6 +4,8 @@
 #include "vk-base.h"
 #include "vk-shader-object-layout.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -23,10 +25,10 @@ public:
 
     BreakableReference<DeviceImpl> m_device;
 
-    List<VkPipelineShaderStageCreateInfo> m_stageCreateInfos;
-    List<String> m_entryPointNames;
-    List<ComPtr<ISlangBlob>> m_codeBlobs; //< To keep storage of code in scope
-    List<VkShaderModule> m_modules;
+    std::vector<VkPipelineShaderStageCreateInfo> m_stageCreateInfos;
+    std::vector<String> m_entryPointNames;
+    std::vector<ComPtr<ISlangBlob>> m_codeBlobs; //< To keep storage of code in scope
+    std::vector<VkShaderModule> m_modules;
     RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
 
     VkPipelineShaderStageCreateInfo compileEntryPoint(

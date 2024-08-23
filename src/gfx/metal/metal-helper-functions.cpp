@@ -8,7 +8,7 @@ namespace gfx
 
 using namespace Slang;
 
-Result SLANG_MCALL getMetalAdapters(List<AdapterInfo>& outAdapters)
+Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     AUTORELEASEPOOL
 
@@ -19,7 +19,7 @@ Result SLANG_MCALL getMetalAdapters(List<AdapterInfo>& outAdapters)
         memcpy(info.name, name, Math::Min(strlen(name), sizeof(AdapterInfo::name) - 1));
         uint64_t registryID = device->registryID();
         memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
-        outAdapters.add(info);
+        outAdapters.push_back(info);
     };
 
     NS::Array* devices = MTL::CopyAllDevices();

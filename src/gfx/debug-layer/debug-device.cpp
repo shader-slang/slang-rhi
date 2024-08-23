@@ -19,6 +19,8 @@
 #include "debug-transient-heap.h"
 #include "debug-vertex-layout.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -279,13 +281,13 @@ Result DebugDevice::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuff
     auto innerDesc = desc;
     innerDesc.layout = getInnerObj(desc.layout);
     innerDesc.depthStencilView = getInnerObj(desc.depthStencilView);
-    List<IResourceView*> innerRenderTargets;
+    std::vector<IResourceView*> innerRenderTargets;
     for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
     {
         auto innerRenderTarget = getInnerObj(desc.renderTargetViews[i]);
-        innerRenderTargets.add(innerRenderTarget);
+        innerRenderTargets.push_back(innerRenderTarget);
     }
-    innerDesc.renderTargetViews = innerRenderTargets.getBuffer();
+    innerDesc.renderTargetViews = innerRenderTargets.data();
 
     RefPtr<DebugFramebuffer> outObject = new DebugFramebuffer();
     auto result = baseObject->createFramebuffer(innerDesc, outObject->baseObject.writeRef());

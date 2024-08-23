@@ -8,6 +8,8 @@
 #include "core/slang-short-list.h"
 #include "core/slang-list.h"
 
+#include <vector>
+
 #ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
 // If can't find a definition of CommandList1, just use an empty definition
 struct ID3D12GraphicsCommandList1
@@ -81,11 +83,11 @@ Result createNullDescriptor(
 void translatePostBuildInfoDescs(
     int propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs,
-    List<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs);
+    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs);
 
 } // namespace d3d12
 
-Result SLANG_MCALL getD3D12Adapters(List<AdapterInfo>& outAdapters);
+Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice);
 

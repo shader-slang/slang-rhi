@@ -3,6 +3,8 @@
 
 #include "vk-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -14,8 +16,8 @@ namespace vk
 class InputLayoutImpl : public InputLayoutBase
 {
 public:
-    List<VkVertexInputAttributeDescription> m_attributeDescs;
-    List<VkVertexInputBindingDescription> m_streamDescs;
+    std::vector<VkVertexInputAttributeDescription> m_attributeDescs;
+    std::vector<VkVertexInputBindingDescription> m_streamDescs;
 };
 
 } // namespace vk

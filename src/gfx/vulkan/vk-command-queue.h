@@ -4,6 +4,8 @@
 #include "vk-base.h"
 #include "vk-device.h"
 
+#include <vector>
+
 namespace gfx
 {
 
@@ -30,9 +32,9 @@ public:
         RefPtr<FenceImpl> fence;
         uint64_t waitValue;
     };
-    List<FenceWaitInfo> m_pendingWaitFences;
+    std::vector<FenceWaitInfo> m_pendingWaitFences;
     VkSemaphore m_pendingWaitSemaphores[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-    List<VkCommandBuffer> m_submitCommandBuffers;
+    std::vector<VkCommandBuffer> m_submitCommandBuffers;
     VkSemaphore m_semaphore;
     ~CommandQueueImpl();
 

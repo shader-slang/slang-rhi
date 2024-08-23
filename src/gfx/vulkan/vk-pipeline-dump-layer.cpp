@@ -1,6 +1,9 @@
 #include "vk-pipeline-dump-layer.h"
 #include "core/slang-basic.h"
 #include "core/slang-stream.h"
+
+#include <vector>
+
 namespace gfx {
     using namespace Slang;
 
@@ -11,16 +14,16 @@ namespace gfx {
         Dictionary<VkDescriptorSetLayout, Index> descriptorSets;
         Dictionary<VkPipeline, Index> computePipelines;
         
-        List<uint8_t> serializedBytes;
+        std::vector<uint8_t> serializedBytes;
 
         VulkanApi api;
 
         template<typename T>
         void writeRaw(T v)
         {
-            auto startIndex = serializedBytes.getCount();
-            serializedBytes.growToCount(startIndex + sizeof(T));
-            memcpy(serializedBytes.getBuffer() + startIndex, &v, sizeof(T));
+            auto startIndex = serializedBytes.size();
+            serializedBytes.resize(startIndex + sizeof(T));
+            memcpy(serializedBytes.data() + startIndex, &v, sizeof(T));
         }
 
         template<typename T>
@@ -28,9 +31,9 @@ namespace gfx {
         {
             writeRaw(elementCount);
 
-            auto startIndex = serializedBytes.getCount();
-            serializedBytes.growToCount(startIndex + sizeof(T) * elementCount);
-            memcpy(serializedBytes.getBuffer() + startIndex, data, sizeof(T) * elementCount);
+            auto startIndex = serializedBytes.size();
+            serializedBytes.resize(startIndex + sizeof(T) * elementCount);
+            memcpy(serializedBytes.data() + startIndex, data, sizeof(T) * elementCount);
         }
 
         void writeStr(const char* str)
@@ -38,15 +41,15 @@ namespace gfx {
             auto len = (uint32_t)strlen(str) + 1;
             writeRaw(len);
 
-            auto startIndex = serializedBytes.getCount();
-            serializedBytes.growToCount(startIndex + len);
-            memcpy(serializedBytes.getBuffer() + startIndex, str, len - 1);
+            auto startIndex = serializedBytes.size();
+            serializedBytes.resize(startIndex + len);
+            memcpy(serializedBytes.data() + startIndex, str, len - 1);
             serializedBytes[startIndex + len - 1] = 0;
         }
 
         void writePipelineLayout(VkPipelineLayout layout, const VkPipelineLayoutCreateInfo* createInfo)
         {
-            auto startIndex = serializedBytes.getCount();
+            auto startIndex = serializedBytes.size();
             writeRaw(createInfo->sType);
             writeRaw(createInfo->flags);
             writeRaw(createInfo->setLayoutCount);
@@ -58,7 +61,7 @@ namespace gfx {
 
         void writeShaderModule(VkShaderModule module, const VkShaderModuleCreateInfo* createInfo)
         {
-            auto startIndex = serializedBytes.getCount();
+            auto startIndex = serializedBytes.size();
             writeRaw(createInfo->sType);
             writeRaw(createInfo->flags);
             writeArray((uint32_t)(createInfo->codeSize/sizeof(uint32_t)), createInfo->pCode);
@@ -67,7 +70,7 @@ namespace gfx {
 
         void writeDescriptorSetLayout(VkDescriptorSetLayout layout, const VkDescriptorSetLayoutCreateInfo* createInfo)
         {
-            auto startIndex = serializedBytes.getCount();
+            auto startIndex = serializedBytes.size();
             writeRaw(createInfo->sType);
             writeRaw(createInfo->flags);
             writeArray(createInfo->bindingCount, createInfo->pBindings);
@@ -76,7 +79,7 @@ namespace gfx {
 
         void writePipeline(VkPipeline pipeline, const VkComputePipelineCreateInfo* createInfo)
         {
-            auto startIndex = serializedBytes.getCount();
+            auto startIndex = serializedBytes.size();
             writeRaw(createInfo->sType);
             writeRaw(createInfo->flags);
             writeRaw(createInfo->stage.sType);
@@ -98,9 +101,9 @@ namespace gfx {
             {
                 fs->write(KeyValueDetail::getValue(&pair), sizeof(Index));
             }
-            Index blobSize = serializedBytes.getCount();
+            Index blobSize = serializedBytes.size();
             fs->write(&blobSize, sizeof(blobSize));
-            fs->write(serializedBytes.getBuffer(), serializedBytes.getCount());
+            fs->write(serializedBytes.data(), serializedBytes.size());
             fs->close();
         }
     };

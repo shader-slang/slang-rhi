@@ -17,13 +17,13 @@ Result ShaderObjectData::setCount(Index count)
 {
     if (isHostOnly)
     {
-        m_cpuBuffer.setCount(count);
+        m_cpuBuffer.resize(count);
         if (!m_bufferView)
         {
             IResourceView::Desc viewDesc = {};
             viewDesc.type = IResourceView::Type::UnorderedAccess;
             m_bufferView = new ResourceViewImpl();
-            m_bufferView->proxyBuffer = m_cpuBuffer.getBuffer();
+            m_bufferView->proxyBuffer = m_cpuBuffer.data();
             m_bufferView->m_desc = viewDesc;
         }
         return SLANG_OK;
@@ -70,7 +70,7 @@ Result ShaderObjectData::setCount(Index count)
 Slang::Index ShaderObjectData::getCount()
 {
     if (isHostOnly)
-        return m_cpuBuffer.getCount();
+        return m_cpuBuffer.size();
     if (m_bufferResource)
         return (Slang::Index)(m_bufferResource->getDesc()->sizeInBytes);
     else
@@ -80,7 +80,7 @@ Slang::Index ShaderObjectData::getCount()
 void* ShaderObjectData::getBuffer()
 {
     if (isHostOnly)
-        return m_cpuBuffer.getBuffer();
+        return m_cpuBuffer.data();
 
     if (m_bufferResource)
         return m_bufferResource->m_cudaMemory;

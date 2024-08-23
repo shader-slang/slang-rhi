@@ -22,6 +22,9 @@
 //#include "metal-helper-functions.h"
 
 #include "core/slang-platform.h"
+
+#include <vector>
+
 namespace gfx
 {
 
@@ -235,9 +238,9 @@ SlangResult DeviceImpl::readTextureResource(
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
 
-    List<uint8_t> blobData;
-    blobData.setCount(bufferSize);
-    ::memcpy(blobData.getBuffer(), stagingBuffer->contents(), bufferSize);
+    std::vector<uint8_t> blobData;
+    blobData.resize(bufferSize);
+    ::memcpy(blobData.data(), stagingBuffer->contents(), bufferSize);
     auto blob = ListBlob::moveCreate(blobData);
 
     returnComPtr(outBlob, blob);
@@ -263,9 +266,9 @@ SlangResult DeviceImpl::readBufferResource(
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
 
-    List<uint8_t> blobData;
-    blobData.setCount(size);
-    ::memcpy(blobData.getBuffer(), stagingBuffer->contents(), size);
+    std::vector<uint8_t> blobData;
+    blobData.resize(size);
+    ::memcpy(blobData.data(), stagingBuffer->contents(), size);
     auto blob = ListBlob::moveCreate(blobData);
 
     returnComPtr(outBlob, blob);

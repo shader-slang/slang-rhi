@@ -98,6 +98,14 @@ public:
     
     static ComPtr<ISlangBlob> moveCreate(List<uint8_t>& data) { return ComPtr<ISlangBlob>(new ListBlob(_Move(data))); } 
 
+    static ComPtr<ISlangBlob> moveCreate(std::vector<uint8_t>& data)
+    {
+        List<uint8_t> list;
+        list.setCount(data.size());
+        ::memcpy(list.getBuffer(), data.data(), data.size());
+        return ComPtr<ISlangBlob>(new ListBlob(_Move(list)));
+    } 
+
 protected:
     explicit ListBlob(const List<uint8_t>& data) : m_data(data) {}
         // Move ctor

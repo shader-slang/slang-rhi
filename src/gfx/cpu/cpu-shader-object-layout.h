@@ -2,6 +2,8 @@
 #pragma once
 #include "cpu-base.h"
 
+#include <vector>
+
 namespace gfx
 {
 using namespace Slang;
@@ -49,8 +51,8 @@ public:
     // ranges for CPU.
 
     size_t m_size = 0;
-    List<SubObjectRangeInfo> subObjectRanges;
-    List<BindingRangeInfo> m_bindingRanges;
+    std::vector<SubObjectRangeInfo> subObjectRanges;
+    std::vector<BindingRangeInfo> m_bindingRanges;
 
     Index m_subObjectCount = 0;
     Index m_resourceCount = 0;
@@ -60,7 +62,7 @@ public:
     size_t getSize();
     Index getResourceCount() const;
     Index getSubObjectCount() const;
-    List<SubObjectRangeInfo>& getSubObjectRanges();
+    std::vector<SubObjectRangeInfo>& getSubObjectRanges();
     BindingRangeInfo getBindingRange(Index index);
     Index getBindingRangeCount() const;
 };
@@ -86,7 +88,7 @@ class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
 {
 public:
     slang::ProgramLayout* m_programLayout = nullptr;
-    List<RefPtr<EntryPointLayoutImpl>> m_entryPointLayouts;
+    std::vector<RefPtr<EntryPointLayoutImpl>> m_entryPointLayouts;
 
     RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::ProgramLayout* programLayout);
 

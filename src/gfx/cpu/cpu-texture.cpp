@@ -144,7 +144,7 @@ Result TextureResourceImpl::init(ITextureResource::SubresourceData const* initDa
 
     int32_t levelCount = desc.numMipLevels;
 
-    m_mipLevels.setCount(levelCount);
+    m_mipLevels.resize(levelCount);
 
     int64_t totalDataSize = 0;
     for( int32_t levelIndex = 0; levelIndex < levelCount; ++levelIndex )

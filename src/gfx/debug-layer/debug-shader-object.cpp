@@ -53,17 +53,17 @@ GfxCount DebugShaderObject::getEntryPointCount()
 Result DebugShaderObject::getEntryPoint(GfxIndex index, IShaderObject** entryPoint)
 {
     SLANG_GFX_API_FUNC;
-    if (m_entryPoints.getCount() == 0)
+    if (m_entryPoints.empty())
     {
         for (GfxIndex i = 0; i < getEntryPointCount(); i++)
         {
             RefPtr<DebugShaderObject> entryPointObj = new DebugShaderObject();
             SLANG_RETURN_ON_FAIL(
                 baseObject->getEntryPoint(i, entryPointObj->baseObject.writeRef()));
-            m_entryPoints.add(entryPointObj);
+            m_entryPoints.push_back(entryPointObj);
         }
     }
-    if (index > (GfxCount)m_entryPoints.getCount())
+    if (index > (GfxCount)m_entryPoints.size())
     {
         GFX_DIAGNOSE_ERROR("`index` must not exceed `entryPointCount`.");
         return SLANG_FAIL;
