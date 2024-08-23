@@ -174,7 +174,7 @@ Result ResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {
@@ -188,7 +188,7 @@ Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-#endif // SLANG_GFX_HAS_DXR_SUPPORT
+#endif // SLANG_RHI_DXR
 
 } // namespace d3d12
 } // namespace gfx

@@ -993,7 +993,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
     return SLANG_OK;
 }
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
 Result D3DAccelerationStructureInputsBuilder::build(
     const IAccelerationStructure::BuildInputs& buildInputs,
     IDebugCallback* callback)

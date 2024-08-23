@@ -27,7 +27,7 @@ Result DebugSwapchain::getImage(GfxIndex index, ITextureResource** outResource)
     maybeRebuildImageList();
     if (index > (GfxCount)m_images.size())
     {
-        GFX_DIAGNOSE_ERROR_FORMAT(
+        RHI_VALIDATION_ERROR_FORMAT(
             "`index`(%d) must not exceed total number of images (%d) in the swapchain.",
             index,
             (uint32_t)m_images.size());
@@ -57,7 +57,7 @@ Result DebugSwapchain::resize(GfxCount width, GfxCount height)
         {
             // Only warn here because tools like NSight might keep
             // an additional reference to swapchain images.
-            GFX_DIAGNOSE_WARNING("all swapchain images must be released before calling resize().");
+            RHI_VALIDATION_WARNING("all swapchain images must be released before calling resize().");
             break;
         }
     }

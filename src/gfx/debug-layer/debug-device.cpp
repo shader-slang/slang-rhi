@@ -65,7 +65,7 @@ Result DebugDevice::getFormatSupportedResourceStates(Format format, ResourceStat
 DebugDevice::DebugDevice()
 {
     SLANG_RHI_API_FUNC_NAME("CreateDevice");
-    GFX_DIAGNOSE_INFO("Debug layer is enabled.");
+    RHI_VALIDATION_INFO("Debug layer is enabled.");
 }
 
 SLANG_NO_THROW bool SLANG_MCALL DebugDevice::hasFeature(const char* feature)

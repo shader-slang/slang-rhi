@@ -1247,7 +1247,7 @@ Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBufferResource* argBu
     return SLANG_OK;
 }
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
 
 void RayTracingCommandEncoderImpl::buildAccelerationStructure(
     const IAccelerationStructure::BuildDesc& desc,

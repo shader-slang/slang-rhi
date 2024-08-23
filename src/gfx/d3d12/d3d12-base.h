@@ -73,7 +73,7 @@ namespace d3d12
     class TransientResourceHeapImpl;
     class InputLayoutImpl;
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
     class RayTracingCommandEncoderImpl;
     class RayTracingPipelineStateImpl;
 #endif

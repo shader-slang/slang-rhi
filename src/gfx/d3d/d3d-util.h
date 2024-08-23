@@ -21,9 +21,9 @@
 #include <vector>
 
 #if defined(__ID3D12Device5_FWD_DEFINED__) && defined(__ID3D12GraphicsCommandList4_FWD_DEFINED__)
-#    define SLANG_GFX_HAS_DXR_SUPPORT 1
+#    define SLANG_RHI_DXR 1
 #else
-#    define SLANG_GFX_HAS_DXR_SUPPORT 0
+#    define SLANG_RHI_DXR 0
 typedef ISlangUnknown ID3D12Device5;
 typedef ISlangUnknown ID3D12GraphicsCommandList4;
 
@@ -129,7 +129,7 @@ class D3DUtil
     static SlangResult waitForCrashDumpCompletion(HRESULT res);
 };
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
 struct D3DAccelerationStructureInputsBuilder
 {
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};

@@ -329,7 +329,7 @@ void DebugResourceCommandEncoderImpl::clearResourceView(
     case IResourceView::Type::UnorderedAccess:
         break;
     default:
-        GFX_DIAGNOSE_ERROR_FORMAT(
+        RHI_VALIDATION_ERROR_FORMAT(
             "Resource view %lld cannot be cleared. Only DepthStencil, "
             "RenderTarget or UnorderedAccess views can be cleared.",
             getDebugObj(view)->uid);

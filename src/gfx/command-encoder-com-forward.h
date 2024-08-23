@@ -1,6 +1,6 @@
 #pragma once
 
-#define SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderBase)                \
+#define SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderBase)                \
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(                                 \
         SlangUUID const& uuid, void** outObject) override                                          \
     {                                                                                              \

@@ -24,7 +24,7 @@ public:
     virtual Result ensureAPIPipelineStateCreated() override;
 };
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
 class RayTracingPipelineStateImpl : public PipelineStateBase
 {
 public:

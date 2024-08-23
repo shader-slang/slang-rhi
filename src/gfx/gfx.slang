@@ -1945,32 +1945,32 @@ public interface IShaderCache
     public Result resetShaderCacheStats();
 };
 
-#define SLANG_GFX_IMPORT [DllImport("gfx")]
+#define SLANG_RHI_IMPORT [DllImport("slang-rhi")]
 /// Checks if format is compressed
-SLANG_GFX_IMPORT public bool gfxIsCompressedFormat(Format format);
+SLANG_RHI_IMPORT public bool gfxIsCompressedFormat(Format format);
 
 /// Checks if format is typeless
-SLANG_GFX_IMPORT public bool gfxIsTypelessFormat(Format format);
+SLANG_RHI_IMPORT public bool gfxIsTypelessFormat(Format format);
 
 /// Gets information about the format
-SLANG_GFX_IMPORT public Result gfxGetFormatInfo(Format format, FormatInfo *outInfo);
+SLANG_RHI_IMPORT public Result gfxGetFormatInfo(Format format, FormatInfo *outInfo);
 
 /// Given a type returns a function that can conpublic struct it, or nullptr if there isn't one
-SLANG_GFX_IMPORT public Result gfxCreateDevice(const DeviceDesc* desc, out Optional<IDevice> outDevice);
+SLANG_RHI_IMPORT public Result gfxCreateDevice(const DeviceDesc* desc, out Optional<IDevice> outDevice);
 
 /// Reports current set of live objects in gfx.
 /// Currently this only calls D3D's ReportLiveObjects.
-SLANG_GFX_IMPORT public Result gfxReportLiveObjects();
+SLANG_RHI_IMPORT public Result gfxReportLiveObjects();
 
 /// Sets a callback for receiving debug messages.
 /// The layer does not hold a strong reference to the callback object.
 /// The user is responsible for holding the callback object alive.
-SLANG_GFX_IMPORT public Result gfxSetDebugCallback(IDebugCallback callback);
+SLANG_RHI_IMPORT public Result gfxSetDebugCallback(IDebugCallback callback);
 
 /// Enables debug layer. The debug layer will check all `gfx` calls and verify that uses are valid.
-SLANG_GFX_IMPORT public void gfxEnableDebugLayer();
+SLANG_RHI_IMPORT public void gfxEnableDebugLayer();
 
-SLANG_GFX_IMPORT public NativeString gfxGetDeviceTypeName(DeviceType type);
+SLANG_RHI_IMPORT public NativeString gfxGetDeviceTypeName(DeviceType type);
 
 public bool succeeded(Result code)
 {

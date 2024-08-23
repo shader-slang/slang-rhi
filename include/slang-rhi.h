@@ -8,23 +8,23 @@
 #include "slang-com-ptr.h"
 
 
-#if defined(SLANG_GFX_DYNAMIC)
+#if defined(SLANG_RHI_DYNAMIC)
 #    if defined(_MSC_VER)
-#        ifdef SLANG_GFX_DYNAMIC_EXPORT
-#            define SLANG_GFX_API SLANG_DLL_EXPORT
+#        ifdef SLANG_RHI_DYNAMIC_EXPORT
+#            define SLANG_RHI_API SLANG_DLL_EXPORT
 #        else
-#            define SLANG_GFX_API __declspec(dllimport)
+#            define SLANG_RHI_API __declspec(dllimport)
 #        endif
 #    else
 // TODO: need to consider compiler capabilities
 //#     ifdef SLANG_DYNAMIC_EXPORT
-#        define SLANG_GFX_API SLANG_DLL_EXPORT
+#        define SLANG_RHI_API SLANG_DLL_EXPORT
 //#     endif
 #    endif
 #endif
 
-#ifndef SLANG_GFX_API
-#    define SLANG_GFX_API
+#ifndef SLANG_RHI_API
+#    define SLANG_RHI_API
 #endif
 
 // Needed for building on cygwin with gcc
@@ -194,7 +194,7 @@ public:
 // TODO: Confirm with Yong that we really want this naming convention
 // TODO: Rename to what?
 // Dont' change without keeping in sync with Format
-#define GFX_FORMAT(x) \
+#define SLANG_RHI_FORMAT(x) \
     x( Unknown, 0, 0) \
     \
     x(R32G32B32A32_TYPELESS, 16, 1) \
@@ -304,7 +304,7 @@ public:
 // TODO: This should be generated from above
 // TODO: enum class should be explicitly uint32_t or whatever's appropriate
 /// Different formats of things like pixels or elements of vertices
-/// NOTE! Any change to this type (adding, removing, changing order) - must also be reflected in changes GFX_FORMAT
+/// NOTE! Any change to this type (adding, removing, changing order) - must also be reflected in changes SLANG_RHI_FORMAT
 enum class Format
 {
     // D3D formats omitted: 19-22, 44-47, 65-66, 68-70, 73, 76, 79, 82, 88-89, 92-94, 97, 100-114
@@ -2670,35 +2670,35 @@ public:
 extern "C"
 {
     /// Checks if format is compressed
-    SLANG_GFX_API bool SLANG_MCALL gfxIsCompressedFormat(Format format);
+    SLANG_RHI_API bool SLANG_MCALL gfxIsCompressedFormat(Format format);
 
     /// Checks if format is typeless
-    SLANG_GFX_API bool SLANG_MCALL gfxIsTypelessFormat(Format format);
+    SLANG_RHI_API bool SLANG_MCALL gfxIsTypelessFormat(Format format);
 
     /// Gets information about the format
-    SLANG_GFX_API SlangResult SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo);
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo);
 
     /// Gets a list of available adapters for a given device type
-    SLANG_GFX_API SlangResult SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob);
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob);
 
     /// Given a type returns a function that can construct it, or nullptr if there isn't one
-    SLANG_GFX_API SlangResult SLANG_MCALL
+    SLANG_RHI_API SlangResult SLANG_MCALL
         gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
     /// Reports current set of live objects in gfx.
     /// Currently this only calls D3D's ReportLiveObjects.
-    SLANG_GFX_API SlangResult SLANG_MCALL gfxReportLiveObjects();
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxReportLiveObjects();
 
     /// Sets a callback for receiving debug messages.
     /// The layer does not hold a strong reference to the callback object.
     /// The user is responsible for holding the callback object alive.
-    SLANG_GFX_API SlangResult SLANG_MCALL
+    SLANG_RHI_API SlangResult SLANG_MCALL
         gfxSetDebugCallback(IDebugCallback* callback);
 
     /// Enables debug layer. The debug layer will check all `gfx` calls and verify that uses are valid.
-    SLANG_GFX_API void SLANG_MCALL gfxEnableDebugLayer();
+    SLANG_RHI_API void SLANG_MCALL gfxEnableDebugLayer();
 
-    SLANG_GFX_API const char* SLANG_MCALL gfxGetDeviceTypeName(DeviceType type);
+    SLANG_RHI_API const char* SLANG_MCALL gfxGetDeviceTypeName(DeviceType type);
 }
 
 /// Gets a list of available adapters for a given device type

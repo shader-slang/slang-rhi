@@ -33,13 +33,6 @@ using namespace Slang;
 namespace metal
 {
 
-static bool shouldDumpPipeline()
-{
-    StringBuilder dumpPipelineSettings;
-    PlatformUtil::getEnvironmentVariable(toSlice("SLANG_GFX_DUMP_PIPELINE"), dumpPipelineSettings);
-    return dumpPipelineSettings.produceString() == "1";
-}
-
 DeviceImpl::~DeviceImpl()
 {
 }

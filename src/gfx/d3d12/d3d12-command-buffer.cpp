@@ -66,7 +66,7 @@ void CommandBufferImpl::init(
         m_cmdList1 = m_cmdList6;
         return;
     }
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList4>(m_cmdList4.writeRef());
     if (m_cmdList4)
     {
@@ -103,7 +103,7 @@ void CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncode
 
 void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
     m_rayTracingCommandEncoder.init(this);
     *outEncoder = &m_rayTracingCommandEncoder;
 #else

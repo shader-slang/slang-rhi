@@ -104,7 +104,7 @@ class DebugComputeCommandEncoder
     , public DebugResourceCommandEncoderImpl
 {
 public:
-    SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
+    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
     virtual DebugCommandBuffer* getCommandBuffer() override { return commandBuffer; }
     virtual bool getIsOpen() override { return isOpen; }
     virtual IResourceCommandEncoder* getBaseResourceEncoder() override { return baseObject; }
@@ -137,7 +137,7 @@ class DebugResourceCommandEncoder
     , public DebugResourceCommandEncoderImpl
 {
 public:
-    SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
+    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
     virtual DebugCommandBuffer* getCommandBuffer() override { return commandBuffer; }
     virtual bool getIsOpen() override { return isOpen; }
     virtual IResourceCommandEncoder* getBaseResourceEncoder() override { return baseObject; }
@@ -163,7 +163,7 @@ class DebugRenderCommandEncoder
     , public DebugResourceCommandEncoderImpl
 {
 public:
-    SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
+    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
     virtual DebugCommandBuffer* getCommandBuffer() override
     {
         return commandBuffer;
@@ -244,7 +244,7 @@ class DebugRayTracingCommandEncoder
     , public DebugResourceCommandEncoderImpl
 {
 public:
-    SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
+    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(DebugResourceCommandEncoderImpl)
     virtual DebugCommandBuffer* getCommandBuffer() override { return commandBuffer; }
     virtual bool getIsOpen() override { return isOpen; }
     virtual IResourceCommandEncoder* getBaseResourceEncoder() override { return baseObject; }

@@ -34,7 +34,7 @@ void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* co
         innerCommandBuffers.push_back(innerCmdBuffer);
         if (cmdBufferImpl->isOpen)
         {
-            GFX_DIAGNOSE_ERROR_FORMAT(
+            RHI_VALIDATION_ERROR_FORMAT(
                 "Command buffer %lld is still open. A command buffer must be closed "
                 "before submitting to a command queue.",
                 cmdBufferImpl->uid);
@@ -43,7 +43,7 @@ void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* co
         {
             if (cmdBufferImpl->m_transientHeap != getDebugObj(commandBuffers[0])->m_transientHeap)
             {
-                GFX_DIAGNOSE_ERROR("Command buffers passed to a single executeCommandBuffers "
+                RHI_VALIDATION_ERROR("Command buffers passed to a single executeCommandBuffers "
                                    "call must be allocated from the same transient heap.");
             }
         }

@@ -346,7 +346,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
     return SLANG_OK;
 }
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
 
 RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
     : m_device(device)

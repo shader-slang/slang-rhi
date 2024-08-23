@@ -1,4 +1,5 @@
 // render.cpp
+#include "slang-rhi.h"
 #include "renderer-shared.h"
 #include "core/slang-math.h"
 #include "core/slang-blob.h"
@@ -28,11 +29,11 @@ bool isGfxDebugLayerEnabled() { return debugLayerEnabled; }
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Renderer Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
-#define GFX_FORMAT_SIZE(name, blockSizeInBytes, pixelsPerBlock) {blockSizeInBytes, pixelsPerBlock},
+#define SLANG_RHI_FORMAT_SIZE(name, blockSizeInBytes, pixelsPerBlock) {blockSizeInBytes, pixelsPerBlock},
 
 static const uint32_t s_formatSizeInfo[][2] =
 {
-    GFX_FORMAT(GFX_FORMAT_SIZE)
+    SLANG_RHI_FORMAT(SLANG_RHI_FORMAT_SIZE)
 };
 
 static bool _checkFormat()
@@ -41,8 +42,8 @@ static bool _checkFormat()
     Index count = 0;
 
     // Check the values are in the same order
-#define GFX_FORMAT_CHECK(name, blockSizeInBytes, pixelsPerblock) count += Index(Index(Format::name) == value++);
-    GFX_FORMAT(GFX_FORMAT_CHECK)
+#define SLANG_RHI_FORMAT_CHECK(name, blockSizeInBytes, pixelsPerblock) count += Index(Index(Format::name) == value++);
+    SLANG_RHI_FORMAT(SLANG_RHI_FORMAT_CHECK)
 
     const bool r = (count == Index(Format::_Count));
     SLANG_ASSERT(r);
@@ -195,7 +196,7 @@ static void _compileTimeAsserts()
 
 extern "C"
 {
-    SLANG_GFX_API bool SLANG_MCALL gfxIsCompressedFormat(Format format)
+    SLANG_RHI_API bool SLANG_MCALL gfxIsCompressedFormat(Format format)
     {
         switch (format)
         {
@@ -219,7 +220,7 @@ extern "C"
         }
     }
 
-    SLANG_GFX_API bool SLANG_MCALL gfxIsTypelessFormat(Format format)
+    SLANG_RHI_API bool SLANG_MCALL gfxIsTypelessFormat(Format format)
     {
         switch (format)
         {
@@ -241,13 +242,13 @@ extern "C"
         }
     }
 
-    SLANG_GFX_API SlangResult SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo)
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo)
     {
         *outInfo = s_formatInfoMap.get(format);
         return SLANG_OK;
     }
 
-    SLANG_GFX_API SlangResult SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
     {
         std::vector<AdapterInfo> adapters;
 
@@ -364,7 +365,7 @@ extern "C"
         }
     }
 
-    SLANG_GFX_API SlangResult SLANG_MCALL
+    SLANG_RHI_API SlangResult SLANG_MCALL
         gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
     {
         ComPtr<IDevice> innerDevice;
@@ -382,7 +383,7 @@ extern "C"
         return resultCode;
     }
 
-    SLANG_GFX_API SlangResult SLANG_MCALL
+    SLANG_RHI_API SlangResult SLANG_MCALL
         gfxReportLiveObjects()
     {
 #if SLANG_ENABLE_DIRECTX
@@ -391,13 +392,13 @@ extern "C"
         return SLANG_OK;
     }
 
-    SLANG_GFX_API SlangResult SLANG_MCALL gfxSetDebugCallback(IDebugCallback* callback)
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxSetDebugCallback(IDebugCallback* callback)
     {
         _getDebugCallback() = callback;
         return SLANG_OK;
     }
 
-    SLANG_GFX_API void SLANG_MCALL gfxEnableDebugLayer()
+    SLANG_RHI_API void SLANG_MCALL gfxEnableDebugLayer()
     {
         debugLayerEnabled = true;
     }

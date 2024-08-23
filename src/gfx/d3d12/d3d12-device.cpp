@@ -881,7 +881,7 @@ Result DeviceImpl::initialize(const Desc& desc)
     }
 
     // Initialize DXR interface.
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
     m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
     m_device5 = m_deviceInfo.m_device5.get();
 #endif
@@ -2123,7 +2123,7 @@ Result DeviceImpl::getAccelerationStructurePrebuildInfo(
 Result DeviceImpl::createAccelerationStructure(
     const IAccelerationStructure::CreateDesc& desc, IAccelerationStructure** outAS)
 {
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl();
     result->m_device5 = m_device5;
     result->m_buffer = static_cast<BufferResourceImpl*>(desc.buffer);

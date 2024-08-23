@@ -82,25 +82,25 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
     getDebugCallback()->handleMessage(type, DebugMessageSource::Layer, buffer);
 }
 
-#define GFX_DIAGNOSE_ERROR(message)                                                                \
+#define RHI_VALIDATION_ERROR(message)                                                                \
     _gfxDiagnoseImpl(                                                                              \
         DebugMessageType::Error,                                                                   \
         "%s: %s",                                                                                  \
         _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).getBuffer(), \
         message)
-#define GFX_DIAGNOSE_WARNING(message)                                                              \
+#define RHI_VALIDATION_WARNING(message)                                                              \
     _gfxDiagnoseImpl(                                                                              \
         DebugMessageType::Warning,                                                                 \
         "%s: %s",                                                                                  \
         _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).getBuffer(), \
         message)
-#define GFX_DIAGNOSE_INFO(message)                                                                 \
+#define RHI_VALIDATION_INFO(message)                                                                 \
     _gfxDiagnoseImpl(                                                                              \
         DebugMessageType::Info,                                                                    \
         "%s: %s",                                                                                  \
         _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).getBuffer(), \
         message)
-#define GFX_DIAGNOSE_FORMAT(type, format, ...)                                            \
+#define RHI_VALIDATION_FORMAT(type, format, ...)                                            \
     {                                                                                     \
         char shortBuffer[256];                                                            \
         std::vector<char> bufferArray;                                                    \
@@ -113,7 +113,7 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
                 .getBuffer(),                                                             \
             message);                                                                     \
     }
-#define GFX_DIAGNOSE_ERROR_FORMAT(...) GFX_DIAGNOSE_FORMAT(DebugMessageType::Error, __VA_ARGS__)
+#define RHI_VALIDATION_ERROR_FORMAT(...) RHI_VALIDATION_FORMAT(DebugMessageType::Error, __VA_ARGS__)
 
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                    \
     I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                 \

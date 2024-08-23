@@ -943,7 +943,7 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
 
     switch (resourceView->getViewDesc()->type)
     {
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
     case IResourceView::Type::AccelerationStructure:
     {
         auto asImpl = static_cast<AccelerationStructureImpl*>(resourceView);

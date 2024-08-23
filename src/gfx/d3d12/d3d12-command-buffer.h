@@ -74,7 +74,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
         encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
 
-#if SLANG_GFX_HAS_DXR_SUPPORT
+#if SLANG_RHI_DXR
     RayTracingCommandEncoderImpl m_rayTracingCommandEncoder;
 #endif
     virtual SLANG_NO_THROW void SLANG_MCALL

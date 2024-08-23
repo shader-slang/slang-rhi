@@ -152,7 +152,7 @@ class RenderCommandEncoder
     : public IRenderCommandEncoder
     , public ResourceCommandEncoder
 {
-    SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
+    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
         if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IRenderCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
@@ -258,7 +258,7 @@ class ComputeCommandEncoder
     , public ResourceCommandEncoder
 {
 public:
-    SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
+    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
         if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IComputeCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
@@ -287,7 +287,7 @@ class RayTracingCommandEncoder
     , public ResourceCommandEncoder
 {
 public:
-    SLANG_GFX_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
+    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
         if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IRayTracingCommandEncoder || uuid == ISlangUnknown::getTypeGuid())

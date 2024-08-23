@@ -29,7 +29,7 @@ void DebugShaderObject::checkCompleteness()
             if (!m_initializedBindingRanges.contains(i))
             {
                 auto var = layout->getBindingRangeLeafVariable(i);
-                GFX_DIAGNOSE_ERROR_FORMAT(
+                RHI_VALIDATION_ERROR_FORMAT(
                     "shader parameter '%s' is not initialized in the shader object of type '%s'.",
                     var->getName(),
                     m_slangType->getName());
@@ -65,7 +65,7 @@ Result DebugShaderObject::getEntryPoint(GfxIndex index, IShaderObject** entryPoi
     }
     if (index > (GfxCount)m_entryPoints.size())
     {
-        GFX_DIAGNOSE_ERROR("`index` must not exceed `entryPointCount`.");
+        RHI_VALIDATION_ERROR("`index` must not exceed `entryPointCount`.");
         return SLANG_FAIL;
     }
     returnComPtr(entryPoint, m_entryPoints[index]);

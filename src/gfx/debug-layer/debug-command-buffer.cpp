@@ -106,23 +106,23 @@ void DebugCommandBuffer::close()
     SLANG_RHI_API_FUNC;
     if (!isOpen)
     {
-        GFX_DIAGNOSE_ERROR("command buffer is already closed.");
+        RHI_VALIDATION_ERROR("command buffer is already closed.");
     }
     if (m_renderCommandEncoder.isOpen)
     {
-        GFX_DIAGNOSE_ERROR(
+        RHI_VALIDATION_ERROR(
             "A render command encoder on this command buffer is still open. "
             "IRenderCommandEncoder::endEncoding() must be called before closing a command buffer.");
     }
     if (m_computeCommandEncoder.isOpen)
     {
-        GFX_DIAGNOSE_ERROR(
+        RHI_VALIDATION_ERROR(
             "A compute command encoder on this command buffer is still open. "
             "IComputeCommandEncoder::endEncoding() must be called before closing a command buffer.");
     }
     if (m_resourceCommandEncoder.isOpen)
     {
-        GFX_DIAGNOSE_ERROR(
+        RHI_VALIDATION_ERROR(
             "A resource command encoder on this command buffer is still open. "
             "IResourceCommandEncoder::endEncoding() must be called before closing a command buffer.");
     }
@@ -142,7 +142,7 @@ void DebugCommandBuffer::invalidateDescriptorHeapBinding()
     ComPtr<ICommandBufferD3D12> cmdBuf;
     if (SLANG_FAILED(baseObject->queryInterface(SlangUUID SLANG_UUID_ICommandBufferD3D12, (void**)cmdBuf.writeRef())))
     {
-        GFX_DIAGNOSE_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface.");
+        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface.");
         return;
     }
     return cmdBuf->invalidateDescriptorHeapBinding();
@@ -154,7 +154,7 @@ void DebugCommandBuffer::ensureInternalDescriptorHeapsBound()
     ComPtr<ICommandBufferD3D12> cmdBuf;
     if (SLANG_FAILED(baseObject->queryInterface(SlangUUID SLANG_UUID_ICommandBufferD3D12, (void**)cmdBuf.writeRef())))
     {
-        GFX_DIAGNOSE_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface.");
+        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface.");
         return;
     }
     return cmdBuf->ensureInternalDescriptorHeapsBound();
@@ -165,7 +165,7 @@ void DebugCommandBuffer::checkEncodersClosedBeforeNewEncoder()
     if (m_renderCommandEncoder.isOpen || m_resourceCommandEncoder.isOpen ||
         m_computeCommandEncoder.isOpen)
     {
-        GFX_DIAGNOSE_ERROR(
+        RHI_VALIDATION_ERROR(
             "A previouse command encoder created on this command buffer is still open. "
             "endEncoding() must be called on the encoder before creating an encoder.");
     }
@@ -175,7 +175,7 @@ void DebugCommandBuffer::checkCommandBufferOpenWhenCreatingEncoder()
 {
     if (!isOpen)
     {
-        GFX_DIAGNOSE_ERROR("The command buffer is already closed. Encoders can only be retrieved "
+        RHI_VALIDATION_ERROR("The command buffer is already closed. Encoders can only be retrieved "
                            "while the command buffer is open.");
     }
 }
