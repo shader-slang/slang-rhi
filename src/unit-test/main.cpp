@@ -108,5 +108,10 @@ int main(int argc, char **argv)
             func(&context);
         }
     }
+    if (reporter.m_failCount > 0)
+    {
+        printf("Failed %d tests\n", reporter.m_failCount);
+        return 1;
+    }
     return 0;
 }
