@@ -6,6 +6,8 @@
 
 #include "vk-helper-functions.h"
 
+#include "utils/static_vector.h"
+
 namespace gfx
 {
 
@@ -31,7 +33,7 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayou
         numTargets++;
     }
     // We need extra space if we have depth buffer
-    m_targetDescs.setCount(numTargets);
+    m_targetDescs.resize(numTargets);
     for (GfxIndex i = 0; i < desc.renderTargetCount; ++i)
     {
         auto& renderTarget = desc.renderTargets[i];
@@ -74,8 +76,8 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayou
         m_sampleCount = Math::Max(dst.samples, m_sampleCount);
     }
 
-    Array<VkAttachmentReference, kMaxRenderTargets>& colorReferences = m_colorReferences;
-    colorReferences.setCount(desc.renderTargetCount);
+    static_vector<VkAttachmentReference, kMaxRenderTargets>& colorReferences = m_colorReferences;
+    colorReferences.resize(desc.renderTargetCount);
     for (GfxIndex i = 0; i < desc.renderTargetCount; ++i)
     {
         VkAttachmentReference& dst = colorReferences[i];
@@ -93,7 +95,7 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayou
     subpassDesc.inputAttachmentCount = 0u;
     subpassDesc.pInputAttachments = nullptr;
     subpassDesc.colorAttachmentCount = desc.renderTargetCount;
-    subpassDesc.pColorAttachments = colorReferences.getBuffer();
+    subpassDesc.pColorAttachments = colorReferences.data();
     subpassDesc.pResolveAttachments = nullptr;
     subpassDesc.pDepthStencilAttachment = m_hasDepthStencilTarget ? &m_depthReference : nullptr;
     subpassDesc.preserveAttachmentCount = 0u;
@@ -102,7 +104,7 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayou
     VkRenderPassCreateInfo renderPassCreateInfo = {};
     renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassCreateInfo.attachmentCount = numTargets;
-    renderPassCreateInfo.pAttachments = m_targetDescs.getBuffer();
+    renderPassCreateInfo.pAttachments = m_targetDescs.data();
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpassDesc;
     SLANG_VK_RETURN_ON_FAIL(m_renderer->m_api.vkCreateRenderPass(
@@ -158,8 +160,8 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     int numTargets = desc.renderTargetCount;
     if (desc.depthStencilView)
         numTargets++;
-    Array<VkImageView, kMaxTargets> imageViews;
-    imageViews.setCount(numTargets);
+    static_vector<VkImageView, kMaxTargets> imageViews;
+    imageViews.resize(numTargets);
     renderTargetViews.setCount(desc.renderTargetCount);
     for (GfxIndex i = 0; i < desc.renderTargetCount; ++i)
     {
@@ -194,7 +196,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebufferInfo.renderPass = m_layout->m_renderPass;
     framebufferInfo.attachmentCount = numTargets;
-    framebufferInfo.pAttachments = imageViews.getBuffer();
+    framebufferInfo.pAttachments = imageViews.data();
     framebufferInfo.width = m_width;
     framebufferInfo.height = m_height;
     framebufferInfo.layers = layerCount;

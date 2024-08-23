@@ -21,6 +21,8 @@
 
 #include "core/slang-platform.h"
 
+#include "utils/static_vector.h"
+
 #ifdef GFX_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
@@ -187,41 +189,41 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
-        Array<const char*, 7> instanceExtensions;
+        static_vector<const char*, 7> instanceExtensions;
 
 #if SLANG_APPLE_FAMILY
-        instanceExtensions.add(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        instanceExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
-        instanceExtensions.add(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-        instanceExtensions.add(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+        instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        instanceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
 
         // Software (swiftshader) implementation currently does not support surface extension,
         // so only use it with a hardware implementation.
         if (!m_api.m_module->isSoftware())
         {
-            instanceExtensions.add(VK_KHR_SURFACE_EXTENSION_NAME);
+            instanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
             // Note: this extension is not yet supported by nvidia drivers, disable for now.
-            // instanceExtensions.add("VK_GOOGLE_surfaceless_query");
+            // instanceExtensions.push_back("VK_GOOGLE_surfaceless_query");
 #if SLANG_WINDOWS_FAMILY
-            instanceExtensions.add(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+            instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif SLANG_APPLE_FAMILY
-            instanceExtensions.add(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+            instanceExtensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 #elif defined(SLANG_ENABLE_XLIB)
 
-            instanceExtensions.add(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+            instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
 #endif
         }
 
         if (ENABLE_VALIDATION_LAYER || isGfxDebugLayerEnabled())
-            instanceExtensions.add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+            instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
         VkInstanceCreateInfo instanceCreateInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
 #if SLANG_APPLE_FAMILY
         instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
         instanceCreateInfo.pApplicationInfo = &applicationInfo;
-        instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.getCount();
-        instanceCreateInfo.ppEnabledExtensionNames = &instanceExtensions[0];
+        instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
+        instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
         const char* layerNames[] = { nullptr };
 

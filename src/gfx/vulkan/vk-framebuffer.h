@@ -3,6 +3,8 @@
 
 #include "vk-base.h"
 
+#include "utils/static_vector.h"
+
 namespace gfx
 {
 
@@ -22,8 +24,8 @@ class FramebufferLayoutImpl : public FramebufferLayoutBase
 public:
     VkRenderPass m_renderPass;
     DeviceImpl* m_renderer;
-    Array<VkAttachmentDescription, kMaxTargets> m_targetDescs;
-    Array<VkAttachmentReference, kMaxRenderTargets> m_colorReferences;
+    static_vector<VkAttachmentDescription, kMaxTargets> m_targetDescs;
+    static_vector<VkAttachmentReference, kMaxRenderTargets> m_colorReferences;
     VkAttachmentReference m_depthReference;
     bool m_hasDepthStencilTarget;
     uint32_t m_renderTargetCount;

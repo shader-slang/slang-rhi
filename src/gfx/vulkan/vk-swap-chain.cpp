@@ -4,6 +4,8 @@
 #include "vk-util.h"
 #include "../apple/cocoa-util.h"
 
+#include "utils/static_vector.h"
+
 namespace gfx
 {
 
@@ -323,20 +325,20 @@ Result SwapchainImpl::present()
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_swapChain;
     presentInfo.pImageIndices = swapChainIndices;
-    Array<VkSemaphore, 2> waitSemaphores;
+    static_vector<VkSemaphore, 2> waitSemaphores;
     for (auto s : m_queue->m_pendingWaitSemaphores)
     {
         if (s != VK_NULL_HANDLE)
         {
-            waitSemaphores.add(s);
+            waitSemaphores.push_back(s);
         }
     }
     m_queue->m_pendingWaitSemaphores[0] = VK_NULL_HANDLE;
     m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
-    presentInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.getCount();
+    presentInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
     if (presentInfo.waitSemaphoreCount)
     {
-        presentInfo.pWaitSemaphores = waitSemaphores.getBuffer();
+        presentInfo.pWaitSemaphores = waitSemaphores.data();
     }
     if (m_currentImageIndex != -1)
         m_api->vkQueuePresentKHR(m_queue->m_queue, &presentInfo);

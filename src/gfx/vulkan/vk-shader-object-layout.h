@@ -5,6 +5,8 @@
 #include "vk-device.h"
 #include "vk-helper-functions.h"
 
+#include "utils/static_vector.h"
+
 namespace gfx
 {
 
@@ -435,7 +437,7 @@ public:
     slang::ProgramLayout* m_programLayout = nullptr;
     List<EntryPointInfo> m_entryPoints;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-    Array<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
+    static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
     List<VkPushConstantRange> m_allPushConstantRanges;
     uint32_t m_totalPushConstantSize = 0;
 

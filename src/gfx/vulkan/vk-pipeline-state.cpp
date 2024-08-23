@@ -8,6 +8,8 @@
 
 #include "vk-helper-functions.h"
 
+#include "utils/static_vector.h"
+
 namespace gfx
 {
 
@@ -215,22 +217,22 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
 
-    Array<VkDynamicState, 8> dynamicStates;
-    dynamicStates.add(VK_DYNAMIC_STATE_VIEWPORT);
-    dynamicStates.add(VK_DYNAMIC_STATE_SCISSOR);
-    dynamicStates.add(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-    dynamicStates.add(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+    static_vector<VkDynamicState, 8> dynamicStates;
+    dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+    dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+    dynamicStates.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+    dynamicStates.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
     // It's not valid to specify VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT when
     // the pipeline contains a mesh shader.
     if (!m_program->isMeshShaderProgram() && m_device->m_api.m_extendedFeatures.extendedDynamicStateFeatures.extendedDynamicState)
 
     {
-        dynamicStates.add(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT);
+        dynamicStates.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT);
     }
     VkPipelineDynamicStateCreateInfo dynamicStateInfo = {};
     dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicStateInfo.dynamicStateCount = (uint32_t)dynamicStates.getCount();
-    dynamicStateInfo.pDynamicStates = dynamicStates.getBuffer();
+    dynamicStateInfo.dynamicStateCount = (uint32_t)dynamicStates.size();
+    dynamicStateInfo.pDynamicStates = dynamicStates.data();
 
     VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {};
     depthStencilStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;

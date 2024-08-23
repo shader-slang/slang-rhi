@@ -3,6 +3,8 @@
 
 #include "vk-helper-functions.h"
 
+#include "utils/static_vector.h"
+
 namespace gfx
 {
 
@@ -32,7 +34,7 @@ Result RenderPassLayoutImpl::init(DeviceImpl* renderer, const IRenderPassLayout:
     assert(desc.renderTargetCount == framebufferLayout->m_renderTargetCount);
 
     // We need extra space if we have depth buffer
-    Array<VkAttachmentDescription, kMaxTargets> targetDescs;
+    static_vector<VkAttachmentDescription, kMaxTargets> targetDescs;
     targetDescs = framebufferLayout->m_targetDescs;
     for (GfxIndex i = 0; i < desc.renderTargetCount; ++i)
     {
@@ -65,7 +67,7 @@ Result RenderPassLayoutImpl::init(DeviceImpl* renderer, const IRenderPassLayout:
     subpassDesc.inputAttachmentCount = 0u;
     subpassDesc.pInputAttachments = nullptr;
     subpassDesc.colorAttachmentCount = desc.renderTargetCount;
-    subpassDesc.pColorAttachments = framebufferLayout->m_colorReferences.getBuffer();
+    subpassDesc.pColorAttachments = framebufferLayout->m_colorReferences.data();
     subpassDesc.pResolveAttachments = nullptr;
     subpassDesc.pDepthStencilAttachment = framebufferLayout->m_hasDepthStencilTarget
                                               ? &framebufferLayout->m_depthReference
@@ -75,8 +77,8 @@ Result RenderPassLayoutImpl::init(DeviceImpl* renderer, const IRenderPassLayout:
 
     VkRenderPassCreateInfo renderPassCreateInfo = {};
     renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassCreateInfo.attachmentCount = (uint32_t)targetDescs.getCount();
-    renderPassCreateInfo.pAttachments = targetDescs.getBuffer();
+    renderPassCreateInfo.attachmentCount = (uint32_t)targetDescs.size();
+    renderPassCreateInfo.pAttachments = targetDescs.data();
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpassDesc;
     SLANG_VK_RETURN_ON_FAIL(m_renderer->m_api.vkCreateRenderPass(

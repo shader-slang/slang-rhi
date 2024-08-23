@@ -5,6 +5,8 @@
 #include "vk-fence.h"
 #include "vk-transient-heap.h"
 
+#include "utils/static_vector.h"
+
 namespace gfx
 {
 
@@ -81,10 +83,10 @@ void CommandQueueImpl::queueSubmitImpl(
         auto vkCmdBuf = cmdBufImpl->m_commandBuffer;
         m_submitCommandBuffers.add(vkCmdBuf);
     }
-    Array<VkSemaphore, 2> signalSemaphores;
-    Array<uint64_t, 2> signalValues;
-    signalSemaphores.add(m_semaphore);
-    signalValues.add(0);
+    static_vector<VkSemaphore, 2> signalSemaphores;
+    static_vector<uint64_t, 2> signalValues;
+    signalSemaphores.push_back(m_semaphore);
+    signalValues.push_back(0);
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -93,20 +95,20 @@ void CommandQueueImpl::queueSubmitImpl(
     submitInfo.pWaitDstStageMask = stageFlag;
     submitInfo.commandBufferCount = (uint32_t)m_submitCommandBuffers.getCount();
     submitInfo.pCommandBuffers = m_submitCommandBuffers.getBuffer();
-    Array<VkSemaphore, 3> waitSemaphores;
-    Array<uint64_t, 3> waitValues;
+    static_vector<VkSemaphore, 3> waitSemaphores;
+    static_vector<uint64_t, 3> waitValues;
     for (auto s : m_pendingWaitSemaphores)
     {
         if (s != VK_NULL_HANDLE)
         {
-            waitSemaphores.add(s);
-            waitValues.add(0);
+            waitSemaphores.push_back(s);
+            waitValues.push_back(0);
         }
     }
     for (auto& fenceWait : m_pendingWaitFences)
     {
-        waitSemaphores.add(fenceWait.fence->m_semaphore);
-        waitValues.add(fenceWait.waitValue);
+        waitSemaphores.push_back(fenceWait.fence->m_semaphore);
+        waitValues.push_back(fenceWait.waitValue);
     }
     m_pendingWaitFences.clear();
     VkTimelineSemaphoreSubmitInfo timelineSubmitInfo = {
@@ -114,21 +116,21 @@ void CommandQueueImpl::queueSubmitImpl(
     if (fence)
     {
         auto fenceImpl = static_cast<FenceImpl*>(fence);
-        signalSemaphores.add(fenceImpl->m_semaphore);
-        signalValues.add(valueToSignal);
+        signalSemaphores.push_back(fenceImpl->m_semaphore);
+        signalValues.push_back(valueToSignal);
         submitInfo.pNext = &timelineSubmitInfo;
-        timelineSubmitInfo.signalSemaphoreValueCount = (uint32_t)signalValues.getCount();
-        timelineSubmitInfo.pSignalSemaphoreValues = signalValues.getBuffer();
-        timelineSubmitInfo.waitSemaphoreValueCount = (uint32_t)waitValues.getCount();
-        timelineSubmitInfo.pWaitSemaphoreValues = waitValues.getBuffer();
+        timelineSubmitInfo.signalSemaphoreValueCount = (uint32_t)signalValues.size();
+        timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
+        timelineSubmitInfo.waitSemaphoreValueCount = (uint32_t)waitValues.size();
+        timelineSubmitInfo.pWaitSemaphoreValues = waitValues.data();
     }
-    submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.getCount();
+    submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
     if (submitInfo.waitSemaphoreCount)
     {
-        submitInfo.pWaitSemaphores = waitSemaphores.getBuffer();
+        submitInfo.pWaitSemaphores = waitSemaphores.data();
     }
-    submitInfo.signalSemaphoreCount = (uint32_t)signalSemaphores.getCount();
-    submitInfo.pSignalSemaphores = signalSemaphores.getBuffer();
+    submitInfo.signalSemaphoreCount = (uint32_t)signalSemaphores.size();
+    submitInfo.pSignalSemaphores = signalSemaphores.data();
 
     VkFence vkFence = VK_NULL_HANDLE;
     if (count)

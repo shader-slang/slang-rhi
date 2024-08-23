@@ -781,8 +781,8 @@ Result RootShaderObjectLayout::_init(Builder const* builder)
     // Now call Vulkan API to create a pipeline layout.
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)m_vkDescriptorSetLayouts.getCount();
-    pipelineLayoutCreateInfo.pSetLayouts = m_vkDescriptorSetLayouts.getBuffer();
+    pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)m_vkDescriptorSetLayouts.size();
+    pipelineLayoutCreateInfo.pSetLayouts = m_vkDescriptorSetLayouts.data();
     if (m_allPushConstantRanges.getCount())
     {
         pipelineLayoutCreateInfo.pushConstantRangeCount =
@@ -826,7 +826,7 @@ Result RootShaderObjectLayout::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* l
 
     for (auto& descSetInfo : layout->getOwnDescriptorSets())
     {
-        m_vkDescriptorSetLayouts.add(descSetInfo.descriptorSetLayout);
+        m_vkDescriptorSetLayouts.push_back(descSetInfo.descriptorSetLayout);
     }
 
     SLANG_RETURN_ON_FAIL(addChildDescriptorSetsRec(layout));
