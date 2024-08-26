@@ -2,7 +2,7 @@
 #include "vk-swap-chain.h"
 
 #include "vk-util.h"
-#include "../apple/cocoa-util.h"
+#include "cocoa-util.h"
 
 #include "utils/static_vector.h"
 

@@ -60,26 +60,26 @@ else()
 endif()
 
 file(GLOB RHI_SOURCES 
-    src/gfx/*.cpp
-    src/gfx/cpu/*.cpp
-    src/gfx/debug-layer/*.cpp
+    src/*.cpp
+    src/cpu/*.cpp
+    src/debug-layer/*.cpp
     src/utils/*.cpp
 )
 target_sources(slang-rhi PRIVATE ${RHI_SOURCES})
 
 if(SLANG_RHI_ENABLE_D3D12)
-    file(GLOB D3D12_SOURCES src/gfx/d3d/*.cpp src/gfx/d3d12/*.cpp src/gfx/nvapi/*.cpp)
+    file(GLOB D3D12_SOURCES src/d3d/*.cpp src/d3d12/*.cpp src/nvapi/*.cpp)
     target_sources(slang-rhi PRIVATE ${D3D12_SOURCES})
 endif()
 if(SLANG_RHI_ENABLE_VULKAN)
-    file(GLOB VULKAN_SOURCES src/gfx/vulkan/*.cpp)
+    file(GLOB VULKAN_SOURCES src/vulkan/*.cpp)
     target_sources(slang-rhi PRIVATE ${VULKAN_SOURCES})
 
     add_subdirectory(external/vulkan-headers)
     target_link_libraries(slang-rhi PRIVATE Vulkan::Headers)
 endif()
 if(SLANG_RHI_ENABLE_METAL)
-    file(GLOB METAL_SOURCES src/gfx/apple/*.mm src/gfx/metal/*.cpp)
+    file(GLOB METAL_SOURCES src/metal/*.cpp src/metal/*.mm)
     target_sources(slang-rhi PRIVATE ${METAL_SOURCES})
 
     add_library(metal-cpp INTERFACE)
@@ -88,7 +88,7 @@ if(SLANG_RHI_ENABLE_METAL)
     target_link_libraries(slang-rhi PRIVATE metal-cpp)
 endif()
 if(SLANG_RHI_ENABLE_CUDA)
-    file(GLOB CUDA_SOURCES src/gfx/cuda/*.cpp)
+    file(GLOB CUDA_SOURCES src/cuda/*.cpp)
     target_sources(slang-rhi PRIVATE ${CUDA_SOURCES})
 endif()
 
