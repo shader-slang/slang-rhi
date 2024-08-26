@@ -16,12 +16,36 @@ public:
     // ISlangUnknown
     SLANG_COM_BASE_IUNKNOWN_ALL
 
-    // ICastable
-    virtual SLANG_NO_THROW void* SLANG_MCALL castAs(const SlangUUID& guid) SLANG_OVERRIDE;
+    // ISlangCastable
+    virtual SLANG_NO_THROW void* SLANG_MCALL castAs(const SlangUUID& guid) SLANG_OVERRIDE
+    {
+        if (auto intf = getInterface(guid))
+        {
+            return intf;
+        }
+        return getObject(guid);
+    }
 
 protected:
-    ISlangUnknown* getInterface(const Guid& guid);
-    void* getObject(const Guid& guid);
+    ISlangUnknown* getInterface(const Guid& guid)
+    {
+        if (guid == ISlangUnknown::getTypeGuid() || 
+            guid == ISlangBlob::getTypeGuid())
+        {
+            return static_cast<ISlangBlob*>(this);
+        }
+        if (guid == ISlangCastable::getTypeGuid())
+        {
+            return static_cast<ISlangCastable*>(this);
+        }
+        return nullptr;
+    }
+
+    void* getObject(const Guid& guid)
+    {
+        SLANG_UNUSED(guid);
+        return nullptr;
+    }
 };
 
 class OwnedBlob : public BlobBase

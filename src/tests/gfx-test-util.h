@@ -68,7 +68,7 @@ namespace gfx_test
         float* expectedResult,
         size_t expectedBufferSize);
 
-    template<typename T, Index count>
+    template<typename T, Slang::Index count>
     void compareComputeResult(
         gfx::IDevice* device,
         gfx::IBufferResource* buffer,
