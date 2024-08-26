@@ -8,9 +8,9 @@
 #include <tuple>
 
 // TO BE DONE
+#include "core/slang-blob.h"
 #include "core/slang-smart-pointer.h"
 #include "core/slang-com-object.h"
-#include "core/slang-persistent-cache.h"
 #include "core/slang-platform.h"
 
 namespace Slang {}

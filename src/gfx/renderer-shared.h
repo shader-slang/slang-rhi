@@ -1398,7 +1398,8 @@ public:
     SlangContext slangContext;
     ShaderCache shaderCache;
 
-    Slang::RefPtr<Slang::PersistentCache> persistentShaderCache;
+    // TODO_GFX
+    // Slang::RefPtr<Slang::PersistentCache> persistentShaderCache;
 
     std::map<slang::TypeLayoutReflection*, Slang::RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
     Slang::ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;

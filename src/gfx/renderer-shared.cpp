@@ -341,6 +341,10 @@ Result RendererBase::getEntryPointCodeFromShaderCache(
     slang::IBlob** outCode,
     slang::IBlob** outDiagnostics)
 {
+    return program->getEntryPointCode(entryPointIndex, targetIndex, outCode, outDiagnostics);
+
+// TODO_GFX
+#if 0
     // Immediately call getEntryPointCode if no shader cache has been initialized
     if (!persistentShaderCache)
     {
@@ -364,10 +368,13 @@ Result RendererBase::getEntryPointCodeFromShaderCache(
 
     *outCode = codeBlob.detach();
     return SLANG_OK;
+#endif
 }
 
 SlangResult RendererBase::queryInterface(SlangUUID const& uuid, void** outObject)
 {
+    // TODO_GFX
+#if 0
     // Only return the shader cache interface if it is enabled.
     if (uuid == GfxGUID::IID_IShaderCache && persistentShaderCache)
     {
@@ -375,6 +382,7 @@ SlangResult RendererBase::queryInterface(SlangUUID const& uuid, void** outObject
         addRef();
         return SLANG_OK;
     }
+#endif
 
     *outObject = getInterface(uuid);
     return SLANG_OK;
@@ -389,6 +397,8 @@ IDevice* gfx::RendererBase::getInterface(const Guid& guid)
 
 SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
 {
+    // TODO_GFX
+#if 0
     // We only want to initialize the shader cache if a shader cache path was provided.
     if (desc.shaderCache.shaderCachePath)
     {
@@ -397,6 +407,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
         cacheDesc.maxEntryCount = desc.shaderCache.maxEntryCount;
         persistentShaderCache = new PersistentCache(cacheDesc);
     }
+#endif
 
     if (desc.apiCommandDispatcher)
     {
@@ -769,12 +780,19 @@ Result RendererBase::getShaderObjectLayout(
 
 Result RendererBase::clearShaderCache()
 {
+    return SLANG_E_NOT_IMPLEMENTED;
+    // TODO_GFX
+#if 0
     SLANG_ASSERT(persistentShaderCache);
     return persistentShaderCache->clear();
+#endif
 }
 
 Result RendererBase::getShaderCacheStats(ShaderCacheStats* outStats)
 {
+    return SLANG_E_NOT_IMPLEMENTED;
+    // TODO_GFX
+#if 0
     SLANG_ASSERT(persistentShaderCache);
     if (!outStats)
     {
@@ -786,13 +804,18 @@ Result RendererBase::getShaderCacheStats(ShaderCacheStats* outStats)
     outStats->hitCount = (GfxCount)stats.hitCount;
     outStats->missCount = (GfxCount)stats.missCount;
     return SLANG_OK;
+#endif
 }
 
 Result RendererBase::resetShaderCacheStats()
 {
+    return SLANG_E_NOT_IMPLEMENTED;
+    // TODO_GFX
+#if 0
     SLANG_ASSERT(persistentShaderCache);
     persistentShaderCache->resetStats();
     return SLANG_OK;
+#endif
 }
 
 ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
