@@ -6,6 +6,8 @@
 #include "../simple-transient-resource-heap.h"
 #include "metal-framebuffer.h"
 
+#include "utils/stable_vector.h"
+
 #include <string>
 
 namespace gfx
@@ -151,7 +153,7 @@ public:
     // can always safely break the strong reference in `ShaderProgramImpl::m_device` without
     // worrying the `ShaderProgramImpl` object getting destroyed after the completion of
     // `DeviceImpl::~DeviceImpl()'.
-    ChunkedList<RefPtr<RefObject>, 1024> m_deviceObjectsWithPotentialBackReferences;
+    stable_vector<RefPtr<RefObject>, 1024> m_deviceObjectsWithPotentialBackReferences;
 };
 
 } // namespace metal

@@ -759,7 +759,7 @@ Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& de
 
     RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
     pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.add(pipelineStateImpl);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
     returnComPtr(outState, pipelineStateImpl);
     return SLANG_OK;
 }

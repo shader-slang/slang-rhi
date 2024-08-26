@@ -51,7 +51,7 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     shaderCache.free();
-    m_deviceObjectsWithPotentialBackReferences.clearAndDeallocate();
+    m_deviceObjectsWithPotentialBackReferences.clear();
 
     if (m_api.vkDestroySampler)
     {
@@ -2375,7 +2375,7 @@ Result DeviceImpl::createProgram(
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
 
-    m_deviceObjectsWithPotentialBackReferences.add(shaderProgram);
+    m_deviceObjectsWithPotentialBackReferences.push_back(shaderProgram);
 
     RootShaderObjectLayout::create(
         this,
@@ -2450,7 +2450,7 @@ Result DeviceImpl::createGraphicsPipelineState(
     RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
     pipelineStateImpl->init(desc);
     pipelineStateImpl->establishStrongDeviceReference();
-    m_deviceObjectsWithPotentialBackReferences.add(pipelineStateImpl);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
     returnComPtr(outState, pipelineStateImpl);
 
     return SLANG_OK;
@@ -2462,7 +2462,7 @@ Result DeviceImpl::createComputePipelineState(
     ComputePipelineStateDesc desc = inDesc;
     RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
     pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.add(pipelineStateImpl);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
     pipelineStateImpl->establishStrongDeviceReference();
     returnComPtr(outState, pipelineStateImpl);
     return SLANG_OK;
@@ -2473,7 +2473,7 @@ Result DeviceImpl::createRayTracingPipelineState(
 {
     RefPtr<RayTracingPipelineStateImpl> pipelineStateImpl = new RayTracingPipelineStateImpl(this);
     pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.add(pipelineStateImpl);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
     pipelineStateImpl->establishStrongDeviceReference();
     returnComPtr(outState, pipelineStateImpl);
     return SLANG_OK;

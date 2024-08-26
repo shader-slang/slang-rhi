@@ -13,6 +13,7 @@
 #include "d3d12-pipeline-state-stream.h"
 
 #include "utils/string.h"
+#include "utils/stable_vector.h"
 
 #include <climits>
 
@@ -382,16 +383,17 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     auto programLayout = slangGlobalScope->getLayout();
 
     std::vector<D3D12_STATE_SUBOBJECT> subObjects;
-    ChunkedList<D3D12_DXIL_LIBRARY_DESC> dxilLibraries;
-    ChunkedList<D3D12_HIT_GROUP_DESC> hitGroups;
-    ChunkedList<ComPtr<ISlangBlob>> codeBlobs;
-    ChunkedList<D3D12_EXPORT_DESC> exports;
-    ChunkedList<const wchar_t*> strPtrs;
+    stable_vector<D3D12_DXIL_LIBRARY_DESC> dxilLibraries;
+    stable_vector<D3D12_HIT_GROUP_DESC> hitGroups;
+    stable_vector<ComPtr<ISlangBlob>> codeBlobs;
+    stable_vector<D3D12_EXPORT_DESC> exports;
+    stable_vector<const wchar_t*> strPtrs;
     ComPtr<ISlangBlob> diagnostics;
-    ChunkedList<std::wstring> stringPool;
+    stable_vector<std::wstring> stringPool;
     auto getWStr = [&](const char* name)
     {
-        return stringPool.add(to_wstring(name))->data();
+        stringPool.push_back(to_wstring(name));
+        return stringPool.back().data();
     };
 
     D3D12_RAYTRACING_PIPELINE_CONFIG1 pipelineConfig = {};
@@ -421,7 +423,7 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
                 (char*)diagnostics->getBufferPointer());
         }
         SLANG_RETURN_ON_FAIL(compileResult);
-        codeBlobs.add(codeBlob);
+        codeBlobs.push_back(codeBlob);
         D3D12_DXIL_LIBRARY_DESC library = {};
         library.DXILLibrary.BytecodeLength = codeBlob->getBufferSize();
         library.DXILLibrary.pShaderBytecode = codeBlob->getBufferPointer();
@@ -430,11 +432,13 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
         exportDesc.Name = getWStr(entryPointInfo->getNameOverride());
         exportDesc.ExportToRename = nullptr;
         exportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
-        library.pExports = exports.add(exportDesc);
+        exports.push_back(exportDesc);
+        library.pExports = &exports.back();
 
         D3D12_STATE_SUBOBJECT dxilSubObject = {};
         dxilSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-        dxilSubObject.pDesc = dxilLibraries.add(library);
+        dxilLibraries.push_back(library);
+        dxilSubObject.pDesc = &dxilLibraries.back();
         subObjects.push_back(dxilSubObject);
         return SLANG_OK;
     };
@@ -481,7 +485,8 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
 
         D3D12_STATE_SUBOBJECT hitGroupSubObject = {};
         hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
-        hitGroupSubObject.pDesc = hitGroups.add(hitGroupDesc);
+        hitGroups.push_back(hitGroupDesc);
+        hitGroupSubObject.pDesc = &hitGroups.back();
         subObjects.push_back(hitGroupSubObject);
     }
 
