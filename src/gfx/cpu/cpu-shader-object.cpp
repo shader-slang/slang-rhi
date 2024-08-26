@@ -148,7 +148,7 @@ SLANG_NO_THROW size_t SLANG_MCALL ShaderObjectImpl::getSize()
 SLANG_NO_THROW Result SLANG_MCALL
     ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, size_t size)
 {
-    size = Math::Min(size, size_t(m_data.getCount() - offset.uniformOffset));
+    size = std::min(size, size_t(m_data.getCount() - offset.uniformOffset));
     memcpy((char*)m_data.getBuffer() + offset.uniformOffset, data, size);
     return SLANG_OK;
 }
@@ -159,8 +159,8 @@ SLANG_NO_THROW Result SLANG_MCALL
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
-    SLANG_ASSERT(bindingRangeIndex >= 0);
-    SLANG_ASSERT(bindingRangeIndex < layout->m_bindingRanges.size());
+    SLANG_RHI_ASSERT(bindingRangeIndex >= 0);
+    SLANG_RHI_ASSERT(bindingRangeIndex < layout->m_bindingRanges.size());
 
     auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
     auto viewIndex = bindingRange.baseIndex + offset.bindingArrayIndex;

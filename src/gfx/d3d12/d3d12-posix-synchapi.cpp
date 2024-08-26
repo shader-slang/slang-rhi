@@ -109,8 +109,8 @@ BOOL SetEvent(HANDLE h)
     for(;;)
     {
         int nEvents = poll(&pfd, 1, -1);
-        SLANG_ASSERT(nEvents != -1);
-        SLANG_ASSERT(nEvents != 0); // shouldn't have timed out
+        SLANG_RHI_ASSERT(nEvents != -1);
+        SLANG_RHI_ASSERT(nEvents != 0); // shouldn't have timed out
         const uint64_t one = 1;
         int w = ::write(fd, &one, sizeof(one));
         if(w == sizeof(one))
@@ -399,7 +399,7 @@ DWORD WaitForMultipleObjects(
                     // arbitrarily many things may have happened between reads
                     // and we just wouldn't know...
                     int w = write(fds[j], &vs[j], sizeof(vs[j]));
-                    SLANG_ASSERT(w == sizeof(vs[j]));
+                    SLANG_RHI_ASSERT(w == sizeof(vs[j]));
                 }
                 if(failure)
                 {

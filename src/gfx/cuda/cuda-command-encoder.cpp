@@ -58,7 +58,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
     SLANG_UNUSED(srcSubresource);
     SLANG_UNUSED(srcOffset);
     SLANG_UNUSED(extent);
-    SLANG_UNIMPLEMENTED_X("copyTexture");
+    SLANG_RHI_UNIMPLEMENTED_X("copyTexture");
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::uploadTextureData(
@@ -75,7 +75,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::uploadTextureData(
     SLANG_UNUSED(extent);
     SLANG_UNUSED(subResourceData);
     SLANG_UNUSED(subResourceDataCount);
-    SLANG_UNIMPLEMENTED_X("uploadTextureData");
+    SLANG_RHI_UNIMPLEMENTED_X("uploadTextureData");
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::clearResourceView(
@@ -86,7 +86,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::clearResourceView(
     SLANG_UNUSED(view);
     SLANG_UNUSED(clearValue);
     SLANG_UNUSED(flags);
-    SLANG_UNIMPLEMENTED_X("clearResourceView");
+    SLANG_RHI_UNIMPLEMENTED_X("clearResourceView");
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveResource(
@@ -103,7 +103,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveResource(
     SLANG_UNUSED(dest);
     SLANG_UNUSED(destState);
     SLANG_UNUSED(destRange);
-    SLANG_UNIMPLEMENTED_X("resolveResource");
+    SLANG_RHI_UNIMPLEMENTED_X("resolveResource");
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveQuery(
@@ -118,7 +118,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveQuery(
     SLANG_UNUSED(count);
     SLANG_UNUSED(buffer);
     SLANG_UNUSED(offset);
-    SLANG_UNIMPLEMENTED_X("resolveQuery");
+    SLANG_RHI_UNIMPLEMENTED_X("resolveQuery");
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
@@ -141,7 +141,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
     SLANG_UNUSED(srcSubresource);
     SLANG_UNUSED(srcOffset);
     SLANG_UNUSED(extent);
-    SLANG_UNIMPLEMENTED_X("copyTextureToBuffer");
+    SLANG_RHI_UNIMPLEMENTED_X("copyTextureToBuffer");
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::textureSubresourceBarrier(
@@ -154,7 +154,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::textureSubresourceBa
     SLANG_UNUSED(subresourceRange);
     SLANG_UNUSED(src);
     SLANG_UNUSED(dst);
-    SLANG_UNIMPLEMENTED_X("textureSubresourceBarrier");
+    SLANG_RHI_UNIMPLEMENTED_X("textureSubresourceBarrier");
 }
 
 SLANG_NO_THROW void SLANG_MCALL
@@ -202,7 +202,7 @@ SLANG_NO_THROW Result SLANG_MCALL ComputeCommandEncoderImpl::dispatchCompute(int
 SLANG_NO_THROW Result SLANG_MCALL
     ComputeCommandEncoderImpl::dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset)
 {
-    SLANG_UNIMPLEMENTED_X("dispatchComputeIndirect");
+    SLANG_RHI_UNIMPLEMENTED_X("dispatchComputeIndirect");
 }
 
 } // namespace cuda

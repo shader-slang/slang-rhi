@@ -27,7 +27,7 @@ RendererBase* ShaderObjectImpl::getDevice() { return m_layout->getDevice(); }
 
 GfxCount ShaderObjectImpl::getEntryPointCount() { return 0; }
 
-Result ShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+Result ShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntryPoint)
 {
     *outEntryPoint = nullptr;
     return SLANG_OK;
@@ -213,7 +213,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
     // TODO: Change size_t to Count?
     auto srcSize = size_t(m_data.getCount());
 
-    SLANG_ASSERT(srcSize <= destSize);
+    SLANG_RHI_ASSERT(srcSize <= destSize);
 
     encoder->uploadBufferDataImpl(buffer, offset, srcSize, src);
 
@@ -284,7 +284,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
         if (subObjectRangePendingDataOffset == 0)
             continue;
 
-        for (Slang::Index i = 0; i < count; ++i)
+        for (Index i = 0; i < count; ++i)
         {
             auto subObject = m_objects[bindingRangeInfo.subObjectIndex + i];
 
@@ -731,7 +731,7 @@ Result ShaderObjectImpl::bindAsValue(
             break;
 
         default:
-            SLANG_ASSERT(!"unsupported binding type");
+            SLANG_RHI_ASSERT(!"unsupported binding type");
             return SLANG_FAIL;
             break;
         }
@@ -835,7 +835,7 @@ Result ShaderObjectImpl::bindAsValue(
             // No action needed for sub-objects bound though a `StructuredBuffer`.
             break;
         default:
-            SLANG_ASSERT(!"unsupported sub-object type");
+            SLANG_RHI_ASSERT(!"unsupported sub-object type");
             return SLANG_FAIL;
             break;
         }
@@ -1037,7 +1037,7 @@ Result EntryPointShaderObject::bindAsEntryPoint(
         // TODO: This would not be the case if specialization for interface-type
         // parameters led to the entry point having "pending" ordinary data.
         //
-        SLANG_ASSERT(pushConstantRange.size == (uint32_t)m_data.getCount());
+        SLANG_RHI_ASSERT(pushConstantRange.size == (uint32_t)m_data.getCount());
 
         auto pushConstantData = m_data.getBuffer();
 
@@ -1082,7 +1082,7 @@ std::vector<RefPtr<EntryPointShaderObject>> const& RootShaderObjectImpl::getEntr
 
 GfxCount RootShaderObjectImpl::getEntryPointCount() { return (GfxCount)m_entryPoints.size(); }
 
-Result RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+Result RootShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntryPoint)
 {
     returnComPtr(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;

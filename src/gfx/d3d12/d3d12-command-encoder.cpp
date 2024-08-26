@@ -211,7 +211,7 @@ void ResourceCommandEncoderImpl::copyTexture(
         aspectMask = (int32_t)TextureAspect::Color;
     while (aspectMask)
     {
-        auto aspect = Math::getLowestBit((int32_t)aspectMask);
+        auto aspect = math::getLowestBit((int32_t)aspectMask);
         aspectMask &= ~aspect;
         auto planeIndex = D3DUtil::getPlaneSlice(d3dFormat, (TextureAspect)aspect);
         for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
@@ -663,7 +663,7 @@ void ResourceCommandEncoderImpl::textureSubresourceBarrier(
             aspectMask = (int32_t)TextureAspect::Color;
         while (aspectMask)
         {
-            auto aspect = Math::getLowestBit((int32_t)aspectMask);
+            auto aspect = math::getLowestBit((int32_t)aspectMask);
             aspectMask &= ~aspect;
             auto planeIndex = D3DUtil::getPlaneSlice(d3dFormat, (TextureAspect)aspect);
             for (GfxCount layer = 0; layer < subresourceRange.layerCount; layer++)

@@ -12,7 +12,7 @@ template<typename TDevice, typename TCommandBuffer>
 class SimpleTransientResourceHeap : public TransientResourceHeapBase
 {
 public:
-    Slang::RefPtr<TDevice> m_device;
+    RefPtr<TDevice> m_device;
     Slang::ComPtr<IBufferResource> m_constantBuffer;
 
 public:
@@ -32,7 +32,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
         createCommandBuffer(ICommandBuffer** outCommandBuffer) override
     {
-        Slang::RefPtr<TCommandBuffer> newCmdBuffer = new TCommandBuffer();
+        RefPtr<TCommandBuffer> newCmdBuffer = new TCommandBuffer();
         newCmdBuffer->init(m_device, this);
         returnComPtr(outCommandBuffer, newCmdBuffer);
         return SLANG_OK;

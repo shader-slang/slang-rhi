@@ -24,13 +24,14 @@ struct ShaderOffsetKey
             offset.bindingRangeIndex == other.offset.bindingRangeIndex &&
             offset.uniformOffset == other.offset.uniformOffset;
     }
-    Slang::HashCode getHashCode() const
+
+    size_t getHashCode() const
     {
-        return Slang::combineHash(
-            (Slang::HashCode)offset.uniformOffset,
-            Slang::combineHash(
-                (Slang::HashCode)offset.bindingArrayIndex,
-                (Slang::HashCode)offset.bindingRangeIndex));
+        size_t hash = 0;
+        hash_combine(hash, offset.uniformOffset);
+        hash_combine(hash, offset.bindingArrayIndex);
+        hash_combine(hash, offset.bindingRangeIndex);
+        return hash;
     }
 };
 
@@ -86,14 +87,14 @@ public:
 
     DebugDevice* m_device;
 
-    std::vector<Slang::RefPtr<DebugShaderObject>> m_entryPoints;
+    std::vector<RefPtr<DebugShaderObject>> m_entryPoints;
     struct ShaderOffsetKeyHasher
     {
-        Slang::HashCode operator()(const ShaderOffsetKey& key) const { return key.getHashCode(); }
+        size_t operator()(const ShaderOffsetKey& key) const { return key.getHashCode(); }
     };
-    std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugShaderObject>, ShaderOffsetKeyHasher> m_objects;
-    std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugResourceView>, ShaderOffsetKeyHasher> m_resources;
-    std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugSamplerState>, ShaderOffsetKeyHasher> m_samplers;
+    std::unordered_map<ShaderOffsetKey, RefPtr<DebugShaderObject>, ShaderOffsetKeyHasher> m_objects;
+    std::unordered_map<ShaderOffsetKey, RefPtr<DebugResourceView>, ShaderOffsetKeyHasher> m_resources;
+    std::unordered_map<ShaderOffsetKey, RefPtr<DebugSamplerState>, ShaderOffsetKeyHasher> m_samplers;
     std::set<SlangInt> m_initializedBindingRanges;
 };
 

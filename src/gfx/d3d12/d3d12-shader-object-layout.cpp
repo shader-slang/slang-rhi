@@ -314,7 +314,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
 
         case slang::BindingType::ConstantBuffer:
         {
-            SLANG_ASSERT(subObjectLayout);
+            SLANG_RHI_ASSERT(subObjectLayout);
 
             // The resource and sampler descriptors of a nested
             // constant buffer will "leak" into those of the
@@ -329,7 +329,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
 
         case slang::BindingType::ParameterBlock:
         {
-            SLANG_ASSERT(subObjectLayout);
+            SLANG_RHI_ASSERT(subObjectLayout);
 
             // In contrast to a constant buffer, a parameter block can hide
             // the resource and sampler descriptor allocation it uses (since they
@@ -778,13 +778,13 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
         case slang::BindingType::ConstantBuffer:
         {
             auto containerVarLayout = subObjectTypeLayout->getContainerVarLayout();
-            SLANG_ASSERT(containerVarLayout);
+            SLANG_RHI_ASSERT(containerVarLayout);
 
             auto elementVarLayout = subObjectTypeLayout->getElementVarLayout();
-            SLANG_ASSERT(elementVarLayout);
+            SLANG_RHI_ASSERT(elementVarLayout);
 
             auto elementTypeLayout = elementVarLayout->getTypeLayout();
-            SLANG_ASSERT(elementTypeLayout);
+            SLANG_RHI_ASSERT(elementTypeLayout);
 
             BindingRegisterOffsetPair containerOffset = subObjectRangeContainerOffset;
             containerOffset += BindingRegisterOffsetPair(containerVarLayout);
@@ -800,13 +800,13 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
         case slang::BindingType::ParameterBlock:
         {
             auto containerVarLayout = subObjectTypeLayout->getContainerVarLayout();
-            SLANG_ASSERT(containerVarLayout);
+            SLANG_RHI_ASSERT(containerVarLayout);
 
             auto elementVarLayout = subObjectTypeLayout->getElementVarLayout();
-            SLANG_ASSERT(elementVarLayout);
+            SLANG_RHI_ASSERT(elementVarLayout);
 
             auto elementTypeLayout = elementVarLayout->getTypeLayout();
-            SLANG_ASSERT(elementTypeLayout);
+            SLANG_RHI_ASSERT(elementTypeLayout);
 
             BindingRegisterOffsetPair subDescriptorSetOffset;
             subDescriptorSetOffset.primary.spaceOffset =

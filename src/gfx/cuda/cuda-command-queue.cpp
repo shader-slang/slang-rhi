@@ -88,7 +88,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     auto& kernelName = currentPipeline->shaderProgram->kernelName;
     auto programLayout = static_cast<RootShaderObjectLayoutImpl*>(currentRootObject->getLayout());
     int kernelId = programLayout->getKernelIndex(kernelName);
-    SLANG_ASSERT(kernelId != -1);
+    SLANG_RHI_ASSERT(kernelId != -1);
     UInt threadGroupSize[3];
     programLayout->getKernelThreadGroupSize(kernelId, threadGroupSize);
 
@@ -141,7 +141,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
         nullptr,
         extraOptions);
 
-    SLANG_ASSERT(cudaLaunchResult == CUDA_SUCCESS);
+    SLANG_RHI_ASSERT(cudaLaunchResult == CUDA_SUCCESS);
 }
 
 void CommandQueueImpl::copyBuffer(

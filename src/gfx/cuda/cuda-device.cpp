@@ -55,7 +55,7 @@ int DeviceImpl::_calcSMCountPerMultiProcessor(int major, int minor)
     const auto& last = infos[SLANG_COUNT_OF(infos) - 1];
 
     // It must be newer presumably
-    SLANG_ASSERT(sm > last.sm);
+    SLANG_RHI_ASSERT(sm > last.sm);
 
     // Default to the last entry
     return last.coreCount;
@@ -146,7 +146,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
         desc.extendedDescs,
         SLANG_PTX,
         "sm_5_1",
-        makeArray(slang::PreprocessorMacroDesc{ "__CUDA_COMPUTE__", "1" }).getView()));
+        make_array(slang::PreprocessorMacroDesc{ "__CUDA_COMPUTE__", "1" })));
 
     SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
 
@@ -220,16 +220,16 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
         DeviceLimits limits = {};
 
         limits.maxTextureDimension1D = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_WIDTH);
-        limits.maxTextureDimension2D = Math::Min(
+        limits.maxTextureDimension2D = std::min(
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_WIDTH),
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_HEIGHT));
-        limits.maxTextureDimension3D = Math::Min(
+        limits.maxTextureDimension3D = std::min(
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_WIDTH),
-            Math::Min(
+            std::min(
                 getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_HEIGHT),
                 getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_DEPTH)));
         limits.maxTextureDimensionCube = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACECUBEMAP_WIDTH);
-        limits.maxTextureArrayLayers = Math::Min(
+        limits.maxTextureArrayLayers = std::min(
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_LAYERED_LAYERS),
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_LAYERED_LAYERS));
 
@@ -311,7 +311,7 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
         *outFormat = CU_AD_FORMAT_SIGNED_INT8;
         return SLANG_OK;
     default:
-        SLANG_ASSERT(!"Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
+        SLANG_RHI_ASSERT(!"Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
         return SLANG_FAIL;
     }
 }
@@ -391,7 +391,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
         }
         default:
         {
-            SLANG_ASSERT(!"Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
+            SLANG_RHI_ASSERT(!"Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
             return SLANG_FAIL;
         }
         }
@@ -421,7 +421,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
                 else
                 {
-                    SLANG_ASSERT(!"Arrays only supported for 1D and 2D");
+                    SLANG_RHI_ASSERT(!"Arrays only supported for 1D and 2D");
                     return SLANG_FAIL;
                 }
             }
@@ -445,7 +445,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                     desc.type == IResource::Type::Texture2D ||
                     desc.type == IResource::Type::TextureCube)
                 {
-                    SLANG_ASSERT(!"Only 1D, 2D and Cube arrays supported");
+                    SLANG_RHI_ASSERT(!"Only 1D, 2D and Cube arrays supported");
                     return SLANG_FAIL;
                 }
 
@@ -537,15 +537,15 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 SLANG_CUDA_RETURN_ON_FAIL(
                     cuMipmappedArrayGetLevel(&dstArray, tex->m_cudaMipMappedArray, mipLevel));
             }
-            SLANG_ASSERT(dstArray);
+            SLANG_RHI_ASSERT(dstArray);
 
             // Check using the desc to see if it's plausible
             {
                 CUDA_ARRAY_DESCRIPTOR arrayDesc;
                 SLANG_CUDA_RETURN_ON_FAIL(cuArrayGetDescriptor(&arrayDesc, dstArray));
 
-                SLANG_ASSERT(mipWidth == arrayDesc.Width);
-                SLANG_ASSERT(
+                SLANG_RHI_ASSERT(mipWidth == arrayDesc.Width);
+                SLANG_RHI_ASSERT(
                     mipHeight == arrayDesc.Height || (mipHeight == 1 && arrayDesc.Height == 0));
             }
 
@@ -553,7 +553,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
             if (desc.arraySize > 1)
             {
-                SLANG_ASSERT(
+                SLANG_RHI_ASSERT(
                     desc.type == IResource::Type::Texture1D ||
                     desc.type == IResource::Type::Texture2D ||
                     desc.type == IResource::Type::TextureCube);
@@ -611,7 +611,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
             if (desc.arraySize > 1)
             {
-                SLANG_ASSERT(
+                SLANG_RHI_ASSERT(
                     desc.type == IResource::Type::Texture1D ||
                     desc.type == IResource::Type::Texture2D ||
                     desc.type == IResource::Type::TextureCube);
@@ -678,7 +678,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
                 default:
                 {
-                    SLANG_ASSERT(!"Not implemented");
+                    SLANG_RHI_ASSERT(!"Not implemented");
                     break;
                 }
                 }
@@ -715,7 +715,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
         if (desc.allowedStates.contains(ResourceState::UnorderedAccess))
         {
             // On CUDA surfaces only support a single MIP map
-            SLANG_ASSERT(desc.numMipLevels == 1);
+            SLANG_RHI_ASSERT(desc.numMipLevels == 1);
 
             SLANG_CUDA_RETURN_ON_FAIL(cuSurfObjectCreate(&tex->m_cudaSurfObj, &resDesc));
         }
@@ -1172,7 +1172,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
     *outRowPitch = rowPitch;
     *outPixelSize = pixelSize;
 
-    auto blob = ListBlob::moveCreate(blobData);
+    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -1194,7 +1194,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readBufferResource(
         (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset),
         size);
 
-    auto blob = ListBlob::moveCreate(blobData);
+    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

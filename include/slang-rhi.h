@@ -39,6 +39,7 @@
 //    - Offset and Size are almost always for bytes and things measured in bytes.
 namespace gfx {
 
+using Slang::Guid;
 using Slang::ComPtr;
 
 typedef SlangResult Result;

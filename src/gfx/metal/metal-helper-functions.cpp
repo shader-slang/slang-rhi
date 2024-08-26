@@ -16,7 +16,7 @@ Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
     {
         AdapterInfo info = {};
         const char* name = device->name()->cString(NS::ASCIIStringEncoding);
-        memcpy(info.name, name, Math::Min(strlen(name), sizeof(AdapterInfo::name) - 1));
+        memcpy(info.name, name, std::min(strlen(name), sizeof(AdapterInfo::name) - 1));
         uint64_t registryID = device->registryID();
         memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
         outAdapters.push_back(info);

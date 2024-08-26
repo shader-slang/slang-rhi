@@ -80,7 +80,7 @@ class D3DUtil
     static SlangResult createFactory(DeviceCheckFlags flags, Slang::ComPtr<IDXGIFactory>& outFactory);
 
         /// Get the dxgiModule
-    static Slang::SharedLibrary::Handle getDxgiModule();
+    static SharedLibraryHandle getDxgiModule();
 
         /// Find adapters
     static SlangResult findAdapters(DeviceCheckFlags flags, const AdapterLUID* adapterLUID, IDXGIFactory* dxgiFactory, std::vector<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters);

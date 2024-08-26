@@ -158,7 +158,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     bool enableRayTracingValidation = false;
 
     // Read properties from extended device descriptions
-    for (GfxIndex i = 0; i < m_desc.extendedDescCount; i++)
+    for (Index i = 0; i < m_desc.extendedDescCount; i++)
     {
         StructType stype;
         memcpy(&stype, m_desc.extendedDescs[i], sizeof(stype));
@@ -1006,7 +1006,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
         desc.extendedDescs,
         SLANG_SPIRV,
         "sm_5_1",
-        makeArray(slang::PreprocessorMacroDesc{ "__VK__", "1" }).getView()));
+        make_array(slang::PreprocessorMacroDesc{ "__VK__", "1" })));
 
     // Create default sampler.
     {
@@ -1215,7 +1215,7 @@ SlangResult DeviceImpl::readTextureResource(
     *outPixelSize = pixelSize;
     *outRowPitch = rowPitch;
 
-    auto blob = ListBlob::moveCreate(blobData);
+    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -1255,7 +1255,7 @@ SlangResult DeviceImpl::readBufferResource(
     ::memcpy(blobData.data(), mappedData, size);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
 
-    auto blob = ListBlob::moveCreate(blobData);
+    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -1729,7 +1729,7 @@ Result DeviceImpl::createTextureResource(
             case SLANG_SCALAR_TYPE_FLOAT16:
             {
                 for(int i = 0; i < 4; i++)
-                    clearColor.float32[i] = HalfToFloat(*reinterpret_cast<uint16_t*>(const_cast<void*>(initData->data)));
+                    clearColor.float32[i] = math::halfToFloat(*reinterpret_cast<uint16_t*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_FLOAT32:
@@ -2066,7 +2066,7 @@ Result DeviceImpl::createTextureView(
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
         break;
     default:
-        SLANG_UNIMPLEMENTED_X("Unknown Texture type.");
+        SLANG_RHI_UNIMPLEMENTED_X("Unknown Texture type.");
         break;
     }
 
@@ -2103,7 +2103,7 @@ Result DeviceImpl::createTextureView(
         view->m_layout = VK_IMAGE_LAYOUT_GENERAL;
         break;
     default:
-        SLANG_UNIMPLEMENTED_X("Unknown TextureViewDesc type.");
+        SLANG_RHI_UNIMPLEMENTED_X("Unknown TextureViewDesc type.");
         break;
     }
     m_api.vkCreateImageView(m_device, &createInfo, nullptr, &view->m_view);
@@ -2499,7 +2499,7 @@ Result DeviceImpl::waitForFences(
     GfxCount fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
 {
     short_vector<VkSemaphore> semaphores;
-    for (GfxIndex i = 0; i < fenceCount; ++i)
+    for (Index i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = static_cast<FenceImpl*>(fences[i]);
         semaphores.push_back(fenceImpl->m_semaphore);

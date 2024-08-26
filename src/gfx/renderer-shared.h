@@ -108,7 +108,7 @@ template<typename T>
 class BreakableReference
 {
 private:
-    Slang::RefPtr<T> m_strongPtr;
+    RefPtr<T> m_strongPtr;
     T* m_weakPtr = nullptr;
 
 public:
@@ -116,7 +116,7 @@ public:
 
     BreakableReference(T* p) { *this = p; }
 
-    BreakableReference(Slang::RefPtr<T> const& p) { *this = p; }
+    BreakableReference(RefPtr<T> const& p) { *this = p; }
 
     void setWeakReference(T* p) { m_weakPtr = p;  m_strongPtr = nullptr; }
 
@@ -128,7 +128,7 @@ public:
 
     operator T*() const { return get(); }
 
-    void operator=(Slang::RefPtr<T> const& p)
+    void operator=(RefPtr<T>& p)
     {
         m_strongPtr = p;
         m_weakPtr = p.Ptr();
@@ -150,17 +150,17 @@ template<typename TInterface, typename TImpl>
 void returnComPtr(TInterface** outInterface, TImpl* rawPtr)
 {
     static_assert(
-        !std::is_base_of<Slang::RefObject, TInterface>::value,
+        !std::is_base_of<RefObject, TInterface>::value,
         "TInterface must be an interface type.");
     rawPtr->addRef();
     *outInterface = rawPtr;
 }
 
 template <typename TInterface, typename TImpl>
-void returnComPtr(TInterface** outInterface, const Slang::RefPtr<TImpl>& refPtr)
+void returnComPtr(TInterface** outInterface, const RefPtr<TImpl>& refPtr)
 {
     static_assert(
-        !std::is_base_of<Slang::RefObject, TInterface>::value,
+        !std::is_base_of<RefObject, TInterface>::value,
         "TInterface must be an interface type.");
     refPtr->addRef();
     *outInterface = refPtr.Ptr();
@@ -170,37 +170,37 @@ template <typename TInterface, typename TImpl>
 void returnComPtr(TInterface** outInterface, Slang::ComPtr<TImpl>& comPtr)
 {
     static_assert(
-        !std::is_base_of<Slang::RefObject, TInterface>::value,
+        !std::is_base_of<RefObject, TInterface>::value,
         "TInterface must be an interface type.");
     *outInterface = comPtr.detach();
 }
 
 // Helpers for returning an object implementation as RefPtr.
 template <typename TDest, typename TImpl>
-void returnRefPtr(TDest** outPtr, Slang::RefPtr<TImpl>& refPtr)
+void returnRefPtr(TDest** outPtr, RefPtr<TImpl>& refPtr)
 {
     static_assert(
-        std::is_base_of<Slang::RefObject, TDest>::value, "TDest must be a non-interface type.");
+        std::is_base_of<RefObject, TDest>::value, "TDest must be a non-interface type.");
     static_assert(
-        std::is_base_of<Slang::RefObject, TImpl>::value, "TImpl must be a non-interface type.");
+        std::is_base_of<RefObject, TImpl>::value, "TImpl must be a non-interface type.");
     *outPtr = refPtr.Ptr();
     refPtr->addReference();
 }
 
 template <typename TDest, typename TImpl>
-void returnRefPtrMove(TDest** outPtr, Slang::RefPtr<TImpl>& refPtr)
+void returnRefPtrMove(TDest** outPtr, RefPtr<TImpl>& refPtr)
 {
     static_assert(
-        std::is_base_of<Slang::RefObject, TDest>::value, "TDest must be a non-interface type.");
+        std::is_base_of<RefObject, TDest>::value, "TDest must be a non-interface type.");
     static_assert(
-        std::is_base_of<Slang::RefObject, TImpl>::value, "TImpl must be a non-interface type.");
+        std::is_base_of<RefObject, TImpl>::value, "TImpl must be a non-interface type.");
     *outPtr = refPtr.detach();
 }
 
 
 gfx::StageType translateStage(SlangStage slangStage);
 
-class FenceBase : public IFence, public Slang::ComObject
+class FenceBase : public IFence, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -209,7 +209,7 @@ protected:
     InteropHandle sharedHandle = {};
 };
 
-class Resource : public Slang::ComObject
+class Resource : public ComObject
 {
 public:
     /// Get the type
@@ -296,7 +296,7 @@ protected:
     Desc m_desc;
 };
 
-class ResourceViewInternalBase : public Slang::ComObject
+class ResourceViewInternalBase : public ComObject
 {};
 
 class ResourceViewBase
@@ -311,7 +311,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-class SamplerStateBase : public ISamplerState, public Slang::ComObject
+class SamplerStateBase : public ISamplerState, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -353,12 +353,12 @@ struct ExtendedShaderObjectTypeList
     }
     void addRange(const ExtendedShaderObjectTypeList& list)
     {
-        for (Slang::Index i = 0; i < list.getCount(); i++)
+        for (Index i = 0; i < list.getCount(); i++)
         {
             add(list[i]);
         }
     }
-    ExtendedShaderObjectType operator[](Slang::Index index) const
+    ExtendedShaderObjectType operator[](Index index) const
     {
         ExtendedShaderObjectType result;
         result.componentID = componentIDs[index];
@@ -370,7 +370,7 @@ struct ExtendedShaderObjectTypeList
         componentIDs.clear();
         components.clear();
     }
-    Slang::Index getCount() const
+    Index getCount() const
     {
         return componentIDs.size();
     }
@@ -378,10 +378,10 @@ struct ExtendedShaderObjectTypeList
 
 struct ExtendedShaderObjectTypeListObject
     : public ExtendedShaderObjectTypeList
-    , public Slang::RefObject
+    , public RefObject
 {};
 
-class ShaderObjectLayoutBase : public Slang::RefObject
+class ShaderObjectLayoutBase : public RefObject
 {
 protected:
     // We always use a weak reference to the `IDevice` object here.
@@ -415,7 +415,7 @@ public:
             switch (typeLayout->getKind())
             {
             case slang::TypeReflection::Kind::Array:
-                SLANG_ASSERT(outContainerType == ShaderObjectContainerType::None);
+                SLANG_RHI_ASSERT(outContainerType == ShaderObjectContainerType::None);
                 outContainerType = ShaderObjectContainerType::Array;
                 typeLayout = typeLayout->getElementTypeLayout();
                 return typeLayout;
@@ -423,7 +423,7 @@ public:
                 {
                     if (typeLayout->getResourceShape() != SLANG_STRUCTURED_BUFFER)
                         break;
-                    SLANG_ASSERT(outContainerType == ShaderObjectContainerType::None);
+                    SLANG_RHI_ASSERT(outContainerType == ShaderObjectContainerType::None);
                     outContainerType = ShaderObjectContainerType::StructuredBuffer;
                     typeLayout = typeLayout->getElementTypeLayout();
                 }
@@ -461,13 +461,13 @@ public:
     // Any "ordinary" / uniform data for this object
     std::vector<char> m_ordinaryData;
     // The structured buffer resource used when the object represents a structured buffer.
-    Slang::RefPtr<BufferResource> m_structuredBuffer;
+    RefPtr<BufferResource> m_structuredBuffer;
     // The structured buffer resource view used when the object represents a structured buffer.
-    Slang::RefPtr<ResourceViewBase> m_structuredBufferView;
-    Slang::RefPtr<ResourceViewBase> m_rwStructuredBufferView;
+    RefPtr<ResourceViewBase> m_structuredBufferView;
+    RefPtr<ResourceViewBase> m_rwStructuredBufferView;
 
-    Slang::Index getCount() { return m_ordinaryData.size(); }
-    void setCount(Slang::Index count) { m_ordinaryData.resize(count); }
+    Index getCount() { return m_ordinaryData.size(); }
+    void setCount(Index count) { m_ordinaryData.resize(count); }
     char* getBuffer() { return m_ordinaryData.data(); }
 
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
@@ -482,7 +482,7 @@ bool _doesValueFitInExistentialPayload(
     slang::TypeLayoutReflection*    concreteTypeLayout,
     slang::TypeLayoutReflection*    existentialFieldLayout);
 
-class ShaderObjectBase : public IShaderObject, public Slang::ComObject
+class ShaderObjectBase : public IShaderObject, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -498,7 +498,7 @@ protected:
     BreakableReference<RendererBase> m_device;
 
     // The shader object layout used to create this shader object.
-    Slang::RefPtr<ShaderObjectLayoutBase> m_layout = nullptr;
+    RefPtr<ShaderObjectLayoutBase> m_layout = nullptr;
 
     // The specialized shader object type.
     ExtendedShaderObjectType shaderObjectType = { nullptr, kInvalidComponentID };
@@ -578,8 +578,8 @@ class ShaderObjectBaseImpl : public ShaderObjectBase
 {
 protected:
     TShaderObjectData m_data;
-    std::vector<Slang::RefPtr<TShaderObjectImpl>> m_objects;
-    std::vector<Slang::RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
+    std::vector<RefPtr<TShaderObjectImpl>> m_objects;
+    std::vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
 
     // Specialization args for a StructuredBuffer object.
     ExtendedShaderObjectTypeList m_structuredBufferSpecializationArgs;
@@ -596,7 +596,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
         getObject(ShaderOffset const& offset, IShaderObject** outObject) SLANG_OVERRIDE
     {
-        SLANG_ASSERT(outObject);
+        SLANG_RHI_ASSERT(outObject);
         if (offset.bindingRangeIndex < 0)
             return SLANG_E_INVALID_ARG;
         auto layout = getLayout();
@@ -610,7 +610,7 @@ public:
 
     void setSpecializationArgsForContainerElement(ExtendedShaderObjectTypeList& specializationArgs);
 
-    Slang::Index getSubObjectIndex(ShaderOffset offset)
+    GfxIndex getSubObjectIndex(ShaderOffset offset)
     {
         auto layout = getLayout();
         auto bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
@@ -809,7 +809,7 @@ public:
 
         auto bindingRangeIndex = offset.bindingRangeIndex;
         auto bindingRange = layout->getBindingRange(bindingRangeIndex);
-        Slang::Index objectIndex = bindingRange.subObjectIndex + offset.bindingArrayIndex;
+        Index objectIndex = bindingRange.subObjectIndex + offset.bindingArrayIndex;
         if (objectIndex >= m_userProvidedSpecializationArgs.size())
             m_userProvidedSpecializationArgs.resize(objectIndex + 1);
         if (!m_userProvidedSpecializationArgs[objectIndex])
@@ -831,7 +831,7 @@ public:
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 };
 
-class ShaderProgramBase : public IShaderProgram, public Slang::ComObject
+class ShaderProgramBase : public IShaderProgram, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -882,7 +882,7 @@ public:
 
 class InputLayoutBase
     : public IInputLayout
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -891,7 +891,7 @@ public:
 
 class FramebufferLayoutBase
     : public IFramebufferLayout
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -900,7 +900,7 @@ public:
 
 class FramebufferBase
     : public IFramebuffer
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -909,7 +909,7 @@ public:
 
 class QueryPoolBase
     : public IQueryPool
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -956,7 +956,7 @@ struct OwnedHitGroupDesc
 
 struct OwnedRayTracingPipelineStateDesc
 {
-    Slang::RefPtr<ShaderProgramBase> program;
+    RefPtr<ShaderProgramBase> program;
     std::vector<OwnedHitGroupDesc> hitGroups;
     std::vector<HitGroupDesc> hitGroupDescs;
     int maxRecursion = 0;
@@ -1003,7 +1003,7 @@ struct OwnedRayTracingPipelineStateDesc
 
 class PipelineStateBase
     : public IPipelineState
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -1032,17 +1032,17 @@ public:
 
     // We need to hold inputLayout and framebufferLayout objects alive, since we may use it to
     // create specialized pipeline states later.
-    Slang::RefPtr<InputLayoutBase> inputLayout;
-    Slang::RefPtr<FramebufferLayoutBase> framebufferLayout;
+    RefPtr<InputLayoutBase> inputLayout;
+    RefPtr<FramebufferLayoutBase> framebufferLayout;
 
     // The pipeline state from which this pipeline state is specialized.
     // If null, this pipeline is either an unspecialized pipeline.
-    Slang::RefPtr<PipelineStateBase> unspecializedPipelineState = nullptr;
+    RefPtr<PipelineStateBase> unspecializedPipelineState = nullptr;
 
     // Indicates whether this is a specializable pipeline. A specializable
     // pipeline cannot be used directly and must be specialized first.
     bool isSpecializable = false;
-    Slang::RefPtr<ShaderProgramBase> m_program;
+    RefPtr<ShaderProgramBase> m_program;
     template <typename TProgram> TProgram* getProgram()
     {
         return static_cast<TProgram*>(m_program.Ptr());
@@ -1059,16 +1059,12 @@ struct ComponentKey
 {
     std::string typeName;
     short_vector<ShaderComponentID> specializationArgs;
-    Slang::HashCode hash;
-    Slang::HashCode getHashCode() const
-    {
-        return hash;
-    }
+    size_t hash;
     void updateHash()
     {
         hash = std::hash<std::string_view>()(typeName);
         for (auto& arg : specializationArgs)
-            hash = Slang::combineHash(hash, arg);
+            hash_combine(hash, arg);
     }
     template<typename KeyType>
     bool operator==(const KeyType& other) const
@@ -1077,7 +1073,7 @@ struct ComponentKey
             return false;
         if (specializationArgs.size() != other.specializationArgs.size())
             return false;
-        for (Slang::Index i = 0; i < other.specializationArgs.size(); i++)
+        for (Index i = 0; i < other.specializationArgs.size(); i++)
         {
             if (specializationArgs[i] != other.specializationArgs[i])
                 return false;
@@ -1090,16 +1086,12 @@ struct PipelineKey
 {
     PipelineStateBase* pipeline;
     short_vector<ShaderComponentID> specializationArgs;
-    Slang::HashCode hash;
-    Slang::HashCode getHashCode() const
-    {
-        return hash;
-    }
+    size_t hash;
     void updateHash()
     {
-        hash = Slang::getHashCode(pipeline);
+        hash = std::hash<void*>()(pipeline);
         for (auto& arg : specializationArgs)
-            hash = Slang::combineHash(hash, arg);
+            hash_combine(hash, arg);
     }
     bool operator==(const PipelineKey& other) const
     {
@@ -1107,7 +1099,7 @@ struct PipelineKey
             return false;
         if (specializationArgs.size() != other.specializationArgs.size())
             return false;
-        for (Slang::Index i = 0; i < other.specializationArgs.size(); i++)
+        for (Index i = 0; i < other.specializationArgs.size(); i++)
         {
             if (specializationArgs[i] != other.specializationArgs[i])
                 return false;
@@ -1117,14 +1109,14 @@ struct PipelineKey
 };
 
 // A cache from specialization keys to a specialized `ShaderKernel`.
-class ShaderCache : public Slang::RefObject
+class ShaderCache : public RefObject
 {
 public:
     ShaderComponentID getComponentId(slang::TypeReflection* type);
     ShaderComponentID getComponentId(std::string_view name);
     ShaderComponentID getComponentId(ComponentKey key);
 
-    Slang::RefPtr<PipelineStateBase> getSpecializedPipelineState(PipelineKey programKey)
+    RefPtr<PipelineStateBase> getSpecializedPipelineState(PipelineKey programKey)
     {
         auto it = specializedPipelines.find(programKey);
         if (it != specializedPipelines.end())
@@ -1133,7 +1125,7 @@ public:
     }
     void addSpecializedPipeline(
         PipelineKey key,
-        Slang::RefPtr<PipelineStateBase> specializedPipeline);
+        RefPtr<PipelineStateBase> specializedPipeline);
     void free()
     {
         specializedPipelines = decltype(specializedPipelines)();
@@ -1143,18 +1135,18 @@ public:
 protected:
     struct ComponentKeyHasher
     {
-        std::size_t operator()(const ComponentKey& k) const { return (std::size_t)k.getHashCode(); }
+        std::size_t operator()(const ComponentKey& k) const { return k.hash; }
     };
     struct PipelineKeyHasher
     {
-        std::size_t operator()(const PipelineKey& k) const { return (std::size_t)k.getHashCode(); }
+        std::size_t operator()(const PipelineKey& k) const { return k.hash; }
     };
 
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, Slang::RefPtr<PipelineStateBase>, PipelineKeyHasher> specializedPipelines;
+    std::unordered_map<PipelineKey, RefPtr<PipelineStateBase>, PipelineKeyHasher> specializedPipelines;
 };
 
-class TransientResourceHeapBase : public ITransientResourceHeap, public Slang::ComObject
+class TransientResourceHeapBase : public ITransientResourceHeap, public ComObject
 {
 public:
     uint64_t m_version = 0;
@@ -1185,7 +1177,7 @@ static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_A
 
 class ShaderTableBase
     : public IShaderTable
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     std::vector<std::string> m_shaderGroupNames;
@@ -1196,7 +1188,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::map<PipelineStateBase*, Slang::RefPtr<BufferResource>> m_deviceBuffers;
+    std::map<PipelineStateBase*, RefPtr<BufferResource>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Slang::Guid& guid)
@@ -1206,7 +1198,7 @@ public:
         return nullptr;
     }
 
-    virtual Slang::RefPtr<BufferResource> createDeviceBuffer(
+    virtual RefPtr<BufferResource> createDeviceBuffer(
         PipelineStateBase* pipeline,
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder) = 0;
@@ -1229,7 +1221,7 @@ public:
 
 // Renderer implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
-class RendererBase : public IDevice, public IShaderCache, public Slang::ComObject
+class RendererBase : public IDevice, public IShaderCache, public ComObject
 {
     friend class ShaderObjectBase;
 public:
@@ -1368,7 +1360,7 @@ public:
     Result maybeSpecializePipeline(
         PipelineStateBase* currentPipeline,
         ShaderObjectBase* rootObject,
-        Slang::RefPtr<PipelineStateBase>& outNewPipeline);
+        RefPtr<PipelineStateBase>& outNewPipeline);
 
 
     virtual Result createShaderObjectLayout(
@@ -1399,9 +1391,9 @@ public:
     ShaderCache shaderCache;
 
     // TODO_GFX
-    // Slang::RefPtr<Slang::PersistentCache> persistentShaderCache;
+    // RefPtr<Slang::PersistentCache> persistentShaderCache;
 
-    std::map<slang::TypeLayoutReflection*, Slang::RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
+    std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
     Slang::ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
 };
 
@@ -1434,7 +1426,7 @@ void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObj
     // use `specializationArgs` directly.
     if (m_structuredBufferSpecializationArgs.getCount() == 0)
     {
-        m_structuredBufferSpecializationArgs = Slang::_Move(specializationArgs);
+        m_structuredBufferSpecializationArgs = _Move(specializationArgs);
     }
     else
     {
@@ -1442,10 +1434,10 @@ void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObj
         // need to check if they are the same as `specializationArgs`, and replace
         // anything that is different with `__Dynamic` because we cannot specialize the
         // buffer type if the element types are not the same.
-        SLANG_ASSERT(
+        SLANG_RHI_ASSERT(
             m_structuredBufferSpecializationArgs.getCount() == specializationArgs.getCount());
         auto device = getRenderer();
-        for (Slang::Index i = 0; i < m_structuredBufferSpecializationArgs.getCount(); i++)
+        for (Index i = 0; i < m_structuredBufferSpecializationArgs.getCount(); i++)
         {
             if (m_structuredBufferSpecializationArgs[i].componentID !=
                 specializationArgs[i].componentID)
@@ -1478,7 +1470,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
                 extendedType.componentID = device->shaderCache.getComponentId(args[i].type);
                 break;
             default:
-                SLANG_ASSERT(false && "Unexpected specialization argument kind.");
+                SLANG_RHI_ASSERT(false && "Unexpected specialization argument kind.");
                 return SLANG_FAIL;
         }
         list.add(extendedType);
@@ -1502,24 +1494,24 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
     // existential types (and therefore require specialization) will results in a sub-object
     // range in the type layout. This allows us to simply scan the sub-object ranges to find
     // out all specialization arguments.
-    Slang::Index subObjectRangeCount = subObjectRanges.size();
+    Index subObjectRangeCount = subObjectRanges.size();
 
-    for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount;
+    for (Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount;
         subObjectRangeIndex++)
     {
         auto const& subObjectRange = subObjectRanges[subObjectRangeIndex];
         auto const& bindingRange =
             getLayout()->getBindingRange(subObjectRange.bindingRangeIndex);
 
-        Slang::Index oldArgsCount = args.getCount();
+        Index oldArgsCount = args.getCount();
 
-        Slang::Index count = bindingRange.count;
+        Index count = bindingRange.count;
 
-        for (Slang::Index subObjectIndexInRange = 0; subObjectIndexInRange < count;
+        for (Index subObjectIndexInRange = 0; subObjectIndexInRange < count;
             subObjectIndexInRange++)
         {
             ExtendedShaderObjectTypeList typeArgs;
-            Slang::Index objectIndex = bindingRange.subObjectIndex + subObjectIndexInRange;
+            Index objectIndex = bindingRange.subObjectIndex + subObjectIndexInRange;
             auto subObject = m_objects[objectIndex];
 
             if (!subObject)
@@ -1580,8 +1572,8 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
             {
                 // If type arguments for each elements in the array is different, use
                 // `__Dynamic` type for the differing argument to disable specialization.
-                SLANG_ASSERT(addedTypeArgCountForCurrentRange == typeArgs.getCount());
-                for (Slang::Index i = 0; i < addedTypeArgCountForCurrentRange; i++)
+                SLANG_RHI_ASSERT(addedTypeArgCountForCurrentRange == typeArgs.getCount());
+                for (Index i = 0; i < addedTypeArgCountForCurrentRange; i++)
                 {
                     if (args[i + oldArgsCount].componentID != typeArgs[i].componentID)
                     {

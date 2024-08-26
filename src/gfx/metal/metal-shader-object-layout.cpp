@@ -122,7 +122,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             // expect all ranges belong to a single set.
             //
             SlangInt descriptorSetIndex = typeLayout->getBindingRangeDescriptorSetIndex(r);
-            SLANG_ASSERT(descriptorSetIndex == 0);
+            SLANG_RHI_ASSERT(descriptorSetIndex == 0);
 
             SlangInt descriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(r);
             auto registerOffset = typeLayout->getDescriptorSetDescriptorRangeIndexOffset(descriptorSetIndex, descriptorRangeIndex);

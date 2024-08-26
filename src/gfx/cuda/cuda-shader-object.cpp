@@ -57,7 +57,7 @@ Result ShaderObjectData::setCount(Index count)
             SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
                 (CUdeviceptr)newMemory,
                 (CUdeviceptr)m_bufferResource->m_cudaMemory,
-                Math::Min((size_t)count, oldSize)));
+                std::min((size_t)count, oldSize)));
         }
         cuMemFree((CUdeviceptr)m_bufferResource->m_cudaMemory);
         m_bufferResource->m_cudaMemory = newMemory;
@@ -66,12 +66,12 @@ Result ShaderObjectData::setCount(Index count)
     return SLANG_OK;
 }
 
-Slang::Index ShaderObjectData::getCount()
+Index ShaderObjectData::getCount()
 {
     if (isHostOnly)
         return m_cpuBuffer.size();
     if (m_bufferResource)
-        return (Slang::Index)(m_bufferResource->getDesc()->sizeInBytes);
+        return (Index)(m_bufferResource->getDesc()->sizeInBytes);
     else
         return 0;
 }
@@ -186,7 +186,7 @@ SLANG_NO_THROW Result SLANG_MCALL
     ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, Size size)
 {
     Size temp = m_data.getCount() - (Size)offset.uniformOffset;
-    size = Math::Min(size, temp);
+    size = std::min(size, temp);
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
         (CUdeviceptr)((uint8_t*)m_data.getBuffer() + offset.uniformOffset),
         (CUdeviceptr)data,
@@ -203,8 +203,8 @@ SLANG_NO_THROW Result SLANG_MCALL
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
-    SLANG_ASSERT(bindingRangeIndex >= 0);
-    SLANG_ASSERT(bindingRangeIndex < layout->m_bindingRanges.size());
+    SLANG_RHI_ASSERT(bindingRangeIndex >= 0);
+    SLANG_RHI_ASSERT(bindingRangeIndex < layout->m_bindingRanges.size());
 
     auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
 

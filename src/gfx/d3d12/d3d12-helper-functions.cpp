@@ -644,7 +644,7 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
         dxgiAdapter->GetDesc(&desc);
         AdapterInfo info = {};
         auto name = from_wstring(desc.Description);
-        memcpy(info.name, name.data(), Math::Min(name.length(), sizeof(AdapterInfo::name) - 1));
+        memcpy(info.name, name.data(), std::min(name.length(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
         info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);

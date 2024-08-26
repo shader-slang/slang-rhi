@@ -15,7 +15,7 @@ using namespace Slang;
 namespace debug
 {
 
-    class DebugObjectBase : public Slang::ComObject
+    class DebugObjectBase : public ComObject
     {
     public:
         uint64_t uid;

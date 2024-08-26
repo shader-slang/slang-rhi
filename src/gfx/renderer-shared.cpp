@@ -57,7 +57,7 @@ StageType translateStage(SlangStage slangStage)
     switch (slangStage)
     {
     default:
-        SLANG_ASSERT(!"unhandled case");
+        SLANG_RHI_ASSERT(!"unhandled case");
         return gfx::StageType::Unknown;
 
 #define CASE(FROM, TO)       \
@@ -592,16 +592,16 @@ Result RendererBase::createProgram2(
         }
         case ShaderModuleSourceType::SlangSource:
         {
-            auto hash = getStableHashCode32((char*)desc.sourceData, desc.sourceDataSize);
-            auto hashStr = std::to_string((uint32_t)hash);
-            auto srcBlob = UnownedRawBlob::create(desc.sourceData, desc.sourceDataSize);
+            uint32_t hash = hash_data(desc.sourceData, desc.sourceDataSize);
+            auto hashStr = std::to_string(hash);
+            auto srcBlob = UnownedBlob::create(desc.sourceData, desc.sourceDataSize);
             module = slangSession->loadModuleFromSource(hashStr.data(), hashStr.data(), srcBlob, diagnosticsBlob.writeRef());
             if (!module)
                 return SLANG_FAIL;
             break;
         }
         default:
-            SLANG_RELEASE_ASSERT(false);
+            SLANG_RHI_ASSERT_FAILURE("Unknown source type");
     }
 
     std::vector<ComPtr<slang::IComponentType>> componentTypes;
@@ -783,7 +783,7 @@ Result RendererBase::clearShaderCache()
     return SLANG_E_NOT_IMPLEMENTED;
     // TODO_GFX
 #if 0
-    SLANG_ASSERT(persistentShaderCache);
+    SLANG_RHI_ASSERT(persistentShaderCache);
     return persistentShaderCache->clear();
 #endif
 }
@@ -793,7 +793,7 @@ Result RendererBase::getShaderCacheStats(ShaderCacheStats* outStats)
     return SLANG_E_NOT_IMPLEMENTED;
     // TODO_GFX
 #if 0
-    SLANG_ASSERT(persistentShaderCache);
+    SLANG_RHI_ASSERT(persistentShaderCache);
     if (!outStats)
     {
         return SLANG_E_INVALID_ARG;
@@ -812,7 +812,7 @@ Result RendererBase::resetShaderCacheStats()
     return SLANG_E_NOT_IMPLEMENTED;
     // TODO_GFX
 #if 0
-    SLANG_ASSERT(persistentShaderCache);
+    SLANG_RHI_ASSERT(persistentShaderCache);
     persistentShaderCache->resetStats();
     return SLANG_OK;
 #endif
@@ -850,7 +850,7 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
             return getComponentId(key);
         }
         // TODO: collect specialization arguments and append them to `key`.
-        SLANG_UNIMPLEMENTED_X("specialized type");
+        SLANG_RHI_UNIMPLEMENTED_X("specialized type");
     default:
         break;
     }
@@ -876,7 +876,7 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
-void ShaderCache::addSpecializedPipeline(PipelineKey key, Slang::RefPtr<PipelineStateBase> specializedPipeline)
+void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<PipelineStateBase> specializedPipeline)
 {
     specializedPipelines[key] = specializedPipeline;
 }
@@ -998,7 +998,7 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     case slang::BindingType::MutableRawBuffer:
         return m_rwStructuredBufferView.Ptr();
     default:
-        SLANG_ASSERT(false && "Invalid binding type.");
+        SLANG_RHI_ASSERT(false && "Invalid binding type.");
         return nullptr;
     }
 }

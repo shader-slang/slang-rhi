@@ -15,7 +15,7 @@ namespace gfx
 
 class SimpleRenderPassLayout
     : public IRenderPassLayout
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL

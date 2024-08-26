@@ -51,9 +51,9 @@ class ResourceViewImpl
     , public ResourceViewInternalImpl
 {
 public:
-    Slang::RefPtr<Resource> m_resource;
+    RefPtr<Resource> m_resource;
     // null, unless this is a structuredbuffer with a separate counter buffer
-    Slang::RefPtr<Resource> m_counterResource;
+    RefPtr<Resource> m_counterResource;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 

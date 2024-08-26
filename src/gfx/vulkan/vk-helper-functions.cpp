@@ -460,16 +460,16 @@ AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicalDevice)
     VkPhysicalDeviceIDPropertiesKHR idProps = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR };
     VkPhysicalDeviceProperties2 props = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
     props.pNext = &idProps;
-    SLANG_ASSERT(api.vkGetPhysicalDeviceFeatures2);
+    SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
     api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
     if (idProps.deviceLUIDValid)
     {
-        SLANG_ASSERT(sizeof(AdapterLUID) >= VK_LUID_SIZE);
+        SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= VK_LUID_SIZE);
         memcpy(&luid, idProps.deviceLUID, VK_LUID_SIZE);
     }
     else
     {
-        SLANG_ASSERT(sizeof(AdapterLUID) >= VK_UUID_SIZE);
+        SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= VK_UUID_SIZE);
         memcpy(&luid, idProps.deviceUUID, VK_UUID_SIZE);
     }
 
@@ -522,7 +522,7 @@ Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
                 VkPhysicalDeviceProperties props;
                 api.vkGetPhysicalDeviceProperties(physicalDevice, &props);
                 AdapterInfo info = {};
-                memcpy(info.name, props.deviceName, Math::Min(strlen(props.deviceName), sizeof(AdapterInfo::name) - 1));
+                memcpy(info.name, props.deviceName, std::min(strlen(props.deviceName), sizeof(AdapterInfo::name) - 1));
                 info.vendorID = props.vendorID;
                 info.deviceID = props.deviceID;
                 info.luid = vk::getAdapterLUID(api, physicalDevice);

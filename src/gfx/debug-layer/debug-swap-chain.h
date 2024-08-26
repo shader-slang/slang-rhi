@@ -28,11 +28,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) override;
 
 public:
-    Slang::RefPtr<DebugCommandQueue> queue;
+    RefPtr<DebugCommandQueue> queue;
     Desc desc;
 
 private:
-    std::vector<Slang::RefPtr<DebugTextureResource>> m_images;
+    std::vector<RefPtr<DebugTextureResource>> m_images;
     void maybeRebuildImageList();
 };
 

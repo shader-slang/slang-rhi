@@ -87,7 +87,7 @@ class CommandWriter
 {
 public:
     std::vector<Command> m_commands;
-    std::vector<Slang::RefPtr<Slang::RefObject>> m_objects;
+    std::vector<RefPtr<RefObject>> m_objects;
     std::vector<uint8_t> m_data;
     bool m_hasWriteTimestamps = false;
 
@@ -111,7 +111,7 @@ public:
         return offset;
     }
 
-    Offset encodeObject(Slang::RefObject* obj)
+    Offset encodeObject(RefObject* obj)
     {
         Offset offset = (Offset)m_objects.size();
         m_objects.push_back(obj);

@@ -269,7 +269,7 @@ namespace gfx_test
 
         ShaderCacheStats getStats()
         {
-            SLANG_ASSERT(shaderCache);
+            SLANG_RHI_ASSERT(shaderCache);
             ShaderCacheStats stats;
             shaderCache->getShaderCacheStats(&stats);
             return stats;

@@ -18,8 +18,8 @@ class CPUShaderObjectData
 public:
     std::vector<char> m_ordinaryData;
     // Any "ordinary" / uniform data for this object
-    Slang::RefPtr<BufferResourceImpl> m_bufferResource;
-    Slang::RefPtr<BufferResourceViewImpl> m_bufferView;
+    RefPtr<BufferResourceImpl> m_bufferResource;
+    RefPtr<BufferResourceViewImpl> m_bufferView;
 
     Index getCount();
     void setCount(Index count);

@@ -19,8 +19,8 @@ namespace gfx
     public:
         struct ObjectVersion
         {
-            Slang::RefPtr<T> object;
-            Slang::RefPtr<TransientResourceHeapBase> transientHeap;
+            RefPtr<T> object;
+            RefPtr<TransientResourceHeapBase> transientHeap;
             uint64_t transientHeapVersion;
             bool canRecycle()
             {
@@ -60,8 +60,8 @@ namespace gfx
 
         bool m_dirty = true;
 
-        Slang::Index getCount() { return m_ordinaryData.size(); }
-        void setCount(Slang::Index count) { m_ordinaryData.resize(count); }
+        Index getCount() { return m_ordinaryData.size(); }
+        void setCount(Index count) { m_ordinaryData.resize(count); }
         char* getBuffer() { return m_ordinaryData.data(); }
         void markDirty() { m_dirty = true; }
 
@@ -87,8 +87,8 @@ namespace gfx
             TShaderObjectLayoutImpl,
             MutableShaderObjectData> Super;
     protected:
-        std::map<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
-        std::map<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
+        std::map<ShaderOffset, RefPtr<ResourceViewBase>> m_resources;
+        std::map<ShaderOffset, RefPtr<SamplerStateBase>> m_samplers;
         std::set<ShaderOffset> m_objectOffsets;
         VersionedObjectPool<ShaderObjectBase> m_shaderObjectVersions;
         bool m_dirty = true;
@@ -114,7 +114,7 @@ namespace gfx
             this->m_device = device;
             auto layoutImpl = static_cast<TShaderObjectLayoutImpl*>(layout);
             this->m_layout = layoutImpl;
-            Slang::Index subObjectCount = layoutImpl->getSubObjectCount();
+            Index subObjectCount = layoutImpl->getSubObjectCount();
             this->m_objects.resize(subObjectCount);
             auto dataSize = layoutImpl->getElementTypeLayout()->getSize();
             assert(dataSize >= 0);
@@ -182,7 +182,7 @@ namespace gfx
                 return SLANG_OK;
             }
 
-            Slang::RefPtr<ShaderObjectBase> object =
+            RefPtr<ShaderObjectBase> object =
                 allocateShaderObject(static_cast<TransientResourceHeapBase*>(transientHeap));
             SLANG_RETURN_ON_FAIL(object->setData(ShaderOffset(), this->m_data.getBuffer(), this->m_data.getCount()));
             for (auto it : m_resources)
@@ -212,7 +212,7 @@ namespace gfx
             return SLANG_OK;
         }
     public:
-        Slang::RefPtr<ShaderObjectBase> allocateShaderObject(TransientResourceHeapBase* transientHeap)
+        RefPtr<ShaderObjectBase> allocateShaderObject(TransientResourceHeapBase* transientHeap)
         {
             auto& version = m_shaderObjectVersions.allocate(transientHeap);
             if (!version.object)
@@ -223,7 +223,7 @@ namespace gfx
             }
             return version.object;
         }
-        Slang::RefPtr<ShaderObjectBase> getLastAllocatedShaderObject()
+        RefPtr<ShaderObjectBase> getLastAllocatedShaderObject()
         {
             return m_shaderObjectVersions.getLastAllocation().object;
         }
@@ -234,12 +234,12 @@ namespace gfx
     {
     public:
         std::vector<uint8_t> m_data;
-        std::map<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
-        std::map<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
-        std::map<ShaderOffset, Slang::RefPtr<ShaderObjectBase>> m_objects;
+        std::map<ShaderOffset, RefPtr<ResourceViewBase>> m_resources;
+        std::map<ShaderOffset, RefPtr<SamplerStateBase>> m_samplers;
+        std::map<ShaderOffset, RefPtr<ShaderObjectBase>> m_objects;
         std::map<ShaderOffset, std::vector<slang::SpecializationArg>> m_specializationArgs;
-        std::vector<Slang::RefPtr<MutableRootShaderObject>> m_entryPoints;
-        Slang::RefPtr<BufferResource> m_constantBufferOverride;
+        std::vector<RefPtr<MutableRootShaderObject>> m_entryPoints;
+        RefPtr<BufferResource> m_constantBufferOverride;
         slang::TypeLayoutReflection* m_elementTypeLayout;
 
         MutableRootShaderObject(RendererBase* device, slang::TypeLayoutReflection* entryPointLayout)
@@ -250,7 +250,7 @@ namespace gfx
             memset(m_data.data(), 0, m_data.size());
         }
 
-        MutableRootShaderObject(RendererBase* device, Slang::RefPtr<ShaderProgramBase> program)
+        MutableRootShaderObject(RendererBase* device, RefPtr<ShaderProgramBase> program)
         {
             this->m_device = device;
             auto programLayout = program->slangGlobalScope->getLayout();
@@ -258,7 +258,7 @@ namespace gfx
             for (SlangInt e = 0; e < entryPointCount; ++e)
             {
                 auto slangEntryPoint = programLayout->getEntryPointByIndex(e);
-                Slang::RefPtr<MutableRootShaderObject> entryPointObject =
+                RefPtr<MutableRootShaderObject> entryPointObject =
                     new MutableRootShaderObject(device, slangEntryPoint->getTypeLayout()->getElementTypeLayout());
 
                 m_entryPoints.push_back(entryPointObject);
@@ -295,9 +295,9 @@ namespace gfx
         virtual SLANG_NO_THROW Result SLANG_MCALL
             setData(ShaderOffset const& offset, void const* data, Size size) override
         {
-            auto newSize = Slang::Index(size + offset.uniformOffset);
+            auto newSize = Index(size + offset.uniformOffset);
             if (newSize > m_data.size())
-                m_data.resize((Slang::Index)newSize);
+                m_data.resize((Index)newSize);
             memcpy(m_data.data() + offset.uniformOffset, data, size);
             return SLANG_OK;
         }

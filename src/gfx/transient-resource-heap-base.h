@@ -10,7 +10,7 @@ class StagingBufferPool
 public:
     struct StagingBufferPage
     {
-        Slang::RefPtr<TBufferResource> resource;
+        RefPtr<TBufferResource> resource;
         size_t size;
     };
 
@@ -26,9 +26,9 @@ public:
     ResourceStateSet m_allowedStates;
 
     std::vector<StagingBufferPage> m_pages;
-    std::vector<Slang::RefPtr<TBufferResource>> m_largeAllocations;
+    std::vector<RefPtr<TBufferResource>> m_largeAllocations;
 
-    Slang::Index m_pageAllocCounter = 0;
+    Index m_pageAllocCounter = 0;
     size_t m_offsetAllocCounter = 0;
 
     const size_t kStagingBufferDefaultPageSize = 16 * 1024 * 1024;
@@ -102,8 +102,8 @@ public:
         }
 
         size_t bufferAllocOffset = alignUp(m_offsetAllocCounter, m_alignment);
-        Slang::Index bufferId = -1;
-        for (Slang::Index i = m_pageAllocCounter; i < m_pages.size(); i++)
+        Index bufferId = -1;
+        for (GfxIndex i = m_pageAllocCounter; i < m_pages.size(); i++)
         {
             auto cb = m_pages[i].resource.Ptr();
             if (bufferAllocOffset + size <= cb->getDesc()->sizeInBytes)

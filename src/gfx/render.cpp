@@ -46,7 +46,7 @@ static bool _checkFormat()
     SLANG_RHI_FORMAT(SLANG_RHI_FORMAT_CHECK)
 
     const bool r = (count == Index(Format::_Count));
-    SLANG_ASSERT(r);
+    SLANG_RHI_ASSERT(r);
     return r;
 }
 
@@ -280,7 +280,7 @@ extern "C"
             return SLANG_E_INVALID_ARG;
         }
 
-        auto adaptersBlob = RawBlob::create(adapters.data(), adapters.size() * sizeof(AdapterInfo));
+        auto adaptersBlob = OwnedBlob::create(adapters.data(), adapters.size() * sizeof(AdapterInfo));
         if (outAdaptersBlob)
             returnComPtr(outAdaptersBlob, adaptersBlob);
 

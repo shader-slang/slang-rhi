@@ -75,6 +75,7 @@ file(GLOB RHI_SOURCES
     src/gfx/*.cpp
     src/gfx/cpu/*.cpp
     src/gfx/debug-layer/*.cpp
+    src/utils/*.cpp
 )
 target_sources(slang-rhi PRIVATE ${RHI_SOURCES})
 
@@ -117,6 +118,7 @@ if(WIN32)
 endif()
 
 target_include_directories(slang-rhi PUBLIC include)
+target_include_directories(slang-rhi PRIVATE src)
 target_compile_definitions(slang-rhi
     PRIVATE
         SLANG_RHI_ENABLE_D3D12=$<BOOL:${SLANG_RHI_ENABLE_D3D12}>
@@ -127,11 +129,7 @@ target_compile_definitions(slang-rhi
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_20)
-target_link_libraries(slang-rhi
-    PRIVATE
-        slang
-        slang-core
-)
+target_link_libraries(slang-rhi PRIVATE slang)
 
 if(SLANG_RHI_BUILD_TESTS)
     add_library(stb INTERFACE)

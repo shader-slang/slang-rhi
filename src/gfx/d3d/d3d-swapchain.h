@@ -12,7 +12,7 @@ namespace gfx
 {
 class D3DSwapchainBase
     : public ISwapchain
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -152,7 +152,7 @@ public:
     virtual IUnknown* getOwningDevice() = 0;
     ISwapchain::Desc m_desc;
     ComPtr<IDXGISwapChain2> m_swapChain;
-    short_vector<Slang::RefPtr<TextureResource>> m_images;
+    short_vector<RefPtr<TextureResource>> m_images;
 };
 
 }

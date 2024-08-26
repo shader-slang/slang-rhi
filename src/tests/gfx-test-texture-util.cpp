@@ -177,9 +177,9 @@ namespace gfx_test
             {
                 RefPtr<ValidationTextureData> subresource = new ValidationTextureData();
 
-                auto mipWidth = Math::Max(extents.width >> mip, 1);
-                auto mipHeight = Math::Max(extents.height >> mip, 1);
-                auto mipDepth = Math::Max(extents.depth >> mip, 1);
+                auto mipWidth = std::max(extents.width >> mip, 1);
+                auto mipHeight = std::max(extents.height >> mip, 1);
+                auto mipDepth = std::max(extents.depth >> mip, 1);
                 auto mipSize = mipWidth * mipHeight * mipDepth * texelSize;
                 subresource->textureData = malloc(mipSize);
                 SLANG_CHECK_ABORT(subresource->textureData);

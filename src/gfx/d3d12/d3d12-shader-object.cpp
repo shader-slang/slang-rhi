@@ -20,7 +20,7 @@ using namespace Slang;
 
 GfxCount ShaderObjectImpl::getEntryPointCount() { return 0; }
 
-Result ShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+Result ShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntryPoint)
 {
     *outEntryPoint = nullptr;
     return SLANG_OK;
@@ -241,7 +241,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
     auto src = m_data.getBuffer();
     auto srcSize = Size(m_data.getCount());
 
-    SLANG_ASSERT(srcSize <= destSize);
+    SLANG_RHI_ASSERT(srcSize <= destSize);
 
     uploadBufferDataImpl(
         encoder->m_device,
@@ -425,17 +425,17 @@ void ShaderObjectImpl::updateSubObjectsRecursive()
     if (!m_isMutable)
         return;
     auto& subObjectRanges = getLayout()->getSubObjectRanges();
-    for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.size();
+    for (Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.size();
         subObjectRangeIndex++)
     {
         auto const& subObjectRange = subObjectRanges[subObjectRangeIndex];
         auto const& bindingRange = getLayout()->getBindingRange(subObjectRange.bindingRangeIndex);
-        Slang::Index count = bindingRange.count;
+        Index count = bindingRange.count;
 
-        for (Slang::Index subObjectIndexInRange = 0; subObjectIndexInRange < count;
+        for (Index subObjectIndexInRange = 0; subObjectIndexInRange < count;
             subObjectIndexInRange++)
         {
-            Slang::Index objectIndex = bindingRange.subObjectIndex + subObjectIndexInRange;
+            Index objectIndex = bindingRange.subObjectIndex + subObjectIndexInRange;
             auto subObject = m_objects[objectIndex].Ptr();
             if (!subObject)
                 continue;
@@ -443,8 +443,8 @@ void ShaderObjectImpl::updateSubObjectsRecursive()
             if (m_subObjectVersions.size() > objectIndex && m_subObjectVersions[objectIndex] != m_objects[objectIndex]->m_version)
             {
                 ShaderOffset offset;
-                offset.bindingRangeIndex = (GfxIndex)subObjectRange.bindingRangeIndex;
-                offset.bindingArrayIndex = (GfxIndex)subObjectIndexInRange;
+                offset.bindingRangeIndex = (Index)subObjectRange.bindingRangeIndex;
+                offset.bindingArrayIndex = (Index)subObjectIndexInRange;
                 setObject(offset, subObject);
             }
         }
@@ -561,19 +561,19 @@ bool ShaderObjectImpl::checkIfCachedDescriptorSetIsValidRecursive(BindingContext
         return false;
 
     auto& subObjectRanges = getLayout()->getSubObjectRanges();
-    for (Slang::Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.size();
+    for (Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRanges.size();
         subObjectRangeIndex++)
     {
         auto const& subObjectRange = subObjectRanges[subObjectRangeIndex];
         auto const& bindingRange = getLayout()->getBindingRange(subObjectRange.bindingRangeIndex);
         if (bindingRange.bindingType != slang::BindingType::ParameterBlock)
             continue;
-        Slang::Index count = bindingRange.count;
+        Index count = bindingRange.count;
 
-        for (Slang::Index subObjectIndexInRange = 0; subObjectIndexInRange < count;
+        for (Index subObjectIndexInRange = 0; subObjectIndexInRange < count;
             subObjectIndexInRange++)
         {
-            Slang::Index objectIndex = bindingRange.subObjectIndex + subObjectIndexInRange;
+            Index objectIndex = bindingRange.subObjectIndex + subObjectIndexInRange;
             auto subObject = m_objects[objectIndex].Ptr();
             if (!subObject)
                 continue;
@@ -1017,7 +1017,7 @@ RootShaderObjectLayoutImpl* RootShaderObjectImpl::getLayout()
 
 GfxCount RootShaderObjectImpl::getEntryPointCount() { return (GfxCount)m_entryPoints.size(); }
 
-SlangResult RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+SlangResult RootShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntryPoint)
 {
     returnComPtr(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;

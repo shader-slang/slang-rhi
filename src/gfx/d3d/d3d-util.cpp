@@ -452,14 +452,14 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
 
         // TODO(tfoley): maybe want to search for one of a few versions of the DLL
         const char* const libName = "d3dcompiler_47";
-        SharedLibrary::Handle compilerModule;
-        if (SLANG_FAILED(SharedLibrary::load(libName, compilerModule)))
+        SharedLibraryHandle compilerModule;
+        if (SLANG_FAILED(loadSharedLibrary(libName, compilerModule)))
         {
             fprintf(stderr, "error: failed to load '%s'\n", libName);
             return SLANG_FAIL;
         }
 
-        compileFunc = (pD3DCompile)SharedLibrary::findSymbolAddressByName(compilerModule, "D3DCompile");
+        compileFunc = (pD3DCompile)findSymbolAddressByName(compilerModule, "D3DCompile");
         if (!compileFunc)
         {
             fprintf(stderr, "error: failed load symbol 'D3DCompile'\n");
@@ -506,13 +506,13 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
 #endif // SLANG_ENABLE_DXBC_SUPPORT
 }
 
-/* static */SharedLibrary::Handle D3DUtil::getDxgiModule()
+/* static */SharedLibraryHandle D3DUtil::getDxgiModule()
 {
     const char* const libName = SLANG_ENABLE_DXVK ? "dxvk_dxgi" : "dxgi";
 
-    static SharedLibrary::Handle s_dxgiModule = [&](){
-        SharedLibrary::Handle h = nullptr;
-        SharedLibrary::load(libName, h);
+    static SharedLibraryHandle s_dxgiModule = [&](){
+        SharedLibraryHandle h = nullptr;
+        loadSharedLibrary(libName, h);
         if (!h)
         {
             fprintf(stderr, "error: failed to load dll '%s'\n", libName);
@@ -534,7 +534,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     typedef HRESULT(WINAPI *PFN_DXGI_CREATE_FACTORY_2)(UINT Flags, REFIID riid, void **ppFactory);
 
     {
-        auto createFactory2 = (PFN_DXGI_CREATE_FACTORY_2)SharedLibrary::findSymbolAddressByName(dxgiModule, "CreateDXGIFactory2");
+        auto createFactory2 = (PFN_DXGI_CREATE_FACTORY_2)findSymbolAddressByName(dxgiModule, "CreateDXGIFactory2");
         if (createFactory2)
         {
             UINT dxgiFlags = 0;
@@ -553,7 +553,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     }
 
     {
-        auto createFactory = (PFN_DXGI_CREATE_FACTORY)SharedLibrary::findSymbolAddressByName(dxgiModule, "CreateDXGIFactory");
+        auto createFactory = (PFN_DXGI_CREATE_FACTORY)findSymbolAddressByName(dxgiModule, "CreateDXGIFactory");
         if (!createFactory)
         {
             fprintf(stderr, "error: failed load symbol '%s'\n", "CreateDXGIFactory");
@@ -575,7 +575,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     DXGI_ADAPTER_DESC desc;
     dxgiAdapter->GetDesc(&desc);
     AdapterLUID luid = {};
-    SLANG_ASSERT(sizeof(AdapterLUID) >= sizeof(LUID));
+    SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= sizeof(LUID));
     memcpy(&luid, &desc.AdapterLuid, sizeof(LUID));
     return luid;
 }
@@ -672,7 +672,7 @@ uint32_t D3DUtil::getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect)
     case TextureAspect::Plane2:
         return 2;
     default:
-        SLANG_ASSERT_FAILURE("Unknown texture aspect.");
+        SLANG_RHI_ASSERT_FAILURE("Unknown texture aspect.");
         return 0;
     }
 }
@@ -686,7 +686,7 @@ D3D12_INPUT_CLASSIFICATION D3DUtil::getInputSlotClass(InputSlotClass slotClass)
     case InputSlotClass::PerInstance:
         return D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA;
     default:
-        SLANG_ASSERT_FAILURE("Unknown input slot class.");
+        SLANG_RHI_ASSERT_FAILURE("Unknown input slot class.");
         return D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
     }
 }
@@ -700,7 +700,7 @@ D3D12_FILL_MODE D3DUtil::getFillMode(FillMode mode)
     case FillMode::Wireframe:
         return D3D12_FILL_MODE_WIREFRAME;
     default:
-        SLANG_ASSERT_FAILURE("Unknown fill mode.");
+        SLANG_RHI_ASSERT_FAILURE("Unknown fill mode.");
         return D3D12_FILL_MODE_SOLID;
     }
 }
@@ -716,7 +716,7 @@ D3D12_CULL_MODE D3DUtil::getCullMode(CullMode mode)
     case CullMode::Back:
         return D3D12_CULL_MODE_BACK;
     default:
-        SLANG_ASSERT_FAILURE("Unknown cull mode.");
+        SLANG_RHI_ASSERT_FAILURE("Unknown cull mode.");
         return D3D12_CULL_MODE_NONE;
     }
 }
@@ -736,7 +736,7 @@ D3D12_BLEND_OP D3DUtil::getBlendOp(BlendOp op)
     case BlendOp::Max:
         return D3D12_BLEND_OP_MAX;
     default:
-        SLANG_ASSERT_FAILURE("Unknown blend op.");
+        SLANG_RHI_ASSERT_FAILURE("Unknown blend op.");
         return D3D12_BLEND_OP_ADD;
     }
 }
@@ -780,7 +780,7 @@ D3D12_BLEND D3DUtil::getBlendFactor(BlendFactor factor)
     case BlendFactor::InvSecondarySrcAlpha:
         return D3D12_BLEND_INV_SRC1_ALPHA;
     default:
-        SLANG_ASSERT_FAILURE("Unknown blend factor.");
+        SLANG_RHI_ASSERT_FAILURE("Unknown blend factor.");
         return D3D12_BLEND_ZERO;
     }
 }

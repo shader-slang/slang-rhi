@@ -84,7 +84,7 @@ struct D3D12Descriptor
 /// Unlike the `D3D12DescriptorHeap` type, this class allows for both
 /// allocation and freeing of descriptors, by maintaining a free list.
 ///
-class D3D12GeneralDescriptorHeap : public Slang::RefObject
+class D3D12GeneralDescriptorHeap : public RefObject
 {
     ID3D12Device*                           m_device;
     int                                     m_chunkSize;
@@ -153,19 +153,19 @@ public:
     }
 };
 
-class D3D12GeneralExpandingDescriptorHeap : public Slang::RefObject
+class D3D12GeneralExpandingDescriptorHeap : public RefObject
 {
     ID3D12Device* m_device;
     D3D12_DESCRIPTOR_HEAP_TYPE m_type;
     D3D12_DESCRIPTOR_HEAP_FLAGS m_flag;
     int m_chunkSize;
-    std::vector<Slang::RefPtr<D3D12GeneralDescriptorHeap>> m_subHeaps;
+    std::vector<RefPtr<D3D12GeneralDescriptorHeap>> m_subHeaps;
     std::vector<int> m_subHeapStartingIndex;
 
 public:
     Slang::Result newSubHeap()
     {
-        Slang::RefPtr<D3D12GeneralDescriptorHeap> subHeap = new D3D12GeneralDescriptorHeap();
+        RefPtr<D3D12GeneralDescriptorHeap> subHeap = new D3D12GeneralDescriptorHeap();
         SLANG_RETURN_ON_FAIL(subHeap->init(m_device, m_chunkSize, m_type, m_flag));
         m_subHeaps.push_back(subHeap);
         if (m_subHeapStartingIndex.size())
@@ -181,11 +181,11 @@ public:
 
     int getSubHeapIndex(int descriptorIndex) const
     {
-        Slang::Index l = 0;
-        Slang::Index r = m_subHeapStartingIndex.size();
+        Index l = 0;
+        Index r = m_subHeapStartingIndex.size();
         while (l < r - 1)
         {
-            Slang::Index m = l + (r - l) / 2;
+            Index m = l + (r - l) / 2;
             if (m_subHeapStartingIndex[m] < descriptorIndex)
                 l = m;
             else if (m_subHeapStartingIndex[m] > descriptorIndex)
@@ -276,7 +276,7 @@ public:
     }
 };
 
-class D3D12LinearExpandingDescriptorHeap : public Slang::RefObject
+class D3D12LinearExpandingDescriptorHeap : public RefObject
 {
     ID3D12Device* m_device;
     D3D12_DESCRIPTOR_HEAP_TYPE m_type;
@@ -293,7 +293,7 @@ public:
         {
             D3D12DescriptorHeap subHeap;
             SLANG_RETURN_ON_FAIL(subHeap.init(m_device, m_chunkSize, m_type, m_flag));
-            m_subHeaps.push_back(Slang::_Move(subHeap));
+            m_subHeaps.push_back(_Move(subHeap));
         }
         return SLANG_OK;
     }
@@ -429,7 +429,7 @@ struct DescriptorHeapReference
         {
         default:
         case Type::Linear:
-            SLANG_ASSERT(!"Linear heap does not support free().");
+            SLANG_RHI_ASSERT(!"Linear heap does not support free().");
             break;
         case Type::General:
             return ptr.generalHeap->free(index, count);

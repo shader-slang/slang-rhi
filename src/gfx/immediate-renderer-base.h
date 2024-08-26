@@ -19,7 +19,7 @@ enum class MapFlavor
 
 class ImmediateCommandQueueBase
     : public ICommandQueue
-    , public Slang::ComObject
+    , public ComObject
 {
 public:
     // Immediate device also holds a strong reference to an instance of `ImmediateCommandQueue`,
@@ -97,7 +97,7 @@ public:
     virtual void endCommandBuffer(const CommandBufferInfo&) {}
 
 public:
-    Slang::RefPtr<ImmediateCommandQueueBase> m_queue;
+    RefPtr<ImmediateCommandQueueBase> m_queue;
     uint32_t m_queueCreateCount = 0;
 
     ImmediateRendererBase();

@@ -18,12 +18,12 @@ class ShaderObjectData
 {
 public:
     bool isHostOnly = false;
-    Slang::RefPtr<BufferResourceImpl> m_bufferResource;
-    Slang::RefPtr<ResourceViewImpl> m_bufferView;
+    RefPtr<BufferResourceImpl> m_bufferResource;
+    RefPtr<ResourceViewImpl> m_bufferView;
     std::vector<uint8_t> m_cpuBuffer;
 
     Result setCount(Index count);
-    Slang::Index getCount();
+    Index getCount();
     void* getBuffer();
 
     /// Returns a resource view for GPU access into the buffer content.

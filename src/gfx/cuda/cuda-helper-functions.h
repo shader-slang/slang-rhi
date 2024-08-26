@@ -71,7 +71,7 @@ SlangResult _handleCUDAError(CUresult cuResult, const char* file, int line);
             auto _res = x;                         \
             if (_isError(_res))                    \
             {                                      \
-                SLANG_ASSERT(!"Failed CUDA call"); \
+                SLANG_RHI_ASSERT(!"Failed CUDA call"); \
             };                                     \
         }
 

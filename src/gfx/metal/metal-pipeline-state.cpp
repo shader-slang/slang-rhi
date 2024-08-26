@@ -205,7 +205,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
     case PipelineType::Graphics:
         return m_renderPipelineState ? SLANG_OK : createMetalRenderPipelineState();
     default:
-        SLANG_UNREACHABLE("Unknown pipeline type.");
+        SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
         return SLANG_FAIL;
     }
     return SLANG_OK;

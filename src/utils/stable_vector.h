@@ -160,10 +160,6 @@ public:
 
 	const_reference operator[](size_type i) const;
 
-	reference at(size_type i);
-
-	const_reference at(size_type i) const;
-
 private:
 	using chunk_type = static_vector<T, ChunkSize>;
 	using storage_type = std::vector<std::unique_ptr<chunk_type>>;
@@ -297,25 +293,6 @@ typename stable_vector<T, ChunkSize>::const_reference
 stable_vector<T, ChunkSize>::operator[](size_type i) const
 {
 	return const_cast<__self&>(*this)[i];
-}
-
-template <class T, std::size_t ChunkSize>
-typename stable_vector<T, ChunkSize>::reference
-stable_vector<T, ChunkSize>::at(size_type i)
-{
-	if (likely_false(i >= size()))
-	{
-		throw std::out_of_range("stable_vector::at");
-	}
-
-	return operator[](i);
-}
-
-template <class T, std::size_t ChunkSize>
-typename stable_vector<T, ChunkSize>::const_reference
-stable_vector<T, ChunkSize>::at(size_type i) const
-{
-	return const_cast<__self&>(*this).at(i);
 }
 
 } // namespace gfx

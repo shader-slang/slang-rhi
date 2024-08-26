@@ -166,7 +166,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     multisampling.alphaToOneEnable = VK_FALSE;
 
     auto targetCount =
-        GfxCount(Math::Min(framebufferLayoutImpl->m_renderTargetCount, (uint32_t)blendDesc.targetCount));
+        GfxCount(std::min(framebufferLayoutImpl->m_renderTargetCount, (uint32_t)blendDesc.targetCount));
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendTargets;
 
     // Regardless of whether blending is enabled, Vulkan always applies the color write mask
@@ -340,7 +340,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
     case PipelineType::Graphics:
         return createVKGraphicsPipelineState();
     default:
-        SLANG_UNREACHABLE("Unknown pipeline type.");
+        SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
         return SLANG_FAIL;
     }
 }
@@ -411,7 +411,7 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
 
         // For groups with a single entry point, the group name is the entry point name.
         auto shaderGroupName = entryPointName;
-        auto shaderGroupIndex = shaderGroupInfos.size();
+        auto shaderGroupIndex = Index(shaderGroupInfos.size());
         shaderGroupInfos.push_back(shaderGroupInfo);
         shaderGroupNameToIndex.emplace(shaderGroupName, shaderGroupIndex);
     }
@@ -435,7 +435,7 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
             findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint.c_str());
         shaderGroupInfo.pShaderGroupCaptureReplayHandle = nullptr;
 
-        auto shaderGroupIndex = shaderGroupInfos.size();
+        auto shaderGroupIndex = Index(shaderGroupInfos.size());
         shaderGroupInfos.push_back(shaderGroupInfo);
         shaderGroupNameToIndex.emplace(groupDesc.hitGroupName, shaderGroupIndex);
     }
@@ -488,7 +488,7 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     case PipelineType::RayTracing:
         return createVKRayTracingPipelineState();
     default:
-        SLANG_UNREACHABLE("Unknown pipeline type.");
+        SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
         return SLANG_FAIL;
     }
 }

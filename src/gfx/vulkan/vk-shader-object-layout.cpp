@@ -32,7 +32,7 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(
     {
     case slang::BindingType::PushConstant:
     default:
-        SLANG_ASSERT("unsupported binding type");
+        SLANG_RHI_ASSERT("unsupported binding type");
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 
     case slang::BindingType::Sampler:
@@ -169,7 +169,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         auto bindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
 
         auto subObjectTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
-        SLANG_ASSERT(subObjectTypeLayout);
+        SLANG_RHI_ASSERT(subObjectTypeLayout);
 
         BindingOffset subObjectRangeOffset = offset;
         subObjectRangeOffset +=
@@ -203,16 +203,16 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                 // ranges in `X`, along with a leading descriptor range for a
                 // uniform buffer to hold ordinary/uniform data, if there is any.
 
-                SLANG_ASSERT(subObjectTypeLayout);
+                SLANG_RHI_ASSERT(subObjectTypeLayout);
 
                 auto containerVarLayout = subObjectTypeLayout->getContainerVarLayout();
-                SLANG_ASSERT(containerVarLayout);
+                SLANG_RHI_ASSERT(containerVarLayout);
 
                 auto elementVarLayout = subObjectTypeLayout->getElementVarLayout();
-                SLANG_ASSERT(elementVarLayout);
+                SLANG_RHI_ASSERT(elementVarLayout);
 
                 auto elementTypeLayout = elementVarLayout->getTypeLayout();
-                SLANG_ASSERT(elementTypeLayout);
+                SLANG_RHI_ASSERT(elementTypeLayout);
 
                 BindingOffset containerOffset = subObjectRangeOffset;
                 containerOffset += BindingOffset(subObjectTypeLayout->getContainerVarLayout());
@@ -234,16 +234,16 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                 // `ConstantBuffer<X>`, but of course we need to handle the ordinary
                 // data part differently.
 
-                SLANG_ASSERT(subObjectTypeLayout);
+                SLANG_RHI_ASSERT(subObjectTypeLayout);
 
                 auto containerVarLayout = subObjectTypeLayout->getContainerVarLayout();
-                SLANG_ASSERT(containerVarLayout);
+                SLANG_RHI_ASSERT(containerVarLayout);
 
                 auto elementVarLayout = subObjectTypeLayout->getElementVarLayout();
-                SLANG_ASSERT(elementVarLayout);
+                SLANG_RHI_ASSERT(elementVarLayout);
 
                 auto elementTypeLayout = elementVarLayout->getTypeLayout();
-                SLANG_ASSERT(elementTypeLayout);
+                SLANG_RHI_ASSERT(elementTypeLayout);
 
                 BindingOffset containerOffset = subObjectRangeOffset;
                 containerOffset += BindingOffset(subObjectTypeLayout->getContainerVarLayout());

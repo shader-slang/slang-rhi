@@ -32,7 +32,7 @@ void _unpackFloat16Texel(void const* texelData, void* outData, size_t outSize)
 
     float temp[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     for (int i = 0; i < N; ++i)
-        temp[i] = HalfToFloat(input[i]);
+        temp[i] = math::halfToFloat(input[i]);
 
     memcpy(outData, temp, outSize);
 }

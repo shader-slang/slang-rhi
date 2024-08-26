@@ -234,7 +234,7 @@ SlangResult DeviceImpl::readTextureResource(
     std::vector<uint8_t> blobData;
     blobData.resize(bufferSize);
     ::memcpy(blobData.data(), stagingBuffer->contents(), bufferSize);
-    auto blob = ListBlob::moveCreate(blobData);
+    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -262,7 +262,7 @@ SlangResult DeviceImpl::readBufferResource(
     std::vector<uint8_t> blobData;
     blobData.resize(size);
     ::memcpy(blobData.data(), stagingBuffer->contents(), size);
-    auto blob = ListBlob::moveCreate(blobData);
+    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

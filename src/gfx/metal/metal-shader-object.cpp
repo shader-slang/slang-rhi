@@ -73,19 +73,19 @@ SLANG_NO_THROW Result SLANG_MCALL
     {
     case slang::BindingType::Texture:
     case slang::BindingType::MutableTexture:
-        SLANG_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Texture);
+        SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Texture);
         m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<TextureResourceViewImpl*>(resourceView);
         break;
     case slang::BindingType::RawBuffer:
     case slang::BindingType::ConstantBuffer:
     case slang::BindingType::MutableRawBuffer:
-        SLANG_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Buffer);
+        SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Buffer);
         m_buffers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<BufferResourceViewImpl*>(resourceView);
         break;
     case slang::BindingType::TypedBuffer:
     case slang::BindingType::MutableTypedBuffer:
-        SLANG_ASSERT(!"Not implemented");
-        // SLANG_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::TexelBuffer);
+        SLANG_RHI_ASSERT(!"Not implemented");
+        // SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::TexelBuffer);
         // m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<TextureResourceViewImpl*>(resourceView);
         break;
     }
@@ -176,7 +176,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
     //
     auto src = m_data.getBuffer();
     auto srcSize = size_t(m_data.getCount());
-    SLANG_ASSERT(srcSize <= destSize);
+    SLANG_RHI_ASSERT(srcSize <= destSize);
     memcpy(dest, src, srcSize);
 
     // In the case where this object has any sub-objects of
@@ -244,7 +244,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
         if (subObjectRangePendingDataOffset == 0)
             continue;
 
-        for (Slang::Index i = 0; i < count; ++i)
+        for (Index i = 0; i < count; ++i)
         {
             auto subObject = m_objects[bindingRangeInfo.subObjectIndex + i];
 
@@ -395,7 +395,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(
 
         // Now fill in argument values to `argumentData`.
         int bindingRangeIndex = 0;
-        SLANG_ASSERT(defaultTypeLayout->getBindingRangeCount() == typeLayout->getBindingRangeCount());
+        SLANG_RHI_ASSERT(defaultTypeLayout->getBindingRangeCount() == typeLayout->getBindingRangeCount());
 
         int bufferBindingIndexOffset = layout->getTotalOrdinaryDataSize() != 0 ? 1 : 0;
         

@@ -27,14 +27,14 @@ struct DescriptorTable
     /// Get the GPU handle at the specified index
     SLANG_FORCE_INLINE D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(uint32_t index = 0) const
     {
-        SLANG_ASSERT(index < getDescriptorCount());
+        SLANG_RHI_ASSERT(index < getDescriptorCount());
         return m_heap.getGpuHandle(m_offset + index);
     }
 
     /// Get the CPU handle at the specified index
     SLANG_FORCE_INLINE D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(uint32_t index = 0) const
     {
-        SLANG_ASSERT(index < getDescriptorCount());
+        SLANG_RHI_ASSERT(index < getDescriptorCount());
         return m_heap.getCpuHandle(m_offset + index);
     }
 

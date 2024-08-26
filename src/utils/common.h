@@ -1,21 +1,42 @@
 #pragma once
 
-// #define SLANG_ASSERT(x)
-
 // for std::max, std::clamp
 #include <algorithm>
 #include <array>
 #include <tuple>
 
-// TO BE DONE
-#include "core/slang-blob.h"
-#include "core/slang-smart-pointer.h"
-#include "core/slang-com-object.h"
-#include "core/slang-platform.h"
-
-namespace Slang {}
+#include "smart-pointer.h"
+#include "com-object.h"
+#include "platform.h"
+#include "blob.h"
 
 namespace gfx {
+
+using Index = int;
+
+template <typename T>
+inline T&& _Move(T & obj)
+{
+	return static_cast<T&&>(obj);
+}
+
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v)
+{
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+}
+
+inline uint32_t hash_data(const void* data, size_t size)
+{
+	uint32_t hash = 0;
+	const uint8_t* buf = static_cast<const uint8_t*>(data);
+	for (size_t i = 0; i < size; ++i)
+	{
+		hash = uint32_t(buf[i]) + (hash << 6) + (hash << 16) - hash;
+	}
+	return hash;
+}
 
 template<typename ...Args>
 auto make_array(Args ...args)
@@ -26,6 +47,12 @@ auto make_array(Args ...args)
 }
 
     namespace math {
+        template <typename T>
+        inline T getLowestBit(T val)
+        {
+            return val & (-val);
+        }
+
 		inline unsigned int ones32(unsigned int x)
 		{
 			/* 32-bit recursive reduction using SWAR...
@@ -49,6 +76,36 @@ auto make_array(Args ...args)
 			x |= (x >> 16);
 			return(ones32(x >> 1));
 		}
+
+        union FloatIntUnion
+        {
+            float fvalue;
+            int ivalue;
+
+            SLANG_FORCE_INLINE static FloatIntUnion makeFromInt(int i) { FloatIntUnion cast; cast.ivalue = i; return cast; }
+            SLANG_FORCE_INLINE static FloatIntUnion makeFromFloat(float f) { FloatIntUnion cast; cast.fvalue = f; return cast; }
+        };
+        union DoubleInt64Union
+        {
+            double dvalue;
+            int64_t ivalue;
+            SLANG_FORCE_INLINE static DoubleInt64Union makeFromInt64(int64_t i) { DoubleInt64Union cast; cast.ivalue = i; return cast; }
+            SLANG_FORCE_INLINE static DoubleInt64Union makeFromDouble(double d) { DoubleInt64Union cast; cast.dvalue = d; return cast; }
+        };
+        		
+
+		inline float halfToFloat(unsigned short input)
+		{
+			static const auto magic = FloatIntUnion::makeFromInt((127 + (127 - 15)) << 23);
+			static const auto was_infnan = FloatIntUnion::makeFromInt((127 + 16) << 23);
+			FloatIntUnion o;
+			o.ivalue = (input & 0x7fff) << 13;     // exponent/mantissa bits
+			o.fvalue *= magic.fvalue;                 // exponent adjust
+			if (o.fvalue >= was_infnan.fvalue)        // make sure Inf/NaN survive
+				o.ivalue |= 255 << 23;
+			o.ivalue |= (input & 0x8000) << 16;    // sign bit
+			return o.fvalue;
+		}		
 
     } // namespace math
 } // namespace gfx

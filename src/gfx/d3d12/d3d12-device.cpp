@@ -282,7 +282,7 @@ Result DeviceImpl::captureTextureToSurface(
         memcpy(blobData.data(), data, bufferSize);
         dxResource->Unmap(0, nullptr);
 
-        auto resultBlob = Slang::ListBlob::moveCreate(blobData);
+        auto resultBlob = OwnedBlob::moveCreate(_Move(blobData));
 
         returnComPtr(outBlob, resultBlob);
         return SLANG_OK;
@@ -410,7 +410,7 @@ Result DeviceImpl::_createDevice(
             
             if ( initResult != GFSDK_Aftermath_Result_Success)
             {
-                SLANG_ASSERT_FAILURE("Unable to initialize aftermath");
+                SLANG_RHI_ASSERT_FAILURE("Unable to initialize aftermath");
                 // Unable to initialize 
                 return SLANG_FAIL;
             }
@@ -450,13 +450,13 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     // Rather than statically link against D3D, we load it dynamically.
 
-    SharedLibrary::Handle d3dModule;
+    SharedLibraryHandle d3dModule;
 #if SLANG_WINDOWS_FAMILY
     const char* libName = "d3d12";
 #else
     const char* libName = "vkd3d-proton-d3d12";
 #endif
-    if (SLANG_FAILED(SharedLibrary::load(libName, d3dModule)))
+    if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
     {
         getDebugCallback()->handleMessage(
             DebugMessageType::Error, DebugMessageSource::Layer, "error: failed load 'd3d12.dll'\n");
@@ -1094,13 +1094,13 @@ Result DeviceImpl::createTextureResource(
     // Calculate the layout
     std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
     layouts.resize(numMipMaps);
-    std::vector<UInt64> mipRowSizeInBytes;
+    std::vector<uint64_t> mipRowSizeInBytes;
     mipRowSizeInBytes.resize(srcDesc.numMipLevels);
-    std::vector<UInt32> mipNumRows;
+    std::vector<uint32_t> mipNumRows;
     mipNumRows.resize(numMipMaps);
 
     // NOTE! This is just the size for one array upload -> not for the whole texture
-    UInt64 requiredSize = 0;
+    uint64_t requiredSize = 0;
     m_device->GetCopyableFootprints(
         &resourceDesc,
         0,
@@ -1788,7 +1788,7 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
     char* textPos = layout->m_text.data();
 
     std::vector<D3D12_INPUT_ELEMENT_DESC>& elements = layout->m_elements;
-    SLANG_ASSERT(inputElementCount > 0);
+    SLANG_RHI_ASSERT(inputElementCount > 0);
     elements.resize(inputElementCount);
 
     for (Int i = 0; i < inputElementCount; ++i)
@@ -1890,7 +1890,7 @@ Result DeviceImpl::readBufferResource(
 
         stageBufRef.getResource()->Unmap(0, nullptr);
     }
-    auto blob = ListBlob::moveCreate(blobData);
+    auto blob = OwnedBlob::moveCreate(_Move(blobData));
     returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
@@ -1911,9 +1911,7 @@ Result DeviceImpl::createProgram(
     {
         if (outDiagnosticBlob && d3dDiagnosticBlob)
         {
-            String diagnostic((const char*)d3dDiagnosticBlob->GetBufferPointer());
-            auto diagnosticBlob = StringBlob::create(diagnostic);
-
+            auto diagnosticBlob = OwnedBlob::create(d3dDiagnosticBlob->GetBufferPointer(), d3dDiagnosticBlob->GetBufferSize());
             returnComPtr(outDiagnosticBlob, diagnosticBlob);
         }
         return rootShaderLayoutResult;
@@ -2012,7 +2010,7 @@ void DeviceImpl::submitResourceCommandsAndWait(const DeviceImpl::ResourceCommand
     m_resourceCommandTransientHeap->synchronizeAndReset();
 }
 
-void DeviceImpl::processExperimentalFeaturesDesc(SharedLibrary::Handle d3dModule, void* inDesc)
+void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* inDesc)
 {
     typedef HRESULT(WINAPI* PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
         UINT      NumFeatures,
@@ -2195,9 +2193,9 @@ Result DeviceImpl::createCommandQueueImpl(CommandQueueImpl** outQueue)
     return SLANG_OK;
 }
 
-void* DeviceImpl::loadProc(SharedLibrary::Handle module, char const* name)
+void* DeviceImpl::loadProc(SharedLibraryHandle module, char const* name)
 {
-    void* proc = SharedLibrary::findSymbolAddressByName(module, name);
+    void* proc = findSymbolAddressByName(module, name);
     if (!proc)
     {
         fprintf(stderr, "error: failed load symbol '%s'\n", name);

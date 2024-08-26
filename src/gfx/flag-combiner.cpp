@@ -8,8 +8,8 @@ using namespace Slang;
 void FlagCombiner::add(uint32_t flags, ChangeType type)
 {
     // The flag/s must be set
-    SLANG_ASSERT(flags);
-    SLANG_ASSERT((flags & m_usedFlags) == 0);
+    SLANG_RHI_ASSERT(flags);
+    SLANG_RHI_ASSERT((flags & m_usedFlags) == 0);
     // Mark the flags used
     m_usedFlags |= flags;
 
@@ -36,7 +36,7 @@ void FlagCombiner::calcCombinations(std::vector<uint32_t>& outCombinations) cons
 
 uint32_t FlagCombiner::getCombination(int index) const
 {
-    SLANG_ASSERT(index >= 0 && index < getNumCombinations());
+    SLANG_RHI_ASSERT(index >= 0 && index < getNumCombinations());
 
     uint32_t combination = 0;
     uint32_t bit = 1;

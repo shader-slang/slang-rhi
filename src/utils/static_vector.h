@@ -82,26 +82,26 @@ public:
 
     void push_back(const value_type& value)
     {
-        SLANG_ASSERT(m_size < capacity());
+        SLANG_RHI_ASSERT(m_size < capacity());
         m_data[m_size++] = value;
     }
 
     void push_back(value_type&& value)
     {
-        SLANG_ASSERT(m_size < capacity());
+        SLANG_RHI_ASSERT(m_size < capacity());
         m_data[m_size++] = std::move(value);
     }
 
     template<typename... Args>
     void emplace_back(Args&&... args)
     {
-        SLANG_ASSERT(m_size < capacity());
+        SLANG_RHI_ASSERT(m_size < capacity());
         m_data[m_size++] = value_type(std::forward<Args>(args)...);
     }
 
     void pop_back()
     {
-        SLANG_ASSERT(m_size > 0);
+        SLANG_RHI_ASSERT(m_size > 0);
         --m_size;
     }
 

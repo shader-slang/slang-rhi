@@ -159,7 +159,7 @@ VkImageAspectFlags VulkanUtil::getAspectMask(TextureAspect aspect, VkFormat form
     case TextureAspect::MetaData:
         return VK_IMAGE_ASPECT_METADATA_BIT;
     default:
-        SLANG_UNREACHABLE("getAspectMask");
+        SLANG_RHI_UNREACHABLE("getAspectMask");
         return 0;
     }
 }
