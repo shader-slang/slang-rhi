@@ -254,30 +254,28 @@ extern "C"
 
         switch (type)
         {
-#if SLANG_ENABLE_DIRECTX
+#if SLANG_RHI_ENABLE_D3D12
         case DeviceType::D3D12:
             SLANG_RETURN_ON_FAIL(getD3D12Adapters(adapters));
             break;
 #endif
-#if SLANG_WINDOWS_FAMILY || SLANG_LINUX_FAMILY
-        // Assume no Vulkan or CUDA on MacOS or Cygwin
+#if SLANG_RHI_ENABLE_VULKAN
         case DeviceType::Vulkan:
             SLANG_RETURN_ON_FAIL(getVKAdapters(adapters));
-            break;
-        case DeviceType::CUDA:
-            SLANG_RETURN_ON_FAIL(getCUDAAdapters(adapters));
             break;
 #endif
-#if SLANG_APPLE_FAMILY
-        case DeviceType::Vulkan:
-            SLANG_RETURN_ON_FAIL(getVKAdapters(adapters));
-            break;
+#if SLANG_RHI_ENABLE_METAL
         case DeviceType::Metal:
             SLANG_RETURN_ON_FAIL(getMetalAdapters(adapters));
             break;
 #endif
         case DeviceType::CPU:
             return SLANG_E_NOT_IMPLEMENTED;
+#if SLANG_RHI_ENABLE_CUDA
+        case DeviceType::CUDA:
+            SLANG_RETURN_ON_FAIL(getCUDAAdapters(adapters));
+            break;
+#endif
         default:
             return SLANG_E_INVALID_ARG;
         }
@@ -293,17 +291,6 @@ extern "C"
     {
         switch (desc->deviceType)
         {
-#if SLANG_ENABLE_DIRECTX
-        case DeviceType::D3D12:
-            {
-                return createD3D12Device(desc, outDevice);
-            }
-#endif
-#if SLANG_WINDOWS_FAMILY
-        case DeviceType::Vulkan:
-            {
-                return createVKDevice(desc, outDevice);
-            }
         case DeviceType::Default:
             {
                 IDevice::Desc newDesc = *desc;
@@ -316,44 +303,30 @@ extern "C"
                 return SLANG_FAIL;
             }
             break;
-#elif SLANG_APPLE_FAMILY
-        case DeviceType::Vulkan:
-        {
-            return createVKDevice(desc, outDevice);
-        }
-        case DeviceType::Metal:
-        {
-            return createMetalDevice(desc, outDevice);
-        }
-        case DeviceType::Default:
-        {
-            IDevice::Desc newDesc = *desc;
-            newDesc.deviceType = DeviceType::Metal;
-            if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                return SLANG_OK;
-            newDesc.deviceType = DeviceType::Vulkan;
-            if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                return SLANG_OK;
-            return SLANG_FAIL;
-        }
-#elif SLANG_LINUX_FAMILY && !defined(__CYGWIN__)
-        case DeviceType::Vulkan:
-        {
-            return createVKDevice(desc, outDevice);
-        }
-        case DeviceType::Default:
-        {
-            IDevice::Desc newDesc = *desc;
-            newDesc.deviceType = DeviceType::Vulkan;
-            if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                return SLANG_OK;
-            return SLANG_FAIL;
-        }
+#if SLANG_RHI_ENABLE_D3D12
+        case DeviceType::D3D12:
+            {
+                return createD3D12Device(desc, outDevice);
+            }
 #endif
+#if SLANG_RHI_ENABLE_VULKAN
+        case DeviceType::Vulkan:
+            {
+                return createVKDevice(desc, outDevice);
+            }
+#endif
+#if SLANG_RHI_ENABLE_METAL
+        case DeviceType::Metal:
+            {
+                return createMetalDevice(desc, outDevice);
+            }
+#endif
+#if SLANG_RHI_ENABLE_CUDA
         case DeviceType::CUDA:
             {
                 return createCUDADevice(desc, outDevice);
             }
+#endif
         case DeviceType::CPU:
             {
                 return createCPUDevice(desc, outDevice);
@@ -386,7 +359,7 @@ extern "C"
     SLANG_RHI_API SlangResult SLANG_MCALL
         gfxReportLiveObjects()
     {
-#if SLANG_ENABLE_DIRECTX
+#if SLANG_RHI_ENABLE_D3D12
         SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
 #endif
         return SLANG_OK;

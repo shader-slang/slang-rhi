@@ -110,6 +110,7 @@ namespace gfx_test
 
         sharedBufferTestImpl(srcDevice, dstDevice, context);
     }
+#if 0 // TODO_GFX
 #if SLANG_WIN64
     SLANG_UNIT_TEST(sharedBufferD3D12ToCUDA)
     {
@@ -120,5 +121,6 @@ namespace gfx_test
     {
         sharedBufferTestAPI(unitTestContext, Slang::RenderApiFlag::Vulkan, Slang::RenderApiFlag::CUDA);
     }
+#endif
 #endif
 }

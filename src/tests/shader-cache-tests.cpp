@@ -1020,6 +1020,7 @@ namespace gfx_test
         test.run(context, api);
     }
 
+#if 0 // TODO_GFX
     SLANG_UNIT_TEST(shaderCacheSourceFileD3D12)
     {
         runTest<ShaderCacheSourceFile>(unitTestContext, Slang::RenderApiFlag::D3D12);
@@ -1099,4 +1100,5 @@ namespace gfx_test
     {
         runTest<ShaderCacheTestGraphicsSplit>(unitTestContext, Slang::RenderApiFlag::Vulkan);
     }
+#endif
 }

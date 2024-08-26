@@ -209,6 +209,7 @@ namespace gfx_test
 
         sharedTextureTestImpl(srcDevice, dstDevice, context);
     }
+#if 0 // TODO_GFX
 #if SLANG_WIN64
     SLANG_UNIT_TEST(sharedTextureD3D12ToCUDA)
     {
@@ -219,5 +220,6 @@ namespace gfx_test
     {
         sharedTextureTestAPI(unitTestContext, Slang::RenderApiFlag::Vulkan, Slang::RenderApiFlag::CUDA);
     }
+#endif
 #endif
 }

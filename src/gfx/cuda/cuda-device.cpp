@@ -122,7 +122,11 @@ SlangResult DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
 
 SlangResult DeviceImpl::_initCuda(CUDAReportStyle reportType)
 {
-    static CUresult res = cuInit(0);
+    if (!gfxCudaApiInit())
+    {
+        return SLANG_FAIL;
+    }
+    CUresult res = cuInit(0);
     SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(res, reportType);
     return SLANG_OK;
 }

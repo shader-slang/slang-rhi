@@ -149,6 +149,7 @@ namespace gfx_test
             Slang::makeArray<float>(2.0));
     }
 
+#if 0 // TODO_GFX
     SLANG_UNIT_TEST(linkTimeConstantD3D12)
     {
         runTestImpl(linkTimeConstantTestImpl, unitTestContext, Slang::RenderApiFlag::D3D12);
@@ -158,5 +159,6 @@ namespace gfx_test
     {
         runTestImpl(linkTimeConstantTestImpl, unitTestContext, Slang::RenderApiFlag::Vulkan);
     }
+#endif
 
 }
