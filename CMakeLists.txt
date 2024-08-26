@@ -53,18 +53,6 @@ endif()
 # sgl_copy_binary(${SLANG_DIR}/bin/slang-llvm.dll .)
 # sgl_copy_binary(${SLANG_DIR}/bin/slang-rt.dll .)
 
-
-# file(GLOB CORE_SOURCES src/core/*.cpp)
-# add_library(slang-core STATIC)
-# target_sources(slang-core PRIVATE ${CORE_SOURCES})
-# target_include_directories(slang-core PUBLIC ${SLANG_INCLUDE_DIR} src)
-# target_compile_definitions(slang-core
-#     PRIVATE
-#         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
-#         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
-# )
-# target_compile_features(slang-core PRIVATE cxx_std_20)
-
 if(SLANG_RHI_BUILD_SHARED)
     add_library(slang-rhi SHARED)
 else()
@@ -130,27 +118,6 @@ target_compile_definitions(slang-rhi
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_20)
 target_link_libraries(slang-rhi PRIVATE slang)
-
-# if(SLANG_RHI_BUILD_TESTS)
-#     add_library(stb INTERFACE)
-#     target_include_directories(stb INTERFACE external/stb)
-    
-#     file(GLOB TEST_SOURCES
-#         src/tests/*.cpp
-#         src/unit-test/*.cpp
-#         src/gfx-util/*.cpp
-#     )
-#     add_executable(slang-rhi-tests)
-#     target_sources(slang-rhi-tests PRIVATE ${TEST_SOURCES})
-#     target_compile_definitions(slang-rhi-tests
-#         PRIVATE
-#             $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
-#             $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
-#     )
-#     target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
-#     target_include_directories(slang-rhi-tests PRIVATE src)
-#     target_link_libraries(slang-rhi-tests PRIVATE slang slang-rhi stb)
-# endif()
 
 if(SLANG_RHI_BUILD_TESTS)
     add_library(doctest INTERFACE)

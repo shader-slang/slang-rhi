@@ -132,7 +132,7 @@ public:
     struct DescriptorSetInfo
     {
         std::vector<VkDescriptorSetLayoutBinding> vkBindings;
-        Slang::Int space = -1;
+        int32_t space = -1;
         VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     };
 

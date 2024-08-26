@@ -5,8 +5,6 @@
 #include <utility>
 #include <array>
 
-#include "core/slang-common.h"
-
 namespace gfx {
 
 /**

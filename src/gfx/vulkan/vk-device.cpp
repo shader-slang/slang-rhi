@@ -1158,7 +1158,7 @@ SlangResult DeviceImpl::readTextureResource(
     // Calculate the total size taking into account the array
     bufferSize *= arraySize;
 
-    blobData.resize(Count(bufferSize));
+    blobData.resize(bufferSize);
 
     VKBufferHandleRAII staging;
     SLANG_RETURN_ON_FAIL(staging.init(
