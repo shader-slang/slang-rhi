@@ -8,6 +8,7 @@
 
 #include "utils/common.h"
 #include "utils/short_vector.h"
+#include "utils/virtual-object-pool.h"
 
 #include <vector>
 
@@ -90,7 +91,7 @@ class D3D12GeneralDescriptorHeap : public Slang::RefObject
     D3D12_DESCRIPTOR_HEAP_TYPE              m_type;
 
     D3D12DescriptorHeap                     m_heap;
-    Slang::VirtualObjectPool m_allocator;
+    VirtualObjectPool                       m_allocator;
 
 public:
     int getSize() { return m_chunkSize; }

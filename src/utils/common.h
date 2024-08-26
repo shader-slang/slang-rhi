@@ -12,7 +12,6 @@
 #include "core/slang-com-object.h"
 #include "core/slang-persistent-cache.h"
 #include "core/slang-platform.h"
-#include "core/slang-virtual-object-pool.h"
 
 namespace Slang {}
 

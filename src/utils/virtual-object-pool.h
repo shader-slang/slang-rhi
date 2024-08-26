@@ -1,7 +1,6 @@
-#ifndef SLANG_VIRTUAL_POOL_ALLOCATOR_H
-#define SLANG_VIRTUAL_POOL_ALLOCATOR_H
+#pragma once
 
-namespace Slang
+namespace gfx
 {
 
     /// A virtual free-list allocater.
@@ -115,5 +114,4 @@ public:
     }
 };
 
-} // namespace Slang
-#endif
+} // namespace gfx

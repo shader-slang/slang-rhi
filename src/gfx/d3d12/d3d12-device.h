@@ -8,6 +8,8 @@
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
 
+#include "utils/virtual-object-pool.h"
+
 namespace gfx
 {
 namespace d3d12
