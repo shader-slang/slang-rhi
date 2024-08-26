@@ -1,6 +1,6 @@
 // metal-util.cpp
 #include "metal-util.h"
-#include "core/slang-math.h"
+#include "utils/common.h"
 
 #include <stdlib.h>
 #include <stdio.h>

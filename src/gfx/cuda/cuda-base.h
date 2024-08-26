@@ -3,9 +3,6 @@
 #pragma once
 
 #include "cuda-api.h"
-#include "core/slang-basic.h"
-#include "core/slang-blob.h"
-#include "core/slang-std-writers.h"
 
 #include "slang.h"
 #include "slang-com-ptr.h"
@@ -28,6 +25,8 @@
 #       include <optix_function_table_definition.h>
 #       include <optix_stubs.h>
 #   endif
+
+#include "utils/common.h"
 
 namespace gfx
 {

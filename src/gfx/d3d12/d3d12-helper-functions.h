@@ -5,9 +5,8 @@
 #include "d3d12-base.h"
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-submitter.h"
-#include "core/slang-short-list.h"
-#include "core/slang-list.h"
 
+#include "utils/common.h"
 #include "utils/short_vector.h"
 
 #include <vector>

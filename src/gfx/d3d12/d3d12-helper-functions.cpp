@@ -10,6 +10,8 @@
 #include "d3d12-transient-heap.h"
 #include "d3d12-query.h"
 
+#include "utils/string.h"
+
 #ifdef _DEBUG
 #    define ENABLE_DEBUG_LAYER 1
 #else
@@ -203,13 +205,12 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
 
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
 {
-    return Math::Max(
-        Math::Max(
-            desc.srvDescriptorCount,
-            desc.uavDescriptorCount,
-            desc.accelerationStructureDescriptorCount),
+    return std::max({
+        desc.srvDescriptorCount,
+        desc.uavDescriptorCount,
+        desc.accelerationStructureDescriptorCount,
         desc.constantBufferDescriptorCount,
-        2048);
+        GfxCount(2048)});
 }
 
 void initSrvDesc(
@@ -642,8 +643,8 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
         DXGI_ADAPTER_DESC desc;
         dxgiAdapter->GetDesc(&desc);
         AdapterInfo info = {};
-        auto name = String::fromWString(desc.Description);
-        memcpy(info.name, name.getBuffer(), Math::Min(name.getLength(), (Index)sizeof(AdapterInfo::name) - 1));
+        auto name = from_wstring(desc.Description);
+        memcpy(info.name, name.data(), Math::Min(name.length(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
         info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);

@@ -1,9 +1,9 @@
 // render.cpp
 #include "slang-rhi.h"
 #include "renderer-shared.h"
-#include "core/slang-math.h"
-#include "core/slang-blob.h"
 #include "debug-layer/debug-device.h"
+
+#include "utils/common.h"
 
 #include <vector>
 #include <cstring>

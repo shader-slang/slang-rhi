@@ -1,7 +1,11 @@
 #pragma once
 
 #include "slang-rhi.h"
-#include "core/slang-basic.h"
+
+#include "utils/common.h"
+
+#include <vector>
+#include <span>
 
 namespace gfx
 {
@@ -15,7 +19,7 @@ namespace gfx
             void** extendedDescs,
             SlangCompileTarget compileTarget,
             const char* defaultProfileName,
-            Slang::ConstArrayView<slang::PreprocessorMacroDesc> additionalMacros)
+            std::span<const slang::PreprocessorMacroDesc> additionalMacros)
         {
             if (desc.slangGlobalSession)
             {
@@ -30,13 +34,13 @@ namespace gfx
             slangSessionDesc.defaultMatrixLayoutMode = desc.defaultMatrixLayoutMode;
             slangSessionDesc.searchPathCount = desc.searchPathCount;
             slangSessionDesc.searchPaths = desc.searchPaths;
-            slangSessionDesc.preprocessorMacroCount = desc.preprocessorMacroCount + additionalMacros.getCount();
+            slangSessionDesc.preprocessorMacroCount = desc.preprocessorMacroCount + additionalMacros.size();
             std::vector<slang::PreprocessorMacroDesc> macros;
             for (GfxCount i = 0; i < desc.preprocessorMacroCount; i++)
             {
                 macros.push_back(desc.preprocessorMacros[i]);
             }
-            for (GfxCount i = 0; i < additionalMacros.getCount(); i++)
+            for (GfxCount i = 0; i < additionalMacros.size(); i++)
             {
                 macros.push_back(additionalMacros[i]);
             }

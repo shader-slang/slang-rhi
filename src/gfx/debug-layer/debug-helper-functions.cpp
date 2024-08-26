@@ -1,6 +1,8 @@
 // debug-helper-functions.cpp
 #include "debug-helper-functions.h"
 
+#include <string>
+
 namespace gfx
 {
 using namespace Slang;
@@ -29,20 +31,17 @@ SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(AccelerationStructure, ResourceView)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(ShaderTable)
 
-String _gfxGetFuncName(const char* input)
+std::string _gfxGetFuncName(const char* input)
 {
-    UnownedStringSlice str(input);
-    auto prefixIndex = str.indexOf(UnownedStringSlice("Debug"));
-    if (prefixIndex == -1)
+    std::string_view str(input);
+    auto prefixIndex = str.find("Debug");
+    if (prefixIndex == std::string::npos)
         return input;
-    auto endIndex = str.lastIndexOf('(');
-    if (endIndex == -1)
-        endIndex = str.getLength();
+    auto endIndex = str.find_last_of('(');
+    if (endIndex == std::string::npos)
+        endIndex = str.length();
     auto startIndex = prefixIndex + 5;
-    StringBuilder sb;
-    sb.appendChar('I');
-    sb.append(str.subString(startIndex, endIndex - startIndex));
-    return sb.produceString();
+    return 'I' + std::string(str.substr(startIndex, endIndex - startIndex));
 }
 
 void validateAccelerationStructureBuildInputs(

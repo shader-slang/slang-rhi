@@ -1,9 +1,9 @@
 #pragma once
 
 #include "slang-rhi.h"
-#include "core/slang-basic.h"
-#include "core/slang-com-object.h"
 #include "renderer-shared.h"
+
+#include "utils/common.h"
 
 #include <vector>
 #include <map>

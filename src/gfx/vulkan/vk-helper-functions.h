@@ -2,8 +2,9 @@
 #pragma once
 
 #include "vk-base.h"
-#include "core/slang-blob.h"
 #include "vk-util.h"
+
+#include "utils/common.h"
 
 #include <vector>
 #include <span>

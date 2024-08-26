@@ -111,7 +111,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
             colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
             colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
         }
-        sampleCount = Math::Max(sampleCount, targetLayout.sampleCount);
+        sampleCount = std::max(sampleCount, targetLayout.sampleCount);
     }
     if (framebufferLayoutImpl->m_depthStencil.format != Format::Unknown)
     {

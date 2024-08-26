@@ -6,8 +6,9 @@
 #include "../mutable-shader-object.h"
 #include "../renderer-shared.h"
 #include "../transient-resource-heap-base.h"
-#include "core/slang-chunked-list.h"
 #include "metal-api.h"
+
+#include "utils/common.h"
 
 namespace gfx
 {

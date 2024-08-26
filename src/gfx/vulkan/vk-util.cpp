@@ -1,6 +1,7 @@
 // vk-util.cpp
 #include "vk-util.h"
-#include "core/slang-math.h"
+
+#include "utils/common.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -696,7 +697,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
                 vkGeomData.triangles.indexData.deviceAddress = geomDesc.content.triangles.indexData;
                 vkGeomData.triangles.transformData.deviceAddress =
                     geomDesc.content.triangles.transform3x4;
-                primitiveCounts[i] = Slang::Math::Max(
+                primitiveCounts[i] = std::max(
                                          geomDesc.content.triangles.vertexCount,
                                          geomDesc.content.triangles.indexCount) /
                                      3;

@@ -21,7 +21,7 @@
 //#include "metal-pipeline-dump-layer.h"
 //#include "metal-helper-functions.h"
 
-#include "core/slang-platform.h"
+#include "utils/common.h"
 
 #include <vector>
 
@@ -201,9 +201,9 @@ SlangResult DeviceImpl::readTextureResource(
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
     const ITextureResource::Desc& desc = *textureImpl->getDesc();
-    Count width = Math::Max(desc.size.width, 1);
-    Count height = Math::Max(desc.size.height, 1);
-    Count depth = Math::Max(desc.size.depth, 1);
+    Count width = std::max(desc.size.width, 1);
+    Count height = std::max(desc.size.height, 1);
+    Count depth = std::max(desc.size.depth, 1);
     FormatInfo formatInfo;
     gfxGetFormatInfo(desc.format, &formatInfo);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
@@ -311,9 +311,9 @@ Result DeviceImpl::getTextureAllocationInfo(
         rowSize = alignTo(rowSize, alignment);
         Size sliceSize = rowSize * alignTo(extents.height, formatInfo.blockHeight);
         size += sliceSize * extents.depth;
-        extents.width = Math::Max(1, extents.width / 2);
-        extents.height = Math::Max(1, extents.height / 2);
-        extents.depth = Math::Max(1, extents.depth / 2);
+        extents.width = std::max(1, extents.width / 2);
+        extents.height = std::max(1, extents.height / 2);
+        extents.depth = std::max(1, extents.depth / 2);
     }
     size *= desc.arraySize ? desc.arraySize : 1;
 
@@ -479,9 +479,9 @@ Result DeviceImpl::createTextureResource(
                 const ITextureResource::SubresourceData& subresourceData = initData[slice * initMipLevels + level];
                 stagingTexture->replaceRegion(region, level, slice, subresourceData.data, subresourceData.strideY, subresourceData.strideZ);
                 encoder->synchronizeTexture(stagingTexture.get(), slice, level);
-                region.size.width = region.size.width > 0 ? Math::Max(1ul, region.size.width >> 1) : 0;
-                region.size.height = region.size.height > 0 ? Math::Max(1ul, region.size.height >> 1) : 0;
-                region.size.depth = region.size.depth > 0 ? Math::Max(1ul, region.size.depth >> 1) : 0;
+                region.size.width = region.size.width > 0 ? std::max(1ul, region.size.width >> 1) : 0;
+                region.size.height = region.size.height > 0 ? std::max(1ul, region.size.height >> 1) : 0;
+                region.size.depth = region.size.depth > 0 ? std::max(1ul, region.size.depth >> 1) : 0;
             }
         }
 

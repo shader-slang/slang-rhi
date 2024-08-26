@@ -1,6 +1,6 @@
 #include "flag-combiner.h"
 
-#include "core/slang-common.h"
+#include "utils/common.h"
 
 namespace gfx {
 using namespace Slang;

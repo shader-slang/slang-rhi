@@ -57,7 +57,7 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayou
         dst.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         dst.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        m_sampleCount = Math::Max(dst.samples, m_sampleCount);
+        m_sampleCount = std::max(dst.samples, m_sampleCount);
     }
 
     if (desc.depthStencil)
@@ -73,7 +73,7 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayou
         dst.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         dst.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-        m_sampleCount = Math::Max(dst.samples, m_sampleCount);
+        m_sampleCount = std::max(dst.samples, m_sampleCount);
     }
 
     static_vector<VkAttachmentReference, kMaxRenderTargets>& colorReferences = m_colorReferences;

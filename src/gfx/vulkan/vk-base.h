@@ -6,10 +6,11 @@
 #include "../mutable-shader-object.h"
 #include "../renderer-shared.h"
 #include "../transient-resource-heap-base.h"
-#include "core/slang-chunked-list.h"
 #include "vk-api.h"
 #include "vk-descriptor-allocator.h"
 #include "vk-device-queue.h"
+
+#include "utils/common.h"
 
 namespace gfx
 {

@@ -1,5 +1,6 @@
 #include "renderer-shared.h"
-#include "core/slang-basic.h"
+
+#include "utils/common.h"
 
 namespace gfx
 {

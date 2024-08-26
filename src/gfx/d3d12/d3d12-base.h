@@ -8,9 +8,6 @@
 #include "../renderer-shared.h"
 #include "../simple-render-pass-layout.h"
 #include "../transient-resource-heap-base.h"
-#include "core/slang-basic.h"
-#include "core/slang-blob.h"
-#include "core/slang-chunked-list.h"
 #include "d3d12-descriptor-heap.h"
 #include "d3d12-resource.h"
 #include "d3d12-posix-synchapi.h"
@@ -31,6 +28,8 @@
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
+
+#include "utils/common.h"
 
 #ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
 // If can't find a definition of CommandList1, just use an empty definition

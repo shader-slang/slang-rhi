@@ -4,10 +4,7 @@
 #include <stdint.h>
 
 #include "slang-com-helper.h"
-
 #include "slang-com-ptr.h"
-#include "core/slang-basic.h"
-#include "core/slang-platform.h"
 
 #include "../flag-combiner.h"
 
@@ -17,6 +14,8 @@
 #include <dxgiformat.h>
 #include <dxgi.h>
 #include <d3d12.h>
+
+#include "utils/common.h"
 
 #include <vector>
 

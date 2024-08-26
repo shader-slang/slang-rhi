@@ -12,7 +12,11 @@
 #include "d3d12-vertex-layout.h"
 #include "d3d12-pipeline-state-stream.h"
 
+#include "utils/string.h"
+
 #include <climits>
+
+#include <string>
 
 namespace gfx
 {
@@ -384,12 +388,10 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     ChunkedList<D3D12_EXPORT_DESC> exports;
     ChunkedList<const wchar_t*> strPtrs;
     ComPtr<ISlangBlob> diagnostics;
-    ChunkedList<OSString> stringPool;
+    ChunkedList<std::wstring> stringPool;
     auto getWStr = [&](const char* name)
     {
-        String str = String(name);
-        auto wstr = str.toWString();
-        return stringPool.add(wstr)->begin();
+        return stringPool.add(to_wstring(name))->data();
     };
 
     D3D12_RAYTRACING_PIPELINE_CONFIG1 pipelineConfig = {};

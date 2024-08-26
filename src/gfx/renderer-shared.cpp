@@ -1,16 +1,14 @@
 #include "renderer-shared.h"
 #include "mutable-shader-object.h"
-#include "core/slang-io.h"
-// #include "core/slang-token-reader.h"
-
-#include "core/slang-stable-hash.h"
-#include "core/slang-file-system.h"
 
 #include "slang.h"
+
+#include "utils/common.h"
 
 #include <algorithm>
 #include <vector>
 #include <string_view>
+#include <string>
 
 using namespace Slang;
 
@@ -584,9 +582,9 @@ Result RendererBase::createProgram2(
         case ShaderModuleSourceType::SlangSource:
         {
             auto hash = getStableHashCode32((char*)desc.sourceData, desc.sourceDataSize);
-            auto hashStr = String(hash);
+            auto hashStr = std::to_string((uint32_t)hash);
             auto srcBlob = UnownedRawBlob::create(desc.sourceData, desc.sourceDataSize);
-            module = slangSession->loadModuleFromSource(hashStr.getBuffer(), hashStr.getBuffer(), srcBlob, diagnosticsBlob.writeRef());
+            module = slangSession->loadModuleFromSource(hashStr.data(), hashStr.data(), srcBlob, diagnosticsBlob.writeRef());
             if (!module)
                 return SLANG_FAIL;
             break;
@@ -807,24 +805,24 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
         {
             auto baseType = type->getElementType();
 
-            StringBuilder builder;
-            builder.append(UnownedTerminatedStringSlice(baseType->getName()));
+            std::string str;
+            str += baseType->getName();
 
             auto rawType = (SlangReflectionType*) type;
 
-            builder.appendChar('<');
+            str += '<';
             SlangInt argCount = spReflectionType_getSpecializedTypeArgCount(rawType);
             for(SlangInt a = 0; a < argCount; ++a)
             {
-                if(a != 0) builder.appendChar(',');
+                if(a != 0) str += ',';
                 if(auto rawArgType = spReflectionType_getSpecializedTypeArgType(rawType, a))
                 {
                     auto argType = (slang::TypeReflection*) rawArgType;
-                    builder.append(argType->getName());
+                    str += argType->getName();
                 }
             }
-            builder.appendChar('>');
-            key.typeName = std::string_view(builder.getUnownedSlice().begin(), builder.getUnownedSlice().getLength());
+            str += '>';
+            key.typeName = std::move(str);
             key.updateHash();
             return getComponentId(key);
         }

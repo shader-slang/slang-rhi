@@ -1,7 +1,8 @@
 #pragma once
 
 #include "slang-rhi.h"
-#include "core/slang-math.h"
+
+#include "utils/common.h"
 
 namespace gfx
 {
@@ -52,11 +53,11 @@ inline int calcMaxDimension(ITextureResource::Extents size, IResource::Type type
     case IResource::Type::Texture1D:
         return size.width;
     case IResource::Type::Texture3D:
-        return Slang::Math::Max(Slang::Math::Max(size.width, size.height), size.depth);
+        return std::max(std::max(size.width, size.height), size.depth);
     case IResource::Type::TextureCube: // fallthru
     case IResource::Type::Texture2D:
         {
-            return Slang::Math::Max(size.width, size.height);
+            return std::max(size.width, size.height);
         }
     default:
         return 0;
@@ -67,7 +68,7 @@ inline int calcMaxDimension(ITextureResource::Extents size, IResource::Type type
 inline int calcNumMipLevels(IResource::Type type, ITextureResource::Extents size)
 {
     const int maxDimensionSize = calcMaxDimension(size, type);
-    return (maxDimensionSize > 0) ? (Slang::Math::Log2Floor(maxDimensionSize) + 1) : 0;
+    return (maxDimensionSize > 0) ? (math::log2Floor(maxDimensionSize) + 1) : 0;
 }
 /// Calculate the total number of sub resources. 0 on error.
 inline int calcNumSubResources(const ITextureResource::Desc& desc)

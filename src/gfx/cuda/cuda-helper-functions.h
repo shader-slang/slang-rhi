@@ -3,7 +3,8 @@
 
 #include "slang-rhi.h"
 #include "cuda-base.h"
-#include "core/slang-list.h"
+
+#include "utils/common.h"
 
 #include <vector>
 

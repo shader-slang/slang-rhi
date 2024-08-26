@@ -2,12 +2,10 @@
 
 #include "slang-rhi.h"
 #include "slang-context.h"
-#include "core/slang-basic.h"
-#include "core/slang-com-object.h"
-#include "core/slang-persistent-cache.h"
 
 #include "resource-desc-utils.h"
 
+#include "utils/common.h"
 #include "utils/short_vector.h"
 
 #include <string>

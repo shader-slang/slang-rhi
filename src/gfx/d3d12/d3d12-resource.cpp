@@ -1,6 +1,8 @@
 // d3d12-resource.cpp
 #include "d3d12-resource.h"
 
+#include "utils/string.h"
+
 namespace gfx {
 using namespace Slang;
 
@@ -78,7 +80,7 @@ void D3D12ResourceBase::transition(
 {
     if (resource)
     {
-        resource->SetName(String(name).toWString().begin());
+        resource->SetName(to_wstring(name).data());
     }
 }
 

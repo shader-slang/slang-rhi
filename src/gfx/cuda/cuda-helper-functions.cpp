@@ -3,6 +3,8 @@
 
 #include "cuda-device.h"
 
+#include <string>
+
 namespace gfx
 {
 using namespace Slang;
@@ -11,22 +13,25 @@ namespace cuda
 {
 SlangResult CUDAErrorInfo::handle() const
 {
-    StringBuilder builder;
-    builder << "Error: " << m_filePath << " (" << m_lineNo << ") :";
-
+    std::string str;
+    str += "Error: ";
+    str += m_filePath;
+    str += " (";
+    str += std::to_string(m_lineNo);
+    str += ")";
     if (m_errorName)
     {
-        builder << m_errorName << " : ";
+        str += " : ";
+        str += m_errorName;
     }
     if (m_errorString)
     {
-        builder << m_errorString;
+        str += " : ";
+        str += m_errorString;
     }
 
-    getDebugCallback()->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver,
-        builder.getUnownedSlice().begin());
+    getDebugCallback()->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, str.data());
 
-    // Slang::signalUnexpectedError(builder.getBuffer());
     return SLANG_FAIL;
 }
 

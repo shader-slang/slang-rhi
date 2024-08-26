@@ -11,16 +11,15 @@
 // We will use the C standard library just for printing error messages.
 #include <stdio.h>
 
-#include "core/slang-basic.h"
-#include "core/slang-platform.h"
-
-#ifdef SLANG_RHI_NV_AFTERMATH
+#ifdef GFX_NV_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
 
 #   include "core/slang-process.h"
 #endif
+
+#include "utils/common.h"
 
 #include <string_view>
 

@@ -6,9 +6,8 @@
 // concept.
 
 #include "slang-rhi.h"
-#include "core/slang-com-object.h"
-#include "core/slang-basic.h"
 
+#include "utils/common.h"
 #include "utils/short_vector.h"
 
 namespace gfx

@@ -3,9 +3,10 @@
 
 #include "slang-rhi.h"
 #include "slang-com-ptr.h"
-#include "core/slang-com-object.h"
 #include "../command-encoder-com-forward.h"
 #include "../renderer-shared.h"
+
+#include "utils/common.h"
 
 namespace gfx
 {

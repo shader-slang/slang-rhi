@@ -311,7 +311,7 @@ void RenderCommandEncoder::setVertexBuffers(
     IBufferResource* const* buffers,
     const Offset* offsets)
 {
-    Index count = Math::Max(m_vertexBuffers.size(), size_t(startSlot + slotCount));
+    Index count = std::max(m_vertexBuffers.size(), size_t(startSlot + slotCount));
     m_vertexBuffers.resize(count);
     m_vertexBufferOffsets.resize(count);
 

@@ -917,7 +917,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         desc.extendedDescs,
         compileTarget,
         profileName,
-        makeArray(slang::PreprocessorMacroDesc{ "__D3D12__", "1" }).getView()));
+        make_array(slang::PreprocessorMacroDesc{ "__D3D12__", "1" })));
 
     // Allocate a D3D12 "command signature" object that matches the behavior
     // of a D3D11-style `DrawInstancedIndirect` operation.
@@ -978,7 +978,7 @@ Result DeviceImpl::createTransientResourceHeap(
         desc.flags,
         desc.constantBufferSize,
         getViewDescriptorCount(desc),
-        Math::Max(1024, desc.samplerDescriptorCount),
+        std::max(1024, desc.samplerDescriptorCount),
         heap.writeRef()));
     returnComPtr(outHeap, heap);
     return SLANG_OK;

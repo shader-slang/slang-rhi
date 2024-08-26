@@ -2,10 +2,9 @@
 #include "simple-render-pass-layout.h"
 #include "simple-transient-resource-heap.h"
 #include "command-writer.h"
-#include "core/slang-basic.h"
-#include "core/slang-blob.h"
 #include "command-encoder-com-forward.h"
 
+#include "utils/common.h"
 #include "utils/short_vector.h"
 
 namespace gfx

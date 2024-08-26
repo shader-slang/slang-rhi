@@ -5,14 +5,15 @@
 #include "slang.h"
 #include "slang-com-ptr.h"
 #include "slang-com-helper.h"
-#include "core/slang-basic.h"
-#include "core/slang-blob.h"
 
 #include "../immediate-renderer-base.h"
 #include "../slang-context.h"
 #include "../mutable-shader-object.h"
 #define SLANG_PRELUDE_NAMESPACE slang_prelude
 #include "prelude/slang-cpp-types.h"
+
+#include "utils/common.h"
+
 
 namespace gfx
 {

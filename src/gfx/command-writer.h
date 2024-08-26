@@ -2,8 +2,9 @@
 
 #include "slang-rhi.h"
 #include "slang-com-ptr.h"
-#include "core/slang-basic.h"
 #include "renderer-shared.h"
+
+#include "utils/common.h"
 
 #include <vector>
 

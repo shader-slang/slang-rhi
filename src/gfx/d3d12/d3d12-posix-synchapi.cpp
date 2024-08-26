@@ -4,7 +4,7 @@
 
 #if SLANG_LINUX_FAMILY
 
-#include "core/slang-common.h"
+#include "utils/common.h"
 
 #include <fcntl.h>
 #include <sys/epoll.h>

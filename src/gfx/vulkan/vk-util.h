@@ -1,9 +1,10 @@
 // vk-util.h
 #pragma once
 
-#include "core/slang-basic.h"
 #include "vk-api.h"
 #include "slang-rhi.h"
+
+#include "utils/common.h"
 
 #include <vector>
 

@@ -18,8 +18,7 @@
 
 #include "vk-helper-functions.h"
 
-#include "core/slang-platform.h"
-
+#include "utils/common.h"
 #include "utils/static_vector.h"
 #include "utils/short_vector.h"
 
@@ -2009,8 +2008,8 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     samplerInfo.compareEnable = desc.reductionOp == TextureReductionOp::Comparison;
     samplerInfo.compareOp = VulkanUtil::translateComparisonFunc(desc.comparisonFunc);
     samplerInfo.mipmapMode = VulkanUtil::translateMipFilterMode(desc.mipFilter);
-    samplerInfo.minLod = Math::Max(0.0f, desc.minLOD);
-    samplerInfo.maxLod = Math::Clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
+    samplerInfo.minLod = std::max(0.0f, desc.minLOD);
+    samplerInfo.maxLod = std::clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
 
     VkSamplerReductionModeCreateInfo reductionInfo = { VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO };
     reductionInfo.reductionMode = VulkanUtil::translateReductionOp(desc.reductionOp);

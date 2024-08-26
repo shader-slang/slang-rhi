@@ -1,9 +1,9 @@
 // metal-util.h
 #pragma once
 
-#include "core/slang-basic.h"
 #include "metal-api.h"
 #include "slang-rhi.h"
+#include "utils/common.h"
 
 namespace gfx {
 
