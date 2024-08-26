@@ -1,15 +1,12 @@
 #pragma once
 
-#include "slang-rhi.h"
-#include "core/slang-basic.h"
-#include "core/slang-render-api-util.h"
-#include "unit-test/slang-unit-test.h"
+#include "testing.h"
 
-using namespace Slang;
-using namespace gfx;
+#include <vector>
 
-namespace gfx_test
+namespace gfx::testing
 {
+#if 0 // TODO_GFX
     struct Strides
     {
         Size x;
@@ -179,8 +176,8 @@ namespace gfx_test
     GfxIndex getSubresourceIndex(GfxIndex mipLevel, GfxCount mipLevelCount, GfxIndex baseArrayLayer);
     RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);
     void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat);
-
-    List<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize);
+#endif
+    std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize);
     Slang::Result writeImage(
         const char* filename,
         ISlangBlob* pixels,
@@ -193,4 +190,5 @@ namespace gfx_test
         uint32_t height,
         uint32_t rowPitch,
         uint32_t pixelSize);
-}
+
+} // namespace gfx::testing

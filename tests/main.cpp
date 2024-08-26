@@ -17,7 +17,7 @@ int main(int argc, char** argv)
         // Select specific test suite to run
         // context.setOption("-ts", "formats");
         // Report successful tests
-        context.setOption("success", true);
+        // context.setOption("success", true);
 
         result = context.run();
     }

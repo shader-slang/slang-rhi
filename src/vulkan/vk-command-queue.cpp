@@ -50,7 +50,7 @@ void CommandQueueImpl::waitOnHost()
 
 Result CommandQueueImpl::getNativeHandle(InteropHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::D3D12;
+    outHandle->api = InteropHandleAPI::Vulkan;
     outHandle->handleValue = (uint64_t)m_queue;
     return SLANG_OK;
 }

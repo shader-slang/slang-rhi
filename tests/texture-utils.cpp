@@ -1,6 +1,4 @@
-#include "gfx-test-texture-util.h"
-#include "gfx-test-util.h"
-#include "unit-test/slang-unit-test.h"
+#include "texture-utils.h"
 
 #include "slang-com-ptr.h"
 
@@ -24,11 +22,9 @@
 #    include <windows.h>
 #endif
 
-using namespace Slang;
-using namespace gfx;
-
-namespace gfx_test
+namespace gfx::testing
 {
+#if 0 // TODO_GFX
     TextureAspect getTextureAspect(Format format)
     {
         switch (format)
@@ -212,16 +208,17 @@ namespace gfx_test
             }
         }
     }
+#endif
 
-    List<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize)
+    std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize)
     {
-        List<uint8_t> buffer;
-        buffer.setCount(height * rowPitch);
+        std::vector<uint8_t> buffer;
+        buffer.resize(height * rowPitch);
         for (GfxIndex i = 0; i < height; ++i)
         {
             Offset srcOffset = i * rowPitch;
             Offset dstOffset = i * width * pixelSize;
-            memcpy(buffer.getBuffer() + dstOffset, (char*)pixels->getBufferPointer() + srcOffset, width * pixelSize);
+            memcpy(buffer.data() + dstOffset, (char*)pixels->getBufferPointer() + srcOffset, width * pixelSize);
         }
 
         return buffer;
@@ -250,11 +247,12 @@ namespace gfx_test
         if (rowPitch == width * pixelSize)
             return writeImage(filename, pixels, width, height);
 
-        List<uint8_t> buffer = removePadding(pixels, width, height, rowPitch, pixelSize);
+        std::vector<uint8_t> buffer = removePadding(pixels, width, height, rowPitch, pixelSize);
 
         int stbResult =
-            stbi_write_hdr(filename, width, height, 4, (float*)buffer.getBuffer());
+            stbi_write_hdr(filename, width, height, 4, (float*)buffer.data());
 
         return stbResult ? SLANG_OK : SLANG_FAIL;
     }
-}
+
+} // namespace gfx::testing
