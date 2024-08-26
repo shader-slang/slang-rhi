@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 
 namespace gfx
 {
@@ -88,7 +89,7 @@ namespace gfx
     protected:
         std::map<ShaderOffset, Slang::RefPtr<ResourceViewBase>> m_resources;
         std::map<ShaderOffset, Slang::RefPtr<SamplerStateBase>> m_samplers;
-        Slang::OrderedHashSet<ShaderOffset> m_objectOffsets;
+        std::set<ShaderOffset> m_objectOffsets;
         VersionedObjectPool<ShaderObjectBase> m_shaderObjectVersions;
         bool m_dirty = true;
         bool isDirty()
@@ -145,7 +146,7 @@ namespace gfx
             setObject(ShaderOffset const& offset, IShaderObject* object) override
         {
             Super::setObject(offset, object);
-            m_objectOffsets.add(offset);
+            m_objectOffsets.emplace(offset);
             markDirty();
             return SLANG_OK;
         }

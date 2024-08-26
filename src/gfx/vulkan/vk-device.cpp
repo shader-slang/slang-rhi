@@ -2122,7 +2122,7 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
     m_api.vkGetPhysicalDeviceFormatProperties(
         m_api.m_physicalDevice, vkFormat, &supportedProperties);
 
-    HashSet<VkFormat> presentableFormats;
+    std::set<VkFormat> presentableFormats;
     // TODO: enable this once we have VK_GOOGLE_surfaceless_query.
 #if 0
     std::vector<VkSurfaceFormatKHR> surfaceFormats;
@@ -2135,15 +2135,15 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
     m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(m_api.m_physicalDevice, VK_NULL_HANDLE, &surfaceFormatCount, surfaceFormats.data());
     for (auto surfaceFormat : surfaceFormats)
     {
-        presentableFormats.add(surfaceFormat.format);
+        presentableFormats.emplace(surfaceFormat.format);
     }
 #else
 // Until we have a solution to query presentable formats without needing a surface,
 // hard code presentable formats that is supported by most drivers.
-    presentableFormats.add(VK_FORMAT_R8G8B8A8_UNORM);
-    presentableFormats.add(VK_FORMAT_B8G8R8A8_UNORM);
-    presentableFormats.add(VK_FORMAT_R8G8B8A8_SRGB);
-    presentableFormats.add(VK_FORMAT_B8G8R8A8_SRGB);
+    presentableFormats.emplace(VK_FORMAT_R8G8B8A8_UNORM);
+    presentableFormats.emplace(VK_FORMAT_B8G8R8A8_UNORM);
+    presentableFormats.emplace(VK_FORMAT_R8G8B8A8_SRGB);
+    presentableFormats.emplace(VK_FORMAT_B8G8R8A8_SRGB);
 #endif
 
     ResourceStateSet allowedStates;

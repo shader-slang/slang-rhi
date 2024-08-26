@@ -6,6 +6,7 @@
 #include <string>
 #include <map>
 #include <unordered_map>
+#include <set>
 
 namespace gfx
 {
@@ -93,7 +94,7 @@ public:
     std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugShaderObject>, ShaderOffsetKeyHasher> m_objects;
     std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugResourceView>, ShaderOffsetKeyHasher> m_resources;
     std::unordered_map<ShaderOffsetKey, Slang::RefPtr<DebugSamplerState>, ShaderOffsetKeyHasher> m_samplers;
-    Slang::HashSet<SlangInt> m_initializedBindingRanges;
+    std::set<SlangInt> m_initializedBindingRanges;
 };
 
 class DebugRootShaderObject : public DebugShaderObject
