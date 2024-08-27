@@ -11,12 +11,14 @@
 namespace gfx {
 using namespace Slang;
 
+Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
+Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
@@ -254,6 +256,11 @@ extern "C"
 
         switch (type)
         {
+#if SLANG_RHI_ENABLE_D3D11
+        case DeviceType::D3D11:
+            SLANG_RETURN_ON_FAIL(getD3D11Adapters(adapters));
+            break;
+#endif
 #if SLANG_RHI_ENABLE_D3D12
         case DeviceType::D3D12:
             SLANG_RETURN_ON_FAIL(getD3D12Adapters(adapters));
@@ -303,6 +310,12 @@ extern "C"
                 return SLANG_FAIL;
             }
             break;
+#if SLANG_RHI_ENABLE_D3D11
+        case DeviceType::D3D11:
+            {
+                return createD3D11Device(desc, outDevice);
+            }
+#endif
 #if SLANG_RHI_ENABLE_D3D12
         case DeviceType::D3D12:
             {
@@ -384,6 +397,8 @@ extern "C"
             return "Unknown";
         case gfx::DeviceType::Default:
             return "Default";
+        case gfx::DeviceType::D3D11:
+            return "D3D11";
         case gfx::DeviceType::D3D12:
             return "D3D12";
         case gfx::DeviceType::Vulkan:

@@ -8,6 +8,8 @@ include(CMakeDependentOption)
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ON)
 
+set(SLANG_RHI_HAS_D3D11 ${WIN32})
+cmake_dependent_option(SLANG_RHI_ENABLE_D3D11 "Enable D3D11 backend" ON "SLANG_RHI_HAS_D3D11" OFF)
 set(SLANG_RHI_HAS_D3D12 ${WIN32})
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D12 "Enable D3D12 backend" ON "SLANG_RHI_HAS_D3D12" OFF)
 set(SLANG_RHI_HAS_VULKAN ON)
@@ -71,8 +73,16 @@ if(APPLE)
     file(GLOB OBJC_SOURCES src/*.mm)
     target_sources(slang-rhi PRIVATE ${OBJC_SOURCES})
 endif()
+if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
+    file(GLOB D3D_SOURCES src/d3d/*.cpp src/nvapi/*.cpp)
+    target_sources(slang-rhi PRIVATE ${D3D_SOURCES})
+endif()
+if(SLANG_RHI_ENABLE_D3D11)
+        file(GLOB D3D11_SOURCES src/d3d11/*.cpp)
+    target_sources(slang-rhi PRIVATE ${D3D11_SOURCES})
+endif()
 if(SLANG_RHI_ENABLE_D3D12)
-    file(GLOB D3D12_SOURCES src/d3d/*.cpp src/d3d12/*.cpp src/nvapi/*.cpp)
+    file(GLOB D3D12_SOURCES src/d3d12/*.cpp)
     target_sources(slang-rhi PRIVATE ${D3D12_SOURCES})
 endif()
 if(SLANG_RHI_ENABLE_VULKAN)
@@ -113,6 +123,7 @@ target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
 target_compile_definitions(slang-rhi
     PRIVATE
+        SLANG_RHI_ENABLE_D3D11=$<BOOL:${SLANG_RHI_ENABLE_D3D11}>
         SLANG_RHI_ENABLE_D3D12=$<BOOL:${SLANG_RHI_ENABLE_D3D12}>
         SLANG_RHI_ENABLE_VULKAN=$<BOOL:${SLANG_RHI_ENABLE_VULKAN}>
         SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
