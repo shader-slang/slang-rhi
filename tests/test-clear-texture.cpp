@@ -10,7 +10,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ITextureResource::Desc srcTexDesc = {};
@@ -28,7 +28,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     srcTexDesc.format = Format::R32G32B32A32_FLOAT;
 
     ComPtr<ITextureResource> srcTexture;
-    GFX_CHECK_CALL_ABORT(device->createTextureResource(
+    REQUIRE_CALL(device->createTextureResource(
         srcTexDesc, nullptr, srcTexture.writeRef()));
 
     ComPtr<IResourceView> rtv;

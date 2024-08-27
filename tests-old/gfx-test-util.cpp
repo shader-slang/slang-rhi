@@ -194,7 +194,7 @@ namespace gfx_test
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        GFX_CHECK_CALL_ABORT(device->readTextureResource(
+        REQUIRE_CALL(device->readTextureResource(
             texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
         // Compare results.
         for (size_t row = 0; row < rowCount; row++)
@@ -211,7 +211,7 @@ namespace gfx_test
     {
         // Read back the results.
         ComPtr<ISlangBlob> resultBlob;
-        GFX_CHECK_CALL_ABORT(device->readBufferResource(
+        REQUIRE_CALL(device->readBufferResource(
             buffer, offset, expectedBufferSize, resultBlob.writeRef()));
         SLANG_CHECK(resultBlob->getBufferSize() == expectedBufferSize);
         // Compare results.
@@ -230,7 +230,7 @@ namespace gfx_test
     {
         // Read back the results.
         ComPtr<ISlangBlob> resultBlob;
-        GFX_CHECK_CALL_ABORT(device->readBufferResource(
+        REQUIRE_CALL(device->readBufferResource(
             buffer, 0, expectedBufferSize, resultBlob.writeRef()));
         SLANG_CHECK(resultBlob->getBufferSize() == expectedBufferSize);
         // Compare results with a tolerance of 0.01.

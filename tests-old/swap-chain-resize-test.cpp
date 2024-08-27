@@ -75,7 +75,7 @@ namespace gfx_test
                 framebufferDesc.renderTargetViews = rtv.readRef();
                 framebufferDesc.layout = framebufferLayout;
                 ComPtr<IFramebuffer> framebuffer;
-                GFX_CHECK_CALL_ABORT(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+                REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
 
                 framebuffers.add(framebuffer);
             }
@@ -134,12 +134,12 @@ namespace gfx_test
 
             ITransientResourceHeap::Desc transientHeapDesc = {};
             transientHeapDesc.constantBufferSize = 4096 * 1024;
-            GFX_CHECK_CALL_ABORT(
+            REQUIRE_CALL(
                 device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
             ComPtr<IShaderProgram> shaderProgram;
             slang::ProgramLayout* slangReflection;
-            GFX_CHECK_CALL_ABORT(loadGraphicsProgram(device, shaderProgram, "swapchain-shader", "vertexMain", "fragmentMain", slangReflection));
+            REQUIRE_CALL(loadGraphicsProgram(device, shaderProgram, "swapchain-shader", "vertexMain", "fragmentMain", slangReflection));
 
             IFramebufferLayout::TargetLayout targetLayout;
             targetLayout.format = swapchain->getDesc().format;
@@ -157,7 +157,7 @@ namespace gfx_test
             pipelineDesc.framebufferLayout = framebufferLayout;
             pipelineDesc.depthStencil.depthTestEnable = false;
             pipelineDesc.depthStencil.depthWriteEnable = false;
-            GFX_CHECK_CALL_ABORT(
+            REQUIRE_CALL(
                 device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
 
             IRenderPassLayout::Desc renderPassDesc = {};
@@ -169,7 +169,7 @@ namespace gfx_test
             renderTargetAccess.initialState = ResourceState::Undefined;
             renderTargetAccess.finalState = ResourceState::Present;
             renderPassDesc.renderTargetAccess = &renderTargetAccess;
-            GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
+            REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
             createSwapchainFramebuffers();
         }
@@ -210,7 +210,7 @@ namespace gfx_test
             queue->waitOnHost();
 
             framebuffers = decltype(framebuffers)();
-            GFX_CHECK_CALL(swapchain->resize(700, 700));
+            CHECK_CALL(swapchain->resize(700, 700));
             createSwapchainFramebuffers();
             width = 700;
             height = 700;

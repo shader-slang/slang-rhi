@@ -60,7 +60,7 @@ struct SupportedResourceStatesTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
@@ -107,7 +107,7 @@ struct SupportedResourceStatesTest
                 continue;
 
             auto format = gfxIsTypelessFormat(baseFormat) ? convertTypelessFormat(baseFormat) : baseFormat;
-            GFX_CHECK_CALL_ABORT(device->getFormatSupportedResourceStates(format, &formatSupportedStates));
+            REQUIRE_CALL(device->getFormatSupportedResourceStates(format, &formatSupportedStates));
 
             textureAllowedStates.add(
                 ResourceState::RenderTarget,
@@ -151,7 +151,7 @@ struct SupportedResourceStatesTest
             texDesc.memoryType = MemoryType::DeviceLocal;
             texDesc.format = format;
 
-            GFX_CHECK_CALL_ABORT(device->createTextureResource(
+            REQUIRE_CALL(device->createTextureResource(
                 texDesc,
                 nullptr,
                 texture.writeRef()));
@@ -164,7 +164,7 @@ struct SupportedResourceStatesTest
             bufferDesc.defaultState = currentState;
             bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-            GFX_CHECK_CALL_ABORT(device->createBufferResource(
+            REQUIRE_CALL(device->createBufferResource(
                 bufferDesc,
                 nullptr,
                 buffer.writeRef()));

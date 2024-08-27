@@ -39,7 +39,7 @@ namespace rhi::testing
     Size getTexelSize(Format format)
     {
         FormatInfo info;
-        GFX_CHECK_CALL_ABORT(gfxGetFormatInfo(format, &info));
+        REQUIRE_CALL(gfxGetFormatInfo(format, &info));
         return info.blockSizeInBytes / info.pixelsPerBlock;
     }
 

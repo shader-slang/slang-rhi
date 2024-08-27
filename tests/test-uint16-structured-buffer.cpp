@@ -10,17 +10,17 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-uint16-buffer", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-uint16-buffer", "computeMain", slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     const int numberCount = 4;
@@ -40,7 +40,7 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    GFX_CHECK_CALL_ABORT(device->createBufferResource(
+    REQUIRE_CALL(device->createBufferResource(
         bufferDesc,
         (void*)initialData,
         numbersBuffer.writeRef()));
@@ -49,7 +49,7 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for

@@ -14,17 +14,17 @@ static void setUpAndRunShader(
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "trivial-copy", entryPoint, slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "trivial-copy", entryPoint, slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
@@ -78,7 +78,7 @@ static ComPtr<ITextureResource> createTexture(IDevice* device, ITextureResource:
     texDesc.isShared = true;
 
     ComPtr<ITextureResource> inTex;
-    GFX_CHECK_CALL_ABORT(device->createTextureResource(
+    REQUIRE_CALL(device->createTextureResource(
         texDesc,
         initialData,
         inTex.writeRef()));
@@ -91,7 +91,7 @@ static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITextureResou
     IResourceView::Desc texViewDesc = {};
     texViewDesc.type = IResourceView::Type::UnorderedAccess;
     texViewDesc.format = inTexture->getDesc()->format; // TODO: Handle typeless formats - gfxIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
-    GFX_CHECK_CALL_ABORT(device->createTextureView(inTexture, texViewDesc, texView.writeRef()));
+    REQUIRE_CALL(device->createTextureView(inTexture, texViewDesc, texView.writeRef()));
     return texView;
 }
 
@@ -111,7 +111,7 @@ ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialDat
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> outBuffer;
-    GFX_CHECK_CALL_ABORT(device->createBufferResource(
+    REQUIRE_CALL(device->createBufferResource(
         bufferDesc,
         initialData,
         outBuffer.writeRef()));
@@ -124,7 +124,7 @@ static ComPtr<IResourceView> createOutBufferView(IDevice* device, ComPtr<IBuffer
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferView(outBuffer, nullptr, viewDesc, bufferView.writeRef()));
     return bufferView;
 }
@@ -170,12 +170,12 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
         auto srcTexture = createTexture(srcDevice, size, Format::R32G32B32A32_FLOAT, &subData);
 
         InteropHandle sharedHandle;
-        GFX_CHECK_CALL_ABORT(srcTexture->getSharedHandle(&sharedHandle));
+        REQUIRE_CALL(srcTexture->getSharedHandle(&sharedHandle));
         ComPtr<ITextureResource> dstTexture;
         size_t sizeInBytes = 0;
         size_t alignment = 0;
-        GFX_CHECK_CALL_ABORT(srcDevice->getTextureAllocationInfo(*(srcTexture->getDesc()), &sizeInBytes, &alignment));
-        GFX_CHECK_CALL_ABORT(dstDevice->createTextureFromSharedHandle(sharedHandle, *(srcTexture->getDesc()), sizeInBytes, dstTexture.writeRef()));
+        REQUIRE_CALL(srcDevice->getTextureAllocationInfo(*(srcTexture->getDesc()), &sizeInBytes, &alignment));
+        REQUIRE_CALL(dstDevice->createTextureFromSharedHandle(sharedHandle, *(srcTexture->getDesc()), sizeInBytes, dstTexture.writeRef()));
         // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from dstDevice
         // TODO: Implement actual synchronization (and not this hacky solution)
         compareComputeResult(

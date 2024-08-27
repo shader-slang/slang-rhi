@@ -19,7 +19,7 @@ SlangResult ScopeNVAPI::init(DeviceImpl* device, Index regIndex)
         return SLANG_OK;
     }
 
-#ifdef GFX_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
     NvAPI_Status nvapiStatus = NvAPI_D3D11_SetNvShaderExtnSlot(device->m_device, NvU32(regIndex));
     if (nvapiStatus != NVAPI_OK)
     {
@@ -37,7 +37,7 @@ ScopeNVAPI::~ScopeNVAPI()
     // If the m_renderer is not set, it must not have been set up
     if (m_renderer)
     {
-#ifdef GFX_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
         // Disable the slot used
         NvAPI_Status nvapiStatus = NvAPI_D3D11_SetNvShaderExtnSlot(m_renderer->m_device, ~0);
         SLANG_RHI_ASSERT(nvapiStatus == NVAPI_OK);

@@ -46,17 +46,17 @@ void setUpAndRunTest(
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-formats", entryPoint, slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-formats", entryPoint, slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
@@ -105,7 +105,7 @@ ComPtr<IResourceView> createTexView(
     texDesc.format = format;
 
     ComPtr<ITextureResource> inTex;
-    GFX_CHECK_CALL_ABORT(device->createTextureResource(
+    REQUIRE_CALL(device->createTextureResource(
         texDesc,
         data,
         inTex.writeRef()));
@@ -114,7 +114,7 @@ ComPtr<IResourceView> createTexView(
     IResourceView::Desc texViewDesc = {};
     texViewDesc.type = IResourceView::Type::ShaderResource;
     texViewDesc.format = gfxIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
-    GFX_CHECK_CALL_ABORT(device->createTextureView(inTex, texViewDesc, texView.writeRef()));
+    REQUIRE_CALL(device->createTextureView(inTex, texViewDesc, texView.writeRef()));
     return texView;
 }
 
@@ -134,7 +134,7 @@ ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialDat
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> outBuffer;
-    GFX_CHECK_CALL_ABORT(device->createBufferResource(
+    REQUIRE_CALL(device->createBufferResource(
         bufferDesc,
         initialData,
         outBuffer.writeRef()));
@@ -147,7 +147,7 @@ ComPtr<IResourceView> createBufferView(IDevice* device, ComPtr<IBufferResource> 
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferView(outBuffer, nullptr, viewDesc, bufferView.writeRef()));
     return bufferView;
 }

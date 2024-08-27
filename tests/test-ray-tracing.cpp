@@ -162,12 +162,12 @@ struct BaseRayTracingTest
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &renderTargetLayout;
         framebufferLayoutDesc.depthStencil = &depthLayout;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createFramebufferLayout(framebufferLayoutDesc, framebufferLayout.writeRef()));
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096 * 1024;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         // Build bottom level acceleration structure.
@@ -192,7 +192,7 @@ struct BaseRayTracingTest
             accelerationStructureBuildInputs.geometryDescs = &geomDesc;
 
             // Query buffer size for acceleration structure build.
-            GFX_CHECK_CALL_ABORT(device->getAccelerationStructurePrebuildInfo(
+            REQUIRE_CALL(device->getAccelerationStructurePrebuildInfo(
                 accelerationStructureBuildInputs, &accelerationStructurePrebuildInfo));
             // Allocate buffers for acceleration structure.
             IBufferResource::Desc asDraftBufferDesc;
@@ -211,7 +211,7 @@ struct BaseRayTracingTest
             IQueryPool::Desc queryPoolDesc;
             queryPoolDesc.count = 1;
             queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
-            GFX_CHECK_CALL_ABORT(
+            REQUIRE_CALL(
                 device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
 
             ComPtr<IAccelerationStructure> draftAS;
@@ -220,7 +220,7 @@ struct BaseRayTracingTest
             draftCreateDesc.kind = IAccelerationStructure::Kind::BottomLevel;
             draftCreateDesc.offset = 0;
             draftCreateDesc.size = accelerationStructurePrebuildInfo.resultDataMaxSize;
-            GFX_CHECK_CALL_ABORT(
+            REQUIRE_CALL(
                 device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
 
             compactedSizeQuery->reset();
@@ -291,7 +291,7 @@ struct BaseRayTracingTest
             accelerationStructureBuildInputs.instanceDescs = instanceBuffer->getDeviceAddress();
 
             // Query buffer size for acceleration structure build.
-            GFX_CHECK_CALL_ABORT(device->getAccelerationStructurePrebuildInfo(
+            REQUIRE_CALL(device->getAccelerationStructurePrebuildInfo(
                 accelerationStructureBuildInputs, &accelerationStructurePrebuildInfo));
 
             IBufferResource::Desc asBufferDesc;
@@ -311,7 +311,7 @@ struct BaseRayTracingTest
             createDesc.kind = IAccelerationStructure::Kind::TopLevel;
             createDesc.offset = 0;
             createDesc.size = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
-            GFX_CHECK_CALL_ABORT(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
+            REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
 
             auto commandBuffer = transientHeap->createCommandBuffer();
             auto encoder = commandBuffer->encodeRayTracingCommands();
@@ -329,7 +329,7 @@ struct BaseRayTracingTest
         const char* hitgroupNames[] = { "hitgroupA", "hitgroupB"};
 
         ComPtr<IShaderProgram> rayTracingProgram;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             loadShaderProgram(device, rayTracingProgram.writeRef()));
         RayTracingPipelineStateDesc rtpDesc = {};
         rtpDesc.program = rayTracingProgram;
@@ -342,7 +342,7 @@ struct BaseRayTracingTest
         rtpDesc.hitGroups = hitGroups;
         rtpDesc.maxRayPayloadSize = 64;
         rtpDesc.maxRecursion = 2;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createRayTracingPipelineState(rtpDesc, renderPipelineState.writeRef()));
         REQUIRE(renderPipelineState != nullptr);
 
@@ -357,7 +357,7 @@ struct BaseRayTracingTest
         shaderTableDesc.rayGenShaderEntryPointNames = raygenNames;
         shaderTableDesc.missShaderCount = 2;
         shaderTableDesc.missShaderEntryPointNames = missNames;
-        GFX_CHECK_CALL_ABORT(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
+        REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
     }
 
     void checkTestResults(float* expectedResult, uint32_t count)
@@ -373,7 +373,7 @@ struct BaseRayTracingTest
         queue->executeCommandBuffer(cmdBuffer.get());
         queue->waitOnHost();
 
-        GFX_CHECK_CALL_ABORT(device->readTextureResource(
+        REQUIRE_CALL(device->readTextureResource(
             resultTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize));
 #if 0 // for debugging only
         writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);

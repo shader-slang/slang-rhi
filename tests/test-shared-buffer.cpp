@@ -27,21 +27,21 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.isShared = true;
 
     ComPtr<IBufferResource> srcBuffer;
-    GFX_CHECK_CALL_ABORT(srcDevice->createBufferResource(
+    REQUIRE_CALL(srcDevice->createBufferResource(
         bufferDesc,
         (void*)initialData,
         srcBuffer.writeRef()));
 
     InteropHandle sharedHandle;
-    GFX_CHECK_CALL_ABORT(srcBuffer->getSharedHandle(&sharedHandle));
+    REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
     ComPtr<IBufferResource> dstBuffer;
-    GFX_CHECK_CALL_ABORT(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
+    REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
     // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from dstDevice
     // TODO: Implement actual synchronization (and not this hacky solution)
     compareComputeResult(srcDevice, srcBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
     InteropHandle testHandle;
-    GFX_CHECK_CALL_ABORT(dstBuffer->getNativeResourceHandle(&testHandle));
+    REQUIRE_CALL(dstBuffer->getNativeResourceHandle(&testHandle));
     IBufferResource::Desc* testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc->elementSize, sizeof(float));
     CHECK_EQ(testDesc->sizeInBytes, numberCount * sizeof(float));
@@ -51,24 +51,24 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         dstDevice->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(dstDevice, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(dstDevice, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         dstDevice->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         dstDevice->createBufferView(dstBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     {

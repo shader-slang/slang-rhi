@@ -26,7 +26,7 @@
 #include <d3d11_2.h>
 #include <d3dcompiler.h>
 
-#ifdef GFX_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
 // NVAPI integration is described here
 // https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
 

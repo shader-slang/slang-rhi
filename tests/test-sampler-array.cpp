@@ -19,7 +19,7 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
 
     return buffer;
@@ -31,17 +31,17 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-sampler-array", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler-array", "computeMain", slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     std::vector<ComPtr<ISamplerState>> samplers;
@@ -54,7 +54,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createBufferView(buffer, nullptr, viewDesc, uav.writeRef()));
     }
     {
@@ -70,7 +70,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.allowedStates.add(ResourceState::CopyDestination);
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
         ITextureResource::SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTextureResource(textureDesc, subResourceData, texture.writeRef()));
     }
     for (uint32_t i = 0; i < 32; i++)
@@ -81,7 +81,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         viewDesc.format = Format::R8G8B8A8_UNORM;
         viewDesc.subresourceRange.layerCount = 1;
         viewDesc.subresourceRange.mipLevelCount = 1;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTextureView(texture, viewDesc, srv.writeRef()));
         srvs.push_back(srv);
     }
@@ -90,7 +90,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     {
         ISamplerState::Desc desc = {};
         ComPtr<ISamplerState> sampler;
-        GFX_CHECK_CALL_ABORT(device->createSamplerState(desc, sampler.writeRef()));
+        REQUIRE_CALL(device->createSamplerState(desc, sampler.writeRef()));
         samplers.push_back(sampler);
     }
 

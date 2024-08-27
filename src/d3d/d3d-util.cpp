@@ -11,7 +11,7 @@
 // We will use the C standard library just for printing error messages.
 #include <stdio.h>
 
-#ifdef GFX_NV_AFTERMATH
+#if SLANG_RHI_ENABLE_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
 #   include "GFSDK_Aftermath_GpuCrashDump.h"

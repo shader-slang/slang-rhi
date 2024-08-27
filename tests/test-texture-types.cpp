@@ -133,7 +133,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             ResourceState::CopyDestination);
         textureDesc.format = textureInfo->format;
 
-        GFX_CHECK_CALL_ABORT(device->createTextureResource(
+        REQUIRE_CALL(device->createTextureResource(
             textureDesc,
             textureInfo->subresourceDatas.data(),
             texture.writeRef()));
@@ -141,7 +141,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         IResourceView::Desc textureViewDesc = {};
         textureViewDesc.type = viewType;
         textureViewDesc.format = textureDesc.format; // TODO: Handle typeless formats - gfxIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
-        GFX_CHECK_CALL_ABORT(device->createTextureView(texture, textureViewDesc, textureView.writeRef()));
+        REQUIRE_CALL(device->createTextureView(texture, textureViewDesc, textureView.writeRef()));
 
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
@@ -159,12 +159,12 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             ResourceState::CopySource);
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        GFX_CHECK_CALL_ABORT(device->createBufferResource(bufferDesc, nullptr, resultsBuffer.writeRef()));
+        REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, resultsBuffer.writeRef()));
 
         IResourceView::Desc bufferViewDesc = {};
         bufferViewDesc.type = IResourceView::Type::UnorderedAccess;
         bufferViewDesc.format = Format::Unknown;
-        GFX_CHECK_CALL_ABORT(device->createBufferView(resultsBuffer, nullptr, bufferViewDesc, bufferView.writeRef()));
+        REQUIRE_CALL(device->createBufferView(resultsBuffer, nullptr, bufferViewDesc, bufferView.writeRef()));
     }
 
     void submitShaderWork(const char* entryPoint)
@@ -172,17 +172,17 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-texture-types", entryPoint, slangReflection));
+        REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-texture-types", entryPoint, slangReflection));
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         ComPtr<IPipelineState> pipelineState;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
         // We have done all the set up work, now it is time to start recording a command buffer for
@@ -249,7 +249,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             ComPtr<ISlangBlob> textureBlob;
             size_t rowPitch;
             size_t pixelSize;
-            GFX_CHECK_CALL_ABORT(device->readTextureResource(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTextureResource(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize));
             auto textureValues = (uint8_t*)textureBlob->getBufferPointer();
 
             ValidationTextureData textureResults;
@@ -270,7 +270,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         }
 
         ComPtr<ISlangBlob> bufferBlob;
-        GFX_CHECK_CALL_ABORT(device->readBufferResource(resultsBuffer, 0, resultsBuffer->getDesc()->sizeInBytes, bufferBlob.writeRef()));
+        REQUIRE_CALL(device->readBufferResource(resultsBuffer, 0, resultsBuffer->getDesc()->sizeInBytes, bufferBlob.writeRef()));
         auto results = (uint32_t*)bufferBlob->getBufferPointer();
 
         auto elementCount = textureInfo->extents.width * textureInfo->extents.height * textureInfo->extents.depth * 4;
@@ -384,7 +384,7 @@ struct RenderTargetTests : BaseTextureViewTest
         sampledTexDesc.format = textureInfo->format;
         sampledTexDesc.sampleDesc.numSamples = sampleCount;
 
-        GFX_CHECK_CALL_ABORT(device->createTextureResource(
+        REQUIRE_CALL(device->createTextureResource(
             sampledTexDesc,
             textureInfo->subresourceDatas.data(),
             sampledTexture.writeRef()));
@@ -400,7 +400,7 @@ struct RenderTargetTests : BaseTextureViewTest
             ResourceState::CopySource);
         texDesc.format = textureInfo->format;
 
-        GFX_CHECK_CALL_ABORT(device->createTextureResource(
+        REQUIRE_CALL(device->createTextureResource(
             texDesc,
             textureInfo->subresourceDatas.data(),
             texture.writeRef()));
@@ -415,12 +415,12 @@ struct RenderTargetTests : BaseTextureViewTest
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        GFX_CHECK_CALL_ABORT(loadGraphicsProgram(device, shaderProgram, "test-texture-types", "vertexMain", "fragmentMain", slangReflection));
+        REQUIRE_CALL(loadGraphicsProgram(device, shaderProgram, "test-texture-types", "vertexMain", "fragmentMain", slangReflection));
 
         IFramebufferLayout::TargetLayout targetLayout;
         targetLayout.format = textureInfo->format;
@@ -438,7 +438,7 @@ struct RenderTargetTests : BaseTextureViewTest
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
@@ -450,7 +450,7 @@ struct RenderTargetTests : BaseTextureViewTest
         renderTargetAccess.initialState = getDefaultResourceStateForViewType(viewType);
         renderTargetAccess.finalState = ResourceState::ResolveSource;
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
+        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
@@ -464,7 +464,7 @@ struct RenderTargetTests : BaseTextureViewTest
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
         framebufferDesc.layout = framebufferLayout;
-        GFX_CHECK_CALL_ABORT(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
 
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
@@ -558,11 +558,11 @@ struct RenderTargetTests : BaseTextureViewTest
         size_t pixelSize;
         if (sampleCount > 1)
         {
-            GFX_CHECK_CALL_ABORT(device->readTextureResource(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTextureResource(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize));
         }
         else
         {
-            GFX_CHECK_CALL_ABORT(device->readTextureResource(sampledTexture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTextureResource(sampledTexture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize));
         }
         auto textureValues = (float*)textureBlob->getBufferPointer();
 

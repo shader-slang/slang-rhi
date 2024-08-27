@@ -82,7 +82,7 @@ namespace gfx_test
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         // First, Initialize our file system.
@@ -137,7 +137,7 @@ namespace gfx_test
         // Precompile a module.
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        GFX_CHECK_CALL_ABORT(precompileProgram(device, memoryFileSystem.get(), "precompiled-module-imported"));
+        REQUIRE_CALL(precompileProgram(device, memoryFileSystem.get(), "precompiled-module-imported"));
 
         // Next, load the precompiled slang program.
         ComPtr<slang::ISession> slangSession = createSession(device, memoryFileSystem);
@@ -146,12 +146,12 @@ namespace gfx_test
         auto upToDate = slangSession->isBinaryModuleUpToDate("precompiled-module-imported.slang", binaryBlob);
         SLANG_CHECK(upToDate); // The module should be up-to-date.
 
-        GFX_CHECK_CALL_ABORT(loadComputeProgram(device, slangSession, shaderProgram, "precompiled-module", "computeMain", slangReflection));
+        REQUIRE_CALL(loadComputeProgram(device, slangSession, shaderProgram, "precompiled-module", "computeMain", slangReflection));
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         ComPtr<gfx::IPipelineState> pipelineState;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
         const int numberCount = 4;
@@ -169,7 +169,7 @@ namespace gfx_test
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
         ComPtr<IBufferResource> numbersBuffer;
-        GFX_CHECK_CALL_ABORT(device->createBufferResource(
+        REQUIRE_CALL(device->createBufferResource(
             bufferDesc,
             (void*)initialData,
             numbersBuffer.writeRef()));
@@ -178,7 +178,7 @@ namespace gfx_test
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
         // We have done all the set up work, now it is time to start recording a command buffer for

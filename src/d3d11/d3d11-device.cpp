@@ -18,7 +18,7 @@
 
 #include "utils/string.h"
 
-#ifdef GFX_NV_AFTERMATH
+#if SLANG_RHI_ENABLE_AFTERMATH
 #   include "GFSDK_Aftermath.h"
 #   include "GFSDK_Aftermath_Defines.h"
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
@@ -160,7 +160,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
                 &featureLevel,
                 m_immediateContext.writeRef());
 
-#ifdef GFX_NV_AFTERMATH
+#if SLANG_RHI_ENABLE_AFTERMATH
             if (SLANG_SUCCEEDED(res))
             {
                 if (deviceCheckFlags & DeviceCheckFlag::UseDebug) 
@@ -224,7 +224,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
             return SLANG_E_NOT_AVAILABLE;
         }
 
-#ifdef GFX_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
         if (NvAPI_D3D11_SetNvShaderExtnSlot(m_device, NvU32(desc.nvapiExtnSlot)) != NVAPI_OK)
         {
             return SLANG_E_NOT_AVAILABLE;

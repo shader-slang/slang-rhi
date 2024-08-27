@@ -14,7 +14,7 @@ namespace d3d11
 {
     bool isSupportedNVAPIOp(IUnknown* dev, uint32_t op)
     {
-#ifdef GFX_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
         {
             bool isSupported;
             NvAPI_Status status = NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(dev, NvU32(op), &isSupported);

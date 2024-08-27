@@ -146,12 +146,12 @@ public:
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        GFX_CHECK_CALL_ABORT(loadGraphicsProgram(device, shaderProgram, "test-instanced-draw", "vertexMain", "fragmentMain", slangReflection));
+        REQUIRE_CALL(loadGraphicsProgram(device, shaderProgram, "test-instanced-draw", "vertexMain", "fragmentMain", slangReflection));
 
         IFramebufferLayout::TargetLayout targetLayout;
         targetLayout.format = format;
@@ -169,7 +169,7 @@ public:
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
@@ -181,7 +181,7 @@ public:
         renderTargetAccess.initialState = ResourceState::RenderTarget;
         renderTargetAccess.finalState = ResourceState::CopySource;
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
+        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
@@ -195,7 +195,7 @@ public:
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
         framebufferDesc.layout = framebufferLayout;
-        GFX_CHECK_CALL_ABORT(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
     void checkTestResults(int pixelCount, int channelCount, const int* testXCoords, const int* testYCoords, float* testResults)
@@ -206,7 +206,7 @@ public:
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        GFX_CHECK_CALL_ABORT(device->readTextureResource(
+        REQUIRE_CALL(device->readTextureResource(
             colorBuffer, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize));
         auto result = (float*)resultBlob->getBufferPointer();
 

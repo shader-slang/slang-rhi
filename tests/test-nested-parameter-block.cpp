@@ -21,7 +21,7 @@ ComPtr<IBufferResource> createBuffer(
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
     return numbersBuffer;
 }
@@ -38,21 +38,21 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-nested-parameter-block", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-nested-parameter-block", "computeMain", slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     ComPtr<IShaderObject> shaderObject;
-    GFX_CHECK_CALL_ABORT(device->createMutableRootShaderObject(shaderProgram, shaderObject.writeRef()));
+    REQUIRE_CALL(device->createMutableRootShaderObject(shaderProgram, shaderObject.writeRef()));
 
     std::vector<ComPtr<IBufferResource>> srvBuffers;
     std::vector<ComPtr<IResourceView>> srvs;
@@ -75,17 +75,17 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     resultBufferViewDesc.bufferRange.offset = 0;
     resultBufferViewDesc.bufferRange.size = sizeof(uint32_t) * 4;
     ComPtr<IResourceView> resultBufferView;
-    GFX_CHECK_CALL_ABORT(device->createBufferView(
+    REQUIRE_CALL(device->createBufferView(
         resultBuffer, nullptr, resultBufferViewDesc, resultBufferView.writeRef()));
 
     ComPtr<IShaderObject> materialObject;
-    GFX_CHECK_CALL_ABORT(device->createMutableShaderObject(
+    REQUIRE_CALL(device->createMutableShaderObject(
         slangReflection->findTypeByName("MaterialSystem"),
         ShaderObjectContainerType::None,
         materialObject.writeRef()));
 
     ComPtr<IShaderObject> sceneObject;
-    GFX_CHECK_CALL_ABORT(device->createMutableShaderObject(
+    REQUIRE_CALL(device->createMutableShaderObject(
         slangReflection->findTypeByName("Scene"),
         ShaderObjectContainerType::None,
         sceneObject.writeRef()));
@@ -95,7 +95,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     cursor["scene"].setObject(sceneObject);
 
     ComPtr<IShaderObject> globalCB;
-    GFX_CHECK_CALL_ABORT(device->createShaderObject(
+    REQUIRE_CALL(device->createShaderObject(
         cursor[0].getTypeLayout()->getType(),
         ShaderObjectContainerType::None,
         globalCB.writeRef()));

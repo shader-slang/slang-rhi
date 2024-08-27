@@ -131,7 +131,7 @@ namespace gfx_test
         renderDocEndFrame();
     }
 
-#define GFX_CHECK_CALL(x) SLANG_CHECK(!SLANG_FAILED(x))
-#define GFX_CHECK_CALL_ABORT(x) SLANG_CHECK_ABORT(!SLANG_FAILED(x))
+#define CHECK_CALL(x) SLANG_CHECK(!SLANG_FAILED(x))
+#define REQUIRE_CALL(x) SLANG_CHECK_ABORT(!SLANG_FAILED(x))
 
 }

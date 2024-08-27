@@ -28,22 +28,22 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> buffer;
-    GFX_CHECK_CALL_ABORT(device->createBufferResource(
+    REQUIRE_CALL(device->createBufferResource(
         bufferDesc,
         nullptr,
         buffer.writeRef()));
 
     InteropHandle handle;
-    GFX_CHECK_CALL_ABORT(buffer->getNativeResourceHandle(&handle));
+    REQUIRE_CALL(buffer->getNativeResourceHandle(&handle));
     if (deviceType == DeviceType::D3D12)
     {
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Handle = (ID3D12Resource*)handle.handleValue;
         ComPtr<IUnknown> testHandle1;
-        GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
+        REQUIRE_CALL(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
         ComPtr<ID3D12Resource> testHandle2;
-        GFX_CHECK_CALL_ABORT(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
+        REQUIRE_CALL(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Handle, testHandle2.get());
 #endif
     }
@@ -74,16 +74,16 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
     buffer = device->createTextureResource(desc);
 
     InteropHandle handle;
-    GFX_CHECK_CALL_ABORT(buffer->getNativeResourceHandle(&handle));
+    REQUIRE_CALL(buffer->getNativeResourceHandle(&handle));
     if (deviceType == DeviceType::D3D12)
     {
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Handle = (ID3D12Resource*)handle.handleValue;
         ComPtr<IUnknown> testHandle1;
-        GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
+        REQUIRE_CALL(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
         ComPtr<ID3D12Resource> testHandle2;
-        GFX_CHECK_CALL_ABORT(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
+        REQUIRE_CALL(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Handle, testHandle2.get());
 #endif
     }
@@ -104,16 +104,16 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
     ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
     auto queue = device->createCommandQueue(queueDesc);
     InteropHandle handle;
-    GFX_CHECK_CALL_ABORT(queue->getNativeHandle(&handle));
+    REQUIRE_CALL(queue->getNativeHandle(&handle));
     if (deviceType == DeviceType::D3D12)
     {
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Queue = (ID3D12CommandQueue*)handle.handleValue;
         ComPtr<IUnknown> testHandle1;
-        GFX_CHECK_CALL_ABORT(d3d12Queue->QueryInterface<IUnknown>(testHandle1.writeRef()));
+        REQUIRE_CALL(d3d12Queue->QueryInterface<IUnknown>(testHandle1.writeRef()));
         ComPtr<ID3D12CommandQueue> testHandle2;
-        GFX_CHECK_CALL_ABORT(testHandle1->QueryInterface<ID3D12CommandQueue>(testHandle2.writeRef()));
+        REQUIRE_CALL(testHandle1->QueryInterface<ID3D12CommandQueue>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Queue, testHandle2.get());
 #endif
     }
@@ -135,7 +135,7 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     auto commandBuffer = transientHeap->createCommandBuffer();
@@ -148,16 +148,16 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
         }
     } closeCommandBufferRAII{ commandBuffer };
     InteropHandle handle = {};
-    GFX_CHECK_CALL_ABORT(commandBuffer->getNativeHandle(&handle));
+    REQUIRE_CALL(commandBuffer->getNativeHandle(&handle));
     if (deviceType == DeviceType::D3D12)
     {
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Handle = (ID3D12GraphicsCommandList*)handle.handleValue;
         ComPtr<IUnknown> testHandle1;
-        GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
+        REQUIRE_CALL(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
         ComPtr<ID3D12GraphicsCommandList> testHandle2;
-        GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<ID3D12GraphicsCommandList>(testHandle2.writeRef()));
+        REQUIRE_CALL(d3d12Handle->QueryInterface<ID3D12GraphicsCommandList>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Handle, testHandle2.get());
 #endif
     }

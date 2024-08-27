@@ -10,17 +10,17 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     float initialData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
@@ -38,7 +38,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    GFX_CHECK_CALL_ABORT(device->createBufferResource(
+    REQUIRE_CALL(device->createBufferResource(
         bufferDesc,
         (void*)initialData,
         numbersBuffer.writeRef()));
@@ -47,7 +47,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     ComPtr<IShaderObject> rootObject;
@@ -58,7 +58,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     slang::TypeReflection* addTransformerType =
         slangReflection->findTypeByName("AddTransformer");
     ComPtr<IShaderObject> transformer;
-    GFX_CHECK_CALL_ABORT(device->createMutableShaderObject(
+    REQUIRE_CALL(device->createMutableShaderObject(
         addTransformerType, ShaderObjectContainerType::None, transformer.writeRef()));
     entryPointCursor.getPath("transformer").setObject(transformer);
 

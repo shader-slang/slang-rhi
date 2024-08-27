@@ -19,7 +19,7 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
 
     return buffer;
@@ -31,17 +31,17 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-root-shader-parameter", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-root-shader-parameter", "computeMain", slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     std::vector<ComPtr<IBufferResource>> buffers;
@@ -55,13 +55,13 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
         uavs.push_back(bufferView);
 
         viewDesc.type = IResourceView::Type::ShaderResource;
         viewDesc.format = Format::Unknown;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
         srvs.push_back(bufferView);
     }

@@ -141,5 +141,5 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 
 } // namespace rhi::testing
 
-#define GFX_CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
-#define GFX_CHECK_CALL_ABORT(x) REQUIRE(!SLANG_FAILED(x))
+#define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
+#define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))

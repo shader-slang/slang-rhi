@@ -33,7 +33,7 @@ void createFloatBuffer(IDevice* device, Buffer& outBuffer, bool unorderedAccess,
         ResourceState::CopySource);
     if (unorderedAccess) bufferDesc.allowedStates.add(ResourceState::UnorderedAccess);
 
-    GFX_CHECK_CALL_ABORT(device->createBufferResource(
+    REQUIRE_CALL(device->createBufferResource(
         bufferDesc,
         (void*)initialData,
         outBuffer.buffer.writeRef()));
@@ -41,7 +41,7 @@ void createFloatBuffer(IDevice* device, Buffer& outBuffer, bool unorderedAccess,
     IResourceView::Desc viewDesc = {};
     viewDesc.type = unorderedAccess ? IResourceView::Type::UnorderedAccess : IResourceView::Type::ShaderResource;
     viewDesc.format = Format::Unknown;
-    GFX_CHECK_CALL_ABORT(device->createBufferView(
+    REQUIRE_CALL(device->createBufferView(
         outBuffer.buffer, nullptr, viewDesc, outBuffer.view.writeRef()));
 }
 
@@ -52,16 +52,16 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     Shader programA;
     Shader programB;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, programB.program, "test-buffer-barrier", "computeB", programB.reflection));
+    REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
+    REQUIRE_CALL(loadComputeProgram(device, programB.program, "test-buffer-barrier", "computeB", programB.reflection));
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
-    GFX_CHECK_CALL_ABORT(device->createComputePipelineState(programA.pipelineDesc, programA.pipelineState.writeRef()));
-    GFX_CHECK_CALL_ABORT(device->createComputePipelineState(programB.pipelineDesc, programB.pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(programA.pipelineDesc, programA.pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(programB.pipelineDesc, programB.pipelineState.writeRef()));
 
     float initialData[] = { 1.0f, 2.0f, 3.0f, 4.0f };
     Buffer inputBuffer;

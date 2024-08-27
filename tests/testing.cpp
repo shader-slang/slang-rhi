@@ -240,7 +240,7 @@ void compareComputeResult(
     ComPtr<ISlangBlob> resultBlob;
     size_t rowPitch = 0;
     size_t pixelSize = 0;
-    GFX_CHECK_CALL_ABORT(device->readTextureResource(
+    REQUIRE_CALL(device->readTextureResource(
         texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
     // Compare results.
     for (size_t row = 0; row < rowCount; row++)
@@ -257,7 +257,7 @@ void compareComputeResult(IDevice* device, IBufferResource* buffer, size_t offse
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
-    GFX_CHECK_CALL_ABORT(device->readBufferResource(
+    REQUIRE_CALL(device->readBufferResource(
         buffer, offset, expectedBufferSize, resultBlob.writeRef()));
     CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
     // Compare results.
@@ -276,7 +276,7 @@ void compareComputeResultFuzzy(IDevice* device, IBufferResource* buffer, float* 
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
-    GFX_CHECK_CALL_ABORT(device->readBufferResource(
+    REQUIRE_CALL(device->readBufferResource(
         buffer, 0, expectedBufferSize, resultBlob.writeRef()));
     CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
     // Compare results with a tolerance of 0.01.
@@ -338,7 +338,7 @@ ComPtr<IDevice> createTestingDevice(
     gfxEnableDebugLayer();
 #endif
 
-    GFX_CHECK_CALL_ABORT(gfxCreateDevice(&deviceDesc, device.writeRef()));
+    REQUIRE_CALL(gfxCreateDevice(&deviceDesc, device.writeRef()));
 
     if (useCachedDevice)
     {
@@ -427,7 +427,7 @@ static slang::IGlobalSession* getSlangGlobalSession()
     static slang::IGlobalSession* slangGlobalSession = []()
     {
         slang::IGlobalSession* session;
-        GFX_CHECK_CALL_ABORT(slang::createGlobalSession(&session));
+        REQUIRE_CALL(slang::createGlobalSession(&session));
         return session;
     }();
     return slangGlobalSession;

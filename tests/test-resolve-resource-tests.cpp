@@ -104,7 +104,7 @@ struct BaseResolveResourceTest
         msaaTexDesc.format = format;
         msaaTexDesc.sampleDesc.numSamples = 4;
 
-        GFX_CHECK_CALL_ABORT(device->createTextureResource(
+        REQUIRE_CALL(device->createTextureResource(
             msaaTexDesc,
             msaaTextureInfo.initData,
             msaaTexture.writeRef()));
@@ -120,7 +120,7 @@ struct BaseResolveResourceTest
             ResourceState::CopySource);
         dstTexDesc.format = format;
 
-        GFX_CHECK_CALL_ABORT(device->createTextureResource(
+        REQUIRE_CALL(device->createTextureResource(
             dstTexDesc,
             dstTextureInfo.initData,
             dstTexture.writeRef()));
@@ -137,12 +137,12 @@ struct BaseResolveResourceTest
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        GFX_CHECK_CALL_ABORT(loadGraphicsProgram(device, shaderProgram, "test-resolve-resource-shader", "vertexMain", "fragmentMain", slangReflection));
+        REQUIRE_CALL(loadGraphicsProgram(device, shaderProgram, "test-resolve-resource-shader", "vertexMain", "fragmentMain", slangReflection));
 
         IFramebufferLayout::TargetLayout targetLayout;
         targetLayout.format = format;
@@ -160,7 +160,7 @@ struct BaseResolveResourceTest
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
@@ -172,7 +172,7 @@ struct BaseResolveResourceTest
         renderTargetAccess.initialState = ResourceState::RenderTarget;
         renderTargetAccess.finalState = ResourceState::ResolveSource;
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
+        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
@@ -186,7 +186,7 @@ struct BaseResolveResourceTest
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
         framebufferDesc.layout = framebufferLayout;
-        GFX_CHECK_CALL_ABORT(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
     void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, ITextureResource::Extents extent)
@@ -194,7 +194,7 @@ struct BaseResolveResourceTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
@@ -233,7 +233,7 @@ struct BaseResolveResourceTest
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        GFX_CHECK_CALL_ABORT(device->readTextureResource(
+        REQUIRE_CALL(device->readTextureResource(
             dstTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize));
         auto result = (float*)resultBlob->getBufferPointer();
 

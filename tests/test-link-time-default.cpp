@@ -113,30 +113,30 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadProgram(device, shaderProgram, slangReflection, false));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection, false));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     // Create pipeline with a specialization override module linked in, so we should
     // see the result of using `Bar` for `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram1;
-    GFX_CHECK_CALL_ABORT(loadProgram(device, shaderProgram1, slangReflection, true));
+    REQUIRE_CALL(loadProgram(device, shaderProgram1, slangReflection, true));
 
     ComputePipelineStateDesc pipelineDesc1 = {};
     pipelineDesc1.program = shaderProgram1.get();
     ComPtr<IPipelineState> pipelineState1;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createComputePipelineState(pipelineDesc1, pipelineState1.writeRef()));
 
     const int numberCount = 4;
@@ -154,7 +154,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    GFX_CHECK_CALL_ABORT(device->createBufferResource(
+    REQUIRE_CALL(device->createBufferResource(
         bufferDesc,
         (void*)initialData,
         numbersBuffer.writeRef()));
@@ -163,7 +163,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    GFX_CHECK_CALL_ABORT(
+    REQUIRE_CALL(
         device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };

@@ -200,7 +200,7 @@ struct ShaderCacheTest
         gfxEnableDebugLayer();
 #endif
 
-        GFX_CHECK_CALL_ABORT(gfxCreateDevice(&deviceDesc, device.writeRef()));
+        REQUIRE_CALL(gfxCreateDevice(&deviceDesc, device.writeRef()));
     }
 
     void createComputeResources()
@@ -219,7 +219,7 @@ struct ShaderCacheTest
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        GFX_CHECK_CALL_ABORT(device->createBufferResource(
+        REQUIRE_CALL(device->createBufferResource(
             bufferDesc,
             (void*)initialData,
             bufferResource.writeRef()));
@@ -227,7 +227,7 @@ struct ShaderCacheTest
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createBufferView(bufferResource, nullptr, viewDesc, bufferView.writeRef()));
     }
 
@@ -242,22 +242,22 @@ struct ShaderCacheTest
     {
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, moduleName, entryPointName, slangReflection));
+        REQUIRE_CALL(loadComputeProgram(device, shaderProgram, moduleName, entryPointName, slangReflection));
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
     void createComputePipeline(std::string shaderSource)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        GFX_CHECK_CALL_ABORT(loadComputeProgramFromSource(device, shaderProgram, shaderSource));
+        REQUIRE_CALL(loadComputeProgramFromSource(device, shaderProgram, shaderSource));
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
@@ -266,7 +266,7 @@ struct ShaderCacheTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
@@ -542,12 +542,12 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
     {
         ComPtr<IShaderProgram> shaderProgram;
 
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             loadComputeProgram(device, shaderProgram, "test-shader-cache-specialization", "computeMain", slangReflection));
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
     }        
 
@@ -556,7 +556,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
@@ -569,7 +569,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
-        GFX_CHECK_CALL_ABORT(device->createShaderObject(
+        REQUIRE_CALL(device->createShaderObject(
             transformerType, ShaderObjectContainerType::None, transformer.writeRef()));
 
         float c = 5.f;
@@ -762,7 +762,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         renderTargetAccess.initialState = ResourceState::RenderTarget;
         renderTargetAccess.finalState = ResourceState::CopySource;
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
+        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
@@ -776,7 +776,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
         framebufferDesc.layout = framebufferLayout;
-        GFX_CHECK_CALL_ABORT(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
     void freeGraphicsResources()
@@ -794,7 +794,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     {
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             loadGraphicsProgram(device, shaderProgram, "test-shader-cache-graphics", "vertexMain", "fragmentMain", slangReflection));
 
         GraphicsPipelineStateDesc pipelineDesc = {};
@@ -803,7 +803,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
@@ -812,7 +812,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
@@ -870,18 +870,18 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
     void createGraphicsPipeline()
     {
         ComPtr<slang::ISession> slangSession;
-        GFX_CHECK_CALL_ABORT(device->getSlangSession(slangSession.writeRef()));
+        REQUIRE_CALL(device->getSlangSession(slangSession.writeRef()));
         slang::IModule* vertexModule = slangSession->loadModule("test-shader-cache-graphics-vertex");
         REQUIRE(vertexModule != nullptr);
         slang::IModule* fragmentModule = slangSession->loadModule("test-shader-cache-graphics-fragment");
         REQUIRE(fragmentModule != nullptr);
 
         ComPtr<slang::IEntryPoint> vertexEntryPoint;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             vertexModule->findEntryPointByName("main", vertexEntryPoint.writeRef()));
 
         ComPtr<slang::IEntryPoint> fragmentEntryPoint;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             fragmentModule->findEntryPointByName("main", fragmentEntryPoint.writeRef()));
 
         std::vector<slang::IComponentType*> componentTypes;
@@ -889,7 +889,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         componentTypes.push_back(fragmentModule);
 
         ComPtr<slang::IComponentType> composedProgram;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             slangSession->createCompositeComponentType(
                 componentTypes.data(),
                 componentTypes.size(),
@@ -915,7 +915,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 

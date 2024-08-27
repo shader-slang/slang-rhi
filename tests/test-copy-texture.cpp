@@ -83,7 +83,7 @@ struct BaseCopyTextureTest
         }
         srcTexDesc.format = srcTextureInfo->format;
 
-        GFX_CHECK_CALL_ABORT(device->createTextureResource(
+        REQUIRE_CALL(device->createTextureResource(
             srcTexDesc,
             srcTextureInfo->subresourceDatas.data(),
             srcTexture.writeRef()));
@@ -105,7 +105,7 @@ struct BaseCopyTextureTest
         }
         dstTexDesc.format = dstTextureInfo->format;
 
-        GFX_CHECK_CALL_ABORT(device->createTextureResource(
+        REQUIRE_CALL(device->createTextureResource(
             dstTexDesc,
             dstTextureInfo->subresourceDatas.data(),
             dstTexture.writeRef()));
@@ -127,7 +127,7 @@ struct BaseCopyTextureTest
         bufferDesc.defaultState = ResourceState::CopyDestination;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        GFX_CHECK_CALL_ABORT(device->createBufferResource(
+        REQUIRE_CALL(device->createBufferResource(
             bufferDesc,
             nullptr,
             resultsBuffer.writeRef()));
@@ -140,7 +140,7 @@ struct BaseCopyTextureTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        GFX_CHECK_CALL_ABORT(
+        REQUIRE_CALL(
             device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
@@ -238,7 +238,7 @@ struct BaseCopyTextureTest
     void checkTestResults(ITextureResource::Extents srcMipExtent, const void* expectedCopiedData, const void* expectedOriginalData)
     {
         ComPtr<ISlangBlob> resultBlob;
-        GFX_CHECK_CALL_ABORT(device->readBufferResource(resultsBuffer, 0, bufferCopyInfo.bufferSize, resultBlob.writeRef()));
+        REQUIRE_CALL(device->readBufferResource(resultsBuffer, 0, bufferCopyInfo.bufferSize, resultBlob.writeRef()));
         auto results = resultBlob->getBufferPointer();
 
         ValidationTextureData actual;
