@@ -33,7 +33,7 @@ struct GfxGUID
     static const Slang::Guid IID_ITextureResource;
     static const Slang::Guid IID_IInputLayout;
     static const Slang::Guid IID_IDevice;
-    static const Slang::Guid IID_IShaderCache;
+    static const Slang::Guid IID_IPersistentShaderCache;
     static const Slang::Guid IID_IShaderObjectLayout;
     static const Slang::Guid IID_IShaderObject;
     static const Slang::Guid IID_IRenderPassLayout;
@@ -1221,7 +1221,7 @@ public:
 
 // Renderer implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
-class RendererBase : public IDevice, public IShaderCache, public ComObject
+class RendererBase : public IDevice, public ComObject
 {
     friend class ShaderObjectBase;
 public:
@@ -1376,12 +1376,6 @@ public:
         ShaderObjectLayoutBase* layout,
         IShaderObject** outObject) = 0;
 
- public:
-    // IShaderCache interface
-    virtual SLANG_NO_THROW Result SLANG_MCALL clearShaderCache() SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getShaderCacheStats(ShaderCacheStats* outStats) SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL resetShaderCacheStats() SLANG_OVERRIDE;
-
 protected:
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL initialize(const Desc& desc);
 protected:
@@ -1390,8 +1384,7 @@ public:
     SlangContext slangContext;
     ShaderCache shaderCache;
 
-    // TODO_GFX
-    // RefPtr<Slang::PersistentCache> persistentShaderCache;
+    Slang::ComPtr<IPersistentShaderCache> persistentShaderCache;
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
     Slang::ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;

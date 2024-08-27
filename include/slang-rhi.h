@@ -129,6 +129,7 @@ enum class AccessFlag
 const GfxCount kMaxRenderTargetCount = 8;
 
 class ITransientResourceHeap;
+class IPersistentShaderCache;
 
 enum class ShaderModuleSourceType
 {
@@ -2228,14 +2229,6 @@ public:
         SlangLineDirectiveMode lineDirectiveMode = SLANG_LINE_DIRECTIVE_MODE_DEFAULT;\
     };
 
-    struct ShaderCacheDesc
-    {
-        // The root directory for the shader cache. If not set, shader cache is disabled.
-        const char* shaderCachePath = nullptr;
-        // The maximum number of entries stored in the cache. By default, there is no limit.
-        GfxCount maxEntryCount = 0;
-    };
-
     struct InteropHandles
     {
         InteropHandle handles[3] = {};
@@ -2259,10 +2252,11 @@ public:
         ISlangUnknown* apiCommandDispatcher = nullptr;
         // The slot (typically UAV) used to identify NVAPI intrinsics. If >=0 NVAPI is required.
         GfxIndex nvapiExtnSlot = -1;
-        // Configurations for the shader cache.
-        ShaderCacheDesc shaderCache = {};
         // Configurations for Slang compiler.
         SlangDesc slang = {};
+
+        // Interface to persistent shader cache.
+        IPersistentShaderCache* persistentShaderCache = nullptr;
 
         GfxCount extendedDescCount = 0;
         void** extendedDescs = nullptr;
@@ -2609,28 +2603,16 @@ public:
           0x715bdf26, 0x5135, 0x11eb, { 0xAE, 0x93, 0x02, 0x42, 0xAC, 0x13, 0x00, 0x02 } \
     }
 
-struct ShaderCacheStats
-{
-    GfxCount hitCount;
-    GfxCount missCount;
-    GfxCount entryCount;
-};
-
-// These are exclusively used to track hit/miss counts for shader cache entries. Entry hit and
-// miss counts specifically indicate if the file containing relevant shader code was found in
-// the cache, while the general hit and miss counts indicate whether the file was both found and
-// up-to-date.
-class IShaderCache : public ISlangUnknown
+class IPersistentShaderCache : public ISlangUnknown
 {
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL clearShaderCache() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getShaderCacheStats(ShaderCacheStats* outStats) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL resetShaderCacheStats() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key, ISlangBlob* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
 };
 
-#define SLANG_UUID_IShaderCache                                                          \
+#define SLANG_UUID_IPersistentShaderCache                                                \
     {                                                                                    \
-          0x8eccc8ec, 0x5c04, 0x4a51, { 0x99, 0x75, 0x13, 0xf8, 0xfe, 0xa1, 0x59, 0xf3 } \
+          0x345b1e61, 0xec18, 0x4491, { 0x97, 0x06, 0x1f, 0x81, 0x04, 0x71, 0x53, 0x53 } \
     }
 
 class IPipelineCreationAPIDispatcher : public ISlangUnknown

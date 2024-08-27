@@ -15,14 +15,27 @@
 
 namespace gfx::testing {
 
+/// Get name of running test suite (note: defined in main.cpp).
+std::string getCurrentTestSuiteName();
+
+/// Get name of running test case (note: defined in main.cpp).
+std::string getCurrentTestCaseName();
+
+/// Get global temp directory for tests.
+std::string getTestTempDirectory();
+
+/// Get temp directory for current test suite.
+std::string getSuiteTempDirectory();
+
+/// Get temp directory for current test case.
+std::string getCaseTempDirectory();
+
+/// Cleanup all temp directories created by tests.
+void cleanupTestTempDirectories();
+
 struct GpuTestContext {
     slang::IGlobalSession* slangGlobalSession;
-    // IDevice* device;
 };
-
-void run_gpu_test(void (*func)(GpuTestContext*));
-
-void release_cached_devices();
 
 /// Helper function for print out diagnostic messages output by Slang compiler.
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob);

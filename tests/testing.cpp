@@ -6,8 +6,59 @@
 #include <map>
 #include <ctime>
 #include <cctype>
+#include <filesystem>
 
 namespace gfx::testing {
+
+static std::map<DeviceType, ComPtr<IDevice>> gCachedDevices;
+
+// Temp directory to create files for teting in.
+static std::filesystem::path gTestTempDirectory;
+
+// Calculates a files sytem compatible date string formatted YYYY-MM-DD-hh-mm-ss.
+static std::string buildCurrentDateString()
+{
+    time_t now;
+    time(&now);
+    struct tm tm;
+#if SLANG_WINDOWS_FAMILY
+    localtime_s(&tm, &now);
+#else
+    localtime_r(&now, &tm);
+#endif
+    char result[128];
+    std::strftime(result, sizeof(result), "%Y-%m-%d-%H-%M-%S", &tm);
+    return result;
+}
+
+std::string getTestTempDirectory()
+{
+    if (gTestTempDirectory == "") {
+        std::string datetime_str = buildCurrentDateString();
+        gTestTempDirectory = std::filesystem::current_path() / ".test_temp" / datetime_str;
+        std::filesystem::create_directories(gTestTempDirectory);
+    }
+    return gTestTempDirectory.string();
+}
+
+std::string getSuiteTempDirectory()
+{
+    auto path = std::filesystem::path(getTestTempDirectory()) / getCurrentTestSuiteName();
+    std::filesystem::create_directories(path);
+    return path.string();
+}
+
+std::string getCaseTempDirectory()
+{
+    auto path = std::filesystem::path(getTestTempDirectory()) / getCurrentTestSuiteName() / getCurrentTestCaseName();
+    std::filesystem::create_directories(path);
+    return path.string();
+}
+
+void cleanupTestTempDirectories()
+{
+    remove_all(gTestTempDirectory);
+}
 
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
 {
@@ -233,8 +284,6 @@ void compareComputeResultFuzzy(gfx::IDevice* device, gfx::IBufferResource* buffe
     compareComputeResultFuzzy(result, expectedResult, expectedBufferSize);
 }
 
-std::map<DeviceType, ComPtr<IDevice>> cachedDevices;
-
 ComPtr<gfx::IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
@@ -243,8 +292,8 @@ ComPtr<gfx::IDevice> createTestingDevice(
 {
     if (useCachedDevice)
     {
-        auto it = cachedDevices.find(deviceType);
-        if (it != cachedDevices.end())
+        auto it = gCachedDevices.find(deviceType);
+        if (it != gCachedDevices.end())
         {
             return it->second;
         }
@@ -293,7 +342,7 @@ ComPtr<gfx::IDevice> createTestingDevice(
 
     if (useCachedDevice)
     {
-        cachedDevices[deviceType] = device;
+        gCachedDevices[deviceType] = device;
     }
 
     return device;

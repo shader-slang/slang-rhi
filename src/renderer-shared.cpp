@@ -30,7 +30,7 @@ const Slang::Guid GfxGUID::IID_IResource = SLANG_UUID_IResource;
 const Slang::Guid GfxGUID::IID_IBufferResource = SLANG_UUID_IBufferResource;
 const Slang::Guid GfxGUID::IID_ITextureResource = SLANG_UUID_ITextureResource;
 const Slang::Guid GfxGUID::IID_IDevice = SLANG_UUID_IDevice;
-const Slang::Guid GfxGUID::IID_IShaderCache = SLANG_UUID_IShaderCache;
+const Slang::Guid GfxGUID::IID_IPersistentShaderCache = SLANG_UUID_IPersistentShaderCache;
 const Slang::Guid GfxGUID::IID_IShaderObject = SLANG_UUID_IShaderObject;
 
 const Slang::Guid GfxGUID::IID_IRenderPassLayout = SLANG_UUID_IRenderPassLayout;
@@ -341,11 +341,7 @@ Result RendererBase::getEntryPointCodeFromShaderCache(
     slang::IBlob** outCode,
     slang::IBlob** outDiagnostics)
 {
-    return program->getEntryPointCode(entryPointIndex, targetIndex, outCode, outDiagnostics);
-
-// TODO_GFX
-#if 0
-    // Immediately call getEntryPointCode if no shader cache has been initialized
+    // Immediately call getEntryPointCode if shader cache is not available.
     if (!persistentShaderCache)
     {
         return program->getEntryPointCode(entryPointIndex, targetIndex, outCode, outDiagnostics);
@@ -355,20 +351,18 @@ Result RendererBase::getEntryPointCodeFromShaderCache(
     // for the shader cache.
     ComPtr<ISlangBlob> hashBlob;
     program->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
-    PersistentCache::Key cacheKey(hashBlob);
 
     // Query the shader cache.
     ComPtr<ISlangBlob> codeBlob;
-    if (persistentShaderCache->readEntry(cacheKey, codeBlob.writeRef()) != SLANG_OK)
+    if (persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef()) != SLANG_OK)
     {
         // No cached entry found. Generate the code and add it to the cache.
         SLANG_RETURN_ON_FAIL(program->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics));
-        persistentShaderCache->writeEntry(cacheKey, codeBlob);
+        persistentShaderCache->writeCache(hashBlob, codeBlob);
     }
 
     *outCode = codeBlob.detach();
     return SLANG_OK;
-#endif
 }
 
 SlangResult RendererBase::queryInterface(SlangUUID const& uuid, void** outObject)
@@ -397,17 +391,7 @@ IDevice* gfx::RendererBase::getInterface(const Guid& guid)
 
 SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
 {
-    // TODO_GFX
-#if 0
-    // We only want to initialize the shader cache if a shader cache path was provided.
-    if (desc.shaderCache.shaderCachePath)
-    {
-        PersistentCache::Desc cacheDesc;
-        cacheDesc.directory = desc.shaderCache.shaderCachePath;
-        cacheDesc.maxEntryCount = desc.shaderCache.maxEntryCount;
-        persistentShaderCache = new PersistentCache(cacheDesc);
-    }
-#endif
+    persistentShaderCache = desc.persistentShaderCache;
 
     if (desc.apiCommandDispatcher)
     {
@@ -776,46 +760,6 @@ Result RendererBase::getShaderObjectLayout(
     }
     *outLayout = shaderObjectLayout.detach();
     return SLANG_OK;
-}
-
-Result RendererBase::clearShaderCache()
-{
-    return SLANG_E_NOT_IMPLEMENTED;
-    // TODO_GFX
-#if 0
-    SLANG_RHI_ASSERT(persistentShaderCache);
-    return persistentShaderCache->clear();
-#endif
-}
-
-Result RendererBase::getShaderCacheStats(ShaderCacheStats* outStats)
-{
-    return SLANG_E_NOT_IMPLEMENTED;
-    // TODO_GFX
-#if 0
-    SLANG_RHI_ASSERT(persistentShaderCache);
-    if (!outStats)
-    {
-        return SLANG_E_INVALID_ARG;
-    }
-
-    const auto& stats = persistentShaderCache->getStats();
-    outStats->entryCount = (GfxCount)stats.entryCount;
-    outStats->hitCount = (GfxCount)stats.hitCount;
-    outStats->missCount = (GfxCount)stats.missCount;
-    return SLANG_OK;
-#endif
-}
-
-Result RendererBase::resetShaderCacheStats()
-{
-    return SLANG_E_NOT_IMPLEMENTED;
-    // TODO_GFX
-#if 0
-    SLANG_RHI_ASSERT(persistentShaderCache);
-    persistentShaderCache->resetStats();
-    return SLANG_OK;
-#endif
 }
 
 ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
