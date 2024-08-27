@@ -17,6 +17,9 @@ cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG
 set(SLANG_RHI_HAS_METAL ${APPLE})
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 set(SLANG_RHI_HAS_CUDA ON)
+if(APPLE)
+    set(SLANG_RHI_HAS_CUDA OFF)
+endif()
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 
 if(MSVC)
