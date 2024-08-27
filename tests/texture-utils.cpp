@@ -15,13 +15,6 @@
 #pragma warning(pop)
 #endif
 
-#define GFX_ENABLE_RENDERDOC_INTEGRATION 0
-
-#if GFX_ENABLE_RENDERDOC_INTEGRATION
-#    include "external/renderdoc_app.h"
-#    include <windows.h>
-#endif
-
 namespace rhi::testing
 {
     TextureAspect getTextureAspect(Format format)

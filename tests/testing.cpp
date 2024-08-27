@@ -8,6 +8,9 @@
 #include <cctype>
 #include <filesystem>
 
+#define SLANG_RHI_ENABLE_RENDERDOC 0
+#define SLANG_RHI_DEBUG_SPIRV 0
+
 namespace rhi::testing {
 
 static std::map<DeviceType, ComPtr<IDevice>> gCachedDevices;
@@ -318,7 +321,7 @@ ComPtr<IDevice> createTestingDevice(
     emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
     emitSpirvDirectlyEntry.value.intValue0 = 1;
     entries.push_back(emitSpirvDirectlyEntry);
-#if GFX_ENABLE_SPIRV_DEBUG
+#if SLANG_RHI_DEBUG_SPIRV
     slang::CompilerOptionEntry debugLevelCompilerOptionEntry;
     debugLevelCompilerOptionEntry.name = slang::CompilerOptionName::DebugInformation;
     debugLevelCompilerOptionEntry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_STANDARD;
@@ -386,7 +389,7 @@ std::vector<const char*> getSlangSearchPaths()
     };
 }
 
-#if GFX_ENABLE_RENDERDOC_INTEGRATION
+#if SLANG_RHI_ENABLE_RENDERDOC
 RENDERDOC_API_1_1_2* rdoc_api = NULL;
 void initializeRenderDoc()
 {

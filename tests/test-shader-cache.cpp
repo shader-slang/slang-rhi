@@ -180,12 +180,6 @@ struct ShaderCacheTest
         emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
         emitSpirvDirectlyEntry.value.intValue0 = 1;
         entries.push_back(emitSpirvDirectlyEntry);
-#if GFX_ENABLE_SPIRV_DEBUG
-        slang::CompilerOptionEntry debugLevelCompilerOptionEntry;
-        debugLevelCompilerOptionEntry.name = slang::CompilerOptionName::DebugInformation;
-        debugLevelCompilerOptionEntry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_STANDARD;
-        entries.push_back(debugLevelCompilerOptionEntry);
-#endif
         slangExtDesc.compilerOptionEntries = entries.data();
         slangExtDesc.compilerOptionEntryCount = entries.size();
 

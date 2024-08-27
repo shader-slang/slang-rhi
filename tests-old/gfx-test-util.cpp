@@ -3,9 +3,9 @@
 
 #include "slang-com-ptr.h"
 
-#define GFX_ENABLE_RENDERDOC_INTEGRATION 0
-#define GFX_ENABLE_SPIRV_DEBUG 0
-#if GFX_ENABLE_RENDERDOC_INTEGRATION
+#define SLANG_RHI_ENABLE_RENDERDOC 0
+#define SLANG_RHI_DEBUG_SPIRV 0
+#if SLANG_RHI_ENABLE_RENDERDOC
 #    include "external/renderdoc_app.h"
 #    include <windows.h>
 #endif
@@ -279,7 +279,7 @@ namespace gfx_test
         emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
         emitSpirvDirectlyEntry.value.intValue0 = 1;
         entries.add(emitSpirvDirectlyEntry);
-#if GFX_ENABLE_SPIRV_DEBUG
+#if SLANG_RHI_DEBUG_SPIRV
         slang::CompilerOptionEntry debugLevelCompilerOptionEntry;
         debugLevelCompilerOptionEntry.name = slang::CompilerOptionName::DebugInformation;
         debugLevelCompilerOptionEntry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_STANDARD;
@@ -316,7 +316,7 @@ namespace gfx_test
         return searchPaths;
     }
 
-#if GFX_ENABLE_RENDERDOC_INTEGRATION
+#if SLANG_RHI_ENABLE_RENDERDOC
     RENDERDOC_API_1_1_2* rdoc_api = NULL;
     void initializeRenderDoc()
     {
