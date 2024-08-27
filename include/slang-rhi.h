@@ -1568,7 +1568,7 @@ public:
 
 class ICommandEncoder : public ISlangUnknown
 {
-    SLANG_COM_INTERFACE( 0x77ea6383, 0xbe3d, 0x40aa, { 0x8b, 0x45, 0xfd, 0xf0, 0xd7, 0x5b, 0xfa, 0x34 });
+    SLANG_COM_INTERFACE(0x77ea6383, 0xbe3d, 0x40aa, { 0x8b, 0x45, 0xfd, 0xf0, 0xd7, 0x5b, 0xfa, 0x34 });
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) = 0;

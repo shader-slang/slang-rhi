@@ -19,11 +19,6 @@
 
 namespace rhi {
 
-// Enables more conservative barriers - restoring the state of resources after they are used.
-// Should not need to be enabled in normal builds, as the barriers should correctly sync resources
-// If enabling fixes an issue it implies regular barriers are not correctly used.
-#define SLANG_ENABLE_CONSERVATIVE_RESOURCE_BARRIERS 0
-
 struct D3D12BarrierSubmitter
 {
 	enum { MAX_BARRIERS = 8 };

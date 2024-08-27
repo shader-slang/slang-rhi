@@ -193,7 +193,7 @@ static const FormatInfoMap s_formatInfoMap;
 
 static void _compileTimeAsserts()
 {
-    SLANG_COMPILE_TIME_ASSERT(SLANG_COUNT_OF(s_formatSizeInfo) == int(Format::_Count));
+    static_assert(SLANG_COUNT_OF(s_formatSizeInfo) == int(Format::_Count));
 }
 
 extern "C"

@@ -669,7 +669,7 @@ Result DeviceImpl::initialize(const Desc& desc)
     // Find what features are supported
     {
         // Check this is how this is laid out...
-        SLANG_COMPILE_TIME_ASSERT(D3D_SHADER_MODEL_6_0 == 0x60);
+        static_assert(D3D_SHADER_MODEL_6_0 == 0x60);
 
         {
             // CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL) can fail if the runtime/driver does not yet know the
