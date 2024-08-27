@@ -560,7 +560,7 @@ namespace gfx_test
 
         void dispatchComputePipeline(const char* transformerTypeName)
         {
-            Slang::ComPtr<ITransientResourceHeap> transientHeap;
+            ComPtr<ITransientResourceHeap> transientHeap;
             ITransientResourceHeap::Desc transientHeapDesc = {};
             transientHeapDesc.constantBufferSize = 4096;
             GFX_CHECK_CALL_ABORT(
@@ -574,7 +574,7 @@ namespace gfx_test
 
             auto rootObject = encoder->bindPipeline(pipelineState);
 
-            Slang::ComPtr<IShaderObject> transformer;
+            ComPtr<IShaderObject> transformer;
             slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
             GFX_CHECK_CALL_ABORT(device->createShaderObject(
                 transformerType, ShaderObjectContainerType::None, transformer.writeRef()));
@@ -947,7 +947,7 @@ namespace gfx_test
             componentTypes.add(vertexModule);
             componentTypes.add(fragmentModule);
 
-            Slang::ComPtr<slang::IComponentType> composedProgram;
+            ComPtr<slang::IComponentType> composedProgram;
             GFX_CHECK_CALL_ABORT(
                 slangSession->createCompositeComponentType(
                     componentTypes.getBuffer(),

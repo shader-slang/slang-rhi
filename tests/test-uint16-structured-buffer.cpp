@@ -3,7 +3,7 @@
 using namespace gfx;
 using namespace gfx::testing;
 
-void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
+void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
@@ -15,7 +15,7 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
+    GFX_CHECK_CALL_ABORT(loadComputeProgram(device, shaderProgram, "test-uint16-buffer", "computeMain", slangReflection));
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -24,11 +24,13 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     const int numberCount = 4;
-    float initialData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
+    uint16_t initialData[] = { 0, 1, 2, 3 };
     IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    bufferDesc.sizeInBytes = numberCount * sizeof(uint16_t);
     bufferDesc.format = gfx::Format::Unknown;
-    bufferDesc.elementSize = sizeof(float);
+    // Note: we don't specify any element size here, and gfx should be able to derive the
+    // correct element size from the reflection infomation.
+    bufferDesc.elementSize = 0;
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
@@ -74,10 +76,10 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(
         device,
         numbersBuffer,
-        makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
+        makeArray<uint16_t>(1, 2, 3, 4));
 }
 
-TEST_CASE("compute-trivial")
+TEST_CASE("uint16-structured-buffer")
 {
-    runGpuTests(testComputeTrivial, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testUint16StructuredBuffer, {DeviceType::D3D12, DeviceType::Vulkan});
 }

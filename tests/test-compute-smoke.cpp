@@ -5,9 +5,9 @@ using namespace gfx::testing;
 
 void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -90,10 +90,10 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(
         device,
         numbersBuffer,
-        std::array{11.0f, 12.0f, 13.0f, 14.0f});
+        makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
 }
 
-TEST_CASE("ComputeSmoke")
+TEST_CASE("compute-smoke")
 {
     runGpuTests(testComputeSmoke, {DeviceType::D3D12, DeviceType::Vulkan});
 }

@@ -24,6 +24,7 @@
 #include "utils/common.h"
 
 #include <vector>
+#include <cstdio>
 
 namespace gfx
 {
@@ -79,7 +80,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
         desc.extendedDescs,
         SLANG_METAL_LIB,
         "",
-        makeArray(slang::PreprocessorMacroDesc{ "__METAL__", "1" }).getView()));
+        std::array{slang::PreprocessorMacroDesc{ "__METAL__", "1" }}));
 
     // TODO: expose via some other means
     if (captureEnabled())
@@ -89,7 +90,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
         MTL::CaptureDestination captureDest = MTL::CaptureDestination::CaptureDestinationGPUTraceDocument;
         if (!captureManager->supportsDestination(MTL::CaptureDestinationGPUTraceDocument))
         {
-            std::cout << "Cannot capture MTL calls to document; ensure that Info.plist exists with 'MetalCaptureEnabled' set to 'true'." << std::endl;
+            printf("Cannot capture MTL calls to document; ensure that Info.plist exists with 'MetalCaptureEnabled' set to 'true'.\n");
             exit(1);
         }
         d->setDestination(MTL::CaptureDestinationGPUTraceDocument);
@@ -102,7 +103,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
         {
             NS::String* errorString = errorCode->description();
             std::string estr(errorString->cString(NS::UTF8StringEncoding));
-            std::cout << "Start capture failure: " << estr << std::endl;
+            printf("Start capture failure: %s\n", estr.c_str());
             exit(1);
         }
     }
@@ -201,9 +202,9 @@ SlangResult DeviceImpl::readTextureResource(
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
     const ITextureResource::Desc& desc = *textureImpl->getDesc();
-    Count width = std::max(desc.size.width, 1);
-    Count height = std::max(desc.size.height, 1);
-    Count depth = std::max(desc.size.depth, 1);
+    GfxCount width = std::max(desc.size.width, 1);
+    GfxCount height = std::max(desc.size.height, 1);
+    GfxCount depth = std::max(desc.size.depth, 1);
     FormatInfo formatInfo;
     gfxGetFormatInfo(desc.format, &formatInfo);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
@@ -342,7 +343,7 @@ Result DeviceImpl::createTextureResource(
 
     // Metal doesn't support mip-mapping for 1D textures
     // However, we still need to use the provided mip level count when initializing the texture
-    Count initMipLevels = desc.numMipLevels;
+    GfxCount initMipLevels = desc.numMipLevels;
     desc.numMipLevels = desc.type == IResource::Type::Texture1D ? 1 : desc.numMipLevels;
 
     const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
@@ -461,7 +462,7 @@ Result DeviceImpl::createTextureResource(
             return SLANG_FAIL;
         }
 
-        Count sliceCount = isArray ? desc.arraySize : 1;
+        GfxCount sliceCount = isArray ? desc.arraySize : 1;
         if (desc.type == IResource::Type::TextureCube)
         {
             sliceCount *= 6;

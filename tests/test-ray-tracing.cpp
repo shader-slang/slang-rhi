@@ -136,14 +136,14 @@ struct BaseRayTracingTest
         vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::ShaderResource;
         vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
-        REQUIRE_NE(vertexBuffer, nullptr);
+        REQUIRE(vertexBuffer != nullptr);
 
         IBufferResource::Desc indexBufferDesc;
         indexBufferDesc.type = IResource::Type::Buffer;
         indexBufferDesc.sizeInBytes = kIndexCount * sizeof(int32_t);
         indexBufferDesc.defaultState = ResourceState::ShaderResource;
         indexBuffer = device->createBufferResource(indexBufferDesc, &kIndexData[0]);
-        REQUIRE_NE(indexBuffer, nullptr);
+        REQUIRE(indexBuffer != nullptr);
 
         IBufferResource::Desc transformBufferDesc;
         transformBufferDesc.type = IResource::Type::Buffer;
@@ -152,7 +152,7 @@ struct BaseRayTracingTest
         float transformData[12] = {
             1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
         transformBuffer = device->createBufferResource(transformBufferDesc, &transformData);
-        REQUIRE_NE(transformBuffer, nullptr);
+        REQUIRE(transformBuffer != nullptr);
 
         createResultTexture();
 
@@ -282,7 +282,7 @@ struct BaseRayTracingTest
                 instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
             instanceBufferDesc.defaultState = ResourceState::ShaderResource;
             instanceBuffer = device->createBufferResource(instanceBufferDesc, instanceDescs.data());
-            REQUIRE_NE(instanceBuffer, nullptr);
+            REQUIRE(instanceBuffer != nullptr);
 
             IAccelerationStructure::BuildInputs accelerationStructureBuildInputs = {};
             IAccelerationStructure::PrebuildInfo accelerationStructurePrebuildInfo = {};
@@ -344,7 +344,7 @@ struct BaseRayTracingTest
         rtpDesc.maxRecursion = 2;
         GFX_CHECK_CALL_ABORT(
             device->createRayTracingPipelineState(rtpDesc, renderPipelineState.writeRef()));
-        REQUIRE_NE(renderPipelineState, nullptr);
+        REQUIRE(renderPipelineState != nullptr);
 
         const char* raygenNames[] = { "rayGenShaderA", "rayGenShaderB" };
         const char* missNames[] = { "missShaderA", "missShaderB" };
@@ -462,12 +462,12 @@ void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
     test.run();
 }
 
-TEST_CASE("RayTracingA")
+TEST_CASE("ray-tracing-a")
 {
     runGpuTests(testRayTracing<RayTracingTestA>, { DeviceType::D3D12, DeviceType::Vulkan });
 }
 
-TEST_CASE("RayTracingB")
+TEST_CASE("ray-tracing-b")
 {
     runGpuTests(testRayTracing<RayTracingTestB>, { DeviceType::D3D12, DeviceType::Vulkan });
 }

@@ -47,9 +47,9 @@ void createFloatBuffer(IDevice* device, Buffer& outBuffer, bool unorderedAccess,
 
 void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
@@ -112,10 +112,10 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(
         device,
         outputBuffer.buffer,
-        std::array{11.0f, 12.0f, 13.0f, 14.0f});
+        makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
 }
 
-TEST_CASE("BufferBarrier")
+TEST_CASE("buffer-barrier")
 {
     runGpuTests(testBufferBarrier, {DeviceType::D3D12, DeviceType::Vulkan});
 }

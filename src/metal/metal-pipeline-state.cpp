@@ -133,7 +133,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     m_renderPipelineState = NS::TransferPtr(m_device->m_device->newRenderPipelineState(pd.get(), &error));
     if (!m_renderPipelineState)
     {
-        std::cout << error->localizedDescription()->utf8String() << std::endl;
+        printf("%s", error->localizedDescription()->utf8String());
         return SLANG_E_INVALID_ARG;
     }
 

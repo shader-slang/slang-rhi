@@ -2,7 +2,7 @@
 #include "metal-swap-chain.h"
 
 #include "metal-util.h"
-#include "../apple/cocoa-util.h"
+#include "../cocoa-util.h"
 
 namespace gfx
 {

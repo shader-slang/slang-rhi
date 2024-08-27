@@ -60,14 +60,14 @@ char* _gfxDiagnoseFormat(
     const char* format, // The format string.
     TArgs... args)
 {
-    int length = sprintf_s(buffer, shortBufferSize, format, args...);
+    int length = snprintf(buffer, shortBufferSize, format, args...);
     if (length < 0)
         return buffer;
     if (length > 255)
     {
         bufferArray.resize(length + 1);
         buffer = bufferArray.data();
-        sprintf_s(buffer, bufferArray.size(), format, args...);
+        snprintf(buffer, bufferArray.size(), format, args...);
     }
     return buffer;
 }

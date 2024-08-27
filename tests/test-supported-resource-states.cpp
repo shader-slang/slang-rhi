@@ -57,7 +57,7 @@ struct SupportedResourceStatesTest
 
     void transitionResourceStates(IDevice* device)
     {
-        Slang::ComPtr<ITransientResourceHeap> transientHeap;
+        ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
         GFX_CHECK_CALL_ABORT(
@@ -176,12 +176,12 @@ struct SupportedResourceStatesTest
 
 void testSupportedResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     SupportedResourceStatesTest test(device);
     test.run();
 }
 
-TEST_CASE("SupportedResourceStates")
+TEST_CASE("supported-resource-states")
 {
     runGpuTests(testSupportedResourceStates, {DeviceType::D3D12, DeviceType::Vulkan});
 }

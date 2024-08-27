@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assert.h"
+#include "smart-pointer.h"
 
 #include <slang.h>
 

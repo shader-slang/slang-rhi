@@ -67,6 +67,10 @@ file(GLOB RHI_SOURCES
 )
 target_sources(slang-rhi PRIVATE ${RHI_SOURCES})
 
+if(APPLE)
+    file(GLOB OBJC_SOURCES src/*.mm)
+    target_sources(slang-rhi PRIVATE ${OBJC_SOURCES})
+endif()
 if(SLANG_RHI_ENABLE_D3D12)
     file(GLOB D3D12_SOURCES src/d3d/*.cpp src/d3d12/*.cpp src/nvapi/*.cpp)
     target_sources(slang-rhi PRIVATE ${D3D12_SOURCES})

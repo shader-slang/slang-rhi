@@ -5,9 +5,9 @@ using namespace gfx::testing;
 
 void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -47,7 +47,7 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
     originalNumbersBuffer->getNativeResourceHandle(&handle);
     ComPtr<IBufferResource> numbersBuffer;
     GFX_CHECK_CALL_ABORT(device->createBufferFromNativeHandle(handle, bufferDesc, numbersBuffer.writeRef()));
-    compareComputeResult(device, numbersBuffer, std::array{0.0f, 1.0f, 2.0f, 3.0f});
+    compareComputeResult(device, numbersBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
@@ -81,10 +81,10 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(
         device,
         numbersBuffer,
-        std::array{1.0f, 2.0f, 3.0f, 4.0f});
+        makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
 }
 
-TEST_CASE("CreateBufferFromHandle")
+TEST_CASE("create-buffer-from-handle")
 {
     runGpuTests(testCreateBufferFromHandle, {DeviceType::Vulkan, DeviceType::D3D12});
 }

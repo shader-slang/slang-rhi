@@ -43,7 +43,7 @@ void setUpAndRunTest(
     const char* entryPoint,
     ComPtr<ISamplerState> sampler = nullptr)
 {
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -154,7 +154,7 @@ ComPtr<IResourceView> createBufferView(IDevice* device, ComPtr<IBufferResource> 
 
 void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
     bool isSwiftShader = isSwiftShaderDevice(device);
 
@@ -1097,7 +1097,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-TEST_CASE("Formats")
+TEST_CASE("formats")
 {
     runGpuTests(testFormats, {DeviceType::D3D12, DeviceType::Vulkan});
 }

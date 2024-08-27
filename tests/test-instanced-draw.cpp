@@ -46,7 +46,7 @@ const int kWidth = 256;
 const int kHeight = 256;
 const Format format = Format::R32G32B32A32_FLOAT;
 
-ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
+static ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
 {
     IBufferResource::Desc vertexBufferDesc;
     vertexBufferDesc.type = IResource::Type::Buffer;
@@ -54,11 +54,11 @@ ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
     vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
     ComPtr<IBufferResource> vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
-    REQUIRE_NE(vertexBuffer, nullptr);
+    REQUIRE(vertexBuffer != nullptr);
     return vertexBuffer;
 }
 
-ComPtr<IBufferResource> createInstanceBuffer(IDevice* device)
+static ComPtr<IBufferResource> createInstanceBuffer(IDevice* device)
 {
     IBufferResource::Desc instanceBufferDesc;
     instanceBufferDesc.type = IResource::Type::Buffer;
@@ -66,11 +66,11 @@ ComPtr<IBufferResource> createInstanceBuffer(IDevice* device)
     instanceBufferDesc.defaultState = ResourceState::VertexBuffer;
     instanceBufferDesc.allowedStates = ResourceState::VertexBuffer;
     ComPtr<IBufferResource> instanceBuffer = device->createBufferResource(instanceBufferDesc, &kInstanceData[0]);
-    REQUIRE_NE(instanceBuffer, nullptr);
+    REQUIRE(instanceBuffer != nullptr);
     return instanceBuffer;
 }
 
-ComPtr<IBufferResource> createIndexBuffer(IDevice* device)
+static ComPtr<IBufferResource> createIndexBuffer(IDevice* device)
 {
     IBufferResource::Desc indexBufferDesc;
     indexBufferDesc.type = IResource::Type::Buffer;
@@ -78,11 +78,11 @@ ComPtr<IBufferResource> createIndexBuffer(IDevice* device)
     indexBufferDesc.defaultState = ResourceState::IndexBuffer;
     indexBufferDesc.allowedStates = ResourceState::IndexBuffer;
     ComPtr<IBufferResource> indexBuffer = device->createBufferResource(indexBufferDesc, &kIndexData[0]);
-    REQUIRE_NE(indexBuffer, nullptr);
+    REQUIRE(indexBuffer != nullptr);
     return indexBuffer;
 }
 
-ComPtr<ITextureResource> createColorBuffer(IDevice* device)
+static ComPtr<ITextureResource> createColorBuffer(IDevice* device)
 {
     gfx::ITextureResource::Desc colorBufferDesc;
     colorBufferDesc.type = IResource::Type::Texture2D;
@@ -94,7 +94,7 @@ ComPtr<ITextureResource> createColorBuffer(IDevice* device)
     colorBufferDesc.defaultState = ResourceState::RenderTarget;
     colorBufferDesc.allowedStates = { ResourceState::RenderTarget, ResourceState::CopySource };
     ComPtr<ITextureResource> colorBuffer = device->createTextureResource(colorBufferDesc, nullptr);
-    REQUIRE_NE(colorBuffer, nullptr);
+    REQUIRE(colorBuffer != nullptr);
     return colorBuffer;
 }
 
@@ -138,7 +138,7 @@ public:
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);
         inputLayoutDesc.vertexStreams = vertexStreams;
         auto inputLayout = device->createInputLayout(inputLayoutDesc);
-        REQUIRE_NE(inputLayout, nullptr);
+        REQUIRE(inputLayout != nullptr);
 
         vertexBuffer = createVertexBuffer(device);
         instanceBuffer = createInstanceBuffer(device);
@@ -161,7 +161,7 @@ public:
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &targetLayout;
         ComPtr<gfx::IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
-        REQUIRE_NE(framebufferLayout, nullptr);
+        REQUIRE(framebufferLayout != nullptr);
 
         GraphicsPipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -353,7 +353,7 @@ struct DrawIndirectTest : BaseDrawTest
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
         indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
         ComPtr<IBufferResource> indirectBuffer = device->createBufferResource(indirectBufferDesc, &kIndirectData);
-        REQUIRE_NE(indirectBuffer, nullptr);
+        REQUIRE(indirectBuffer != nullptr);
         return indirectBuffer;
     }
 
@@ -429,7 +429,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
         indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
         ComPtr<IBufferResource> indexBuffer = device->createBufferResource(indirectBufferDesc, &kIndexedIndirectData);
-        REQUIRE_NE(indexBuffer, nullptr);
+        REQUIRE(indexBuffer != nullptr);
         return indexBuffer;
     }
 
@@ -491,22 +491,22 @@ void testDraw(GpuTestContext* ctx, DeviceType deviceType)
     test.run();
 }
 
-TEST_CASE("DrawInstanced")
+TEST_CASE("draw-instanced")
 {
     runGpuTests(testDraw<DrawInstancedTest>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("DrawIndexedInstanced")
+TEST_CASE("draw-indexed-instanced")
 {
     runGpuTests(testDraw<DrawIndexedInstancedTest>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("DrawIndirect")
+TEST_CASE("draw-indirect")
 {
     runGpuTests(testDraw<DrawIndirectTest>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("DrawIndexedIndirect")
+TEST_CASE("draw-indexed-indirect")
 {
     runGpuTests(testDraw<DrawIndexedIndirectTest>, {DeviceType::D3D12, DeviceType::Vulkan});
 }

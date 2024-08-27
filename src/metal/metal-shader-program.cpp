@@ -33,7 +33,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     if (!module.library)
     {
         // TODO use better mechanism for reporting errors
-        std::cout << error->localizedDescription()->utf8String() << std::endl;
+        printf("%s", error->localizedDescription()->utf8String());
         return SLANG_E_INVALID_ARG;
     }
 

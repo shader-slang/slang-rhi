@@ -24,7 +24,6 @@
 
 namespace gfx::testing
 {
-#if 0 // TODO_GFX
     TextureAspect getTextureAspect(Format format)
     {
         switch (format)
@@ -178,7 +177,7 @@ namespace gfx::testing
                 auto mipDepth = std::max(extents.depth >> mip, 1);
                 auto mipSize = mipWidth * mipHeight * mipDepth * texelSize;
                 subresource->textureData = malloc(mipSize);
-                SLANG_CHECK_ABORT(subresource->textureData);
+                REQUIRE(subresource->textureData != nullptr);
 
                 subresource->extents.width = mipWidth;
                 subresource->extents.height = mipHeight;
@@ -186,7 +185,7 @@ namespace gfx::testing
                 subresource->strides.x = texelSize;
                 subresource->strides.y = mipWidth * texelSize;
                 subresource->strides.z = mipHeight * subresource->strides.y;
-                texture->subresourceObjects.add(subresource);
+                texture->subresourceObjects.push_back(subresource);
 
                 for (int z = 0; z < mipDepth; ++z)
                 {
@@ -204,11 +203,10 @@ namespace gfx::testing
                 subData.data = subresource->textureData;
                 subData.strideY = subresource->strides.y;
                 subData.strideZ = subresource->strides.z;
-                texture->subresourceDatas.add(subData);
+                texture->subresourceDatas.push_back(subData);
             }
         }
     }
-#endif
 
     std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize)
     {

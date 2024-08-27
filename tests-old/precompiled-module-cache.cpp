@@ -14,9 +14,9 @@ namespace gfx_test
 {
     // Test that precompiled module cache is working.
 
-    Slang::ComPtr<slang::ISession> createSession(gfx::IDevice* device, ISlangFileSystemExt* fileSys)
+    ComPtr<slang::ISession> createSession(gfx::IDevice* device, ISlangFileSystemExt* fileSys)
     {
-        Slang::ComPtr<slang::ISession> slangSession;
+        ComPtr<slang::ISession> slangSession;
         device->getSlangSession(slangSession.writeRef());
         slang::SessionDesc sessionDesc = {};
         sessionDesc.searchPathCount = 1;
@@ -53,9 +53,9 @@ namespace gfx_test
         ISlangMutableFileSystem* fileSys,
         const char* shaderModuleName)
     {
-        Slang::ComPtr<slang::ISession> slangSession = createSession(device, fileSys);
+        ComPtr<slang::ISession> slangSession = createSession(device, fileSys);
 
-        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        ComPtr<slang::IBlob> diagnosticsBlob;
         slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
@@ -79,7 +79,7 @@ namespace gfx_test
 
     void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
     {
-        Slang::ComPtr<ITransientResourceHeap> transientHeap;
+        ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
         GFX_CHECK_CALL_ABORT(
@@ -140,7 +140,7 @@ namespace gfx_test
         GFX_CHECK_CALL_ABORT(precompileProgram(device, memoryFileSystem.get(), "precompiled-module-imported"));
 
         // Next, load the precompiled slang program.
-        Slang::ComPtr<slang::ISession> slangSession = createSession(device, memoryFileSystem);
+        ComPtr<slang::ISession> slangSession = createSession(device, memoryFileSystem);
         ComPtr<ISlangBlob> binaryBlob;
         memoryFileSystem->loadFile("cache/precompiled-module-imported.slang-module", binaryBlob.writeRef());
         auto upToDate = slangSession->isBinaryModuleUpToDate("precompiled-module-imported.slang", binaryBlob);

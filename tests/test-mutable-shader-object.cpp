@@ -7,7 +7,7 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -107,10 +107,10 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(
         device,
         numbersBuffer,
-        std::array{3.0f, 4.0f, 5.0f, 6.0f});
+        makeArray<float>(3.0f, 4.0f, 5.0f, 6.0f));
 }
 
-TEST_CASE("MutableShaderObject")
+TEST_CASE("mutable-shader-object")
 {
     runGpuTests(testMutableShaderObject, {DeviceType::D3D12, DeviceType::Vulkan, /*DeviceType::CPU*/});
 }

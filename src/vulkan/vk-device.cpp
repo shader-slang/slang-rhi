@@ -108,7 +108,7 @@ VkBool32 DeviceImpl::handleDebugMessage(
     bufferArray.resize(bufferSize);
     char* buffer = bufferArray.data();
 
-    sprintf_s(buffer, bufferSize, "%s: %s %d: %s\n", pLayerPrefix, severity, msgCode, pMsg);
+    snprintf(buffer, bufferSize, "%s: %s %d: %s\n", pLayerPrefix, severity, msgCode, pMsg);
 
     getDebugCallback()->handleMessage(msgType, DebugMessageSource::Driver, buffer);
     return VK_FALSE;

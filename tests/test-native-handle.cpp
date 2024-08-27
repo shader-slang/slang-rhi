@@ -7,9 +7,9 @@
 using namespace gfx;
 using namespace gfx::testing;
 
-void testBufferNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
+void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     // TODO_GFX better way to skip test
     if (isSwiftShaderDevice(device))
         return;
@@ -40,9 +40,9 @@ void testBufferNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Handle = (ID3D12Resource*)handle.handleValue;
-        Slang::ComPtr<IUnknown> testHandle1;
+        ComPtr<IUnknown> testHandle1;
         GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
-        Slang::ComPtr<ID3D12Resource> testHandle2;
+        ComPtr<ID3D12Resource> testHandle2;
         GFX_CHECK_CALL_ABORT(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Handle, testHandle2.get());
 #endif
@@ -54,9 +54,9 @@ void testBufferNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testTextureNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
+void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     // TODO_GFX better way to skip test
     if (isSwiftShaderDevice(device))
         return;
@@ -70,7 +70,7 @@ void testTextureNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
     desc.defaultState = ResourceState::UnorderedAccess;
     desc.format = Format::R16G16B16A16_FLOAT;
 
-    Slang::ComPtr<ITextureResource> buffer;
+    ComPtr<ITextureResource> buffer;
     buffer = device->createTextureResource(desc);
 
     InteropHandle handle;
@@ -80,9 +80,9 @@ void testTextureNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Handle = (ID3D12Resource*)handle.handleValue;
-        Slang::ComPtr<IUnknown> testHandle1;
+        ComPtr<IUnknown> testHandle1;
         GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
-        Slang::ComPtr<ID3D12Resource> testHandle2;
+        ComPtr<ID3D12Resource> testHandle2;
         GFX_CHECK_CALL_ABORT(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Handle, testHandle2.get());
 #endif
@@ -94,9 +94,9 @@ void testTextureNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testCommandQueueNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
+void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     // TODO_GFX better way to skip test
     if (isSwiftShaderDevice(device))
         return;
@@ -110,9 +110,9 @@ void testCommandQueueNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Queue = (ID3D12CommandQueue*)handle.handleValue;
-        Slang::ComPtr<IUnknown> testHandle1;
+        ComPtr<IUnknown> testHandle1;
         GFX_CHECK_CALL_ABORT(d3d12Queue->QueryInterface<IUnknown>(testHandle1.writeRef()));
-        Slang::ComPtr<ID3D12CommandQueue> testHandle2;
+        ComPtr<ID3D12CommandQueue> testHandle2;
         GFX_CHECK_CALL_ABORT(testHandle1->QueryInterface<ID3D12CommandQueue>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Queue, testHandle2.get());
 #endif
@@ -124,15 +124,15 @@ void testCommandQueueNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testCommandBufferNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
+void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     // TODO_GFX better way to skip test
     if (isSwiftShaderDevice(device))
         return;
 
     // We need to create a transient heap in order to create a command buffer.
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -154,9 +154,9 @@ void testCommandBufferNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
         CHECK_EQ(handle.api, InteropHandleAPI::D3D12);
 #if SLANG_WINDOWS_FAMILY
         auto d3d12Handle = (ID3D12GraphicsCommandList*)handle.handleValue;
-        Slang::ComPtr<IUnknown> testHandle1;
+        ComPtr<IUnknown> testHandle1;
         GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<IUnknown>(testHandle1.writeRef()));
-        Slang::ComPtr<ID3D12GraphicsCommandList> testHandle2;
+        ComPtr<ID3D12GraphicsCommandList> testHandle2;
         GFX_CHECK_CALL_ABORT(d3d12Handle->QueryInterface<ID3D12GraphicsCommandList>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Handle, testHandle2.get());
 #endif
@@ -168,22 +168,22 @@ void testCommandBufferNativeHandle(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-TEST_CASE("BufferNativeHandle")
+TEST_CASE("native-handle-buffer")
 {
-    runGpuTests(testBufferNativeHandle, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testNativeHandleBuffer, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("TextureNativeHandle")
+TEST_CASE("native-handle-texture")
 {
-    runGpuTests(testTextureNativeHandle, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testNativeHandleTexture, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CommandQueueNativeHandle")
+TEST_CASE("native-handle-command-queue")
 {
-    runGpuTests(testCommandQueueNativeHandle, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testNativeHandleCommandQueue, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CommandBufferNativeHandle")
+TEST_CASE("native-handle-command-buffer")
 {
-    runGpuTests(testCommandBufferNativeHandle, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testNativeHandleCommandBuffer, {DeviceType::D3D12, DeviceType::Vulkan});
 }

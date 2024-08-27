@@ -5,9 +5,9 @@ using namespace gfx::testing;
 
 void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -27,11 +27,11 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
         ResourceState::CopyDestination);
     srcTexDesc.format = Format::R32G32B32A32_FLOAT;
 
-    Slang::ComPtr<ITextureResource> srcTexture;
+    ComPtr<ITextureResource> srcTexture;
     GFX_CHECK_CALL_ABORT(device->createTextureResource(
         srcTexDesc, nullptr, srcTexture.writeRef()));
 
-    Slang::ComPtr<IResourceView> rtv;
+    ComPtr<IResourceView> rtv;
     IResourceView::Desc rtvDesc = {};
     rtvDesc.type = IResourceView::Type::RenderTarget;
     rtvDesc.format = Format::R32G32B32A32_FLOAT;
@@ -61,7 +61,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 
         queue->waitOnHost();
 
-        Slang::ComPtr<ISlangBlob> blob;
+        ComPtr<ISlangBlob> blob;
         size_t rowPitch, pixelSize;
         device->readTextureResource(
             srcTexture,
@@ -77,7 +77,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-TEST_CASE("ClearTexture")
+TEST_CASE("clear-texture")
 {
     runGpuTests(testClearTexture, {DeviceType::Vulkan, DeviceType::D3D12});
 }

@@ -3,7 +3,7 @@
 using namespace gfx;
 using namespace gfx::testing;
 
-Slang::ComPtr<IBufferResource> createBuffer(
+ComPtr<IBufferResource> createBuffer(
     IDevice* device, uint32_t data, ResourceState defaultState)
 {
     uint32_t initialData[] = {data, data, data, data};
@@ -35,7 +35,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -54,8 +54,8 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IShaderObject> shaderObject;
     GFX_CHECK_CALL_ABORT(device->createMutableRootShaderObject(shaderProgram, shaderObject.writeRef()));
 
-    std::vector<Slang::ComPtr<IBufferResource>> srvBuffers;
-    std::vector<Slang::ComPtr<IResourceView>> srvs;
+    std::vector<ComPtr<IBufferResource>> srvBuffers;
+    std::vector<ComPtr<IResourceView>> srvs;
 
     for (uint32_t i = 0; i < 6; i++)
     {
@@ -67,24 +67,24 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         srvDesc.bufferRange.size = sizeof(uint32_t) * 4;
         srvs.push_back(device->createBufferView(srvBuffers[i], nullptr, srvDesc));
     }
-    Slang::ComPtr<IBufferResource> resultBuffer =
+    ComPtr<IBufferResource> resultBuffer =
         createBuffer(device, 0, gfx::ResourceState::UnorderedAccess);
     IResourceView::Desc resultBufferViewDesc = {};
     resultBufferViewDesc.type = IResourceView::Type::UnorderedAccess;
     resultBufferViewDesc.format = Format::Unknown;
     resultBufferViewDesc.bufferRange.offset = 0;
     resultBufferViewDesc.bufferRange.size = sizeof(uint32_t) * 4;
-    Slang::ComPtr<IResourceView> resultBufferView;
+    ComPtr<IResourceView> resultBufferView;
     GFX_CHECK_CALL_ABORT(device->createBufferView(
         resultBuffer, nullptr, resultBufferViewDesc, resultBufferView.writeRef()));
 
-    Slang::ComPtr<IShaderObject> materialObject;
+    ComPtr<IShaderObject> materialObject;
     GFX_CHECK_CALL_ABORT(device->createMutableShaderObject(
         slangReflection->findTypeByName("MaterialSystem"),
         ShaderObjectContainerType::None,
         materialObject.writeRef()));
 
-    Slang::ComPtr<IShaderObject> sceneObject;
+    ComPtr<IShaderObject> sceneObject;
     GFX_CHECK_CALL_ABORT(device->createMutableShaderObject(
         slangReflection->findTypeByName("Scene"),
         ShaderObjectContainerType::None,
@@ -94,7 +94,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     cursor["resultBuffer"].setResource(resultBufferView);
     cursor["scene"].setObject(sceneObject);
 
-    Slang::ComPtr<IShaderObject> globalCB;
+    ComPtr<IShaderObject> globalCB;
     GFX_CHECK_CALL_ABORT(device->createShaderObject(
         cursor[0].getTypeLayout()->getType(),
         ShaderObjectContainerType::None,
@@ -131,7 +131,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, resultBuffer, std::array{1123u, 1123u, 1123u, 1123u});
+    compareComputeResult(device, resultBuffer, makeArray<uint32_t>(1123u, 1123u, 1123u, 1123u));
 }
 
 TEST_CASE("NestedParameterBlock")

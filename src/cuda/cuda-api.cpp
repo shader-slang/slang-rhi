@@ -6,19 +6,12 @@
 
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 
-#include "slang-gfx.h"
+#include "utils/platform.h"
 
-#if SLANG_WINDOWS_FAMILY
-#    include <windows.h>
-#else
-#    include <dlfcn.h>
-#endif
+#include <cstring>
+#include <cstdio>
 
-#if SLANG_WINDOWS_FAMILY
-static HANDLE gCudaApiModule;
-#else
-static void* gCudaApiModule;
-#endif
+gfx::SharedLibraryHandle gCudaApiModule;
 
 bool gfxCudaApiInit()
 {
@@ -42,20 +35,19 @@ bool gfxCudaApiInit()
     };
     return false;
 #endif
-#if 0
-    for (const auto& path : cuda_paths) {
-        sgl_cuda_api_handle = sgl::platform::load_shared_library(path);
-        if (sgl_cuda_api_handle)
+#if 1
+    for (const char* path : cudaPaths) {
+        if (SLANG_SUCCEEDED(gfx::loadSharedLibrary(path, gCudaApiModule)))
             break;
     }
-    if (!sgl_cuda_api_handle)
+    if (!gCudaApiModule)
         return false;
 
     const char* symbol = nullptr;
 
 #define LOAD(name, ...)                                                                                                \
     symbol = strlen(__VA_ARGS__ "") > 0 ? (#name "_" __VA_ARGS__) : #name;                                             \
-    name = decltype(name)(sgl::platform::get_proc_address(sgl_cuda_api_handle, symbol));                               \
+    name = decltype(name)(gfx::findSymbolAddressByName(gCudaApiModule, symbol));                                       \
     if (!name)                                                                                                         \
         break;                                                                                                         \
     symbol = nullptr
@@ -75,23 +67,26 @@ bool gfxCudaApiInit()
         LOAD(cuDevicePrimaryCtxRetain);
         LOAD(cuDevicePrimaryCtxRelease, "v2");
         LOAD(cuDevicePrimaryCtxReset);
+        LOAD(cuCtxCreate, "v2");
+        LOAD(cuCtxDestroy);
         LOAD(cuCtxPushCurrent, "v2");
         LOAD(cuCtxPopCurrent, "v2");
         LOAD(cuCtxSetCurrent);
         LOAD(cuCtxGetCurrent);
         LOAD(cuCtxGetDevice);
         LOAD(cuCtxSynchronize);
-        LOAD(cuMemGetInfo);
+        LOAD(cuMemGetInfo, "v2");
         LOAD(cuMemAlloc, "v2");
         LOAD(cuMemFree, "v2");
         LOAD(cuMemAllocHost, "v2");
         LOAD(cuMemFreeHost);
+        LOAD(cuMemAllocManaged);
         LOAD(cuMemcpy);
         LOAD(cuMemcpyHtoD);
         LOAD(cuMemcpyDtoH);
         LOAD(cuMemcpyDtoD);
-        LOAD(cuMemcpy2D);
-        LOAD(cuMemcpy2DUnaligned);
+        LOAD(cuMemcpy2D, "v2");
+        LOAD(cuMemcpy2DUnaligned, "v2");
         LOAD(cuMemcpy3D);
         LOAD(cuMemcpyAsync);
         LOAD(cuMemcpyHtoDAsync);
@@ -131,12 +126,31 @@ bool gfxCudaApiInit()
         LOAD(cuSignalExternalSemaphoresAsync);
         LOAD(cuWaitExternalSemaphoresAsync);
         LOAD(cuDestroyExternalSemaphore);
+        LOAD(cuModuleGetFunction);
+        LOAD(cuModuleGetGlobal, "v2");
+        LOAD(cuModuleGetTexRef);
+        LOAD(cuModuleLoad);
+        LOAD(cuModuleLoadData);
+        LOAD(cuModuleUnload);
+        LOAD(cuLaunchKernel);
+        LOAD(cuMipmappedArrayGetLevel);
+        LOAD(cuArrayCreate);
+        LOAD(cuArrayDestroy);
+        LOAD(cuArrayGetDescriptor);
+        LOAD(cuMipmappedArrayCreate);
+        LOAD(cuMipmappedArrayDestroy);
+        LOAD(cuArray3DCreate);
+        LOAD(cuSurfObjectCreate);
+        LOAD(cuSurfObjectDestroy);
+        LOAD(cuTexObjectCreate);
+        LOAD(cuTexObjectDestroy);
+
     } while (false);
 #undef LOAD
 
     if (symbol) {
         gfxCudaApiShutdown();
-        sgl::log_warn("gfxCudaApiInit(): could not find symbol \"{}\"", symbol);
+        printf("gfxCudaApiInit(): could not find symbol \"{}\"\n", symbol);
         return false;
     }
 #endif
@@ -221,7 +235,7 @@ void gfxCudaApiShutdown()
     UNLOAD(cuDestroyExternalSemaphore);
 #undef UNLOAD
 
-    // sgl::platform::release_shared_library(sgl_cuda_api_handle);
+    gfx::unloadSharedLibrary(gCudaApiModule);
     gCudaApiModule = nullptr;
 }
 

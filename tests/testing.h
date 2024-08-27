@@ -7,6 +7,8 @@
 
 #include "shader-cursor.h"
 
+#include "../src/utils/blob.h"
+
 #include <string_view>
 #include <array>
 #include <vector>
@@ -28,7 +30,7 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob);
 /// Loads a compute shader module and produces a `gfx::IShaderProgram`.
 Slang::Result loadComputeProgram(
     gfx::IDevice* device,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection);
@@ -36,19 +38,19 @@ Slang::Result loadComputeProgram(
 Slang::Result loadComputeProgram(
     gfx::IDevice* device,
     slang::ISession* slangSession,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection);
 
 Slang::Result loadComputeProgramFromSource(
     gfx::IDevice* device,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     std::string_view source);
 
 Slang::Result loadGraphicsProgram(
     gfx::IDevice* device,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* vertexEntryPointName,
     const char* fragmentEntryPointName,
@@ -95,7 +97,7 @@ void compareComputeResult(
         return compareComputeResult(device, buffer, 0, expectedResult.data(), expectedResult.size());
 }
 
-Slang::ComPtr<gfx::IDevice> createTestingDevice(
+ComPtr<gfx::IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice = true,
@@ -108,6 +110,12 @@ std::vector<const char*> getSlangSearchPaths();
 void initializeRenderDoc();
 void renderDocBeginFrame();
 void renderDocEndFrame();
+
+template<typename T, typename ...Args>
+auto makeArray(Args... args)
+{
+    return std::array<T, sizeof...(Args)>{static_cast<T>(args)...};
+}
 
 using GpuTestFunc = void (*)(GpuTestContext*, DeviceType);
 

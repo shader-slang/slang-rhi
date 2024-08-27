@@ -5,11 +5,11 @@ using namespace gfx::testing;
 
 void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 {
-    Slang::ComPtr<IDevice> existingDevice = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> existingDevice = createTestingDevice(ctx, deviceType);
     IDevice::InteropHandles handles;
     GFX_CHECK_CALL(existingDevice->getNativeDeviceHandles(&handles));
 
-    Slang::ComPtr<IDevice> device;
+    ComPtr<IDevice> device;
     IDevice::Desc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     deviceDesc.existingDeviceHandles.handles[0] = handles.handles[0];
@@ -24,7 +24,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
     deviceDesc.slang.searchPathCount = searchPaths.size();
     GFX_CHECK_CALL(gfxCreateDevice(&deviceDesc, device.writeRef()));
 
-    Slang::ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
     GFX_CHECK_CALL_ABORT(
@@ -92,11 +92,10 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(
         device,
         numbersBuffer,
-        std::array{1.0f, 2.0f, 3.0f, 4.0f});
+        makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
 }
 
-TEST_CASE("ExistingDeviceHandle")
+TEST_CASE("existing-device-handle")
 {
-    // TODO_GFX: Add CUDA
-    runGpuTests(testExistingDeviceHandle, {DeviceType::Vulkan, DeviceType::D3D12});
+    runGpuTests(testExistingDeviceHandle, {DeviceType::Vulkan, DeviceType::D3D12, DeviceType::CUDA});
 }

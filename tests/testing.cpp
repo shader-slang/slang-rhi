@@ -19,14 +19,14 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
 
 Slang::Result loadComputeProgram(
     gfx::IDevice* device,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection)
 {
-    Slang::ComPtr<slang::ISession> slangSession;
+    ComPtr<slang::ISession> slangSession;
     SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
-    Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
@@ -40,7 +40,7 @@ Slang::Result loadComputeProgram(
     componentTypes.push_back(module);
     componentTypes.push_back(computeEntryPoint);
 
-    Slang::ComPtr<slang::IComponentType> composedProgram;
+    ComPtr<slang::IComponentType> composedProgram;
     SlangResult result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
@@ -69,12 +69,12 @@ Slang::Result loadComputeProgram(
 Slang::Result loadComputeProgram(
     gfx::IDevice* device,
     slang::ISession* slangSession,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection)
 {
-    Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
@@ -88,7 +88,7 @@ Slang::Result loadComputeProgram(
     componentTypes.push_back(module);
     componentTypes.push_back(computeEntryPoint);
 
-    Slang::ComPtr<slang::IComponentType> composedProgram;
+    ComPtr<slang::IComponentType> composedProgram;
     SlangResult result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
@@ -116,10 +116,10 @@ Slang::Result loadComputeProgram(
 
 Slang::Result loadComputeProgramFromSource(
     gfx::IDevice* device,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     std::string_view source)
 {
-    Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+    ComPtr<slang::IBlob> diagnosticsBlob;
 
     gfx::IShaderProgram::CreateDesc2 programDesc = {};
     programDesc.sourceType = gfx::ShaderModuleSourceType::SlangSource;
@@ -131,15 +131,15 @@ Slang::Result loadComputeProgramFromSource(
 
 Slang::Result loadGraphicsProgram(
     gfx::IDevice* device,
-    Slang::ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<gfx::IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* vertexEntryPointName,
     const char* fragmentEntryPointName,
     slang::ProgramLayout*& slangReflection)
 {
-    Slang::ComPtr<slang::ISession> slangSession;
+    ComPtr<slang::ISession> slangSession;
     SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
-    Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
@@ -158,7 +158,7 @@ Slang::Result loadGraphicsProgram(
     componentTypes.push_back(vertexEntryPoint);
     componentTypes.push_back(fragmentEntryPoint);
 
-    Slang::ComPtr<slang::IComponentType> composedProgram;
+    ComPtr<slang::IComponentType> composedProgram;
     SlangResult result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
@@ -233,9 +233,9 @@ void compareComputeResultFuzzy(gfx::IDevice* device, gfx::IBufferResource* buffe
     compareComputeResultFuzzy(result, expectedResult, expectedBufferSize);
 }
 
-std::map<DeviceType, Slang::ComPtr<IDevice>> cachedDevices;
+std::map<DeviceType, ComPtr<IDevice>> cachedDevices;
 
-Slang::ComPtr<gfx::IDevice> createTestingDevice(
+ComPtr<gfx::IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice,
@@ -250,7 +250,7 @@ Slang::ComPtr<gfx::IDevice> createTestingDevice(
         }
     }
 
-    Slang::ComPtr<gfx::IDevice> device;
+    ComPtr<gfx::IDevice> device;
     gfx::IDevice::Desc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;

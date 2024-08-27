@@ -1,5 +1,6 @@
-#if 0 // TODO_GFX
 #include "testing.h"
+
+#include "texture-utils.h"
 
 #if SLANG_WINDOWS_FAMILY
 #include <d3d12.h>
@@ -84,7 +85,7 @@ struct BaseCopyTextureTest
 
         GFX_CHECK_CALL_ABORT(device->createTextureResource(
             srcTexDesc,
-            srcTextureInfo->subresourceDatas.getBuffer(),
+            srcTextureInfo->subresourceDatas.data(),
             srcTexture.writeRef()));
 
         ITextureResource::Desc dstTexDesc = {};
@@ -106,7 +107,7 @@ struct BaseCopyTextureTest
 
         GFX_CHECK_CALL_ABORT(device->createTextureResource(
             dstTexDesc,
-            dstTextureInfo->subresourceDatas.getBuffer(),
+            dstTextureInfo->subresourceDatas.data(),
             dstTexture.writeRef()));
 
         auto bufferCopyExtents = bufferCopyInfo.extent;
@@ -136,7 +137,7 @@ struct BaseCopyTextureTest
 
     void submitGPUWork()
     {
-        Slang::ComPtr<ITransientResourceHeap> transientHeap;
+        ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
         GFX_CHECK_CALL_ABORT(
@@ -737,6 +738,8 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
 template<typename T>
 void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+
     const bool isVkd3d = SLANG_ENABLE_VKD3D &&
         strcmp(device->getDeviceInfo().apiName, "Direct3D 12") == 0;
 
@@ -767,43 +770,42 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-TEST_CASE("CopyTextureSimple")
+TEST_CASE("copy-texture-simple")
 {
     runGpuTests(testCopyTexture<SimpleCopyTexture>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CopyTextureSection")
+TEST_CASE("copy-texture-section")
 {
     runGpuTests(testCopyTexture<CopyTextureSection>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CopyLargeToSmallTexture")
+TEST_CASE("copy-texture-large-to-small")
 {
     runGpuTests(testCopyTexture<LargeSrcToSmallDst>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CopySmallToLargeTexture")
+TEST_CASE("copy-texture-small-to-large")
 {
     runGpuTests(testCopyTexture<SmallSrcToLargeDst>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CopyBetweenMips")
+TEST_CASE("copy-texture-between-mips")
 {
     runGpuTests(testCopyTexture<CopyBetweenMips>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CopyBetweenLayers")
+TEST_CASE("copy-texture-between-layers")
 {
     runGpuTests(testCopyTexture<CopyBetweenLayers>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CopyWithOffsets")
+TEST_CASE("copy-texture-with-offsets")
 {
     runGpuTests(testCopyTexture<CopyWithOffsets>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
-TEST_CASE("CopySectionWithSetExtent")
+TEST_CASE("copy-texture-with-extent")
 {
     runGpuTests(testCopyTexture<CopySectionWithSetExtent>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
-#endif

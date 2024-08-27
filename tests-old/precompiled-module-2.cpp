@@ -20,7 +20,7 @@ namespace gfx_test
         const char* shaderModuleName,
         bool precompileToTarget)
     {
-        Slang::ComPtr<slang::ISession> slangSession;
+        ComPtr<slang::ISession> slangSession;
         SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
         slang::SessionDesc sessionDesc = {};
         auto searchPaths = getSlangSearchPaths();
@@ -29,7 +29,7 @@ namespace gfx_test
         auto globalSession = slangSession->getGlobalSession();
         globalSession->createSession(sessionDesc, slangSession.writeRef());
 
-        Slang::ComPtr<slang::IBlob> diagnosticsBlob;
+        ComPtr<slang::IBlob> diagnosticsBlob;
         slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
@@ -67,7 +67,7 @@ namespace gfx_test
 
     void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context, bool precompileToTarget)
     {
-        Slang::ComPtr<ITransientResourceHeap> transientHeap;
+        ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
         GFX_CHECK_CALL_ABORT(
@@ -81,7 +81,7 @@ namespace gfx_test
         GFX_CHECK_CALL_ABORT(precompileProgram(device, memoryFileSystem.get(), "precompiled-module-imported", precompileToTarget));
 
         // Next, load the precompiled slang program.
-        Slang::ComPtr<slang::ISession> slangSession;
+        ComPtr<slang::ISession> slangSession;
         device->getSlangSession(slangSession.writeRef());
         slang::SessionDesc sessionDesc = {};
         sessionDesc.targetCount = 1;

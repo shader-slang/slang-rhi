@@ -6,7 +6,6 @@
 
 namespace gfx::testing
 {
-#if 0 // TODO_GFX
     struct Strides
     {
         Size x;
@@ -35,7 +34,7 @@ namespace gfx::testing
 
             for (Int i = 0; i < componentCount; ++i)
             {
-                SLANG_CHECK(a[i] == e[i]);
+                CHECK_EQ(a[i], e[i]);
             }
         }
 
@@ -64,8 +63,8 @@ namespace gfx::testing
                 temp[3] = (T)mipLevel;
                 break;
             default:
-                assert(!"component count should be no greater than 4");
-                SLANG_CHECK_ABORT(false);
+                MESSAGE("component count should be no greater than 4");
+                REQUIRE(false);
             }
         }
     };
@@ -90,7 +89,7 @@ namespace gfx::testing
 
             for (Int i = 0; i < 4; ++i)
             {
-                SLANG_CHECK(a[i] == e[i]);
+                CHECK_EQ(a[i], e[i]);
             }
         }
 
@@ -167,8 +166,8 @@ namespace gfx::testing
         GfxCount mipLevelCount;
         GfxCount arrayLayerCount;
 
-        List<RefPtr<ValidationTextureData>> subresourceObjects;
-        List<ITextureResource::SubresourceData> subresourceDatas;
+        std::vector<RefPtr<ValidationTextureData>> subresourceObjects;
+        std::vector<ITextureResource::SubresourceData> subresourceDatas;
     };
 
     TextureAspect getTextureAspect(Format format);
@@ -176,7 +175,7 @@ namespace gfx::testing
     GfxIndex getSubresourceIndex(GfxIndex mipLevel, GfxCount mipLevelCount, GfxIndex baseArrayLayer);
     RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);
     void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat);
-#endif
+
     std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize);
     Slang::Result writeImage(
         const char* filename,
