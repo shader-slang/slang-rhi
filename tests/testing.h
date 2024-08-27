@@ -116,6 +116,11 @@ ComPtr<gfx::IDevice> createTestingDevice(
     bool useCachedDevice = true,
     std::vector<const char*> additionalSearchPaths = {});
 
+ComPtr<slang::ISession> createTestingSession(
+    GpuTestContext* ctx,
+    DeviceType deviceType,
+    std::vector<const char*> additionalSearchPaths = {});
+
 bool isSwiftShaderDevice(IDevice* device);
 
 std::vector<const char*> getSlangSearchPaths();
