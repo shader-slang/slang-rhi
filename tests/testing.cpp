@@ -456,6 +456,10 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 {
     for (auto deviceType : deviceTypes)
     {
+        if (!gfxIsDeviceTypeSupported(deviceType))
+        {
+            continue;
+        }
         SUBCASE(deviceTypeToString(deviceType))
         {
             GpuTestContext ctx;

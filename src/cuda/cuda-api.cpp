@@ -150,7 +150,7 @@ bool gfxCudaApiInit()
 
     if (symbol) {
         gfxCudaApiShutdown();
-        printf("gfxCudaApiInit(): could not find symbol \"{}\"\n", symbol);
+        printf("gfxCudaApiInit(): could not find symbol \"%s\"\n", symbol);
         return false;
     }
 #endif

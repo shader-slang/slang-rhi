@@ -2683,6 +2683,8 @@ extern "C"
     SLANG_RHI_API void SLANG_MCALL gfxEnableDebugLayer();
 
     SLANG_RHI_API const char* SLANG_MCALL gfxGetDeviceTypeName(DeviceType type);
+
+    SLANG_RHI_API bool gfxIsDeviceTypeSupported(DeviceType type);
 }
 
 /// Gets a list of available adapters for a given device type

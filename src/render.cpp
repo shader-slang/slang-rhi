@@ -414,6 +414,26 @@ extern "C"
         }
     }
 
+    bool gfxIsDeviceTypeSupported(DeviceType type)
+    {
+        switch (type)
+        {
+        case gfx::DeviceType::D3D11:
+            return SLANG_RHI_ENABLE_D3D11;
+        case gfx::DeviceType::D3D12:
+            return SLANG_RHI_ENABLE_D3D12;
+        case gfx::DeviceType::Vulkan:
+            return SLANG_RHI_ENABLE_VULKAN;
+        case gfx::DeviceType::Metal:
+            return SLANG_RHI_ENABLE_METAL;
+        case gfx::DeviceType::CPU:
+            return true;
+        case gfx::DeviceType::CUDA:
+            return SLANG_RHI_ENABLE_CUDA;
+        default:
+            return false;
+        }
+    }
 
     void SLANG_MCALL gfxGetIdentityProjection(ProjectionStyle style, float projMatrix[16])
     {
