@@ -1,6 +1,6 @@
 // uint16-buffer.slang - Simple shader that takes a buffer of uint16 type and increments all elements by 1.
 
-// This is to verify that GFX can correct set correct buffer strides for structured buffer bindings.
+// This is to verify that the slang-rhi can set correct buffer strides for structured buffer bindings.
 
 uniform RWStructuredBuffer<uint16_t> buffer;
 

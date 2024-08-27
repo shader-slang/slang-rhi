@@ -97,7 +97,7 @@ static VirtualShaderCache shaderCache;
 
 // Base class for shader cache tests.
 // Slang currently does not allow reloading shaders from modified sources.
-// Because of this, the tests recreate a GFX device for each test step,
+// Because of this, the tests recreate a device for each test step,
 // allowing to modify shader sources in between.
 struct ShaderCacheTest
 {
