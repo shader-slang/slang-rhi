@@ -381,7 +381,7 @@ Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
     encoder->setDepthClipMode(rasterDesc.depthClipEnable ? MTL::DepthClipModeClip : MTL::DepthClipModeClamp); // TODO correct?
     encoder->setDepthBias(rasterDesc.depthBias, rasterDesc.slopeScaledDepthBias, rasterDesc.depthBiasClamp);
     encoder->setTriangleFillMode(MetalUtil::translateTriangleFillMode(rasterDesc.fillMode));
-    // encoder->setBlendColor(); // not supported by gfx
+    // encoder->setBlendColor(); // not supported by rhi
     if (m_framebuffer->m_depthStencilView)
     {
         encoder->setDepthStencilState(pipeline->m_depthStencilState.get());

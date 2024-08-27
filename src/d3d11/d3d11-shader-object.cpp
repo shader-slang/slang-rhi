@@ -348,7 +348,7 @@ Result ShaderObjectImpl::bindAsValue(
     //
     // TODO: These loops could be optimized if we stored parallel arrays
     // for things like `m_srvs` so that we directly store an array of
-    // `ID3D11ShaderResourceView*` where each entry matches the `gfx`-level
+    // `ID3D11ShaderResourceView*` where each entry matches the `rhi`-level
     // object that was bound (or holds null if nothing is bound).
     // In that case, we could perform a single `setSRVs()` call for each
     // binding range.

@@ -27,4 +27,4 @@ static SlangResult g_initStatus = SLANG_E_UNINITIALIZED;
     return SLANG_SUCCEEDED(g_initStatus);
 }
 
-} // gfx
+} // namespace::rhi

@@ -191,21 +191,21 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
         colorBlendTargets.resize(targetCount);
         for (GfxIndex i = 0; i < targetCount; ++i)
         {
-            auto& gfxBlendDesc = blendDesc.targets[i];
+            auto& rhiBlendDesc = blendDesc.targets[i];
             auto& vkBlendDesc = colorBlendTargets[i];
 
-            vkBlendDesc.blendEnable = gfxBlendDesc.enableBlend;
+            vkBlendDesc.blendEnable = rhiBlendDesc.enableBlend;
             vkBlendDesc.srcColorBlendFactor =
-                VulkanUtil::translateBlendFactor(gfxBlendDesc.color.srcFactor);
+                VulkanUtil::translateBlendFactor(rhiBlendDesc.color.srcFactor);
             vkBlendDesc.dstColorBlendFactor =
-                VulkanUtil::translateBlendFactor(gfxBlendDesc.color.dstFactor);
-            vkBlendDesc.colorBlendOp = VulkanUtil::translateBlendOp(gfxBlendDesc.color.op);
+                VulkanUtil::translateBlendFactor(rhiBlendDesc.color.dstFactor);
+            vkBlendDesc.colorBlendOp = VulkanUtil::translateBlendOp(rhiBlendDesc.color.op);
             vkBlendDesc.srcAlphaBlendFactor =
-                VulkanUtil::translateBlendFactor(gfxBlendDesc.alpha.srcFactor);
+                VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.srcFactor);
             vkBlendDesc.dstAlphaBlendFactor =
-                VulkanUtil::translateBlendFactor(gfxBlendDesc.alpha.dstFactor);
-            vkBlendDesc.alphaBlendOp = VulkanUtil::translateBlendOp(gfxBlendDesc.alpha.op);
-            vkBlendDesc.colorWriteMask = (VkColorComponentFlags)gfxBlendDesc.writeMask;
+                VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.dstFactor);
+            vkBlendDesc.alphaBlendOp = VulkanUtil::translateBlendOp(rhiBlendDesc.alpha.op);
+            vkBlendDesc.colorWriteMask = (VkColorComponentFlags)rhiBlendDesc.writeMask;
         }
     }
 

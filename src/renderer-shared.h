@@ -56,7 +56,7 @@ struct GfxGUID
 
 bool isGfxDebugLayerEnabled();
 
-// We use a `BreakableReference` to avoid the cyclic reference situation in gfx implementation.
+// We use a `BreakableReference` to avoid the cyclic reference situation in rhi implementation.
 // It is a common scenario where objects created from an `IDevice` implementation needs to hold
 // a strong reference to the device object that creates them. For example, a `Buffer` or a
 // `CommandQueue` needs to store a `m_device` member that points to the `IDevice`. At the same

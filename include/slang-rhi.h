@@ -33,7 +33,7 @@
 
 // GLOBAL TODO: doc comments
 // GLOBAL TODO: Rationalize integer types (not a smush of uint/int/Uint/Int/etc)
-//    - need typedefs in gfx namespace for Count, Index, Size, Offset (ex. DeviceAddress)
+//    - need typedefs in rhi namespace for Count, Index, Size, Offset (ex. DeviceAddress)
 //    - Index and Count are for arrays, and indexing into array - like things(XY coordinates of pixels, etc.)
 //         - Count is also for anything where we need to measure how many of something there are. This includes things like extents.
 //    - Offset and Size are almost always for bytes and things measured in bytes.
@@ -2669,7 +2669,7 @@ extern "C"
     SLANG_RHI_API SlangResult SLANG_MCALL
         gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
-    /// Reports current set of live objects in gfx.
+    /// Reports current set of live objects in rhi.
     /// Currently this only calls D3D's ReportLiveObjects.
     SLANG_RHI_API SlangResult SLANG_MCALL gfxReportLiveObjects();
 
@@ -2679,7 +2679,7 @@ extern "C"
     SLANG_RHI_API SlangResult SLANG_MCALL
         gfxSetDebugCallback(IDebugCallback* callback);
 
-    /// Enables debug layer. The debug layer will check all `gfx` calls and verify that uses are valid.
+    /// Enables debug layer. The debug layer will check all `rhi` calls and verify that uses are valid.
     SLANG_RHI_API void SLANG_MCALL gfxEnableDebugLayer();
 
     SLANG_RHI_API const char* SLANG_MCALL gfxGetDeviceTypeName(DeviceType type);

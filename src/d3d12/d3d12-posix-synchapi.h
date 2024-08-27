@@ -26,7 +26,7 @@
 ////////////////////////////////////////////////////////////////
 
 //
-// The synchapi types and macros used in gfx
+// The synchapi types and macros used in rhi
 //
 #define INFINITE 0xffffffff
 

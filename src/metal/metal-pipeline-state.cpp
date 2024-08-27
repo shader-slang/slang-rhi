@@ -91,7 +91,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     GfxCount sampleCount = 1;
 
     pd->setAlphaToCoverageEnabled(blend.alphaToCoverageEnable);
-    // pd->setAlphaToOneEnabled(); // Currently not supported by gfx
+    // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
     for (Index i = 0; i < framebufferLayoutImpl->m_renderTargets.size(); ++i)

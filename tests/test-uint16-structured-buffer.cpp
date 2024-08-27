@@ -28,7 +28,7 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(uint16_t);
     bufferDesc.format = Format::Unknown;
-    // Note: we don't specify any element size here, and gfx should be able to derive the
+    // Note: we don't specify any element size here, and rhi should be able to derive the
     // correct element size from the reflection infomation.
     bufferDesc.elementSize = 0;
     bufferDesc.allowedStates = ResourceStateSet(

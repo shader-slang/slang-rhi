@@ -16,4 +16,4 @@ struct NVAPIUtil
 };
 
 
-} // gfx
+} // namespace::rhi

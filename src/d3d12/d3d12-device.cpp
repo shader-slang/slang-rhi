@@ -189,7 +189,7 @@ Result DeviceImpl::captureTextureToSurface(
 
     const D3D12_RESOURCE_STATES initialState = D3DUtil::getResourceState(state);
 
-    const ITextureResource::Desc& gfxDesc = *resourceImpl->getDesc();
+    const ITextureResource::Desc& desc = *resourceImpl->getDesc();
     const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
 
     // Don't bother supporting MSAA for right now
@@ -200,7 +200,7 @@ Result DeviceImpl::captureTextureToSurface(
     }
 
     FormatInfo formatInfo;
-    gfxGetFormatInfo(gfxDesc.format, &formatInfo);
+    gfxGetFormatInfo(desc.format, &formatInfo);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = int(desc.Width) * bytesPerPixel;
     static const Size align = 256; // D3D requires minimum 256 byte alignment for texture data.

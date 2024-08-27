@@ -1,7 +1,7 @@
 // mutable-shader-object.slang
 
 // This is a copy of `shader-object.slang` in `shader-object` example
-// for use by mutable-shader-object gfx unit test.
+// for use by mutable-shader-object rhi unit test.
 
 // This file implements a simple compute shader that transforms
 // input floating point numbers stored in a `RWStructuredBuffer`.
