@@ -1,0 +1,27 @@
+BasedOnStyle: Microsoft
+
+DerivePointerAlignment: false
+PointerAlignment: Left
+FixNamespaceComments: true
+
+AlwaysBreakTemplateDeclarations: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortEnumsOnASingleLine: true
+AllowAllConstructorInitializersOnNextLine: true
+# BreakConstructorInitializers: BeforeComma
+AllowAllArgumentsOnNextLine: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackParameters: false
+ExperimentalAutoDetectBinPacking: false
+AlignAfterOpenBracket: BlockIndent
+
+AlignTrailingComments: true
+ReflowComments: true
+CommentPragmas: '^\\.+'
+PenaltyBreakComment: 0
+
+
+AlwaysBreakAfterDefinitionReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 100000000
+BreakAfterReturnType: Automatic
