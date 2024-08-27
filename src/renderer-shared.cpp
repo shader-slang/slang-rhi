@@ -367,17 +367,6 @@ Result RendererBase::getEntryPointCodeFromShaderCache(
 
 SlangResult RendererBase::queryInterface(SlangUUID const& uuid, void** outObject)
 {
-    // TODO_GFX
-#if 0
-    // Only return the shader cache interface if it is enabled.
-    if (uuid == GfxGUID::IID_IShaderCache && persistentShaderCache)
-    {
-        *outObject = static_cast<IShaderCache*>(this);
-        addRef();
-        return SLANG_OK;
-    }
-#endif
-
     *outObject = getInterface(uuid);
     return SLANG_OK;
 }
