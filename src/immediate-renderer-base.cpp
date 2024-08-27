@@ -7,7 +7,7 @@
 #include "utils/common.h"
 #include "utils/short_vector.h"
 
-namespace gfx
+namespace rhi
 {
 using Slang::ComPtr;
 using Slang::Guid;
@@ -744,7 +744,7 @@ void ImmediateRendererBase::uploadBufferData(
     size_t size,
     void* data)
 {
-    auto buffer = map(dst, gfx::MapFlavor::WriteDiscard);
+    auto buffer = map(dst, MapFlavor::WriteDiscard);
     memcpy((uint8_t*)buffer + offset, data, size);
     unmap(dst, offset, size);
 }
@@ -758,7 +758,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL ImmediateRendererBase::readBufferResource
     std::vector<uint8_t> blobData;
 
     blobData.resize((Index)size);
-    auto content = (uint8_t*)map(buffer, gfx::MapFlavor::HostRead);
+    auto content = (uint8_t*)map(buffer, MapFlavor::HostRead);
     if (!content)
         return SLANG_FAIL;
     memcpy(blobData.data(), content + offset, size);

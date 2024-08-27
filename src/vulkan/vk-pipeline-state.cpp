@@ -14,7 +14,7 @@
 #include <map>
 #include <string>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -502,4 +502,4 @@ Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

@@ -10,7 +10,7 @@
 
 #include "utils/virtual-object-pool.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -196,7 +196,7 @@ public:
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL readBufferResource(
         IBufferResource* resource, Offset offset, Size size, ISlangBlob** outBlob) override;
 
-    virtual SLANG_NO_THROW const gfx::DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
+    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
         getNativeDeviceHandles(InteropHandles* outHandles) override;
@@ -257,4 +257,4 @@ private:
 };
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

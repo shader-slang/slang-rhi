@@ -2,7 +2,7 @@
 
 #include "renderer-shared.h"
 
-namespace gfx
+namespace rhi
 {
 
 IRenderPassLayout* SimpleRenderPassLayout::getInterface(const Slang::Guid& guid)
@@ -22,4 +22,4 @@ void SimpleRenderPassLayout::init(const IRenderPassLayout::Desc& desc)
         m_depthStencilAccess = *desc.depthStencilAccess;
 }
 
-} // namespace gfx
+} // namespace rhi

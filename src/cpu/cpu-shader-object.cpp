@@ -5,7 +5,7 @@
 #include "cpu-resource-views.h"
 #include "cpu-shader-object-layout.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -311,4 +311,4 @@ Result RootShaderObjectImpl::collectSpecializationArgs(ExtendedShaderObjectTypeL
 }
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

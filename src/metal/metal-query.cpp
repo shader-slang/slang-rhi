@@ -3,7 +3,7 @@
 
 //#include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -69,4 +69,4 @@ Result QueryPoolImpl::getResult(GfxIndex index, GfxCount count, uint64_t* data)
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

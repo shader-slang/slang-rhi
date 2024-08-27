@@ -5,7 +5,7 @@
 #include "metal-fence.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -106,4 +106,4 @@ void CommandQueueImpl::executeCommandBuffers(
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

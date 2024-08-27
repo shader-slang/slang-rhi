@@ -3,7 +3,7 @@
 #include "metal-device.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -42,4 +42,4 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

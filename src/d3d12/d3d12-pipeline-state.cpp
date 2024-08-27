@@ -19,7 +19,7 @@
 
 #include <string>
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -105,7 +105,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 rs.FillMode = D3DUtil::getFillMode(desc.graphics.rasterizer.fillMode);
                 rs.CullMode = D3DUtil::getCullMode(desc.graphics.rasterizer.cullMode);
                 rs.FrontCounterClockwise =
-                    desc.graphics.rasterizer.frontFace == gfx::FrontFaceMode::CounterClockwise ? TRUE
+                    desc.graphics.rasterizer.frontFace == FrontFaceMode::CounterClockwise ? TRUE
                     : FALSE;
                 rs.DepthBias = desc.graphics.rasterizer.depthBias;
                 rs.DepthBiasClamp = desc.graphics.rasterizer.depthBiasClamp;
@@ -531,4 +531,4 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
 #endif
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

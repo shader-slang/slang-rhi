@@ -6,7 +6,7 @@
 
 #include "slang-rhi.h"
 
-namespace gfx
+namespace rhi
 {
 template<typename TDevice, typename TCommandBuffer>
 class SimpleTransientResourceHeap : public TransientResourceHeapBase

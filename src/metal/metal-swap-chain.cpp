@@ -4,7 +4,7 @@
 #include "metal-util.h"
 #include "../cocoa-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -40,7 +40,7 @@ void SwapchainImpl::createImages()
         imageDesc.size.depth = 1;
         imageDesc.numMipLevels = 1;
         imageDesc.defaultState = ResourceState::Present;
-        m_device->createTextureResource(imageDesc, nullptr, (gfx::ITextureResource**)m_images[i].writeRef());
+        m_device->createTextureResource(imageDesc, nullptr, (ITextureResource**)m_images[i].writeRef());
     }
 }
 
@@ -147,4 +147,4 @@ Result SwapchainImpl::setFullScreenMode(bool mode)
 }
 
 } // namespace metal 
-} // namespace gfx
+} // namespace rhi

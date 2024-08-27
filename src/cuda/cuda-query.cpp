@@ -1,7 +1,7 @@
 // cuda-query.cpp
 #include "cuda-query.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -43,4 +43,4 @@ SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

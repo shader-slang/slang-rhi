@@ -1,6 +1,6 @@
 #include "resource-desc-utils.h"
 
-namespace gfx
+namespace rhi
 {
 IBufferResource::Desc fixupBufferDesc(const IBufferResource::Desc& desc)
 {

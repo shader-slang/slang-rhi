@@ -1,7 +1,7 @@
 // metal-shader-object-layout.cpp
 #include "metal-shader-object-layout.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -325,4 +325,4 @@ Result RootShaderObjectLayoutImpl::_init(Builder const* builder)
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

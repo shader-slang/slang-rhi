@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 {
@@ -19,7 +19,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -27,7 +27,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     const int numberCount = SLANG_COUNT_OF(initialData);
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = sizeof(initialData);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,

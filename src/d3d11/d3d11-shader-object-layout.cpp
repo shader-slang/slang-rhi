@@ -1,7 +1,7 @@
 // d3d11-shader-object-layout.cpp
 #include "d3d11-shader-object-layout.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -331,4 +331,4 @@ Result RootShaderObjectLayoutImpl::_init(Builder const* builder)
 }
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

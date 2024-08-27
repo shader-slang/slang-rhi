@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -38,4 +38,4 @@ public:
 
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

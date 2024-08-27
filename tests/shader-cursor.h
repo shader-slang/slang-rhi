@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 
-namespace gfx
+namespace rhi
 {
 
 /// Represents a "pointer" to the storage for a shader parameter of a (dynamically) known type.

@@ -13,7 +13,7 @@
 #include <array>
 #include <vector>
 
-namespace gfx::testing {
+namespace rhi::testing {
 
 /// Get name of running test suite (note: defined in main.cpp).
 std::string getCurrentTestSuiteName();
@@ -40,30 +40,30 @@ struct GpuTestContext {
 /// Helper function for print out diagnostic messages output by Slang compiler.
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob);
 
-/// Loads a compute shader module and produces a `gfx::IShaderProgram`.
+/// Loads a compute shader module and produces a `IShaderProgram`.
 Slang::Result loadComputeProgram(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection);
 
 Slang::Result loadComputeProgram(
-    gfx::IDevice* device,
+    IDevice* device,
     slang::ISession* slangSession,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection);
 
 Slang::Result loadComputeProgramFromSource(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     std::string_view source);
 
 Slang::Result loadGraphicsProgram(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* vertexEntryPointName,
     const char* fragmentEntryPointName,
@@ -71,17 +71,17 @@ Slang::Result loadGraphicsProgram(
 
     /// Reads back the content of `buffer` and compares it against `expectedResult`.
 void compareComputeResult(
-    gfx::IDevice* device,
-    gfx::IBufferResource* buffer,
+    IDevice* device,
+    IBufferResource* buffer,
     size_t offset,
     const void* expectedResult,
     size_t expectedBufferSize);
 
 /// Reads back the content of `texture` and compares it against `expectedResult`.
 void compareComputeResult(
-    gfx::IDevice* device,
-    gfx::ITextureResource* texture,
-    gfx::ResourceState state,
+    IDevice* device,
+    ITextureResource* texture,
+    ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
     size_t rowCount);
@@ -93,15 +93,15 @@ void compareComputeResultFuzzy(
 
     /// Reads back the content of `buffer` and compares it against `expectedResult` with a set tolerance.
 void compareComputeResultFuzzy(
-    gfx::IDevice* device,
-    gfx::IBufferResource* buffer,
+    IDevice* device,
+    IBufferResource* buffer,
     float* expectedResult,
     size_t expectedBufferSize);
 
 template<typename T, size_t Count>
 void compareComputeResult(
-    gfx::IDevice* device,
-    gfx::IBufferResource* buffer,
+    IDevice* device,
+    IBufferResource* buffer,
     std::array<T, Count> expectedResult)
 {
     if constexpr (std::is_same<T, float>::value)
@@ -110,7 +110,7 @@ void compareComputeResult(
         return compareComputeResult(device, buffer, 0, expectedResult.data(), expectedResult.size());
 }
 
-ComPtr<gfx::IDevice> createTestingDevice(
+ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice = true,
@@ -139,7 +139,7 @@ using GpuTestFunc = void (*)(GpuTestContext*, DeviceType);
 
 void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes);
 
-} // namespace gfx::testing
+} // namespace rhi::testing
 
 #define GFX_CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define GFX_CHECK_CALL_ABORT(x) REQUIRE(!SLANG_FAILED(x))

@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 namespace metal
@@ -122,4 +122,4 @@ struct RenderBindingContext : public BindingContext
 Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outRenderer);
 
-} // namespace gfx
+} // namespace rhi

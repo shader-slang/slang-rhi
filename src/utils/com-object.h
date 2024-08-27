@@ -7,7 +7,7 @@
 
 #include <atomic>
 
-namespace gfx
+namespace rhi
 {
 
 /// A base class for COM interfaces that require atomic ref counting 
@@ -137,4 +137,4 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF         \
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE
 
-} // namespace gfx
+} // namespace rhi

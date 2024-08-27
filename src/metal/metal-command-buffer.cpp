@@ -6,7 +6,7 @@
 #include "metal-shader-object.h"
 #include "metal-command-queue.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -133,4 +133,4 @@ void CommandBufferImpl::endMetalCommandEncoder()
 
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

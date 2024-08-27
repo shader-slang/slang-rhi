@@ -8,7 +8,7 @@
 
 #include "utils/common.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -72,4 +72,4 @@ namespace debug
     class DebugSwapchain;
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

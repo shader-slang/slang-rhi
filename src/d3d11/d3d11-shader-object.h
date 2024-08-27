@@ -9,7 +9,7 @@
 
 #include "d3d11-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -196,4 +196,4 @@ protected:
 };
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

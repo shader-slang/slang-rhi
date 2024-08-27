@@ -7,7 +7,7 @@
 #include "metal-vertex-layout.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -244,4 +244,4 @@ Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
 
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

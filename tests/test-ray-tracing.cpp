@@ -1,8 +1,8 @@
 #include "testing.h"
 #include "texture-utils.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 struct Vertex
 {
@@ -65,7 +65,7 @@ struct BaseRayTracingTest
     }
 
     // Load and compile shader code from source.
-    gfx::Result loadShaderProgram(gfx::IDevice* device, gfx::IShaderProgram** outProgram)
+    Result loadShaderProgram(IDevice* device, IShaderProgram** outProgram)
     {
         ComPtr<slang::ISession> slangSession;
         slangSession = device->getSlangSession();
@@ -101,7 +101,7 @@ struct BaseRayTracingTest
             diagnosticsBlob.writeRef());
         SLANG_RETURN_ON_FAIL(result);
 
-        gfx::IShaderProgram::Desc programDesc = {};
+        IShaderProgram::Desc programDesc = {};
         programDesc.slangGlobalScope = linkedProgram;
         SLANG_RETURN_ON_FAIL(device->createProgram(programDesc, outProgram));
 
@@ -157,7 +157,7 @@ struct BaseRayTracingTest
         createResultTexture();
 
         IFramebufferLayout::TargetLayout renderTargetLayout = { Format::R8G8B8A8_UNORM, 1 };
-        IFramebufferLayout::TargetLayout depthLayout = { gfx::Format::D32_FLOAT, 1 };
+        IFramebufferLayout::TargetLayout depthLayout = { Format::D32_FLOAT, 1 };
         IFramebufferLayout::Desc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &renderTargetLayout;

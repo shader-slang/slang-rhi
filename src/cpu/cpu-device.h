@@ -5,7 +5,7 @@
 #include "cpu-pipeline-state.h"
 #include "cpu-shader-object.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -99,4 +99,4 @@ private:
 
 Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
-} // namespace gfx
+} // namespace rhi

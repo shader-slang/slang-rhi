@@ -3,7 +3,7 @@
 
 //#include "metal-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -74,4 +74,4 @@ Result RenderPassLayoutImpl::init(DeviceImpl* device, const IRenderPassLayout::D
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

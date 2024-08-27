@@ -1,6 +1,6 @@
 #pragma once
 
-namespace gfx
+namespace rhi
 {
 
     /// A virtual free-list allocater.
@@ -114,4 +114,4 @@ public:
     }
 };
 
-} // namespace gfx
+} // namespace rhi

@@ -4,7 +4,7 @@
 
 #include "metal-device.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -421,7 +421,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(
                         auto subArgumentBuffer = m_objects[resourceIndex]->_ensureArgumentBufferUpToDate(device, m_objects[resourceIndex]->getLayout());
                         if (subArgumentBuffer)
                         {
-                            gfx::DeviceAddress bufferPtr = subArgumentBuffer->m_buffer->gpuAddress();
+                            DeviceAddress bufferPtr = subArgumentBuffer->m_buffer->gpuAddress();
                             memcpy(argumentPtr, &bufferPtr, sizeof(bufferPtr));
                         }
                     }
@@ -434,7 +434,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(
 
                     if (bufferViewImpl)
                     {
-                        gfx::DeviceAddress bufferPtr = bufferViewImpl->m_buffer->getDeviceAddress() + bufferViewImpl->m_offset;
+                        DeviceAddress bufferPtr = bufferViewImpl->m_buffer->getDeviceAddress() + bufferViewImpl->m_offset;
                         memcpy(argumentPtr, &bufferPtr, sizeof(bufferPtr));
                     }
                     break;
@@ -746,4 +746,4 @@ Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* l
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

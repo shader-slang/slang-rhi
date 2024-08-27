@@ -23,7 +23,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -188,4 +188,4 @@ void validateAccelerationStructureBuildInputs(
     const IAccelerationStructure::BuildInputs& buildInputs);
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

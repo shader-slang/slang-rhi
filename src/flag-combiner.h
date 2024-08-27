@@ -2,7 +2,7 @@
 
 #include <vector>
 
-namespace gfx {
+namespace rhi {
 
 /* A default set of flags that can be used for checking devices */
 typedef uint32_t DeviceCheckFlags;
@@ -64,4 +64,4 @@ protected:
     uint32_t m_invertBits = 0;
 };
 
-} // namespace gfx
+} // namespace rhi

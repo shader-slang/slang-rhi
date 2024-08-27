@@ -2,7 +2,7 @@
 
 #include "nvapi-include.h"
 
-namespace gfx {
+namespace rhi {
 
 static SlangResult g_initStatus = SLANG_E_UNINITIALIZED;
 

@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <memory>
 
-namespace gfx
+namespace rhi
 {
 
 struct GfxGUID
@@ -198,7 +198,7 @@ void returnRefPtrMove(TDest** outPtr, RefPtr<TImpl>& refPtr)
 }
 
 
-gfx::StageType translateStage(SlangStage slangStage);
+StageType translateStage(SlangStage slangStage);
 
 class FenceBase : public IFence, public ComObject
 {
@@ -1455,7 +1455,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
     auto device = getRenderer();
     for (uint32_t i = 0; i < count; i++)
     {
-        gfx::ExtendedShaderObjectType extendedType;
+        ExtendedShaderObjectType extendedType;
         switch (args[i].kind)
         {
             case slang::SpecializationArg::Kind::Type:

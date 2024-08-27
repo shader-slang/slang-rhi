@@ -6,7 +6,7 @@
 #include <vector>
 #include <span>
 
-namespace gfx {
+namespace rhi {
 
 /** Base class for simple blobs.
 */
@@ -57,4 +57,4 @@ private:
 };
 
 
-} // namespace gfx
+} // namespace rhi

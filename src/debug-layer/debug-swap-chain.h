@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -37,4 +37,4 @@ private:
 };
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

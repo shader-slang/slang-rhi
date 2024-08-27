@@ -21,7 +21,7 @@
 #define likely_true(x)  (x)
 #endif
 
-namespace gfx {
+namespace rhi {
 
 template <class T, std::size_t ChunkSize = 1024>
 class stable_vector
@@ -295,4 +295,4 @@ stable_vector<T, ChunkSize>::operator[](size_type i) const
 	return const_cast<__self&>(*this)[i];
 }
 
-} // namespace gfx
+} // namespace rhi

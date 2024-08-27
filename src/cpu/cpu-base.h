@@ -15,7 +15,7 @@
 #include "utils/common.h"
 
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -38,4 +38,4 @@ namespace cpu
     class QueryPoolImpl;
     class DeviceImpl;
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

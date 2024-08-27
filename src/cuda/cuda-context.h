@@ -2,7 +2,7 @@
 #pragma once
 #include "cuda-base.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -17,4 +17,4 @@ public:
 };
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

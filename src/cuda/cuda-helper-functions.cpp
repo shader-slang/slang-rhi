@@ -5,7 +5,7 @@
 
 #include <string>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -113,4 +113,4 @@ Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevi
     return SLANG_OK;
 }
 
-} // namespace gfx
+} // namespace rhi

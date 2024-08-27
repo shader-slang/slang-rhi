@@ -3,7 +3,7 @@
 
 #include "d3d11-device.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -279,7 +279,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         // don't need or want to inline it into this call site.
         //
 
-        auto ordinaryData = device->map(m_ordinaryDataBuffer, gfx::MapFlavor::WriteDiscard);
+        auto ordinaryData = device->map(m_ordinaryDataBuffer, MapFlavor::WriteDiscard);
         auto result = _writeOrdinaryData(ordinaryData, specializedOrdinaryDataSize, specializedLayout);
         device->unmap(m_ordinaryDataBuffer, 0, specializedOrdinaryDataSize);
         m_isConstantBufferDirty = false;
@@ -674,4 +674,4 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     return SLANG_OK;
 }
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

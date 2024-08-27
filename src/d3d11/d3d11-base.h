@@ -43,7 +43,7 @@
 #endif
 #endif
 
-namespace gfx
+namespace rhi
 {
 namespace d3d11
 {

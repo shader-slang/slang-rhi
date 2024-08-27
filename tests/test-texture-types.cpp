@@ -6,8 +6,8 @@
 #include <d3d12.h>
 #endif
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 struct BaseTextureViewTest
 {
@@ -181,7 +181,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        ComPtr<gfx::IPipelineState> pipelineState;
+        ComPtr<IPipelineState> pipelineState;
         GFX_CHECK_CALL_ABORT(
             device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -429,7 +429,7 @@ struct RenderTargetTests : BaseTextureViewTest
         IFramebufferLayout::Desc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &targetLayout;
-        ComPtr<gfx::IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
+        ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 
         GraphicsPipelineStateDesc pipelineDesc = {};
@@ -452,14 +452,14 @@ struct RenderTargetTests : BaseTextureViewTest
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
         GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
-        gfx::IResourceView::Desc colorBufferViewDesc;
+        IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = textureInfo->format;
         colorBufferViewDesc.renderTarget.shape = textureInfo->textureType; // TODO: TextureCube?
         colorBufferViewDesc.type = viewType;
         auto rtv = device->createTextureView(sampledTexture, colorBufferViewDesc);
 
-        gfx::IFramebuffer::Desc framebufferDesc;
+        IFramebuffer::Desc framebufferDesc;
         framebufferDesc.renderTargetCount = 1;
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
@@ -481,7 +481,7 @@ struct RenderTargetTests : BaseTextureViewTest
         auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = renderEncoder->bindPipeline(pipelineState);
 
-        gfx::Viewport viewport = {};
+        Viewport viewport = {};
         viewport.maxZ = (float)textureInfo->extents.depth;
         viewport.extentX = (float)textureInfo->extents.width;
         viewport.extentY = (float)textureInfo->extents.height;

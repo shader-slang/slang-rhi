@@ -2,10 +2,10 @@
 #pragma once
 #include "cpu-base.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
 
 
-} // namespace gfx
+} // namespace rhi

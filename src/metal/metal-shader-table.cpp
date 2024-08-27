@@ -3,7 +3,7 @@
 
 #include "metal-device.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -20,4 +20,4 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

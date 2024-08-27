@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-namespace gfx {
+namespace rhi {
 using namespace Slang;
 
 VulkanDeviceQueue::~VulkanDeviceQueue()

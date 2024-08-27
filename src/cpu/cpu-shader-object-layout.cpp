@@ -3,7 +3,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -169,4 +169,4 @@ void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, UInt*
 EntryPointLayoutImpl* RootShaderObjectLayoutImpl::getEntryPoint(Index index) { return m_entryPointLayouts[index]; }
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

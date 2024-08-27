@@ -6,7 +6,7 @@
 #include "metal-device.h"
 #include "metal-texture.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -82,4 +82,4 @@ public:
 };
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

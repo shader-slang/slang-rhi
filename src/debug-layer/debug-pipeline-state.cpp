@@ -3,7 +3,7 @@
 
 #include "debug-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -17,4 +17,4 @@ Result DebugPipelineState::getNativeHandle(InteropHandle* outHandle)
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

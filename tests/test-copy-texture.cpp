@@ -6,8 +6,8 @@
 #include <d3d12.h>
 #endif
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 struct TextureToTextureCopyInfo
 {

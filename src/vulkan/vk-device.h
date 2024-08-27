@@ -8,7 +8,7 @@
 
 #include <string>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -212,4 +212,4 @@ public:
 };
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

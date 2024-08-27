@@ -4,7 +4,7 @@
 #include "vk-api.h"
 #include "vk-descriptor-allocator.h"
 
-namespace gfx {
+namespace rhi {
 
 struct VulkanDeviceQueue
 {

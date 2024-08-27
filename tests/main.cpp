@@ -8,7 +8,7 @@
 // TODO_GFX
 // SLANG_RHI_EXPORT_AGILITY_SDK
 
-namespace gfx::testing {
+namespace rhi::testing {
 
 // Helpers to get current test suite and case name.
 // See https://github.com/doctest/doctest/issues/345.
@@ -22,11 +22,11 @@ std::string getCurrentTestCaseName()
     return doctest::detail::g_cs->currentTest->m_name;
 }
 
-} // namespace gfx::testing
+} // namespace rhi::testing
 
 int main(int argc, char** argv)
 {
-    gfx::testing::cleanupTestTempDirectories();
+    rhi::testing::cleanupTestTempDirectories();
 
     int result = 1;
     {
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
         result = context.run();
     }
 
-    gfx::testing::cleanupTestTempDirectories();
+    rhi::testing::cleanupTestTempDirectories();
 
     return result;
 }

@@ -6,7 +6,7 @@
 #include "vk-device.h"
 #include "vk-texture.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -84,4 +84,4 @@ public:
 };
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

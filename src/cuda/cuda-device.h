@@ -8,7 +8,7 @@
 
 #include <string>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -150,4 +150,4 @@ public:
 };
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

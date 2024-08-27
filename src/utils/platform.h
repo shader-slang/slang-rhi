@@ -2,7 +2,7 @@
 
 #include <slang.h>
 
-namespace gfx {
+namespace rhi {
 
 using SharedLibraryHandle = void*;
 
@@ -14,4 +14,4 @@ void unloadSharedLibrary(SharedLibraryHandle handle);
 /// @param The shared library handle as returned by loadPlatformLibrary
 void* findSymbolAddressByName(SharedLibraryHandle handle, char const* name);
 
-} // namespace gfx
+} // namespace rhi

@@ -3,7 +3,7 @@
 
 #include "d3d12-transient-heap.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -114,4 +114,4 @@ void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** out
 void CommandBufferImpl::close() { m_cmdList->Close(); }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

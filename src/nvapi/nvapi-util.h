@@ -4,7 +4,7 @@
 #include "slang-com-helper.h"
 #include "slang-com-ptr.h"
 
-namespace gfx {
+namespace rhi {
 
 struct NVAPIUtil
 {

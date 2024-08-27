@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 {
@@ -36,7 +36,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -44,7 +44,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
     float initialData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,

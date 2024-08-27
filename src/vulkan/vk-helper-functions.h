@@ -31,7 +31,7 @@
 #    include <dxgi1_2.h>
 #endif
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -185,4 +185,4 @@ Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outRenderer);
 
-} // namespace gfx
+} // namespace rhi

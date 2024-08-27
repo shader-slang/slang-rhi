@@ -4,7 +4,7 @@
 #include "metal-resource-views.h"
 #include "metal-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -68,4 +68,4 @@ Result FramebufferImpl::init(DeviceImpl* device, const IFramebuffer::Desc& desc)
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

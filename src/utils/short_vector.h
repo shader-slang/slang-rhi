@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace gfx {
+namespace rhi {
 
 namespace detail {
 template<typename T>
@@ -282,4 +282,4 @@ private:
     size_type m_capacity;
 };
 
-} // namespace gfx
+} // namespace rhi

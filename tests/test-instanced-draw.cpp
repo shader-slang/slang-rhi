@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 struct Vertex
 {
@@ -84,7 +84,7 @@ static ComPtr<IBufferResource> createIndexBuffer(IDevice* device)
 
 static ComPtr<ITextureResource> createColorBuffer(IDevice* device)
 {
-    gfx::ITextureResource::Desc colorBufferDesc;
+    ITextureResource::Desc colorBufferDesc;
     colorBufferDesc.type = IResource::Type::Texture2D;
     colorBufferDesc.size.width = kWidth;
     colorBufferDesc.size.height = kHeight;
@@ -160,7 +160,7 @@ public:
         IFramebufferLayout::Desc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &targetLayout;
-        ComPtr<gfx::IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
+        ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 
         GraphicsPipelineStateDesc pipelineDesc = {};
@@ -183,14 +183,14 @@ public:
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
         GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
-        gfx::IResourceView::Desc colorBufferViewDesc;
+        IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = gfx::IResource::Type::Texture2D;
-        colorBufferViewDesc.type = gfx::IResourceView::Type::RenderTarget;
+        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         auto rtv = device->createTextureView(colorBuffer, colorBufferViewDesc);
 
-        gfx::IFramebuffer::Desc framebufferDesc;
+        IFramebuffer::Desc framebufferDesc;
         framebufferDesc.renderTargetCount = 1;
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
@@ -242,7 +242,7 @@ struct DrawInstancedTest : BaseDrawTest
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        gfx::Viewport viewport = {};
+        Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
@@ -291,7 +291,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        gfx::Viewport viewport = {};
+        Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
@@ -368,7 +368,7 @@ struct DrawIndirectTest : BaseDrawTest
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        gfx::Viewport viewport = {};
+        Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
@@ -444,7 +444,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        gfx::Viewport viewport = {};
+        Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;

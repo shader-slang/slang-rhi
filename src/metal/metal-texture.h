@@ -4,7 +4,7 @@
 #include "metal-base.h"
 #include "metal-device.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -33,4 +33,4 @@ public:
 };
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

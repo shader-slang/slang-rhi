@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -150,4 +150,4 @@ void validateAccelerationStructureBuildInputs(
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

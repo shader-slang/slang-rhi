@@ -3,7 +3,7 @@
 
 #include "vk-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -76,4 +76,4 @@ void _writeTimestamp(
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

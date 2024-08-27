@@ -3,7 +3,7 @@
 
 #include "debug-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -64,4 +64,4 @@ Result DebugBufferResource::unmap(MemoryRange* writtenRange)
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

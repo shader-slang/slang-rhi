@@ -37,7 +37,7 @@ struct ID3D12GraphicsCommandList1
 {};
 #endif
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {

@@ -5,7 +5,7 @@
 
 #include <type_traits>
 
-namespace gfx
+namespace rhi
 {
     // Base class for all reference-counted objects
     class SLANG_RHI_API RefObject
@@ -270,4 +270,4 @@ namespace gfx
         friend class RefPtr;
 	};
 
-} // namespace gfx
+} // namespace rhi

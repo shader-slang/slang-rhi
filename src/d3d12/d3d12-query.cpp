@@ -5,7 +5,7 @@
 
 #include "d3d12-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -204,4 +204,4 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

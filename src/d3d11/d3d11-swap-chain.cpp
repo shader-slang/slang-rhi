@@ -4,7 +4,7 @@
 #include "d3d11-device.h"
 #include "d3d11-texture.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -66,4 +66,4 @@ SLANG_NO_THROW Result SLANG_MCALL SwapchainImpl::setFullScreenMode(bool mode)
 }
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

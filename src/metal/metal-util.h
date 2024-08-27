@@ -5,7 +5,7 @@
 #include "slang-rhi.h"
 #include "utils/common.h"
 
-namespace gfx {
+namespace rhi {
 
 // Utility functions for Metal
 struct MetalUtil 
@@ -58,4 +58,4 @@ struct ScopedAutoreleasePool
 
 #define AUTORELEASEPOOL ScopedAutoreleasePool _pool_;
 
-} // namespace gfx
+} // namespace rhi

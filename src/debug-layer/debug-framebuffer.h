@@ -2,7 +2,7 @@
 #pragma once
 #include "debug-base.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -29,4 +29,4 @@ public:
 };
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

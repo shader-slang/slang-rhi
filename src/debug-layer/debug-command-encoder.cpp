@@ -12,7 +12,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -510,4 +510,4 @@ Result DebugRayTracingCommandEncoder::dispatchRays(
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

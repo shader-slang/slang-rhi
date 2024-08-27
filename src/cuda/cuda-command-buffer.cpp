@@ -1,7 +1,7 @@
 // cuda-command-buffer.cpp
 #include "cuda-command-buffer.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -57,4 +57,4 @@ SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::getNativeHandle(InteropHand
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

@@ -8,7 +8,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -107,4 +107,4 @@ Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
 
-} // namespace gfx
+} // namespace rhi

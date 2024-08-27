@@ -8,7 +8,7 @@
 #include "utils/common.h"
 #include "utils/short_vector.h"
 
-namespace gfx
+namespace rhi
 {
 class D3DSwapchainBase
     : public ISwapchain

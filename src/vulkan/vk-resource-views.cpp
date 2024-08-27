@@ -1,7 +1,7 @@
 // vk-resource-views.cpp
 #include "vk-resource-views.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -68,4 +68,4 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

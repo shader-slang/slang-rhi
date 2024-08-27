@@ -9,7 +9,7 @@
 #include <map>
 #include <set>
 
-namespace gfx
+namespace rhi
 {
     class ShaderObjectLayoutBase;
 

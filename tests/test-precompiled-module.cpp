@@ -1,11 +1,11 @@
 #if 0 // TODO_GFX use filesystem
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 static Slang::Result precompileProgram(
-    gfx::IDevice* device,
+    IDevice* device,
     ISlangMutableFileSystem* fileSys,
     const char* shaderModuleName)
 {
@@ -65,11 +65,11 @@ void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
     slang::TargetDesc targetDesc = {};
     switch (device->getDeviceInfo().deviceType)
     {
-    case gfx::DeviceType::D3D12:
+    case DeviceType::D3D12:
         targetDesc.format = SLANG_DXIL;
         targetDesc.profile = device->getSlangSession()->getGlobalSession()->findProfile("sm_6_1");
         break;
-    case gfx::DeviceType::Vulkan:
+    case DeviceType::Vulkan:
         targetDesc.format = SLANG_SPIRV;
         targetDesc.profile = device->getSlangSession()->getGlobalSession()->findProfile("GLSL_460");
         break;
@@ -82,7 +82,7 @@ void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -90,7 +90,7 @@ void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
     float initialData[] = { 0.0f, 0.0f, 0.0f, 0.0f };
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,

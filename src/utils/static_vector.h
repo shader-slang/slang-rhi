@@ -5,7 +5,7 @@
 #include <utility>
 #include <array>
 
-namespace gfx {
+namespace rhi {
 
 /**
  * \brief A vector that stores up to a fixed number of elements.
@@ -108,4 +108,4 @@ private:
     size_type m_size{0};
 };
 
-} // namespace gfx
+} // namespace rhi

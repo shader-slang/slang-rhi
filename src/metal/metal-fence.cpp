@@ -2,7 +2,7 @@
 #include "metal-fence.h"
 #include "metal-device.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -51,4 +51,4 @@ Result FenceImpl::getNativeHandle(InteropHandle* outNativeHandle)
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

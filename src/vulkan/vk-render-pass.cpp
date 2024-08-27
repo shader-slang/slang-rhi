@@ -5,7 +5,7 @@
 
 #include "utils/static_vector.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -87,4 +87,4 @@ Result RenderPassLayoutImpl::init(DeviceImpl* renderer, const IRenderPassLayout:
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

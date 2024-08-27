@@ -2,7 +2,7 @@
 
 #include "utils/common.h"
 
-namespace gfx {
+namespace rhi {
 using namespace Slang;
 
 void FlagCombiner::add(uint32_t flags, ChangeType type)
@@ -54,4 +54,4 @@ void FlagCombiner::reset()
     m_invertBits = 0;
 }
 
-} // namespace gfx
+} // namespace rhi

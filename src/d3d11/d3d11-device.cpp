@@ -24,7 +24,7 @@
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
 #endif
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -1753,4 +1753,4 @@ void DeviceImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
     m_immediateContext->End(poolImpl->getQuery(index));
 }
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

@@ -17,7 +17,7 @@ struct ID3D12GraphicsCommandList1
 {};
 #endif
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -92,4 +92,4 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice);
 
-} // namespace gfx
+} // namespace rhi

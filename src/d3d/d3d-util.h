@@ -28,7 +28,7 @@ typedef ISlangUnknown ID3D12GraphicsCommandList4;
 
 #endif
 
-namespace gfx {
+namespace rhi {
 
 class D3DUtil
 {

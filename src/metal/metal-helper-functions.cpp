@@ -3,7 +3,7 @@
 #include "metal-device.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -48,4 +48,4 @@ Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outRen
     return SLANG_OK;
 }
 
-} // namespace gfx
+} // namespace rhi

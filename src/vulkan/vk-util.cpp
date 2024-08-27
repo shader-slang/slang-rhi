@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-namespace gfx {
+namespace rhi {
 
 /* static */VkFormat VulkanUtil::getVkFormat(Format format)
 {
@@ -515,9 +515,9 @@ VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
 {
     switch (op)
     {
-    case gfx::TextureReductionOp::Minimum:
+    case TextureReductionOp::Minimum:
         return VK_SAMPLER_REDUCTION_MODE_MIN;
-    case gfx::TextureReductionOp::Maximum:
+    case TextureReductionOp::Maximum:
         return VK_SAMPLER_REDUCTION_MODE_MAX;
     default:
         return VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
@@ -738,4 +738,4 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
     return SLANG_OK;
 }
 
-} // namespace gfx
+} // namespace rhi

@@ -8,7 +8,7 @@
 
 #include "utils/static_vector.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -173,7 +173,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
             memcpy(
                 &m_clearValues[i],
                 &resourceView->m_texture->getDesc()->optimalClearValue->color,
-                sizeof(gfx::ColorClearValue));
+                sizeof(ColorClearValue));
         }
     }
 
@@ -186,7 +186,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
             memcpy(
                 &m_clearValues[desc.renderTargetCount],
                 &dsv->m_texture->getDesc()->optimalClearValue->depthStencil,
-                sizeof(gfx::DepthStencilClearValue));
+                sizeof(DepthStencilClearValue));
         }
     }
 
@@ -207,4 +207,4 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

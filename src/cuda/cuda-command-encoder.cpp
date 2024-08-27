@@ -4,7 +4,7 @@
 #include "cuda-command-buffer.h"
 #include "cuda-device.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -206,4 +206,4 @@ SLANG_NO_THROW Result SLANG_MCALL
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

@@ -10,7 +10,7 @@
 #include "platform.h"
 #include "blob.h"
 
-namespace gfx {
+namespace rhi {
 
 using Index = int;
 
@@ -108,4 +108,4 @@ auto make_array(Args ...args)
 		}		
 
     } // namespace math
-} // namespace gfx
+} // namespace rhi

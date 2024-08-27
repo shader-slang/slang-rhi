@@ -2,7 +2,7 @@
 
 #include "utils/common.h"
 
-namespace gfx
+namespace rhi
 {
 template<typename TDevice, typename TBufferResource>
 class StagingBufferPool
@@ -217,4 +217,4 @@ public:
     }
 };
 
-} // namespace gfx
+} // namespace rhi

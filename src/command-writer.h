@@ -8,7 +8,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 enum class CommandName

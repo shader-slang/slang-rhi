@@ -8,7 +8,7 @@
 #include <vector>
 #include <cstring>
 
-namespace gfx {
+namespace rhi {
 using namespace Slang;
 
 Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice);
@@ -393,21 +393,21 @@ extern "C"
     {
         switch (type)
         {
-        case gfx::DeviceType::Unknown:
+        case DeviceType::Unknown:
             return "Unknown";
-        case gfx::DeviceType::Default:
+        case DeviceType::Default:
             return "Default";
-        case gfx::DeviceType::D3D11:
+        case DeviceType::D3D11:
             return "D3D11";
-        case gfx::DeviceType::D3D12:
+        case DeviceType::D3D12:
             return "D3D12";
-        case gfx::DeviceType::Vulkan:
+        case DeviceType::Vulkan:
             return "Vulkan";
-        case gfx::DeviceType::Metal:
+        case DeviceType::Metal:
             return "Metal";
-        case gfx::DeviceType::CPU:
+        case DeviceType::CPU:
             return "CPU";
-        case gfx::DeviceType::CUDA:
+        case DeviceType::CUDA:
             return "CUDA";
         default:
             return "?";
@@ -418,17 +418,17 @@ extern "C"
     {
         switch (type)
         {
-        case gfx::DeviceType::D3D11:
+        case DeviceType::D3D11:
             return SLANG_RHI_ENABLE_D3D11;
-        case gfx::DeviceType::D3D12:
+        case DeviceType::D3D12:
             return SLANG_RHI_ENABLE_D3D12;
-        case gfx::DeviceType::Vulkan:
+        case DeviceType::Vulkan:
             return SLANG_RHI_ENABLE_VULKAN;
-        case gfx::DeviceType::Metal:
+        case DeviceType::Metal:
             return SLANG_RHI_ENABLE_METAL;
-        case gfx::DeviceType::CPU:
+        case DeviceType::CPU:
             return true;
-        case gfx::DeviceType::CUDA:
+        case DeviceType::CUDA:
             return SLANG_RHI_ENABLE_CUDA;
         default:
             return false;

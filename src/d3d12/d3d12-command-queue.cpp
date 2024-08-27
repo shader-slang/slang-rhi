@@ -7,7 +7,7 @@
 
 #include "utils/short_vector.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -109,4 +109,4 @@ Result CommandQueueImpl::getNativeHandle(InteropHandle* handle)
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-namespace gfx {
+namespace rhi {
 
     inline std::wstring to_wstring(std::string_view str) {
         std::wstring wstr;
@@ -19,4 +19,4 @@ namespace gfx {
         return str;
     }
 
-} // namespace gfx
+} // namespace rhi

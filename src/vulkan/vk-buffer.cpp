@@ -6,7 +6,7 @@
 #    include <dxgi1_2.h>
 #endif
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -208,4 +208,4 @@ Result BufferResourceImpl::setDebugName(const char* name)
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

@@ -33,7 +33,7 @@
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
 #endif
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -2518,4 +2518,4 @@ Result DeviceImpl::waitForFences(
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

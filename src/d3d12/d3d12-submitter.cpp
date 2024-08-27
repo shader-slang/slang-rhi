@@ -3,7 +3,7 @@
 
 #include "d3d12-pipeline-state.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -97,4 +97,4 @@ void ComputeSubmitter::setPipelineState(PipelineStateBase* pipeline)
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

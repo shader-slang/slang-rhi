@@ -1,7 +1,7 @@
 // vk-shader-object-layout.cpp
 #include "vk-shader-object-layout.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -981,4 +981,4 @@ void RootShaderObjectLayout::Builder::addEntryPoint(EntryPointLayout* entryPoint
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

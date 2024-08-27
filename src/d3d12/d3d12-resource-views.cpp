@@ -2,7 +2,7 @@
 #include "d3d12-resource-views.h"
 #include "d3d12-device.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -191,4 +191,4 @@ Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
 #endif // SLANG_RHI_DXR
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

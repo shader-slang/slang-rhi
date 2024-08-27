@@ -5,7 +5,7 @@
 
 #include "utils/string.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -376,4 +376,4 @@ Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDev
     return SLANG_OK;
 }
 
-} // namespace gfx
+} // namespace rhi

@@ -3,7 +3,7 @@
 
 #include "debug-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -39,4 +39,4 @@ Result DebugFence::setCurrentValue(uint64_t value)
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

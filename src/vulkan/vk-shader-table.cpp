@@ -8,7 +8,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -137,11 +137,11 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     encoder->bufferBarrier(
         1,
         bufferResource.readRef(),
-        gfx::ResourceState::CopyDestination,
-        gfx::ResourceState::ShaderResource);
+        ResourceState::CopyDestination,
+        ResourceState::ShaderResource);
     RefPtr<BufferResource> resultPtr = static_cast<BufferResource*>(bufferResource.get());
     return _Move(resultPtr);
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

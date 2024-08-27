@@ -4,7 +4,7 @@
 #include "d3d12-base.h"
 
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -34,4 +34,4 @@ public:
 };
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

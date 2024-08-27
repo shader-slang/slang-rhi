@@ -1,7 +1,7 @@
 // d3d11-pipeline-state.cpp
 #include "d3d11-pipeline-state.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -26,4 +26,4 @@ void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
 }
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

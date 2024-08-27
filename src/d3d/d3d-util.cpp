@@ -23,7 +23,7 @@
 
 #include <string_view>
 
-namespace gfx {
+namespace rhi {
 using namespace Slang;
 
 /* static */D3D_PRIMITIVE_TOPOLOGY D3DUtil::getPrimitiveTopology(PrimitiveTopology topology)
@@ -85,21 +85,21 @@ D3D12_COMPARISON_FUNC D3DUtil::getComparisonFunc(ComparisonFunc func)
 {
     switch (func)
     {
-    case gfx::ComparisonFunc::Never:
+    case ComparisonFunc::Never:
         return D3D12_COMPARISON_FUNC_NEVER;
-    case gfx::ComparisonFunc::Less:
+    case ComparisonFunc::Less:
         return D3D12_COMPARISON_FUNC_LESS;
-    case gfx::ComparisonFunc::Equal:
+    case ComparisonFunc::Equal:
         return D3D12_COMPARISON_FUNC_EQUAL;
-    case gfx::ComparisonFunc::LessEqual:
+    case ComparisonFunc::LessEqual:
         return D3D12_COMPARISON_FUNC_LESS_EQUAL;
-    case gfx::ComparisonFunc::Greater:
+    case ComparisonFunc::Greater:
         return D3D12_COMPARISON_FUNC_GREATER;
-    case gfx::ComparisonFunc::NotEqual:
+    case ComparisonFunc::NotEqual:
         return D3D12_COMPARISON_FUNC_NOT_EQUAL;
-    case gfx::ComparisonFunc::GreaterEqual:
+    case ComparisonFunc::GreaterEqual:
         return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-    case gfx::ComparisonFunc::Always:
+    case ComparisonFunc::Always:
         return D3D12_COMPARISON_FUNC_ALWAYS;
     default:
         return D3D12_COMPARISON_FUNC_NEVER;
@@ -110,21 +110,21 @@ static D3D12_STENCIL_OP translateStencilOp(StencilOp op)
 {
     switch (op)
     {
-    case gfx::StencilOp::Keep:
+    case StencilOp::Keep:
         return D3D12_STENCIL_OP_KEEP;
-    case gfx::StencilOp::Zero:
+    case StencilOp::Zero:
         return D3D12_STENCIL_OP_ZERO;
-    case gfx::StencilOp::Replace:
+    case StencilOp::Replace:
         return D3D12_STENCIL_OP_REPLACE;
-    case gfx::StencilOp::IncrementSaturate:
+    case StencilOp::IncrementSaturate:
         return D3D12_STENCIL_OP_INCR_SAT;
-    case gfx::StencilOp::DecrementSaturate:
+    case StencilOp::DecrementSaturate:
         return D3D12_STENCIL_OP_DECR_SAT;
-    case gfx::StencilOp::Invert:
+    case StencilOp::Invert:
         return D3D12_STENCIL_OP_INVERT;
-    case gfx::StencilOp::IncrementWrap:
+    case StencilOp::IncrementWrap:
         return D3D12_STENCIL_OP_INCR;
-    case gfx::StencilOp::DecrementWrap:
+    case StencilOp::DecrementWrap:
         return D3D12_STENCIL_OP_DECR;
     default:
         return D3D12_STENCIL_OP_KEEP;
@@ -1055,4 +1055,4 @@ Result D3DAccelerationStructureInputsBuilder::build(
 }
 #endif
 
-} // namespace gfx
+} // namespace rhi

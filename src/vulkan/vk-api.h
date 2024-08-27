@@ -3,7 +3,7 @@
 
 #include "vk-module.h"
 
-namespace gfx {
+namespace rhi {
 
 #define VK_API_GLOBAL_PROCS(x) \
     x(vkGetInstanceProcAddr) \

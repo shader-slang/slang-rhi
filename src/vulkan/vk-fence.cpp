@@ -8,7 +8,7 @@
 #include <dxgi1_2.h>
 #endif
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -141,4 +141,4 @@ Result FenceImpl::getNativeHandle(InteropHandle* outNativeHandle)
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

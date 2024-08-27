@@ -4,7 +4,7 @@
 #include "vk-base.h"
 #include "vk-device.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -31,4 +31,4 @@ void _writeTimestamp(
     VulkanApi* api, VkCommandBuffer vkCmdBuffer, IQueryPool* queryPool, SlangInt index);
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

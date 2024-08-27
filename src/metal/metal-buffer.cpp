@@ -2,7 +2,7 @@
 #include "metal-buffer.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -56,4 +56,4 @@ Result BufferResourceImpl::setDebugName(const char* name)
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

@@ -10,7 +10,7 @@
 
 #include "utils/common.h"
 
-namespace gfx
+namespace rhi
 {
 namespace metal
 {
@@ -52,4 +52,4 @@ namespace metal
     class SwapchainImpl;
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

@@ -5,7 +5,7 @@
 #include "d3d12-device.h"
 #include "d3d12-texture.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -98,4 +98,4 @@ Result SwapchainImpl::setFullScreenMode(bool mode)
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

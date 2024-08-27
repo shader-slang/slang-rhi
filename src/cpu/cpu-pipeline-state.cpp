@@ -3,7 +3,7 @@
 
 #include "cpu-shader-program.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -24,4 +24,4 @@ namespace cpu
     }
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

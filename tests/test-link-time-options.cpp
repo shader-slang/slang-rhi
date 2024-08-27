@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 // In this test,
 // we will run a compute shader that compiles to HLSL with a reference to the macro "DOWNSTREAM_VALUE"
@@ -11,8 +11,8 @@ using namespace gfx::testing;
 // the value of DOWNSTREAM_VALUE when running dxc.
 // 
 static Slang::Result loadProgram(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection)
@@ -55,7 +55,7 @@ static Slang::Result loadProgram(
     composedProgram = linkedProgram;
     slangReflection = composedProgram->getLayout();
 
-    gfx::IShaderProgram::Desc programDesc = {};
+    IShaderProgram::Desc programDesc = {};
     programDesc.slangGlobalScope = composedProgram.get();
 
     auto shaderProgram = device->createProgram(programDesc);
@@ -80,7 +80,7 @@ void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -88,7 +88,7 @@ void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
     float initialData[] = { 0.0f, 0.0f, 0.0f, 0.0f };
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,

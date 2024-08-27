@@ -1,6 +1,6 @@
 #pragma once
 
-namespace gfx {
+namespace rhi {
 
 // Utility functions for Cocoa
 struct CocoaUtil {

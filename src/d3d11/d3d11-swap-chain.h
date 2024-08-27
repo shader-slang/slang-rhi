@@ -3,7 +3,7 @@
 
 #include "d3d11-base.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -28,4 +28,4 @@ public:
 };
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

@@ -1,7 +1,7 @@
 // cpu-texture.cpp
 #include "cpu-texture.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -228,4 +228,4 @@ Result TextureResourceImpl::init(ITextureResource::SubresourceData const* initDa
 }
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

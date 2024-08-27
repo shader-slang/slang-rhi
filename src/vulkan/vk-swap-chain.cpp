@@ -8,7 +8,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -383,4 +383,4 @@ int SwapchainImpl::acquireNextImage()
 Result SwapchainImpl::setFullScreenMode(bool mode) { return SLANG_FAIL; }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

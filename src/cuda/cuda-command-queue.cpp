@@ -6,7 +6,7 @@
 #include "cuda-query.h"
 #include "cuda-shader-object-layout.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -215,4 +215,4 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

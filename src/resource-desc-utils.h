@@ -4,7 +4,7 @@
 
 #include "utils/common.h"
 
-namespace gfx
+namespace rhi
 {
 
 inline int calcMipSize(int size, int level)

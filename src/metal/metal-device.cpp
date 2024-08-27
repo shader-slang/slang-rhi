@@ -26,7 +26,7 @@
 #include <vector>
 #include <cstdio>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -799,4 +799,4 @@ Result DeviceImpl::waitForFences(
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

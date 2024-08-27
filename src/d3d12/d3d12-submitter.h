@@ -3,7 +3,7 @@
 
 #include "d3d12-base.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -72,4 +72,4 @@ struct ComputeSubmitter : public Submitter
 };
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

@@ -12,7 +12,7 @@
 
 using namespace Slang;
 
-namespace gfx
+namespace rhi
 {
 
 const Slang::Guid GfxGUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
@@ -58,11 +58,11 @@ StageType translateStage(SlangStage slangStage)
     {
     default:
         SLANG_RHI_ASSERT(!"unhandled case");
-        return gfx::StageType::Unknown;
+        return StageType::Unknown;
 
 #define CASE(FROM, TO)       \
 case SLANG_STAGE_##FROM: \
-return gfx::StageType::TO
+return StageType::TO
 
         CASE(VERTEX, Vertex);
         CASE(HULL, Hull);
@@ -147,20 +147,20 @@ StageType mapStage(SlangStage stage)
     default:
         return StageType::Unknown;
 
-    case SLANG_STAGE_AMPLIFICATION:     return gfx::StageType::Amplification;
-    case SLANG_STAGE_ANY_HIT:           return gfx::StageType::AnyHit;
-    case SLANG_STAGE_CALLABLE:          return gfx::StageType::Callable;
-    case SLANG_STAGE_CLOSEST_HIT:       return gfx::StageType::ClosestHit;
-    case SLANG_STAGE_COMPUTE:           return gfx::StageType::Compute;
-    case SLANG_STAGE_DOMAIN:            return gfx::StageType::Domain;
-    case SLANG_STAGE_FRAGMENT:          return gfx::StageType::Fragment;
-    case SLANG_STAGE_GEOMETRY:          return gfx::StageType::Geometry;
-    case SLANG_STAGE_HULL:              return gfx::StageType::Hull;
-    case SLANG_STAGE_INTERSECTION:      return gfx::StageType::Intersection;
-    case SLANG_STAGE_MESH:              return gfx::StageType::Mesh;
-    case SLANG_STAGE_MISS:              return gfx::StageType::Miss;
-    case SLANG_STAGE_RAY_GENERATION:    return gfx::StageType::RayGeneration;
-    case SLANG_STAGE_VERTEX:            return gfx::StageType::Vertex;
+    case SLANG_STAGE_AMPLIFICATION:     return StageType::Amplification;
+    case SLANG_STAGE_ANY_HIT:           return StageType::AnyHit;
+    case SLANG_STAGE_CALLABLE:          return StageType::Callable;
+    case SLANG_STAGE_CLOSEST_HIT:       return StageType::ClosestHit;
+    case SLANG_STAGE_COMPUTE:           return StageType::Compute;
+    case SLANG_STAGE_DOMAIN:            return StageType::Domain;
+    case SLANG_STAGE_FRAGMENT:          return StageType::Fragment;
+    case SLANG_STAGE_GEOMETRY:          return StageType::Geometry;
+    case SLANG_STAGE_HULL:              return StageType::Hull;
+    case SLANG_STAGE_INTERSECTION:      return StageType::Intersection;
+    case SLANG_STAGE_MESH:              return StageType::Mesh;
+    case SLANG_STAGE_MISS:              return StageType::Miss;
+    case SLANG_STAGE_RAY_GENERATION:    return StageType::RayGeneration;
+    case SLANG_STAGE_VERTEX:            return StageType::Vertex;
     }
 }
 
@@ -371,7 +371,7 @@ SlangResult RendererBase::queryInterface(SlangUUID const& uuid, void** outObject
     return SLANG_OK;
 }
 
-IDevice* gfx::RendererBase::getInterface(const Guid& guid)
+IDevice* RendererBase::getInterface(const Guid& guid)
 {
     return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IDevice)
                ? static_cast<IDevice*>(this)
@@ -611,7 +611,7 @@ Result RendererBase::createProgram2(
         diagnosticsBlob.writeRef());
     SLANG_RETURN_ON_FAIL(result);
 
-    gfx::IShaderProgram::Desc programDesc = {};
+    IShaderProgram::Desc programDesc = {};
     programDesc.slangGlobalScope = linkedProgram;
     SLANG_RETURN_ON_FAIL(createProgram(programDesc, outProgram, outDiagnostic));
 
@@ -1199,7 +1199,7 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
 {
     if (auto srcObj = dynamic_cast<MutableRootShaderObject*>(object))
     {
-        setData(gfx::ShaderOffset(), srcObj->m_data.data(), (size_t)srcObj->m_data.size()); // TODO: Change size_t to Count?
+        setData(ShaderOffset(), srcObj->m_data.data(), (size_t)srcObj->m_data.size()); // TODO: Change size_t to Count?
         for (auto it : srcObj->m_objects)
         {
             ComPtr<IShaderObject> subObject;
@@ -1306,5 +1306,5 @@ bool isStencilFormat(Format format)
     }
 }
 
-} // namespace gfx
+} // namespace rhi
 

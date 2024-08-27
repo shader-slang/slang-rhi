@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 template<DeviceType DstDeviceType>
 void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
@@ -15,7 +15,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     float initialData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,
@@ -60,7 +60,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         dstDevice->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 

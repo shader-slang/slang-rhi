@@ -5,7 +5,7 @@
 #include "vk-shader-object.h"
 #include "vk-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -168,4 +168,4 @@ Result CommandBufferImpl::getNativeHandle(InteropHandle* outHandle)
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

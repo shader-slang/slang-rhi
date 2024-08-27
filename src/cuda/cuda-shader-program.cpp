@@ -1,7 +1,7 @@
 // cuda-shader-program.cpp
 #include "cuda-shader-program.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -15,4 +15,4 @@ ShaderProgramImpl::~ShaderProgramImpl()
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

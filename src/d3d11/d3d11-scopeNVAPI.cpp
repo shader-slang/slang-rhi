@@ -3,7 +3,7 @@
 
 #include "d3d11-device.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -46,4 +46,4 @@ ScopeNVAPI::~ScopeNVAPI()
 }
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
@@ -19,7 +19,7 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -27,7 +27,7 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     uint16_t initialData[] = { 0, 1, 2, 3 };
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(uint16_t);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     // Note: we don't specify any element size here, and gfx should be able to derive the
     // correct element size from the reflection infomation.
     bufferDesc.elementSize = 0;

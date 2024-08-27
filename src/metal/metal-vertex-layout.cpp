@@ -2,7 +2,7 @@
 #include "metal-vertex-layout.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -54,4 +54,4 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

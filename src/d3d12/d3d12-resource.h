@@ -17,7 +17,7 @@
 #include "slang-com-ptr.h"
 #include "../d3d/d3d-util.h"
 
-namespace gfx {
+namespace rhi {
 
 // Enables more conservative barriers - restoring the state of resources after they are used.
 // Should not need to be enabled in normal builds, as the barriers should correctly sync resources

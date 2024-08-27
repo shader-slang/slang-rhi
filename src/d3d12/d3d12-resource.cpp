@@ -3,7 +3,7 @@
 
 #include "utils/string.h"
 
-namespace gfx {
+namespace rhi {
 using namespace Slang;
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! D3D12BarrierSubmitter !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */

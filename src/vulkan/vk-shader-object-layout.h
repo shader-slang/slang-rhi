@@ -10,7 +10,7 @@
 #include <vector>
 #include <map>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -449,4 +449,4 @@ public:
 };
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

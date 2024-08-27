@@ -4,7 +4,7 @@
 
 #include <string_view>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -73,4 +73,4 @@ public:
 };
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

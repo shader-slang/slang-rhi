@@ -11,7 +11,7 @@
 #include "cuda-resource-views.h"
 #include "cuda-texture.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -1201,4 +1201,4 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readBufferResource(
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

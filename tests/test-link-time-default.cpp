@@ -1,11 +1,11 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 static Slang::Result loadProgram(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     slang::ProgramLayout*& slangReflection,
     bool linkSpecialization = false)
 {
@@ -97,7 +97,7 @@ static Slang::Result loadProgram(
     composedProgram = linkedProgram;
     slangReflection = composedProgram->getLayout();
 
-    gfx::IShaderProgram::Desc programDesc = {};
+    IShaderProgram::Desc programDesc = {};
     programDesc.slangGlobalScope = composedProgram.get();
 
     auto shaderProgram = device->createProgram(programDesc);
@@ -124,7 +124,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -135,7 +135,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc1 = {};
     pipelineDesc1.program = shaderProgram1.get();
-    ComPtr<gfx::IPipelineState> pipelineState1;
+    ComPtr<IPipelineState> pipelineState1;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc1, pipelineState1.writeRef()));
 
@@ -143,7 +143,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     float initialData[] = { 0.0f, 0.0f, 0.0f, 0.0f };
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,

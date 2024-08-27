@@ -5,7 +5,7 @@
 
 #include <cassert>
 
-namespace gfx {
+namespace rhi {
 using namespace Slang;
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanApi !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -3,7 +3,7 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-namespace gfx {
+namespace rhi {
 
 void CocoaUtil::getNSWindowContentSize(void* nswindow, int* widthOut, int* heightOut)
 {

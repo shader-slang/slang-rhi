@@ -4,7 +4,7 @@
 #include "metal-device.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -41,4 +41,4 @@ Result TransientResourceHeapImpl::synchronizeAndReset()
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

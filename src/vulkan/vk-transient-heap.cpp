@@ -4,7 +4,7 @@
 #include "vk-device.h"
 #include "vk-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -96,4 +96,4 @@ Result TransientResourceHeapImpl::synchronizeAndReset()
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

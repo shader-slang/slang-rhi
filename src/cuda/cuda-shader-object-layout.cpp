@@ -1,7 +1,7 @@
 // cuda-shader-object-layout.cpp
 #include "cuda-shader-object-layout.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -150,4 +150,4 @@ void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, UInt*
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

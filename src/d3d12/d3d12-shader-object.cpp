@@ -11,7 +11,7 @@
 
 #include "d3d12-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -1221,4 +1221,4 @@ Result RootShaderObjectImpl::reset(
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

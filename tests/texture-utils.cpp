@@ -22,7 +22,7 @@
 #    include <windows.h>
 #endif
 
-namespace gfx::testing
+namespace rhi::testing
 {
     TextureAspect getTextureAspect(Format format)
     {
@@ -253,4 +253,4 @@ namespace gfx::testing
         return stbResult ? SLANG_OK : SLANG_FAIL;
     }
 
-} // namespace gfx::testing
+} // namespace rhi::testing

@@ -3,7 +3,7 @@
 #include "cuda-base.h"
 #include "cuda-shader-program.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -23,4 +23,4 @@ public:
 };
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

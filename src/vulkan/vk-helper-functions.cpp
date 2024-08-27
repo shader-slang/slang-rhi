@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -545,4 +545,4 @@ Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outRender
     return SLANG_OK;
 }
 
-} // namespace gfx
+} // namespace rhi

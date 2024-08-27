@@ -1,7 +1,7 @@
 // cpu-resource-views.cpp
 #include "cpu-resource-views.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -173,4 +173,4 @@ void* TextureResourceViewImpl::_getTexelPtr(int32_t const* texelCoords)
 }
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

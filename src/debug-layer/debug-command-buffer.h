@@ -5,7 +5,7 @@
 #include "debug-command-encoder.h"
 #include "debug-shader-object.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -52,4 +52,4 @@ public:
 };
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

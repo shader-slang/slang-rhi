@@ -37,7 +37,7 @@
 #   include "GFSDK_Aftermath_GpuCrashDump.h"
 #endif
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -906,8 +906,8 @@ Result DeviceImpl::initialize(const Desc& desc)
     if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
     {
         getDebugCallback()->handleMessage(
-            gfx::DebugMessageType::Error,
-            gfx::DebugMessageSource::Layer,
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
             "The requested shader model is not supported by the system.");
         return SLANG_E_NOT_AVAILABLE;
     }
@@ -1827,7 +1827,7 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
     return SLANG_OK;
 }
 
-const gfx::DeviceInfo& DeviceImpl::getDeviceInfo() const { return m_info; }
+const DeviceInfo& DeviceImpl::getDeviceInfo() const { return m_info; }
 
 Result DeviceImpl::readBufferResource(
     IBufferResource* bufferIn, Offset offset, Size size, ISlangBlob** outBlob)
@@ -2026,8 +2026,8 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
     if (!enableExperimentalFeaturesFunc)
     {
         getDebugCallback()->handleMessage(
-            gfx::DebugMessageType::Warning,
-            gfx::DebugMessageSource::Layer,
+            :DebugMessageType::Warning,
+            :DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' function "
             "not found.");
         return;
@@ -2035,8 +2035,8 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
     if (!SLANG_SUCCEEDED(enableExperimentalFeaturesFunc(desc.numFeatures, (IID*)desc.featureIIDs, desc.configurationStructs, desc.configurationStructSizes)))
     {
         getDebugCallback()->handleMessage(
-            gfx::DebugMessageType::Warning,
-            gfx::DebugMessageSource::Layer,
+            :DebugMessageType::Warning,
+            :DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' call "
             "failed.");
         return;
@@ -2208,4 +2208,4 @@ DeviceImpl::~DeviceImpl() { m_shaderObjectLayoutCache = decltype(m_shaderObjectL
 
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

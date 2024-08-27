@@ -7,14 +7,14 @@
 #include <vector>
 #include <span>
 
-namespace gfx
+namespace rhi
 {
     class SlangContext
     {
     public:
         Slang::ComPtr<slang::IGlobalSession> globalSession;
         Slang::ComPtr<slang::ISession> session;
-        Result initialize(const gfx::IDevice::SlangDesc& desc,
+        Result initialize(const IDevice::SlangDesc& desc,
             uint32_t extendedDescCount,
             void** extendedDescs,
             SlangCompileTarget compileTarget,

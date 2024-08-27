@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 static void setUpAndRunShader(
     IDevice* device,
@@ -23,7 +23,7 @@ static void setUpAndRunShader(
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -61,7 +61,7 @@ static void setUpAndRunShader(
     }
 }
 
-static ComPtr<ITextureResource> createTexture(IDevice* device, ITextureResource::Extents extents, gfx::Format format, ITextureResource::SubresourceData* initialData)
+static ComPtr<ITextureResource> createTexture(IDevice* device, ITextureResource::Extents extents, Format format, ITextureResource::SubresourceData* initialData)
 {
     ITextureResource::Desc texDesc = {};
     texDesc.type = IResource::Type::Texture2D;
@@ -100,7 +100,7 @@ ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialDat
 {
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = size * sizeof(T);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(T);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,
@@ -167,7 +167,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
 
         // Create a shareable texture using srcDevice, get its handle, then create a texture using the handle using
         // dstDevice. Read back the texture and check that its contents are correct.
-        auto srcTexture = createTexture(srcDevice, size, gfx::Format::R32G32B32A32_FLOAT, &subData);
+        auto srcTexture = createTexture(srcDevice, size, Format::R32G32B32A32_FLOAT, &subData);
 
         InteropHandle sharedHandle;
         GFX_CHECK_CALL_ABORT(srcTexture->getSharedHandle(&sharedHandle));

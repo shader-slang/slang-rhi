@@ -5,7 +5,7 @@
 #include "cpu-buffer.h"
 #include "cpu-texture.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -79,4 +79,4 @@ private:
 };
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

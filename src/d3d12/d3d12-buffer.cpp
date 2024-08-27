@@ -1,7 +1,7 @@
 // d3d12-buffer.cpp
 #include "d3d12-buffer.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -90,4 +90,4 @@ Result BufferResourceImpl::setDebugName(const char* name)
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

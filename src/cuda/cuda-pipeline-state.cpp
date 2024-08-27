@@ -1,7 +1,7 @@
 // cuda-pipeline-state.cpp
 #include "cuda-pipeline-state.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -17,4 +17,4 @@ void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

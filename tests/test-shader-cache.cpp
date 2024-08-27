@@ -4,8 +4,8 @@
 #include <filesystem>
 #include <fstream>
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 class VirtualShaderCache : public IPersistentShaderCache
 {
@@ -72,7 +72,7 @@ public:
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
     {
         if (uuid == SlangUUID SLANG_UUID_IPersistentShaderCache) {
-            *outObject = static_cast<gfx::IPersistentShaderCache*>(this);
+            *outObject = static_cast<IPersistentShaderCache*>(this);
             return SLANG_OK;
         }
         return SLANG_E_NO_INTERFACE;
@@ -161,7 +161,7 @@ struct ShaderCacheTest
 
     void createDevice()
     {
-        gfx::IDevice::Desc deviceDesc = {};
+        IDevice::Desc deviceDesc = {};
         deviceDesc.deviceType = deviceType;
         deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
         auto searchPaths = getSlangSearchPaths();
@@ -171,10 +171,10 @@ struct ShaderCacheTest
         deviceDesc.slang.searchPathCount = searchPaths.size();
         deviceDesc.persistentShaderCache = &shaderCache;
 
-        gfx::D3D12DeviceExtendedDesc extDesc = {};
+        D3D12DeviceExtendedDesc extDesc = {};
         extDesc.rootParameterShaderAttributeName = "root";
         
-        gfx::SlangSessionExtendedDesc slangExtDesc = {};
+        SlangSessionExtendedDesc slangExtDesc = {};
         std::vector<slang::CompilerOptionEntry> entries;
         slang::CompilerOptionEntry emitSpirvDirectlyEntry;
         emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
@@ -197,7 +197,7 @@ struct ShaderCacheTest
         // (And in general reduce the differences (and duplication) between
         // here and render-test-main.cpp)
 #ifdef _DEBUG
-        gfx::gfxEnableDebugLayer();
+        gfxEnableDebugLayer();
 #endif
 
         GFX_CHECK_CALL_ABORT(gfxCreateDevice(&deviceDesc, device.writeRef()));
@@ -708,7 +708,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
     ComPtr<ITextureResource> createColorBuffer(IDevice* device)
     {
-        gfx::ITextureResource::Desc colorBufferDesc;
+        ITextureResource::Desc colorBufferDesc;
         colorBufferDesc.type = IResource::Type::Texture2D;
         colorBufferDesc.size.width = kWidth;
         colorBufferDesc.size.height = kHeight;
@@ -764,14 +764,14 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
         GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
-        gfx::IResourceView::Desc colorBufferViewDesc;
+        IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = gfx::IResource::Type::Texture2D;
-        colorBufferViewDesc.type = gfx::IResourceView::Type::RenderTarget;
+        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         auto rtv = device->createTextureView(colorBuffer, colorBufferViewDesc);
 
-        gfx::IFramebuffer::Desc framebufferDesc;
+        IFramebuffer::Desc framebufferDesc;
         framebufferDesc.renderTargetCount = 1;
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
@@ -822,7 +822,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        gfx::Viewport viewport = {};
+        Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = (float)kWidth;
         viewport.extentY = (float)kHeight;
@@ -901,9 +901,9 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         entryPoints.push_back(vertexEntryPoint);
         entryPoints.push_back(fragmentEntryPoint);
 
-        gfx::IShaderProgram::Desc programDesc = {};
+        IShaderProgram::Desc programDesc = {};
         programDesc.slangGlobalScope = composedProgram.get();
-        programDesc.linkingStyle = gfx::IShaderProgram::LinkingStyle::SeparateEntryPointCompilation;
+        programDesc.linkingStyle = IShaderProgram::LinkingStyle::SeparateEntryPointCompilation;
         programDesc.entryPointCount = 2;
         programDesc.slangEntryPoints = entryPoints.data();
 

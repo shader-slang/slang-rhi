@@ -3,14 +3,14 @@
 
 #include "d3d12-base.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
 
 using namespace Slang;
 
-class BufferResourceImpl : public gfx::BufferResource
+class BufferResourceImpl : public BufferResource
 {
 public:
     typedef BufferResource Parent;
@@ -40,5 +40,5 @@ public:
 };
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi
 

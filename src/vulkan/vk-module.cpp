@@ -13,7 +13,7 @@
 
 #include "../renderer-shared.h"
 
-namespace gfx {
+namespace rhi {
 using namespace Slang;
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanModule !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

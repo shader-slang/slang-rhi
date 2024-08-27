@@ -4,8 +4,8 @@
 #include <d3d12.h>
 #endif
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 struct Vertex
 {
@@ -151,7 +151,7 @@ struct BaseResolveResourceTest
         IFramebufferLayout::Desc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &targetLayout;
-        ComPtr<gfx::IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
+        ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 
         GraphicsPipelineStateDesc pipelineDesc = {};
@@ -174,14 +174,14 @@ struct BaseResolveResourceTest
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
         GFX_CHECK_CALL_ABORT(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
 
-        gfx::IResourceView::Desc colorBufferViewDesc;
+        IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = gfx::IResource::Type::Texture2D;
-        colorBufferViewDesc.type = gfx::IResourceView::Type::RenderTarget;
+        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         auto rtv = device->createTextureView(msaaTexture, colorBufferViewDesc);
 
-        gfx::IFramebuffer::Desc framebufferDesc;
+        IFramebuffer::Desc framebufferDesc;
         framebufferDesc.renderTargetCount = 1;
         framebufferDesc.depthStencilView = nullptr;
         framebufferDesc.renderTargetViews = rtv.readRef();
@@ -204,7 +204,7 @@ struct BaseResolveResourceTest
         auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = renderEncoder->bindPipeline(pipelineState);
         
-        gfx::Viewport viewport = {};
+        Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;

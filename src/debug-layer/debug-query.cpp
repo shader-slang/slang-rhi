@@ -3,7 +3,7 @@
 
 #include "debug-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -26,4 +26,4 @@ Result DebugQueryPool::reset()
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

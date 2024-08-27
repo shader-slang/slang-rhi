@@ -1,7 +1,7 @@
 // cpu-buffer.cpp
 #include "cpu-buffer.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -51,4 +51,4 @@ SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::unmap(MemoryRange* written
 }
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

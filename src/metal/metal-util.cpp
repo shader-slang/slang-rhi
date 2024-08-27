@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-namespace gfx {
+namespace rhi {
 
 MTL::PixelFormat MetalUtil::translatePixelFormat(Format format)
 {
@@ -465,4 +465,4 @@ MTL::TriangleFillMode MetalUtil::translateTriangleFillMode(FillMode mode)
     }
 }
 
-} // namespace gfx
+} // namespace rhi

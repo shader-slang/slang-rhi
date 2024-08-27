@@ -1,14 +1,14 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 struct Shader
 {
     ComPtr<IShaderProgram> program;
     slang::ProgramLayout* reflection = nullptr;
     ComputePipelineStateDesc pipelineDesc = {};
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
 };
 
 struct Buffer
@@ -23,7 +23,7 @@ void createFloatBuffer(IDevice* device, Buffer& outBuffer, bool unorderedAccess,
     outBuffer = {};
     IBufferResource::Desc& bufferDesc = outBuffer.desc;
     bufferDesc.sizeInBytes = elementCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.defaultState = unorderedAccess ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;
     bufferDesc.memoryType = MemoryType::DeviceLocal;

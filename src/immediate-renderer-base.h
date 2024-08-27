@@ -6,7 +6,7 @@
 
 #include "renderer-shared.h"
 
-namespace gfx
+namespace rhi
 {
 
 enum class MapFlavor

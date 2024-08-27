@@ -28,7 +28,7 @@
 
 #include "utils/common.h"
 
-namespace gfx
+namespace rhi
 {
 namespace cuda
 {

@@ -7,7 +7,7 @@
 
 #include "utils/string.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -34,7 +34,7 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
     ComPtr<IBufferResource> bufferResource;
     IBufferResource::Desc bufferDesc = {};
-    bufferDesc.memoryType = gfx::MemoryType::DeviceLocal;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.allowedStates.add(ResourceState::NonPixelShaderResource);
     bufferDesc.type = IResource::Type::Buffer;
@@ -106,11 +106,11 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     encoder->bufferBarrier(
         1,
         bufferResource.readRef(),
-        gfx::ResourceState::CopyDestination,
-        gfx::ResourceState::NonPixelShaderResource);
+        ResourceState::CopyDestination,
+        ResourceState::NonPixelShaderResource);
     RefPtr<BufferResource> resultPtr = static_cast<BufferResource*>(bufferResource.get());
     return _Move(resultPtr);
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

@@ -37,7 +37,7 @@
 //    - Index and Count are for arrays, and indexing into array - like things(XY coordinates of pixels, etc.)
 //         - Count is also for anything where we need to measure how many of something there are. This includes things like extents.
 //    - Offset and Size are almost always for bytes and things measured in bytes.
-namespace gfx {
+namespace rhi {
 
 using Slang::Guid;
 using Slang::ComPtr;
@@ -755,7 +755,7 @@ public:
             /// Devices may not support all possible values for `strideY`.
             /// In particular, they may only support strictly positive strides.
             ///
-        gfx::Size strideY;
+        Size strideY;
 
             /// Stride in bytes between layers of the subresource tensor.
             ///
@@ -765,7 +765,7 @@ public:
             /// Devices may not support all possible values for `strideZ`.
             /// In particular, they may only support strictly positive strides.
             ///
-        gfx::Size strideZ;
+        Size strideZ;
     };
 
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getDesc() = 0;
@@ -1731,8 +1731,8 @@ public:
     {
         setViewports(1, &viewport);
         ScissorRect rect = {};
-        rect.maxX = static_cast<gfx::Int>(viewport.extentX);
-        rect.maxY = static_cast<gfx::Int>(viewport.extentY);
+        rect.maxX = static_cast<Int>(viewport.extentX);
+        rect.maxY = static_cast<Int>(viewport.extentY);
         setScissorRects(1, &rect);
     }
 

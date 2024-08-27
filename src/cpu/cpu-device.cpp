@@ -11,7 +11,7 @@
 #include "cpu-shader-program.h"
 #include "cpu-texture.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -309,4 +309,4 @@ Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevic
     return SLANG_OK;
 }
 
-} // namespace gfx
+} // namespace rhi

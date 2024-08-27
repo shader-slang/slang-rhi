@@ -6,7 +6,7 @@
 #include "vk-shader-object.h"
 #include "vk-transient-heap.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -69,4 +69,4 @@ public:
 };
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

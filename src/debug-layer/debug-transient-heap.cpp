@@ -5,7 +5,7 @@
 
 #include "debug-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -83,4 +83,4 @@ Result DebugTransientResourceHeapD3D12::allocateTransientDescriptorTable(
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

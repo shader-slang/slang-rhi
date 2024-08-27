@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -287,4 +287,4 @@ Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice);
 
-} // namespace gfx
+} // namespace rhi

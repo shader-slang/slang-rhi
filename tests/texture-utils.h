@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace gfx::testing
+namespace rhi::testing
 {
     struct Strides
     {
@@ -190,4 +190,4 @@ namespace gfx::testing
         uint32_t rowPitch,
         uint32_t pixelSize);
 
-} // namespace gfx::testing
+} // namespace rhi::testing

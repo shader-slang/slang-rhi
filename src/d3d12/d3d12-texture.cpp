@@ -1,7 +1,7 @@
 // d3d12-texture.cpp
 #include "d3d12-texture.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -59,4 +59,4 @@ Result TextureResourceImpl::setDebugName(const char* name)
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

@@ -3,7 +3,7 @@
 
 #include "utils/static_vector.h"
 
-namespace gfx
+namespace rhi
 {
 VkDescriptorPool DescriptorSetAllocator::newPool()
 {

@@ -5,7 +5,7 @@
 
 #include "utils/short_vector.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -37,4 +37,4 @@ public:
 };
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

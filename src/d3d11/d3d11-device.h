@@ -3,7 +3,7 @@
 #include "d3d11-framebuffer.h"
 #include "d3d11-pipeline-state.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -159,4 +159,4 @@ public:
 };
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

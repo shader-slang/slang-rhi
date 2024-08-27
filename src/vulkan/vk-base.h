@@ -12,7 +12,7 @@
 
 #include "utils/common.h"
 
-namespace gfx
+namespace rhi
 {
 namespace vk
 {
@@ -54,4 +54,4 @@ namespace vk
     class SwapchainImpl;
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

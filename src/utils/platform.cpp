@@ -11,7 +11,7 @@
 #error "Unsupported platform"
 #endif
 
-namespace gfx {
+namespace rhi {
 
 SlangResult loadSharedLibrary(const char* path, SharedLibraryHandle& handleOut)
 {
@@ -55,4 +55,4 @@ void* findSymbolAddressByName(SharedLibraryHandle handle, char const* name)
 #endif
 }
 
-} // namespace gfx
+} // namespace rhi

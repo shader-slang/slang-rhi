@@ -1,7 +1,7 @@
 // debug-shader-program.cpp
 #include "debug-shader-program.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -14,4 +14,4 @@ slang::TypeReflection* DebugShaderProgram::findTypeByName(const char* name)
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

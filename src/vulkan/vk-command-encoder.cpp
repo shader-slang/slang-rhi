@@ -18,7 +18,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -1504,4 +1504,4 @@ Result RayTracingCommandEncoder::dispatchRays(
 void RayTracingCommandEncoder::endEncoding() { endEncodingImpl(); }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

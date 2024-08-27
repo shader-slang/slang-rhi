@@ -4,8 +4,8 @@
 #include <d3d12.h>
 #endif
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 struct SupportedResourceStatesTest
 {
@@ -158,7 +158,7 @@ struct SupportedResourceStatesTest
 
             IBufferResource::Desc bufferDesc = {};
             bufferDesc.sizeInBytes = 256;
-            bufferDesc.format = gfx::Format::Unknown;
+            bufferDesc.format = Format::Unknown;
             bufferDesc.elementSize = sizeof(float);
             bufferDesc.allowedStates = formatSupportedStates & bufferAllowedStates;
             bufferDesc.defaultState = currentState;

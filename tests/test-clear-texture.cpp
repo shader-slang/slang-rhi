@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 {

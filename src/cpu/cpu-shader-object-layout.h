@@ -5,7 +5,7 @@
 #include <vector>
 #include <string_view>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -100,4 +100,4 @@ public:
 };
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

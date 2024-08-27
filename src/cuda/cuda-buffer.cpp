@@ -3,7 +3,7 @@
 
 #include "cuda-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -46,4 +46,4 @@ Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <set>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -111,4 +111,4 @@ public:
 };
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

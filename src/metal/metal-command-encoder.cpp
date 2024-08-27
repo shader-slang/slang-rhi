@@ -14,7 +14,7 @@
 
 #include "metal-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -581,4 +581,4 @@ Result RayTracingCommandEncoder::dispatchRays(
 void RayTracingCommandEncoder::endEncoding() { }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

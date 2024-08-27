@@ -1,7 +1,7 @@
 // d3d12-render-pass.cpp
 #include "d3d12-render-pass.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -16,4 +16,4 @@ void RenderPassLayoutImpl::init(const IRenderPassLayout::Desc& desc)
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

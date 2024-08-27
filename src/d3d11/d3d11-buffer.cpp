@@ -1,7 +1,7 @@
 // d3d11-buffer.cpp
 #include "d3d11-buffer.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -29,4 +29,4 @@ SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::unmap(MemoryRange* written
 }
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

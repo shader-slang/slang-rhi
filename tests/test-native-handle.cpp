@@ -4,8 +4,8 @@
 #include <d3d12.h>
 #endif
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
@@ -17,7 +17,7 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
     const int numberCount = 1;
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,

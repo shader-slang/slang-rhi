@@ -9,7 +9,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -202,4 +202,4 @@ protected:
 };
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

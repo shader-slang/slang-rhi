@@ -6,7 +6,7 @@
 
 #include "debug-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -92,4 +92,4 @@ void DebugSwapchain::maybeRebuildImageList()
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

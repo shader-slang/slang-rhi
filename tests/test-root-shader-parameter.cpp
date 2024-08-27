@@ -1,6 +1,6 @@
 #include "testing.h"
 
-using namespace gfx;
+using namespace rhi;
 using namespace testing;
 
 static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
@@ -8,7 +8,7 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
     ComPtr<IBufferResource> buffer;
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = sizeof(uint32_t);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,
@@ -40,7 +40,7 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 

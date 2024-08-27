@@ -1,7 +1,7 @@
 // d3d12-shader-program.cpp
 #include "d3d12-shader-program.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -22,4 +22,4 @@ Result ShaderProgramImpl::createShaderModule(
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

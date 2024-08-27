@@ -1,7 +1,7 @@
 // cpu-query.cpp
 #include "cpu-query.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -25,4 +25,4 @@ SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
 }
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

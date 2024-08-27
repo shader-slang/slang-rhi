@@ -1,7 +1,7 @@
 // metal-resource-views.cpp
 #include "metal-resource-views.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -59,4 +59,4 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

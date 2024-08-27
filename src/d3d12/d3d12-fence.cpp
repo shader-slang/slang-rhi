@@ -3,7 +3,7 @@
 
 #include "d3d12-device.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -69,10 +69,10 @@ Result FenceImpl::getSharedHandle(InteropHandle* outHandle)
 
 Result FenceImpl::getNativeHandle(InteropHandle* outNativeHandle)
 {
-    outNativeHandle->api = gfx::InteropHandleAPI::D3D12;
+    outNativeHandle->api = InteropHandleAPI::D3D12;
     outNativeHandle->handleValue = (uint64_t)m_fence.get();
     return SLANG_OK;
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

@@ -7,7 +7,7 @@
 #include "cuda-shader-object.h"
 #include "cuda-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -64,4 +64,4 @@ public:
 };
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

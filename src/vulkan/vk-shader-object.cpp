@@ -5,7 +5,7 @@
 #include "vk-command-encoder.h"
 #include "vk-transient-heap.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -1259,4 +1259,4 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

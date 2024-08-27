@@ -1,7 +1,7 @@
 #include "testing.h"
 
-using namespace gfx;
-using namespace gfx::testing;
+using namespace rhi;
+using namespace rhi::testing;
 
 ComPtr<IBufferResource> createBuffer(
     IDevice* device, uint32_t data, ResourceState defaultState)
@@ -10,7 +10,7 @@ ComPtr<IBufferResource> createBuffer(
     const int numberCount = SLANG_COUNT_OF(initialData);
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = sizeof(initialData);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(uint32_t) * 4;
     bufferDesc.allowedStates = ResourceStateSet(
         ResourceState::ShaderResource,
@@ -47,7 +47,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<gfx::IPipelineState> pipelineState;
+    ComPtr<IPipelineState> pipelineState;
     GFX_CHECK_CALL_ABORT(
         device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
@@ -59,7 +59,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
     for (uint32_t i = 0; i < 6; i++)
     {
-        srvBuffers.push_back(createBuffer(device, i, gfx::ResourceState::ShaderResource));
+        srvBuffers.push_back(createBuffer(device, i, ResourceState::ShaderResource));
         IResourceView::Desc srvDesc = {};
         srvDesc.type = IResourceView::Type::ShaderResource;
         srvDesc.format = Format::Unknown;
@@ -68,7 +68,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         srvs.push_back(device->createBufferView(srvBuffers[i], nullptr, srvDesc));
     }
     ComPtr<IBufferResource> resultBuffer =
-        createBuffer(device, 0, gfx::ResourceState::UnorderedAccess);
+        createBuffer(device, 0, ResourceState::UnorderedAccess);
     IResourceView::Desc resultBufferViewDesc = {};
     resultBufferViewDesc.type = IResourceView::Type::UnorderedAccess;
     resultBufferViewDesc.format = Format::Unknown;

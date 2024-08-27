@@ -3,7 +3,7 @@
 
 #include "d3d12-device.h"
 
-namespace gfx
+namespace rhi
 {
 namespace d3d12
 {
@@ -1038,4 +1038,4 @@ Result RootShaderObjectLayoutImpl::init(Builder* builder)
 }
 
 } // namespace d3d12
-} // namespace gfx
+} // namespace rhi

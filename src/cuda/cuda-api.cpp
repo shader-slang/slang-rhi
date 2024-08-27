@@ -11,7 +11,7 @@
 #include <cstring>
 #include <cstdio>
 
-gfx::SharedLibraryHandle gCudaApiModule;
+rhi::SharedLibraryHandle gCudaApiModule;
 
 bool gfxCudaApiInit()
 {
@@ -37,7 +37,7 @@ bool gfxCudaApiInit()
 #endif
 #if 1
     for (const char* path : cudaPaths) {
-        if (SLANG_SUCCEEDED(gfx::loadSharedLibrary(path, gCudaApiModule)))
+        if (SLANG_SUCCEEDED(rhi::loadSharedLibrary(path, gCudaApiModule)))
             break;
     }
     if (!gCudaApiModule)
@@ -47,7 +47,7 @@ bool gfxCudaApiInit()
 
 #define LOAD(name, ...)                                                                                                \
     symbol = strlen(__VA_ARGS__ "") > 0 ? (#name "_" __VA_ARGS__) : #name;                                             \
-    name = decltype(name)(gfx::findSymbolAddressByName(gCudaApiModule, symbol));                                       \
+    name = decltype(name)(rhi::findSymbolAddressByName(gCudaApiModule, symbol));                                       \
     if (!name)                                                                                                         \
         break;                                                                                                         \
     symbol = nullptr
@@ -235,7 +235,7 @@ void gfxCudaApiShutdown()
     UNLOAD(cuDestroyExternalSemaphore);
 #undef UNLOAD
 
-    gfx::unloadSharedLibrary(gCudaApiModule);
+    rhi::unloadSharedLibrary(gCudaApiModule);
     gCudaApiModule = nullptr;
 }
 

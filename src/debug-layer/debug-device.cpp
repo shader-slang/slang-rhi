@@ -23,7 +23,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -660,4 +660,4 @@ Result DebugDevice::createShaderTable(const IShaderTable::Desc& desc, IShaderTab
 }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

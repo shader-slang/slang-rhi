@@ -2,7 +2,7 @@
 #pragma once
 #include "cpu-base.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -18,4 +18,4 @@ public:
 };
 
 } // namespace cpu
-} // namespace gfx
+} // namespace rhi

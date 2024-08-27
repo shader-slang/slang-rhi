@@ -1,9 +1,9 @@
 #include "shader-cursor.h"
 
-namespace gfx
+namespace rhi
 {
 
-Result gfx::ShaderCursor::getDereferenced(ShaderCursor& outCursor) const
+Result ShaderCursor::getDereferenced(ShaderCursor& outCursor) const
 {
     switch (m_typeLayout->getKind())
     {
@@ -371,4 +371,4 @@ Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
     return SLANG_OK;
 }
 
-} // namespace gfx
+} // namespace rhi

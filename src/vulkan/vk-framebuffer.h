@@ -6,7 +6,7 @@
 #include "utils/static_vector.h"
 #include "utils/short_vector.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -56,4 +56,4 @@ public:
 };
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

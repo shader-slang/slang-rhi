@@ -1,7 +1,7 @@
 // vk-texture.cpp
 #include "vk-texture.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -102,4 +102,4 @@ Result TextureResourceImpl::setDebugName(const char* name)
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

@@ -27,7 +27,7 @@
 #    undef None
 #endif
 
-namespace gfx {
+namespace rhi {
 
 struct VulkanModule
 {

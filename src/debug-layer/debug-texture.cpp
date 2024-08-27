@@ -3,7 +3,7 @@
 
 #include "debug-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -42,4 +42,4 @@ Result DebugTextureResource::setDebugName(const char* name)
 const char* DebugTextureResource::getDebugName() { return baseObject->getDebugName(); }
 
 } // namespace debug
-} // namespace gfx
+} // namespace rhi

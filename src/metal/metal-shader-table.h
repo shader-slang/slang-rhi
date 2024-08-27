@@ -3,7 +3,7 @@
 
 #include "metal-base.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -28,4 +28,4 @@ public:
 };
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi

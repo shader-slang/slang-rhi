@@ -3,7 +3,7 @@
 
 #include "cuda-helper-functions.h"
 
-namespace gfx
+namespace rhi
 {
 using namespace Slang;
 
@@ -43,4 +43,4 @@ Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
 }
 
 } // namespace cuda
-} // namespace gfx
+} // namespace rhi

@@ -8,7 +8,7 @@
 #include <cctype>
 #include <filesystem>
 
-namespace gfx::testing {
+namespace rhi::testing {
 
 static std::map<DeviceType, ComPtr<IDevice>> gCachedDevices;
 
@@ -69,8 +69,8 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
 }
 
 Slang::Result loadComputeProgram(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection)
@@ -108,7 +108,7 @@ Slang::Result loadComputeProgram(
     composedProgram = linkedProgram;
     slangReflection = composedProgram->getLayout();
 
-    gfx::IShaderProgram::Desc programDesc = {};
+    IShaderProgram::Desc programDesc = {};
     programDesc.slangGlobalScope = composedProgram.get();
 
     auto shaderProgram = device->createProgram(programDesc);
@@ -118,9 +118,9 @@ Slang::Result loadComputeProgram(
 }
 
 Slang::Result loadComputeProgram(
-    gfx::IDevice* device,
+    IDevice* device,
     slang::ISession* slangSession,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection)
@@ -156,7 +156,7 @@ Slang::Result loadComputeProgram(
     composedProgram = linkedProgram;
     slangReflection = composedProgram->getLayout();
 
-    gfx::IShaderProgram::Desc programDesc = {};
+    IShaderProgram::Desc programDesc = {};
     programDesc.slangGlobalScope = composedProgram.get();
 
     auto shaderProgram = device->createProgram(programDesc);
@@ -166,14 +166,14 @@ Slang::Result loadComputeProgram(
 }
 
 Slang::Result loadComputeProgramFromSource(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     std::string_view source)
 {
     ComPtr<slang::IBlob> diagnosticsBlob;
 
-    gfx::IShaderProgram::CreateDesc2 programDesc = {};
-    programDesc.sourceType = gfx::ShaderModuleSourceType::SlangSource;
+    IShaderProgram::CreateDesc2 programDesc = {};
+    programDesc.sourceType = ShaderModuleSourceType::SlangSource;
     programDesc.sourceData = (void*)source.data();
     programDesc.sourceDataSize = source.size();
 
@@ -181,8 +181,8 @@ Slang::Result loadComputeProgramFromSource(
 }
 
 Slang::Result loadGraphicsProgram(
-    gfx::IDevice* device,
-    ComPtr<gfx::IShaderProgram>& outShaderProgram,
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* vertexEntryPointName,
     const char* fragmentEntryPointName,
@@ -219,7 +219,7 @@ Slang::Result loadGraphicsProgram(
     SLANG_RETURN_ON_FAIL(result);
     slangReflection = composedProgram->getLayout();
 
-    gfx::IShaderProgram::Desc programDesc = {};
+    IShaderProgram::Desc programDesc = {};
     programDesc.slangGlobalScope = composedProgram.get();
 
     auto shaderProgram = device->createProgram(programDesc);
@@ -229,9 +229,9 @@ Slang::Result loadGraphicsProgram(
 }
 
 void compareComputeResult(
-    gfx::IDevice* device,
-    gfx::ITextureResource* texture,
-    gfx::ResourceState state,
+    IDevice* device,
+    ITextureResource* texture,
+    ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
     size_t rowCount)
@@ -253,7 +253,7 @@ void compareComputeResult(
     }
 }
 
-void compareComputeResult(gfx::IDevice* device, gfx::IBufferResource* buffer, size_t offset, const void* expectedResult, size_t expectedBufferSize)
+void compareComputeResult(IDevice* device, IBufferResource* buffer, size_t offset, const void* expectedResult, size_t expectedBufferSize)
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
@@ -272,7 +272,7 @@ void compareComputeResultFuzzy(const float* result, float* expectedResult, size_
     }
 }
 
-void compareComputeResultFuzzy(gfx::IDevice* device, gfx::IBufferResource* buffer, float* expectedResult, size_t expectedBufferSize)
+void compareComputeResultFuzzy(IDevice* device, IBufferResource* buffer, float* expectedResult, size_t expectedBufferSize)
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
@@ -284,7 +284,7 @@ void compareComputeResultFuzzy(gfx::IDevice* device, gfx::IBufferResource* buffe
     compareComputeResultFuzzy(result, expectedResult, expectedBufferSize);
 }
 
-ComPtr<gfx::IDevice> createTestingDevice(
+ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice,
@@ -299,8 +299,8 @@ ComPtr<gfx::IDevice> createTestingDevice(
         }
     }
 
-    ComPtr<gfx::IDevice> device;
-    gfx::IDevice::Desc deviceDesc = {};
+    ComPtr<IDevice> device;
+    IDevice::Desc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
     auto searchPaths = getSlangSearchPaths();
@@ -309,10 +309,10 @@ ComPtr<gfx::IDevice> createTestingDevice(
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
 
-    gfx::D3D12DeviceExtendedDesc extDesc = {};
+    D3D12DeviceExtendedDesc extDesc = {};
     extDesc.rootParameterShaderAttributeName = "root";
     
-    gfx::SlangSessionExtendedDesc slangExtDesc = {};
+    SlangSessionExtendedDesc slangExtDesc = {};
     std::vector<slang::CompilerOptionEntry> entries;
     slang::CompilerOptionEntry emitSpirvDirectlyEntry;
     emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
@@ -335,7 +335,7 @@ ComPtr<gfx::IDevice> createTestingDevice(
     // (And in general reduce the differences (and duplication) between
     // here and render-test-main.cpp)
 #ifdef _DEBUG
-    gfx::gfxEnableDebugLayer();
+    gfxEnableDebugLayer();
 #endif
 
     GFX_CHECK_CALL_ABORT(gfxCreateDevice(&deviceDesc, device.writeRef()));
@@ -365,10 +365,10 @@ ComPtr<slang::ISession> createTestingSession(
     slang::TargetDesc targetDesc = {};
     switch (deviceType)
     {
-    case gfx::DeviceType::D3D12:
+    case DeviceType::D3D12:
         targetDesc.format = SLANG_DXIL;
         break;
-    case gfx::DeviceType::Vulkan:
+    case DeviceType::Vulkan:
         targetDesc.format = SLANG_SPIRV;
         break;
     }
@@ -469,4 +469,4 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
     }
 }
 
-} // namespace gfx::testing
+} // namespace rhi::testing

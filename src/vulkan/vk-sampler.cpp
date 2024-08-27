@@ -1,7 +1,7 @@
 // vk-sampler.cpp
 #include "vk-sampler.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -26,4 +26,4 @@ Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

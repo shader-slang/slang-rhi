@@ -3,7 +3,7 @@
 
 #include <thread>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -54,4 +54,4 @@ SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
 }
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

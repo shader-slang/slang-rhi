@@ -8,7 +8,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 struct VulkanDescriptorSet
 {
@@ -43,4 +43,4 @@ public:
             m_api->vkDestroyDescriptorPool(m_api->m_device, pool, nullptr);
     }
 };
-} // namespace gfx
+} // namespace rhi

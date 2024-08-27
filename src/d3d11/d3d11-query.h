@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -28,4 +28,4 @@ namespace d3d11
     };
 
 } // namespace d3d11
-} // namespace gfx
+} // namespace rhi

@@ -1,6 +1,6 @@
 #include "blob.h"
 
-namespace gfx {
+namespace rhi {
 
 // ISlangCastable
 void* BlobBase::castAs(const SlangUUID& guid)
@@ -32,4 +32,4 @@ void* BlobBase::getObject(const Guid& guid)
     return nullptr;
 }
 
-} // namespace gfx
+} // namespace rhi

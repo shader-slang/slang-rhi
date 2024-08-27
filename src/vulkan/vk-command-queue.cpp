@@ -7,7 +7,7 @@
 
 #include "utils/static_vector.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -154,4 +154,4 @@ void CommandQueueImpl::executeCommandBuffers(
 }
 
 } // namespace vk
-} // namespace gfx
+} // namespace rhi

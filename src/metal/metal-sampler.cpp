@@ -2,7 +2,7 @@
 #include "metal-sampler.h"
 #include "metal-util.h"
 
-namespace gfx
+namespace rhi
 {
 
 using namespace Slang;
@@ -57,4 +57,4 @@ Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
 }
 
 } // namespace metal
-} // namespace gfx
+} // namespace rhi
