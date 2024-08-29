@@ -391,23 +391,23 @@ Result DeviceImpl::_createDevice(
         if ((deviceCheckFlags & DeviceCheckFlag::UseDebug) && g_isAftermathEnabled)
         {
             // Initialize Nsight Aftermath for this device.
-            // This combination of flags is not necessarily appropraite for real world usage 
-            const uint32_t aftermathFlags =  
+            // This combination of flags is not necessarily appropraite for real world usage
+            const uint32_t aftermathFlags =
                 GFSDK_Aftermath_FeatureFlags_EnableMarkers |                // Enable event marker tracking.
                 GFSDK_Aftermath_FeatureFlags_CallStackCapturing |           // Enable automatic call stack event markers.
                 GFSDK_Aftermath_FeatureFlags_EnableResourceTracking |       // Enable tracking of resources.
                 GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |      // Generate debug information for shaders.
                 GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;    // Enable additional runtime shader error reporting.
-            
+
             auto initResult = GFSDK_Aftermath_DX12_Initialize(
                 GFSDK_Aftermath_Version_API,
                 aftermathFlags,
                 device);
-            
+
             if ( initResult != GFSDK_Aftermath_Result_Success)
             {
                 SLANG_RHI_ASSERT_FAILURE("Unable to initialize aftermath");
-                // Unable to initialize 
+                // Unable to initialize
                 return SLANG_FAIL;
             }
         }
@@ -573,14 +573,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         {
             (D3D_FEATURE_LEVEL)D3D_FEATURE_LEVEL_12_2,
             D3D_FEATURE_LEVEL_12_1,
-            D3D_FEATURE_LEVEL_12_0,
-            D3D_FEATURE_LEVEL_11_1,
-            D3D_FEATURE_LEVEL_11_0,
-            D3D_FEATURE_LEVEL_10_1,
-            D3D_FEATURE_LEVEL_10_0,
-            D3D_FEATURE_LEVEL_9_3,
-            D3D_FEATURE_LEVEL_9_2,
-            D3D_FEATURE_LEVEL_9_1
+            D3D_FEATURE_LEVEL_12_0
         };
         for (auto featureLevel : featureLevels)
         {
@@ -1392,7 +1385,7 @@ Result DeviceImpl::createTextureView(
             {
                 rtvDesc.Texture1D.MipSlice = desc.subresourceRange.mipLevel;
             }
-            
+
             break;
         case IResource::Type::Texture2D:
             if (isMultiSample)
@@ -1676,7 +1669,7 @@ Result DeviceImpl::createBufferView(
     // Buffer view descriptors are created on demand.
     viewImpl->m_descriptor = {0};
     viewImpl->m_allocator = m_cpuViewHeap.get();
- 
+
     returnComPtr(outView, viewImpl);
     return SLANG_OK;
 }
