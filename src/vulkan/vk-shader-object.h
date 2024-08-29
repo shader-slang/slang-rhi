@@ -8,7 +8,6 @@
 #include "vk-helper-functions.h"
 
 #include <vector>
-#include <span>
 
 namespace rhi
 {
@@ -92,37 +91,37 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
+        span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeTexelBufferDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
+        span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeTextureSamplerDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        std::span<CombinedTextureSamplerSlot> slots);
+        span<CombinedTextureSamplerSlot> slots);
 
     static void writeAccelerationStructureDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
+        span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeTextureDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        std::span<RefPtr<ResourceViewInternalBase>> resourceViews);
+        span<RefPtr<ResourceViewInternalBase>> resourceViews);
 
     static void writeSamplerDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        std::span<RefPtr<SamplerStateImpl>> samplers);
+        span<RefPtr<SamplerStateImpl>> samplers);
 
     bool shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap);
 

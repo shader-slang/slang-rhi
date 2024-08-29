@@ -26,7 +26,7 @@ void DebugShaderObject::checkCompleteness()
     {
         if (layout->getBindingRangeBindingCount(i) != 0)
         {
-            if (!m_initializedBindingRanges.contains(i))
+            if (!m_initializedBindingRanges.count(i))
             {
                 auto var = layout->getBindingRangeLeafVariable(i);
                 RHI_VALIDATION_ERROR_FORMAT(

@@ -20,6 +20,7 @@
 #endif
 
 #include "utils/common.h"
+#include "utils/string.h"
 
 #include <string_view>
 
@@ -614,23 +615,23 @@ int D3DUtil::getShaderModelFromProfileName(const char* name)
 
     std::string_view str(name);
 
-    if (str.ends_with("5_1"))
+    if (ends_with(str, "5_1"))
         return D3D_SHADER_MODEL_5_1;
-    if (str.ends_with("6_0"))
+    if (ends_with(str, "6_0"))
         return D3D_SHADER_MODEL_6_0;
-    if (str.ends_with("6_1"))
+    if (ends_with(str, "6_1"))
         return D3D_SHADER_MODEL_6_1;
-    if (str.ends_with("6_2"))
+    if (ends_with(str, "6_2"))
         return D3D_SHADER_MODEL_6_2;
-    if (str.ends_with("6_3"))
+    if (ends_with(str, "6_3"))
         return D3D_SHADER_MODEL_6_3;
-    if (str.ends_with("6_4"))
+    if (ends_with(str, "6_4"))
         return D3D_SHADER_MODEL_6_4;
-    if (str.ends_with("6_5"))
+    if (ends_with(str, "6_5"))
         return D3D_SHADER_MODEL_6_5;
-    if (str.ends_with("6_6"))
+    if (ends_with(str, "6_6"))
         return D3D_SHADER_MODEL_6_6;
-    if (str.ends_with("6_7"))
+    if (ends_with(str, "6_7"))
         return 0x67;
     return 0;
 }

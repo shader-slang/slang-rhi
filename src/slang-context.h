@@ -5,7 +5,6 @@
 #include "utils/common.h"
 
 #include <vector>
-#include <span>
 
 namespace rhi
 {
@@ -19,7 +18,7 @@ namespace rhi
             void** extendedDescs,
             SlangCompileTarget compileTarget,
             const char* defaultProfileName,
-            std::span<const slang::PreprocessorMacroDesc> additionalMacros)
+            span<const slang::PreprocessorMacroDesc> additionalMacros)
         {
             if (desc.slangGlobalSession)
             {

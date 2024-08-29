@@ -7,7 +7,6 @@
 #include "utils/common.h"
 
 #include <vector>
-#include <span>
 
 // Vulkan has a different coordinate system to ogl
 // http://anki3d.org/vulkan-coordinate-system/
@@ -147,7 +146,7 @@ struct RootBindingContext
     std::vector<VkDescriptorSet>* descriptorSets;
 
     /// Information about all the push-constant ranges that should be bound
-    std::span<const VkPushConstantRange> pushConstantRanges;
+    span<const VkPushConstantRange> pushConstantRanges;
 };
 
 Size calcRowSize(Format format, int width);

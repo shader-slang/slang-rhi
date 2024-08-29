@@ -9,6 +9,7 @@
 #include "com-object.h"
 #include "platform.h"
 #include "blob.h"
+#include "span.h"
 
 namespace rhi {
 

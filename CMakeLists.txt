@@ -134,7 +134,7 @@ target_compile_definitions(slang-rhi
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
-target_compile_features(slang-rhi PRIVATE cxx_std_20)
+target_compile_features(slang-rhi PRIVATE cxx_std_17)
 target_link_libraries(slang-rhi PRIVATE slang)
 
 if(SLANG_RHI_BUILD_TESTS)
@@ -154,7 +154,7 @@ if(SLANG_RHI_BUILD_TESTS)
             $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
             $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
     )
-    target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
+    target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests)
     target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi)
 endif()

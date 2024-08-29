@@ -563,7 +563,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 return false;
             if(extension)
             {
-                if(!extensionNames.contains(extension))
+                if(!extensionNames.count(extension))
                     return false;
                 deviceExtensions.push_back(extension);
             }
@@ -622,8 +622,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         );
 
         if (extendedFeatures.accelerationStructureFeatures.accelerationStructure
-            && extensionNames.contains(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)
-            && extensionNames.contains(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME))
+            && extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)
+            && extensionNames.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME))
         {
             extendedFeatures.accelerationStructureFeatures.pNext = (void*)deviceCreateInfo.pNext;
             deviceCreateInfo.pNext = &extendedFeatures.accelerationStructureFeatures;
@@ -775,78 +775,78 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             m_features.push_back("wave-ops");
         }
 
-        if (extensionNames.contains("VK_KHR_external_memory"))
+        if (extensionNames.count("VK_KHR_external_memory"))
         {
             deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
 #if SLANG_WINDOWS_FAMILY
-            if (extensionNames.contains("VK_KHR_external_memory_win32"))
+            if (extensionNames.count("VK_KHR_external_memory_win32"))
             {
                 deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
             }
 #else
-            if (extensionNames.contains("VK_KHR_external_memory_fd"))
+            if (extensionNames.count("VK_KHR_external_memory_fd"))
             {
                 deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
             }
 #endif
             m_features.push_back("external-memory");
         }
-        if (extensionNames.contains(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME))
+        if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
 #if SLANG_WINDOWS_FAMILY
-            if (extensionNames.contains(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME))
+            if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME))
             {
                 deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
             }
 #else
-            if (extensionNames.contains(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME))
+            if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME))
             {
                 deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
             }
 #endif
             m_features.push_back("external-semaphore");
         }
-        if (extensionNames.contains(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
+        if (extensionNames.count(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
             m_features.push_back("conservative-rasterization-3");
             m_features.push_back("conservative-rasterization-2");
             m_features.push_back("conservative-rasterization-1");
         }
-        if (extensionNames.contains(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
+        if (extensionNames.count(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-            if (extensionNames.contains(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
+            if (extensionNames.count(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
             {
                 deviceExtensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
             }
         }
-        if (extensionNames.contains(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
+        if (extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
         }
-        if (extensionNames.contains(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
+        if (extensionNames.count(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
             m_features.push_back("nvx-binary-import");
         }
-        if (extensionNames.contains(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME))
+        if (extensionNames.count(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
             m_features.push_back("nvx-image-view-handle");
         }
-        if (extensionNames.contains(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME))
+        if (extensionNames.count(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
             m_features.push_back("push-descriptor");
         }
-        if (extensionNames.contains(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME))
+        if (extensionNames.count(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
             m_features.push_back("barycentrics");
         }
-        if (extensionNames.contains(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
+        if (extensionNames.count(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
             m_features.push_back("shader-subgroup-partitioned");
@@ -2181,7 +2181,7 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
         allowedStates.add(ResourceState::DepthWrite);
     }
     // Present
-    if (presentableFormats.contains(vkFormat))
+    if (presentableFormats.count(vkFormat))
         allowedStates.add(ResourceState::Present);
     // IndirectArgument
     allowedStates.add(ResourceState::IndirectArgument);

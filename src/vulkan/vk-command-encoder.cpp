@@ -125,7 +125,7 @@ Result PipelineCommandEncoder::bindRootShaderObjectImpl(RootShaderObjectImpl* ro
     context.pipelineLayout = specializedLayout->m_pipelineLayout;
     context.device = m_device;
     context.descriptorSetAllocator = &m_commandBuffer->m_transientHeap->m_descSetAllocator;
-    context.pushConstantRanges = std::span(specializedLayout->getAllPushConstantRanges());
+    context.pushConstantRanges = span(specializedLayout->getAllPushConstantRanges());
 
     // The context includes storage for the descriptor sets we will bind,
     // and the number of sets we need to make space for is determined

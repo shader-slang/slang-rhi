@@ -357,7 +357,7 @@ void ShaderObjectImpl::writePlainBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
+    span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
@@ -396,7 +396,7 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
+    span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
@@ -430,7 +430,7 @@ void ShaderObjectImpl::writeTextureSamplerDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    std::span<CombinedTextureSamplerSlot> slots)
+    span<CombinedTextureSamplerSlot> slots)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
@@ -471,7 +471,7 @@ void ShaderObjectImpl::writeAccelerationStructureDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
+    span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
@@ -509,7 +509,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    std::span<RefPtr<ResourceViewInternalBase>> resourceViews)
+    span<RefPtr<ResourceViewInternalBase>> resourceViews)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
@@ -546,7 +546,7 @@ void ShaderObjectImpl::writeSamplerDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    std::span<RefPtr<SamplerStateImpl>> samplers)
+    span<RefPtr<SamplerStateImpl>> samplers)
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
@@ -657,7 +657,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                std::span(m_resourceViews.data() + baseIndex, count));
+                span(m_resourceViews.data() + baseIndex, count));
             break;
         case slang::BindingType::MutableTexture:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -666,7 +666,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                std::span(m_resourceViews.data() + baseIndex, count));
+                span(m_resourceViews.data() + baseIndex, count));
             break;
         case slang::BindingType::CombinedTextureSampler:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -675,7 +675,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                std::span(m_combinedTextureSamplers.data() + baseIndex, count));
+                span(m_combinedTextureSamplers.data() + baseIndex, count));
             break;
 
         case slang::BindingType::Sampler:
@@ -685,7 +685,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_SAMPLER,
-                std::span(m_samplers.data() + baseIndex, count));
+                span(m_samplers.data() + baseIndex, count));
             break;
 
         case slang::BindingType::RawBuffer:
@@ -696,7 +696,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                std::span(m_resourceViews.data() + baseIndex, count));
+                span(m_resourceViews.data() + baseIndex, count));
             break;
 
         case slang::BindingType::TypedBuffer:
@@ -706,7 +706,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-                std::span(m_resourceViews.data() + baseIndex, count));
+                span(m_resourceViews.data() + baseIndex, count));
             break;
         case slang::BindingType::MutableTypedBuffer:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -715,7 +715,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-                std::span(m_resourceViews.data() + baseIndex, count));
+                span(m_resourceViews.data() + baseIndex, count));
             break;
         case slang::BindingType::RayTracingAccelerationStructure:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
@@ -724,7 +724,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-                std::span(m_resourceViews.data() + baseIndex, count));
+                span(m_resourceViews.data() + baseIndex, count));
             break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:

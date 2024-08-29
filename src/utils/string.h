@@ -19,4 +19,11 @@ namespace rhi {
         return str;
     }
 
+    inline bool ends_with(std::string_view str, std::string_view suffix) {
+        if (str.size() < suffix.size()) {
+            return false;
+        }
+        return str.substr(str.size() - suffix.size()) == suffix;
+    }
+
 } // namespace rhi
