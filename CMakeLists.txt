@@ -4,6 +4,11 @@ project(slang-rhi)
 
 include(CMakeDependentOption)
 
+# Check if this project is the master cmake project (i.e. not included via add_subdirectory).
+set(SLANG_RHI_MASTER_PROJECT OFF)
+if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+  set(SLANG_RHI_MASTER_PROJECT ON)
+endif()
 
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ON)
@@ -31,8 +36,8 @@ if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
 
-set(SLANG_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/../slang/include)
-set(SLANG_BINARY_DIR ${CMAKE_SOURCE_DIR}/../slang/build/Debug)
+set(SLANG_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/../slang/include CACHE STRING "Slang include directory")
+set(SLANG_BINARY_DIR ${CMAKE_SOURCE_DIR}/../slang/build/Debug CACHE STRING "Slang binary directory")
 
 if(CMAKE_CONFIGURATION_TYPES)
     set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>)
@@ -40,31 +45,49 @@ else()
     set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
-add_library(slang SHARED IMPORTED GLOBAL)
-if(WIN32)
-    set_target_properties(slang PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${SLANG_INCLUDE_DIR}
-        IMPORTED_IMPLIB ${SLANG_BINARY_DIR}/lib/slang.lib
-        IMPORTED_LOCATION ${SLANG_BINARY_DIR}/bin/slang.dll
-    )
-elseif(APPLE)
-    set_target_properties(slang PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${SLANG_INCLUDE_DIR}
-        IMPORTED_LOCATION ${SLANG_BINARY_DIR}/lib/libslang.dylib
-    )
-endif()
-# sgl_copy_binary(${SLANG_DIR}/bin/slang.dll .)
-# sgl_copy_binary(${SLANG_DIR}/bin/slang-glslang.dll .)
-# sgl_copy_binary(${SLANG_DIR}/bin/slang-llvm.dll .)
-# sgl_copy_binary(${SLANG_DIR}/bin/slang-rt.dll .)
-
 if(SLANG_RHI_BUILD_SHARED)
     add_library(slang-rhi SHARED)
 else()
     add_library(slang-rhi STATIC)
 endif()
 
-file(GLOB RHI_SOURCES 
+if(SLANG_RHI_MASTER_PROJECT)
+    add_library(slang SHARED IMPORTED GLOBAL)
+    if(WIN32)
+        set_target_properties(slang PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_INCLUDE_DIR}
+            IMPORTED_IMPLIB ${SLANG_BINARY_DIR}/lib/slang.lib
+            IMPORTED_LOCATION ${SLANG_BINARY_DIR}/bin/slang.dll
+        )
+    elseif(APPLE)
+        set_target_properties(slang PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_INCLUDE_DIR}
+            IMPORTED_LOCATION ${SLANG_BINARY_DIR}/lib/libslang.dylib
+        )
+    endif()
+
+    if(WIN32)
+        add_custom_command(
+            OUTPUT ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll
+            DEPENDS ${SLANG_BINARY_DIR}/bin/slang.dll
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_BINARY_DIR}/bin/slang.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll
+            COMMENT "Copying slang.dll"
+        )
+        add_custom_target(slang_binary_files ALL DEPENDS ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll)
+        add_dependencies(slang-rhi slang_binary_files)
+    endif()
+
+    target_link_libraries(slang-rhi PRIVATE slang)
+
+    # sgl_copy_binary(${SLANG_DIR}/bin/slang.dll .)
+    # sgl_copy_binary(${SLANG_DIR}/bin/slang-glslang.dll .)
+    # sgl_copy_binary(${SLANG_DIR}/bin/slang-llvm.dll .)
+    # sgl_copy_binary(${SLANG_DIR}/bin/slang-rt.dll .)
+else()
+    target_include_directories(slang-rhi PUBLIC ${SLANG_INCLUDE_DIR})
+endif()
+
+file(GLOB RHI_SOURCES
     src/*.cpp
     src/cpu/*.cpp
     src/debug-layer/*.cpp
@@ -92,34 +115,22 @@ if(SLANG_RHI_ENABLE_VULKAN)
     file(GLOB VULKAN_SOURCES src/vulkan/*.cpp)
     target_sources(slang-rhi PRIVATE ${VULKAN_SOURCES})
 
-    add_subdirectory(external/vulkan-headers)
-    target_link_libraries(slang-rhi PRIVATE Vulkan::Headers)
+    add_library(slang-rhi-vulkan-headers INTERFACE)
+    target_include_directories(slang-rhi-vulkan-headers INTERFACE external/vulkan-headers/include)
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()
 if(SLANG_RHI_ENABLE_METAL)
     file(GLOB METAL_SOURCES src/metal/*.cpp src/metal/*.mm)
     target_sources(slang-rhi PRIVATE ${METAL_SOURCES})
 
     add_library(metal-cpp INTERFACE)
-    target_include_directories(metal-cpp INTERFACE external/metal-cpp)
-    target_link_libraries(metal-cpp INTERFACE "-framework Foundation" "-framework Metal" "-framework QuartzCore")
-    target_link_libraries(slang-rhi PRIVATE metal-cpp)
+    target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
+    target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Foundation" "-framework Metal" "-framework QuartzCore")
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
 endif()
 if(SLANG_RHI_ENABLE_CUDA)
     file(GLOB CUDA_SOURCES src/cuda/*.cpp)
     target_sources(slang-rhi PRIVATE ${CUDA_SOURCES})
-endif()
-
-if(WIN32)
-    target_sources(slang-rhi PRIVATE ${D3D12_SOURCES})
-    target_sources(slang-rhi PRIVATE ${VULKAN_SOURCES})
-    add_custom_command(
-        OUTPUT ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll
-        DEPENDS ${SLANG_BINARY_DIR}/bin/slang.dll
-        COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_BINARY_DIR}/bin/slang.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll
-        COMMENT "Copying slang.dll"
-    )
-    add_custom_target(slang_binary_files ALL DEPENDS ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll)
-    add_dependencies(slang-rhi slang_binary_files)    
 endif()
 
 target_include_directories(slang-rhi PUBLIC include)
@@ -135,7 +146,6 @@ target_compile_definitions(slang-rhi
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_17)
-target_link_libraries(slang-rhi PRIVATE slang)
 
 if(SLANG_RHI_BUILD_TESTS)
     add_library(doctest INTERFACE)
@@ -143,7 +153,7 @@ if(SLANG_RHI_BUILD_TESTS)
 
     add_library(stb INTERFACE)
     target_include_directories(stb INTERFACE external/stb)
-    
+
     file(GLOB TEST_SOURCES
         tests/*.cpp
     )
