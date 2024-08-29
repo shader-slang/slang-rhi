@@ -392,7 +392,7 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     stable_vector<std::wstring> stringPool;
     auto getWStr = [&](const char* name)
     {
-        stringPool.push_back(to_wstring(name));
+        stringPool.push_back(string::to_wstring(name));
         return stringPool.back().data();
     };
 

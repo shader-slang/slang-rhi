@@ -163,10 +163,10 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
 #if SLANG_RHI_ENABLE_AFTERMATH
             if (SLANG_SUCCEEDED(res))
             {
-                if (deviceCheckFlags & DeviceCheckFlag::UseDebug) 
+                if (deviceCheckFlags & DeviceCheckFlag::UseDebug)
                 {
                     // Initialize Nsight Aftermath for this device.
-                    // This combination of flags is not necessarily appropriate for real world usage 
+                    // This combination of flags is not necessarily appropriate for real world usage
                     const uint32_t aftermathFlags =
                         GFSDK_Aftermath_FeatureFlags_EnableMarkers |             // Enable event marker tracking.
                         GFSDK_Aftermath_FeatureFlags_CallStackCapturing |        // Enable automatic call stack event markers.
@@ -211,7 +211,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
             dxgiDevice->GetAdapter(dxgiAdapter.writeRef());
             DXGI_ADAPTER_DESC adapterDesc;
             dxgiAdapter->GetDesc(&adapterDesc);
-            m_adapterName = from_wstring(adapterDesc.Description);
+            m_adapterName = string::from_wstring(adapterDesc.Description);
             m_info.adapterName = m_adapterName.data();
         }
     }

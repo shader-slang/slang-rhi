@@ -333,7 +333,7 @@ void initSrvDesc(
                     ? desc.DepthOrArraySize
                     : subresourceRange.layerCount;
             }
-            
+
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
             descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
@@ -643,7 +643,7 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
         DXGI_ADAPTER_DESC desc;
         dxgiAdapter->GetDesc(&desc);
         AdapterInfo info = {};
-        auto name = from_wstring(desc.Description);
+        auto name = string::from_wstring(desc.Description);
         memcpy(info.name, name.data(), std::min(name.length(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;

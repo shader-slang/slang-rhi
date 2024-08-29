@@ -615,23 +615,23 @@ int D3DUtil::getShaderModelFromProfileName(const char* name)
 
     std::string_view str(name);
 
-    if (ends_with(str, "5_1"))
+    if (string::ends_with(str, "5_1"))
         return D3D_SHADER_MODEL_5_1;
-    if (ends_with(str, "6_0"))
+    if (string::ends_with(str, "6_0"))
         return D3D_SHADER_MODEL_6_0;
-    if (ends_with(str, "6_1"))
+    if (string::ends_with(str, "6_1"))
         return D3D_SHADER_MODEL_6_1;
-    if (ends_with(str, "6_2"))
+    if (string::ends_with(str, "6_2"))
         return D3D_SHADER_MODEL_6_2;
-    if (ends_with(str, "6_3"))
+    if (string::ends_with(str, "6_3"))
         return D3D_SHADER_MODEL_6_3;
-    if (ends_with(str, "6_4"))
+    if (string::ends_with(str, "6_4"))
         return D3D_SHADER_MODEL_6_4;
-    if (ends_with(str, "6_5"))
+    if (string::ends_with(str, "6_5"))
         return D3D_SHADER_MODEL_6_5;
-    if (ends_with(str, "6_6"))
+    if (string::ends_with(str, "6_6"))
         return D3D_SHADER_MODEL_6_6;
-    if (ends_with(str, "6_7"))
+    if (string::ends_with(str, "6_7"))
         return 0x67;
     return 0;
 }

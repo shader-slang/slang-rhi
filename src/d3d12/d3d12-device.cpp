@@ -865,7 +865,7 @@ Result DeviceImpl::initialize(const Desc& desc)
     {
         DXGI_ADAPTER_DESC adapterDesc;
         m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
-        m_adapterName = from_wstring(adapterDesc.Description);
+        m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
     }
 

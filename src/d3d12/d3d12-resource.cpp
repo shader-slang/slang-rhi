@@ -80,7 +80,7 @@ void D3D12ResourceBase::transition(
 {
     if (resource)
     {
-        resource->SetName(to_wstring(name).data());
+        resource->SetName(string::to_wstring(name).data());
     }
 }
 

@@ -60,7 +60,7 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     {
         if (!name.empty())
         {
-            void* shaderId = stateObjectProperties->GetShaderIdentifier(to_wstring(name).data());
+            void* shaderId = stateObjectProperties->GetShaderIdentifier(string::to_wstring(name).data());
             memcpy(dest, shaderId, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         }
         if (overwrite.size)

@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-namespace rhi {
+namespace rhi::string {
 
     inline std::wstring to_wstring(std::string_view str) {
         std::wstring wstr;
@@ -26,4 +26,8 @@ namespace rhi {
         return str.substr(str.size() - suffix.size()) == suffix;
     }
 
-} // namespace rhi
+    inline std::string from_cstr(const char* str) {
+        return str ? str : "";
+    }
+
+} // namespace string::rhi
