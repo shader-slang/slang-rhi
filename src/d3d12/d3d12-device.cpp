@@ -189,7 +189,7 @@ Result DeviceImpl::captureTextureToSurface(
 
     const D3D12_RESOURCE_STATES initialState = D3DUtil::getResourceState(state);
 
-    const ITextureResource::Desc& desc = *resourceImpl->getDesc();
+    const ITextureResource::Desc& rhiDesc = *resourceImpl->getDesc();
     const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
 
     // Don't bother supporting MSAA for right now
@@ -200,7 +200,7 @@ Result DeviceImpl::captureTextureToSurface(
     }
 
     FormatInfo formatInfo;
-    gfxGetFormatInfo(desc.format, &formatInfo);
+    gfxGetFormatInfo(rhiDesc.format, &formatInfo);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = int(desc.Width) * bytesPerPixel;
     static const Size align = 256; // D3D requires minimum 256 byte alignment for texture data.
@@ -2026,8 +2026,8 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
     if (!enableExperimentalFeaturesFunc)
     {
         getDebugCallback()->handleMessage(
-            :DebugMessageType::Warning,
-            :DebugMessageSource::Layer,
+            DebugMessageType::Warning,
+            DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' function "
             "not found.");
         return;
@@ -2035,8 +2035,8 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
     if (!SLANG_SUCCEEDED(enableExperimentalFeaturesFunc(desc.numFeatures, (IID*)desc.featureIIDs, desc.configurationStructs, desc.configurationStructSizes)))
     {
         getDebugCallback()->handleMessage(
-            :DebugMessageType::Warning,
-            :DebugMessageSource::Layer,
+            DebugMessageType::Warning,
+            DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' call "
             "failed.");
         return;
