@@ -454,7 +454,7 @@ void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     if (!device->hasFeature("ray-tracing"))
     {
-        // TODO_GFX better way to skip test
+        // TODO_TESTING better way to skip test
         return;
     }
     T test;

@@ -5,7 +5,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest.h>
 
-// TODO_GFX
+// TODO_TESTING
 // SLANG_RHI_EXPORT_AGILITY_SDK
 
 namespace rhi::testing {

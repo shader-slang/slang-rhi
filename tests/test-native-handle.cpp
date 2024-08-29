@@ -10,7 +10,7 @@ using namespace rhi::testing;
 void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_GFX better way to skip test
+    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
         return;
 
@@ -57,7 +57,7 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_GFX better way to skip test
+    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
         return;
 
@@ -97,7 +97,7 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_GFX better way to skip test
+    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
         return;
 
@@ -127,7 +127,7 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
 void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_GFX better way to skip test
+    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
         return;
 

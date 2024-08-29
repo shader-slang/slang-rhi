@@ -70,14 +70,14 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-link-time-constant", "computeMain", slangReflection, 
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-link-time-constant", "computeMain", slangReflection,
         R"(
             export static const bool turnOnFeature = true;
             export static const float constValue = 2.0;
             export static const uint numthread = 2;
             export static const int arraySize = 4;
         )"));
-    
+
     SlangUInt threadGroupSizes[3];
     slangReflection->findEntryPointByName("computeMain")->getComputeThreadGroupSize(3, threadGroupSizes);
     CHECK_EQ(threadGroupSizes[0], 2);
@@ -146,7 +146,7 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
         makeArray<float>(2.0));
 }
 
-// TODO_GFX crashes slang
+// TODO_TESTING crashes slang
 // TEST_CASE("link-time-constant")
 // {
 //     runGpuTests(testLinkTimeConstant, {DeviceType::D3D12, DeviceType::Vulkan});

@@ -1,4 +1,4 @@
-#if 0 // TODO_GFX use filesystem
+#if 0 // TODO_TESTING use filesystem
 #include "testing.h"
 
 using namespace rhi;
