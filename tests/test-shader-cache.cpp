@@ -71,7 +71,7 @@ public:
 
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
     {
-        if (uuid == SlangUUID SLANG_UUID_IPersistentShaderCache) {
+        if (uuid == IPersistentShaderCache::getTypeGuid()) {
             *outObject = static_cast<IPersistentShaderCache*>(this);
             return SLANG_OK;
         }
@@ -104,7 +104,7 @@ struct ShaderCacheTest
     GpuTestContext* ctx;
     DeviceType deviceType;
     std::filesystem::path tempDirectory;
-    
+
     ComPtr<IDevice> device;
     ComPtr<IPipelineState> pipelineState;
     ComPtr<IBufferResource> bufferResource;
@@ -121,7 +121,7 @@ struct ShaderCacheTest
             var input = buffer[sv_dispatchThreadID.x];
             buffer[sv_dispatchThreadID.x] = input + 1.0f;
         }
-        )");    
+        )");
 
     std::string computeShaderB = std::string(
         R"(
@@ -173,7 +173,7 @@ struct ShaderCacheTest
 
         D3D12DeviceExtendedDesc extDesc = {};
         extDesc.rootParameterShaderAttributeName = "root";
-        
+
         SlangSessionExtendedDesc slangExtDesc = {};
         std::vector<slang::CompilerOptionEntry> entries;
         slang::CompilerOptionEntry emitSpirvDirectlyEntry;
@@ -280,7 +280,7 @@ struct ShaderCacheTest
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
-    }        
+    }
 
     bool checkOutput(const std::vector<float>& expectedOutput)
     {
@@ -408,7 +408,7 @@ struct ShaderCacheTestSourceString : ShaderCacheTest
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 3);
     }
-};    
+};
 
 // Test one shader file on disk with multiple entry points.
 struct ShaderCacheTestEntryPoint : ShaderCacheTest
@@ -459,7 +459,7 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
     std::string importFile = std::string(
         R"(
         import shader_cache_tmp_imported;
-        
+
         [shader("compute")]
         [numthreads(4, 1, 1)]
         void main(
@@ -543,7 +543,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         pipelineDesc.program = shaderProgram.get();
         REQUIRE_CALL(
             device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
-    }        
+    }
 
     void dispatchComputePipeline(const char* transformerTypeName)
     {
@@ -587,7 +587,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         dispatchComputePipeline(transformerTypeName);
         CHECK(checkOutput(expectedOutput));
         freeComputeResources();
-    }        
+    }
 
     void runTests()
     {
@@ -919,7 +919,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         createGraphicsPipeline();
         dispatchGraphicsPipeline();
         freeGraphicsResources();
-    }        
+    }
 
     void runTests()
     {
@@ -947,7 +947,7 @@ void runTest(GpuTestContext* ctx, DeviceType deviceType)
     test.run(ctx, deviceType, tempDirectory);
 }
 
-// TODO 
+// TODO
 // These tests are super expensive because they re-create devices.
 // This is needed because slang doesn't support reloading modules at this time.
 

@@ -140,7 +140,7 @@ void DebugCommandBuffer::invalidateDescriptorHeapBinding()
 {
     SLANG_RHI_API_FUNC;
     ComPtr<ICommandBufferD3D12> cmdBuf;
-    if (SLANG_FAILED(baseObject->queryInterface(SlangUUID SLANG_UUID_ICommandBufferD3D12, (void**)cmdBuf.writeRef())))
+    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
     {
         RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface.");
         return;
@@ -152,7 +152,7 @@ void DebugCommandBuffer::ensureInternalDescriptorHeapsBound()
 {
     SLANG_RHI_API_FUNC;
     ComPtr<ICommandBufferD3D12> cmdBuf;
-    if (SLANG_FAILED(baseObject->queryInterface(SlangUUID SLANG_UUID_ICommandBufferD3D12, (void**)cmdBuf.writeRef())))
+    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
     {
         RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface.");
         return;

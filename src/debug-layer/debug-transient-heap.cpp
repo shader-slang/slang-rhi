@@ -49,7 +49,7 @@ Result DebugTransientResourceHeap::createCommandBuffer(ICommandBuffer** outComma
     auto result = baseObject->createCommandBuffer(outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    outObject->queryInterface(SlangUUID SLANG_UUID_ICommandBuffer, (void**)outCommandBuffer);
+    outObject->queryInterface(ICommandBuffer::getTypeGuid(), (void**)outCommandBuffer);
     return result;
 }
 

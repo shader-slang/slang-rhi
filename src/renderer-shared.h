@@ -50,7 +50,6 @@ struct GfxGUID
     static const Slang::Guid IID_IFence;
     static const Slang::Guid IID_IShaderTable;
     static const Slang::Guid IID_IPipelineCreationAPIDispatcher;
-    static const Slang::Guid IID_IVulkanPipelineCreationAPIDispatcher;
     static const Slang::Guid IID_ITransientResourceHeapD3D12;
 };
 
@@ -70,7 +69,7 @@ bool isGfxDebugLayerEnabled();
 // If we know there is a cyclic reference between an API object and the device/pool that creates it,
 // we can break the cycle when there is no longer any public references that come from `ComPtr`s to
 // the API object, by turning the reference to the device object from the API object to a weak
-// reference. 
+// reference.
 // The following example illustrate how this mechanism works:
 // Suppose we have
 // ```
@@ -1079,7 +1078,7 @@ struct ComponentKey
                 return false;
         }
         return true;
-    }    
+    }
 };
 
 struct PipelineKey

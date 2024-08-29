@@ -16,40 +16,39 @@ namespace rhi
 {
 
 const Slang::Guid GfxGUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
-const Slang::Guid GfxGUID::IID_IShaderProgram = SLANG_UUID_IShaderProgram;
-const Slang::Guid GfxGUID::IID_IInputLayout = SLANG_UUID_IInputLayout;
-const Slang::Guid GfxGUID::IID_IPipelineState = SLANG_UUID_IPipelineState;
-const Slang::Guid GfxGUID::IID_ITransientResourceHeap = SLANG_UUID_ITransientResourceHeap;
-const Slang::Guid GfxGUID::IID_IResourceView = SLANG_UUID_IResourceView;
-const Slang::Guid GfxGUID::IID_IFramebuffer = SLANG_UUID_IFrameBuffer;
-const Slang::Guid GfxGUID::IID_IFramebufferLayout = SLANG_UUID_IFramebufferLayout;
+const Slang::Guid GfxGUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IInputLayout = IInputLayout::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IPipelineState = IPipelineState::getTypeGuid();
+const Slang::Guid GfxGUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IResourceView = IResourceView::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_ISwapchain = SLANG_UUID_ISwapchain;
-const Slang::Guid GfxGUID::IID_ISamplerState = SLANG_UUID_ISamplerState;
-const Slang::Guid GfxGUID::IID_IResource = SLANG_UUID_IResource;
-const Slang::Guid GfxGUID::IID_IBufferResource = SLANG_UUID_IBufferResource;
-const Slang::Guid GfxGUID::IID_ITextureResource = SLANG_UUID_ITextureResource;
-const Slang::Guid GfxGUID::IID_IDevice = SLANG_UUID_IDevice;
-const Slang::Guid GfxGUID::IID_IPersistentShaderCache = SLANG_UUID_IPersistentShaderCache;
-const Slang::Guid GfxGUID::IID_IShaderObject = SLANG_UUID_IShaderObject;
+const Slang::Guid GfxGUID::IID_ISwapchain = ISwapchain::getTypeGuid();
+const Slang::Guid GfxGUID::IID_ISamplerState = ISamplerState::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IResource = IResource::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IBufferResource = IBufferResource::getTypeGuid();
+const Slang::Guid GfxGUID::IID_ITextureResource = ITextureResource::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IDevice = IDevice::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_IRenderPassLayout = SLANG_UUID_IRenderPassLayout;
+const Slang::Guid GfxGUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
 const Slang::Guid GfxGUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
 const Slang::Guid GfxGUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
 const Slang::Guid GfxGUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
 const Slang::Guid GfxGUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_ICommandBuffer = SLANG_UUID_ICommandBuffer;
-const Slang::Guid GfxGUID::IID_ICommandBufferD3D12 = SLANG_UUID_ICommandBufferD3D12;
+const Slang::Guid GfxGUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
+const Slang::Guid GfxGUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_ICommandQueue = SLANG_UUID_ICommandQueue;
-const Slang::Guid GfxGUID::IID_IQueryPool = SLANG_UUID_IQueryPool;
-const Slang::Guid GfxGUID::IID_IAccelerationStructure = SLANG_UUID_IAccelerationStructure;
-const Slang::Guid GfxGUID::IID_IFence = SLANG_UUID_IFence;
-const Slang::Guid GfxGUID::IID_IShaderTable = SLANG_UUID_IShaderTable;
-const Slang::Guid GfxGUID::IID_IPipelineCreationAPIDispatcher = SLANG_UUID_IPipelineCreationAPIDispatcher;
-const Slang::Guid GfxGUID::IID_IVulkanPipelineCreationAPIDispatcher = SLANG_UUID_IVulkanPipelineCreationAPIDispatcher;
-const Slang::Guid GfxGUID::IID_ITransientResourceHeapD3D12 = SLANG_UUID_ITransientResourceHeapD3D12;
+const Slang::Guid GfxGUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IQueryPool = IQueryPool::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IAccelerationStructure = IAccelerationStructure::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IFence = IFence::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IShaderTable = IShaderTable::getTypeGuid();
+const Slang::Guid GfxGUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
+const Slang::Guid GfxGUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
 
 StageType translateStage(SlangStage slangStage)
@@ -384,18 +383,9 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
 
     if (desc.apiCommandDispatcher)
     {
-        if (desc.deviceType == DeviceType::Vulkan)
-        {
-            desc.apiCommandDispatcher->queryInterface(
-                GfxGUID::IID_IVulkanPipelineCreationAPIDispatcher,
-                (void**)m_pipelineCreationAPIDispatcher.writeRef());
-        }
-        else
-        {
-            desc.apiCommandDispatcher->queryInterface(
-                GfxGUID::IID_IPipelineCreationAPIDispatcher,
-                (void**)m_pipelineCreationAPIDispatcher.writeRef());
-        }
+        desc.apiCommandDispatcher->queryInterface(
+            GfxGUID::IID_IPipelineCreationAPIDispatcher,
+            (void**)m_pipelineCreationAPIDispatcher.writeRef());
     }
     return SLANG_OK;
 }
@@ -1072,7 +1062,7 @@ Result RendererBase::maybeSpecializePipeline(
     RefPtr<PipelineStateBase>& outNewPipeline)
 {
     outNewPipeline = static_cast<PipelineStateBase*>(currentPipeline);
-    
+
     auto pipelineType = currentPipeline->desc.type;
     if (currentPipeline->unspecializedPipelineState)
         currentPipeline = currentPipeline->unspecializedPipelineState;

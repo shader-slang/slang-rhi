@@ -142,6 +142,7 @@ enum class ShaderModuleSourceType
 
 class IShaderProgram: public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x19cabd0d, 0xf3e3, 0x4b3d, { 0x93, 0x43, 0xea, 0xcc, 0x00, 0x1e, 0xc5, 0xf2 });
 public:
     // Defines how linking should be performed for a shader program.
     enum class LinkingStyle
@@ -189,10 +190,6 @@ public:
 
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
-#define SLANG_UUID_IShaderProgram                                                       \
-    {                                                                                  \
-        0x9d32d0ad, 0x915c, 0x4ffd, { 0x91, 0xe2, 0x50, 0x85, 0x54, 0xa0, 0x4a, 0x76 } \
-    }
 
 // TODO: Confirm with Yong that we really want this naming convention
 // TODO: Rename to what?
@@ -563,6 +560,7 @@ struct InteropHandle
 // Declare opaque type
 class IInputLayout : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x8957d16c, 0xdbc6, 0x4bb4, { 0xb9, 0xa4, 0x8e, 0x22, 0xa1, 0xe8, 0xcc, 0x72 });
 public:
     struct Desc
     {
@@ -572,13 +570,10 @@ public:
         GfxCount vertexStreamCount = 0;
     };
 };
-#define SLANG_UUID_IInputLayout                                                         \
-    {                                                                                  \
-        0x45223711, 0xa84b, 0x455c, { 0xbe, 0xfa, 0x49, 0x37, 0x42, 0x1e, 0x8e, 0x2e } \
-    }
 
 class IResource: public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0xa8dd4704, 0xf000, 0x4278, { 0x83, 0x4d, 0x29, 0x4c, 0xef, 0xfe, 0x95, 0x93 });
 public:
         /// The type of resource.
         /// NOTE! The order needs to be such that all texture types are at or after Texture1D (otherwise isTexture won't work correctly)
@@ -612,10 +607,6 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() = 0;
 
 };
-#define SLANG_UUID_IResource                                                           \
-    {                                                                                  \
-        0xa0e39f34, 0x8398, 0x4522, { 0x95, 0xc2, 0xeb, 0xc0, 0xf9, 0x84, 0xef, 0x3f } \
-    }
 
 struct MemoryRange
 {
@@ -626,6 +617,7 @@ struct MemoryRange
 
 class IBufferResource: public IResource
 {
+    SLANG_COM_INTERFACE(0xf3eeb08f, 0xa0cc, 0x4eea, { 0x93, 0xfd, 0x2a, 0xfe, 0x95, 0x1c, 0x7f, 0x63 });
 public:
     struct Desc: public DescBase
     {
@@ -639,10 +631,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) = 0;
 };
-#define SLANG_UUID_IBufferResource                                                     \
-    {                                                                                  \
-        0x1b274efe, 0x5e37, 0x492b, { 0x82, 0x6e, 0x7e, 0xe7, 0xe8, 0xf5, 0xa4, 0x9b } \
-    }
 
 struct DepthStencilClearValue
 {
@@ -691,6 +679,7 @@ struct SubresourceRange
 
 class ITextureResource: public IResource
 {
+    SLANG_COM_INTERFACE(0x423090a2, 0x8be7, 0x4421, { 0x98, 0x71, 0x7e, 0xe2, 0x63, 0xf4, 0xea, 0x3d });
 public:
     static const GfxCount kRemainingTextureSize = 0xffffffff;
     struct Offset3D
@@ -774,11 +763,6 @@ public:
 
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getDesc() = 0;
 };
-#define SLANG_UUID_ITextureResource                                                    \
-    {                                                                                  \
-        0xcf88a31c, 0x6187, 0x46c5, { 0xa4, 0xb7, 0xeb, 0x58, 0xc7, 0x33, 0x40, 0x17 } \
-    }
-
 
 enum class ComparisonFunc : uint8_t
 {
@@ -817,6 +801,7 @@ enum class TextureReductionOp
 
 class ISamplerState : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x0ce3b435, 0x5fdb, 0x4335, { 0xaf, 0x43, 0xe0, 0x2d, 0x8b, 0x80, 0x13, 0xbc });
 public:
     struct Desc
     {
@@ -840,13 +825,10 @@ public:
     /// When using Vulkan, this will be a VkSampler.
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) = 0;
 };
-#define SLANG_UUID_ISamplerState                                                        \
-    {                                                                                  \
-        0x8b8055df, 0x9377, 0x401d, { 0x91, 0xff, 0x3f, 0xa3, 0xbf, 0x66, 0x64, 0xf4 } \
-    }
 
 class IResourceView : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x87e82f6e, 0xcf9e, 0x425f, { 0x81, 0xef, 0xaf, 0x2b, 0xde, 0x2c, 0xc5, 0xcf });
 public:
     enum class Type
     {
@@ -888,13 +870,10 @@ public:
     /// depending on the type of the resource view.
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) = 0;
 };
-#define SLANG_UUID_IResourceView                                                      \
-    {                                                                                 \
-        0x7b6c4926, 0x884, 0x408c, { 0xad, 0x8a, 0x50, 0x3a, 0x8e, 0x23, 0x98, 0xa4 } \
-    }
 
 class IAccelerationStructure : public IResourceView
 {
+    SLANG_COM_INTERFACE(0x38b056d5, 0x63de, 0x49ca, { 0xa0, 0xed, 0x62, 0xa1, 0xbe, 0xc3, 0xd4, 0x65 });
 public:
     enum class Kind
     {
@@ -1049,13 +1028,10 @@ public:
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
 };
-#define SLANG_UUID_IAccelerationStructure                                             \
-    {                                                                                 \
-        0xa5cdda3c, 0x1d4e, 0x4df7, { 0x8e, 0xf2, 0xb7, 0x3f, 0xce, 0x4, 0xde, 0x3b } \
-    }
 
 class IFence : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x9daf743c, 0xbc69, 0x4887, { 0x80, 0x8b, 0xe6, 0xcf, 0x1f, 0x9e, 0x48, 0xa0 });
 public:
     struct Desc
     {
@@ -1072,10 +1048,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) = 0;
 };
-#define SLANG_UUID_IFence                                                             \
-    {                                                                                 \
-        0x7fe1c283, 0xd3f4, 0x48ed, { 0xaa, 0xf3, 0x1, 0x51, 0x96, 0x4e, 0x7c, 0xb5 } \
-    }
 
 struct ShaderOffset
 {
@@ -1120,6 +1092,7 @@ enum class ShaderObjectContainerType
 
 class IShaderObject : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0xb1af6fe7, 0x5e6c, 0x4a11, { 0xa9, 0x29, 0x06, 0x8f, 0x0c, 0x0f, 0xbe, 0x4f });
 public:
     virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() = 0;
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() = 0;
@@ -1172,10 +1145,6 @@ public:
         return entryPoint;
     }
 };
-#define SLANG_UUID_IShaderObject                                                       \
-    {                                                                                 \
-        0xc1fa997e, 0x5ca2, 0x45ae, { 0x9b, 0xcb, 0xc4, 0x35, 0x9e, 0x85, 0x5, 0x85 } \
-    }
 
 enum class StencilOp : uint8_t
 {
@@ -1323,6 +1292,7 @@ struct BlendDesc
 
 class IFramebufferLayout : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0xe5facc0a, 0x3d48, 0x4459, { 0x8e, 0xa5, 0x7d, 0xbe, 0x81, 0xba, 0x91, 0xc2 });
 public:
     struct TargetLayout
     {
@@ -1336,10 +1306,6 @@ public:
         TargetLayout* depthStencil = nullptr;
     };
 };
-#define SLANG_UUID_IFramebufferLayout                                                \
-    {                                                                                \
-        0xa838785, 0xc13a, 0x4832, { 0xad, 0x88, 0x64, 0x6, 0xb5, 0x4b, 0x5e, 0xba } \
-    }
 
 struct GraphicsPipelineStateDesc
 {
@@ -1390,6 +1356,7 @@ struct RayTracingPipelineStateDesc
 
 class IShaderTable : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x348abe3f, 0x5075, 0x4b3d, { 0x88, 0xcf, 0x54, 0x83, 0xdc, 0x62, 0xb3, 0xb9 });
 public:
     // Specifies the bytes to overwrite into a record in the shader table.
     struct ShaderRecordOverwrite
@@ -1420,21 +1387,13 @@ public:
         IShaderProgram* program;
     };
 };
-#define SLANG_UUID_IShaderTable                                                        \
-    {                                                                                  \
-        0xa721522c, 0xdf31, 0x4c2f, { 0xa5, 0xe7, 0x3b, 0xe0, 0x12, 0x4b, 0x31, 0x78 } \
-    }
 
 class IPipelineState : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x2ad83bfc, 0x581d, 0x4b88, { 0x81, 0x3c, 0x0c, 0x0e, 0xaf, 0x04, 0x0a, 0x00 });
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) = 0;
 };
-#define SLANG_UUID_IPipelineState                                                      \
-    {                                                                                 \
-        0xca7e57d, 0x8a90, 0x44f3, { 0xbd, 0xb1, 0xfe, 0x9b, 0x35, 0x3f, 0x5a, 0x72 } \
-    }
-
 
 struct ScissorRect
 {
@@ -1456,6 +1415,7 @@ struct Viewport
 
 class IFramebuffer : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x19ed79f3, 0xcea8, 0x4a3d, { 0xae, 0xf5, 0x03, 0xa7, 0xe4, 0xda, 0xc6, 0x11 });
 public:
     struct Desc
     {
@@ -1465,10 +1425,6 @@ public:
         IFramebufferLayout* layout;
     };
 };
-#define SLANG_UUID_IFrameBuffer                                                       \
-    {                                                                                 \
-        0xf0c0d9a, 0x4ef3, 0x4e18, { 0x9b, 0xa9, 0x34, 0x60, 0xea, 0x69, 0x87, 0x95 } \
-    }
 
 struct WindowHandle
 {
@@ -1515,6 +1471,7 @@ struct FaceMask
 
 class IRenderPassLayout : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x923d7ba6, 0xee84, 0x434f, { 0x91, 0x85, 0x67, 0xda, 0x6f, 0x93, 0x9c, 0x58 });
 public:
     enum class TargetLoadOp
     {
@@ -1541,10 +1498,6 @@ public:
         TargetAccessDesc* depthStencilAccess = nullptr;
     };
 };
-#define SLANG_UUID_IRenderPassLayout                                                   \
-    {                                                                                  \
-        0xdaab0b1a, 0xf45d, 0x4ae9, { 0xbf, 0x2c, 0xe0, 0xbb, 0x76, 0x7d, 0xfa, 0xd1 } \
-    }
 
 enum class QueryType
 {
@@ -1556,6 +1509,7 @@ enum class QueryType
 
 class IQueryPool : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0xe4b585e4, 0x9da9, 0x479b, { 0x89, 0x5c, 0x48, 0x78, 0x8e, 0xf2, 0x33, 0x65 });
 public:
     struct Desc
     {
@@ -1566,13 +1520,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
 };
-#define SLANG_UUID_IQueryPool                                                         \
-    { 0xc2cc3784, 0x12da, 0x480a, { 0xa8, 0x74, 0x8b, 0x31, 0x96, 0x1c, 0xa4, 0x36 } }
-
 
 class ICommandEncoder : public ISlangUnknown
 {
-    SLANG_COM_INTERFACE(0x77ea6383, 0xbe3d, 0x40aa, { 0x8b, 0x45, 0xfd, 0xf0, 0xd7, 0x5b, 0xfa, 0x34 });
+    SLANG_COM_INTERFACE(0x12806d8b, 0x4fd0, 0x4aea, { 0x95, 0x06, 0xf4, 0x22, 0x79, 0xe2, 0x1e, 0xee });
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) = 0;
@@ -1621,9 +1572,7 @@ struct ClearResourceViewFlags
 
 class IResourceCommandEncoder : public ICommandEncoder
 {
-    // {F99A00E9-ED50-4088-8A0E-3B26755031EA}
-    SLANG_COM_INTERFACE(0xf99a00e9, 0xed50, 0x4088, { 0x8a, 0xe, 0x3b, 0x26, 0x75, 0x50, 0x31, 0xea });
-
+    SLANG_COM_INTERFACE(0x9107510b, 0x75a7, 0x4e2f, { 0x8d, 0x00, 0x58, 0xfd, 0x22, 0x48, 0xcd, 0x0d });
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
         IBufferResource* dst,
@@ -1704,8 +1653,7 @@ public:
 
 class IRenderCommandEncoder : public IResourceCommandEncoder
 {
-    // {7A8D56D0-53E6-4AD6-85F7-D14DC110FDCE}
-    SLANG_COM_INTERFACE(0x7a8d56d0, 0x53e6, 0x4ad6, { 0x85, 0xf7, 0xd1, 0x4d, 0xc1, 0x10, 0xfd, 0xce })
+    SLANG_COM_INTERFACE(0xa2be110e, 0xaed7, 0x43b6, { 0x90, 0x01, 0x77, 0x79, 0x1f, 0xea, 0x1d, 0x40 });
 public:
     // Sets the current pipeline state. This method returns a transient shader object for
     // writing shader parameters. This shader object will not retain any resources or
@@ -1790,9 +1738,7 @@ public:
 
 class IComputeCommandEncoder : public IResourceCommandEncoder
 {
-    // {88AA9322-82F7-4FE6-A68A-29C7FE798737}
-    SLANG_COM_INTERFACE(0x88aa9322, 0x82f7, 0x4fe6, { 0xa6, 0x8a, 0x29, 0xc7, 0xfe, 0x79, 0x87, 0x37 })
-
+    SLANG_COM_INTERFACE(0x46261132, 0xa7f6, 0x439b, { 0x82, 0x6b, 0x1e, 0xaf, 0xf2, 0xae, 0xae, 0xa6 });
 public:
     // Sets the current pipeline state. This method returns a transient shader object for
     // writing shader parameters. This shader object will not retain any resources or
@@ -1830,7 +1776,7 @@ struct AccelerationStructureQueryDesc
 
 class IRayTracingCommandEncoder : public IResourceCommandEncoder
 {
-    SLANG_COM_INTERFACE(0x9a672b87, 0x5035, 0x45e3, { 0x96, 0x7c, 0x1f, 0x85, 0xcd, 0xb3, 0x63, 0x4f })
+    SLANG_COM_INTERFACE(0xef4f6545, 0x1f5d, 0x4b9a, { 0x9e, 0x72, 0x4d, 0x03, 0x3f, 0xf0, 0x09, 0x1d });
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const IAccelerationStructure::BuildDesc& desc,
@@ -1868,6 +1814,7 @@ public:
 
 class ICommandBuffer : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, { 0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43 });
 public:
     // Only one encoder may be open at a time. User must call `ICommandEncoder::endEncoding`
     // before calling other `encode*Commands` methods.
@@ -1917,24 +1864,18 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) = 0;
 };
-#define SLANG_UUID_ICommandBuffer                                                      \
-    {                                                                                  \
-        0x5d56063f, 0x91d4, 0x4723, { 0xa7, 0xa7, 0x7a, 0x15, 0xaf, 0x93, 0xeb, 0x48 } \
-    }
 
 class ICommandBufferD3D12 : public ICommandBuffer
 {
+    SLANG_COM_INTERFACE(0xd0197946, 0xf266, 0x4638, { 0x85, 0x16, 0x60, 0xdc, 0x35, 0x70, 0x8c, 0x0f });
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL invalidateDescriptorHeapBinding() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL ensureInternalDescriptorHeapsBound() = 0;
 };
-#define SLANG_UUID_ICommandBufferD3D12                                                 \
-    {                                                                                  \
-        0xd56b7616, 0x6c14, 0x4841, { 0x9d, 0x9c, 0x7b, 0x7f, 0xdb, 0x9f, 0xd9, 0xb8 } \
-    }
 
 class ICommandQueue : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0xc530a6bd, 0x6d1b, 0x475f, { 0x9a, 0x71, 0xc2, 0x06, 0x67, 0x1f, 0x59, 0xc3 });
 public:
     enum class QueueType
     {
@@ -1969,13 +1910,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
         waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) = 0;
 };
-#define SLANG_UUID_ICommandQueue                                                    \
-    {                                                                               \
-        0x14e2bed0, 0xad0, 0x4dc8, { 0xb3, 0x41, 0x6, 0x3f, 0xe7, 0x2d, 0xbf, 0xe } \
-    }
 
 class ITransientResourceHeap : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x443ef42b, 0x3e9a, 0x49b2, { 0x86, 0xa4, 0x10, 0xbf, 0x2c, 0xde, 0xf8, 0x62 });
 public:
     struct Flags
     {
@@ -2020,13 +1958,10 @@ public:
         return result;
     }
 };
-#define SLANG_UUID_ITransientResourceHeap                                             \
-    {                                                                                 \
-        0xcd48bd29, 0xee72, 0x41b8, { 0xbc, 0xff, 0xa, 0x2b, 0x3a, 0xaa, 0x6d, 0xeb } \
-    }
 
 class ITransientResourceHeapD3D12 : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x24c8a47b, 0xbad8, 0x46a6, { 0xa1, 0xfd, 0xfe, 0x7a, 0x5a, 0x73, 0x74, 0x04 });
 public:
     enum class DescriptorType
     {
@@ -2038,13 +1973,10 @@ public:
         Offset& outDescriptorOffset,
         void** outD3DDescriptorHeapHandle) = 0;
 };
-#define SLANG_UUID_ITransientResourceHeapD3D12                                             \
-    {                                                                                  \
-        0x9bc6a8bc, 0x5f7a, 0x454a, { 0x93, 0xef, 0x3b, 0x10, 0x5b, 0xb7, 0x63, 0x7e } \
-    }
 
 class ISwapchain : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x9b6595b4, 0x2177, 0x40e7, { 0x87, 0x2b, 0xfc, 0x8c, 0x4f, 0xcd, 0x32, 0x62 });
 public:
     struct Desc
     {
@@ -2077,10 +2009,6 @@ public:
     // Toggle full screen mode.
     virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) = 0;
 };
-#define SLANG_UUID_ISwapchain                                                        \
-    {                                                                                \
-        0xbe91ba6c, 0x784, 0x4308, { 0xa1, 0x0, 0x19, 0xc3, 0x66, 0x83, 0x44, 0xb2 } \
-    }
 
 struct AdapterLUID
 {
@@ -2214,6 +2142,7 @@ public:
 
 class IDevice : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x311ee28b, 0xdb5a, 0x4a3c, { 0x89, 0xda, 0xf0, 0x03, 0x0f, 0xd5, 0x70, 0x4b });
 public:
     struct SlangDesc
     {
@@ -2603,25 +2532,17 @@ public:
         IShaderObject** outObject) = 0;
 };
 
-#define SLANG_UUID_IDevice                                                               \
-    {                                                                                    \
-          0x715bdf26, 0x5135, 0x11eb, { 0xAE, 0x93, 0x02, 0x42, 0xAC, 0x13, 0x00, 0x02 } \
-    }
-
 class IPersistentShaderCache : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x68981742, 0x7fd6, 0x4700, { 0x8a, 0x71, 0xe8, 0xea, 0x42, 0x91, 0x3b, 0x28 });
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key, ISlangBlob* data) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
 };
 
-#define SLANG_UUID_IPersistentShaderCache                                                \
-    {                                                                                    \
-          0x345b1e61, 0xec18, 0x4491, { 0x97, 0x06, 0x1f, 0x81, 0x04, 0x71, 0x53, 0x53 } \
-    }
-
 class IPipelineCreationAPIDispatcher : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x8d7aa89d, 0x07f1, 0x4e21, { 0xbc, 0xd2, 0x9a, 0x71, 0xc7, 0x95, 0xba, 0x91 });
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipelineState(
         IDevice* device,
@@ -2643,15 +2564,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
         afterCreateRayTracingState(IDevice* device, slang::IComponentType* program) = 0;
 };
-#define SLANG_UUID_IPipelineCreationAPIDispatcher                                     \
-    {                                                                                 \
-        0xc3d5f782, 0xeae1, 0x4da6, { 0xab, 0x40, 0x75, 0x32, 0x31, 0x2, 0xb7, 0xdc } \
-    }
-
-#define SLANG_UUID_IVulkanPipelineCreationAPIDispatcher                                 \
-    {                                                                                   \
-        0x4fcf1274, 0x8752, 0x4743, { 0xb3, 0x51, 0x47, 0xcb, 0x83, 0x71, 0xef, 0x99 }  \
-    }
 
 // Global public functions
 
