@@ -2,6 +2,9 @@
 #include "slang-rhi.h"
 #include "renderer-shared.h"
 #include "debug-layer/debug-device.h"
+#if SLANG_RHI_ENABLE_CUDA
+#include "cuda/cuda-api.h"
+#endif
 
 #include "utils/common.h"
 
@@ -429,7 +432,11 @@ extern "C"
         case DeviceType::CPU:
             return true;
         case DeviceType::CUDA:
-            return SLANG_RHI_ENABLE_CUDA;
+#if SLANG_RHI_ENABLE_CUDA
+            return gfxCudaApiInit();
+#else
+            return false;
+#endif
         default:
             return false;
         }
