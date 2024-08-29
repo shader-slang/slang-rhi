@@ -197,6 +197,7 @@ public:
 // TODO: Confirm with Yong that we really want this naming convention
 // TODO: Rename to what?
 // Dont' change without keeping in sync with Format
+// clang-format off
 #define SLANG_RHI_FORMAT(x) \
     x( Unknown, 0, 0) \
     \
@@ -304,6 +305,9 @@ public:
     \
     x(R64_SINT, 8, 1) \
     \
+
+// clang-format on
+
 // TODO: This should be generated from above
 // TODO: enum class should be explicitly uint32_t or whatever's appropriate
 /// Different formats of things like pixels or elements of vertices
@@ -416,7 +420,7 @@ enum class Format
     BC7_UNORM_SRGB,
 
     R64_UINT,
-    
+
     R64_SINT,
 
     _Count,
