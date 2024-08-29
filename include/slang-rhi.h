@@ -430,13 +430,18 @@ enum class Format
 // TODO: Width/Height/Depth/whatever should not be used. We should use extentX, extentY, etc.
 struct FormatInfo
 {
-    GfxCount channelCount;         ///< The amount of channels in the format. Only set if the channelType is set
-    uint8_t channelType;           ///< One of SlangScalarType None if type isn't made up of elements of type. TODO: Change to uint32_t?
-
-    Size blockSizeInBytes;         ///< The size of a block in bytes.
-    GfxCount pixelsPerBlock;       ///< The number of pixels contained in a block.
-    GfxCount blockWidth;           ///< The width of a block in pixels.
-    GfxCount blockHeight;          ///< The height of a block in pixels.
+    /// The amount of channels in the format. Only set if the channelType is set.
+    GfxCount channelCount;
+    /// One of SlangScalarType None if type isn't made up of elements of type. TODO: Change to uint32_t?
+    uint8_t channelType;
+    /// The size of a block in bytes.
+    Size blockSizeInBytes;
+    /// The number of pixels contained in a block.
+    GfxCount pixelsPerBlock;
+    /// The width of a block in pixels.
+    GfxCount blockWidth;
+    /// The height of a block in pixels.
+    GfxCount blockHeight;
 };
 
 enum class InputSlotClass
@@ -446,18 +451,26 @@ enum class InputSlotClass
 
 struct InputElementDesc
 {
-    char const* semanticName;      ///< The name of the corresponding parameter in shader code.
-    GfxIndex semanticIndex;        ///< The index of the corresponding parameter in shader code. Only needed if multiple parameters share a semantic name.
-    Format format;                 ///< The format of the data being fetched for this element.
-    Offset offset;                 ///< The offset in bytes of this element from the start of the corresponding chunk of vertex stream data.
-    GfxIndex bufferSlotIndex;      ///< The index of the vertex stream to fetch this element's data from.
+    /// The name of the corresponding parameter in shader code.
+    char const* semanticName;
+    /// The index of the corresponding parameter in shader code. Only needed if multiple parameters share a semantic name.
+    GfxIndex semanticIndex;
+    /// The format of the data being fetched for this element.
+    Format format;
+    /// The offset in bytes of this element from the start of the corresponding chunk of vertex stream data.
+    Offset offset;
+    /// The index of the vertex stream to fetch this element's data from.
+    GfxIndex bufferSlotIndex;
 };
 
 struct VertexStreamDesc
 {
-    Size stride;                   ///< The stride in bytes for this vertex stream.
-    InputSlotClass slotClass;      ///< Whether the stream contains per-vertex or per-instance data.
-    GfxCount instanceDataStepRate; ///< How many instances to draw per chunk of data.
+    /// The stride in bytes for this vertex stream.
+    Size stride;
+    /// Whether the stream contains per-vertex or per-instance data.
+    InputSlotClass slotClass;
+    /// How many instances to draw per chunk of data.
+    GfxCount instanceDataStepRate;
 };
 
 enum class PrimitiveType
@@ -621,8 +634,10 @@ class IBufferResource: public IResource
 public:
     struct Desc: public DescBase
     {
-        Size sizeInBytes = 0;        ///< Total size in bytes
-        Size elementSize = 0;        ///< Get the element stride. If > 0, this is a structured buffer
+        /// Total size in bytes
+        Size sizeInBytes = 0;
+        /// Get the element stride. If > 0, this is a structured buffer
+        Size elementSize = 0;
         Format format = Format::Unknown;
     };
 
@@ -650,8 +665,10 @@ struct ClearValue
 
 struct BufferRange
 {
-    Offset offset;  ///< Offset in bytes.
-    Size size;      ///< Size in bytes.
+    /// Offset in bytes.
+    Offset offset;
+    /// Size in bytes.
+    Size size;
 };
 
 enum class TextureAspect : uint32_t
@@ -693,26 +710,33 @@ public:
 
     struct SampleDesc
     {
-        GfxCount numSamples = 1;                ///< Number of samples per pixel
-        int quality = 0;                        ///< The quality measure for the samples
+        /// Number of samples per pixel.
+        GfxCount numSamples = 1;
+        /// The quality measure for the samples.
+        int quality = 0;
     };
 
     struct Extents
     {
-        GfxCount width = 0;              ///< Width in pixels
-        GfxCount height = 0;             ///< Height in pixels (if 2d or 3d)
-        GfxCount depth = 0;              ///< Depth (if 3d)
+        /// Width in pixels.
+        GfxCount width = 0;
+        /// Height in pixels (if 2d or 3d).
+        GfxCount height = 0;
+        /// Depth (if 3d).
+        GfxCount depth = 0;
     };
 
     struct Desc: public DescBase
     {
         Extents size;
-
-        GfxCount arraySize = 0;          ///< Array size
-
-        GfxCount numMipLevels = 0;       ///< Number of mip levels - if 0 will create all mip levels
-        Format format;                   ///< The resources format
-        SampleDesc sampleDesc;           ///< How the resource is sampled
+        /// Array size.
+        GfxCount arraySize = 0;
+        /// Number of mip levels - if 0 will create all mip levels.
+        GfxCount numMipLevels = 0;
+        /// The resources format.
+        Format format;
+        /// How the resource is sampled.
+        SampleDesc sampleDesc;
         ClearValue* optimalClearValue = nullptr;
     };
 
