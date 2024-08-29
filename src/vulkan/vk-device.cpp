@@ -1126,8 +1126,6 @@ SlangResult DeviceImpl::readTextureResource(
 {
     auto textureImpl = static_cast<TextureResourceImpl*>(texture);
 
-    std::vector<uint8_t> blobData;
-
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
     auto height = desc->size.height;
@@ -1157,8 +1155,6 @@ SlangResult DeviceImpl::readTextureResource(
     }
     // Calculate the total size taking into account the array
     bufferSize *= arraySize;
-
-    blobData.resize(bufferSize);
 
     VKBufferHandleRAII staging;
     SLANG_RETURN_ON_FAIL(staging.init(
@@ -1204,18 +1200,18 @@ SlangResult DeviceImpl::readTextureResource(
 
     m_deviceQueue.flushAndWait();
 
+    auto blob = OwnedBlob::create(bufferSize);
+
     // Write out the data from the buffer
     void* mappedData = nullptr;
     SLANG_RETURN_ON_FAIL(
         m_api.vkMapMemory(m_device, staging.m_memory, 0, bufferSize, 0, &mappedData));
 
-    ::memcpy(blobData.data(), mappedData, bufferSize);
+    ::memcpy((void*)blob->getBufferPointer(), mappedData, bufferSize);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
 
     *outPixelSize = pixelSize;
     *outRowPitch = rowPitch;
-
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -1225,9 +1221,6 @@ SlangResult DeviceImpl::readBufferResource(
     IBufferResource* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(inBuffer);
-
-    std::vector<uint8_t> blobData;
-    blobData.resize(size);
 
     // create staging buffer
     VKBufferHandleRAII staging;
@@ -1248,14 +1241,14 @@ SlangResult DeviceImpl::readBufferResource(
 
     m_deviceQueue.flushAndWait();
 
+    auto blob = OwnedBlob::create(size);
+
     // Write out the data from the buffer
     void* mappedData = nullptr;
     SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
 
-    ::memcpy(blobData.data(), mappedData, size);
+    ::memcpy((void*)blob->getBufferPointer(), mappedData, size);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
-
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

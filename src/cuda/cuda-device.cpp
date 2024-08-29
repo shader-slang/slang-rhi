@@ -1144,8 +1144,6 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
 {
     auto textureImpl = static_cast<TextureResourceImpl*>(texture);
 
-    std::vector<uint8_t> blobData;
-
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
     auto height = desc->size.height;
@@ -1154,7 +1152,8 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
     size_t pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     size_t rowPitch = width * pixelSize;
     size_t size = height * rowPitch;
-    blobData.resize((Index)size);
+
+    auto blob = OwnedBlob::create(size);
 
     CUDA_MEMCPY2D copyParam;
     memset(&copyParam, 0, sizeof(copyParam));
@@ -1163,7 +1162,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
     copyParam.srcArray = textureImpl->m_cudaArray;
 
     copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
-    copyParam.dstHost = blobData.data();
+    copyParam.dstHost = (void*)blob->getBufferPointer();
     copyParam.dstPitch = rowPitch;
     copyParam.WidthInBytes = copyParam.dstPitch;
     copyParam.Height = height;
@@ -1171,8 +1170,6 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
 
     *outRowPitch = rowPitch;
     *outPixelSize = pixelSize;
-
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -1186,15 +1183,11 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readBufferResource(
 {
     auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
 
-    std::vector<uint8_t> blobData;
-
-    blobData.resize((Index)size);
+    auto blob = OwnedBlob::create(size);
     cuMemcpy(
-        (CUdeviceptr)blobData.data(),
+        (CUdeviceptr)blob->getBufferPointer(),
         (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset),
         size);
-
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

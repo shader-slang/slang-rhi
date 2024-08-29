@@ -276,15 +276,11 @@ Result DeviceImpl::captureTextureToSurface(
 
         SLANG_RETURN_ON_FAIL(dxResource->Map(0, &readRange, reinterpret_cast<void**>(&data)));
 
-        std::vector<uint8_t> blobData;
-
-        blobData.resize(bufferSize);
-        memcpy(blobData.data(), data, bufferSize);
+        auto blob = OwnedBlob::create(bufferSize);
+        memcpy((void*)blob->getBufferPointer(), data, bufferSize);
         dxResource->Unmap(0, nullptr);
 
-        auto resultBlob = OwnedBlob::moveCreate(_Move(blobData));
-
-        returnComPtr(outBlob, resultBlob);
+        returnComPtr(outBlob, blob);
         return SLANG_OK;
     }
 }
@@ -1876,7 +1872,7 @@ Result DeviceImpl::readBufferResource(
         buffer->getDesc()->memoryType != MemoryType::ReadBack ? stageBuf : resource;
 
     // Map and copy
-    std::vector<uint8_t> blobData;
+    auto blob = OwnedBlob::create(size);
     {
         UINT8* data;
         D3D12_RANGE readRange = { 0, size };
@@ -1885,12 +1881,10 @@ Result DeviceImpl::readBufferResource(
             stageBufRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&data)));
 
         // Copy to memory buffer
-        blobData.resize(size);
-        ::memcpy(blobData.data(), data, size);
+        ::memcpy((void*)blob->getBufferPointer(), data, size);
 
         stageBufRef.getResource()->Unmap(0, nullptr);
     }
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
     returnComPtr(outBlob, blob);
     return SLANG_OK;
 }

@@ -36,7 +36,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
 
-    char* dest = m_data.getBuffer();
+    uint8_t* dest = m_data.getBuffer();
     Index availableSize = m_data.getCount();
 
     // TODO: We really should bounds-check access rather than silently ignoring sets

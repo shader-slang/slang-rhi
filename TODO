@@ -1,7 +1,4 @@
-replace std::vector<char> with std::vector<uint8_t>
-search for .getBuffer() .getCount() .add()
 check use of stable_vector, maybe we can get rid of it
-write directly to OwnedBlob instead of vector + move
 use ComPtr<> in tests instead of Slang::ComPtr<>
 
 

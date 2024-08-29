@@ -755,16 +755,12 @@ SLANG_NO_THROW SlangResult SLANG_MCALL ImmediateRendererBase::readBufferResource
     size_t size,
     ISlangBlob** outBlob)
 {
-    std::vector<uint8_t> blobData;
-
-    blobData.resize((Index)size);
+    auto blob = OwnedBlob::create(size);
     auto content = (uint8_t*)map(buffer, MapFlavor::HostRead);
     if (!content)
         return SLANG_FAIL;
-    memcpy(blobData.data(), content + offset, size);
+    memcpy((void*)blob->getBufferPointer(), content + offset, size);
     unmap(buffer, offset, size);
-
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

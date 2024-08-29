@@ -232,10 +232,8 @@ SlangResult DeviceImpl::readTextureResource(
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
 
-    std::vector<uint8_t> blobData;
-    blobData.resize(bufferSize);
-    ::memcpy(blobData.data(), stagingBuffer->contents(), bufferSize);
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
+    auto blob = OwnedBlob::create(bufferSize);
+    ::memcpy((void*)blob->getBufferPointer(), stagingBuffer->contents(), bufferSize);
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -260,11 +258,9 @@ SlangResult DeviceImpl::readBufferResource(
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
 
-    std::vector<uint8_t> blobData;
-    blobData.resize(size);
-    ::memcpy(blobData.data(), stagingBuffer->contents(), size);
-    auto blob = OwnedBlob::moveCreate(_Move(blobData));
-
+    auto blob = OwnedBlob::create(size);
+    ::memcpy((void*)blob->getBufferPointer(), stagingBuffer->contents(), size);
+    
     returnComPtr(outBlob, blob);
     return SLANG_OK;
 }

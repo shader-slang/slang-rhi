@@ -56,13 +56,13 @@ namespace rhi
     {
     public:
         // Any "ordinary" / uniform data for this object
-        std::vector<char> m_ordinaryData;
+        std::vector<uint8_t> m_ordinaryData;
 
         bool m_dirty = true;
 
         Index getCount() { return m_ordinaryData.size(); }
         void setCount(Index count) { m_ordinaryData.resize(count); }
-        char* getBuffer() { return m_ordinaryData.data(); }
+        uint8_t* getBuffer() { return m_ordinaryData.data(); }
         void markDirty() { m_dirty = true; }
 
         // We don't actually create any GPU buffers here, since they will be handled

@@ -16,14 +16,14 @@ namespace cpu
 class CPUShaderObjectData
 {
 public:
-    std::vector<char> m_ordinaryData;
+    std::vector<uint8_t> m_ordinaryData;
     // Any "ordinary" / uniform data for this object
     RefPtr<BufferResourceImpl> m_bufferResource;
     RefPtr<BufferResourceViewImpl> m_bufferView;
 
     Index getCount();
     void setCount(Index count);
-    char* getBuffer();
+    uint8_t* getBuffer();
 
     ~CPUShaderObjectData();
 
@@ -65,7 +65,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setCombinedTextureSampler(
         ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler) override;
 
-    char* getDataBuffer();
+    uint8_t* getDataBuffer();
 };
 
 class MutableShaderObjectImpl : public MutableShaderObject<MutableShaderObjectImpl, ShaderObjectLayoutImpl>

@@ -22,7 +22,7 @@ void CPUShaderObjectData::setCount(Index count)
     m_ordinaryData.resize(count);
 }
 
-char* CPUShaderObjectData::getBuffer()
+uint8_t* CPUShaderObjectData::getBuffer()
 {
     return m_ordinaryData.data();
 }
@@ -246,7 +246,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setCombinedTextureSampler(
     return SLANG_OK;
 }
 
-char* ShaderObjectImpl::getDataBuffer()
+uint8_t* ShaderObjectImpl::getDataBuffer()
 {
     return m_data.getBuffer();
 }

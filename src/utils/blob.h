@@ -4,7 +4,6 @@
 #include "com-object.h"
 
 #include <vector>
-#include <span>
 
 namespace rhi {
 
@@ -31,13 +30,11 @@ public:
     virtual SLANG_NO_THROW void const* SLANG_MCALL getBufferPointer() { return m_data.data(); }
     virtual SLANG_NO_THROW size_t SLANG_MCALL getBufferSize() { return m_data.size(); }
 
+    static ComPtr<ISlangBlob> create(size_t size) { return ComPtr<ISlangBlob>(new OwnedBlob(size)); }
     static ComPtr<ISlangBlob> create(const void* data, size_t size) { return ComPtr<ISlangBlob>(new OwnedBlob(data, size)); }
-    static ComPtr<ISlangBlob> create(std::span<const uint8_t> data) { return ComPtr<ISlangBlob>(new OwnedBlob(data)); }
-    static ComPtr<ISlangBlob> moveCreate(std::vector<uint8_t>&& data) { return ComPtr<ISlangBlob>(new OwnedBlob(std::move(data))); } 
 private:
+    explicit OwnedBlob(size_t size) : m_data(size) {}
     explicit OwnedBlob(const void* data, size_t size) : m_data((const uint8_t*)data, (const uint8_t*)data + size) {}
-    explicit OwnedBlob(std::span<const uint8_t> data) : m_data(data.begin(), data.end()) {}
-    explicit OwnedBlob(std::vector<uint8_t>&& data) : m_data(data) {}
 
     std::vector<uint8_t> m_data;
 };

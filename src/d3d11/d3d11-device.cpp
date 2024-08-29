@@ -495,10 +495,8 @@ SlangResult DeviceImpl::readTextureResource(
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         SLANG_RETURN_ON_FAIL(m_immediateContext->Map(stagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource));
 
-        std::vector<uint8_t> data;
-
-        data.resize(bufferSize);
-        char* buffer = (char*)data.data();
+        auto blob = OwnedBlob::create(bufferSize);
+        char* buffer = (char*)blob->getBufferPointer();
         for (size_t y = 0; y < textureDesc.Height; y++)
         {
             memcpy(
@@ -508,8 +506,6 @@ SlangResult DeviceImpl::readTextureResource(
         }
         // Make sure to unmap
         m_immediateContext->Unmap(stagingTexture, 0);
-
-        ComPtr<ISlangBlob> blob = OwnedBlob::moveCreate(_Move(data));
 
         returnComPtr(outBlob, blob);
         return SLANG_OK;

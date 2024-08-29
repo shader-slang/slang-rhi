@@ -459,7 +459,7 @@ class SimpleShaderObjectData
 {
 public:
     // Any "ordinary" / uniform data for this object
-    std::vector<char> m_ordinaryData;
+    std::vector<uint8_t> m_ordinaryData;
     // The structured buffer resource used when the object represents a structured buffer.
     RefPtr<BufferResource> m_structuredBuffer;
     // The structured buffer resource view used when the object represents a structured buffer.
@@ -468,7 +468,7 @@ public:
 
     Index getCount() { return m_ordinaryData.size(); }
     void setCount(Index count) { m_ordinaryData.resize(count); }
-    char* getBuffer() { return m_ordinaryData.data(); }
+    uint8_t* getBuffer() { return m_ordinaryData.data(); }
 
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
