@@ -123,7 +123,7 @@ if(SLANG_RHI_ENABLE_METAL)
     file(GLOB METAL_SOURCES src/metal/*.cpp src/metal/*.mm)
     target_sources(slang-rhi PRIVATE ${METAL_SOURCES})
 
-    add_library(metal-cpp INTERFACE)
+    add_library(slang-rhi-metal-cpp INTERFACE)
     target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Foundation" "-framework Metal" "-framework QuartzCore")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)

@@ -34,7 +34,7 @@ SLANG_NO_THROW Result SLANG_MCALL
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
 
-    char* dest = m_data.getBuffer();
+    uint8_t* dest = m_data.getBuffer();
     Index availableSize = m_data.getCount();
 
     // TODO: We really should bounds-check access rather than silently ignoring sets
@@ -398,7 +398,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(
         SLANG_RHI_ASSERT(defaultTypeLayout->getBindingRangeCount() == typeLayout->getBindingRangeCount());
 
         int bufferBindingIndexOffset = layout->getTotalOrdinaryDataSize() != 0 ? 1 : 0;
-        
+
         for (unsigned int bindingRangeIndex = 0; bindingRangeIndex < defaultTypeLayout->getBindingRangeCount(); bindingRangeIndex++)
         {
             int bindingCount = defaultTypeLayout->getBindingRangeBindingCount(bindingRangeIndex);
@@ -475,7 +475,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
 {
     if (!context->device->m_hasArgumentBufferTier2)
         return SLANG_FAIL;
-    
+
     auto argumentBuffer = _ensureArgumentBufferUpToDate(context->device, layout);
 
     if (m_argumentBuffer)
