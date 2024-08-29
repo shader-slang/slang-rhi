@@ -4,8 +4,7 @@
 
 #include <doctest.h>
 #include <slang-rhi.h>
-
-#include "shader-cursor.h"
+#include <slang-rhi/shader-cursor.h>
 
 #include "../src/utils/blob.h"
 

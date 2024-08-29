@@ -1,9 +1,152 @@
-#include "shader-cursor.h"
+#pragma once
+
+#include <slang-rhi.h>
 
 namespace rhi
 {
 
-Result ShaderCursor::getDereferenced(ShaderCursor& outCursor) const
+/// Represents a "pointer" to the storage for a shader parameter of a (dynamically) known type.
+///
+/// A `ShaderCursor` serves as a pointer-like type for things stored inside a `ShaderObject`.
+///
+/// A cursor that points to the entire content of a shader object can be formed as
+/// `ShaderCursor(someObject)`. A cursor pointing to a structure field or array element can be
+/// formed from another cursor using `getField` or `getElement` respectively.
+///
+/// Given a cursor pointing to a value of some "primitive" type, we can set or get the value
+/// using operations like `setResource`, `getResource`, etc.
+///
+/// Because type information for shader parameters is being reflected dynamically, all type
+/// checking for shader cursors occurs at runtime, and errors may occur when attempting to
+/// set a parameter using a value of an inappropriate type. As much as possible, `ShaderCursor`
+/// attempts to protect against these cases and return an error `Result` or an invalid
+/// cursor, rather than allowing operations to proceed with incorrect types.
+///
+struct ShaderCursor
+{
+    IShaderObject* m_baseObject = nullptr;
+    slang::TypeLayoutReflection* m_typeLayout = nullptr;
+    ShaderObjectContainerType m_containerType = ShaderObjectContainerType::None;
+    ShaderOffset m_offset;
+
+    /// Get the type (layout) of the value being pointed at by the cursor
+    slang::TypeLayoutReflection* getTypeLayout() const { return m_typeLayout; }
+
+    /// Is this cursor valid (that is, does it seem to point to an actual location)?
+    ///
+    /// This check is equivalent to checking whether a pointer is null, so it is
+    /// a very weak sense of "valid." In particular, it is possible to form a
+    /// `ShaderCursor` for which `isValid()` is true, but attempting to get or
+    /// set the value would be an error (like dereferencing a garbage pointer).
+    ///
+    bool isValid() const { return m_baseObject != nullptr; }
+
+    Result getDereferenced(ShaderCursor& outCursor) const;
+
+    ShaderCursor getDereferenced() const
+    {
+        ShaderCursor result;
+        getDereferenced(result);
+        return result;
+    }
+
+    /// Form a cursor pointing to the field with the given `name` within the value this cursor
+    /// points at.
+    ///
+    /// If the operation succeeds, then the field cursor is written to `outCursor`.
+    Result getField(const char* nameBegin, const char* nameEnd, ShaderCursor& outCursor) const;
+
+    ShaderCursor getField(const char* name) const
+    {
+        ShaderCursor cursor;
+        getField(name, nullptr, cursor);
+        return cursor;
+    }
+
+    /// Some resources such as RWStructuredBuffer, AppendStructuredBuffer and
+    /// ConsumeStructuredBuffer need to have their counter explicitly bound on
+    /// APIs other than DirectX, this will return a valid ShaderCursor pointing
+    /// to that resource if that is the case.
+    /// Otherwise, this returns an invalid cursor.
+    ShaderCursor getExplicitCounter() const;
+
+    ShaderCursor getElement(GfxIndex index) const;
+
+    static Result followPath(const char* path, ShaderCursor& ioCursor);
+
+    ShaderCursor getPath(const char* path) const
+    {
+        ShaderCursor result(*this);
+        followPath(path, result);
+        return result;
+    }
+
+    ShaderCursor() {}
+
+    ShaderCursor(IShaderObject* object)
+        : m_baseObject(object)
+        , m_typeLayout(object->getElementTypeLayout())
+        , m_containerType(object->getContainerType())
+    {}
+
+    SlangResult setData(void const* data, Size size) const
+    {
+        return m_baseObject->setData(m_offset, data, size);
+    }
+
+    template <typename T>
+    SlangResult setData(T const& data) const
+    {
+        return setData(&data, sizeof(data));
+    }
+
+    SlangResult setObject(IShaderObject* object) const
+    {
+        return m_baseObject->setObject(m_offset, object);
+    }
+
+    SlangResult setSpecializationArgs(const slang::SpecializationArg* args, GfxCount count) const
+    {
+        return m_baseObject->setSpecializationArgs(m_offset, args, count);
+    }
+
+    SlangResult setResource(IResourceView* resourceView) const
+    {
+        return m_baseObject->setResource(m_offset, resourceView);
+    }
+
+    SlangResult setSampler(ISamplerState* sampler) const
+    {
+        return m_baseObject->setSampler(m_offset, sampler);
+    }
+
+    SlangResult setCombinedTextureSampler(IResourceView* textureView, ISamplerState* sampler) const
+    {
+        return m_baseObject->setCombinedTextureSampler(m_offset, textureView, sampler);
+    }
+
+        /// Produce a cursor to the field with the given `name`.
+        ///
+        /// This is a convenience wrapper around `getField()`.
+    ShaderCursor operator[](const char* name) const
+    {
+        return getField(name);
+    }
+
+        /// Produce a cursor to the element or field with the given `index`.
+        ///
+        /// This is a convenience wrapper around `getElement()`.
+    ShaderCursor operator[](int64_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](uint64_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](int32_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](uint32_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](int16_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](uint16_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](int8_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](uint8_t index) const { return getElement((GfxIndex)index); }
+};
+
+inline Result ShaderCursor::getDereferenced(ShaderCursor& outCursor) const
 {
     switch (m_typeLayout->getKind())
     {
@@ -20,59 +163,7 @@ Result ShaderCursor::getDereferenced(ShaderCursor& outCursor) const
     }
 }
 
-ShaderCursor ShaderCursor::getExplicitCounter() const
-{
-    // Similar to getField below
-
-    // The alternative to handling this here would be to augment IResourceView
-    // with a `getCounterResourceView()`, and set that also in `setResource`
-    if(const auto counterVarLayout = m_typeLayout->getExplicitCounter())
-    {
-        ShaderCursor counterCursor;
-
-        // The counter cursor will point into the same parent object.
-        counterCursor.m_baseObject = m_baseObject;
-
-        // The type being pointed to is the type of the field.
-        counterCursor.m_typeLayout = counterVarLayout->getTypeLayout();
-
-        // The byte offset is the current offset plus the relative offset of the counter.
-        // The offset in binding ranges is computed similarly.
-        counterCursor.m_offset.uniformOffset
-            = m_offset.uniformOffset + SlangInt(counterVarLayout->getOffset());
-        counterCursor.m_offset.bindingRangeIndex
-            = m_offset.bindingRangeIndex + GfxIndex(m_typeLayout->getExplicitCounterBindingRangeOffset());
-
-        // The index of the counter within any binding ranges will be the same
-        // as the index computed for the parent structure.
-        //
-        // Note: this case would arise for an array of structured buffers
-        //
-        //      AppendStructuredBuffer g[4];
-        //
-        // In this scenario, `g` holds two binding ranges:
-        //
-        // * Range #0 comprises 4 element buffers, representing `g[...].elements`
-        // * Range #1 comprises 4 counter buffers, representing `g[...].counter`
-        //
-        // A cursor for `g[2]` would have a `bindingRangeIndex` of zero but
-        // a `bindingArrayIndex` of 2, indicating that we could end up
-        // referencing either range, but no matter what we know the index
-        // is 2. Thus when we form a cursor for `g[2].counter` we want to
-        // apply the binding range offset to get a `bindingRangeIndex` of
-        // 1, while the `bindingArrayIndex` is unmodified.
-        //
-        // The result is that `g[2].counter` is stored in range #1 at array index 2.
-        //
-        counterCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
-
-        return counterCursor;
-    }
-    // Otherwise, return an invalid cursor
-    return ShaderCursor{};
-}
-
-Result ShaderCursor::getField(const char* name, const char* nameEnd, ShaderCursor& outCursor) const
+inline Result ShaderCursor::getField(const char* name, const char* nameEnd, ShaderCursor& outCursor) const
 {
     // If this cursor is invalid, then can't possible fetch a field.
     //
@@ -194,7 +285,59 @@ Result ShaderCursor::getField(const char* name, const char* nameEnd, ShaderCurso
     return SLANG_E_INVALID_ARG;
 }
 
-ShaderCursor ShaderCursor::getElement(GfxIndex index) const
+inline ShaderCursor ShaderCursor::getExplicitCounter() const
+{
+    // Similar to getField below
+
+    // The alternative to handling this here would be to augment IResourceView
+    // with a `getCounterResourceView()`, and set that also in `setResource`
+    if(const auto counterVarLayout = m_typeLayout->getExplicitCounter())
+    {
+        ShaderCursor counterCursor;
+
+        // The counter cursor will point into the same parent object.
+        counterCursor.m_baseObject = m_baseObject;
+
+        // The type being pointed to is the type of the field.
+        counterCursor.m_typeLayout = counterVarLayout->getTypeLayout();
+
+        // The byte offset is the current offset plus the relative offset of the counter.
+        // The offset in binding ranges is computed similarly.
+        counterCursor.m_offset.uniformOffset
+            = m_offset.uniformOffset + SlangInt(counterVarLayout->getOffset());
+        counterCursor.m_offset.bindingRangeIndex
+            = m_offset.bindingRangeIndex + GfxIndex(m_typeLayout->getExplicitCounterBindingRangeOffset());
+
+        // The index of the counter within any binding ranges will be the same
+        // as the index computed for the parent structure.
+        //
+        // Note: this case would arise for an array of structured buffers
+        //
+        //      AppendStructuredBuffer g[4];
+        //
+        // In this scenario, `g` holds two binding ranges:
+        //
+        // * Range #0 comprises 4 element buffers, representing `g[...].elements`
+        // * Range #1 comprises 4 counter buffers, representing `g[...].counter`
+        //
+        // A cursor for `g[2]` would have a `bindingRangeIndex` of zero but
+        // a `bindingArrayIndex` of 2, indicating that we could end up
+        // referencing either range, but no matter what we know the index
+        // is 2. Thus when we form a cursor for `g[2].counter` we want to
+        // apply the binding range offset to get a `bindingRangeIndex` of
+        // 1, while the `bindingArrayIndex` is unmodified.
+        //
+        // The result is that `g[2].counter` is stored in range #1 at array index 2.
+        //
+        counterCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
+
+        return counterCursor;
+    }
+    // Otherwise, return an invalid cursor
+    return ShaderCursor{};
+}
+
+inline ShaderCursor ShaderCursor::getElement(GfxIndex index) const
 {
     if (m_containerType != ShaderObjectContainerType::None)
     {
@@ -265,8 +408,9 @@ ShaderCursor ShaderCursor::getElement(GfxIndex index) const
     return ShaderCursor();
 }
 
+namespace detail {
 
-static int _peek(const char* slice)
+inline int peek(const char* slice)
 {
     const char* b = slice;
     if (!b || !*b)
@@ -274,7 +418,7 @@ static int _peek(const char* slice)
     return *b;
 }
 
-static int _get(const char*& slice)
+inline int get(const char*& slice)
 {
     const char* b = slice;
     if (!b || !*b)
@@ -284,7 +428,9 @@ static int _get(const char*& slice)
     return result;
 }
 
-Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
+} // namespace detail
+
+inline Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
 {
     ShaderCursor cursor = ioCursor;
 
@@ -299,7 +445,7 @@ Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
     const char* rest = path;
     for (;;)
     {
-        int c = _peek(rest);
+        int c = detail::peek(rest);
 
         if (c == -1)
             break;
@@ -308,7 +454,7 @@ Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
             if (!(state & ALLOW_DOT))
                 return SLANG_E_INVALID_ARG;
 
-            _get(rest);
+            detail::get(rest);
             state = ALLOW_NAME;
             continue;
         }
@@ -317,11 +463,11 @@ Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
             if (!(state & ALLOW_SUBSCRIPT))
                 return SLANG_E_INVALID_ARG;
 
-            _get(rest);
+            detail::get(rest);
             GfxCount index = 0;
-            while (_peek(rest) != ']')
+            while (detail::peek(rest) != ']')
             {
-                int d = _get(rest);
+                int d = detail::get(rest);
                 if (d >= '0' && d <= '9')
                 {
                     index = index * 10 + (d - '0');
@@ -332,9 +478,9 @@ Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
                 }
             }
 
-            if (_peek(rest) != ']')
+            if (detail::peek(rest) != ']')
                 return SLANG_E_INVALID_ARG;
-            _get(rest);
+            detail::get(rest);
 
             cursor = cursor.getElement(index);
             state = ALLOW_DOT | ALLOW_SUBSCRIPT;
@@ -345,10 +491,10 @@ Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
             const char* nameBegin = rest;
             for (;;)
             {
-                switch (_peek(rest))
+                switch (detail::peek(rest))
                 {
                 default:
-                    _get(rest);
+                    detail::get(rest);
                     continue;
 
                 case -1:
