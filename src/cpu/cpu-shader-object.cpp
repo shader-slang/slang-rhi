@@ -99,7 +99,6 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayou
         //
         if (!subObjectLayout)
             continue;
-        auto _debugname = subObjectLayout->getElementTypeLayout()->getName();
 
         //
         // Otherwise, we will allocate a sub-object to fill

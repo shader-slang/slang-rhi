@@ -744,7 +744,7 @@ Result RendererBase::getShaderObjectLayout(
 ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
 {
     ComponentKey key;
-    key.typeName = type->getName() ? type->getName() : "";
+    key.typeName = string::from_cstr(type->getName());
     switch (type->getKind())
     {
     case slang::TypeReflection::Kind::Specialized:
@@ -752,7 +752,7 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
             auto baseType = type->getElementType();
 
             std::string str;
-            str += baseType->getName();
+            str += string::from_cstr(baseType->getName());
 
             auto rawType = (SlangReflectionType*) type;
 
@@ -764,7 +764,7 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
                 if(auto rawArgType = spReflectionType_getSpecializedTypeArgType(rawType, a))
                 {
                     auto argType = (slang::TypeReflection*) rawArgType;
-                    str += argType->getName();
+                    str += string::from_cstr(argType->getName());
                 }
             }
             str += '>';

@@ -31,10 +31,10 @@ static Slang::Result precompileProgram(
         auto path = module->getFilePath();
         if (path)
         {
-            auto name = module->getName();
+            auto name = string::from_cstr(module->getName());
             ComPtr<ISlangBlob> outBlob;
             module->serialize(outBlob.writeRef());
-            fileSys->saveFileBlob((std::string(name) + ".slang-module").c_str(), outBlob);
+            fileSys->saveFileBlob((name + ".slang-module").c_str(), outBlob);
         }
     }
     return SLANG_OK;

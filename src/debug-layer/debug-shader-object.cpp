@@ -98,7 +98,7 @@ Result DebugShaderObject::getObject(ShaderOffset const& offset, IShaderObject** 
     }
     debugShaderObject = new DebugShaderObject();
     debugShaderObject->baseObject = innerObject;
-    debugShaderObject->m_typeName = innerObject->getElementTypeLayout()->getName();
+    debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
     m_objects.emplace(ShaderOffsetKey{offset}, debugShaderObject);
     returnComPtr(object, debugShaderObject);
     return resultCode;
@@ -164,7 +164,7 @@ Result DebugShaderObject::getCurrentVersion(
     SLANG_RETURN_ON_FAIL(baseObject->getCurrentVersion(getInnerObj(transientHeap), innerObject.writeRef()));
     RefPtr<DebugShaderObject> debugShaderObject = new DebugShaderObject();
     debugShaderObject->baseObject = innerObject;
-    debugShaderObject->m_typeName = innerObject->getElementTypeLayout()->getName();
+    debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
     returnComPtr(outObject, debugShaderObject);
     return SLANG_OK;
 }

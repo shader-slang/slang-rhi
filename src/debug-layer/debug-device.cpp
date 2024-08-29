@@ -368,10 +368,9 @@ Result DebugDevice::createShaderObject(
     SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
-    auto typeName = type->getName();
     auto result =
         baseObject->createShaderObject(type, containerType, outObject->baseObject.writeRef());
-    outObject->m_typeName = typeName;
+    outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
     if (SLANG_FAILED(result))
@@ -389,10 +388,9 @@ Result DebugDevice::createShaderObject2(
     SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
-    auto typeName = type->getName();
     auto result =
         baseObject->createShaderObject2(session, type, containerType, outObject->baseObject.writeRef());
-    outObject->m_typeName = typeName;
+    outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
     if (SLANG_FAILED(result))
@@ -409,10 +407,9 @@ Result DebugDevice::createMutableShaderObject(
     SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
-    auto typeName = type->getName();
     auto result =
         baseObject->createMutableShaderObject(type, containerType, outObject->baseObject.writeRef());
-    outObject->m_typeName = typeName;
+    outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
     if (SLANG_FAILED(result))
@@ -430,10 +427,9 @@ Result DebugDevice::createMutableShaderObject2(
     SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
-    auto typeName = type->getName();
     auto result =
         baseObject->createMutableShaderObject2(session, type, containerType, outObject->baseObject.writeRef());
-    outObject->m_typeName = typeName;
+    outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
     if (SLANG_FAILED(result))
@@ -466,8 +462,7 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject();
     auto result = baseObject->createShaderObjectFromTypeLayout(typeLayout, outObject->baseObject.writeRef());
     auto type = typeLayout->getType();
-    auto typeName = type->getName();
-    outObject->m_typeName = typeName;
+    outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
     if (SLANG_FAILED(result))
@@ -486,8 +481,7 @@ Result DebugDevice::createMutableShaderObjectFromTypeLayout(
     if (SLANG_FAILED(result))
         return result;
     auto type = typeLayout->getType();
-    auto typeName = type->getName();
-    outObject->m_typeName = typeName;
+    outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
     returnComPtr(outShaderObject, outObject);

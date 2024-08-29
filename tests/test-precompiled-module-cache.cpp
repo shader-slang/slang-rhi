@@ -59,7 +59,7 @@ static Slang::Result precompileProgram(
         auto path = module->getFilePath();
         if (path)
         {
-            auto name = module->getName();
+            auto name = string::from_cstr(module->getName());
             ComPtr<ISlangBlob> outBlob;
             module->serialize(outBlob.writeRef());
             fileSys->saveFileBlob((Slang::String("cache/") + Slang::String(name) + ".slang-module").getBuffer(), outBlob);

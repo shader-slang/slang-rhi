@@ -10,6 +10,7 @@
 #include "platform.h"
 #include "blob.h"
 #include "span.h"
+#include "string.h"
 
 namespace rhi {
 
@@ -93,7 +94,7 @@ auto make_array(Args ...args)
             SLANG_FORCE_INLINE static DoubleInt64Union makeFromInt64(int64_t i) { DoubleInt64Union cast; cast.ivalue = i; return cast; }
             SLANG_FORCE_INLINE static DoubleInt64Union makeFromDouble(double d) { DoubleInt64Union cast; cast.dvalue = d; return cast; }
         };
-        		
+
 
 		inline float halfToFloat(unsigned short input)
 		{
@@ -106,7 +107,7 @@ auto make_array(Args ...args)
 				o.ivalue |= 255 << 23;
 			o.ivalue |= (input & 0x8000) << 16;    // sign bit
 			return o.fvalue;
-		}		
+		}
 
     } // namespace math
 } // namespace rhi

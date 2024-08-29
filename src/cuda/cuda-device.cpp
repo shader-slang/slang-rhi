@@ -182,7 +182,7 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
     {
         // Not clear how to detect half support on CUDA. For now we'll assume we have it
         m_features.push_back("half");
-        
+
         // CUDA has support for realtime clock
         m_features.push_back("realtime-clock");
 
@@ -1009,7 +1009,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createProgram(
     SLANG_RETURN_ON_FAIL(compileResult);
 
     SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&cudaProgram->cudaModule, kernelCode->getBufferPointer()));
-    cudaProgram->kernelName = desc.slangGlobalScope->getLayout()->getEntryPointByIndex(0)->getName();
+    cudaProgram->kernelName = string::from_cstr(desc.slangGlobalScope->getLayout()->getEntryPointByIndex(0)->getName());
     SLANG_CUDA_RETURN_ON_FAIL(cuModuleGetFunction(
         &cudaProgram->cudaKernel, cudaProgram->cudaModule, cudaProgram->kernelName.data()));
 

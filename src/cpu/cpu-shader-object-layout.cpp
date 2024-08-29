@@ -16,7 +16,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(RendererBase* renderer, slang::IS
 
     m_subObjectCount = 0;
     m_resourceCount = 0;
-    
+
     m_elementTypeLayout = _unwrapParameterGroups(layout, m_containerType);
     m_size = m_elementTypeLayout->getSize();
 
