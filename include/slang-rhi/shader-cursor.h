@@ -2,8 +2,7 @@
 
 #include <slang-rhi.h>
 
-namespace rhi
-{
+namespace rhi {
 
 /// Represents a "pointer" to the storage for a shader parameter of a (dynamically) known type.
 ///
@@ -84,15 +83,12 @@ struct ShaderCursor
     ShaderCursor() {}
 
     ShaderCursor(IShaderObject* object)
-        : m_baseObject(object)
-        , m_typeLayout(object->getElementTypeLayout())
-        , m_containerType(object->getContainerType())
-    {}
-
-    SlangResult setData(void const* data, Size size) const
+        : m_baseObject(object), m_typeLayout(object->getElementTypeLayout()),
+          m_containerType(object->getContainerType())
     {
-        return m_baseObject->setData(m_offset, data, size);
     }
+
+    SlangResult setData(void const* data, Size size) const { return m_baseObject->setData(m_offset, data, size); }
 
     template <typename T>
     SlangResult setData(T const& data) const
@@ -100,10 +96,7 @@ struct ShaderCursor
         return setData(&data, sizeof(data));
     }
 
-    SlangResult setObject(IShaderObject* object) const
-    {
-        return m_baseObject->setObject(m_offset, object);
-    }
+    SlangResult setObject(IShaderObject* object) const { return m_baseObject->setObject(m_offset, object); }
 
     SlangResult setSpecializationArgs(const slang::SpecializationArg* args, GfxCount count) const
     {
@@ -115,27 +108,21 @@ struct ShaderCursor
         return m_baseObject->setResource(m_offset, resourceView);
     }
 
-    SlangResult setSampler(ISamplerState* sampler) const
-    {
-        return m_baseObject->setSampler(m_offset, sampler);
-    }
+    SlangResult setSampler(ISamplerState* sampler) const { return m_baseObject->setSampler(m_offset, sampler); }
 
     SlangResult setCombinedTextureSampler(IResourceView* textureView, ISamplerState* sampler) const
     {
         return m_baseObject->setCombinedTextureSampler(m_offset, textureView, sampler);
     }
 
-        /// Produce a cursor to the field with the given `name`.
-        ///
-        /// This is a convenience wrapper around `getField()`.
-    ShaderCursor operator[](const char* name) const
-    {
-        return getField(name);
-    }
+    /// Produce a cursor to the field with the given `name`.
+    ///
+    /// This is a convenience wrapper around `getField()`.
+    ShaderCursor operator[](const char* name) const { return getField(name); }
 
-        /// Produce a cursor to the element or field with the given `index`.
-        ///
-        /// This is a convenience wrapper around `getElement()`.
+    /// Produce a cursor to the element or field with the given `index`.
+    ///
+    /// This is a convenience wrapper around `getElement()`.
     ShaderCursor operator[](int64_t index) const { return getElement((GfxIndex)index); }
     ShaderCursor operator[](uint64_t index) const { return getElement((GfxIndex)index); }
     ShaderCursor operator[](int32_t index) const { return getElement((GfxIndex)index); }
@@ -155,11 +142,11 @@ inline Result ShaderCursor::getDereferenced(ShaderCursor& outCursor) const
 
     case slang::TypeReflection::Kind::ConstantBuffer:
     case slang::TypeReflection::Kind::ParameterBlock:
-        {
-            auto subObject = m_baseObject->getObject(m_offset);
-            outCursor = ShaderCursor(subObject);
-            return SLANG_OK;
-        }
+    {
+        auto subObject = m_baseObject->getObject(m_offset);
+        outCursor = ShaderCursor(subObject);
+        return SLANG_OK;
+    }
     }
 }
 
@@ -178,68 +165,67 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
         // The easy/expected case is when the value has a structure type.
         //
     case slang::TypeReflection::Kind::Struct:
-        {
-            // We start by looking up the index of a field matching `name`.
-            //
-            // If there is no such field, we have an error.
-            //
-            SlangInt fieldIndex = m_typeLayout->findFieldIndexByName(name, nameEnd);
-            if (fieldIndex == -1)
-                break;
+    {
+        // We start by looking up the index of a field matching `name`.
+        //
+        // If there is no such field, we have an error.
+        //
+        SlangInt fieldIndex = m_typeLayout->findFieldIndexByName(name, nameEnd);
+        if (fieldIndex == -1)
+            break;
 
-            // Once we know the index of the field being referenced,
-            // we create a cursor to point at the field, based on
-            // the offset information already in this cursor, plus
-            // offsets derived from the field's layout.
-            //
-            slang::VariableLayoutReflection* fieldLayout =
-                m_typeLayout->getFieldByIndex((unsigned int)fieldIndex);
-            ShaderCursor fieldCursor;
+        // Once we know the index of the field being referenced,
+        // we create a cursor to point at the field, based on
+        // the offset information already in this cursor, plus
+        // offsets derived from the field's layout.
+        //
+        slang::VariableLayoutReflection* fieldLayout = m_typeLayout->getFieldByIndex((unsigned int)fieldIndex);
+        ShaderCursor fieldCursor;
 
-            // The field cursorwill point into the same parent object.
-            //
-            fieldCursor.m_baseObject = m_baseObject;
+        // The field cursorwill point into the same parent object.
+        //
+        fieldCursor.m_baseObject = m_baseObject;
 
-            // The type being pointed to is the tyep of the field.
-            //
-            fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
+        // The type being pointed to is the tyep of the field.
+        //
+        fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
 
-            // The byte offset is the current offset plus the relative offset of the field.
-            // The offset in binding ranges is computed similarly.
-            //
-            fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
-            fieldCursor.m_offset.bindingRangeIndex =
-                m_offset.bindingRangeIndex + (GfxIndex)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
+        // The byte offset is the current offset plus the relative offset of the field.
+        // The offset in binding ranges is computed similarly.
+        //
+        fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
+        fieldCursor.m_offset.bindingRangeIndex =
+            m_offset.bindingRangeIndex + (GfxIndex)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
 
-            // The index of the field within any binding ranges will be the same
-            // as the index computed for the parent structure.
-            //
-            // Note: this case would arise for an array of structures with texture-type
-            // fields. Suppose we have:
-            //
-            //      struct S { Texture2D t; Texture2D u; }
-            //      S g[4];
-            //
-            // In this scenario, `g` holds two binding ranges:
-            //
-            // * Range #0 comprises 4 textures, representing `g[...].t`
-            // * Range #1 comprises 4 textures, representing `g[...].u`
-            //
-            // A cursor for `g[2]` would have a `bindingRangeIndex` of zero but
-            // a `bindingArrayIndex` of 2, iindicating that we could end up
-            // referencing either range, but no matter what we know the index
-            // is 2. Thus when we form a cursor for `g[2].u` we want to
-            // apply the binding range offset to get a `bindingRangeIndex` of
-            // 1, while the `bindingArrayIndex` is unmodified.
-            //
-            // The result is that `g[2].u` is stored in range #1 at array index 2.
-            //
-            fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
+        // The index of the field within any binding ranges will be the same
+        // as the index computed for the parent structure.
+        //
+        // Note: this case would arise for an array of structures with texture-type
+        // fields. Suppose we have:
+        //
+        //      struct S { Texture2D t; Texture2D u; }
+        //      S g[4];
+        //
+        // In this scenario, `g` holds two binding ranges:
+        //
+        // * Range #0 comprises 4 textures, representing `g[...].t`
+        // * Range #1 comprises 4 textures, representing `g[...].u`
+        //
+        // A cursor for `g[2]` would have a `bindingRangeIndex` of zero but
+        // a `bindingArrayIndex` of 2, iindicating that we could end up
+        // referencing either range, but no matter what we know the index
+        // is 2. Thus when we form a cursor for `g[2].u` we want to
+        // apply the binding range offset to get a `bindingRangeIndex` of
+        // 1, while the `bindingArrayIndex` is unmodified.
+        //
+        // The result is that `g[2].u` is stored in range #1 at array index 2.
+        //
+        fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
 
-            outCursor = fieldCursor;
-            return SLANG_OK;
-        }
-        break;
+        outCursor = fieldCursor;
+        return SLANG_OK;
+    }
+    break;
 
     // In some cases the user might be trying to acess a field by name
     // from a cursor that references a constant buffer or parameter block,
@@ -247,15 +233,15 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
     //
     case slang::TypeReflection::Kind::ConstantBuffer:
     case slang::TypeReflection::Kind::ParameterBlock:
-        {
-            // We basically need to "dereference" the current cursor
-            // to go from a pointer to a constant buffer to a pointer
-            // to the *contents* of the constant buffer.
-            //
-            ShaderCursor d = getDereferenced();
-            return d.getField(name, nameEnd, outCursor);
-        }
-        break;
+    {
+        // We basically need to "dereference" the current cursor
+        // to go from a pointer to a constant buffer to a pointer
+        // to the *contents* of the constant buffer.
+        //
+        ShaderCursor d = getDereferenced();
+        return d.getField(name, nameEnd, outCursor);
+    }
+    break;
     }
 
     // If a cursor is pointing at a root shader object (created for a
@@ -269,8 +255,8 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
     //
     // TODO: figure out whether we should support this long-term.
     //
-    auto entryPointCount = (GfxIndex) m_baseObject->getEntryPointCount();
-    for( GfxIndex e = 0; e < entryPointCount; ++e )
+    auto entryPointCount = (GfxIndex)m_baseObject->getEntryPointCount();
+    for (GfxIndex e = 0; e < entryPointCount; ++e)
     {
         ComPtr<IShaderObject> entryPoint;
         m_baseObject->getEntryPoint(e, entryPoint.writeRef());
@@ -278,7 +264,7 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
         ShaderCursor entryPointCursor(entryPoint);
 
         auto result = entryPointCursor.getField(name, nameEnd, outCursor);
-        if(SLANG_SUCCEEDED(result))
+        if (SLANG_SUCCEEDED(result))
             return result;
     }
 
@@ -291,7 +277,7 @@ inline ShaderCursor ShaderCursor::getExplicitCounter() const
 
     // The alternative to handling this here would be to augment IResourceView
     // with a `getCounterResourceView()`, and set that also in `setResource`
-    if(const auto counterVarLayout = m_typeLayout->getExplicitCounter())
+    if (const auto counterVarLayout = m_typeLayout->getExplicitCounter())
     {
         ShaderCursor counterCursor;
 
@@ -303,10 +289,9 @@ inline ShaderCursor ShaderCursor::getExplicitCounter() const
 
         // The byte offset is the current offset plus the relative offset of the counter.
         // The offset in binding ranges is computed similarly.
-        counterCursor.m_offset.uniformOffset
-            = m_offset.uniformOffset + SlangInt(counterVarLayout->getOffset());
-        counterCursor.m_offset.bindingRangeIndex
-            = m_offset.bindingRangeIndex + GfxIndex(m_typeLayout->getExplicitCounterBindingRangeOffset());
+        counterCursor.m_offset.uniformOffset = m_offset.uniformOffset + SlangInt(counterVarLayout->getOffset());
+        counterCursor.m_offset.bindingRangeIndex =
+            m_offset.bindingRangeIndex + GfxIndex(m_typeLayout->getExplicitCounterBindingRangeOffset());
 
         // The index of the counter within any binding ranges will be the same
         // as the index computed for the parent structure.
@@ -351,58 +336,57 @@ inline ShaderCursor ShaderCursor::getElement(GfxIndex index) const
         return elementCursor;
     }
 
-    switch( m_typeLayout->getKind() )
+    switch (m_typeLayout->getKind())
     {
     case slang::TypeReflection::Kind::Array:
-        {
-            ShaderCursor elementCursor;
-            elementCursor.m_baseObject = m_baseObject;
-            elementCursor.m_typeLayout = m_typeLayout->getElementTypeLayout();
-            elementCursor.m_offset.uniformOffset =
-                m_offset.uniformOffset +
-                index * m_typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_UNIFORM);
-            elementCursor.m_offset.bindingRangeIndex = m_offset.bindingRangeIndex;
-            elementCursor.m_offset.bindingArrayIndex =
-                m_offset.bindingArrayIndex * (GfxCount)m_typeLayout->getElementCount() + index;
-            return elementCursor;
-        }
-        break;
+    {
+        ShaderCursor elementCursor;
+        elementCursor.m_baseObject = m_baseObject;
+        elementCursor.m_typeLayout = m_typeLayout->getElementTypeLayout();
+        elementCursor.m_offset.uniformOffset =
+            m_offset.uniformOffset + index * m_typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_UNIFORM);
+        elementCursor.m_offset.bindingRangeIndex = m_offset.bindingRangeIndex;
+        elementCursor.m_offset.bindingArrayIndex =
+            m_offset.bindingArrayIndex * (GfxCount)m_typeLayout->getElementCount() + index;
+        return elementCursor;
+    }
+    break;
 
     case slang::TypeReflection::Kind::Struct:
-        {
-            // The logic here is similar to `getField()` except that we don't
-            // need to look up the field index based on a name first.
-            //
-            auto fieldIndex = index;
-            slang::VariableLayoutReflection* fieldLayout =
-                m_typeLayout->getFieldByIndex((unsigned int)fieldIndex);
-            if(!fieldLayout)
-                return ShaderCursor();
+    {
+        // The logic here is similar to `getField()` except that we don't
+        // need to look up the field index based on a name first.
+        //
+        auto fieldIndex = index;
+        slang::VariableLayoutReflection* fieldLayout = m_typeLayout->getFieldByIndex((unsigned int)fieldIndex);
+        if (!fieldLayout)
+            return ShaderCursor();
 
-            ShaderCursor fieldCursor;
-            fieldCursor.m_baseObject = m_baseObject;
-            fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
-            fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
-            fieldCursor.m_offset.bindingRangeIndex =
-                m_offset.bindingRangeIndex + (GfxIndex)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
-            fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
+        ShaderCursor fieldCursor;
+        fieldCursor.m_baseObject = m_baseObject;
+        fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
+        fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
+        fieldCursor.m_offset.bindingRangeIndex =
+            m_offset.bindingRangeIndex + (GfxIndex)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
+        fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
 
-            return fieldCursor;
-        }
-        break;
+        return fieldCursor;
+    }
+    break;
 
     case slang::TypeReflection::Kind::Vector:
     case slang::TypeReflection::Kind::Matrix:
-        {
-            ShaderCursor fieldCursor;
-            fieldCursor.m_baseObject = m_baseObject;
-            fieldCursor.m_typeLayout = m_typeLayout->getElementTypeLayout();
-            fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + m_typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_UNIFORM) * index;
-            fieldCursor.m_offset.bindingRangeIndex = m_offset.bindingRangeIndex;
-            fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
-            return fieldCursor;
-        }
-        break;
+    {
+        ShaderCursor fieldCursor;
+        fieldCursor.m_baseObject = m_baseObject;
+        fieldCursor.m_typeLayout = m_typeLayout->getElementTypeLayout();
+        fieldCursor.m_offset.uniformOffset =
+            m_offset.uniformOffset + m_typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_UNIFORM) * index;
+        fieldCursor.m_offset.bindingRangeIndex = m_offset.bindingRangeIndex;
+        fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
+        return fieldCursor;
+    }
+    break;
     }
 
     return ShaderCursor();
