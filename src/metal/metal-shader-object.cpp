@@ -350,7 +350,6 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
     {
         ComPtr<IBuffer> buffer;
         BufferDesc bufferDesc = {};
-        bufferDesc.type = TextureType::Buffer;
         bufferDesc.size = typeLayout->getSize();
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
