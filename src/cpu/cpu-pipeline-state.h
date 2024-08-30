@@ -1,13 +1,8 @@
-// cpu-pipeline-state.h
 #pragma once
+
 #include "cpu-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cpu
-{
+namespace rhi::cpu {
 
 class PipelineStateImpl : public PipelineStateBase
 {
@@ -17,5 +12,4 @@ public:
     void init(const ComputePipelineStateDesc& inDesc);
 };
 
-} // namespace cpu
-} // namespace rhi
+} // namespace rhi::cpu

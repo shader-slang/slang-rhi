@@ -1,15 +1,8 @@
-// cpu-texture.h
 #pragma once
+
 #include "cpu-base.h"
 
-#include <vector>
-
-namespace rhi
-{
-using namespace Slang;
-
-namespace cpu
-{
+namespace rhi::cpu {
 
 struct CPUTextureBaseShapeInfo
 {
@@ -18,14 +11,13 @@ struct CPUTextureBaseShapeInfo
     int32_t implicitArrayElementCount;
 };
 
-static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[(int)ITextureResource::Type::_Count] =
-{
-    /* Unknown */       { 0, 0, 0 },
-    /* Buffer */        { 1, 1, 1 },
-    /* Texture1D */     { 1, 1, 1 },
-    /* Texture2D */     { 2, 2, 1 },
-    /* Texture3D */     { 3, 3, 1 },
-    /* TextureCube */   { 2, 3, 6 },
+static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[(int)ITextureResource::Type::_Count] = {
+    /* Unknown */ {0, 0, 0},
+    /* Buffer */ {1, 1, 1},
+    /* Texture1D */ {1, 1, 1},
+    /* Texture2D */ {2, 2, 1},
+    /* Texture3D */ {3, 3, 1},
+    /* TextureCube */ {2, 3, 6},
 };
 
 static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(ITextureResource::Type baseShape);
@@ -37,23 +29,23 @@ struct CPUTextureFormatInfo
     CPUTextureUnpackFunc unpackFunc;
 };
 
-template<int N>
+template <int N>
 void _unpackFloatTexel(void const* texelData, void* outData, size_t outSize);
 
-template<int N>
+template <int N>
 void _unpackFloat16Texel(void const* texelData, void* outData, size_t outSize);
 
 static inline float _unpackUnorm8Value(uint8_t value);
 
-template<int N>
+template <int N>
 void _unpackUnorm8Texel(void const* texelData, void* outData, size_t outSize);
 
 void _unpackUnormBGRA8Texel(void const* texelData, void* outData, size_t outSize);
 
-template<int N>
+template <int N>
 void _unpackUInt16Texel(void const* texelData, void* outData, size_t outSize);
 
-template<int N>
+template <int N>
 void _unpackUInt32Texel(void const* texelData, void* outData, size_t outSize);
 
 struct CPUFormatInfoMap
@@ -84,6 +76,7 @@ struct CPUFormatInfoMap
         auto& info = m_infos[Index(format)];
         info.unpackFunc = func;
     }
+
     SLANG_FORCE_INLINE const CPUTextureFormatInfo& get(Format format) const { return m_infos[Index(format)]; }
 
     CPUTextureFormatInfo m_infos[Index(Format::_Count)];
@@ -102,9 +95,7 @@ class TextureResourceImpl : public TextureResource
     enum { kMaxRank = 3 };
 
 public:
-    TextureResourceImpl(const TextureResource::Desc& desc)
-        : TextureResource(desc)
-    {}
+    TextureResourceImpl(const TextureResource::Desc& desc) : TextureResource(desc) {}
     ~TextureResourceImpl();
 
     Result init(ITextureResource::SubresourceData const* initData);
@@ -121,12 +112,11 @@ public:
     struct MipLevel
     {
         int32_t extents[kMaxRank];
-        int64_t strides[kMaxRank+1];
+        int64_t strides[kMaxRank + 1];
         int64_t offset;
     };
-    std::vector<MipLevel>  m_mipLevels;
-    void*           m_data = nullptr;
+    std::vector<MipLevel> m_mipLevels;
+    void* m_data = nullptr;
 };
 
-} // namespace cpu
-} // namespace rhi
+} // namespace rhi::cpu

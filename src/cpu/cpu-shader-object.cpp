@@ -1,16 +1,9 @@
-// cpu-shader-object.cpp
 #include "cpu-shader-object.h"
-
 #include "cpu-buffer.h"
 #include "cpu-resource-views.h"
 #include "cpu-shader-object-layout.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cpu
-{
+namespace rhi::cpu {
 
 Index CPUShaderObjectData::getCount()
 {
@@ -40,7 +33,8 @@ CPUShaderObjectData::~CPUShaderObjectData()
 ResourceViewBase* CPUShaderObjectData::getResourceView(
     RendererBase* device,
     slang::TypeLayoutReflection* elementLayout,
-    slang::BindingType bindingType)
+    slang::BindingType bindingType
+)
 {
     SLANG_UNUSED(device);
     if (!m_bufferResource)
@@ -54,7 +48,6 @@ ResourceViewBase* CPUShaderObjectData::getResourceView(
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
         m_bufferView = new BufferResourceViewImpl(viewDesc, m_bufferResource);
-
     }
     m_bufferResource->getDesc()->sizeInBytes = m_ordinaryData.size();
     m_bufferResource->m_data = m_ordinaryData.data();
@@ -127,8 +120,7 @@ SLANG_NO_THROW GfxCount SLANG_MCALL ShaderObjectImpl::getEntryPointCount()
     return 0;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    ShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
 {
     *outEntryPoint = nullptr;
     return SLANG_OK;
@@ -144,16 +136,14 @@ SLANG_NO_THROW size_t SLANG_MCALL ShaderObjectImpl::getSize()
     return (size_t)m_data.getCount();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, size_t size)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, size_t size)
 {
     size = std::min(size, size_t(m_data.getCount() - offset.uniformOffset));
     memcpy((char*)m_data.getBuffer() + offset.uniformOffset, data, size);
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* inView)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* inView)
 {
     auto layout = getLayout();
 
@@ -163,7 +153,6 @@ SLANG_NO_THROW Result SLANG_MCALL
 
     auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
     auto viewIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
-
 
     auto view = static_cast<ResourceViewImpl*>(inView);
     m_resources[viewIndex] = view;
@@ -203,8 +192,7 @@ SLANG_NO_THROW Result SLANG_MCALL
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
 {
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));
 
@@ -229,8 +217,7 @@ SLANG_NO_THROW Result SLANG_MCALL
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
 {
     SLANG_UNUSED(sampler);
     SLANG_UNUSED(offset);
@@ -238,7 +225,10 @@ SLANG_NO_THROW Result SLANG_MCALL
 }
 
 SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setCombinedTextureSampler(
-    ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler)
+    ShaderOffset const& offset,
+    IResourceView* textureView,
+    ISamplerState* sampler
+)
 {
     SLANG_UNUSED(sampler);
     setResource(offset, textureView);
@@ -292,8 +282,7 @@ SLANG_NO_THROW GfxCount SLANG_MCALL RootShaderObjectImpl::getEntryPointCount()
     return (GfxCount)m_entryPoints.size();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+SLANG_NO_THROW Result SLANG_MCALL RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
 {
     returnComPtr(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;
@@ -309,5 +298,4 @@ Result RootShaderObjectImpl::collectSpecializationArgs(ExtendedShaderObjectTypeL
     return SLANG_OK;
 }
 
-} // namespace cpu
-} // namespace rhi
+} // namespace rhi::cpu

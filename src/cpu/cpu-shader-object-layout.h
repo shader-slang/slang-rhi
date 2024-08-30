@@ -1,16 +1,8 @@
-// cpu-shader-object-layout.h
 #pragma once
+
 #include "cpu-base.h"
 
-#include <vector>
-#include <string_view>
-
-namespace rhi
-{
-using namespace Slang;
-
-namespace cpu
-{
+namespace rhi::cpu {
 
 struct BindingRangeInfo
 {
@@ -46,7 +38,6 @@ struct SubObjectRangeInfo
 class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
 {
 public:
-
     // TODO: Once memory lifetime stuff is handled, there is
     // no specific need to even track binding or sub-object
     // ranges for CPU.
@@ -74,13 +65,11 @@ private:
     slang::EntryPointLayout* m_entryPointLayout = nullptr;
 
 public:
-    EntryPointLayoutImpl(
-        RendererBase*               renderer,
-        slang::ISession*            session,
-        slang::EntryPointLayout*    entryPointLayout)
-        : ShaderObjectLayoutImpl(renderer, session, entryPointLayout->getTypeLayout())
-        , m_entryPointLayout(entryPointLayout)
-    {}
+    EntryPointLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::EntryPointLayout* entryPointLayout)
+        : ShaderObjectLayoutImpl(renderer, session, entryPointLayout->getTypeLayout()),
+          m_entryPointLayout(entryPointLayout)
+    {
+    }
 
     const char* getEntryPointName();
 };
@@ -99,5 +88,4 @@ public:
     EntryPointLayoutImpl* getEntryPoint(Index index);
 };
 
-} // namespace cpu
-} // namespace rhi
+} // namespace rhi::cpu

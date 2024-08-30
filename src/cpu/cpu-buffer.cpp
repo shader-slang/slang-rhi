@@ -1,12 +1,6 @@
-// cpu-buffer.cpp
 #include "cpu-buffer.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cpu
-{
+namespace rhi::cpu {
 
 BufferResourceImpl::~BufferResourceImpl()
 {
@@ -35,8 +29,7 @@ SLANG_NO_THROW DeviceAddress SLANG_MCALL BufferResourceImpl::getDeviceAddress()
     return (DeviceAddress)m_data;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     if (outPointer)
@@ -50,5 +43,4 @@ SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::unmap(MemoryRange* written
     return SLANG_OK;
 }
 
-} // namespace cpu
-} // namespace rhi
+} // namespace rhi::cpu

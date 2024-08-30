@@ -15,13 +15,31 @@ AllowAllParametersOfDeclarationOnNextLine: false
 BinPackParameters: false
 ExperimentalAutoDetectBinPacking: false
 AlignAfterOpenBracket: BlockIndent
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterCaseLabel: true
+    AfterClass: true
+    AfterControlStatement: Always
+    AfterEnum: false
+    AfterFunction: true
+    AfterNamespace: false
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: true
+    BeforeCatch: false
+    BeforeElse: false
+    BeforeLambdaBody: true
+    BeforeWhile: true
+    SplitEmptyRecord: false
+
 
 AlignTrailingComments: true
 ReflowComments: true
 CommentPragmas: '^\\.+'
 PenaltyBreakComment: 0
 
-
 AlwaysBreakAfterDefinitionReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 100000000
-BreakAfterReturnType: Automatic
+
+IndentAccessModifiers: false
+AccessModifierOffset: -4

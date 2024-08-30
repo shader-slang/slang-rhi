@@ -1,25 +1,16 @@
-// cpu-shader-program.h
 #pragma once
-#include "cpu-base.h"
 
+#include "cpu-base.h"
 #include "cpu-shader-object-layout.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cpu
-{
+namespace rhi::cpu {
 
 class ShaderProgramImpl : public ShaderProgramBase
 {
 public:
     RefPtr<RootShaderObjectLayoutImpl> layout;
 
-    ~ShaderProgramImpl()
-    {
-    }
+    ~ShaderProgramImpl() {}
 };
 
-} // namespace cpu
-} // namespace rhi
+} // namespace rhi::cpu

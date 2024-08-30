@@ -1,20 +1,13 @@
-// cpu-buffer.h
 #pragma once
+
 #include "cpu-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cpu
-{
+namespace rhi::cpu {
 
 class BufferResourceImpl : public BufferResource
 {
 public:
-    BufferResourceImpl(const Desc& _desc)
-        : BufferResource(_desc)
-    {}
+    BufferResourceImpl(const Desc& _desc) : BufferResource(_desc) {}
 
     ~BufferResourceImpl();
 
@@ -26,11 +19,9 @@ public:
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        map(MemoryRange* rangeToRead, void** outPointer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) override;
 };
 
-} // namespace cpu
-} // namespace rhi
+} // namespace rhi::cpu
