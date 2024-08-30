@@ -3,7 +3,7 @@
 
 namespace rhi::d3d11 {
 
-SlangResult ScopeNVAPI::init(DeviceImpl* device, Index regIndex)
+Result ScopeNVAPI::init(DeviceImpl* device, Index regIndex)
 {
     if (!device->m_nvapi)
     {

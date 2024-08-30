@@ -9,7 +9,8 @@ class InputLayoutImpl : public InputLayoutBase
 public:
     std::vector<D3D12_INPUT_ELEMENT_DESC> m_elements;
     std::vector<UINT> m_vertexStreamStrides;
-    std::vector<char> m_text; ///< Holds all strings to keep in scope
+    /// Holds all strings to keep in scope.
+    std::vector<char> m_text;
 };
 
 } // namespace rhi::d3d12

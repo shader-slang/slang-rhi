@@ -91,7 +91,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTextureResource(
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
         ITextureResource* texture,
         ResourceState state,
         ISlangBlob** outBlob,
@@ -99,7 +99,7 @@ public:
         Size* outPixelSize
     ) override;
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructurePrebuildInfo(

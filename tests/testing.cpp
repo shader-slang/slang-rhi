@@ -72,7 +72,7 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
     }
 }
 
-Slang::Result loadComputeProgram(
+Result loadComputeProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
@@ -96,7 +96,7 @@ Slang::Result loadComputeProgram(
     componentTypes.push_back(computeEntryPoint);
 
     ComPtr<slang::IComponentType> composedProgram;
-    SlangResult result = slangSession->createCompositeComponentType(
+    Result result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
         composedProgram.writeRef(),
@@ -122,7 +122,7 @@ Slang::Result loadComputeProgram(
     return SLANG_OK;
 }
 
-Slang::Result loadComputeProgram(
+Result loadComputeProgram(
     IDevice* device,
     slang::ISession* slangSession,
     ComPtr<IShaderProgram>& outShaderProgram,
@@ -145,7 +145,7 @@ Slang::Result loadComputeProgram(
     componentTypes.push_back(computeEntryPoint);
 
     ComPtr<slang::IComponentType> composedProgram;
-    SlangResult result = slangSession->createCompositeComponentType(
+    Result result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
         composedProgram.writeRef(),
@@ -171,11 +171,7 @@ Slang::Result loadComputeProgram(
     return SLANG_OK;
 }
 
-Slang::Result loadComputeProgramFromSource(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    std::string_view source
-)
+Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source)
 {
     ComPtr<slang::IBlob> diagnosticsBlob;
 
@@ -187,7 +183,7 @@ Slang::Result loadComputeProgramFromSource(
     return device->createProgram2(programDesc, outShaderProgram.writeRef(), diagnosticsBlob.writeRef());
 }
 
-Slang::Result loadGraphicsProgram(
+Result loadGraphicsProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
@@ -216,7 +212,7 @@ Slang::Result loadGraphicsProgram(
     componentTypes.push_back(fragmentEntryPoint);
 
     ComPtr<slang::IComponentType> composedProgram;
-    SlangResult result = slangSession->createCompositeComponentType(
+    Result result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
         composedProgram.writeRef(),
@@ -414,7 +410,7 @@ void initializeRenderDoc()
     {
         pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
         int ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, (void**)&rdoc_api);
-        assert(ret == 1);
+        SLANG_RHI_ASSERT(ret == 1);
     }
 }
 void renderDocBeginFrame()

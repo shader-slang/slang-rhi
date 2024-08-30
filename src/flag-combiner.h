@@ -23,10 +23,14 @@ struct DeviceCheckFlag
 /* Controls how and the order flags are changed, on the FlagCombiner */
 enum class ChangeType
 {
-    On,    ///< Always on
-    Off,   ///< Always off
-    OnOff, ///< Initially on then off
-    OffOn, ///< Initially off then on
+    /// Always on.
+    On,
+    /// Always off.
+    Off,
+    /// Initially on then off.
+    OnOff,
+    /// Initially off then on.
+    OffOn,
 };
 
 /* Calculates all the combinations of flags as controlled by the change types.

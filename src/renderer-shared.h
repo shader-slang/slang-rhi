@@ -1,7 +1,8 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #include "slang-context.h"
-#include "slang-rhi.h"
 
 #include "resource-desc-utils.h"
 
@@ -831,8 +832,8 @@ public:
         return false;
     }
 
-    Slang::Result compileShaders(RendererBase* device);
-    virtual Slang::Result createShaderModule(
+    Result compileShaders(RendererBase* device);
+    virtual Result createShaderModule(
         slang::EntryPointReflection* entryPointInfo,
         Slang::ComPtr<ISlangBlob> kernelCode
     );
@@ -1188,8 +1189,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject)
-        SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE;
     IDevice* getInterface(const Slang::Guid& guid);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
@@ -1341,7 +1341,7 @@ public:
     virtual Result createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) = 0;
 
 protected:
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL initialize(const Desc& desc);
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc);
 
 protected:
     std::vector<std::string> m_features;
@@ -1427,7 +1427,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
             extendedType.componentID = device->shaderCache.getComponentId(args[i].type);
             break;
         default:
-            SLANG_RHI_ASSERT(false && "Unexpected specialization argument kind.");
+            SLANG_RHI_ASSERT_FAILURE("Unexpected specialization argument kind.");
             return SLANG_FAIL;
         }
         list.add(extendedType);

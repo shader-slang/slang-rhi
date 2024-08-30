@@ -13,7 +13,7 @@ ResourceViewInternalImpl::~ResourceViewInternalImpl()
     }
 }
 
-SlangResult createD3D12BufferDescriptor(
+Result createD3D12BufferDescriptor(
     BufferResourceImpl* buffer,
     BufferResourceImpl* counterBuffer,
     IResourceView::Desc const& desc,
@@ -58,7 +58,7 @@ SlangResult createD3D12BufferDescriptor(
         {
             FormatInfo sizeInfo;
             gfxGetFormatInfo(desc.format, &sizeInfo);
-            assert(sizeInfo.pixelsPerBlock == 1);
+            SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
             uavDesc.Buffer.FirstElement = offset / sizeInfo.blockSizeInBytes;
             uavDesc.Buffer.NumElements = UINT(size / sizeInfo.blockSizeInBytes);
         }
@@ -107,7 +107,7 @@ SlangResult createD3D12BufferDescriptor(
         {
             FormatInfo sizeInfo;
             gfxGetFormatInfo(desc.format, &sizeInfo);
-            assert(sizeInfo.pixelsPerBlock == 1);
+            SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
             srvDesc.Buffer.FirstElement = offset / sizeInfo.blockSizeInBytes;
             srvDesc.Buffer.NumElements = UINT(size / sizeInfo.blockSizeInBytes);
         }
@@ -131,7 +131,7 @@ SlangResult createD3D12BufferDescriptor(
     return SLANG_OK;
 }
 
-SlangResult ResourceViewInternalImpl::getBufferDescriptorForBinding(
+Result ResourceViewInternalImpl::getBufferDescriptorForBinding(
     DeviceImpl* device,
     ResourceViewImpl* view,
     uint32_t bufferStride,

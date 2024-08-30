@@ -13,7 +13,7 @@
 
 namespace rhi {
 
-SlangResult loadSharedLibrary(const char* path, SharedLibraryHandle& handleOut)
+Result loadSharedLibrary(const char* path, SharedLibraryHandle& handleOut)
 {
 #if SLANG_WINDOWS_FAMILY
     handleOut = LoadLibraryA(path);

@@ -93,7 +93,7 @@ struct BaseRayTracingTest
         componentTypes.push_back(entryPoint);
 
         ComPtr<slang::IComponentType> linkedProgram;
-        SlangResult result = slangSession->createCompositeComponentType(
+        Result result = slangSession->createCompositeComponentType(
             componentTypes.data(),
             componentTypes.size(),
             linkedProgram.writeRef(),

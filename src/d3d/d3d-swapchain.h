@@ -1,11 +1,11 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #include "../renderer-shared.h"
 #include "d3d-util.h"
 #include "utils/common.h"
 #include "utils/short_vector.h"
-
-#include "slang-rhi.h"
 
 #include <dxgi1_4.h>
 

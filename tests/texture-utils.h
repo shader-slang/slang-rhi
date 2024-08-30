@@ -169,9 +169,9 @@ struct ValidationTextureData : RefObject
 
     void* getBlockAt(GfxIndex x, GfxIndex y, GfxIndex z)
     {
-        assert(x >= 0 && x < extents.width);
-        assert(y >= 0 && y < extents.height);
-        assert(z >= 0 && z < extents.depth);
+        SLANG_RHI_ASSERT(x >= 0 && x < extents.width);
+        SLANG_RHI_ASSERT(y >= 0 && y < extents.height);
+        SLANG_RHI_ASSERT(z >= 0 && z < extents.depth);
 
         char* layerData = (char*)textureData + z * strides.z;
         char* rowData = layerData + y * strides.y;
@@ -201,8 +201,8 @@ RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat);
 
 std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize);
-Slang::Result writeImage(const char* filename, ISlangBlob* pixels, uint32_t width, uint32_t height);
-Slang::Result writeImage(
+Result writeImage(const char* filename, ISlangBlob* pixels, uint32_t width, uint32_t height);
+Result writeImage(
     const char* filename,
     ISlangBlob* pixels,
     uint32_t width,

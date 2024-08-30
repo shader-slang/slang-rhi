@@ -10,7 +10,7 @@ using namespace rhi::testing;
 // with additional compiler options. Here we will specify a DownstreamArg compiler option to define
 // the value of DOWNSTREAM_VALUE when running dxc.
 //
-static Slang::Result loadProgram(
+static Result loadProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
@@ -34,7 +34,7 @@ static Slang::Result loadProgram(
     componentTypes.push_back(computeEntryPoint);
 
     ComPtr<slang::IComponentType> composedProgram;
-    SlangResult result = slangSession->createCompositeComponentType(
+    Result result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
         composedProgram.writeRef(),

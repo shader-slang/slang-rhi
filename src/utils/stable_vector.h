@@ -81,13 +81,13 @@ private:
 
         difference_type operator-(const iterator_base& it)
         {
-            assert(m_container == it.m_container);
+            SLANG_RHI_ASSERT(m_container == it.m_container);
             return m_index - it.m_index;
         }
 
         bool operator<(const iterator_base& it) const
         {
-            assert(m_container == it.m_container);
+            SLANG_RHI_ASSERT(m_container == it.m_container);
             return m_index < it.m_index;
         }
         bool operator==(const iterator_base& it) const

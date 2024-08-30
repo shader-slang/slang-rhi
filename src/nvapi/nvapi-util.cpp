@@ -3,9 +3,9 @@
 
 namespace rhi {
 
-static SlangResult g_initStatus = SLANG_E_UNINITIALIZED;
+static Result g_initStatus = SLANG_E_UNINITIALIZED;
 
-/* static */ SlangResult NVAPIUtil::initialize()
+/* static */ Result NVAPIUtil::initialize()
 {
 #ifdef SLANG_RHI_NVAPI
     if (g_initStatus == SLANG_E_UNINITIALIZED)

@@ -24,7 +24,7 @@ public:
     ~ResourceViewInternalImpl();
 
     // Get a d3d12 descriptor from the buffer view with the given buffer element stride.
-    SlangResult getBufferDescriptorForBinding(
+    Result getBufferDescriptorForBinding(
         DeviceImpl* device,
         ResourceViewImpl* view,
         uint32_t bufferStride,
@@ -32,7 +32,7 @@ public:
     );
 };
 
-SlangResult createD3D12BufferDescriptor(
+Result createD3D12BufferDescriptor(
     BufferResourceImpl* buffer,
     BufferResourceImpl* counterBuffer,
     IResourceView::Desc const& desc,

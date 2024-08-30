@@ -16,7 +16,7 @@ namespace rhi::vk {
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanModule !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Slang::Result VulkanModule::init(bool useSoftwareImpl)
+Result VulkanModule::init(bool useSoftwareImpl)
 {
     if (isInitialized())
     {
@@ -52,7 +52,7 @@ Slang::Result VulkanModule::init(bool useSoftwareImpl)
 
 PFN_vkVoidFunction VulkanModule::getFunction(const char* name) const
 {
-    assert(m_module);
+    SLANG_RHI_ASSERT(m_module);
     if (!m_module)
     {
         return nullptr;

@@ -133,7 +133,7 @@ public:
         ShaderObjectContainerType m_containerType = ShaderObjectContainerType::None;
 
         Result setElementTypeLayout(slang::TypeLayoutReflection* typeLayout);
-        SlangResult build(ShaderObjectLayoutImpl** outLayout);
+        Result build(ShaderObjectLayoutImpl** outLayout);
     };
 
     static Result createForElementType(

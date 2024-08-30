@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static Slang::Result loadProgram(
+static Result loadProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     slang::ProgramLayout*& slangReflection,
@@ -78,7 +78,7 @@ static Slang::Result loadProgram(
     componentTypes.push_back(computeEntryPoint);
 
     ComPtr<slang::IComponentType> composedProgram;
-    SlangResult result = slangSession->createCompositeComponentType(
+    Result result = slangSession->createCompositeComponentType(
         componentTypes.data(),
         componentTypes.size(),
         composedProgram.writeRef(),

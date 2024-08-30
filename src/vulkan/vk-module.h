@@ -1,8 +1,7 @@
 #pragma once
 
-#include "slang.h"
-
-#include "slang-com-helper.h"
+#include <slang-com-helper.h>
+#include <slang-rhi.h>
 
 #if SLANG_WINDOWS_FAMILY
 #define VK_USE_PLATFORM_WIN32_KHR 1
@@ -40,7 +39,7 @@ struct VulkanModule
     bool isSoftware() const { return m_isSoftware; }
 
     /// Initialize
-    Slang::Result init(bool useSoftwareImpl);
+    Result init(bool useSoftwareImpl);
     /// Destroy
     void destroy();
 

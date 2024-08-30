@@ -417,7 +417,8 @@ D3D12_DEPTH_STENCILOP_DESC D3DUtil::translateStencilOpDesc(DepthStencilOpDesc de
     }
     }
 
-    assert(!"Not reachable");
+    SLANG_RHI_ASSERT_FAILURE("Not reachable");
+
     return DXGI_FORMAT_UNKNOWN;
 }
 
@@ -629,7 +630,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     return s_dxgiModule;
 }
 
-/* static */ SlangResult D3DUtil::createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory)
+/* static */ Result D3DUtil::createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory)
 {
     auto dxgiModule = getDxgiModule();
     if (!dxgiModule)
@@ -670,7 +671,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     }
 }
 
-/* static */ SlangResult D3DUtil::findAdapters(
+/* static */ Result D3DUtil::findAdapters(
     DeviceCheckFlags flags,
     const AdapterLUID* adapterLUID,
     std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters
@@ -964,7 +965,7 @@ D3D12_RESOURCE_STATES D3DUtil::getResourceState(ResourceState state)
     }
 }
 
-/* static */ SlangResult D3DUtil::reportLiveObjects()
+/* static */ Result D3DUtil::reportLiveObjects()
 {
     static IDXGIDebug* dxgiDebug = nullptr;
 
@@ -1000,7 +1001,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
     return D3DUtil::reportLiveObjects();
 }
 
-/* static */ SlangResult D3DUtil::waitForCrashDumpCompletion(HRESULT res)
+/* static */ Result D3DUtil::waitForCrashDumpCompletion(HRESULT res)
 {
     // If it's not a device remove/reset then theres nothing to wait for
     if (!(res == DXGI_ERROR_DEVICE_REMOVED || res == DXGI_ERROR_DEVICE_RESET))
@@ -1051,7 +1052,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
     return SLANG_OK;
 }
 
-/* static */ SlangResult D3DUtil::findAdapters(
+/* static */ Result D3DUtil::findAdapters(
     DeviceCheckFlags flags,
     const AdapterLUID* adapterLUID,
     IDXGIFactory* dxgiFactory,

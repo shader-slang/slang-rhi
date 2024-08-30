@@ -30,9 +30,9 @@ void VulkanDeviceQueue::destroy()
     }
 }
 
-SlangResult VulkanDeviceQueue::init(const VulkanApi& api, VkQueue queue, int queueIndex)
+Result VulkanDeviceQueue::init(const VulkanApi& api, VkQueue queue, int queueIndex)
 {
-    assert(m_api == nullptr);
+    SLANG_RHI_ASSERT(m_api == nullptr);
 
     for (int i = 0; i < int(EventType::CountOf); ++i)
     {
@@ -198,7 +198,7 @@ VkSemaphore VulkanDeviceQueue::getSemaphore(EventType eventType)
 
 VkSemaphore VulkanDeviceQueue::makeCurrent(EventType eventType)
 {
-    assert(!isCurrent(eventType));
+    SLANG_RHI_ASSERT(!isCurrent(eventType));
     VkSemaphore semaphore = m_semaphores[int(eventType)];
     m_currentSemaphores[int(eventType)] = semaphore;
     return semaphore;

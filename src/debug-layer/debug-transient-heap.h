@@ -11,7 +11,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
 
 public:
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL synchronizeAndReset() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL finish() override;
@@ -25,7 +25,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
 
 public:
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL allocateTransientDescriptorTable(
         DescriptorType type,
         GfxCount count,

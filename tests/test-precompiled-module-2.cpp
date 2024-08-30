@@ -7,7 +7,7 @@ using namespace rhi::testing;
 
 // Test that mixing precompiled and non-precompiled modules is working.
 
-static Slang::Result precompileProgram(
+static Result precompileProgram(
     gfx::IDevice* device,
     ISlangMutableFileSystem* fileSys,
     const char* shaderModuleName,

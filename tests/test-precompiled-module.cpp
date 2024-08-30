@@ -4,7 +4,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static Slang::Result precompileProgram(IDevice* device, ISlangMutableFileSystem* fileSys, const char* shaderModuleName)
+static Result precompileProgram(IDevice* device, ISlangMutableFileSystem* fileSys, const char* shaderModuleName)
 {
     ComPtr<slang::ISession> slangSession;
     SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));

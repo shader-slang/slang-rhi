@@ -11,7 +11,7 @@ class DeviceImpl : public ImmediateComputeDeviceBase
 public:
     ~DeviceImpl();
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureResource(
         const ITextureResource::Desc& desc,

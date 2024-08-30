@@ -35,7 +35,7 @@ Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const Desc& desc)
 {
     AUTORELEASEPOOL
 
@@ -53,7 +53,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
     m_desc = desc;
 
     SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
-    SlangResult initDeviceResult = SLANG_OK;
+    Result initDeviceResult = SLANG_OK;
 
     m_device = NS::TransferPtr(MTL::CreateSystemDefaultDevice());
     m_commandQueue = NS::TransferPtr(m_device->newCommandQueue(64));
@@ -176,7 +176,7 @@ Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffe
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::readTextureResource(
+Result DeviceImpl::readTextureResource(
     ITextureResource* texture,
     ResourceState state,
     ISlangBlob** outBlob,
@@ -241,7 +241,7 @@ SlangResult DeviceImpl::readTextureResource(
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     AUTORELEASEPOOL
 
@@ -354,7 +354,7 @@ Result DeviceImpl::createTextureResource(
     const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     if (pixelFormat == MTL::PixelFormat::PixelFormatInvalid)
     {
-        assert(!"Unsupported texture format");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported texture format");
         return SLANG_FAIL;
     }
 
@@ -408,7 +408,7 @@ Result DeviceImpl::createTextureResource(
         textureDesc->setDepth(descIn.size.depth);
         break;
     default:
-        assert("!Unsupported texture type");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported texture type");
         return SLANG_FAIL;
     }
 

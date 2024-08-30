@@ -7,7 +7,7 @@ namespace rhi::debug {
 class DebugDevice : public DebugObject<IDevice>
 {
 public:
-    SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) noexcept override;
+    Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) noexcept override;
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF;
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
 
@@ -128,14 +128,14 @@ public:
     createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState) override;
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTextureResource(
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
         ITextureResource* resource,
         ResourceState state,
         ISlangBlob** outBlob,
         Size* outRowPitch,
         Size* outPixelSize
     ) override;
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

@@ -96,7 +96,7 @@ Result DeviceImpl::createBuffer(
     switch (memoryType)
     {
     case MemoryType::ReadBack:
-        assert(!srcData);
+        SLANG_RHI_ASSERT(!srcData);
 
         heapProps.Type = D3D12_HEAP_TYPE_READBACK;
         desc.Flags = D3D12_RESOURCE_FLAG_NONE;
@@ -546,14 +546,16 @@ Result DeviceImpl::initialize(const Desc& desc)
         // up to each back-end to specify.
         if (ENABLE_DEBUG_LAYER || isGfxDebugLayerEnabled())
         {
-            combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff); ///< First try debug then non debug
+            /// First try debug then non debug.
+            combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);
         }
         else
         {
-            combiner.add(DeviceCheckFlag::UseDebug, ChangeType::Off); ///< Don't bother with debug
+            /// Don't bother with debug.
+            combiner.add(DeviceCheckFlag::UseDebug, ChangeType::Off);
         }
-        combiner.add(DeviceCheckFlag::UseHardwareDevice,
-                     ChangeType::OnOff); ///< First try hardware, then reference
+        /// First try hardware, then reference.
+        combiner.add(DeviceCheckFlag::UseHardwareDevice, ChangeType::OnOff);
 
         const D3D_FEATURE_LEVEL featureLevels[] =
             {(D3D_FEATURE_LEVEL)D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
@@ -977,7 +979,7 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::readTextureResource(
+Result DeviceImpl::readTextureResource(
     ITextureResource* resource,
     ResourceState state,
     ISlangBlob** outBlob,
@@ -1155,7 +1157,7 @@ Result DeviceImpl::createTextureResource(
                     mipSize.height = int(D3DUtil::calcAligned(mipSize.height, 4));
                 }
 
-                assert(
+                SLANG_RHI_ASSERT(
                     footprint.Width == mipSize.width && footprint.Height == mipSize.height &&
                     footprint.Depth == mipSize.depth
                 );
@@ -1192,7 +1194,7 @@ Result DeviceImpl::createTextureResource(
                     dstLayer += dstMipLayerPitch;
                 }
 
-                // assert(srcRow == (const uint8_t*)(srcMip.getBuffer() + srcMip.getCount()));
+                // SLANG_RHI_ASSERT(srcRow == (const uint8_t*)(srcMip.getBuffer() + srcMip.getCount()));
             }
             uploadResource->Unmap(0, nullptr);
 

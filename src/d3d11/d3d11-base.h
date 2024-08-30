@@ -9,7 +9,7 @@
 
 #include "utils/common.h"
 
-#include "slang-com-ptr.h"
+#include <slang-com-ptr.h>
 
 #pragma push_macro("WIN32_LEAN_AND_MEAN")
 #pragma push_macro("NOMINMAX")

@@ -1,9 +1,5 @@
 #pragma once
 
-#include "slang-com-helper.h"
-#include "slang-com-ptr.h"
-#include "slang.h"
-
 #include "../immediate-renderer-base.h"
 #include "../mutable-shader-object.h"
 #include "../slang-context.h"
@@ -11,6 +7,10 @@
 #include "prelude/slang-cpp-types.h"
 
 #include "utils/common.h"
+
+#include <slang-com-helper.h>
+#include <slang-com-ptr.h>
+#include <slang.h>
 
 namespace rhi::cpu {
 

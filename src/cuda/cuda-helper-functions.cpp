@@ -3,7 +3,7 @@
 
 namespace rhi::cuda {
 
-SlangResult CUDAErrorInfo::handle() const
+Result CUDAErrorInfo::handle() const
 {
     std::string str;
     str += "Error: ";
@@ -27,7 +27,7 @@ SlangResult CUDAErrorInfo::handle() const
     return SLANG_FAIL;
 }
 
-SlangResult _handleCUDAError(CUresult cuResult, const char* file, int line)
+Result _handleCUDAError(CUresult cuResult, const char* file, int line)
 {
     CUDAErrorInfo info(file, line);
     cuGetErrorString(cuResult, &info.m_errorString);
@@ -43,7 +43,7 @@ static bool _isError(OptixResult result)
 }
 
 #if 1
-static SlangResult _handleOptixError(OptixResult result, char const* file, int line)
+static Result _handleOptixError(OptixResult result, char const* file, int line)
 {
     fprintf(stderr, "%s(%d): optix: %s (%s)\n", file, line, optixGetErrorString(result), optixGetErrorName(result));
     return SLANG_FAIL;

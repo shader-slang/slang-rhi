@@ -1,6 +1,6 @@
 #include "texture-utils.h"
 
-#include "slang-com-ptr.h"
+#include <slang-com-ptr.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -282,14 +282,14 @@ std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount 
     return buffer;
 }
 
-Slang::Result writeImage(const char* filename, ISlangBlob* pixels, uint32_t width, uint32_t height)
+Result writeImage(const char* filename, ISlangBlob* pixels, uint32_t width, uint32_t height)
 {
     int stbResult = stbi_write_hdr(filename, width, height, 4, (float*)pixels->getBufferPointer());
 
     return stbResult ? SLANG_OK : SLANG_FAIL;
 }
 
-Slang::Result writeImage(
+Result writeImage(
     const char* filename,
     ISlangBlob* pixels,
     uint32_t width,

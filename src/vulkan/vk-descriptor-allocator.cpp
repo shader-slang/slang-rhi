@@ -77,7 +77,7 @@ VulkanDescriptorSet DescriptorSetAllocator::allocate(VkDescriptorSetLayout layou
         return rs;
     }
     // Failed to allocate from a new pool, we are in trouble.
-    assert(!"descriptor set allocation failed.");
+    SLANG_RHI_ASSERT_FAILURE("Descriptor set allocation failed.");
     return rs;
 }
 

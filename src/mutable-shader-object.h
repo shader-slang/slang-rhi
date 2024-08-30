@@ -1,8 +1,8 @@
 #pragma once
 
-#include "renderer-shared.h"
-#include "slang-rhi.h"
+#include <slang-rhi.h>
 
+#include "renderer-shared.h"
 #include "utils/common.h"
 
 #include <map>
@@ -110,7 +110,7 @@ public:
         Index subObjectCount = layoutImpl->getSubObjectCount();
         this->m_objects.resize(subObjectCount);
         auto dataSize = layoutImpl->getElementTypeLayout()->getSize();
-        assert(dataSize >= 0);
+        SLANG_RHI_ASSERT(dataSize >= 0);
         this->m_data.setCount(dataSize);
         memset(this->m_data.getBuffer(), 0, dataSize);
         return SLANG_OK;

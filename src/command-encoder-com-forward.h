@@ -1,7 +1,7 @@
 #pragma once
 
 #define SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderBase)                                    \
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override    \
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override         \
     {                                                                                                                  \
         return ResourceCommandEncoderBase::queryInterface(uuid, outObject);                                            \
     }                                                                                                                  \

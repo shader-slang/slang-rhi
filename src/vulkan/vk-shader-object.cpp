@@ -747,7 +747,7 @@ Result ShaderObjectImpl::bindAsValue(
             break;
 
         default:
-            SLANG_RHI_ASSERT(!"unsupported binding type");
+            SLANG_RHI_ASSERT_FAILURE("Unsupported binding type");
             return SLANG_FAIL;
             break;
         }
@@ -849,7 +849,7 @@ Result ShaderObjectImpl::bindAsValue(
             // No action needed for sub-objects bound though a `StructuredBuffer`.
             break;
         default:
-            SLANG_RHI_ASSERT(!"unsupported sub-object type");
+            SLANG_RHI_ASSERT_FAILURE("Unsupported sub-object type");
             return SLANG_FAIL;
             break;
         }
@@ -865,7 +865,7 @@ Result ShaderObjectImpl::allocateDescriptorSets(
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
-    assert(specializedLayout->getOwnDescriptorSets().size() <= 1);
+    SLANG_RHI_ASSERT(specializedLayout->getOwnDescriptorSets().size() <= 1);
     // The number of sets to allocate and their layouts was already pre-computed
     // as part of the shader object layout, so we use that information here.
     //
@@ -916,7 +916,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     //
     SLANG_RETURN_ON_FAIL(allocateDescriptorSets(encoder, context, offset, specializedLayout));
 
-    assert(offset.bindingSet < (uint32_t)context.descriptorSets->size());
+    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)context.descriptorSets->size());
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(encoder, context, offset, specializedLayout));
 
     return SLANG_OK;

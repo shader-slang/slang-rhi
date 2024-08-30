@@ -4,7 +4,7 @@
 
 namespace rhi::debug {
 
-SlangResult DebugTransientResourceHeap::queryInterface(SlangUUID const& uuid, void** outObject)
+Result DebugTransientResourceHeap::queryInterface(SlangUUID const& uuid, void** outObject)
 {
     if (uuid == GfxGUID::IID_ISlangUnknown || uuid == GfxGUID::IID_ITransientResourceHeap)
         *outObject = static_cast<ITransientResourceHeap*>(this);
@@ -45,7 +45,7 @@ Result DebugTransientResourceHeap::createCommandBuffer(ICommandBuffer** outComma
     return result;
 }
 
-SlangResult DebugTransientResourceHeapD3D12::queryInterface(SlangUUID const& uuid, void** outObject)
+Result DebugTransientResourceHeapD3D12::queryInterface(SlangUUID const& uuid, void** outObject)
 {
     if (uuid == GfxGUID::IID_ISlangUnknown || uuid == GfxGUID::IID_ITransientResourceHeapD3D12)
         *outObject = static_cast<ITransientResourceHeapD3D12*>(this);

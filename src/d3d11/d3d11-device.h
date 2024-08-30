@@ -75,7 +75,7 @@ public:
     virtual void unmap(IBufferResource* buffer, size_t offsetWritten, size_t sizeWritten) override;
     virtual void copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size)
         override;
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTextureResource(
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
         ITextureResource* texture,
         ResourceState state,
         ISlangBlob** outBlob,

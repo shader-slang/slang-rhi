@@ -11,7 +11,7 @@ public:
         : m_renderer(nullptr)
     {
     }
-    SlangResult init(DeviceImpl* renderer, Index regIndex);
+    Result init(DeviceImpl* renderer, Index regIndex);
     ~ScopeNVAPI();
 
 protected:

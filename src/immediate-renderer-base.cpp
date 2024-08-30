@@ -58,7 +58,7 @@ public:
             }
             return nullptr;
         }
-        virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
+        virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
         {
             if (auto ptr = getInterface(uuid))
             {
@@ -619,7 +619,7 @@ public:
                 );
                 break;
             default:
-                assert(!"unknown command");
+                SLANG_RHI_ASSERT_FAILURE("Unknown command");
                 break;
             }
         }
@@ -653,7 +653,7 @@ public:
         override
     {
         // TODO: implement fence signal.
-        assert(fence == nullptr);
+        SLANG_RHI_ASSERT(fence == nullptr);
 
         CommandBufferInfo info = {};
         for (GfxIndex i = 0; i < count; i++)
@@ -733,7 +733,7 @@ void ImmediateRendererBase::uploadBufferData(IBufferResource* dst, size_t offset
     unmap(dst, offset, size);
 }
 
-SLANG_NO_THROW SlangResult SLANG_MCALL
+SLANG_NO_THROW Result SLANG_MCALL
 ImmediateRendererBase::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     auto blob = OwnedBlob::create(size);

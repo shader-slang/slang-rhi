@@ -9,9 +9,11 @@
 #include "../simple-transient-resource-heap.h"
 #include "../slang-context.h"
 
-#include "slang-com-helper.h"
-#include "slang-com-ptr.h"
-#include "slang.h"
+#include "utils/common.h"
+
+#include <slang-com-helper.h>
+#include <slang-com-ptr.h>
+#include <slang.h>
 
 #ifdef RENDER_TEST_OPTIX
 
@@ -24,8 +26,6 @@
 #include <optix_function_table_definition.h>
 #include <optix_stubs.h>
 #endif
-
-#include "utils/common.h"
 
 namespace rhi::cuda {
 

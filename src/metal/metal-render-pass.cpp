@@ -42,7 +42,7 @@ Result RenderPassLayoutImpl::init(DeviceImpl* device, const IRenderPassLayout::D
     m_device = device;
 
     FramebufferLayoutImpl* framebufferLayout = static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout);
-    assert(framebufferLayout);
+    SLANG_RHI_ASSERT(framebufferLayout);
 
     // Initialize render pass descriptor, filling in attachment metadata, but leaving texture data unbound.
     m_renderPassDesc = NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());

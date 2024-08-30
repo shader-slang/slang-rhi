@@ -92,7 +92,7 @@ ResourceViewBase* ShaderObjectData::getResourceView(
     return m_bufferView.Ptr();
 }
 
-SlangResult ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
+Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
     m_layout = typeLayout;
 
@@ -301,7 +301,7 @@ SLANG_NO_THROW uint32_t SLANG_MCALL RootShaderObjectImpl::release()
     return 1;
 }
 
-SlangResult RootShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
+Result RootShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
     SLANG_RETURN_ON_FAIL(ShaderObjectImpl::init(device, typeLayout));
     auto programLayout = dynamic_cast<RootShaderObjectLayoutImpl*>(typeLayout);

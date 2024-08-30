@@ -53,7 +53,7 @@ inline uint32_t ComBaseObject::_releaseImpl()
 }
 
 #define SLANG_COM_BASE_IUNKNOWN_QUERY_INTERFACE                                                                        \
-    SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE      \
+    SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE           \
     {                                                                                                                  \
         void* intf = getInterface(uuid);                                                                               \
         if (intf)                                                                                                      \
@@ -121,7 +121,7 @@ public:
 };
 
 #define SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE                                                                      \
-    SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE      \
+    SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE           \
     {                                                                                                                  \
         void* intf = getInterface(uuid);                                                                               \
         if (intf)                                                                                                      \

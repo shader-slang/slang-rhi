@@ -25,7 +25,7 @@ struct CUDAErrorInfo
         , m_errorString(errorString)
     {
     }
-    SlangResult handle() const;
+    Result handle() const;
 
     const char* m_filePath;
     int m_lineNo;
@@ -35,7 +35,7 @@ struct CUDAErrorInfo
 
 // If this code path is enabled, CUDA errors will be reported directly to StdWriter::out stream.
 
-SlangResult _handleCUDAError(CUresult cuResult, const char* file, int line);
+Result _handleCUDAError(CUresult cuResult, const char* file, int line);
 
 #define SLANG_CUDA_HANDLE_ERROR(x) _handleCUDAError(x, __FILE__, __LINE__)
 
@@ -60,7 +60,7 @@ SlangResult _handleCUDAError(CUresult cuResult, const char* file, int line);
         auto _res = x;                                                                                                 \
         if (_isError(_res))                                                                                            \
         {                                                                                                              \
-            SLANG_RHI_ASSERT(!"Failed CUDA call");                                                                     \
+            SLANG_RHI_ASSERT_FAILURE("Failed CUDA call");                                                              \
         };                                                                                                             \
     }
 
@@ -69,7 +69,7 @@ SlangResult _handleCUDAError(CUresult cuResult, const char* file, int line);
 bool _isError(OptixResult result);
 
 #if 1
-SlangResult _handleOptixError(OptixResult result, char const* file, int line);
+Result _handleOptixError(OptixResult result, char const* file, int line);
 
 #define SLANG_OPTIX_HANDLE_ERROR(RESULT) _handleOptixError(RESULT, __FILE__, __LINE__)
 #else

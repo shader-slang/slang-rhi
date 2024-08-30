@@ -16,7 +16,7 @@ public:
         return nullptr;
     }
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
     {
         if (auto ptr = getInterface(uuid))
         {

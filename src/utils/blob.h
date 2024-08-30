@@ -1,7 +1,8 @@
 #pragma once
 
 #include "com-object.h"
-#include "slang.h"
+
+#include <slang.h>
 
 #include <vector>
 

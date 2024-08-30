@@ -1,6 +1,7 @@
 #pragma once
 
-#include "slang-rhi.h"
+#include <slang-rhi.h>
+
 #include "vk-api.h"
 
 #include "utils/common.h"
@@ -10,7 +11,7 @@
 // Macros to make testing vulkan return codes simpler
 
 /// SLANG_VK_RETURN_ON_FAIL can be used in a similar way to SLANG_RETURN_ON_FAIL macro, except it will turn a vulkan
-/// failure into Slang::Result in the process Calls handleFail which on debug builds asserts
+/// failure into Result in the process Calls handleFail which on debug builds asserts
 #define SLANG_VK_RETURN_ON_FAIL(x)                                                                                     \
     {                                                                                                                  \
         VkResult _res = x;                                                                                             \
@@ -54,7 +55,7 @@ struct VulkanUtil
 
     /// Called by SLANG_VK_RETURN_FAIL if a res is a failure.
     /// On debug builds this will cause an assertion on failure.
-    static Slang::Result handleFail(VkResult res);
+    static Result handleFail(VkResult res);
     /// Called when a failure has occurred with SLANG_VK_CHECK - will typically assert.
     static void checkFail(VkResult res);
 
@@ -64,8 +65,8 @@ struct VulkanUtil
 
     static VkImageLayout mapResourceStateToLayout(ResourceState state);
 
-    /// Returns Slang::Result equivalent of a VkResult
-    static Slang::Result toSlangResult(VkResult res);
+    /// Returns Result equivalent of a VkResult
+    static Result toResult(VkResult res);
 
     static VkShaderStageFlags getShaderStage(SlangStage stage);
 
@@ -137,7 +138,7 @@ public:
     };
     std::vector<uint32_t> primitiveCounts;
 
-    Slang::Result build(const IAccelerationStructure::BuildInputs& buildInputs, IDebugCallback* debugCallback);
+    Result build(const IAccelerationStructure::BuildInputs& buildInputs, IDebugCallback* debugCallback);
 
 private:
     std::vector<VkAccelerationStructureGeometryKHR> m_geometryInfos;

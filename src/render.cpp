@@ -1,6 +1,7 @@
+#include <slang-rhi.h>
+
 #include "debug-layer/debug-device.h"
 #include "renderer-shared.h"
-#include "slang-rhi.h"
 #if SLANG_RHI_ENABLE_CUDA
 #include "cuda/cuda-api.h"
 #endif
@@ -245,13 +246,13 @@ extern "C"
         }
     }
 
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo)
+    SLANG_RHI_API Result SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo)
     {
         *outInfo = s_formatInfoMap.get(format);
         return SLANG_OK;
     }
 
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
+    SLANG_RHI_API Result SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
     {
         std::vector<AdapterInfo> adapters;
 
@@ -295,7 +296,7 @@ extern "C"
         return SLANG_OK;
     }
 
-    SlangResult _createDevice(const IDevice::Desc* desc, IDevice** outDevice)
+    Result _createDevice(const IDevice::Desc* desc, IDevice** outDevice)
     {
         switch (desc->deviceType)
         {
@@ -352,7 +353,7 @@ extern "C"
         }
     }
 
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
+    SLANG_RHI_API Result SLANG_MCALL gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
     {
         ComPtr<IDevice> innerDevice;
         auto resultCode = _createDevice(desc, innerDevice.writeRef());
@@ -369,7 +370,7 @@ extern "C"
         return resultCode;
     }
 
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxReportLiveObjects()
+    SLANG_RHI_API Result SLANG_MCALL gfxReportLiveObjects()
     {
 #if SLANG_RHI_ENABLE_D3D12
         SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
@@ -377,7 +378,7 @@ extern "C"
         return SLANG_OK;
     }
 
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxSetDebugCallback(IDebugCallback* callback)
+    SLANG_RHI_API Result SLANG_MCALL gfxSetDebugCallback(IDebugCallback* callback)
     {
         _getDebugCallback() = callback;
         return SLANG_OK;
@@ -456,7 +457,7 @@ extern "C"
         }
         default:
         {
-            assert(!"Not handled");
+            SLANG_RHI_ASSERT_FAILURE("Not handled");
         }
         }
     }

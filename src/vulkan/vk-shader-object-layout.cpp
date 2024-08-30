@@ -23,7 +23,7 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
     {
     case slang::BindingType::PushConstant:
     default:
-        SLANG_RHI_ASSERT("unsupported binding type");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported binding type");
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 
     case slang::BindingType::Sampler:
@@ -532,7 +532,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     return SLANG_OK;
 }
 
-SlangResult ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout)
+Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout)
 {
     auto layout = RefPtr<ShaderObjectLayoutImpl>(new ShaderObjectLayoutImpl());
     SLANG_RETURN_ON_FAIL(layout->_init(this));

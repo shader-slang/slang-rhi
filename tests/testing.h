@@ -41,7 +41,7 @@ struct GpuTestContext
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob);
 
 /// Loads a compute shader module and produces a `IShaderProgram`.
-Slang::Result loadComputeProgram(
+Result loadComputeProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
@@ -49,7 +49,7 @@ Slang::Result loadComputeProgram(
     slang::ProgramLayout*& slangReflection
 );
 
-Slang::Result loadComputeProgram(
+Result loadComputeProgram(
     IDevice* device,
     slang::ISession* slangSession,
     ComPtr<IShaderProgram>& outShaderProgram,
@@ -58,13 +58,9 @@ Slang::Result loadComputeProgram(
     slang::ProgramLayout*& slangReflection
 );
 
-Slang::Result loadComputeProgramFromSource(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    std::string_view source
-);
+Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source);
 
-Slang::Result loadGraphicsProgram(
+Result loadGraphicsProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,

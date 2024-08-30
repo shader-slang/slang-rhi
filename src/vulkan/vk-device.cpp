@@ -909,7 +909,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
 
     m_queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
-    assert(m_queueFamilyIndex >= 0);
+    SLANG_RHI_ASSERT(m_queueFamilyIndex >= 0);
 
 #if defined(SLANG_RHI_NV_AFTERMATH)
     VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};
@@ -967,7 +967,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const Desc& desc)
 {
     // Initialize device info.
     {
@@ -982,7 +982,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
     m_desc = desc;
 
     SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
-    SlangResult initDeviceResult = SLANG_OK;
+    Result initDeviceResult = SLANG_OK;
 
     for (int forceSoftware = 0; forceSoftware <= 1; forceSoftware++)
     {
@@ -1130,7 +1130,7 @@ Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffe
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::readTextureResource(
+Result DeviceImpl::readTextureResource(
     ITextureResource* texture,
     ResourceState state,
     ISlangBlob** outBlob,
@@ -1229,7 +1229,7 @@ SlangResult DeviceImpl::readTextureResource(
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::readBufferResource(IBufferResource* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBufferResource(IBufferResource* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(inBuffer);
 
@@ -1398,7 +1398,7 @@ Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
     {
-        assert(!"Unhandled image format");
+        SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
         return SLANG_FAIL;
     }
     const int arraySize = calcEffectiveArraySize(desc);
@@ -1428,7 +1428,7 @@ Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn
     case IResource::Type::Texture3D:
     {
         // Can't have an array and 3d texture
-        assert(desc.arraySize <= 1);
+        SLANG_RHI_ASSERT(desc.arraySize <= 1);
 
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
         imageInfo.extent =
@@ -1437,7 +1437,7 @@ Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn
     }
     default:
     {
-        assert(!"Unhandled type");
+        SLANG_RHI_ASSERT_FAILURE("Unhandled type");
         return SLANG_FAIL;
     }
     }
@@ -1483,7 +1483,7 @@ Result DeviceImpl::createTextureResource(
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
     {
-        assert(!"Unhandled image format");
+        SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
         return SLANG_FAIL;
     }
 
@@ -1518,7 +1518,7 @@ Result DeviceImpl::createTextureResource(
     case IResource::Type::Texture3D:
     {
         // Can't have an array and 3d texture
-        assert(desc.arraySize <= 1);
+        SLANG_RHI_ASSERT(desc.arraySize <= 1);
 
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
         imageInfo.extent =
@@ -1527,7 +1527,7 @@ Result DeviceImpl::createTextureResource(
     }
     default:
     {
-        assert(!"Unhandled type");
+        SLANG_RHI_ASSERT_FAILURE("Unhandled type");
         return SLANG_FAIL;
     }
     }
@@ -1565,7 +1565,7 @@ Result DeviceImpl::createTextureResource(
     // Allocate the memory
     VkMemoryPropertyFlags reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     int memoryTypeIndex = m_api.findMemoryTypeIndex(memRequirements.memoryTypeBits, reqMemoryProperties);
-    assert(memoryTypeIndex >= 0);
+    SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
 
     VkMemoryPropertyFlags actualMemoryProperites =
         m_api.m_deviceMemoryProperties.memoryTypes[memoryTypeIndex].propertyFlags;
@@ -1632,7 +1632,7 @@ Result DeviceImpl::createTextureResource(
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         ));
 
-        assert(mipSizes.size() == numMipMaps);
+        SLANG_RHI_ASSERT(mipSizes.size() == numMipMaps);
 
         // Copy into upload buffer
         {
@@ -2255,7 +2255,7 @@ Result DeviceImpl::createBufferView(
     switch (desc.type)
     {
     default:
-        assert(!"unhandled");
+        SLANG_RHI_ASSERT_FAILURE("Unhandled");
         return SLANG_FAIL;
 
     case IResourceView::Type::UnorderedAccess:
@@ -2306,7 +2306,7 @@ Result DeviceImpl::createBufferView(
                 }
                 else
                 {
-                    assert(!"unhandled");
+                    SLANG_RHI_ASSERT_FAILURE("Unhandled");
                 }
 
                 SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateBufferView(m_device, &info, nullptr, &view));

@@ -39,7 +39,7 @@ ComPtr<slang::ISession> createSession(gfx::IDevice* device, ISlangFileSystemExt*
     return slangSession;
 }
 
-static Slang::Result precompileProgram(
+static Result precompileProgram(
     gfx::IDevice* device,
     ISlangMutableFileSystem* fileSys,
     const char* shaderModuleName

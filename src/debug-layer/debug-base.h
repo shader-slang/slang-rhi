@@ -1,9 +1,10 @@
 #pragma once
 
+#include <slang-com-ptr.h>
+#include <slang-rhi.h>
+
 #include "../command-encoder-com-forward.h"
 #include "../renderer-shared.h"
-#include "slang-com-ptr.h"
-#include "slang-rhi.h"
 
 #include "utils/common.h"
 

@@ -255,8 +255,7 @@ public:
     RootShaderObjectLayoutImpl* getLayout();
 
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
-    getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;

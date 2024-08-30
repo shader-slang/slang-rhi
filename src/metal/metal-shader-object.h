@@ -143,7 +143,7 @@ public:
     RootShaderObjectLayoutImpl* getLayout() { return static_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr()); }
 
     GfxCount SLANG_MCALL getEntryPointCount() SLANG_OVERRIDE { return (GfxCount)m_entryPoints.size(); }
-    SlangResult SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) SLANG_OVERRIDE
+    Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) SLANG_OVERRIDE
     {
         returnComPtr(outEntryPoint, m_entryPoints[index]);
         return SLANG_OK;

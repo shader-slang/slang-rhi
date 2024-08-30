@@ -8,7 +8,7 @@ namespace rhi {
 
 void D3D12BarrierSubmitter::_flush()
 {
-    assert(m_numBarriers > 0);
+    SLANG_RHI_ASSERT(m_numBarriers > 0);
 
     if (m_commandList)
     {

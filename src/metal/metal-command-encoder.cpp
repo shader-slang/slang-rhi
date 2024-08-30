@@ -118,7 +118,7 @@ void ResourceCommandEncoder::copyTextureToBuffer(
     ITextureResource::Extents extent
 )
 {
-    assert(srcSubresource.mipLevelCount <= 1);
+    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->copyFromTexture(
@@ -359,7 +359,7 @@ void RenderCommandEncoder::setIndexBuffer(IBufferResource* buffer, Format indexF
         m_indexBufferType = MTL::IndexTypeUInt32;
         break;
     default:
-        assert(!"unsupported index format");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported index format");
     }
 }
 

@@ -1,7 +1,8 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #include "assert.h"
-#include "slang-rhi.h"
 
 #include <type_traits>
 

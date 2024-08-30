@@ -11,7 +11,7 @@ public:
     virtual bool getIsOpen() = 0;
     virtual IResourceCommandEncoder* getBaseResourceEncoder() = 0;
     virtual void* getInterface(SlangUUID const& uuid) = 0;
-    SlangResult queryInterface(SlangUUID const& uuid, void** outObject)
+    Result queryInterface(SlangUUID const& uuid, void** outObject)
     {
         if (auto ptr = getInterface(uuid))
         {

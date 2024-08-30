@@ -55,7 +55,7 @@ int DeviceImpl::_calcSMCountPerMultiProcessor(int major, int minor)
     return last.coreCount;
 }
 
-SlangResult DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
+Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
 {
     int smPerMultiproc = 0;
     int maxPerfDevice = -1;
@@ -116,7 +116,7 @@ SlangResult DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::_initCuda(CUDAReportStyle reportType)
+Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
 {
     if (!gfxCudaApiInit())
     {
@@ -134,7 +134,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::getNativeDeviceHandles(InteropHand
     return SLANG_OK;
 }
 
-SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
 {
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
@@ -311,7 +311,7 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
         *outFormat = CU_AD_FORMAT_SIGNED_INT8;
         return SLANG_OK;
     default:
-        SLANG_RHI_ASSERT(!"Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
+        SLANG_RHI_ASSERT_FAILURE("Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
         return SLANG_FAIL;
     }
 }
@@ -392,7 +392,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
         }
         default:
         {
-            SLANG_RHI_ASSERT(!"Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
+            SLANG_RHI_ASSERT_FAILURE("Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
             return SLANG_FAIL;
         }
         }
@@ -421,7 +421,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
                 else
                 {
-                    SLANG_RHI_ASSERT(!"Arrays only supported for 1D and 2D");
+                    SLANG_RHI_ASSERT_FAILURE("Arrays only supported for 1D and 2D");
                     return SLANG_FAIL;
                 }
             }
@@ -444,7 +444,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 if (desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
                     desc.type == IResource::Type::TextureCube)
                 {
-                    SLANG_RHI_ASSERT(!"Only 1D, 2D and Cube arrays supported");
+                    SLANG_RHI_ASSERT_FAILURE("Only 1D, 2D and Cube arrays supported");
                     return SLANG_FAIL;
                 }
 
@@ -669,7 +669,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
                 default:
                 {
-                    SLANG_RHI_ASSERT(!"Not implemented");
+                    SLANG_RHI_ASSERT_FAILURE("Not implemented");
                     break;
                 }
                 }
@@ -1124,7 +1124,7 @@ DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, I
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::readTextureResource(
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTextureResource(
     ITextureResource* texture,
     ResourceState state,
     ISlangBlob** outBlob,

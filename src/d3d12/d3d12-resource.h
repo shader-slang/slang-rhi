@@ -2,7 +2,7 @@
 
 #include "../d3d/d3d-util.h"
 
-#include "slang-com-ptr.h"
+#include <slang-com-ptr.h>
 
 #pragma push_macro("WIN32_LEAN_AND_MEAN")
 #pragma push_macro("NOMINMAX")
@@ -93,7 +93,8 @@ protected:
     /// This is protected so as clients cannot slice the class, and so state tracking is lost
     ~D3D12ResourceBase() {}
 
-    ID3D12Resource* m_resource; ///< The resource (ref counted)
+    /// The resource (ref counted).
+    ID3D12Resource* m_resource;
 };
 
 struct D3D12Resource : public D3D12ResourceBase
@@ -109,7 +110,7 @@ struct D3D12Resource : public D3D12ResourceBase
     }
 
     /// Initialize as committed resource
-    Slang::Result initCommitted(
+    Result initCommitted(
         ID3D12Device* device,
         const D3D12_HEAP_PROPERTIES& heapProps,
         D3D12_HEAP_FLAGS heapFlags,

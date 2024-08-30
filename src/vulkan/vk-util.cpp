@@ -247,7 +247,7 @@ VkImageAspectFlags VulkanUtil::getAspectMask(TextureAspect aspect, VkFormat form
     }
 }
 
-/* static */ SlangResult VulkanUtil::toSlangResult(VkResult res)
+/* static */ Result VulkanUtil::toResult(VkResult res)
 {
     return (res == VK_SUCCESS) ? SLANG_OK : SLANG_FAIL;
 }
@@ -285,7 +285,7 @@ VkShaderStageFlags VulkanUtil::getShaderStage(SlangStage stage)
     case SLANG_STAGE_AMPLIFICATION:
         return VK_SHADER_STAGE_TASK_BIT_EXT;
     default:
-        assert(!"unsupported stage.");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported stage.");
         return VkShaderStageFlags(-1);
     }
 }
@@ -342,7 +342,7 @@ VkSampleCountFlagBits VulkanUtil::translateSampleCount(uint32_t sampleCount)
     case 64:
         return VK_SAMPLE_COUNT_64_BIT;
     default:
-        assert(!"Unsupported sample count");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported sample count");
         return VK_SAMPLE_COUNT_1_BIT;
     }
 }
@@ -358,7 +358,7 @@ VkCullModeFlags VulkanUtil::translateCullMode(CullMode cullMode)
     case CullMode::Back:
         return VK_CULL_MODE_BACK_BIT;
     default:
-        assert(!"Unsupported cull mode");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported cull mode");
         return VK_CULL_MODE_NONE;
     }
 }
@@ -372,7 +372,7 @@ VkFrontFace VulkanUtil::translateFrontFaceMode(FrontFaceMode frontFaceMode)
     case FrontFaceMode::Clockwise:
         return VK_FRONT_FACE_CLOCKWISE;
     default:
-        assert(!"Unsupported front face mode");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported front face mode");
         return VK_FRONT_FACE_CLOCKWISE;
     }
 }
@@ -386,7 +386,7 @@ VkPolygonMode VulkanUtil::translateFillMode(FillMode fillMode)
     case FillMode::Wireframe:
         return VK_POLYGON_MODE_LINE;
     default:
-        assert(!"Unsupported fill mode");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported fill mode");
         return VK_POLYGON_MODE_FILL;
     }
 }
@@ -431,7 +431,7 @@ VkBlendFactor VulkanUtil::translateBlendFactor(BlendFactor blendFactor)
         return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
 
     default:
-        assert(!"Unsupported blend factor");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported blend factor");
         return VK_BLEND_FACTOR_ONE;
     }
 }
@@ -451,7 +451,7 @@ VkBlendOp VulkanUtil::translateBlendOp(BlendOp op)
     case BlendOp::Max:
         return VK_BLEND_OP_MAX;
     default:
-        assert(!"Unsupported blend op");
+        SLANG_RHI_ASSERT_FAILURE("Unsupported blend op");
         return VK_BLEND_OP_ADD;
     }
 }
@@ -469,7 +469,7 @@ VkPrimitiveTopology VulkanUtil::translatePrimitiveTypeToListTopology(PrimitiveTy
     case PrimitiveType::Patch:
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
     default:
-        assert(!"unknown topology type.");
+        SLANG_RHI_ASSERT_FAILURE("Unknown topology type.");
         return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     }
 }
@@ -606,19 +606,19 @@ VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
     }
 }
 
-/* static */ Slang::Result VulkanUtil::handleFail(VkResult res)
+/* static */ Result VulkanUtil::handleFail(VkResult res)
 {
     if (res != VK_SUCCESS)
     {
-        assert(!"Vulkan returned a failure");
+        SLANG_RHI_ASSERT_FAILURE("Vulkan returned a failure");
     }
-    return toSlangResult(res);
+    return toResult(res);
 }
 
 /* static */ void VulkanUtil::checkFail(VkResult res)
 {
-    assert(res != VK_SUCCESS);
-    assert(!"Vulkan check failed");
+    SLANG_RHI_ASSERT(res != VK_SUCCESS);
+    SLANG_RHI_ASSERT_FAILURE("Vulkan check failed");
 }
 
 /* static */ VkPrimitiveTopology VulkanUtil::getVkPrimitiveTopology(PrimitiveTopology topology)
@@ -638,7 +638,7 @@ VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
     default:
         break;
     }
-    assert(!"Unknown topology");
+    SLANG_RHI_ASSERT_FAILURE("Unknown topology");
     return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 }
 

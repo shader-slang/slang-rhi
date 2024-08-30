@@ -1,8 +1,8 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #include "renderer-shared.h"
-#include "slang-com-ptr.h"
-#include "slang-rhi.h"
 
 #include "utils/common.h"
 

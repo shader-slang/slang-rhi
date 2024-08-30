@@ -13,9 +13,9 @@ private:
     static const CUDAReportStyle reportType = CUDAReportStyle::Normal;
     static int _calcSMCountPerMultiProcessor(int major, int minor);
 
-    static SlangResult _findMaxFlopsDeviceIndex(int* outDeviceIndex);
+    static Result _findMaxFlopsDeviceIndex(int* outDeviceIndex);
 
-    static SlangResult _initCuda(CUDAReportStyle reportType = CUDAReportStyle::Normal);
+    static Result _initCuda(CUDAReportStyle reportType = CUDAReportStyle::Normal);
 
 private:
     int m_deviceIndex = -1;
@@ -27,7 +27,7 @@ private:
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) override;
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
 
     Result getCUDAFormat(Format format, CUarray_format* outFormat);
 
@@ -126,7 +126,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState) override;
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTextureResource(
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
         ITextureResource* texture,
         ResourceState state,
         ISlangBlob** outBlob,

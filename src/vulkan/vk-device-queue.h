@@ -20,7 +20,7 @@ struct VulkanDeviceQueue
     };
 
     /// Initialize - must be called before anything else can be done
-    SlangResult init(const VulkanApi& api, VkQueue queue, int queueIndex);
+    Result init(const VulkanApi& api, VkQueue queue, int queueIndex);
 
     /// Flushes the current command list, and steps to next (internally this is equivalent to a stepA followed by stepB)
     void flush();

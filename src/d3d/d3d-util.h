@@ -2,12 +2,11 @@
 
 #include "../flag-combiner.h"
 
-#include "slang-rhi.h"
-
-#include "slang-com-helper.h"
-#include "slang-com-ptr.h"
-
 #include "utils/common.h"
+
+#include <slang-com-helper.h>
+#include <slang-com-ptr.h>
+#include <slang-rhi.h>
 
 #include <d3d12.h>
 #include <d3dcommon.h>
@@ -32,16 +31,22 @@ class D3DUtil
 public:
     enum UsageType
     {
-        USAGE_UNKNOWN,       ///< Generally used to mark an error
-        USAGE_TARGET,        ///< Format should be used when written as target
-        USAGE_DEPTH_STENCIL, ///< Format should be used when written as depth stencil
-        USAGE_SRV,           ///< Format if being read as srv
+        /// Generally used to mark an error.
+        USAGE_UNKNOWN,
+        /// Format should be used when written as target.
+        USAGE_TARGET,
+        /// Format should be used when written as depth stencil.
+        USAGE_DEPTH_STENCIL,
+        /// Format if being read as srv.
+        USAGE_SRV,
         USAGE_COUNT_OF,
     };
     enum UsageFlag
     {
-        USAGE_FLAG_MULTI_SAMPLE = 0x1, ///< If set will be used form multi sampling (such as MSAA)
-        USAGE_FLAG_SRV = 0x2,          ///< If set means will be used as a shader resource view (SRV)
+        /// If set will be used form multi sampling (such as MSAA).
+        USAGE_FLAG_MULTI_SAMPLE = 0x1,
+        /// If set means will be used as a shader resource view (SRV).
+        USAGE_FLAG_SRV = 0x2,
     };
 
     /// Get primitive topology as D3D primitive topology
@@ -59,7 +64,7 @@ public:
     static UInt calcAligned(UInt size, UInt alignment) { return (size + alignment - 1) & ~(alignment - 1); }
 
     /// Compile HLSL code to DXBC
-    static Slang::Result compileHLSLShader(
+    static Result compileHLSLShader(
         char const* sourcePath,
         char const* source,
         char const* entryPointName,
@@ -83,20 +88,20 @@ public:
     /// RGB565 -> 5)
     static Int getNumColorChannelBits(DXGI_FORMAT fmt);
 
-    static SlangResult createFactory(DeviceCheckFlags flags, Slang::ComPtr<IDXGIFactory>& outFactory);
+    static Result createFactory(DeviceCheckFlags flags, Slang::ComPtr<IDXGIFactory>& outFactory);
 
     /// Get the dxgiModule
     static SharedLibraryHandle getDxgiModule();
 
     /// Find adapters
-    static SlangResult findAdapters(
+    static Result findAdapters(
         DeviceCheckFlags flags,
         const AdapterLUID* adapterLUID,
         IDXGIFactory* dxgiFactory,
         std::vector<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters
     );
     /// Find adapters
-    static SlangResult findAdapters(
+    static Result findAdapters(
         DeviceCheckFlags flags,
         const AdapterLUID* adapterLUID,
         std::vector<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters
@@ -137,11 +142,11 @@ public:
 
     static D3D12_RESOURCE_STATES getResourceState(ResourceState state);
 
-    static SlangResult reportLiveObjects();
+    static Result reportLiveObjects();
 
     /// Call after a DXGI_ERROR_DEVICE_REMOVED/DXGI_ERROR_DEVICE_RESET on present, to wait for
     /// dumping to complete. Will return SLANG_OK if wait happened successfully
-    static SlangResult waitForCrashDumpCompletion(HRESULT res);
+    static Result waitForCrashDumpCompletion(HRESULT res);
 };
 
 #if SLANG_RHI_DXR
@@ -150,7 +155,7 @@ struct D3DAccelerationStructureInputsBuilder
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
     std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs;
-    Slang::Result build(const IAccelerationStructure::BuildInputs& buildInputs, IDebugCallback* callback);
+    Result build(const IAccelerationStructure::BuildInputs& buildInputs, IDebugCallback* callback);
 
 private:
     D3D12_RAYTRACING_GEOMETRY_FLAGS translateGeometryFlags(IAccelerationStructure::GeometryFlags::Enum flags)

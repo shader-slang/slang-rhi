@@ -250,7 +250,7 @@ void initSrvDesc(
             descOut.Texture3D.MostDetailedMip = subresourceRange.mipLevel;
             break;
         default:
-            assert(!"Unknown dimension");
+            SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
         }
     }
     else if (resourceType == IResource::Type::TextureCube)
@@ -281,7 +281,7 @@ void initSrvDesc(
     }
     else
     {
-        assert(desc.DepthOrArraySize > 1);
+        SLANG_RHI_ASSERT(desc.DepthOrArraySize > 1);
 
         switch (desc.Dimension)
         {
@@ -316,7 +316,7 @@ void initSrvDesc(
             }
             else
             {
-                assert(descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY);
+                SLANG_RHI_ASSERT(descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY);
                 descOut.Texture2DMSArray.FirstArraySlice = subresourceRange.baseArrayLayer;
                 descOut.Texture2DMSArray.ArraySize =
                     subresourceRange.layerCount == 0 ? desc.DepthOrArraySize : subresourceRange.layerCount;
@@ -331,7 +331,7 @@ void initSrvDesc(
             break;
 
         default:
-            assert(!"Unknown dimension");
+            SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
         }
     }
 }

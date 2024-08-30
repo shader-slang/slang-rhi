@@ -1,7 +1,8 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #include "metal-api.h"
-#include "slang-rhi.h"
 #include "utils/common.h"
 
 namespace rhi::metal {

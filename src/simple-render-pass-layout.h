@@ -4,7 +4,7 @@
 // desc value. Used by targets that does not expose an API object for the render pass
 // concept.
 
-#include "slang-rhi.h"
+#include <slang-rhi.h>
 
 #include "utils/common.h"
 #include "utils/short_vector.h"

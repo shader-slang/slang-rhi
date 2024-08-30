@@ -1,12 +1,10 @@
 address TODO_TESTING
 check use of stable_vector, maybe we can get rid of it
 use ComPtr<> in tests instead of Slang::ComPtr<>
-replace assert() with SLANG_RHI_ASSERT()
-check ///< comments
-check SlangResult
-check Slang::
-check using namespace Slang
 GfxGUID
+move utils to core
+check SLANG_OVERRIDE
+check /* static */
 
 
 macros:

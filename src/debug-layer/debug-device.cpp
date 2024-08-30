@@ -23,7 +23,7 @@
 
 namespace rhi::debug {
 
-SlangResult DebugDevice::queryInterface(SlangUUID const& uuid, void** outObject) noexcept
+Result DebugDevice::queryInterface(SlangUUID const& uuid, void** outObject) noexcept
 {
     void* intf = getInterface(uuid);
     if (intf)
@@ -559,7 +559,7 @@ Result DebugDevice::createRayTracingPipelineState(const RayTracingPipelineStateD
     return result;
 }
 
-SlangResult DebugDevice::readTextureResource(
+Result DebugDevice::readTextureResource(
     ITextureResource* resource,
     ResourceState state,
     ISlangBlob** outBlob,
@@ -571,7 +571,7 @@ SlangResult DebugDevice::readTextureResource(
     return baseObject->readTextureResource(getInnerObj(resource), state, outBlob, outRowPitch, outPixelSize);
 }
 
-SlangResult DebugDevice::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+Result DebugDevice::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->readBufferResource(getInnerObj(buffer), offset, size, outBlob);

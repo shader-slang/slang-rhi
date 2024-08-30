@@ -332,15 +332,15 @@ struct VulkanApi
     bool areDefined(ProcType type) const;
 
     /// Sets up global parameters
-    Slang::Result initGlobalProcs(const VulkanModule& module);
+    Result initGlobalProcs(const VulkanModule& module);
     /// Initialize the instance functions
-    Slang::Result initInstanceProcs(VkInstance instance);
+    Result initInstanceProcs(VkInstance instance);
 
     /// Called before initDevice
-    Slang::Result initPhysicalDevice(VkPhysicalDevice physicalDevice);
+    Result initPhysicalDevice(VkPhysicalDevice physicalDevice);
 
     /// Initialize the device functions
-    Slang::Result initDeviceProcs(VkDevice device);
+    Result initDeviceProcs(VkDevice device);
 
     /// Type bits control which indices are tested against bit 0 for testing at index 0
     /// properties - a memory type must have all the bits set as passed in
@@ -350,7 +350,8 @@ struct VulkanApi
     /// Given queue required flags, finds a queue
     int findQueue(VkQueueFlags reqFlags) const;
 
-    const VulkanModule* m_module = nullptr; ///< Module this was all loaded from
+    /// Module this was all loaded from.
+    const VulkanModule* m_module = nullptr;
     VkInstance m_instance = VK_NULL_HANDLE;
     VkDevice m_device = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;

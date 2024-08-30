@@ -1,10 +1,10 @@
 #include "d3d12-posix-synchapi.h"
 
-#include "slang.h"
+#include "utils/common.h"
+
+#include <slang.h>
 
 #if SLANG_LINUX_FAMILY
-
-#include "utils/common.h"
 
 #include <fcntl.h>
 #include <sys/epoll.h>

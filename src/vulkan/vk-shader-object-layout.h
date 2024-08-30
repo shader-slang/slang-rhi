@@ -210,7 +210,7 @@ public:
 
         Result setElementTypeLayout(slang::TypeLayoutReflection* typeLayout);
 
-        SlangResult build(ShaderObjectLayoutImpl** outLayout);
+        Result build(ShaderObjectLayoutImpl** outLayout);
     };
 
     static Result createForElementType(

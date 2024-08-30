@@ -205,7 +205,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     return SLANG_OK;
 }
 
-SlangResult ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout)
+Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout)
 {
     auto layout = RefPtr<ShaderObjectLayoutImpl>(new ShaderObjectLayoutImpl());
     SLANG_RETURN_ON_FAIL(layout->_init(this));

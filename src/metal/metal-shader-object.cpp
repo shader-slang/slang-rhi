@@ -72,7 +72,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         break;
     case slang::BindingType::TypedBuffer:
     case slang::BindingType::MutableTypedBuffer:
-        SLANG_RHI_ASSERT(!"Not implemented");
+        SLANG_RHI_ASSERT_FAILURE("Not implemented");
         // SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::TexelBuffer);
         // m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] =
         // static_cast<TextureResourceViewImpl*>(resourceView);

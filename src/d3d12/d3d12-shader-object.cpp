@@ -1043,7 +1043,7 @@ GfxCount RootShaderObjectImpl::getEntryPointCount()
     return (GfxCount)m_entryPoints.size();
 }
 
-SlangResult RootShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntryPoint)
+Result RootShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntryPoint)
 {
     returnComPtr(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;

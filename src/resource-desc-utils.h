@@ -1,6 +1,6 @@
 #pragma once
 
-#include "slang-rhi.h"
+#include <slang-rhi.h>
 
 #include "utils/common.h"
 

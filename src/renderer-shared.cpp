@@ -1,9 +1,9 @@
 #include "renderer-shared.h"
 #include "mutable-shader-object.h"
 
-#include "slang.h"
-
 #include "utils/common.h"
+
+#include <slang.h>
 
 #include <algorithm>
 #include <string>
@@ -52,7 +52,7 @@ StageType translateStage(SlangStage slangStage)
     switch (slangStage)
     {
     default:
-        SLANG_RHI_ASSERT(!"unhandled case");
+        SLANG_RHI_ASSERT_FAILURE("Unhandled case");
         return StageType::Unknown;
 
 #define CASE(FROM, TO)                                                                                                 \
@@ -388,7 +388,7 @@ Result RendererBase::getEntryPointCodeFromShaderCache(
     return SLANG_OK;
 }
 
-SlangResult RendererBase::queryInterface(SlangUUID const& uuid, void** outObject)
+Result RendererBase::queryInterface(SlangUUID const& uuid, void** outObject)
 {
     *outObject = getInterface(uuid);
     return SLANG_OK;
@@ -629,7 +629,7 @@ Result RendererBase::createProgram2(
         rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
-    SlangResult result = slangSession->createCompositeComponentType(
+    Result result = slangSession->createCompositeComponentType(
         rawComponentTypes.data(),
         rawComponentTypes.size(),
         linkedProgram.writeRef(),
@@ -977,7 +977,7 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     case slang::BindingType::MutableRawBuffer:
         return m_rwStructuredBufferView.Ptr();
     default:
-        SLANG_RHI_ASSERT(false && "Invalid binding type.");
+        SLANG_RHI_ASSERT_FAILURE("Invalid binding type.");
         return nullptr;
     }
 }

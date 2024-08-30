@@ -1,7 +1,8 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #include "d3d11-base.h"
-#include "slang-rhi.h"
 
 namespace rhi::d3d11 {
 

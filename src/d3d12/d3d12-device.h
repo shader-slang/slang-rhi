@@ -74,8 +74,11 @@ public:
     // around CPU-visible heaps for storing shader-objects' descriptors in a format
     // that is ready for copying into the GPU-visible heaps as needed.
     //
-    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_cpuViewHeap;    ///< Cbv, Srv, Uav
-    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_cpuSamplerHeap; ///< Heap for samplers
+
+    /// Cbv, Srv, Uav
+    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_cpuViewHeap;
+    /// Heap for samplers
+    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_cpuSamplerHeap;
 
     // Dll entry points
     PFN_D3D12_GET_DEBUG_INTERFACE m_D3D12GetDebugInterface = nullptr;
@@ -95,7 +98,7 @@ public:
     ComPtr<ID3D12CommandSignature> dispatchIndirectCmdSignature;
 
 public:
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
 
@@ -182,7 +185,7 @@ public:
     waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
         override;
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTextureResource(
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
         ITextureResource* resource,
         ResourceState state,
         ISlangBlob** outBlob,
@@ -190,7 +193,7 @@ public:
         Size* outPixelSize
     ) override;
 
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     readBufferResource(IBufferResource* resource, Offset offset, Size size, ISlangBlob** outBlob) override;
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
