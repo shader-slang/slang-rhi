@@ -375,7 +375,7 @@ struct RenderTargetTests : BaseTextureViewTest
         sampledTexDesc.allowedStates =
             ResourceStateSet(sampledTexDesc.defaultState, ResourceState::ResolveSource, ResourceState::CopySource);
         sampledTexDesc.format = textureInfo->format;
-        sampledTexDesc.sampleDesc.numSamples = sampleCount;
+        sampledTexDesc.sampleCount = sampleCount;
 
         REQUIRE_CALL(
             device->createTexture(sampledTexDesc, textureInfo->subresourceDatas.data(), sampledTexture.writeRef())

@@ -231,7 +231,7 @@ void initSrvDesc(
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
             descOut.ViewDimension =
-                textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
+                textureDesc.sampleCount > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
             descOut.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
             descOut.Texture2D.ResourceMinLODClamp = 0.0f;
             descOut.Texture2D.MipLevels = subresourceRange.mipLevelCount == 0
@@ -297,8 +297,8 @@ void initSrvDesc(
                                                    : subresourceRange.mipLevelCount;
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-            descOut.ViewDimension = textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY
-                                                                          : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            descOut.ViewDimension =
+                textureDesc.sampleCount > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
             if (descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DARRAY)
             {
                 descOut.Texture2DArray.ArraySize =
@@ -357,8 +357,8 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
     resourceDesc.DepthOrArraySize = (srcDesc.size.depth > 1) ? srcDesc.size.depth : arraySize;
 
     resourceDesc.MipLevels = numMipMaps;
-    resourceDesc.SampleDesc.Count = srcDesc.sampleDesc.numSamples;
-    resourceDesc.SampleDesc.Quality = srcDesc.sampleDesc.quality;
+    resourceDesc.SampleDesc.Count = srcDesc.sampleCount;
+    resourceDesc.SampleDesc.Quality = srcDesc.sampleQuality;
 
     resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
     resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;

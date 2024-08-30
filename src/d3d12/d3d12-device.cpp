@@ -1342,7 +1342,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
     viewImpl->m_resource = resourceImpl;
     viewImpl->m_desc = desc;
     bool isArray = resourceImpl ? resourceImpl->getDesc()->arraySize > 1 : false;
-    bool isMultiSample = resourceImpl ? resourceImpl->getDesc()->sampleDesc.numSamples > 1 : false;
+    bool isMultiSample = resourceImpl ? resourceImpl->getDesc()->sampleCount > 1 : false;
     switch (desc.type)
     {
     default:

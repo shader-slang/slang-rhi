@@ -188,7 +188,7 @@ Result DeviceImpl::readTexture(
 
     TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
 
-    if (textureImpl->getDesc()->sampleDesc.numSamples > 1)
+    if (textureImpl->getDesc()->sampleCount > 1)
     {
         return SLANG_E_NOT_IMPLEMENTED;
     }
@@ -374,10 +374,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         textureDesc->setWidth(desc.size.width);
         break;
     case TextureType::Texture2D:
-        if (desc.sampleDesc.numSamples > 1)
+        if (desc.sampleCount > 1)
         {
             textureDesc->setTextureType(isArray ? MTL::TextureType2DMultisampleArray : MTL::TextureType2DMultisample);
-            textureDesc->setSampleCount(desc.sampleDesc.numSamples);
+            textureDesc->setSampleCount(desc.sampleCount);
         }
         else
         {
@@ -432,7 +432,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     textureDesc->setArrayLength(isArray ? desc.arraySize : 1);
     textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setUsage(textureUsage);
-    textureDesc->setSampleCount(desc.sampleDesc.numSamples);
+    textureDesc->setSampleCount(desc.sampleCount);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
 
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));

@@ -44,7 +44,7 @@ Result FramebufferImpl::init(DeviceImpl* device, const IFramebuffer::Desc& desc)
         const IResourceView::Desc* viewDesc = view->getViewDesc();
         m_width = std::max(1u, uint32_t(textureDesc->size.width >> viewDesc->subresourceRange.mipLevel));
         m_height = std::max(1u, uint32_t(textureDesc->size.height >> viewDesc->subresourceRange.mipLevel));
-        m_sampleCount = std::max(m_sampleCount, uint32_t(textureDesc->sampleDesc.numSamples));
+        m_sampleCount = std::max(m_sampleCount, uint32_t(textureDesc->sampleCount));
         return SLANG_OK;
     };
 

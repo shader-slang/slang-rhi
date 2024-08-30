@@ -1449,7 +1449,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, nullptr);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleDesc.numSamples;
+    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkImage image;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image));
@@ -1535,7 +1535,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, initData);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleDesc.numSamples;
+    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
     };
@@ -1689,7 +1689,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         );
 
-        if (desc.sampleDesc.numSamples != 1)
+        if (desc.sampleCount > 1)
         {
             // Handle senario where texture is sampled. We cannot use
             // a simple buffer copy for sampled textures. ClearColorImage

@@ -1,3 +1,4 @@
+- remove SampleDesc and instead add sampleCount and sampleQuality to TextureDesc
 - rename ISamplerState -> ISampler
 - rename ISamplerState::Desc -> SamlerDesc
 - rename BufferDesc::sizeInBytes -> size

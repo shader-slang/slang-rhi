@@ -434,7 +434,7 @@ Result DeviceImpl::readTexture(
 
     auto texture = static_cast<TextureImpl*>(resource);
     // Don't bother supporting MSAA for right now
-    if (texture->getDesc()->sampleDesc.numSamples > 1)
+    if (texture->getDesc()->sampleCount > 1)
     {
         fprintf(stderr, "ERROR: cannot capture multi-sample texture\n");
         return E_INVALIDARG;
@@ -582,8 +582,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.Width = srcDesc.size.width;
         desc.Height = srcDesc.size.height;
         desc.Usage = D3D11_USAGE_DEFAULT;
-        desc.SampleDesc.Count = srcDesc.sampleDesc.numSamples;
-        desc.SampleDesc.Quality = srcDesc.sampleDesc.quality;
+        desc.SampleDesc.Count = srcDesc.sampleCount;
+        desc.SampleDesc.Quality = srcDesc.sampleQuality;
 
         if (srcDesc.type == TextureType::TextureCube)
         {

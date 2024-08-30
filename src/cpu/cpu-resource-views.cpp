@@ -133,7 +133,7 @@ void* TextureViewImpl::_getTexelPtr(int32_t const* texelCoords)
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
     bool isArray = (desc.arraySize != 0) || (desc.type == rhi::TextureType::TextureCube);
-    bool isMultisample = desc.sampleDesc.numSamples > 1;
+    bool isMultisample = desc.sampleCount > 1;
     bool hasMipLevels = !isMultisample;
 
     int32_t effectiveArrayElementCount = texture->m_effectiveArrayElementCount;

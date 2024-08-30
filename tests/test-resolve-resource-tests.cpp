@@ -95,7 +95,7 @@ struct BaseResolveResourceTest
         msaaTexDesc.defaultState = ResourceState::RenderTarget;
         msaaTexDesc.allowedStates = ResourceStateSet(ResourceState::RenderTarget, ResourceState::ResolveSource);
         msaaTexDesc.format = format;
-        msaaTexDesc.sampleDesc.numSamples = 4;
+        msaaTexDesc.sampleCount = 4;
 
         REQUIRE_CALL(device->createTexture(msaaTexDesc, msaaTextureInfo.initData, msaaTexture.writeRef()));
 

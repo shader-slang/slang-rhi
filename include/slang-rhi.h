@@ -717,14 +717,6 @@ struct Offset3D
     }
 };
 
-struct SampleDesc
-{
-    /// Number of samples per pixel.
-    GfxCount numSamples = 1;
-    /// The quality measure for the samples.
-    int quality = 0;
-};
-
 struct Extents
 {
     /// Width in pixels.
@@ -750,8 +742,11 @@ struct TextureDesc
     GfxCount numMipLevels = 0;
     /// The resources format.
     Format format;
-    /// How the resource is sampled.
-    SampleDesc sampleDesc;
+    /// Number of samples per pixel.
+    GfxCount sampleCount = 1;
+    /// The quality measure for the samples.
+    int sampleQuality = 0;
+
     ClearValue* optimalClearValue = nullptr;
 };
 
