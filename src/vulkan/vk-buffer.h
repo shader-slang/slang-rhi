@@ -40,14 +40,14 @@ public:
     const VulkanApi* m_api;
 };
 
-class BufferResourceImpl : public BufferResource
+class BufferImpl : public Buffer
 {
 public:
-    typedef BufferResource Parent;
+    typedef Buffer Parent;
 
-    BufferResourceImpl(const IBufferResource::Desc& desc, DeviceImpl* renderer);
+    BufferImpl(const IBuffer::Desc& desc, DeviceImpl* renderer);
 
-    ~BufferResourceImpl();
+    ~BufferImpl();
 
     RefPtr<DeviceImpl> m_renderer;
     VKBufferHandleRAII m_buffer;

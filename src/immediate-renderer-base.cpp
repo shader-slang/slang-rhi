@@ -70,13 +70,13 @@ public:
 
         virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
         virtual SLANG_NO_THROW void SLANG_MCALL
-        copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size) override
+        copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size) override
         {
             m_writer->copyBuffer(dst, dstOffset, src, srcOffset, size);
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
-        uploadBufferData(IBufferResource* dst, size_t offset, size_t size, void* data) override
+        uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data) override
         {
             m_writer->uploadBufferData(dst, offset, size, data);
         }
@@ -92,7 +92,7 @@ public:
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
-        bufferBarrier(GfxCount count, IBufferResource* const* buffers, ResourceState src, ResourceState dst) override
+        bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) override
         {
         }
 
@@ -166,8 +166,7 @@ public:
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
-        resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBufferResource* buffer, Offset offset)
-            override
+        resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override
         {
             SLANG_UNUSED(queryPool);
             SLANG_UNUSED(index);
@@ -178,7 +177,7 @@ public:
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
-            IBufferResource* dst,
+            IBuffer* dst,
             Offset dstOffset,
             Size dstSize,
             Size dstRowStride,
@@ -320,14 +319,14 @@ public:
             m_writer->setPrimitiveTopology(topology);
         }
         virtual SLANG_NO_THROW void SLANG_MCALL
-        setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBufferResource* const* buffers, const Offset* offsets)
+        setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)
             override
         {
             m_writer->setVertexBuffers(startSlot, slotCount, buffers, offsets);
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
-        setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset) override
+        setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset) override
         {
             m_writer->setIndexBuffer(buffer, indexFormat, offset);
         }
@@ -354,9 +353,9 @@ public:
 
         virtual SLANG_NO_THROW Result SLANG_MCALL drawIndirect(
             GfxCount maxDrawCount,
-            IBufferResource* argBuffer,
+            IBuffer* argBuffer,
             Offset argOffset,
-            IBufferResource* countBuffer,
+            IBuffer* countBuffer,
             Offset countOffset
         ) override
         {
@@ -371,9 +370,9 @@ public:
 
         virtual SLANG_NO_THROW Result SLANG_MCALL drawIndexedIndirect(
             GfxCount maxDrawCount,
-            IBufferResource* argBuffer,
+            IBuffer* argBuffer,
             Offset argOffset,
-            IBufferResource* countBuffer,
+            IBuffer* countBuffer,
             Offset countOffset
         ) override
         {
@@ -496,8 +495,7 @@ public:
             return SLANG_OK;
         }
 
-        virtual SLANG_NO_THROW Result SLANG_MCALL
-        dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset) override
+        virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override
         {
             SLANG_RHI_UNIMPLEMENTED("ImmediateRenderBase::dispatchComputeIndirect");
         }
@@ -549,22 +547,22 @@ public:
                 break;
             case CommandName::SetVertexBuffers:
             {
-                short_vector<IBufferResource*> bufferResources;
+                short_vector<IBuffer*> buffers;
                 for (uint32_t i = 0; i < cmd.operands[1]; i++)
                 {
-                    bufferResources.push_back(m_writer.getObject<BufferResource>(cmd.operands[2] + i));
+                    buffers.push_back(m_writer.getObject<Buffer>(cmd.operands[2] + i));
                 }
                 m_renderer->setVertexBuffers(
                     cmd.operands[0],
                     cmd.operands[1],
-                    bufferResources.data(),
+                    buffers.data(),
                     m_writer.getData<Offset>(cmd.operands[3])
                 );
             }
             break;
             case CommandName::SetIndexBuffer:
                 m_renderer->setIndexBuffer(
-                    m_writer.getObject<BufferResource>(cmd.operands[0]),
+                    m_writer.getObject<Buffer>(cmd.operands[0]),
                     (Format)cmd.operands[1],
                     (UInt)cmd.operands[2]
                 );
@@ -595,7 +593,7 @@ public:
                 break;
             case CommandName::UploadBufferData:
                 m_renderer->uploadBufferData(
-                    m_writer.getObject<BufferResource>(cmd.operands[0]),
+                    m_writer.getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
                     cmd.operands[2],
                     m_writer.getData<uint8_t>(cmd.operands[3])
@@ -603,9 +601,9 @@ public:
                 break;
             case CommandName::CopyBuffer:
                 m_renderer->copyBuffer(
-                    m_writer.getObject<BufferResource>(cmd.operands[0]),
+                    m_writer.getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
-                    m_writer.getObject<BufferResource>(cmd.operands[2]),
+                    m_writer.getObject<Buffer>(cmd.operands[2]),
                     cmd.operands[3],
                     cmd.operands[4]
                 );
@@ -724,7 +722,7 @@ SLANG_NO_THROW Result SLANG_MCALL ImmediateRendererBase::createRenderPassLayout(
     return SLANG_OK;
 }
 
-void ImmediateRendererBase::uploadBufferData(IBufferResource* dst, size_t offset, size_t size, void* data)
+void ImmediateRendererBase::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
 {
     auto buffer = map(dst, MapFlavor::WriteDiscard);
     memcpy((uint8_t*)buffer + offset, data, size);
@@ -732,7 +730,7 @@ void ImmediateRendererBase::uploadBufferData(IBufferResource* dst, size_t offset
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-ImmediateRendererBase::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+ImmediateRendererBase::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     auto blob = OwnedBlob::create(size);
     auto content = (uint8_t*)map(buffer, MapFlavor::HostRead);

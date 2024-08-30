@@ -58,7 +58,7 @@ public:
     getCurrentVersion(ITransientResourceHeap* transientHeap, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBufferResource* constantBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) override;
 
 public:
     // Type name of an ordinary shader object.

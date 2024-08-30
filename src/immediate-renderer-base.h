@@ -57,10 +57,10 @@ public:
     virtual void setVertexBuffers(
         GfxIndex startSlot,
         GfxCount slotCount,
-        IBufferResource* const* buffers,
+        IBuffer* const* buffers,
         const Offset* offsets
     ) = 0;
-    virtual void setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset = 0) = 0;
+    virtual void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) = 0;
     virtual void draw(GfxCount vertexCount, GfxIndex startVertex = 0) = 0;
     virtual void drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) = 0;
     virtual void drawInstanced(
@@ -78,17 +78,11 @@ public:
     ) = 0;
     virtual void setStencilReference(uint32_t referenceValue) = 0;
     virtual void dispatchCompute(int x, int y, int z) = 0;
-    virtual void copyBuffer(
-        IBufferResource* dst,
-        Offset dstOffset,
-        IBufferResource* src,
-        Offset srcOffset,
-        Size size
-    ) = 0;
+    virtual void copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) = 0;
     virtual void submitGpuWork() = 0;
     virtual void waitForGpu() = 0;
-    virtual void* map(IBufferResource* buffer, MapFlavor flavor) = 0;
-    virtual void unmap(IBufferResource* buffer, size_t offsetWritten, size_t sizeWritten) = 0;
+    virtual void* map(IBuffer* buffer, MapFlavor flavor) = 0;
+    virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) = 0;
     virtual void writeTimestamp(IQueryPool* pool, GfxIndex index) = 0;
     virtual void beginCommandBuffer(const CommandBufferInfo&) {}
     virtual void endCommandBuffer(const CommandBufferInfo&) {}
@@ -106,10 +100,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
 
-    void uploadBufferData(IBufferResource* dst, Offset offset, Size size, void* data);
+    void uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 };
 
 class ImmediateComputeDeviceBase : public ImmediateRendererBase
@@ -137,7 +131,7 @@ public:
     virtual void setVertexBuffers(
         GfxIndex startSlot,
         GfxCount slotCount,
-        IBufferResource* const* buffers,
+        IBuffer* const* buffers,
         const Offset* offsets
     ) override
     {
@@ -146,7 +140,7 @@ public:
         SLANG_UNUSED(buffers);
         SLANG_UNUSED(offsets);
     }
-    virtual void setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset = 0) override
+    virtual void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) override
     {
         SLANG_UNUSED(buffer);
         SLANG_UNUSED(indexFormat);

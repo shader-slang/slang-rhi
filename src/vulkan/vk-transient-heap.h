@@ -8,10 +8,10 @@
 
 namespace rhi::vk {
 
-class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl>
+class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferImpl>
 {
 private:
-    typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl> Super;
+    typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferImpl> Super;
 
 public:
     VkCommandPool m_commandPool;

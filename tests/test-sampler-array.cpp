@@ -3,10 +3,10 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
+static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 {
-    ComPtr<IBufferResource> buffer;
-    IBufferResource::Desc bufferDesc = {};
+    ComPtr<IBuffer> buffer;
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = sizeof(uint32_t);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
@@ -19,8 +19,8 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)&content, buffer.writeRef()));
 
     return buffer;
 }
@@ -46,7 +46,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     std::vector<ComPtr<IResourceView>> srvs;
     ComPtr<IResourceView> uav;
     ComPtr<ITextureResource> texture;
-    ComPtr<IBufferResource> buffer = createBuffer(device, 0);
+    ComPtr<IBuffer> buffer = createBuffer(device, 0);
 
     {
         IResourceView::Desc viewDesc = {};

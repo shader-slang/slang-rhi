@@ -116,9 +116,9 @@ ComPtr<IResourceView> createTexView(
 }
 
 template<typename T>
-ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialData)
+ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
 {
-    IBufferResource::Desc bufferDesc = {};
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = size * sizeof(T);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(T);
@@ -131,12 +131,12 @@ ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialDat
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> outBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, initialData, outBuffer.writeRef()));
+    ComPtr<IBuffer> outBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, initialData, outBuffer.writeRef()));
     return outBuffer;
 }
 
-ComPtr<IResourceView> createBufferView(IDevice* device, ComPtr<IBufferResource> outBuffer)
+ComPtr<IResourceView> createBufferView(IDevice* device, ComPtr<IBuffer> outBuffer)
 {
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};

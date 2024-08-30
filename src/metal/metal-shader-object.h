@@ -62,7 +62,7 @@ protected:
     ///
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
-    BufferResourceImpl* _ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
+    BufferImpl* _ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     void writeOrdinaryDataIntoArgumentBuffer(
         slang::TypeLayoutReflection* argumentBufferTypeLayout,
@@ -104,7 +104,7 @@ public:
     // of simple arrays.
 
     /// The buffers that are part of the state of this object
-    std::vector<RefPtr<BufferResourceViewImpl>> m_buffers;
+    std::vector<RefPtr<BufferViewImpl>> m_buffers;
 
     /// The textures that are part of the state of this object
     std::vector<RefPtr<TextureResourceViewImpl>> m_textures;
@@ -116,10 +116,10 @@ public:
     /// and existential-type sub-objects.
     ///
     /// Created on demand with `_createOrdinaryDataBufferIfNeeded()`
-    RefPtr<BufferResourceImpl> m_ordinaryDataBuffer;
+    RefPtr<BufferImpl> m_ordinaryDataBuffer;
 
     /// Argument buffer created on demand to bind as a parameter block.
-    RefPtr<BufferResourceImpl> m_argumentBuffer;
+    RefPtr<BufferImpl> m_argumentBuffer;
 
     bool m_isConstantBufferDirty = true;
     bool m_isArgumentBufferDirty = true;

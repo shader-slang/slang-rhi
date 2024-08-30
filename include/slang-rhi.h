@@ -599,7 +599,7 @@ struct MemoryRange
     uint64_t size;
 };
 
-class IBufferResource : public IResource
+class IBuffer : public IResource
 {
     SLANG_COM_INTERFACE(0xf3eeb08f, 0xa0cc, 0x4eea, {0x93, 0xfd, 0x2a, 0xfe, 0x95, 0x1c, 0x7f, 0x63});
 
@@ -1016,7 +1016,7 @@ public:
     struct CreateDesc
     {
         Kind kind;
-        IBufferResource* buffer;
+        IBuffer* buffer;
         Offset offset;
         Size size;
     };
@@ -1120,7 +1120,7 @@ public:
     virtual SLANG_NO_THROW Size SLANG_MCALL getSize() = 0;
 
     /// Use the provided constant buffer instead of the internally created one.
-    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBufferResource* constantBuffer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) = 0;
 
     inline ComPtr<IShaderObject> getObject(ShaderOffset const& offset)
     {
@@ -1577,7 +1577,7 @@ class IResourceCommandEncoder : public ICommandEncoder
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL
-    copyBuffer(IBufferResource* dst, Offset dstOffset, IBufferResource* src, Offset srcOffset, Size size) = 0;
+    copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) = 0;
 
     /// Copies texture from src to dst. If dstSubresource and srcSubresource has mipLevelCount = 0
     /// and layerCount = 0, the entire resource is being copied and dstOffset, srcOffset and extent
@@ -1596,7 +1596,7 @@ public:
 
     /// Copies texture to a buffer. Each row is aligned to kTexturePitchAlignment.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
-        IBufferResource* dst,
+        IBuffer* dst,
         Offset dstOffset,
         Size dstSize,
         Size dstRowStride,
@@ -1614,8 +1614,7 @@ public:
         ITextureResource::SubresourceData* subResourceData,
         GfxCount subResourceDataCount
     ) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    uploadBufferData(IBufferResource* dst, Offset offset, Size size, void* data) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL
     textureBarrier(GfxCount count, ITextureResource* const* textures, ResourceState src, ResourceState dst) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
@@ -1625,7 +1624,7 @@ public:
         ResourceState dst
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    bufferBarrier(GfxCount count, IBufferResource* const* buffers, ResourceState src, ResourceState dst) = 0;
+    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL
     clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
@@ -1637,14 +1636,14 @@ public:
         SubresourceRange destRange
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBufferResource* buffer, Offset offset) = 0;
+    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() = 0;
     inline void textureBarrier(ITextureResource* texture, ResourceState src, ResourceState dst)
     {
         textureBarrier(1, &texture, src, dst);
     }
-    inline void bufferBarrier(IBufferResource* buffer, ResourceState src, ResourceState dst)
+    inline void bufferBarrier(IBuffer* buffer, ResourceState src, ResourceState dst)
     {
         bufferBarrier(1, &buffer, src, dst);
     }
@@ -1687,34 +1686,29 @@ public:
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL setPrimitiveTopology(PrimitiveTopology topology) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL setVertexBuffers(
-        GfxIndex startSlot,
-        GfxCount slotCount,
-        IBufferResource* const* buffers,
-        const Offset* offsets
-    ) = 0;
-    inline void setVertexBuffer(GfxIndex slot, IBufferResource* buffer, Offset offset = 0)
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets) = 0;
+    inline void setVertexBuffer(GfxIndex slot, IBuffer* buffer, Offset offset = 0)
     {
         setVertexBuffers(slot, 1, &buffer, &offset);
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset = 0) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex = 0) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndirect(
         GfxCount maxDrawCount,
-        IBufferResource* argBuffer,
+        IBuffer* argBuffer,
         Offset argOffset,
-        IBufferResource* countBuffer = nullptr,
+        IBuffer* countBuffer = nullptr,
         Offset countOffset = 0
     ) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndexedIndirect(
         GfxCount maxDrawCount,
-        IBufferResource* argBuffer,
+        IBuffer* argBuffer,
         Offset argOffset,
-        IBufferResource* countBuffer = nullptr,
+        IBuffer* countBuffer = nullptr,
         Offset countOffset = 0
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL setStencilReference(uint32_t referenceValue) = 0;
@@ -1758,7 +1752,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBufferResource* cmdBuffer, Offset offset) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* cmdBuffer, Offset offset) = 0;
 };
 
 enum class AccelerationStructureCopyMode
@@ -2286,29 +2280,20 @@ public:
 
     /// Create a buffer resource
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferResource(const IBufferResource::Desc& desc, const void* initData, IBufferResource** outResource) = 0;
+    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) = 0;
 
-    inline SLANG_NO_THROW ComPtr<IBufferResource> createBufferResource(
-        const IBufferResource::Desc& desc,
-        const void* initData = nullptr
-    )
+    inline SLANG_NO_THROW ComPtr<IBuffer> createBuffer(const IBuffer::Desc& desc, const void* initData = nullptr)
     {
-        ComPtr<IBufferResource> resource;
-        SLANG_RETURN_NULL_ON_FAIL(createBufferResource(desc, initData, resource.writeRef()));
+        ComPtr<IBuffer> resource;
+        SLANG_RETURN_NULL_ON_FAIL(createBuffer(desc, initData, resource.writeRef()));
         return resource;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& srcDesc,
-        IBufferResource** outResource
-    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& srcDesc,
-        IBufferResource** outResource
-    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) = 0;
@@ -2331,15 +2316,15 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBufferResource* buffer,
-        IBufferResource* counterBuffer,
+        IBuffer* buffer,
+        IBuffer* counterBuffer,
         IResourceView::Desc const& desc,
         IResourceView** outView
     ) = 0;
 
     inline ComPtr<IResourceView> createBufferView(
-        IBufferResource* buffer,
-        IBufferResource* counterBuffer,
+        IBuffer* buffer,
+        IBuffer* counterBuffer,
         IResourceView::Desc const& desc
     )
     {
@@ -2511,7 +2496,7 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL
-    readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;
 
     /// Get the type of this renderer
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const = 0;

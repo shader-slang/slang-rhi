@@ -33,7 +33,7 @@ struct SwapchainResizeTest
     ComPtr<IRenderPassLayout> renderPass;
     List<ComPtr<IFramebuffer>> framebuffers;
 
-    ComPtr<IBufferResource> vertexBuffer;
+    ComPtr<IBuffer> vertexBuffer;
 
     GfxCount width = 500;
     GfxCount height = 500;
@@ -117,11 +117,11 @@ struct SwapchainResizeTest
         auto inputLayout = device->createInputLayout(inputLayoutDesc);
         SLANG_CHECK_ABORT(inputLayout != nullptr);
 
-        IBufferResource::Desc vertexBufferDesc;
+        IBuffer::Desc vertexBufferDesc;
         vertexBufferDesc.type = IResource::Type::Buffer;
         vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-        vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+        vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         SLANG_CHECK_ABORT(vertexBuffer != nullptr);
 
         ITransientResourceHeap::Desc transientHeapDesc = {};

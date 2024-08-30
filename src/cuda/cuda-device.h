@@ -37,17 +37,11 @@ public:
         ITextureResource** outResource
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferResource(
-        const IBufferResource::Desc& descIn,
-        const void* initData,
-        IBufferResource** outResource
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& desc,
-        IBufferResource** outResource
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& desc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
@@ -59,12 +53,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBufferResource* buffer,
-        IBufferResource* counterBuffer,
-        IResourceView::Desc const& desc,
-        IResourceView** outView
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
@@ -90,9 +81,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState) override;
 
-    void* map(IBufferResource* buffer);
+    void* map(IBuffer* buffer);
 
-    void unmap(IBufferResource* buffer);
+    void unmap(IBuffer* buffer);
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
@@ -135,7 +126,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;
 };
 
 } // namespace rhi::cuda

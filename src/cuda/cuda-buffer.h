@@ -5,15 +5,15 @@
 
 namespace rhi::cuda {
 
-class BufferResourceImpl : public BufferResource
+class BufferImpl : public Buffer
 {
 public:
-    BufferResourceImpl(const Desc& _desc)
-        : BufferResource(_desc)
+    BufferImpl(const Desc& _desc)
+        : Buffer(_desc)
     {
     }
 
-    ~BufferResourceImpl();
+    ~BufferImpl();
 
     uint64_t getBindlessHandle();
 

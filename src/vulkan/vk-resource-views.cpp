@@ -14,29 +14,29 @@ Result TextureResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-TexelBufferResourceViewImpl::TexelBufferResourceViewImpl(DeviceImpl* device)
+TexelBufferViewImpl::TexelBufferViewImpl(DeviceImpl* device)
     : ResourceViewImpl(ViewType::TexelBuffer, device)
 {
 }
 
-TexelBufferResourceViewImpl::~TexelBufferResourceViewImpl()
+TexelBufferViewImpl::~TexelBufferViewImpl()
 {
     m_device->m_api.vkDestroyBufferView(m_device->m_api.m_device, m_view, nullptr);
 }
 
-Result TexelBufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TexelBufferViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Vulkan;
     outHandle->handleValue = (uint64_t)(m_view);
     return SLANG_OK;
 }
 
-PlainBufferResourceViewImpl::PlainBufferResourceViewImpl(DeviceImpl* device)
+PlainBufferViewImpl::PlainBufferViewImpl(DeviceImpl* device)
     : ResourceViewImpl(ViewType::PlainBuffer, device)
 {
 }
 
-Result PlainBufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result PlainBufferViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
     return m_buffer->getNativeResourceHandle(outHandle);
 }

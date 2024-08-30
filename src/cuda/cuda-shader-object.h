@@ -10,7 +10,7 @@ class ShaderObjectData
 {
 public:
     bool isHostOnly = false;
-    RefPtr<BufferResourceImpl> m_bufferResource;
+    RefPtr<BufferImpl> m_buffer;
     RefPtr<ResourceViewImpl> m_bufferView;
     std::vector<uint8_t> m_cpuBuffer;
 

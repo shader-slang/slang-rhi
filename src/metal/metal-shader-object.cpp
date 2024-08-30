@@ -67,8 +67,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
     case slang::BindingType::ConstantBuffer:
     case slang::BindingType::MutableRawBuffer:
         SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Buffer);
-        m_buffers[bindingRange.baseIndex + offset.bindingArrayIndex] =
-            static_cast<BufferResourceViewImpl*>(resourceView);
+        m_buffers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<BufferViewImpl*>(resourceView);
         break;
     case slang::BindingType::TypedBuffer:
     case slang::BindingType::MutableTypedBuffer:
@@ -255,15 +254,15 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* de
     // simply re-use that buffer rather than re-create it.
     if (!m_ordinaryDataBuffer)
     {
-        ComPtr<IBufferResource> bufferResourcePtr;
-        IBufferResource::Desc bufferDesc = {};
+        ComPtr<IBuffer> buffer;
+        IBuffer::Desc bufferDesc = {};
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.sizeInBytes = ordinaryDataSize;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
-        m_ordinaryDataBuffer = static_cast<BufferResourceImpl*>(bufferResourcePtr.get());
+        SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        m_ordinaryDataBuffer = static_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isConstantBufferDirty)
@@ -342,7 +341,7 @@ void ShaderObjectImpl::writeOrdinaryDataIntoArgumentBuffer(
     }
 }
 
-BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout)
+BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout)
 {
     auto typeLayout = layout->getParameterBlockTypeLayout();
     auto defaultTypeLayout = m_layout->getElementTypeLayout();
@@ -351,15 +350,15 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* 
     // simply re-use that buffer rather than re-create it.
     if (!m_argumentBuffer)
     {
-        ComPtr<IBufferResource> bufferResourcePtr;
-        IBufferResource::Desc bufferDesc = {};
+        ComPtr<IBuffer> buffer;
+        IBuffer::Desc bufferDesc = {};
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.sizeInBytes = typeLayout->getSize();
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_NULL_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
-        m_argumentBuffer = static_cast<BufferResourceImpl*>(bufferResourcePtr.get());
+        SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        m_argumentBuffer = static_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isArgumentBufferDirty)
@@ -416,7 +415,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* 
                 case slang::BindingType::MutableRawBuffer:
                 {
                     auto bufferViewImpl =
-                        static_cast<BufferResourceViewImpl*>(m_buffers[resourceIndex + bufferBindingIndexOffset].get());
+                        static_cast<BufferViewImpl*>(m_buffers[resourceIndex + bufferBindingIndexOffset].get());
 
                     if (bufferViewImpl)
                     {

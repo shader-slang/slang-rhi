@@ -2,13 +2,13 @@
 
 namespace rhi::d3d12 {
 
-BufferResourceImpl::BufferResourceImpl(const Desc& desc)
+BufferImpl::BufferImpl(const Desc& desc)
     : Parent(desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
-BufferResourceImpl::~BufferResourceImpl()
+BufferImpl::~BufferImpl()
 {
     if (sharedHandle.handleValue != 0)
     {
@@ -16,19 +16,19 @@ BufferResourceImpl::~BufferResourceImpl()
     }
 }
 
-DeviceAddress BufferResourceImpl::getDeviceAddress()
+DeviceAddress BufferImpl::getDeviceAddress()
 {
     return (DeviceAddress)m_resource.getResource()->GetGPUVirtualAddress();
 }
 
-Result BufferResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result BufferImpl::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->handleValue = (uint64_t)m_resource.getResource();
     outHandle->api = InteropHandleAPI::D3D12;
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result BufferImpl::getSharedHandle(InteropHandle* outHandle)
 {
 #if !SLANG_WINDOWS_FAMILY
     return SLANG_E_NOT_IMPLEMENTED;
@@ -53,7 +53,7 @@ Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
 #endif
 }
 
-Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     D3D12_RANGE range = {};
     if (rangeToRead)
@@ -65,7 +65,7 @@ Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(MemoryRange* writtenRange)
 {
     D3D12_RANGE range = {};
     if (writtenRange)
@@ -77,7 +77,7 @@ Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::setDebugName(const char* name)
+Result BufferImpl::setDebugName(const char* name)
 {
     Parent::setDebugName(name);
     m_resource.setDebugName(name);

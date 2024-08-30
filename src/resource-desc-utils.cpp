@@ -2,9 +2,9 @@
 
 namespace rhi {
 
-IBufferResource::Desc fixupBufferDesc(const IBufferResource::Desc& desc)
+IBuffer::Desc fixupBufferDesc(const IBuffer::Desc& desc)
 {
-    IBufferResource::Desc result = desc;
+    IBuffer::Desc result = desc;
     result.allowedStates.add(result.defaultState);
     return result;
 }

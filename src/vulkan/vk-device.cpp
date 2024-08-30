@@ -1227,9 +1227,9 @@ Result DeviceImpl::readTextureResource(
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBufferResource(IBufferResource* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
-    BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(inBuffer);
+    BufferImpl* buffer = static_cast<BufferImpl*>(inBuffer);
 
     // create staging buffer
     VKBufferHandleRAII staging;
@@ -1301,7 +1301,7 @@ Result DeviceImpl::createAccelerationStructure(
     RefPtr<AccelerationStructureImpl> resultAS = new AccelerationStructureImpl();
     resultAS->m_offset = desc.offset;
     resultAS->m_size = desc.size;
-    resultAS->m_buffer = static_cast<BufferResourceImpl*>(desc.buffer);
+    resultAS->m_buffer = static_cast<BufferImpl*>(desc.buffer);
     resultAS->m_device = this;
     resultAS->m_desc.type = IResourceView::Type::AccelerationStructure;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
@@ -1860,23 +1860,19 @@ Result DeviceImpl::createTextureResource(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    return createBufferResourceImpl(descIn, 0, initData, outResource);
+    return createBufferImpl(descIn, 0, initData, outBuffer);
 }
 
-Result DeviceImpl::createBufferResourceImpl(
-    const IBufferResource::Desc& descIn,
+Result DeviceImpl::createBufferImpl(
+    const IBuffer::Desc& descIn,
     VkBufferUsageFlags additionalUsageFlag,
     const void* initData,
-    IBufferResource** outResource
+    IBuffer** outBuffer
 )
 {
-    BufferResource::Desc desc = fixupBufferDesc(descIn);
+    Buffer::Desc desc = fixupBufferDesc(descIn);
 
     const Size bufferSize = desc.sizeInBytes;
 
@@ -1907,7 +1903,7 @@ Result DeviceImpl::createBufferResourceImpl(
         reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
 
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(desc, this));
+    RefPtr<BufferImpl> buffer(new BufferImpl(desc, this));
     if (desc.isShared)
     {
         VkExternalMemoryHandleTypeFlagsKHR extMemHandleType
@@ -1965,17 +1961,13 @@ Result DeviceImpl::createBufferResourceImpl(
         }
     }
 
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
 {
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc, this));
+    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc, this));
 
     if (handle.api == InteropHandleAPI::Vulkan)
     {
@@ -1986,7 +1978,7 @@ Result DeviceImpl::createBufferFromNativeHandle(
         return SLANG_FAIL;
     }
 
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
@@ -2219,13 +2211,13 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
 }
 
 Result DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
-    auto resourceImpl = (BufferResourceImpl*)buffer;
+    auto resourceImpl = (BufferImpl*)buffer;
 
     VkDeviceSize offset = (VkDeviceSize)desc.bufferRange.offset;
     VkDeviceSize size = desc.bufferRange.size == 0 ? (buffer ? resourceImpl->getDesc()->sizeInBytes : 0)
@@ -2264,7 +2256,7 @@ Result DeviceImpl::createBufferView(
         {
             // Buffer usage that doesn't involve formatting doesn't
             // require a view in Vulkan.
-            RefPtr<PlainBufferResourceViewImpl> viewImpl = new PlainBufferResourceViewImpl(this);
+            RefPtr<PlainBufferViewImpl> viewImpl = new PlainBufferViewImpl(this);
             viewImpl->m_buffer = resourceImpl;
             viewImpl->offset = offset;
             viewImpl->size = size;
@@ -2310,7 +2302,7 @@ Result DeviceImpl::createBufferView(
                 SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateBufferView(m_device, &info, nullptr, &view));
             }
 
-            RefPtr<TexelBufferResourceViewImpl> viewImpl = new TexelBufferResourceViewImpl(this);
+            RefPtr<TexelBufferViewImpl> viewImpl = new TexelBufferViewImpl(this);
             viewImpl->m_buffer = resourceImpl;
             viewImpl->m_view = view;
             viewImpl->m_desc = desc;

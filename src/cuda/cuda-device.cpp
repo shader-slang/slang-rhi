@@ -725,41 +725,34 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferResourceImpl> resource = new BufferResourceImpl(desc);
-    resource->m_cudaContext = m_context;
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    buffer->m_cudaContext = m_context;
     SLANG_CUDA_RETURN_ON_FAIL(
-        cuMemAllocManaged((CUdeviceptr*)(&resource->m_cudaMemory), desc.sizeInBytes, CU_MEM_ATTACH_GLOBAL)
+        cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.sizeInBytes, CU_MEM_ATTACH_GLOBAL)
     );
     if (initData)
     {
-        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)resource->m_cudaMemory, (CUdeviceptr)initData, desc.sizeInBytes)
-        );
+        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.sizeInBytes));
     }
-    returnComPtr(outResource, resource);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferFromSharedHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& desc,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& desc, IBuffer** outBuffer)
 {
     if (handle.handleValue == 0)
     {
-        *outResource = nullptr;
+        *outBuffer = nullptr;
         return SLANG_OK;
     }
 
-    RefPtr<BufferResourceImpl> resource = new BufferResourceImpl(desc);
-    resource->m_cudaContext = m_context;
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    buffer->m_cudaContext = m_context;
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship
@@ -787,7 +780,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferFromSharedHandle(
     // external buffer and its own memory.
     CUexternalMemory externalMemory;
     SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));
-    resource->m_cudaExternalMemory = externalMemory;
+    buffer->m_cudaExternalMemory = externalMemory;
 
     // The CUDA "external memory" handle is not itself a device
     // pointer, so we need to query for a suitable device address
@@ -804,9 +797,9 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferFromSharedHandle(
     void* deviceAddress;
     SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedBuffer((CUdeviceptr*)&deviceAddress, externalMemory, &bufferDesc)
     );
-    resource->m_cudaMemory = deviceAddress;
+    buffer->m_cudaMemory = deviceAddress;
 
-    returnComPtr(outResource, resource);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
@@ -900,15 +893,15 @@ DeviceImpl::createTextureView(ITextureResource* texture, IResourceView::Desc con
 }
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
     RefPtr<ResourceViewImpl> view = new ResourceViewImpl();
     view->m_desc = desc;
-    view->memoryResource = dynamic_cast<BufferResourceImpl*>(buffer);
+    view->memoryResource = dynamic_cast<BufferImpl*>(buffer);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
@@ -1032,12 +1025,12 @@ DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPi
     return Result();
 }
 
-void* DeviceImpl::map(IBufferResource* buffer)
+void* DeviceImpl::map(IBuffer* buffer)
 {
-    return static_cast<BufferResourceImpl*>(buffer)->m_cudaMemory;
+    return static_cast<BufferImpl*>(buffer)->m_cudaMemory;
 }
 
-void DeviceImpl::unmap(IBufferResource* buffer)
+void DeviceImpl::unmap(IBuffer* buffer)
 {
     SLANG_UNUSED(buffer);
 }
@@ -1164,9 +1157,9 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTextureResource(
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
-    auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    auto bufferImpl = static_cast<BufferImpl*>(buffer);
 
     auto blob = OwnedBlob::create(size);
     cuMemcpy((CUdeviceptr)blob->getBufferPointer(), (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size);

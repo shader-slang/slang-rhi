@@ -47,38 +47,38 @@ const int kWidth = 256;
 const int kHeight = 256;
 const Format format = Format::R32G32B32A32_FLOAT;
 
-static ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
+static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
-    IBufferResource::Desc vertexBufferDesc;
+    IBuffer::Desc vertexBufferDesc;
     vertexBufferDesc.type = IResource::Type::Buffer;
     vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
     vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
-    ComPtr<IBufferResource> vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+    ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
     REQUIRE(vertexBuffer != nullptr);
     return vertexBuffer;
 }
 
-static ComPtr<IBufferResource> createInstanceBuffer(IDevice* device)
+static ComPtr<IBuffer> createInstanceBuffer(IDevice* device)
 {
-    IBufferResource::Desc instanceBufferDesc;
+    IBuffer::Desc instanceBufferDesc;
     instanceBufferDesc.type = IResource::Type::Buffer;
     instanceBufferDesc.sizeInBytes = kInstanceCount * sizeof(Instance);
     instanceBufferDesc.defaultState = ResourceState::VertexBuffer;
     instanceBufferDesc.allowedStates = ResourceState::VertexBuffer;
-    ComPtr<IBufferResource> instanceBuffer = device->createBufferResource(instanceBufferDesc, &kInstanceData[0]);
+    ComPtr<IBuffer> instanceBuffer = device->createBuffer(instanceBufferDesc, &kInstanceData[0]);
     REQUIRE(instanceBuffer != nullptr);
     return instanceBuffer;
 }
 
-static ComPtr<IBufferResource> createIndexBuffer(IDevice* device)
+static ComPtr<IBuffer> createIndexBuffer(IDevice* device)
 {
-    IBufferResource::Desc indexBufferDesc;
+    IBuffer::Desc indexBufferDesc;
     indexBufferDesc.type = IResource::Type::Buffer;
     indexBufferDesc.sizeInBytes = kIndexCount * sizeof(uint32_t);
     indexBufferDesc.defaultState = ResourceState::IndexBuffer;
     indexBufferDesc.allowedStates = ResourceState::IndexBuffer;
-    ComPtr<IBufferResource> indexBuffer = device->createBufferResource(indexBufferDesc, &kIndexData[0]);
+    ComPtr<IBuffer> indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
     REQUIRE(indexBuffer != nullptr);
     return indexBuffer;
 }
@@ -109,8 +109,8 @@ public:
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
-    ComPtr<IBufferResource> vertexBuffer;
-    ComPtr<IBufferResource> instanceBuffer;
+    ComPtr<IBuffer> vertexBuffer;
+    ComPtr<IBuffer> instanceBuffer;
     ComPtr<ITextureResource> colorBuffer;
 
     void init(IDevice* device) { this->device = device; }
@@ -292,7 +292,7 @@ struct DrawInstancedTest : BaseDrawTest
 
 struct DrawIndexedInstancedTest : BaseDrawTest
 {
-    ComPtr<IBufferResource> indexBuffer;
+    ComPtr<IBuffer> indexBuffer;
 
     void setUpAndDraw()
     {
@@ -345,7 +345,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
 
 struct DrawIndirectTest : BaseDrawTest
 {
-    ComPtr<IBufferResource> indirectBuffer;
+    ComPtr<IBuffer> indirectBuffer;
 
     struct IndirectArgData
     {
@@ -353,19 +353,19 @@ struct DrawIndirectTest : BaseDrawTest
         IndirectDrawArguments args;
     };
 
-    ComPtr<IBufferResource> createIndirectBuffer(IDevice* device)
+    ComPtr<IBuffer> createIndirectBuffer(IDevice* device)
     {
         static const IndirectArgData kIndirectData = {
             42.0f,        // padding
             {6, 2, 0, 0}, // args
         };
 
-        IBufferResource::Desc indirectBufferDesc;
+        IBuffer::Desc indirectBufferDesc;
         indirectBufferDesc.type = IResource::Type::Buffer;
         indirectBufferDesc.sizeInBytes = sizeof(IndirectArgData);
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
         indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
-        ComPtr<IBufferResource> indirectBuffer = device->createBufferResource(indirectBufferDesc, &kIndirectData);
+        ComPtr<IBuffer> indirectBuffer = device->createBuffer(indirectBufferDesc, &kIndirectData);
         REQUIRE(indirectBuffer != nullptr);
         return indirectBuffer;
     }
@@ -419,8 +419,8 @@ struct DrawIndirectTest : BaseDrawTest
 
 struct DrawIndexedIndirectTest : BaseDrawTest
 {
-    ComPtr<IBufferResource> indexBuffer;
-    ComPtr<IBufferResource> indirectBuffer;
+    ComPtr<IBuffer> indexBuffer;
+    ComPtr<IBuffer> indirectBuffer;
 
     struct IndexedIndirectArgData
     {
@@ -428,19 +428,19 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         IndirectDrawIndexedArguments args;
     };
 
-    ComPtr<IBufferResource> createIndirectBuffer(IDevice* device)
+    ComPtr<IBuffer> createIndirectBuffer(IDevice* device)
     {
         static const IndexedIndirectArgData kIndexedIndirectData = {
             42.0f,           // padding
             {6, 2, 0, 0, 0}, // args
         };
 
-        IBufferResource::Desc indirectBufferDesc;
+        IBuffer::Desc indirectBufferDesc;
         indirectBufferDesc.type = IResource::Type::Buffer;
         indirectBufferDesc.sizeInBytes = sizeof(IndexedIndirectArgData);
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
         indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
-        ComPtr<IBufferResource> indexBuffer = device->createBufferResource(indirectBufferDesc, &kIndexedIndirectData);
+        ComPtr<IBuffer> indexBuffer = device->createBuffer(indirectBufferDesc, &kIndexedIndirectData);
         REQUIRE(indexBuffer != nullptr);
         return indexBuffer;
     }

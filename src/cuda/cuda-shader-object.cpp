@@ -21,23 +21,23 @@ Result ShaderObjectData::setCount(Index count)
         return SLANG_OK;
     }
 
-    if (!m_bufferResource)
+    if (!m_buffer)
     {
-        IBufferResource::Desc desc;
+        IBuffer::Desc desc;
         desc.type = IResource::Type::Buffer;
         desc.sizeInBytes = count;
-        m_bufferResource = new BufferResourceImpl(desc);
+        m_buffer = new BufferImpl(desc);
         if (count)
         {
-            SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc((CUdeviceptr*)&m_bufferResource->m_cudaMemory, (size_t)count));
+            SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc((CUdeviceptr*)&m_buffer->m_cudaMemory, (size_t)count));
         }
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         m_bufferView = new ResourceViewImpl();
-        m_bufferView->memoryResource = m_bufferResource;
+        m_bufferView->memoryResource = m_buffer;
         m_bufferView->m_desc = viewDesc;
     }
-    auto oldSize = m_bufferResource->getDesc()->sizeInBytes;
+    auto oldSize = m_buffer->getDesc()->sizeInBytes;
     if ((size_t)count != oldSize)
     {
         void* newMemory = nullptr;
@@ -47,15 +47,13 @@ Result ShaderObjectData::setCount(Index count)
         }
         if (oldSize)
         {
-            SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
-                (CUdeviceptr)newMemory,
-                (CUdeviceptr)m_bufferResource->m_cudaMemory,
-                std::min((size_t)count, oldSize)
-            ));
+            SLANG_CUDA_RETURN_ON_FAIL(
+                cuMemcpy((CUdeviceptr)newMemory, (CUdeviceptr)m_buffer->m_cudaMemory, std::min((size_t)count, oldSize))
+            );
         }
-        cuMemFree((CUdeviceptr)m_bufferResource->m_cudaMemory);
-        m_bufferResource->m_cudaMemory = newMemory;
-        m_bufferResource->getDesc()->sizeInBytes = count;
+        cuMemFree((CUdeviceptr)m_buffer->m_cudaMemory);
+        m_buffer->m_cudaMemory = newMemory;
+        m_buffer->getDesc()->sizeInBytes = count;
     }
     return SLANG_OK;
 }
@@ -64,8 +62,8 @@ Index ShaderObjectData::getCount()
 {
     if (isHostOnly)
         return m_cpuBuffer.size();
-    if (m_bufferResource)
-        return (Index)(m_bufferResource->getDesc()->sizeInBytes);
+    if (m_buffer)
+        return (Index)(m_buffer->getDesc()->sizeInBytes);
     else
         return 0;
 }
@@ -75,8 +73,8 @@ void* ShaderObjectData::getBuffer()
     if (isHostOnly)
         return m_cpuBuffer.data();
 
-    if (m_bufferResource)
-        return m_bufferResource->m_cudaMemory;
+    if (m_buffer)
+        return m_buffer->m_cudaMemory;
     return nullptr;
 }
 
@@ -88,7 +86,7 @@ ResourceViewBase* ShaderObjectData::getResourceView(
 )
 {
     SLANG_UNUSED(device);
-    m_bufferResource->getDesc()->elementSize = (int)elementLayout->getSize();
+    m_buffer->getDesc()->elementSize = (int)elementLayout->getSize();
     return m_bufferView.Ptr();
 }
 

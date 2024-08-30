@@ -86,14 +86,14 @@ Result VKBufferHandleRAII::init(
     return SLANG_OK;
 }
 
-BufferResourceImpl::BufferResourceImpl(const IBufferResource::Desc& desc, DeviceImpl* renderer)
+BufferImpl::BufferImpl(const IBuffer::Desc& desc, DeviceImpl* renderer)
     : Parent(desc)
     , m_renderer(renderer)
 {
     SLANG_RHI_ASSERT(renderer);
 }
 
-BufferResourceImpl::~BufferResourceImpl()
+BufferImpl::~BufferImpl()
 {
     if (sharedHandle.handleValue != 0)
     {
@@ -103,7 +103,7 @@ BufferResourceImpl::~BufferResourceImpl()
     }
 }
 
-DeviceAddress BufferResourceImpl::getDeviceAddress()
+DeviceAddress BufferImpl::getDeviceAddress()
 {
     if (!m_buffer.m_api->vkGetBufferDeviceAddress)
         return 0;
@@ -113,14 +113,14 @@ DeviceAddress BufferResourceImpl::getDeviceAddress()
     return (DeviceAddress)m_buffer.m_api->vkGetBufferDeviceAddress(m_buffer.m_api->m_device, &info);
 }
 
-Result BufferResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result BufferImpl::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->handleValue = (uint64_t)m_buffer.m_buffer;
     outHandle->api = InteropHandleAPI::Vulkan;
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result BufferImpl::getSharedHandle(InteropHandle* outHandle)
 {
     // Check if a shared handle already exists for this resource.
     if (sharedHandle.handleValue != 0)
@@ -165,7 +165,7 @@ Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     auto api = m_buffer.m_api;
@@ -173,7 +173,7 @@ Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(MemoryRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     auto api = m_buffer.m_api;
@@ -181,7 +181,7 @@ Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::setDebugName(const char* name)
+Result BufferImpl::setDebugName(const char* name)
 {
     Parent::setDebugName(name);
     auto api = m_buffer.m_api;

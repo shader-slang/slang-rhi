@@ -203,7 +203,7 @@ Result DeviceImpl::captureTextureToSurface(
     D3D12Resource stagingResource;
     {
         D3D12_RESOURCE_DESC stagingDesc;
-        initBufferResourceDesc(bufferSize, stagingDesc);
+        initBufferDesc(bufferSize, stagingDesc);
 
         D3D12_HEAP_PROPERTIES heapProps;
         heapProps.Type = D3D12_HEAP_TYPE_READBACK;
@@ -1253,18 +1253,14 @@ Result DeviceImpl::createTextureFromNativeHandle(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    BufferResource::Desc srcDesc = fixupBufferDesc(descIn);
+    Buffer::Desc srcDesc = fixupBufferDesc(descIn);
 
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
     D3D12_RESOURCE_DESC bufferDesc;
-    initBufferResourceDesc(descIn.sizeInBytes, bufferDesc);
+    initBufferDesc(descIn.sizeInBytes, bufferDesc);
 
     bufferDesc.Flags |= calcResourceFlags(srcDesc.allowedStates);
 
@@ -1279,17 +1275,13 @@ Result DeviceImpl::createBufferResource(
         descIn.memoryType
     ));
 
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
 {
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
     if (handle.api == InteropHandleAPI::D3D12)
     {
@@ -1300,7 +1292,7 @@ Result DeviceImpl::createBufferFromNativeHandle(
         return SLANG_FAIL;
     }
 
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
@@ -1654,15 +1646,15 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
 }
 
 Result DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
-    auto resourceImpl = (BufferResourceImpl*)buffer;
+    auto resourceImpl = (BufferImpl*)buffer;
     auto resourceDesc = *resourceImpl->getDesc();
-    const auto counterResourceImpl = static_cast<BufferResourceImpl*>(counterBuffer);
+    const auto counterResourceImpl = static_cast<BufferImpl*>(counterBuffer);
 
     RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
     viewImpl->m_resource = resourceImpl;
@@ -1820,10 +1812,10 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-Result DeviceImpl::readBufferResource(IBufferResource* bufferIn, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlangBlob** outBlob)
 {
 
-    BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(bufferIn);
+    BufferImpl* buffer = static_cast<BufferImpl*>(bufferIn);
 
     const Size bufferSize = buffer->getDesc()->sizeInBytes;
 
@@ -1845,7 +1837,7 @@ Result DeviceImpl::readBufferResource(IBufferResource* bufferIn, Offset offset, 
 
         // Resource to readback to
         D3D12_RESOURCE_DESC stagingDesc;
-        initBufferResourceDesc(size, stagingDesc);
+        initBufferDesc(size, stagingDesc);
 
         SLANG_RETURN_ON_FAIL(stageBuf.initCommitted(
             m_device,
@@ -2127,7 +2119,7 @@ Result DeviceImpl::createAccelerationStructure(
 #if SLANG_RHI_DXR
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl();
     result->m_device5 = m_device5;
-    result->m_buffer = static_cast<BufferResourceImpl*>(desc.buffer);
+    result->m_buffer = static_cast<BufferImpl*>(desc.buffer);
     result->m_size = desc.size;
     result->m_offset = desc.offset;
     result->m_allocator = m_cpuViewHeap;

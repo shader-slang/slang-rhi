@@ -65,20 +65,17 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferResourceImpl> resource = new BufferResourceImpl(desc);
-    SLANG_RETURN_ON_FAIL(resource->init());
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    SLANG_RETURN_ON_FAIL(buffer->init());
     if (initData)
     {
-        SLANG_RETURN_ON_FAIL(resource->setData(0, desc.sizeInBytes, initData));
+        SLANG_RETURN_ON_FAIL(buffer->setData(0, desc.sizeInBytes, initData));
     }
-    returnComPtr(outResource, resource);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
@@ -92,14 +89,14 @@ DeviceImpl::createTextureView(ITextureResource* inTexture, IResourceView::Desc c
 }
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferView(
-    IBufferResource* inBuffer,
-    IBufferResource* counterBuffer,
+    IBuffer* inBuffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
-    auto buffer = static_cast<BufferResourceImpl*>(inBuffer);
-    RefPtr<BufferResourceViewImpl> view = new BufferResourceViewImpl(desc, buffer);
+    auto buffer = static_cast<BufferImpl*>(inBuffer);
+    RefPtr<BufferViewImpl> view = new BufferViewImpl(desc, buffer);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
@@ -208,14 +205,14 @@ DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** 
     return SLANG_OK;
 }
 
-void* DeviceImpl::map(IBufferResource* buffer, MapFlavor flavor)
+void* DeviceImpl::map(IBuffer* buffer, MapFlavor flavor)
 {
     SLANG_UNUSED(flavor);
-    auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    auto bufferImpl = static_cast<BufferImpl*>(buffer);
     return bufferImpl->m_data;
 }
 
-void DeviceImpl::unmap(IBufferResource* buffer, size_t offsetWritten, size_t sizeWritten)
+void DeviceImpl::unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten)
 {
     SLANG_UNUSED(buffer);
     SLANG_UNUSED(offsetWritten);
@@ -279,10 +276,10 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     func(&varyingInput, entryPointParamsData, globalParamsData);
 }
 
-void DeviceImpl::copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size)
+void DeviceImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size)
 {
-    auto dstImpl = static_cast<BufferResourceImpl*>(dst);
-    auto srcImpl = static_cast<BufferResourceImpl*>(src);
+    auto dstImpl = static_cast<BufferImpl*>(dst);
+    auto srcImpl = static_cast<BufferImpl*>(src);
     memcpy((uint8_t*)dstImpl->m_data + dstOffset, (uint8_t*)srcImpl->m_data + srcOffset, size);
 }
 

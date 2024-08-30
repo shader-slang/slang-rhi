@@ -43,9 +43,9 @@ public:
 
     void dispatchCompute(int x, int y, int z);
 
-    void copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size);
+    void copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size);
 
-    void uploadBufferData(IBufferResource* dst, size_t offset, size_t size, void* data);
+    void uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data);
 
     void writeTimestamp(IQueryPool* pool, SlangInt index);
 

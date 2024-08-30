@@ -104,7 +104,7 @@ public:
     /// and existential-type sub-objects.
     ///
     /// Created on demand with `_createOrdinaryDataBufferIfNeeded()`
-    RefPtr<BufferResourceImpl> m_ordinaryDataBuffer;
+    RefPtr<BufferImpl> m_ordinaryDataBuffer;
 
     bool m_isConstantBufferDirty = true;
 

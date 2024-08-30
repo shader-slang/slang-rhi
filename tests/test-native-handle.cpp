@@ -15,7 +15,7 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
         return;
 
     const int numberCount = 1;
-    IBufferResource::Desc bufferDesc = {};
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
@@ -28,8 +28,8 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> buffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, buffer.writeRef()));
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
 
     InteropHandle handle;
     REQUIRE_CALL(buffer->getNativeResourceHandle(&handle));

@@ -33,8 +33,8 @@ public:
 };
 
 Result createD3D12BufferDescriptor(
-    BufferResourceImpl* buffer,
-    BufferResourceImpl* counterBuffer,
+    BufferImpl* buffer,
+    BufferImpl* counterBuffer,
     IResourceView::Desc const& desc,
     uint32_t bufferStride,
     DeviceImpl* device,
@@ -56,7 +56,7 @@ public:
 class AccelerationStructureImpl : public AccelerationStructureBase, public ResourceViewInternalImpl
 {
 public:
-    RefPtr<BufferResourceImpl> m_buffer;
+    RefPtr<BufferImpl> m_buffer;
     uint64_t m_offset;
     uint64_t m_size;
     ComPtr<ID3D12Device5> m_device5;

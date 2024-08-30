@@ -4,13 +4,13 @@
 
 namespace rhi::debug {
 
-class DebugBufferResource : public DebugObject<IBufferResource>
+class DebugBuffer : public DebugObject<IBuffer>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    IBufferResource* getInterface(const Guid& guid);
+    IBuffer* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Type SLANG_MCALL getType() override;
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;

@@ -24,7 +24,7 @@ const Guid GUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
 const Guid GUID::IID_ISamplerState = ISamplerState::getTypeGuid();
 const Guid GUID::IID_IResource = IResource::getTypeGuid();
-const Guid GUID::IID_IBufferResource = IBufferResource::getTypeGuid();
+const Guid GUID::IID_IBuffer = IBuffer::getTypeGuid();
 const Guid GUID::IID_ITextureResource = ITextureResource::getTypeGuid();
 const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
@@ -54,30 +54,30 @@ IFence* FenceBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IResource* BufferResource::getInterface(const Guid& guid)
+IResource* Buffer::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IBufferResource)
-        return static_cast<IBufferResource*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IBuffer)
+        return static_cast<IBuffer*>(this);
     return nullptr;
 }
 
-SLANG_NO_THROW IResource::Type SLANG_MCALL BufferResource::getType()
+SLANG_NO_THROW IResource::Type SLANG_MCALL Buffer::getType()
 {
     return m_type;
 }
-SLANG_NO_THROW IBufferResource::Desc* SLANG_MCALL BufferResource::getDesc()
+SLANG_NO_THROW IBuffer::Desc* SLANG_MCALL Buffer::getDesc()
 {
     return &m_desc;
 }
 
-Result BufferResource::getNativeResourceHandle(InteropHandle* outHandle)
+Result Buffer::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->handleValue = 0;
     outHandle->api = InteropHandleAPI::Unknown;
     return SLANG_FAIL;
 }
 
-Result BufferResource::getSharedHandle(InteropHandle* outHandle)
+Result Buffer::getSharedHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Unknown;
     outHandle->handleValue = 0;
@@ -432,27 +432,21 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromSharedHandle(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+RendererBase::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outBuffer);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createBufferFromSharedHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+RendererBase::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outBuffer);
     return SLANG_E_NOT_AVAILABLE;
 }
 
@@ -873,30 +867,26 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     if (!m_structuredBuffer)
     {
         // Create structured buffer resource if it has not been created.
-        IBufferResource::Desc desc = {};
+        IBuffer::Desc desc = {};
         desc.allowedStates = ResourceStateSet(ResourceState::ShaderResource, ResourceState::UnorderedAccess);
         desc.defaultState = ResourceState::ShaderResource;
         desc.elementSize = (int)elementLayout->getSize();
         desc.format = Format::Unknown;
         desc.type = IResource::Type::Buffer;
         desc.sizeInBytes = (Size)m_ordinaryData.size();
-        ComPtr<IBufferResource> bufferResource;
-        SLANG_RETURN_NULL_ON_FAIL(device->createBufferResource(desc, m_ordinaryData.data(), bufferResource.writeRef()));
-        m_structuredBuffer = static_cast<BufferResource*>(bufferResource.get());
+        ComPtr<IBuffer> buffer;
+        SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(desc, m_ordinaryData.data(), buffer.writeRef()));
+        m_structuredBuffer = static_cast<Buffer*>(buffer.get());
 
         // Create read-only (shader-resource) and mutable (unordered access) views.
         ComPtr<IResourceView> resourceView;
         IResourceView::Desc viewDesc = {};
         viewDesc.format = Format::Unknown;
         viewDesc.type = IResourceView::Type::ShaderResource;
-        SLANG_RETURN_NULL_ON_FAIL(
-            device->createBufferView(bufferResource.get(), nullptr, viewDesc, resourceView.writeRef())
-        );
+        SLANG_RETURN_NULL_ON_FAIL(device->createBufferView(buffer.get(), nullptr, viewDesc, resourceView.writeRef()));
         m_structuredBufferView = static_cast<ResourceViewBase*>(resourceView.get());
         viewDesc.type = IResourceView::Type::UnorderedAccess;
-        SLANG_RETURN_NULL_ON_FAIL(
-            device->createBufferView(bufferResource.get(), nullptr, viewDesc, resourceView.writeRef())
-        );
+        SLANG_RETURN_NULL_ON_FAIL(device->createBufferView(buffer.get(), nullptr, viewDesc, resourceView.writeRef()));
         m_rwStructuredBufferView = static_cast<ResourceViewBase*>(resourceView.get());
     }
 

@@ -16,7 +16,7 @@ struct SupportedResourceStatesTest
     ResourceStateSet bufferAllowedStates;
 
     ComPtr<ITextureResource> texture;
-    ComPtr<IBufferResource> buffer;
+    ComPtr<IBuffer> buffer;
 
     SupportedResourceStatesTest(IDevice* device)
         : device(device)
@@ -155,7 +155,7 @@ struct SupportedResourceStatesTest
 
             REQUIRE_CALL(device->createTextureResource(texDesc, nullptr, texture.writeRef()));
 
-            IBufferResource::Desc bufferDesc = {};
+            IBuffer::Desc bufferDesc = {};
             bufferDesc.sizeInBytes = 256;
             bufferDesc.format = Format::Unknown;
             bufferDesc.elementSize = sizeof(float);
@@ -163,7 +163,7 @@ struct SupportedResourceStatesTest
             bufferDesc.defaultState = currentState;
             bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-            REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, buffer.writeRef()));
+            REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
 
             transitionResourceStates(device);
         }

@@ -41,7 +41,7 @@ struct BaseCopyTextureTest
 
     ComPtr<ITextureResource> srcTexture;
     ComPtr<ITextureResource> dstTexture;
-    ComPtr<IBufferResource> resultsBuffer;
+    ComPtr<IBuffer> resultsBuffer;
 
     RefPtr<ValidationTextureFormatBase> validationFormat;
 
@@ -110,7 +110,7 @@ struct BaseCopyTextureTest
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
         alignedRowStride = (bufferCopyExtents.width * texelSize + alignment - 1) & ~(alignment - 1);
-        IBufferResource::Desc bufferDesc = {};
+        IBuffer::Desc bufferDesc = {};
         bufferDesc.sizeInBytes = bufferCopyExtents.height * bufferCopyExtents.depth * alignedRowStride;
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = 0;
@@ -123,7 +123,7 @@ struct BaseCopyTextureTest
         bufferDesc.defaultState = ResourceState::CopyDestination;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, resultsBuffer.writeRef()));
+        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, resultsBuffer.writeRef()));
 
         bufferCopyInfo.bufferSize = bufferDesc.sizeInBytes;
     }
@@ -248,7 +248,7 @@ struct BaseCopyTextureTest
     )
     {
         ComPtr<ISlangBlob> resultBlob;
-        REQUIRE_CALL(device->readBufferResource(resultsBuffer, 0, bufferCopyInfo.bufferSize, resultBlob.writeRef()));
+        REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, bufferCopyInfo.bufferSize, resultBlob.writeRef()));
         auto results = resultBlob->getBufferPointer();
 
         ValidationTextureData actual;

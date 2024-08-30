@@ -3,7 +3,7 @@
 
 namespace rhi::cuda {
 
-BufferResourceImpl::~BufferResourceImpl()
+BufferImpl::~BufferImpl()
 {
     if (m_cudaMemory)
     {
@@ -11,31 +11,31 @@ BufferResourceImpl::~BufferResourceImpl()
     }
 }
 
-uint64_t BufferResourceImpl::getBindlessHandle()
+uint64_t BufferImpl::getBindlessHandle()
 {
     return (uint64_t)m_cudaMemory;
 }
 
-DeviceAddress BufferResourceImpl::getDeviceAddress()
+DeviceAddress BufferImpl::getDeviceAddress()
 {
     return (DeviceAddress)m_cudaMemory;
 }
 
-Result BufferResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result BufferImpl::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->handleValue = getBindlessHandle();
     outHandle->api = InteropHandleAPI::CUDA;
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     SLANG_UNUSED(outPointer);
     return SLANG_FAIL;
 }
 
-Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(MemoryRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     return SLANG_FAIL;

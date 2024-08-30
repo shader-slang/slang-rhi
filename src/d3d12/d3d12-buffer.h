@@ -4,14 +4,14 @@
 
 namespace rhi::d3d12 {
 
-class BufferResourceImpl : public BufferResource
+class BufferImpl : public Buffer
 {
 public:
-    typedef BufferResource Parent;
+    typedef Buffer Parent;
 
-    BufferResourceImpl(const Desc& desc);
+    BufferImpl(const Desc& desc);
 
-    ~BufferResourceImpl();
+    ~BufferImpl();
 
     /// The resource in gpu memory, allocated on the correct heap relative to the cpu access flag
     D3D12Resource m_resource;

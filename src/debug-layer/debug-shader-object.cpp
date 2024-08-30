@@ -173,7 +173,7 @@ size_t DebugShaderObject::getSize()
     return baseObject->getSize();
 }
 
-Result DebugShaderObject::setConstantBufferOverride(IBufferResource* constantBuffer)
+Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->setConstantBufferOverride(getInnerObj(constantBuffer));

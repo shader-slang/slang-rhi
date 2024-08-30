@@ -30,7 +30,7 @@
 namespace rhi::cuda {
 
 class CUDAContext;
-class BufferResourceImpl;
+class BufferImpl;
 class TextureResourceImpl;
 class ResourceViewImpl;
 class ShaderObjectLayoutImpl;

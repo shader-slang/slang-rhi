@@ -71,7 +71,7 @@ Result loadGraphicsProgram(
 /// Reads back the content of `buffer` and compares it against `expectedResult`.
 void compareComputeResult(
     IDevice* device,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     size_t offset,
     const void* expectedResult,
     size_t expectedBufferSize
@@ -90,15 +90,10 @@ void compareComputeResult(
 void compareComputeResultFuzzy(const float* result, float* expectedResult, size_t expectedBufferSize);
 
 /// Reads back the content of `buffer` and compares it against `expectedResult` with a set tolerance.
-void compareComputeResultFuzzy(
-    IDevice* device,
-    IBufferResource* buffer,
-    float* expectedResult,
-    size_t expectedBufferSize
-);
+void compareComputeResultFuzzy(IDevice* device, IBuffer* buffer, float* expectedResult, size_t expectedBufferSize);
 
 template<typename T, size_t Count>
-void compareComputeResult(IDevice* device, IBufferResource* buffer, std::array<T, Count> expectedResult)
+void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count> expectedResult)
 {
     if constexpr (std::is_same<T, float>::value)
         return compareComputeResultFuzzy(device, buffer, expectedResult.data(), expectedResult.size());

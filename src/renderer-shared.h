@@ -29,7 +29,7 @@ struct GUID
     static const Guid IID_ISwapchain;
     static const Guid IID_ISamplerState;
     static const Guid IID_IResource;
-    static const Guid IID_IBufferResource;
+    static const Guid IID_IBuffer;
     static const Guid IID_ITextureResource;
     static const Guid IID_IInputLayout;
     static const Guid IID_IDevice;
@@ -221,7 +221,7 @@ protected:
     std::string m_debugName;
 };
 
-class BufferResource : public IBufferResource, public Resource
+class Buffer : public IBuffer, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -231,14 +231,14 @@ public:
     typedef Resource Parent;
 
     /// Ctor
-    BufferResource(const Desc& desc)
+    Buffer(const Desc& desc)
         : Parent(Type::Buffer)
         , m_desc(desc)
     {
     }
 
     virtual SLANG_NO_THROW IResource::Type SLANG_MCALL getType() SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW IBufferResource::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW IBuffer::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
 
@@ -435,7 +435,7 @@ public:
     // Any "ordinary" / uniform data for this object
     std::vector<uint8_t> m_ordinaryData;
     // The structured buffer resource used when the object represents a structured buffer.
-    RefPtr<BufferResource> m_structuredBuffer;
+    RefPtr<Buffer> m_structuredBuffer;
     // The structured buffer resource view used when the object represents a structured buffer.
     RefPtr<ResourceViewBase> m_structuredBufferView;
     RefPtr<ResourceViewBase> m_rwStructuredBufferView;
@@ -536,7 +536,7 @@ public:
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override { return nullptr; }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBufferResource* outBuffer) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* outBuffer) override
     {
         return SLANG_E_NOT_AVAILABLE;
     }
@@ -1134,7 +1134,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::map<PipelineStateBase*, RefPtr<BufferResource>> m_deviceBuffers;
+    std::map<PipelineStateBase*, RefPtr<Buffer>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
@@ -1144,13 +1144,13 @@ public:
         return nullptr;
     }
 
-    virtual RefPtr<BufferResource> createDeviceBuffer(
+    virtual RefPtr<Buffer> createDeviceBuffer(
         PipelineStateBase* pipeline,
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder
     ) = 0;
 
-    BufferResource* getOrCreateBuffer(
+    Buffer* getOrCreateBuffer(
         PipelineStateBase* pipeline,
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder
@@ -1200,17 +1200,13 @@ public:
         ITextureResource** outResource
     ) SLANG_OVERRIDE;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& srcDesc,
-        IBufferResource** outResource
-    ) SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
+        SLANG_OVERRIDE;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& srcDesc,
-        IBufferResource** outResource
-    ) SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
+        SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createProgram2(
         const IShaderProgram::CreateDesc2& desc,

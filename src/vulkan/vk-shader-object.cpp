@@ -208,7 +208,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 
 Result ShaderObjectImpl::_writeOrdinaryData(
     PipelineCommandEncoder* encoder,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     Offset offset,
     Size destSize,
     ShaderObjectLayoutImpl* specializedLayout
@@ -320,7 +320,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset bufferOffset,
     Size bufferSize
 )
@@ -351,7 +351,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    BufferResourceImpl* buffer
+    BufferImpl* buffer
 )
 {
     writeBufferDescriptor(context, offset, descriptorType, buffer, 0, buffer->getDesc()->sizeInBytes);
@@ -377,7 +377,7 @@ void ShaderObjectImpl::writePlainBufferDescriptor(
             auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
             if (boundViewType == ResourceViewImpl::ViewType::PlainBuffer)
             {
-                auto bufferView = static_cast<PlainBufferResourceViewImpl*>(resourceViews[i].Ptr());
+                auto bufferView = static_cast<PlainBufferViewImpl*>(resourceViews[i].Ptr());
                 bufferInfo.buffer = bufferView->m_buffer->m_buffer.m_buffer;
                 bufferInfo.offset = bufferView->offset;
                 bufferInfo.range = bufferView->size;
@@ -415,7 +415,7 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
             auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
             if (boundViewType == ResourceViewImpl::ViewType::TexelBuffer)
             {
-                auto resourceView = static_cast<TexelBufferResourceViewImpl*>(resourceViews[i].Ptr());
+                auto resourceView = static_cast<TexelBufferViewImpl*>(resourceViews[i].Ptr());
                 bufferView = resourceView->m_view;
             }
         }
@@ -939,7 +939,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
     //
     if (m_constantBuffer && m_constantBufferSize > 0)
     {
-        auto bufferImpl = static_cast<BufferResourceImpl*>(m_constantBuffer);
+        auto bufferImpl = static_cast<BufferImpl*>(m_constantBuffer);
         writeBufferDescriptor(
             context,
             ioOffset,

@@ -7,7 +7,7 @@
 
 namespace rhi::vk {
 
-RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
+RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     PipelineStateBase* pipeline,
     TransientResourceHeapBase* transientHeap,
     IResourceCommandEncoder* encoder
@@ -25,23 +25,19 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
     auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
-    ComPtr<IBufferResource> bufferResource;
-    IBufferResource::Desc bufferDesc = {};
+    ComPtr<IBuffer> buffer;
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.allowedStates = ResourceStateSet(ResourceState::General, ResourceState::CopyDestination);
     bufferDesc.type = IResource::Type::Buffer;
     bufferDesc.sizeInBytes = tableSize;
-    static_cast<vk::DeviceImpl*>(m_device)->createBufferResourceImpl(
-        bufferDesc,
-        VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-        nullptr,
-        bufferResource.writeRef()
-    );
+    static_cast<vk::DeviceImpl*>(m_device)
+        ->createBufferImpl(bufferDesc, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, nullptr, buffer.writeRef());
 
     TransientResourceHeapImpl* transientHeapImpl = static_cast<TransientResourceHeapImpl*>(transientHeap);
 
-    IBufferResource* stagingBuffer = nullptr;
+    IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
     transientHeapImpl->allocateStagingBuffer(tableSize, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
 
@@ -123,9 +119,9 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     subTablePtr += m_callableTableSize;
 
     stagingBuffer->unmap(nullptr);
-    encoder->copyBuffer(bufferResource, 0, stagingBuffer, stagingBufferOffset, tableSize);
-    encoder->bufferBarrier(1, bufferResource.readRef(), ResourceState::CopyDestination, ResourceState::ShaderResource);
-    RefPtr<BufferResource> resultPtr = static_cast<BufferResource*>(bufferResource.get());
+    encoder->copyBuffer(buffer, 0, stagingBuffer, stagingBufferOffset, tableSize);
+    encoder->bufferBarrier(1, buffer.readRef(), ResourceState::CopyDestination, ResourceState::ShaderResource);
+    RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);
 }
 

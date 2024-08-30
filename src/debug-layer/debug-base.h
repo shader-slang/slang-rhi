@@ -38,7 +38,7 @@ public:
 class DebugDevice;
 class DebugShaderTable;
 class DebugQueryPool;
-class DebugBufferResource;
+class DebugBuffer;
 class DebugTextureResource;
 class DebugResourceView;
 class DebugAccelerationStructure;

@@ -241,7 +241,7 @@ Result DeviceImpl::readTextureResource(
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     AUTORELEASEPOOL
 
@@ -254,13 +254,7 @@ Result DeviceImpl::readBufferResource(IBufferResource* buffer, Offset offset, Si
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
-    blitEncoder->copyFromBuffer(
-        static_cast<BufferResourceImpl*>(buffer)->m_buffer.get(),
-        offset,
-        stagingBuffer.get(),
-        0,
-        size
-    );
+    blitEncoder->copyFromBuffer(static_cast<BufferImpl*>(buffer)->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
@@ -508,15 +502,11 @@ Result DeviceImpl::createTextureResource(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 
-    BufferResource::Desc desc = fixupBufferDesc(descIn);
+    Buffer::Desc desc = fixupBufferDesc(descIn);
 
     const Size bufferSize = desc.sizeInBytes;
 
@@ -536,9 +526,9 @@ Result DeviceImpl::createBufferResource(
     resourceOptions |=
         (desc.memoryType == MemoryType::DeviceLocal) ? MTL::ResourceStorageModePrivate : MTL::ResourceStorageModeShared;
 
-    RefPtr<BufferResourceImpl> bufferImpl(new BufferResourceImpl(desc, this));
-    bufferImpl->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
-    if (!bufferImpl->m_buffer)
+    RefPtr<BufferImpl> buffer(new BufferImpl(desc, this));
+    buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
+    if (!buffer->m_buffer)
     {
         return SLANG_FAIL;
     }
@@ -554,21 +544,17 @@ Result DeviceImpl::createBufferResource(
         {
             return SLANG_FAIL;
         }
-        encoder->copyFromBuffer(stagingBuffer.get(), 0, bufferImpl->m_buffer.get(), 0, bufferSize);
+        encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
         encoder->endEncoding();
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();
     }
 
-    returnComPtr(outResource, bufferImpl);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 
@@ -661,8 +647,8 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
 }
 
 Result DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
@@ -680,9 +666,9 @@ Result DeviceImpl::createBufferView(
         return SLANG_FAIL;
     }
 
-    auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    auto bufferImpl = static_cast<BufferImpl*>(buffer);
 
-    RefPtr<BufferResourceViewImpl> viewImpl = new BufferResourceViewImpl(this);
+    RefPtr<BufferViewImpl> viewImpl = new BufferViewImpl(this);
     viewImpl->m_desc = desc;
     viewImpl->m_buffer = bufferImpl;
     viewImpl->m_offset = desc.bufferRange.offset;

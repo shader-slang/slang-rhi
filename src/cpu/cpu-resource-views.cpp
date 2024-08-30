@@ -8,7 +8,7 @@ ResourceViewImpl::ResourceViewImpl(Kind kind, Desc const& desc)
     m_desc = desc;
 }
 
-BufferResourceImpl* BufferResourceViewImpl::getBuffer() const
+BufferImpl* BufferViewImpl::getBuffer() const
 {
     return m_buffer;
 }

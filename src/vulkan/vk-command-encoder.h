@@ -28,13 +28,13 @@ public:
     static void _uploadBufferData(
         VkCommandBuffer commandBuffer,
         TransientResourceHeapImpl* transientHeap,
-        BufferResourceImpl* buffer,
+        BufferImpl* buffer,
         Offset offset,
         Size size,
         void* data
     );
 
-    void uploadBufferDataImpl(IBufferResource* buffer, Offset offset, Size size, void* data);
+    void uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size size, void* data);
 
     Result bindRootShaderObjectImpl(RootShaderObjectImpl* rootShaderObject, VkPipelineBindPoint bindPoint);
 
@@ -67,13 +67,13 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    copyBuffer(IBufferResource* dst, Offset dstOffset, IBufferResource* src, Offset srcOffset, Size size) override;
+    copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    uploadBufferData(IBufferResource* buffer, Offset offset, Size size, void* data) override;
+    uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
     textureBarrier(GfxCount count, ITextureResource* const* textures, ResourceState src, ResourceState dst) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    bufferBarrier(GfxCount count, IBufferResource* const* buffers, ResourceState src, ResourceState dst) override;
+    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex index) override;
@@ -122,11 +122,10 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBufferResource* buffer, Offset offset)
-        override;
+    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
-        IBufferResource* dst,
+        IBuffer* dst,
         Offset dstOffset,
         Size dstSize,
         Size dstRowStride,
@@ -183,11 +182,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setPrimitiveTopology(PrimitiveTopology topology) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBufferResource* const* buffers, const Offset* offsets)
-        override;
+    setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset = 0) override;
+    setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) override;
 
     Result prepareDraw();
 
@@ -197,19 +195,15 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL setStencilReference(uint32_t referenceValue) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL drawIndirect(
-        GfxCount maxDrawCount,
-        IBufferResource* argBuffer,
-        Offset argOffset,
-        IBufferResource* countBuffer,
-        Offset countOffset
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    drawIndirect(GfxCount maxDrawCount, IBuffer* argBuffer, Offset argOffset, IBuffer* countBuffer, Offset countOffset)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndexedIndirect(
         GfxCount maxDrawCount,
-        IBufferResource* argBuffer,
+        IBuffer* argBuffer,
         Offset argOffset,
-        IBufferResource* countBuffer,
+        IBuffer* countBuffer,
         Offset countOffset
     ) override;
 
@@ -255,8 +249,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
 };
 
 class RayTracingCommandEncoder : public IRayTracingCommandEncoder, public ResourceCommandEncoder

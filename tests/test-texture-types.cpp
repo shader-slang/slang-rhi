@@ -23,7 +23,7 @@ struct BaseTextureViewTest
 
     ComPtr<ITextureResource> texture;
     ComPtr<IResourceView> textureView;
-    ComPtr<IBufferResource> resultsBuffer;
+    ComPtr<IBuffer> resultsBuffer;
     ComPtr<IResourceView> bufferView;
 
     ComPtr<ISamplerState> sampler;
@@ -146,7 +146,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
         alignedRowStride = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
-        IBufferResource::Desc bufferDesc = {};
+        IBuffer::Desc bufferDesc = {};
         // All of the values read back from the shader will be uint32_t
         bufferDesc.sizeInBytes =
             textureDesc.size.width * textureDesc.size.height * textureDesc.size.depth * texelSize * sizeof(uint32_t);
@@ -157,7 +157,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             ResourceStateSet(bufferDesc.defaultState, ResourceState::CopyDestination, ResourceState::CopySource);
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, resultsBuffer.writeRef()));
+        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, resultsBuffer.writeRef()));
 
         IResourceView::Desc bufferViewDesc = {};
         bufferViewDesc.type = IResourceView::Type::UnorderedAccess;
@@ -273,8 +273,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         }
 
         ComPtr<ISlangBlob> bufferBlob;
-        REQUIRE_CALL(
-            device->readBufferResource(resultsBuffer, 0, resultsBuffer->getDesc()->sizeInBytes, bufferBlob.writeRef())
+        REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, resultsBuffer->getDesc()->sizeInBytes, bufferBlob.writeRef())
         );
         auto results = (uint32_t*)bufferBlob->getBufferPointer();
 
@@ -353,16 +352,16 @@ struct RenderTargetTests : BaseTextureViewTest
     ComPtr<IFramebuffer> framebuffer;
 
     ComPtr<ITextureResource> sampledTexture;
-    ComPtr<IBufferResource> vertexBuffer;
+    ComPtr<IBuffer> vertexBuffer;
 
     void createRequiredResources()
     {
-        IBufferResource::Desc vertexBufferDesc;
+        IBuffer::Desc vertexBufferDesc;
         vertexBufferDesc.type = IResource::Type::Buffer;
         vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
         vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
-        vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+        vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         REQUIRE(vertexBuffer != nullptr);
 
         VertexStreamDesc vertexStreams[] = {

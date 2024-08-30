@@ -242,15 +242,15 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // simply re-use that buffer rather than re-create it.
     if (!m_ordinaryDataBuffer)
     {
-        ComPtr<IBufferResource> bufferResourcePtr;
-        IBufferResource::Desc bufferDesc = {};
+        ComPtr<IBuffer> buffer;
+        IBuffer::Desc bufferDesc = {};
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.sizeInBytes = specializedOrdinaryDataSize;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
-        m_ordinaryDataBuffer = static_cast<BufferResourceImpl*>(bufferResourcePtr.get());
+        SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        m_ordinaryDataBuffer = static_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isConstantBufferDirty)

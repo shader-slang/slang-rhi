@@ -139,51 +139,47 @@ Result DebugDevice::createTextureFromSharedHandle(
     return result;
 }
 
-Result DebugDevice::createBufferResource(
-    const IBufferResource::Desc& desc,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DebugDevice::createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
-    auto result = baseObject->createBufferResource(desc, initData, outObject->baseObject.writeRef());
+    RefPtr<DebugBuffer> outObject = new DebugBuffer();
+    auto result = baseObject->createBuffer(desc, initData, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outBuffer, outObject);
     return result;
 }
 
 Result DebugDevice::createBufferFromNativeHandle(
     InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
+    const IBuffer::Desc& srcDesc,
+    IBuffer** outBuffer
 )
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
+    RefPtr<DebugBuffer> outObject = new DebugBuffer();
     auto result = baseObject->createBufferFromNativeHandle(handle, srcDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outBuffer, outObject);
     return result;
 }
 
 Result DebugDevice::createBufferFromSharedHandle(
     InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
+    const IBuffer::Desc& srcDesc,
+    IBuffer** outBuffer
 )
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
+    RefPtr<DebugBuffer> outObject = new DebugBuffer();
     auto result = baseObject->createBufferFromSharedHandle(handle, srcDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outBuffer, outObject);
     return result;
 }
 
@@ -216,8 +212,8 @@ Result DebugDevice::createTextureView(
 }
 
 Result DebugDevice::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
@@ -571,10 +567,10 @@ Result DebugDevice::readTextureResource(
     return baseObject->readTextureResource(getInnerObj(resource), state, outBlob, outRowPitch, outPixelSize);
 }
 
-Result DebugDevice::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->readBufferResource(getInnerObj(buffer), offset, size, outBlob);
+    return baseObject->readBuffer(getInnerObj(buffer), offset, size, outBlob);
 }
 
 const DeviceInfo& DebugDevice::getDeviceInfo() const

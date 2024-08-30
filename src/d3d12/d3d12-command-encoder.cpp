@@ -131,7 +131,7 @@ Result PipelineCommandEncoder::_bindRenderState(Submitter* submitter, RefPtr<Pip
 
 void ResourceCommandEncoderImpl::bufferBarrier(
     GfxCount count,
-    IBufferResource* const* buffers,
+    IBuffer* const* buffers,
     ResourceState src,
     ResourceState dst
 )
@@ -139,7 +139,7 @@ void ResourceCommandEncoderImpl::bufferBarrier(
     short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;
     for (GfxIndex i = 0; i < count; i++)
     {
-        auto bufferImpl = static_cast<BufferResourceImpl*>(buffers[i]);
+        auto bufferImpl = static_cast<BufferImpl*>(buffers[i]);
 
         D3D12_RESOURCE_BARRIER barrier = {};
         // If the src == dst, it must be a UAV barrier.
@@ -319,12 +319,12 @@ void ResourceCommandEncoderImpl::uploadTextureData(
 
         auto bufferSize = footprint.Footprint.RowPitch * rowCount * footprint.Footprint.Depth;
 
-        IBufferResource* stagingBuffer;
+        IBuffer* stagingBuffer;
         Offset stagingBufferOffset = 0;
         m_commandBuffer->m_transientHeap
             ->allocateStagingBuffer(bufferSize, stagingBuffer, stagingBufferOffset, MemoryType::Upload, true);
         SLANG_RHI_ASSERT(stagingBufferOffset == 0);
-        BufferResourceImpl* bufferImpl = static_cast<BufferResourceImpl*>(stagingBuffer);
+        BufferImpl* bufferImpl = static_cast<BufferImpl*>(stagingBuffer);
         uint8_t* bufferData = nullptr;
         D3D12_RANGE mapRange = {0, 0};
         bufferImpl->m_resource.getResource()->Map(0, &mapRange, (void**)&bufferData);
@@ -389,7 +389,7 @@ void ResourceCommandEncoderImpl::clearResourceView(
         switch (viewImpl->m_resource->getType())
         {
         case IResource::Type::Buffer:
-            d3dResource = static_cast<BufferResourceImpl*>(viewImpl->m_resource.Ptr())->m_resource.getResource();
+            d3dResource = static_cast<BufferImpl*>(viewImpl->m_resource.Ptr())->m_resource.getResource();
             // D3D12 requires a UAV descriptor with zero buffer stride for calling ClearUnorderedAccessViewUint/Float.
             viewImpl->getBufferDescriptorForBinding(m_commandBuffer->m_renderer, viewImpl, 0, descriptor);
             break;
@@ -490,7 +490,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     Offset offset
 )
 {
@@ -502,8 +502,8 @@ void ResourceCommandEncoderImpl::resolveQuery(
     case QueryType::AccelerationStructureSerializedSize:
     {
         auto queryPoolImpl = static_cast<PlainBufferProxyQueryPoolImpl*>(queryPool);
-        auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
-        auto srcQueryBuffer = queryPoolImpl->m_bufferResource->m_resource.getResource();
+        auto bufferImpl = static_cast<BufferImpl*>(buffer);
+        auto srcQueryBuffer = queryPoolImpl->m_buffer->m_resource.getResource();
 
         D3D12_RESOURCE_BARRIER barrier = {};
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -530,7 +530,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
     default:
     {
         auto queryPoolImpl = static_cast<QueryPoolImpl*>(queryPool);
-        auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+        auto bufferImpl = static_cast<BufferImpl*>(buffer);
         m_commandBuffer->m_cmdList->ResolveQueryData(
             queryPoolImpl->m_queryHeap.get(),
             queryPoolImpl->m_queryType,
@@ -545,7 +545,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
 }
 
 void ResourceCommandEncoderImpl::copyTextureToBuffer(
-    IBufferResource* dst,
+    IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,
@@ -559,7 +559,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
     auto srcTexture = static_cast<TextureResourceImpl*>(src);
-    auto dstBuffer = static_cast<BufferResourceImpl*>(dst);
+    auto dstBuffer = static_cast<BufferImpl*>(dst);
     auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
         srcSubresource.mipLevel,
         srcSubresource.baseArrayLayer,
@@ -717,16 +717,10 @@ void ResourceCommandEncoderImpl::endDebugEvent()
     }
 }
 
-void ResourceCommandEncoderImpl::copyBuffer(
-    IBufferResource* dst,
-    Offset dstOffset,
-    IBufferResource* src,
-    Offset srcOffset,
-    Size size
-)
+void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    auto dstBuffer = static_cast<BufferResourceImpl*>(dst);
-    auto srcBuffer = static_cast<BufferResourceImpl*>(src);
+    auto dstBuffer = static_cast<BufferImpl*>(dst);
+    auto srcBuffer = static_cast<BufferImpl*>(src);
 
     m_commandBuffer->m_cmdList->CopyBufferRegion(
         dstBuffer->m_resource.getResource(),
@@ -737,13 +731,13 @@ void ResourceCommandEncoderImpl::copyBuffer(
     );
 }
 
-void ResourceCommandEncoderImpl::uploadBufferData(IBufferResource* dst, Offset offset, Size size, void* data)
+void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     uploadBufferDataImpl(
         m_commandBuffer->m_renderer->m_device,
         m_commandBuffer->m_cmdList,
         m_commandBuffer->m_transientHeap,
-        static_cast<BufferResourceImpl*>(dst),
+        static_cast<BufferImpl*>(dst),
         offset,
         size,
         data
@@ -967,7 +961,7 @@ void RenderCommandEncoderImpl::setPrimitiveTopology(PrimitiveTopology topology)
 void RenderCommandEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
-    IBufferResource* const* buffers,
+    IBuffer* const* buffers,
     const Offset* offsets
 )
 {
@@ -981,7 +975,7 @@ void RenderCommandEncoderImpl::setVertexBuffers(
 
     for (GfxIndex i = 0; i < slotCount; i++)
     {
-        BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(buffers[i]);
+        BufferImpl* buffer = static_cast<BufferImpl*>(buffers[i]);
 
         BoundVertexBuffer& boundBuffer = m_boundVertexBuffers[startSlot + i];
         boundBuffer.m_buffer = buffer;
@@ -989,9 +983,9 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset)
+void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
 {
-    m_boundIndexBuffer = (BufferResourceImpl*)buffer;
+    m_boundIndexBuffer = (BufferImpl*)buffer;
     m_boundIndexFormat = D3DUtil::getMapFormat(indexFormat);
     m_boundIndexOffset = (UINT)offset;
 }
@@ -1023,7 +1017,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
             for (Index i = 0; i < m_boundVertexBuffers.size(); i++)
             {
                 const BoundVertexBuffer& boundVertexBuffer = m_boundVertexBuffers[i];
-                BufferResourceImpl* buffer = boundVertexBuffer.m_buffer;
+                BufferImpl* buffer = boundVertexBuffer.m_buffer;
                 if (buffer)
                 {
                     D3D12_VERTEX_BUFFER_VIEW& vertexView = vertexViews[numVertexViews++];
@@ -1114,16 +1108,16 @@ void RenderCommandEncoderImpl::setStencilReference(uint32_t referenceValue)
 
 Result RenderCommandEncoderImpl::drawIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
     SLANG_RETURN_ON_FAIL(prepareDraw());
 
-    auto argBufferImpl = static_cast<BufferResourceImpl*>(argBuffer);
-    auto countBufferImpl = static_cast<BufferResourceImpl*>(countBuffer);
+    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+    auto countBufferImpl = static_cast<BufferImpl*>(countBuffer);
 
     m_d3dCmdList->ExecuteIndirect(
         m_renderer->drawIndirectCmdSignature,
@@ -1138,16 +1132,16 @@ Result RenderCommandEncoderImpl::drawIndirect(
 
 Result RenderCommandEncoderImpl::drawIndexedIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
     SLANG_RETURN_ON_FAIL(prepareDraw());
 
-    auto argBufferImpl = static_cast<BufferResourceImpl*>(argBuffer);
-    auto countBufferImpl = static_cast<BufferResourceImpl*>(countBuffer);
+    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+    auto countBufferImpl = static_cast<BufferImpl*>(countBuffer);
 
     m_d3dCmdList->ExecuteIndirect(
         m_renderer->drawIndexedIndirectCmdSignature,
@@ -1261,7 +1255,7 @@ Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset)
+Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     // Submit binding for compute
     {
@@ -1269,7 +1263,7 @@ Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBufferResource* argBu
         RefPtr<PipelineStateBase> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
-    auto argBufferImpl = static_cast<BufferResourceImpl*>(argBuffer);
+    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
 
     m_d3dCmdList->ExecuteIndirect(
         m_renderer->dispatchIndirectCmdSignature,

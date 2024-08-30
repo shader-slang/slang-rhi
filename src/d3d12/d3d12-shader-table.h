@@ -14,7 +14,7 @@ public:
 
     DeviceImpl* m_device;
 
-    virtual RefPtr<BufferResource> createDeviceBuffer(
+    virtual RefPtr<Buffer> createDeviceBuffer(
         PipelineStateBase* pipeline,
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder

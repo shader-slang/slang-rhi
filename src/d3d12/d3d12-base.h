@@ -38,7 +38,7 @@ struct ID3D12GraphicsCommandList1
 namespace rhi::d3d12 {
 
 class DeviceImpl;
-class BufferResourceImpl;
+class BufferImpl;
 class TextureResourceImpl;
 class CommandBufferImpl;
 class PipelineCommandEncoder;

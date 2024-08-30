@@ -42,21 +42,21 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-class TexelBufferResourceViewImpl : public ResourceViewImpl
+class TexelBufferViewImpl : public ResourceViewImpl
 {
 public:
-    TexelBufferResourceViewImpl(DeviceImpl* device);
-    ~TexelBufferResourceViewImpl();
-    RefPtr<BufferResourceImpl> m_buffer;
+    TexelBufferViewImpl(DeviceImpl* device);
+    ~TexelBufferViewImpl();
+    RefPtr<BufferImpl> m_buffer;
     VkBufferView m_view;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-class PlainBufferResourceViewImpl : public ResourceViewImpl
+class PlainBufferViewImpl : public ResourceViewImpl
 {
 public:
-    PlainBufferResourceViewImpl(DeviceImpl* device);
-    RefPtr<BufferResourceImpl> m_buffer;
+    PlainBufferViewImpl(DeviceImpl* device);
+    RefPtr<BufferImpl> m_buffer;
     VkDeviceSize offset;
     VkDeviceSize size;
 
@@ -67,7 +67,7 @@ class AccelerationStructureImpl : public AccelerationStructureBase
 {
 public:
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
-    RefPtr<BufferResourceImpl> m_buffer;
+    RefPtr<BufferImpl> m_buffer;
     VkDeviceSize m_offset;
     VkDeviceSize m_size;
     RefPtr<DeviceImpl> m_device;

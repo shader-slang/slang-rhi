@@ -1,0 +1,2 @@
+- rename IBufferResource -> IBuffer
+- rename IDevice::createBufferResource -> IDevice::createBuffer

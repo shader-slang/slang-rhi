@@ -122,7 +122,7 @@ struct ShaderCacheTest
 
     ComPtr<IDevice> device;
     ComPtr<IPipelineState> pipelineState;
-    ComPtr<IBufferResource> bufferResource;
+    ComPtr<IBuffer> buffer;
     ComPtr<IResourceView> bufferView;
 
     std::string computeShaderA = std::string(
@@ -218,7 +218,7 @@ struct ShaderCacheTest
     {
         const int numberCount = 4;
         float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-        IBufferResource::Desc bufferDesc = {};
+        IBuffer::Desc bufferDesc = {};
         bufferDesc.sizeInBytes = numberCount * sizeof(float);
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = sizeof(float);
@@ -231,17 +231,17 @@ struct ShaderCacheTest
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, bufferResource.writeRef()));
+        REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(bufferResource, nullptr, viewDesc, bufferView.writeRef()));
+        REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, bufferView.writeRef()));
     }
 
     void freeComputeResources()
     {
-        bufferResource = nullptr;
+        buffer = nullptr;
         bufferView = nullptr;
         pipelineState = nullptr;
     }
@@ -296,7 +296,7 @@ struct ShaderCacheTest
     bool checkOutput(const std::vector<float>& expectedOutput)
     {
         ComPtr<ISlangBlob> bufferBlob;
-        device->readBufferResource(bufferResource, 0, 4 * sizeof(float), bufferBlob.writeRef());
+        device->readBuffer(buffer, 0, 4 * sizeof(float), bufferBlob.writeRef());
         REQUIRE(bufferBlob);
         REQUIRE(bufferBlob->getBufferSize() == expectedOutput.size() * sizeof(float));
         return ::memcmp(bufferBlob->getBufferPointer(), expectedOutput.data(), bufferBlob->getBufferSize()) == 0;
@@ -695,14 +695,14 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     static const int kHeight = 256;
     static const Format format = Format::R32G32B32A32_FLOAT;
 
-    ComPtr<IBufferResource> vertexBuffer;
+    ComPtr<IBuffer> vertexBuffer;
     ComPtr<ITextureResource> colorBuffer;
     ComPtr<IInputLayout> inputLayout;
     ComPtr<IFramebufferLayout> framebufferLayout;
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
-    ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
+    ComPtr<IBuffer> createVertexBuffer(IDevice* device)
     {
         const Vertex vertices[] = {
             {0, 0, 0.5},
@@ -710,12 +710,12 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             {0, 1, 0.5},
         };
 
-        IBufferResource::Desc vertexBufferDesc;
+        IBuffer::Desc vertexBufferDesc;
         vertexBufferDesc.type = IResource::Type::Buffer;
         vertexBufferDesc.sizeInBytes = sizeof(vertices);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
         vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
-        ComPtr<IBufferResource> vertexBuffer = device->createBufferResource(vertexBufferDesc, vertices);
+        ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, vertices);
         REQUIRE(vertexBuffer != nullptr);
         return vertexBuffer;
     }

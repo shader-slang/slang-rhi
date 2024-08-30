@@ -135,9 +135,9 @@ public:
         m_commands.push_back(Command(CommandName::BindRootShaderObject, (uint32_t)rootOffset));
     }
 
-    void uploadBufferData(IBufferResource* buffer, Offset offset, Size size, void* data)
+    void uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
     {
-        auto bufferOffset = encodeObject(static_cast<BufferResource*>(buffer));
+        auto bufferOffset = encodeObject(static_cast<Buffer*>(buffer));
         auto dataOffset = encodeData(data, size);
         m_commands.push_back(Command(
             CommandName::UploadBufferData,
@@ -148,10 +148,10 @@ public:
         ));
     }
 
-    void copyBuffer(IBufferResource* dst, Offset dstOffset, IBufferResource* src, Offset srcOffset, Size size)
+    void copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
     {
-        auto dstBuffer = encodeObject(static_cast<BufferResource*>(dst));
-        auto srcBuffer = encodeObject(static_cast<BufferResource*>(src));
+        auto dstBuffer = encodeObject(static_cast<Buffer*>(dst));
+        auto srcBuffer = encodeObject(static_cast<Buffer*>(src));
         m_commands.push_back(Command(
             CommandName::CopyBuffer,
             (uint32_t)dstBuffer,
@@ -191,17 +191,12 @@ public:
         m_commands.push_back(Command(CommandName::SetPrimitiveTopology, (uint32_t)topology));
     }
 
-    void setVertexBuffers(
-        GfxIndex startSlot,
-        GfxCount slotCount,
-        IBufferResource* const* buffers,
-        const Offset* offsets
-    )
+    void setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)
     {
         Offset bufferOffset = 0;
         for (GfxCount i = 0; i < slotCount; i++)
         {
-            auto offset = encodeObject(static_cast<BufferResource*>(buffers[i]));
+            auto offset = encodeObject(static_cast<Buffer*>(buffers[i]));
             if (i == 0)
                 bufferOffset = offset;
         }
@@ -215,9 +210,9 @@ public:
         ));
     }
 
-    void setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset)
+    void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
     {
-        auto bufferOffset = encodeObject(static_cast<BufferResource*>(buffer));
+        auto bufferOffset = encodeObject(static_cast<Buffer*>(buffer));
         m_commands.push_back(
             Command(CommandName::SetIndexBuffer, (uint32_t)bufferOffset, (uint32_t)indexFormat, (uint32_t)offset)
         );

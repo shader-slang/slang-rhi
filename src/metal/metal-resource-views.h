@@ -41,34 +41,34 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-class BufferResourceViewImpl : public ResourceViewImpl
+class BufferViewImpl : public ResourceViewImpl
 {
 public:
-    BufferResourceViewImpl(DeviceImpl* device)
+    BufferViewImpl(DeviceImpl* device)
         : ResourceViewImpl(ViewType::Buffer, device)
     {
     }
-    ~BufferResourceViewImpl();
-    RefPtr<BufferResourceImpl> m_buffer;
+    ~BufferViewImpl();
+    RefPtr<BufferImpl> m_buffer;
     Offset m_offset;
     Size m_size;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-class TexelBufferResourceViewImpl : public ResourceViewImpl
+class TexelBufferViewImpl : public ResourceViewImpl
 {
 public:
-    TexelBufferResourceViewImpl(DeviceImpl* device);
-    ~TexelBufferResourceViewImpl();
-    RefPtr<BufferResourceImpl> m_buffer;
+    TexelBufferViewImpl(DeviceImpl* device);
+    ~TexelBufferViewImpl();
+    RefPtr<BufferImpl> m_buffer;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
 class AccelerationStructureImpl : public AccelerationStructureBase
 {
 public:
-    RefPtr<BufferResourceImpl> m_buffer;
+    RefPtr<BufferImpl> m_buffer;
     RefPtr<DeviceImpl> m_device;
 
 public:

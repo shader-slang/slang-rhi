@@ -43,7 +43,7 @@ Result DebugComputeCommandEncoder::dispatchCompute(int x, int y, int z)
     return baseObject->dispatchCompute(x, y, z);
 }
 
-Result DebugComputeCommandEncoder::dispatchComputeIndirect(IBufferResource* cmdBuffer, Offset offset)
+Result DebugComputeCommandEncoder::dispatchComputeIndirect(IBuffer* cmdBuffer, Offset offset)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->dispatchComputeIndirect(getInnerObj(cmdBuffer), offset);
@@ -96,24 +96,24 @@ void DebugRenderCommandEncoder::setPrimitiveTopology(PrimitiveTopology topology)
 void DebugRenderCommandEncoder::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
-    IBufferResource* const* buffers,
+    IBuffer* const* buffers,
     const Offset* offsets
 )
 {
     SLANG_RHI_API_FUNC;
 
-    std::vector<IBufferResource*> innerBuffers;
+    std::vector<IBuffer*> innerBuffers;
     for (GfxIndex i = 0; i < slotCount; i++)
     {
-        innerBuffers.push_back(static_cast<DebugBufferResource*>(buffers[i])->baseObject.get());
+        innerBuffers.push_back(static_cast<DebugBuffer*>(buffers[i])->baseObject.get());
     }
     baseObject->setVertexBuffers(startSlot, slotCount, innerBuffers.data(), offsets);
 }
 
-void DebugRenderCommandEncoder::setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset)
+void DebugRenderCommandEncoder::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
 {
     SLANG_RHI_API_FUNC;
-    auto innerBuffer = static_cast<DebugBufferResource*>(buffer)->baseObject.get();
+    auto innerBuffer = static_cast<DebugBuffer*>(buffer)->baseObject.get();
     baseObject->setIndexBuffer(innerBuffer, indexFormat, offset);
 }
 
@@ -131,9 +131,9 @@ Result DebugRenderCommandEncoder::drawIndexed(GfxCount indexCount, GfxIndex star
 
 Result DebugRenderCommandEncoder::drawIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
@@ -144,9 +144,9 @@ Result DebugRenderCommandEncoder::drawIndirect(
 
 Result DebugRenderCommandEncoder::drawIndexedIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
@@ -220,23 +220,23 @@ void DebugResourceCommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex 
 }
 
 void DebugResourceCommandEncoderImpl::copyBuffer(
-    IBufferResource* dst,
+    IBuffer* dst,
     Offset dstOffset,
-    IBufferResource* src,
+    IBuffer* src,
     Offset srcOffset,
     Size size
 )
 {
     SLANG_RHI_API_FUNC;
-    auto dstImpl = static_cast<DebugBufferResource*>(dst);
-    auto srcImpl = static_cast<DebugBufferResource*>(src);
+    auto dstImpl = static_cast<DebugBuffer*>(dst);
+    auto srcImpl = static_cast<DebugBuffer*>(src);
     getBaseResourceEncoder()->copyBuffer(dstImpl->baseObject, dstOffset, srcImpl->baseObject, srcOffset, size);
 }
 
-void DebugResourceCommandEncoderImpl::uploadBufferData(IBufferResource* dst, Offset offset, Size size, void* data)
+void DebugResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     SLANG_RHI_API_FUNC;
-    auto dstImpl = static_cast<DebugBufferResource*>(dst);
+    auto dstImpl = static_cast<DebugBuffer*>(dst);
     getBaseResourceEncoder()->uploadBufferData(dstImpl->baseObject, offset, size, data);
 }
 
@@ -259,17 +259,17 @@ void DebugResourceCommandEncoderImpl::textureBarrier(
 
 void DebugResourceCommandEncoderImpl::bufferBarrier(
     GfxCount count,
-    IBufferResource* const* buffers,
+    IBuffer* const* buffers,
     ResourceState src,
     ResourceState dst
 )
 {
     SLANG_RHI_API_FUNC;
 
-    std::vector<IBufferResource*> innerBuffers;
+    std::vector<IBuffer*> innerBuffers;
     for (GfxIndex i = 0; i < count; i++)
     {
-        innerBuffers.push_back(static_cast<DebugBufferResource*>(buffers[i])->baseObject.get());
+        innerBuffers.push_back(static_cast<DebugBuffer*>(buffers[i])->baseObject.get());
     }
     getBaseResourceEncoder()->bufferBarrier(count, innerBuffers.data(), src, dst);
 }
@@ -355,7 +355,7 @@ void DebugResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     Offset offset
 )
 {
@@ -364,7 +364,7 @@ void DebugResourceCommandEncoderImpl::resolveQuery(
 }
 
 void DebugResourceCommandEncoderImpl::copyTextureToBuffer(
-    IBufferResource* dst,
+    IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,

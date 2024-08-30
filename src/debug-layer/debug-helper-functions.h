@@ -153,7 +153,7 @@ void _rhiDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
     }
 
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Device)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(BufferResource)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(Buffer)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(TextureResource)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandBuffer)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandQueue)

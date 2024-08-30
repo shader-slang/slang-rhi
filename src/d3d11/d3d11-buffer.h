@@ -4,12 +4,12 @@
 
 namespace rhi::d3d11 {
 
-class BufferResourceImpl : public BufferResource
+class BufferImpl : public Buffer
 {
 public:
-    typedef BufferResource Parent;
+    typedef Buffer Parent;
 
-    BufferResourceImpl(const IBufferResource::Desc& desc)
+    BufferImpl(const IBuffer::Desc& desc)
         : Parent(desc)
     {
     }

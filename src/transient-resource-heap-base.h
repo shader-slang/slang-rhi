@@ -4,19 +4,19 @@
 
 namespace rhi {
 
-template<typename TDevice, typename TBufferResource>
+template<typename TDevice, typename TBuffer>
 class StagingBufferPool
 {
 public:
     struct StagingBufferPage
     {
-        RefPtr<TBufferResource> resource;
+        RefPtr<TBuffer> resource;
         size_t size;
     };
 
     struct Allocation
     {
-        TBufferResource* resource;
+        TBuffer* resource;
         size_t offset;
     };
 
@@ -26,7 +26,7 @@ public:
     ResourceStateSet m_allowedStates;
 
     std::vector<StagingBufferPage> m_pages;
-    std::vector<RefPtr<TBufferResource>> m_largeAllocations;
+    std::vector<RefPtr<TBuffer>> m_largeAllocations;
 
     Index m_pageAllocCounter = 0;
     size_t m_offsetAllocCounter = 0;
@@ -55,16 +55,16 @@ public:
         StagingBufferPage page;
         size_t pageSize = kStagingBufferDefaultPageSize;
 
-        ComPtr<IBufferResource> bufferPtr;
-        IBufferResource::Desc bufferDesc;
+        ComPtr<IBuffer> bufferPtr;
+        IBuffer::Desc bufferDesc;
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.defaultState = ResourceState::General;
         bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
         bufferDesc.sizeInBytes = pageSize;
-        SLANG_RETURN_ON_FAIL(m_device->createBufferResource(bufferDesc, nullptr, bufferPtr.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
-        page.resource = static_cast<TBufferResource*>(bufferPtr.get());
+        page.resource = static_cast<TBuffer*>(bufferPtr.get());
         page.size = pageSize;
         m_pages.push_back(page);
         return SLANG_OK;
@@ -72,15 +72,15 @@ public:
 
     Result newLargeBuffer(size_t size)
     {
-        ComPtr<IBufferResource> bufferPtr;
-        IBufferResource::Desc bufferDesc;
+        ComPtr<IBuffer> bufferPtr;
+        IBuffer::Desc bufferDesc;
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.defaultState = ResourceState::General;
         bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
         bufferDesc.sizeInBytes = size;
-        SLANG_RETURN_ON_FAIL(m_device->createBufferResource(bufferDesc, nullptr, bufferPtr.writeRef()));
-        auto bufferImpl = static_cast<TBufferResource*>(bufferPtr.get());
+        SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
+        auto bufferImpl = static_cast<TBuffer*>(bufferPtr.get());
         m_largeAllocations.push_back(bufferImpl);
         return SLANG_OK;
     }
@@ -125,7 +125,7 @@ public:
     }
 };
 
-template<typename TDevice, typename TBufferResource>
+template<typename TDevice, typename TBuffer>
 class TransientResourceHeapBaseImpl : public TransientResourceHeapBase
 {
 public:
@@ -133,9 +133,9 @@ public:
 
 public:
     BreakableReference<TDevice> m_device;
-    StagingBufferPool<TDevice, TBufferResource> m_constantBufferPool;
-    StagingBufferPool<TDevice, TBufferResource> m_uploadBufferPool;
-    StagingBufferPool<TDevice, TBufferResource> m_readbackBufferPool;
+    StagingBufferPool<TDevice, TBuffer> m_constantBufferPool;
+    StagingBufferPool<TDevice, TBuffer> m_uploadBufferPool;
+    StagingBufferPool<TDevice, TBuffer> m_readbackBufferPool;
 
     Result init(const ITransientResourceHeap::Desc& desc, uint32_t alignment, TDevice* device)
     {
@@ -169,7 +169,7 @@ public:
 
     Result allocateStagingBuffer(
         size_t size,
-        IBufferResource*& outBufferWeakPtr,
+        IBuffer*& outBufferWeakPtr,
         size_t& offset,
         MemoryType memoryType,
         bool forceLargePage = false
@@ -195,7 +195,7 @@ public:
         return SLANG_OK;
     }
 
-    Result allocateConstantBuffer(size_t size, IBufferResource*& outBufferWeakPtr, size_t& outOffset)
+    Result allocateConstantBuffer(size_t size, IBuffer*& outBufferWeakPtr, size_t& outOffset)
     {
         auto allocation = m_constantBufferPool.allocate(size, false);
         outBufferWeakPtr = allocation.resource;

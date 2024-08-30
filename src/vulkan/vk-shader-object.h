@@ -53,7 +53,7 @@ protected:
     /// `offset`
     Result _writeOrdinaryData(
         PipelineCommandEncoder* encoder,
-        IBufferResource* buffer,
+        IBuffer* buffer,
         Offset offset,
         Size destSize,
         ShaderObjectLayoutImpl* specializedLayout
@@ -67,7 +67,7 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        BufferResourceImpl* buffer,
+        BufferImpl* buffer,
         Offset bufferOffset,
         Size bufferSize
     );
@@ -76,7 +76,7 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        BufferResourceImpl* buffer
+        BufferImpl* buffer
     );
 
     static void writePlainBufferDescriptor(
@@ -184,7 +184,7 @@ public:
 
     // The transient constant buffer that holds the GPU copy of the constant data,
     // weak referenced.
-    IBufferResource* m_constantBuffer = nullptr;
+    IBuffer* m_constantBuffer = nullptr;
     // The offset into the transient constant buffer where the constant data starts.
     Offset m_constantBufferOffset = 0;
     Size m_constantBufferSize = 0;

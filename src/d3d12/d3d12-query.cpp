@@ -34,7 +34,7 @@ Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
     heapProps.CreationNodeMask = 1;
     heapProps.VisibleNodeMask = 1;
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initBufferResourceDesc(sizeof(uint64_t) * desc.count, resourceDesc);
+    initBufferDesc(sizeof(uint64_t) * desc.count, resourceDesc);
     SLANG_RETURN_ON_FAIL(m_readBackBuffer.initCommitted(
         d3dDevice,
         heapProps,
@@ -113,16 +113,16 @@ IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
 
 Result PlainBufferProxyQueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device, uint32_t stride)
 {
-    ComPtr<IBufferResource> bufferResource;
-    IBufferResource::Desc bufferDesc = {};
+    ComPtr<IBuffer> buffer;
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.defaultState = ResourceState::CopySource;
     bufferDesc.elementSize = 0;
     bufferDesc.type = IResource::Type::Buffer;
     bufferDesc.sizeInBytes = desc.count * stride;
     bufferDesc.format = Format::Unknown;
     bufferDesc.allowedStates.add(ResourceState::UnorderedAccess);
-    SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResource.writeRef()));
-    m_bufferResource = static_cast<BufferResourceImpl*>(bufferResource.get());
+    SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+    m_buffer = static_cast<BufferImpl*>(buffer.get());
     m_queryType = desc.type;
     m_device = device;
     m_stride = stride;
@@ -139,7 +139,7 @@ Result PlainBufferProxyQueryPoolImpl::reset()
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-    barrier.Transition.pResource = m_bufferResource->m_resource.getResource();
+    barrier.Transition.pResource = m_buffer->m_resource.getResource();
     encodeInfo.d3dCommandList->ResourceBarrier(1, &barrier);
     m_device->submitResourceCommandsAndWait(encodeInfo);
     return SLANG_OK;
@@ -154,7 +154,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        barrier.Transition.pResource = m_bufferResource->m_resource.getResource();
+        barrier.Transition.pResource = m_buffer->m_resource.getResource();
         encodeInfo.d3dCommandList->ResourceBarrier(1, &barrier);
 
         D3D12Resource stageBuf;
@@ -168,7 +168,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
         heapProps.VisibleNodeMask = 1;
 
         D3D12_RESOURCE_DESC stagingDesc;
-        initBufferResourceDesc(size, stagingDesc);
+        initBufferDesc(size, stagingDesc);
 
         SLANG_RETURN_ON_FAIL(stageBuf.initCommitted(
             m_device->m_device,
@@ -179,7 +179,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
             nullptr
         ));
 
-        encodeInfo.d3dCommandList->CopyBufferRegion(stageBuf, 0, m_bufferResource->m_resource.getResource(), 0, size);
+        encodeInfo.d3dCommandList->CopyBufferRegion(stageBuf, 0, m_buffer->m_resource.getResource(), 0, size);
         m_device->submitResourceCommandsAndWait(encodeInfo);
         void* ptr = nullptr;
         stageBuf.getResource()->Map(0, nullptr, &ptr);

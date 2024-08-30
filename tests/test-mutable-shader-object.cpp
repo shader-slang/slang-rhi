@@ -24,7 +24,7 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     const int numberCount = SLANG_COUNT_OF(initialData);
-    IBufferResource::Desc bufferDesc = {};
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = sizeof(initialData);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
@@ -37,8 +37,8 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};

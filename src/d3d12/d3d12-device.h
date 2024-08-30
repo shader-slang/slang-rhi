@@ -122,28 +122,19 @@ public:
         const ITextureResource::Desc& srcDesc,
         ITextureResource** outResource
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferResource(
-        const IBufferResource::Desc& desc,
-        const void* initData,
-        IBufferResource** outResource
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& srcDesc,
-        IBufferResource** outResource
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBufferResource* buffer,
-        IBufferResource* counterBuffer,
-        IResourceView::Desc const& desc,
-        IResourceView** outView
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFrameBuffer) override;
@@ -194,7 +185,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBufferResource(IBufferResource* resource, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* resource, Offset offset, Size size, ISlangBlob** outBlob) override;
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 

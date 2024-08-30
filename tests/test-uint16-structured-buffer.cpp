@@ -23,7 +23,7 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     const int numberCount = 4;
     uint16_t initialData[] = {0, 1, 2, 3};
-    IBufferResource::Desc bufferDesc = {};
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(uint16_t);
     bufferDesc.format = Format::Unknown;
     // Note: we don't specify any element size here, and rhi should be able to derive the
@@ -38,8 +38,8 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};

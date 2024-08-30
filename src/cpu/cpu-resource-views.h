@@ -25,19 +25,19 @@ private:
     Kind m_kind;
 };
 
-class BufferResourceViewImpl : public ResourceViewImpl
+class BufferViewImpl : public ResourceViewImpl
 {
 public:
-    BufferResourceViewImpl(Desc const& desc, BufferResourceImpl* buffer)
+    BufferViewImpl(Desc const& desc, BufferImpl* buffer)
         : ResourceViewImpl(Kind::Buffer, desc)
         , m_buffer(buffer)
     {
     }
 
-    BufferResourceImpl* getBuffer() const;
+    BufferImpl* getBuffer() const;
 
 private:
-    RefPtr<BufferResourceImpl> m_buffer;
+    RefPtr<BufferImpl> m_buffer;
 };
 
 class TextureResourceViewImpl : public ResourceViewImpl, public slang_prelude::IRWTexture

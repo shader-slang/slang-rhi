@@ -8,11 +8,11 @@
 
 namespace rhi::d3d12 {
 
-class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl>,
+class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferImpl>,
                                   public ITransientResourceHeapD3D12
 {
 private:
-    typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl> Super;
+    typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferImpl> Super;
 
 public:
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;

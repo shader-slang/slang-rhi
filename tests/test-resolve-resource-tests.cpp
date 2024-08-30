@@ -40,14 +40,14 @@ const int kWidth = 256;
 const int kHeight = 256;
 Format format = Format::R32G32B32A32_FLOAT;
 
-static ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
+static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
-    IBufferResource::Desc vertexBufferDesc;
+    IBuffer::Desc vertexBufferDesc;
     vertexBufferDesc.type = IResource::Type::Buffer;
     vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
     vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
-    ComPtr<IBufferResource> vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+    ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
     REQUIRE(vertexBuffer != nullptr);
     return vertexBuffer;
 }
@@ -64,7 +64,7 @@ struct BaseResolveResourceTest
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
-    ComPtr<IBufferResource> vertexBuffer;
+    ComPtr<IBuffer> vertexBuffer;
 
     struct TextureInfo
     {

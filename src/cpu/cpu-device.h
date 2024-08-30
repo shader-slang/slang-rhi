@@ -19,18 +19,15 @@ public:
         ITextureResource** outResource
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferResource(
-        const IBufferResource::Desc& descIn,
-        const void* initData,
-        IBufferResource** outResource
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITextureResource* inTexture, IResourceView::Desc const& desc, IResourceView** outView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBufferResource* inBuffer,
-        IBufferResource* counterBuffer,
+        IBuffer* inBuffer,
+        IBuffer* counterBuffer,
         IResourceView::Desc const& desc,
         IResourceView** outView
     ) override;
@@ -68,8 +65,8 @@ public:
 
     virtual void submitGpuWork() override {}
     virtual void waitForGpu() override {}
-    virtual void* map(IBufferResource* buffer, MapFlavor flavor) override;
-    virtual void unmap(IBufferResource* buffer, size_t offsetWritten, size_t sizeWritten) override;
+    virtual void* map(IBuffer* buffer, MapFlavor flavor) override;
+    virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
 
 private:
     RefPtr<PipelineStateImpl> m_currentPipeline = nullptr;
@@ -82,8 +79,7 @@ private:
 
     virtual void dispatchCompute(int x, int y, int z) override;
 
-    virtual void copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size)
-        override;
+    virtual void copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size) override;
 };
 
 } // namespace rhi::cpu

@@ -13,7 +13,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     // dstDevice. Read back the buffer and check that its contents are correct.
     const int numberCount = 4;
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-    IBufferResource::Desc bufferDesc = {};
+    IBuffer::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
@@ -27,12 +27,12 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.isShared = true;
 
-    ComPtr<IBufferResource> srcBuffer;
-    REQUIRE_CALL(srcDevice->createBufferResource(bufferDesc, (void*)initialData, srcBuffer.writeRef()));
+    ComPtr<IBuffer> srcBuffer;
+    REQUIRE_CALL(srcDevice->createBuffer(bufferDesc, (void*)initialData, srcBuffer.writeRef()));
 
     InteropHandle sharedHandle;
     REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
-    ComPtr<IBufferResource> dstBuffer;
+    ComPtr<IBuffer> dstBuffer;
     REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
     // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
     // dstDevice
@@ -41,7 +41,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     InteropHandle testHandle;
     REQUIRE_CALL(dstBuffer->getNativeResourceHandle(&testHandle));
-    IBufferResource::Desc* testDesc = dstBuffer->getDesc();
+    IBuffer::Desc* testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc->elementSize, sizeof(float));
     CHECK_EQ(testDesc->sizeInBytes, numberCount * sizeof(float));
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));

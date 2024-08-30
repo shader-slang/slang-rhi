@@ -234,7 +234,7 @@ Result ShaderObjectImpl::init(
 
 Result ShaderObjectImpl::_writeOrdinaryData(
     PipelineCommandEncoder* encoder,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset offset,
     Size destSize,
     ShaderObjectLayoutImpl* specializedLayout
@@ -402,7 +402,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     //
     SLANG_RETURN_ON_FAIL(_writeOrdinaryData(
         encoder,
-        static_cast<BufferResourceImpl*>(m_constantBufferWeakPtr),
+        static_cast<BufferImpl*>(m_constantBufferWeakPtr),
         m_constantBufferOffset,
         m_constantBufferSize,
         specializedLayout
@@ -417,10 +417,9 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         //
         auto descriptorTable = m_descriptorSet.resourceTable;
         D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
-        viewDesc.BufferLocation = static_cast<BufferResourceImpl*>(m_constantBufferWeakPtr)
-                                      ->m_resource.getResource()
-                                      ->GetGPUVirtualAddress() +
-                                  m_constantBufferOffset;
+        viewDesc.BufferLocation =
+            static_cast<BufferImpl*>(m_constantBufferWeakPtr)->m_resource.getResource()->GetGPUVirtualAddress() +
+            m_constantBufferOffset;
         viewDesc.SizeInBytes = (UINT)alignedConstantBufferSize;
         encoder->m_device->CreateConstantBufferView(&viewDesc, descriptorTable.getCpuHandle());
     }
@@ -928,7 +927,7 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
             auto resourceViewImpl = static_cast<ResourceViewImpl*>(resourceView);
             if (resourceViewImpl->m_resource->isBuffer())
             {
-                rootArg = static_cast<BufferResourceImpl*>(resourceViewImpl->m_resource.Ptr())->getDeviceAddress();
+                rootArg = static_cast<BufferImpl*>(resourceViewImpl->m_resource.Ptr())->getDeviceAddress();
             }
             else
             {

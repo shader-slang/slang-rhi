@@ -122,7 +122,7 @@ protected:
     /// `offset`
     Result _writeOrdinaryData(
         PipelineCommandEncoder* encoder,
-        BufferResourceImpl* buffer,
+        BufferImpl* buffer,
         Offset offset,
         Size destSize,
         ShaderObjectLayoutImpl* specializedLayout
@@ -204,7 +204,7 @@ public:
     /// and existential-type sub-objects.
     ///
     /// Allocated from transient heap on demand with `_createOrdinaryDataBufferIfNeeded()`
-    IBufferResource* m_constantBufferWeakPtr = nullptr;
+    IBuffer* m_constantBufferWeakPtr = nullptr;
     Offset m_constantBufferOffset = 0;
     Size m_constantBufferSize = 0;
 

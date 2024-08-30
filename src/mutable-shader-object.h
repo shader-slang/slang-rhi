@@ -230,7 +230,7 @@ public:
     std::map<ShaderOffset, RefPtr<ShaderObjectBase>> m_objects;
     std::map<ShaderOffset, std::vector<slang::SpecializationArg>> m_specializationArgs;
     std::vector<RefPtr<MutableRootShaderObject>> m_entryPoints;
-    RefPtr<BufferResource> m_constantBufferOverride;
+    RefPtr<Buffer> m_constantBufferOverride;
     slang::TypeLayoutReflection* m_elementTypeLayout;
 
     MutableRootShaderObject(RendererBase* device, slang::TypeLayoutReflection* entryPointLayout)
@@ -354,9 +354,9 @@ public:
 
     virtual SLANG_NO_THROW Size SLANG_MCALL getSize() override { return (Size)m_data.size(); }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBufferResource* constantBuffer) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) override
     {
-        m_constantBufferOverride = static_cast<BufferResource*>(constantBuffer);
+        m_constantBufferOverride = static_cast<Buffer*>(constantBuffer);
         return SLANG_OK;
     }
 

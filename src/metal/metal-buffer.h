@@ -5,16 +5,16 @@
 
 namespace rhi::metal {
 
-class BufferResourceImpl : public BufferResource
+class BufferImpl : public Buffer
 {
 public:
-    typedef BufferResource Parent;
+    typedef Buffer Parent;
 
     BreakableReference<DeviceImpl> m_device;
     NS::SharedPtr<MTL::Buffer> m_buffer;
 
-    BufferResourceImpl(const IBufferResource::Desc& desc, DeviceImpl* device);
-    ~BufferResourceImpl();
+    BufferImpl(const IBuffer::Desc& desc, DeviceImpl* device);
+    ~BufferImpl();
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 

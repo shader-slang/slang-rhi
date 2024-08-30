@@ -9,19 +9,14 @@ void ResourceCommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
     m_writer = cmdBuffer;
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyBuffer(
-    IBufferResource* dst,
-    Offset dstOffset,
-    IBufferResource* src,
-    Offset srcOffset,
-    Size size
-)
+SLANG_NO_THROW void SLANG_MCALL
+ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     m_writer->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
 SLANG_NO_THROW void SLANG_MCALL
-ResourceCommandEncoderImpl::uploadBufferData(IBufferResource* dst, Offset offset, Size size, void* data)
+ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     m_writer->uploadBufferData(dst, offset, size, data);
 }
@@ -107,7 +102,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     Offset offset
 )
 {
@@ -120,7 +115,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveQuery(
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
-    IBufferResource* dst,
+    IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,
@@ -200,8 +195,7 @@ SLANG_NO_THROW Result SLANG_MCALL ComputeCommandEncoderImpl::dispatchCompute(int
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-ComputeCommandEncoderImpl::dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset)
+SLANG_NO_THROW Result SLANG_MCALL ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }

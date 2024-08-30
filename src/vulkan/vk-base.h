@@ -14,14 +14,14 @@ namespace rhi::vk {
 
 class DeviceImpl;
 class InputLayoutImpl;
-class BufferResourceImpl;
+class BufferImpl;
 class FenceImpl;
 class TextureResourceImpl;
 class SamplerStateImpl;
 class ResourceViewImpl;
 class TextureResourceViewImpl;
-class TexelBufferResourceViewImpl;
-class PlainBufferResourceViewImpl;
+class TexelBufferViewImpl;
+class PlainBufferViewImpl;
 class AccelerationStructureImpl;
 class FramebufferLayoutImpl;
 class RenderPassLayoutImpl;

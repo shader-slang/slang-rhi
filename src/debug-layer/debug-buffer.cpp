@@ -3,55 +3,55 @@
 
 namespace rhi::debug {
 
-IResource::Type DebugBufferResource::getType()
+IResource::Type DebugBuffer::getType()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getType();
 }
 
-IBufferResource::Desc* DebugBufferResource::getDesc()
+IBuffer::Desc* DebugBuffer::getDesc()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDesc();
 }
 
-DeviceAddress DebugBufferResource::getDeviceAddress()
+DeviceAddress DebugBuffer::getDeviceAddress()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDeviceAddress();
 }
 
-Result DebugBufferResource::getNativeResourceHandle(InteropHandle* outHandle)
+Result DebugBuffer::getNativeResourceHandle(InteropHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getNativeResourceHandle(outHandle);
 }
 
-Result DebugBufferResource::getSharedHandle(InteropHandle* outHandle)
+Result DebugBuffer::getSharedHandle(InteropHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getSharedHandle(outHandle);
 }
 
-Result DebugBufferResource::setDebugName(const char* name)
+Result DebugBuffer::setDebugName(const char* name)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->setDebugName(name);
 }
 
-const char* DebugBufferResource::getDebugName()
+const char* DebugBuffer::getDebugName()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDebugName();
 }
 
-Result DebugBufferResource::map(MemoryRange* rangeToRead, void** outPointer)
+Result DebugBuffer::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->map(rangeToRead, outPointer);
 }
 
-Result DebugBufferResource::unmap(MemoryRange* writtenRange)
+Result DebugBuffer::unmap(MemoryRange* writtenRange)
 {
     return baseObject->unmap(writtenRange);
 }

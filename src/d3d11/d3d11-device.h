@@ -27,23 +27,17 @@ public:
         const ITextureResource::SubresourceData* initData,
         ITextureResource** outResource
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferResource(
-        const IBufferResource::Desc& desc,
-        const void* initData,
-        IBufferResource** outResource
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBufferResource* buffer,
-        IBufferResource* counterBuffer,
-        IResourceView::Desc const& desc,
-        IResourceView** outView
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout) override;
@@ -71,10 +65,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState) override;
 
-    virtual void* map(IBufferResource* buffer, MapFlavor flavor) override;
-    virtual void unmap(IBufferResource* buffer, size_t offsetWritten, size_t sizeWritten) override;
-    virtual void copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size)
-        override;
+    virtual void* map(IBuffer* buffer, MapFlavor flavor) override;
+    virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
+    virtual void copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
         ITextureResource* texture,
         ResourceState state,
@@ -88,10 +81,10 @@ public:
     virtual void setVertexBuffers(
         GfxIndex startSlot,
         GfxCount slotCount,
-        IBufferResource* const* buffers,
+        IBuffer* const* buffers,
         const Offset* offsets
     ) override;
-    virtual void setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset) override;
+    virtual void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset) override;
     virtual void setViewports(GfxCount count, Viewport const* viewports) override;
     virtual void setScissorRects(GfxCount count, ScissorRect const* rects) override;
     virtual void setPipelineState(IPipelineState* state) override;

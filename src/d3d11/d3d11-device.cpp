@@ -627,13 +627,9 @@ Result DeviceImpl::createTextureResource(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    IBufferResource::Desc srcDesc = fixupBufferDesc(descIn);
+    IBuffer::Desc srcDesc = fixupBufferDesc(descIn);
 
     auto d3dBindFlags = _calcResourceBindFlags(srcDesc.allowedStates);
 
@@ -707,7 +703,7 @@ Result DeviceImpl::createBufferResource(
     D3D11_SUBRESOURCE_DATA subResourceData = {0};
     subResourceData.pSysMem = initData;
 
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
     SLANG_RETURN_ON_FAIL(
         m_device->CreateBuffer(&bufferDesc, initData ? &subResourceData : nullptr, buffer->m_buffer.writeRef())
@@ -724,7 +720,7 @@ Result DeviceImpl::createBufferResource(
 
         SLANG_RETURN_ON_FAIL(m_device->CreateBuffer(&bufDesc, nullptr, buffer->m_staging.writeRef()));
     }
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
@@ -851,13 +847,13 @@ Result DeviceImpl::createTextureView(
 }
 
 Result DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
-    auto resourceImpl = (BufferResourceImpl*)buffer;
+    auto resourceImpl = (BufferImpl*)buffer;
     auto resourceDesc = *resourceImpl->getDesc();
 
     switch (desc.type)
@@ -1051,12 +1047,12 @@ Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** ou
     return SLANG_OK;
 }
 
-void* DeviceImpl::map(IBufferResource* bufferIn, MapFlavor flavor)
+void* DeviceImpl::map(IBuffer* bufferIn, MapFlavor flavor)
 {
-    BufferResourceImpl* bufferResource = static_cast<BufferResourceImpl*>(bufferIn);
+    BufferImpl* bufferImpl = static_cast<BufferImpl*>(bufferIn);
 
     D3D11_MAP mapType;
-    ID3D11Buffer* buffer = bufferResource->m_buffer;
+    ID3D11Buffer* buffer = bufferImpl->m_buffer;
 
     switch (flavor)
     {
@@ -1073,28 +1069,28 @@ void* DeviceImpl::map(IBufferResource* bufferIn, MapFlavor flavor)
         return nullptr;
     }
 
-    bufferResource->m_mapFlavor = flavor;
+    bufferImpl->m_mapFlavor = flavor;
 
     switch (flavor)
     {
     case MapFlavor::WriteDiscard:
     case MapFlavor::HostWrite:
         // If buffer is not dynamic, we need to use staging buffer.
-        if (bufferResource->m_d3dUsage != D3D11_USAGE_DYNAMIC)
+        if (bufferImpl->m_d3dUsage != D3D11_USAGE_DYNAMIC)
         {
-            bufferResource->m_uploadStagingBuffer.resize(bufferResource->getDesc()->sizeInBytes);
-            return bufferResource->m_uploadStagingBuffer.data();
+            bufferImpl->m_uploadStagingBuffer.resize(bufferImpl->getDesc()->sizeInBytes);
+            return bufferImpl->m_uploadStagingBuffer.data();
         }
         break;
     case MapFlavor::HostRead:
-        buffer = bufferResource->m_staging;
+        buffer = bufferImpl->m_staging;
         if (!buffer)
         {
             return nullptr;
         }
 
         // Okay copy the data over
-        m_immediateContext->CopyResource(buffer, bufferResource->m_buffer);
+        m_immediateContext->CopyResource(buffer, bufferImpl->m_buffer);
     }
 
     // We update our constant buffer per-frame, just for the purposes
@@ -1106,16 +1102,16 @@ void* DeviceImpl::map(IBufferResource* bufferIn, MapFlavor flavor)
     return mappedSub.pData;
 }
 
-void DeviceImpl::unmap(IBufferResource* bufferIn, size_t offsetWritten, size_t sizeWritten)
+void DeviceImpl::unmap(IBuffer* bufferIn, size_t offsetWritten, size_t sizeWritten)
 {
-    BufferResourceImpl* bufferResource = static_cast<BufferResourceImpl*>(bufferIn);
-    switch (bufferResource->m_mapFlavor)
+    BufferImpl* bufferImpl = static_cast<BufferImpl*>(bufferIn);
+    switch (bufferImpl->m_mapFlavor)
     {
     case MapFlavor::WriteDiscard:
     case MapFlavor::HostWrite:
         // If buffer is not dynamic, the CPU has already written to the staging buffer,
         // and we need to copy the content over to the GPU buffer.
-        if (bufferResource->m_d3dUsage != D3D11_USAGE_DYNAMIC && sizeWritten != 0)
+        if (bufferImpl->m_d3dUsage != D3D11_USAGE_DYNAMIC && sizeWritten != 0)
         {
             D3D11_BOX dstBox = {};
             dstBox.left = (UINT)offsetWritten;
@@ -1123,10 +1119,10 @@ void DeviceImpl::unmap(IBufferResource* bufferIn, size_t offsetWritten, size_t s
             dstBox.back = 1;
             dstBox.bottom = 1;
             m_immediateContext->UpdateSubresource(
-                bufferResource->m_buffer,
+                bufferImpl->m_buffer,
                 0,
                 &dstBox,
-                bufferResource->m_uploadStagingBuffer.data() + offsetWritten,
+                bufferImpl->m_uploadStagingBuffer.data() + offsetWritten,
                 0,
                 0
             );
@@ -1134,7 +1130,7 @@ void DeviceImpl::unmap(IBufferResource* bufferIn, size_t offsetWritten, size_t s
         }
     }
     m_immediateContext->Unmap(
-        bufferResource->m_mapFlavor == MapFlavor::HostRead ? bufferResource->m_staging : bufferResource->m_buffer,
+        bufferImpl->m_mapFlavor == MapFlavor::HostRead ? bufferImpl->m_staging : bufferImpl->m_buffer,
         0
     );
 }
@@ -1155,7 +1151,7 @@ void DeviceImpl::setPrimitiveTopology(PrimitiveTopology topology)
 void DeviceImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
-    IBufferResource* const* buffersIn,
+    IBuffer* const* buffersIn,
     const Offset* offsetsIn
 )
 {
@@ -1167,7 +1163,7 @@ void DeviceImpl::setVertexBuffers(
     UINT vertexOffsets[kMaxVertexBuffers];
     ID3D11Buffer* dxBuffers[kMaxVertexBuffers];
 
-    auto buffers = (BufferResourceImpl* const*)buffersIn;
+    auto buffers = (BufferImpl* const*)buffersIn;
 
     for (GfxIndex ii = 0; ii < slotCount; ++ii)
     {
@@ -1181,10 +1177,10 @@ void DeviceImpl::setVertexBuffers(
         ->IASetVertexBuffers((UINT)startSlot, (UINT)slotCount, dxBuffers, &vertexStrides[0], &vertexOffsets[0]);
 }
 
-void DeviceImpl::setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset)
+void DeviceImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
 {
     DXGI_FORMAT dxFormat = D3DUtil::getMapFormat(indexFormat);
-    m_immediateContext->IASetIndexBuffer(((BufferResourceImpl*)buffer)->m_buffer, dxFormat, UINT(offset));
+    m_immediateContext->IASetIndexBuffer(((BufferImpl*)buffer)->m_buffer, dxFormat, UINT(offset));
 }
 
 void DeviceImpl::setViewports(GfxCount count, Viewport const* viewports)
@@ -1714,10 +1710,10 @@ Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& in
     return SLANG_OK;
 }
 
-void DeviceImpl::copyBuffer(IBufferResource* dst, Offset dstOffset, IBufferResource* src, Offset srcOffset, Size size)
+void DeviceImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    auto dstImpl = static_cast<BufferResourceImpl*>(dst);
-    auto srcImpl = static_cast<BufferResourceImpl*>(src);
+    auto dstImpl = static_cast<BufferImpl*>(dst);
+    auto srcImpl = static_cast<BufferImpl*>(src);
     D3D11_BOX srcBox = {};
     srcBox.left = (UINT)srcOffset;
     srcBox.right = (UINT)(srcOffset + size);

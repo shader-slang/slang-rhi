@@ -11,23 +11,23 @@ Result TextureResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-BufferResourceViewImpl::~BufferResourceViewImpl() {}
+BufferViewImpl::~BufferViewImpl() {}
 
-Result BufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result BufferViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Metal;
     outHandle->handleValue = reinterpret_cast<uintptr_t>(m_buffer->m_buffer.get());
     return SLANG_OK;
 }
 
-TexelBufferResourceViewImpl::TexelBufferResourceViewImpl(DeviceImpl* device)
+TexelBufferViewImpl::TexelBufferViewImpl(DeviceImpl* device)
     : ResourceViewImpl(ViewType::TexelBuffer, device)
 {
 }
 
-TexelBufferResourceViewImpl::~TexelBufferResourceViewImpl() {}
+TexelBufferViewImpl::~TexelBufferViewImpl() {}
 
-Result TexelBufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TexelBufferViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }

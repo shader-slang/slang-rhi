@@ -139,16 +139,10 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     SLANG_RHI_ASSERT(cudaLaunchResult == CUDA_SUCCESS);
 }
 
-void CommandQueueImpl::copyBuffer(
-    IBufferResource* dst,
-    size_t dstOffset,
-    IBufferResource* src,
-    size_t srcOffset,
-    size_t size
-)
+void CommandQueueImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size)
 {
-    auto dstImpl = static_cast<BufferResourceImpl*>(dst);
-    auto srcImpl = static_cast<BufferResourceImpl*>(src);
+    auto dstImpl = static_cast<BufferImpl*>(dst);
+    auto srcImpl = static_cast<BufferImpl*>(src);
     cuMemcpy(
         (CUdeviceptr)((uint8_t*)dstImpl->m_cudaMemory + dstOffset),
         (CUdeviceptr)((uint8_t*)srcImpl->m_cudaMemory + srcOffset),
@@ -156,9 +150,9 @@ void CommandQueueImpl::copyBuffer(
     );
 }
 
-void CommandQueueImpl::uploadBufferData(IBufferResource* dst, size_t offset, size_t size, void* data)
+void CommandQueueImpl::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
 {
-    auto dstImpl = static_cast<BufferResourceImpl*>(dst);
+    auto dstImpl = static_cast<BufferImpl*>(dst);
     cuMemcpy((CUdeviceptr)((uint8_t*)dstImpl->m_cudaMemory + offset), (CUdeviceptr)data, size);
 }
 
@@ -185,16 +179,16 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
             break;
         case CommandName::CopyBuffer:
             copyBuffer(
-                commandBuffer->getObject<BufferResource>(cmd.operands[0]),
+                commandBuffer->getObject<Buffer>(cmd.operands[0]),
                 cmd.operands[1],
-                commandBuffer->getObject<BufferResource>(cmd.operands[2]),
+                commandBuffer->getObject<Buffer>(cmd.operands[2]),
                 cmd.operands[3],
                 cmd.operands[4]
             );
             break;
         case CommandName::UploadBufferData:
             uploadBufferData(
-                commandBuffer->getObject<BufferResource>(cmd.operands[0]),
+                commandBuffer->getObject<Buffer>(cmd.operands[0]),
                 cmd.operands[1],
                 cmd.operands[2],
                 commandBuffer->getData<uint8_t>(cmd.operands[3])

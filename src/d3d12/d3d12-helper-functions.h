@@ -60,12 +60,12 @@ void initSrvDesc(
     D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
 );
 Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc);
-void initBufferResourceDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
+void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 Result uploadBufferDataImpl(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
     TransientResourceHeapImpl* transientHeap,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset offset,
     Size size,
     void* data

@@ -379,7 +379,7 @@ Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITexture
     return SLANG_OK;
 }
 
-void initBufferResourceDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
+void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
 {
     out = {};
 
@@ -400,13 +400,13 @@ Result uploadBufferDataImpl(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
     TransientResourceHeapImpl* transientHeap,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset offset,
     Size size,
     void* data
 )
 {
-    IBufferResource* uploadResource;
+    IBuffer* uploadResource;
     Offset uploadResourceOffset = 0;
     if (buffer->getDesc()->memoryType != MemoryType::Upload)
     {
@@ -420,7 +420,7 @@ Result uploadBufferDataImpl(
     }
     D3D12Resource& uploadResourceRef = (buffer->getDesc()->memoryType == MemoryType::Upload)
                                            ? buffer->m_resource
-                                           : static_cast<BufferResourceImpl*>(uploadResource)->m_resource;
+                                           : static_cast<BufferImpl*>(uploadResource)->m_resource;
 
     D3D12_RANGE readRange = {};
     readRange.Begin = 0;
@@ -590,24 +590,21 @@ void translatePostBuildInfoDescs(
         case QueryType::AccelerationStructureCompactedSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                    ->m_bufferResource->getDeviceAddress() +
+                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureCurrentSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                    ->m_bufferResource->getDeviceAddress() +
+                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureSerializedSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                    ->m_bufferResource->getDeviceAddress() +
+                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;

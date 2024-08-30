@@ -22,10 +22,10 @@ uint8_t* CPUShaderObjectData::getBuffer()
 
 CPUShaderObjectData::~CPUShaderObjectData()
 {
-    // m_bufferResource's data is managed by m_ordinaryData so we
-    // set it to null to prevent m_bufferResource from freeing it.
-    if (m_bufferResource)
-        m_bufferResource->m_data = nullptr;
+    // m_buffer's data is managed by m_ordinaryData so we
+    // set it to null to prevent m_buffer from freeing it.
+    if (m_buffer)
+        m_buffer->m_data = nullptr;
 }
 
 /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
@@ -37,20 +37,20 @@ ResourceViewBase* CPUShaderObjectData::getResourceView(
 )
 {
     SLANG_UNUSED(device);
-    if (!m_bufferResource)
+    if (!m_buffer)
     {
-        IBufferResource::Desc desc = {};
+        IBuffer::Desc desc = {};
         desc.type = IResource::Type::Buffer;
         desc.elementSize = (int)elementLayout->getSize();
-        m_bufferResource = new BufferResourceImpl(desc);
+        m_buffer = new BufferImpl(desc);
 
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        m_bufferView = new BufferResourceViewImpl(viewDesc, m_bufferResource);
+        m_bufferView = new BufferViewImpl(viewDesc, m_buffer);
     }
-    m_bufferResource->getDesc()->sizeInBytes = m_ordinaryData.size();
-    m_bufferResource->m_data = m_ordinaryData.data();
+    m_buffer->getDesc()->sizeInBytes = m_ordinaryData.size();
+    m_buffer->m_data = m_ordinaryData.data();
     return m_bufferView.Ptr();
 }
 
@@ -170,7 +170,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
 
     case ResourceViewImpl::Kind::Buffer:
     {
-        auto bufferView = static_cast<BufferResourceViewImpl*>(view);
+        auto bufferView = static_cast<BufferViewImpl*>(view);
         auto buffer = bufferView->getBuffer();
         auto desc = *buffer->getDesc();
 
