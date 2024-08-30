@@ -1,18 +1,16 @@
-// render.cpp
-#include "slang-rhi.h"
-#include "renderer-shared.h"
 #include "debug-layer/debug-device.h"
+#include "renderer-shared.h"
+#include "slang-rhi.h"
 #if SLANG_RHI_ENABLE_CUDA
 #include "cuda/cuda-api.h"
 #endif
 
 #include "utils/common.h"
 
-#include <vector>
 #include <cstring>
+#include <vector>
 
 namespace rhi {
-using namespace Slang;
 
 Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice);
@@ -30,16 +28,16 @@ Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL reportD3DLiveObjects();
 
 static bool debugLayerEnabled = false;
-bool isGfxDebugLayerEnabled() { return debugLayerEnabled; }
+bool isGfxDebugLayerEnabled()
+{
+    return debugLayerEnabled;
+}
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Renderer Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
 #define SLANG_RHI_FORMAT_SIZE(name, blockSizeInBytes, pixelsPerBlock) {blockSizeInBytes, pixelsPerBlock},
 
-static const uint32_t s_formatSizeInfo[][2] =
-{
-    SLANG_RHI_FORMAT(SLANG_RHI_FORMAT_SIZE)
-};
+static const uint32_t s_formatSizeInfo[][2] = {SLANG_RHI_FORMAT(SLANG_RHI_FORMAT_SIZE)};
 
 static bool _checkFormat()
 {
@@ -302,60 +300,59 @@ extern "C"
         switch (desc->deviceType)
         {
         case DeviceType::Default:
-            {
-                IDevice::Desc newDesc = *desc;
-                newDesc.deviceType = DeviceType::D3D12;
-                if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                    return SLANG_OK;
-                newDesc.deviceType = DeviceType::Vulkan;
-                if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                    return SLANG_OK;
-                return SLANG_FAIL;
-            }
-            break;
+        {
+            IDevice::Desc newDesc = *desc;
+            newDesc.deviceType = DeviceType::D3D12;
+            if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+                return SLANG_OK;
+            newDesc.deviceType = DeviceType::Vulkan;
+            if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+                return SLANG_OK;
+            return SLANG_FAIL;
+        }
+        break;
 #if SLANG_RHI_ENABLE_D3D11
         case DeviceType::D3D11:
-            {
-                return createD3D11Device(desc, outDevice);
-            }
+        {
+            return createD3D11Device(desc, outDevice);
+        }
 #endif
 #if SLANG_RHI_ENABLE_D3D12
         case DeviceType::D3D12:
-            {
-                return createD3D12Device(desc, outDevice);
-            }
+        {
+            return createD3D12Device(desc, outDevice);
+        }
 #endif
 #if SLANG_RHI_ENABLE_VULKAN
         case DeviceType::Vulkan:
-            {
-                return createVKDevice(desc, outDevice);
-            }
+        {
+            return createVKDevice(desc, outDevice);
+        }
 #endif
 #if SLANG_RHI_ENABLE_METAL
         case DeviceType::Metal:
-            {
-                return createMetalDevice(desc, outDevice);
-            }
+        {
+            return createMetalDevice(desc, outDevice);
+        }
 #endif
 #if SLANG_RHI_ENABLE_CUDA
         case DeviceType::CUDA:
-            {
-                return createCUDADevice(desc, outDevice);
-            }
+        {
+            return createCUDADevice(desc, outDevice);
+        }
 #endif
         case DeviceType::CPU:
-            {
-                return createCPUDevice(desc, outDevice);
-            }
-            break;
+        {
+            return createCPUDevice(desc, outDevice);
+        }
+        break;
 
         default:
             return SLANG_FAIL;
         }
     }
 
-    SLANG_RHI_API SlangResult SLANG_MCALL
-        gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
     {
         ComPtr<IDevice> innerDevice;
         auto resultCode = _createDevice(desc, innerDevice.writeRef());
@@ -372,8 +369,7 @@ extern "C"
         return resultCode;
     }
 
-    SLANG_RHI_API SlangResult SLANG_MCALL
-        gfxReportLiveObjects()
+    SLANG_RHI_API SlangResult SLANG_MCALL gfxReportLiveObjects()
     {
 #if SLANG_RHI_ENABLE_D3D12
         SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
@@ -447,23 +443,23 @@ extern "C"
         switch (style)
         {
         case ProjectionStyle::DirectX:
-            {
-                static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-                ::memcpy(projMatrix, kIdentity, sizeof(kIdentity));
-                break;
-            }
+        {
+            static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+            ::memcpy(projMatrix, kIdentity, sizeof(kIdentity));
+            break;
+        }
         case ProjectionStyle::Vulkan:
-            {
-                static const float kIdentity[] = {1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-                ::memcpy(projMatrix, kIdentity, sizeof(kIdentity));
-                break;
-            }
+        {
+            static const float kIdentity[] = {1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+            ::memcpy(projMatrix, kIdentity, sizeof(kIdentity));
+            break;
+        }
         default:
-            {
-                assert(!"Not handled");
-            }
+        {
+            assert(!"Not handled");
+        }
         }
     }
 }
 
-} // renderer_test
+} // namespace rhi

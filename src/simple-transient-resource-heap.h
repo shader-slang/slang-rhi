@@ -1,4 +1,3 @@
-// simple-render-pass-layout.h
 #pragma once
 
 // Provide a simple no-op implementation for `ITransientResourceHeap` for targets that
@@ -6,9 +5,9 @@
 
 #include "slang-rhi.h"
 
-namespace rhi
-{
-template<typename TDevice, typename TCommandBuffer>
+namespace rhi {
+
+template <typename TDevice, typename TCommandBuffer>
 class SimpleTransientResourceHeap : public TransientResourceHeapBase
 {
 public:
@@ -25,12 +24,10 @@ public:
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.sizeInBytes = desc.constantBufferSize;
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_ON_FAIL(
-            device->createBufferResource(bufferDesc, nullptr, m_constantBuffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, m_constantBuffer.writeRef()));
         return SLANG_OK;
     }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        createCommandBuffer(ICommandBuffer** outCommandBuffer) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override
     {
         RefPtr<TCommandBuffer> newCmdBuffer = new TCommandBuffer();
         newCmdBuffer->init(m_device, this);
@@ -44,4 +41,5 @@ public:
         return SLANG_OK;
     }
 };
-}
+
+} // namespace rhi

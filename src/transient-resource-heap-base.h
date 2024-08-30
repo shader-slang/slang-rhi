@@ -2,9 +2,9 @@
 
 #include "utils/common.h"
 
-namespace rhi
-{
-template<typename TDevice, typename TBufferResource>
+namespace rhi {
+
+template <typename TDevice, typename TBufferResource>
 class StagingBufferPool
 {
 public:
@@ -41,10 +41,7 @@ public:
         m_allowedStates = allowedStates;
     }
 
-    static size_t alignUp(size_t value, uint32_t alignment)
-    {
-        return (value + alignment - 1) / alignment * alignment;
-    }
+    static size_t alignUp(size_t value, uint32_t alignment) { return (value + alignment - 1) / alignment * alignment; }
 
     void reset()
     {
@@ -65,8 +62,7 @@ public:
         bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
         bufferDesc.sizeInBytes = pageSize;
-        SLANG_RETURN_ON_FAIL(
-            m_device->createBufferResource(bufferDesc, nullptr, bufferPtr.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->createBufferResource(bufferDesc, nullptr, bufferPtr.writeRef()));
 
         page.resource = static_cast<TBufferResource*>(bufferPtr.get());
         page.size = pageSize;
@@ -83,8 +79,7 @@ public:
         bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
         bufferDesc.sizeInBytes = size;
-        SLANG_RETURN_ON_FAIL(
-            m_device->createBufferResource(bufferDesc, nullptr, bufferPtr.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->createBufferResource(bufferDesc, nullptr, bufferPtr.writeRef()));
         auto bufferImpl = static_cast<TBufferResource*>(bufferPtr.get());
         m_largeAllocations.push_back(bufferImpl);
         return SLANG_OK;
@@ -150,56 +145,57 @@ public:
             device,
             MemoryType::Upload,
             256,
-            ResourceStateSet(
-                ResourceState::ConstantBuffer,
-                ResourceState::CopySource,
-                ResourceState::CopyDestination));
+            ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopySource, ResourceState::CopyDestination)
+        );
 
         m_uploadBufferPool.init(
             device,
             MemoryType::Upload,
             256,
-            ResourceStateSet(
-                ResourceState::CopySource,
-                ResourceState::CopyDestination));
+            ResourceStateSet(ResourceState::CopySource, ResourceState::CopyDestination)
+        );
 
-         m_readbackBufferPool.init(
+        m_readbackBufferPool.init(
             device,
             MemoryType::ReadBack,
             256,
-            ResourceStateSet(ResourceState::CopySource, ResourceState::CopyDestination));
+            ResourceStateSet(ResourceState::CopySource, ResourceState::CopyDestination)
+        );
 
         m_version = getVersionCounter();
         getVersionCounter()++;
         return SLANG_OK;
     }
 
-    Result allocateStagingBuffer(size_t size, IBufferResource*& outBufferWeakPtr, size_t& offset, MemoryType memoryType, bool forceLargePage = false)
+    Result allocateStagingBuffer(
+        size_t size,
+        IBufferResource*& outBufferWeakPtr,
+        size_t& offset,
+        MemoryType memoryType,
+        bool forceLargePage = false
+    )
     {
         switch (memoryType)
         {
         case MemoryType::ReadBack:
-            {
-                auto allocation = m_readbackBufferPool.allocate(size, forceLargePage);
-                outBufferWeakPtr = allocation.resource;
-                offset = allocation.offset;
-            }
-            break;
+        {
+            auto allocation = m_readbackBufferPool.allocate(size, forceLargePage);
+            outBufferWeakPtr = allocation.resource;
+            offset = allocation.offset;
+        }
+        break;
         default:
-            {
-                auto allocation = m_uploadBufferPool.allocate(size, forceLargePage);
-                outBufferWeakPtr = allocation.resource;
-                offset = allocation.offset;
-            }
-            break;
+        {
+            auto allocation = m_uploadBufferPool.allocate(size, forceLargePage);
+            outBufferWeakPtr = allocation.resource;
+            offset = allocation.offset;
+        }
+        break;
         }
         return SLANG_OK;
     }
 
-    Result allocateConstantBuffer(
-        size_t size,
-        IBufferResource*& outBufferWeakPtr,
-        size_t& outOffset)
+    Result allocateConstantBuffer(size_t size, IBufferResource*& outBufferWeakPtr, size_t& outOffset)
     {
         auto allocation = m_constantBufferPool.allocate(size, false);
         outBufferWeakPtr = allocation.resource;

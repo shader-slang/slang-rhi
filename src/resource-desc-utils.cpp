@@ -1,7 +1,7 @@
 #include "resource-desc-utils.h"
 
-namespace rhi
-{
+namespace rhi {
+
 IBufferResource::Desc fixupBufferDesc(const IBufferResource::Desc& desc)
 {
     IBufferResource::Desc result = desc;
@@ -40,4 +40,5 @@ Format srgbToLinearFormat(Format format)
         return format;
     }
 }
-}
+
+} // namespace rhi

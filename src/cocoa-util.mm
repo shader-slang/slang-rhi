@@ -34,6 +34,4 @@ void CocoaUtil::destroyMetalLayer(void* metalLayer)
     [layer release];
 }
 
-
-
-}
+} // namespace rhi

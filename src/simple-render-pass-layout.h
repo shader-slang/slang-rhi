@@ -1,4 +1,3 @@
-// simple-render-pass-layout.h
 #pragma once
 
 // Implementation of a dummy render pass layout object that stores and holds its

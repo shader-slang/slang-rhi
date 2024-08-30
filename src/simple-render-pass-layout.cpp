@@ -2,8 +2,7 @@
 
 #include "renderer-shared.h"
 
-namespace rhi
-{
+namespace rhi {
 
 IRenderPassLayout* SimpleRenderPassLayout::getInterface(const Slang::Guid& guid)
 {

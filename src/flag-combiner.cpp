@@ -2,9 +2,7 @@
 
 #include "utils/common.h"
 
-namespace rhi
-{
-using namespace Slang;
+namespace rhi {
 
 void FlagCombiner::add(uint32_t flags, ChangeType type)
 {

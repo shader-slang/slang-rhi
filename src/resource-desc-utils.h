@@ -4,8 +4,7 @@
 
 #include "utils/common.h"
 
-namespace rhi
-{
+namespace rhi {
 
 inline int calcMipSize(int size, int level)
 {
@@ -33,9 +32,9 @@ inline int calcEffectiveArraySize(const ITextureResource::Desc& desc)
     {
     case IResource::Type::Texture1D: // fallthru
     case IResource::Type::Texture2D:
-        {
-            return arrSize;
-        }
+    {
+        return arrSize;
+    }
     case IResource::Type::TextureCube:
         return arrSize * 6;
     case IResource::Type::Texture3D:
@@ -56,9 +55,9 @@ inline int calcMaxDimension(ITextureResource::Extents size, IResource::Type type
         return std::max(std::max(size.width, size.height), size.depth);
     case IResource::Type::TextureCube: // fallthru
     case IResource::Type::Texture2D:
-        {
-            return std::max(size.width, size.height);
-        }
+    {
+        return std::max(size.width, size.height);
+    }
     default:
         return 0;
     }
@@ -70,11 +69,11 @@ inline int calcNumMipLevels(IResource::Type type, ITextureResource::Extents size
     const int maxDimensionSize = calcMaxDimension(size, type);
     return (maxDimensionSize > 0) ? (math::log2Floor(maxDimensionSize) + 1) : 0;
 }
+
 /// Calculate the total number of sub resources. 0 on error.
 inline int calcNumSubResources(const ITextureResource::Desc& desc)
 {
-    const int numMipMaps =
-        (desc.numMipLevels > 0) ? desc.numMipLevels : calcNumMipLevels(desc.type, desc.size);
+    const int numMipMaps = (desc.numMipLevels > 0) ? desc.numMipLevels : calcNumMipLevels(desc.type, desc.size);
     const int arrSize = (desc.arraySize > 0) ? desc.arraySize : 1;
 
     switch (desc.type)
@@ -82,14 +81,14 @@ inline int calcNumSubResources(const ITextureResource::Desc& desc)
     case IResource::Type::Texture1D:
     case IResource::Type::Texture2D:
     case IResource::Type::Texture3D:
-        {
-            return numMipMaps * arrSize;
-        }
+    {
+        return numMipMaps * arrSize;
+    }
     case IResource::Type::TextureCube:
-        {
-            // There are 6 faces to a cubemap
-            return numMipMaps * arrSize * 6;
-        }
+    {
+        // There are 6 faces to a cubemap
+        return numMipMaps * arrSize * 6;
+    }
     default:
         return 0;
     }
@@ -100,4 +99,4 @@ ITextureResource::Desc fixupTextureDesc(const ITextureResource::Desc& desc);
 
 Format srgbToLinearFormat(Format format);
 
-}
+} // namespace rhi
