@@ -77,7 +77,7 @@ Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* ob
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -85,7 +85,7 @@ Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* s
     if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-    auto samplerImpl = static_cast<SamplerStateImpl*>(sampler);
+    auto samplerImpl = static_cast<SamplerImpl*>(sampler);
     ID3D12Device* d3dDevice = static_cast<DeviceImpl*>(getDevice())->m_device;
     d3dDevice->CopyDescriptorsSimple(
         1,
@@ -100,7 +100,7 @@ Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* s
 Result ShaderObjectImpl::setCombinedTextureSampler(
     ShaderOffset const& offset,
     IResourceView* textureView,
-    ISamplerState* sampler
+    ISampler* sampler
 )
 {
 #if 0
@@ -120,7 +120,7 @@ Result ShaderObjectImpl::setCombinedTextureSampler(
             (int32_t)offset.bindingArrayIndex),
         resourceViewImpl->m_descriptor.cpuHandle,
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    auto samplerImpl = static_cast<SamplerStateImpl*>(sampler);
+    auto samplerImpl = static_cast<SamplerImpl*>(sampler);
     d3dDevice->CopyDescriptorsSimple(
         1,
         m_samplerHeap.getCpuHandle(

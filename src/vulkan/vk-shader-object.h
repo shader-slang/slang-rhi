@@ -13,7 +13,7 @@ namespace rhi::vk {
 struct CombinedTextureSamplerSlot
 {
     RefPtr<TextureViewImpl> textureView;
-    RefPtr<SamplerStateImpl> sampler;
+    RefPtr<SamplerImpl> sampler;
     operator bool() { return textureView && sampler; }
 };
 
@@ -39,10 +39,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setResource(ShaderOffset const& offset, IResourceView* resourceView) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler) override;
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override;
 
 protected:
     friend class RootShaderObjectLayout;
@@ -118,7 +118,7 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<RefPtr<SamplerStateImpl>> samplers
+        span<RefPtr<SamplerImpl>> samplers
     );
 
     bool shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap);
@@ -178,7 +178,7 @@ public:
 
     std::vector<RefPtr<ResourceViewInternalBase>> m_resourceViews;
 
-    std::vector<RefPtr<SamplerStateImpl>> m_samplers;
+    std::vector<RefPtr<SamplerImpl>> m_samplers;
 
     std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
 

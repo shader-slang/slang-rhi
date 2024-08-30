@@ -4,7 +4,7 @@
 
 namespace rhi::d3d11 {
 
-class SamplerStateImpl : public SamplerStateBase
+class SamplerImpl : public SamplerBase
 {
 public:
     ComPtr<ID3D11SamplerState> m_sampler;

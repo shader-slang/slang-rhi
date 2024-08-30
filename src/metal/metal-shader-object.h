@@ -37,11 +37,10 @@ public:
     SLANG_NO_THROW Result SLANG_MCALL setResource(ShaderOffset const& offset, IResourceView* resourceView)
         SLANG_OVERRIDE;
 
-    SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) SLANG_OVERRIDE;
+    SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) SLANG_OVERRIDE;
 
     SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler)
-        SLANG_OVERRIDE
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) SLANG_OVERRIDE
     {
         return SLANG_E_NOT_IMPLEMENTED;
     }
@@ -110,7 +109,7 @@ public:
     std::vector<RefPtr<TextureViewImpl>> m_textures;
 
     /// The samplers that are part of the state of this object
-    std::vector<RefPtr<SamplerStateImpl>> m_samplers;
+    std::vector<RefPtr<SamplerImpl>> m_samplers;
 
     /// A constant buffer used to stored ordinary data for this object
     /// and existential-type sub-objects.

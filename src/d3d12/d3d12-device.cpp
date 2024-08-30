@@ -1286,7 +1286,7 @@ Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const Buff
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     D3D12_FILTER_REDUCTION_TYPE dxReduction = translateFilterReduction(desc.reductionOp);
     D3D12_FILTER dxFilter;
@@ -1326,7 +1326,7 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     // entries that we check before we go to the heap, and then
     // when we are done with a sampler we simply add it to the free list.
     //
-    RefPtr<SamplerStateImpl> samplerImpl = new SamplerStateImpl();
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl();
     samplerImpl->m_allocator = samplerHeap;
     samplerImpl->m_descriptor = cpuDescriptor;
     returnComPtr(outSampler, samplerImpl);

@@ -115,7 +115,7 @@ Result DebugShaderObject::setResource(ShaderOffset const& offset, IResourceView*
     return baseObject->setResource(offset, getInnerObj(resourceView));
 }
 
-Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     SLANG_RHI_API_FUNC;
     auto samplerImpl = getDebugObj(sampler);
@@ -127,7 +127,7 @@ Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISamplerState* 
 Result DebugShaderObject::setCombinedTextureSampler(
     ShaderOffset const& offset,
     IResourceView* textureView,
-    ISamplerState* sampler
+    ISampler* sampler
 )
 {
     SLANG_RHI_API_FUNC;

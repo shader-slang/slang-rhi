@@ -22,7 +22,7 @@ const Guid GUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
 const Guid GUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
-const Guid GUID::IID_ISamplerState = ISamplerState::getTypeGuid();
+const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
 const Guid GUID::IID_IResource = IResource::getTypeGuid();
 const Guid GUID::IID_IBuffer = IBuffer::getTypeGuid();
 const Guid GUID::IID_ITexture = ITexture::getTypeGuid();
@@ -120,14 +120,14 @@ Result ResourceViewBase::getNativeHandle(InteropHandle* outHandle)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-ISamplerState* SamplerStateBase::getInterface(const Guid& guid)
+ISampler* SamplerBase::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISamplerState)
-        return static_cast<ISamplerState*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISampler)
+        return static_cast<ISampler*>(this);
     return nullptr;
 }
 
-Result SamplerStateBase::getNativeHandle(InteropHandle* outHandle)
+Result SamplerBase::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Unknown;
     outHandle->handleValue = 0;

@@ -557,11 +557,11 @@ Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const Buff
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     AUTORELEASEPOOL
 
-    RefPtr<SamplerStateImpl> samplerImpl = new SamplerStateImpl();
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl();
     SLANG_RETURN_ON_FAIL(samplerImpl->init(this, desc));
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;

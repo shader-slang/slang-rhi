@@ -194,8 +194,7 @@ SLANG_NO_THROW const DeviceInfo& SLANG_MCALL DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
     *outSampler = nullptr;

@@ -265,18 +265,15 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setObject(ShaderOffset const
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     SLANG_UNUSED(sampler);
     SLANG_UNUSED(offset);
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setCombinedTextureSampler(
-    ShaderOffset const& offset,
-    IResourceView* textureView,
-    ISamplerState* sampler
-)
+SLANG_NO_THROW Result SLANG_MCALL
+ShaderObjectImpl::setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler)
 {
     SLANG_UNUSED(sampler);
     setResource(offset, textureView);

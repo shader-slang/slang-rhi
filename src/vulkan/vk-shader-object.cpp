@@ -98,7 +98,7 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -107,14 +107,14 @@ Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* s
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerStateImpl*>(sampler);
+    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerImpl*>(sampler);
     return SLANG_OK;
 }
 
 Result ShaderObjectImpl::setCombinedTextureSampler(
     ShaderOffset const& offset,
     IResourceView* textureView,
-    ISamplerState* sampler
+    ISampler* sampler
 )
 {
     if (offset.bindingRangeIndex < 0)
@@ -126,7 +126,7 @@ Result ShaderObjectImpl::setCombinedTextureSampler(
 
     auto& slot = m_combinedTextureSamplers[bindingRange.baseIndex + offset.bindingArrayIndex];
     slot.textureView = static_cast<TextureViewImpl*>(textureView);
-    slot.sampler = static_cast<SamplerStateImpl*>(sampler);
+    slot.sampler = static_cast<SamplerImpl*>(sampler);
     return SLANG_OK;
 }
 
@@ -553,7 +553,7 @@ void ShaderObjectImpl::writeSamplerDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    span<RefPtr<SamplerStateImpl>> samplers
+    span<RefPtr<SamplerImpl>> samplers
 )
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];

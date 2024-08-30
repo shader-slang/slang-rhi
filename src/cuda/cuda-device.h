@@ -105,8 +105,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout) override;

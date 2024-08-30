@@ -798,28 +798,28 @@ enum class TextureReductionOp
     Maximum,
 };
 
-class ISamplerState : public ISlangUnknown
+struct SamplerDesc
+{
+    TextureFilteringMode minFilter = TextureFilteringMode::Linear;
+    TextureFilteringMode magFilter = TextureFilteringMode::Linear;
+    TextureFilteringMode mipFilter = TextureFilteringMode::Linear;
+    TextureReductionOp reductionOp = TextureReductionOp::Average;
+    TextureAddressingMode addressU = TextureAddressingMode::Wrap;
+    TextureAddressingMode addressV = TextureAddressingMode::Wrap;
+    TextureAddressingMode addressW = TextureAddressingMode::Wrap;
+    float mipLODBias = 0.0f;
+    uint32_t maxAnisotropy = 1;
+    ComparisonFunc comparisonFunc = ComparisonFunc::Never;
+    float borderColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float minLOD = -FLT_MAX;
+    float maxLOD = FLT_MAX;
+};
+
+class ISampler : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x0ce3b435, 0x5fdb, 0x4335, {0xaf, 0x43, 0xe0, 0x2d, 0x8b, 0x80, 0x13, 0xbc});
 
 public:
-    struct Desc
-    {
-        TextureFilteringMode minFilter = TextureFilteringMode::Linear;
-        TextureFilteringMode magFilter = TextureFilteringMode::Linear;
-        TextureFilteringMode mipFilter = TextureFilteringMode::Linear;
-        TextureReductionOp reductionOp = TextureReductionOp::Average;
-        TextureAddressingMode addressU = TextureAddressingMode::Wrap;
-        TextureAddressingMode addressV = TextureAddressingMode::Wrap;
-        TextureAddressingMode addressW = TextureAddressingMode::Wrap;
-        float mipLODBias = 0.0f;
-        uint32_t maxAnisotropy = 1;
-        ComparisonFunc comparisonFunc = ComparisonFunc::Never;
-        float borderColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-        float minLOD = -FLT_MAX;
-        float maxLOD = FLT_MAX;
-    };
-
     /// Returns a native API handle representing this sampler state object.
     /// When using D3D12, this will be a D3D12_CPU_DESCRIPTOR_HANDLE.
     /// When using Vulkan, this will be a VkSampler.
@@ -1099,9 +1099,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(ShaderOffset const& offset, IShaderObject** object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setResource(ShaderOffset const& offset, IResourceView* resourceView) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler) = 0;
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
@@ -2286,13 +2286,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) = 0;
 
-    inline ComPtr<ISamplerState> createSamplerState(ISamplerState::Desc const& desc)
+    inline ComPtr<ISampler> createSampler(SamplerDesc const& desc)
     {
-        ComPtr<ISamplerState> sampler;
-        SLANG_RETURN_NULL_ON_FAIL(createSamplerState(desc, sampler.writeRef()));
+        ComPtr<ISampler> sampler;
+        SLANG_RETURN_NULL_ON_FAIL(createSampler(desc, sampler.writeRef()));
         return sampler;
     }
 

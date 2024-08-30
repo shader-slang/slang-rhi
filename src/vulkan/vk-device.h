@@ -41,8 +41,7 @@ public:
     );
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) override;

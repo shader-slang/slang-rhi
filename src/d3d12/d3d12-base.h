@@ -56,7 +56,7 @@ class RenderPassLayoutImpl;
 class ResourceViewInternalImpl;
 class ResourceViewImpl;
 class AccelerationStructureImpl;
-class SamplerStateImpl;
+class SamplerImpl;
 class ShaderObjectImpl;
 class RootShaderObjectImpl;
 class MutableRootShaderObjectImpl;

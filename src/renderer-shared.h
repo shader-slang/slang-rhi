@@ -27,7 +27,7 @@ struct GUID
     static const Guid IID_IFramebuffer;
     static const Guid IID_IFramebufferLayout;
     static const Guid IID_ISwapchain;
-    static const Guid IID_ISamplerState;
+    static const Guid IID_ISampler;
     static const Guid IID_IResource;
     static const Guid IID_IBuffer;
     static const Guid IID_ITexture;
@@ -280,11 +280,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-class SamplerStateBase : public ISamplerState, public ComObject
+class SamplerBase : public ISampler, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ISamplerState* getInterface(const Guid& guid);
+    ISampler* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 

@@ -15,7 +15,7 @@ class InputLayoutImpl;
 class BufferImpl;
 class FenceImpl;
 class TextureImpl;
-class SamplerStateImpl;
+class SamplerImpl;
 class ResourceViewImpl;
 class BufferViewImpl;
 class TextureViewImpl;

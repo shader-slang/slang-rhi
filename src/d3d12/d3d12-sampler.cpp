@@ -2,12 +2,12 @@
 
 namespace rhi::d3d12 {
 
-SamplerStateImpl::~SamplerStateImpl()
+SamplerImpl::~SamplerImpl()
 {
     m_allocator->free(m_descriptor);
 }
 
-Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result SamplerImpl::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::D3D12CpuDescriptorHandle;
     outHandle->handleValue = m_descriptor.cpuHandle.ptr;

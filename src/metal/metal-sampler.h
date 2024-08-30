@@ -5,15 +5,15 @@
 
 namespace rhi::metal {
 
-class SamplerStateImpl : public SamplerStateBase
+class SamplerImpl : public SamplerBase
 {
 public:
     RefPtr<DeviceImpl> m_device;
     NS::SharedPtr<MTL::SamplerState> m_samplerState;
 
-    ~SamplerStateImpl();
+    ~SamplerImpl();
 
-    Result init(DeviceImpl* device, const ISamplerState::Desc& desc);
+    Result init(DeviceImpl* device, const SamplerDesc& desc);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };

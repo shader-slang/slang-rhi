@@ -1087,8 +1087,7 @@ DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderP
     return SLANG_FAIL;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
     *outSampler = nullptr;

@@ -3,7 +3,7 @@
 
 namespace rhi::debug {
 
-Result DebugSamplerState::getNativeHandle(InteropHandle* outNativeHandle)
+Result DebugSampler::getNativeHandle(InteropHandle* outNativeHandle)
 {
     SLANG_RHI_API_FUNC;
 

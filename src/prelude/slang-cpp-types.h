@@ -192,12 +192,12 @@ struct RWByteAddressBuffer
     size_t sizeInBytes; //< Must be multiple of 4
 };
 
-struct ISamplerState;
+struct ISampler;
 struct ISamplerComparisonState;
 
 struct SamplerState
 {
-    ISamplerState* state;
+    ISampler* state;
 };
 
 struct SamplerComparisonState

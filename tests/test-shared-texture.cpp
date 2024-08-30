@@ -9,7 +9,7 @@ static void setUpAndRunShader(
     ComPtr<IResourceView> texView,
     ComPtr<IResourceView> bufferView,
     const char* entryPoint,
-    ComPtr<ISamplerState> sampler = nullptr
+    ComPtr<ISampler> sampler = nullptr
 )
 {
     ComPtr<ITransientResourceHeap> transientHeap;
@@ -130,8 +130,8 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IDevice> srcDevice = createTestingDevice(ctx, deviceType);
     ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DstDeviceType);
 
-    ISamplerState::Desc samplerDesc;
-    auto sampler = dstDevice->createSamplerState(samplerDesc);
+    SamplerDesc samplerDesc;
+    auto sampler = dstDevice->createSampler(samplerDesc);
 
     float initFloatData[16] = {0.0f};
     auto floatResults = createBuffer<float>(dstDevice, 16, initFloatData);

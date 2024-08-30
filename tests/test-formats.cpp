@@ -41,7 +41,7 @@ void setUpAndRunTest(
     ComPtr<IResourceView> texView,
     ComPtr<IResourceView> bufferView,
     const char* entryPoint,
-    ComPtr<ISamplerState> sampler = nullptr
+    ComPtr<ISampler> sampler = nullptr
 )
 {
     ComPtr<ITransientResourceHeap> transientHeap;
@@ -146,8 +146,8 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     bool isSwiftShader = isSwiftShaderDevice(device);
 
-    ISamplerState::Desc samplerDesc;
-    auto sampler = device->createSamplerState(samplerDesc);
+    SamplerDesc samplerDesc;
+    auto sampler = device->createSampler(samplerDesc);
 
     float initFloatData[16] = {0.0f};
     auto floatResults = createBuffer<float>(device, 16, initFloatData);

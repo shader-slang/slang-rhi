@@ -4,12 +4,12 @@
 
 namespace rhi::d3d12 {
 
-class SamplerStateImpl : public SamplerStateBase
+class SamplerImpl : public SamplerBase
 {
 public:
     D3D12Descriptor m_descriptor;
     RefPtr<D3D12GeneralExpandingDescriptorHeap> m_allocator;
-    ~SamplerStateImpl();
+    ~SamplerImpl();
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 

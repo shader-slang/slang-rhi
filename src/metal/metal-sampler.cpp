@@ -3,9 +3,9 @@
 
 namespace rhi::metal {
 
-SamplerStateImpl::~SamplerStateImpl() {}
+SamplerImpl::~SamplerImpl() {}
 
-Result SamplerStateImpl::init(DeviceImpl* device, const ISamplerState::Desc& desc)
+Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
 {
     m_device = device;
 
@@ -40,7 +40,7 @@ Result SamplerStateImpl::init(DeviceImpl* device, const ISamplerState::Desc& des
     return m_samplerState ? SLANG_OK : SLANG_FAIL;
 }
 
-Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result SamplerImpl::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Metal;
     outHandle->handleValue = reinterpret_cast<intptr_t>(m_samplerState.get());

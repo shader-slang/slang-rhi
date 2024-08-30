@@ -42,7 +42,7 @@ class DebugBuffer;
 class DebugTexture;
 class DebugResourceView;
 class DebugAccelerationStructure;
-class DebugSamplerState;
+class DebugSampler;
 class DebugShaderObject;
 class DebugRootShaderObject;
 class DebugCommandBuffer;

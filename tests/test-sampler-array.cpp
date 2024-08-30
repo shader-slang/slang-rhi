@@ -42,7 +42,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IPipelineState> pipelineState;
     REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
-    std::vector<ComPtr<ISamplerState>> samplers;
+    std::vector<ComPtr<ISampler>> samplers;
     std::vector<ComPtr<IResourceView>> srvs;
     ComPtr<IResourceView> uav;
     ComPtr<ITexture> texture;
@@ -83,9 +83,9 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     for (uint32_t i = 0; i < 32; i++)
     {
-        ISamplerState::Desc desc = {};
-        ComPtr<ISamplerState> sampler;
-        REQUIRE_CALL(device->createSamplerState(desc, sampler.writeRef()));
+        SamplerDesc desc = {};
+        ComPtr<ISampler> sampler;
+        REQUIRE_CALL(device->createSampler(desc, sampler.writeRef()));
         samplers.push_back(sampler);
     }
 

@@ -1,3 +1,5 @@
+- rename ISamplerState -> ISampler
+- rename ISamplerState::Desc -> SamlerDesc
 - rename BufferDesc::sizeInBytes -> size
 - replace IResource::Type with TextureType, buffers don't have a type
 - remove nested structs from IBuffer & ITexture

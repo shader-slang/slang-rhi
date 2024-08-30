@@ -81,7 +81,7 @@ class MutableShaderObject : public ShaderObjectBaseImpl<TShaderObject, TShaderOb
 
 protected:
     std::map<ShaderOffset, RefPtr<ResourceViewBase>> m_resources;
-    std::map<ShaderOffset, RefPtr<SamplerStateBase>> m_samplers;
+    std::map<ShaderOffset, RefPtr<SamplerBase>> m_samplers;
     std::set<ShaderOffset> m_objectOffsets;
     VersionedObjectPool<ShaderObjectBase> m_shaderObjectVersions;
     bool m_dirty = true;
@@ -148,17 +148,17 @@ public:
         return SLANG_OK;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override
     {
-        m_samplers[offset] = static_cast<SamplerStateBase*>(sampler);
+        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
         markDirty();
         return SLANG_OK;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler) override
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override
     {
-        m_samplers[offset] = static_cast<SamplerStateBase*>(sampler);
+        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
         m_resources[offset] = static_cast<ResourceViewBase*>(textureView);
         markDirty();
         return SLANG_OK;
@@ -226,7 +226,7 @@ class MutableRootShaderObject : public ShaderObjectBase
 public:
     std::vector<uint8_t> m_data;
     std::map<ShaderOffset, RefPtr<ResourceViewBase>> m_resources;
-    std::map<ShaderOffset, RefPtr<SamplerStateBase>> m_samplers;
+    std::map<ShaderOffset, RefPtr<SamplerBase>> m_samplers;
     std::map<ShaderOffset, RefPtr<ShaderObjectBase>> m_objects;
     std::map<ShaderOffset, std::vector<slang::SpecializationArg>> m_specializationArgs;
     std::vector<RefPtr<MutableRootShaderObject>> m_entryPoints;
@@ -311,16 +311,16 @@ public:
         return SLANG_OK;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override
     {
-        m_samplers[offset] = static_cast<SamplerStateBase*>(sampler);
+        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
         return SLANG_OK;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler) override
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override
     {
         m_resources[offset] = static_cast<ResourceViewBase*>(textureView);
-        m_samplers[offset] = static_cast<SamplerStateBase*>(sampler);
+        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
         return SLANG_OK;
     }
 

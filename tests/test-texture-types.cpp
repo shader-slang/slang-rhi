@@ -26,7 +26,7 @@ struct BaseTextureViewTest
     ComPtr<IBuffer> resultsBuffer;
     ComPtr<IResourceView> bufferView;
 
-    ComPtr<ISamplerState> sampler;
+    ComPtr<ISampler> sampler;
 
     const void* expectedTextureData;
 
@@ -281,8 +281,8 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
     void run()
     {
         // TODO: Should test with samplers
-        //             ISamplerState::Desc samplerDesc;
-        //             sampler = device->createSamplerState(samplerDesc);
+        //             SamplerDesc samplerDesc;
+        //             sampler = device->createSampler(samplerDesc);
 
         // TODO: Should test multiple mip levels and array layers
         textureInfo->extents.width = 4;
@@ -589,8 +589,8 @@ struct RenderTargetTests : BaseTextureViewTest
         //             printf("%s\n", entryPointName.getBuffer());
 
         // TODO: Sampler state and null state?
-        //             ISamplerState::Desc samplerDesc;
-        //             sampler = device->createSamplerState(samplerDesc);
+        //             SamplerDesc samplerDesc;
+        //             sampler = device->createSampler(samplerDesc);
 
         textureInfo->extents.width = 4;
         textureInfo->extents.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;

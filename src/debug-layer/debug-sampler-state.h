@@ -4,13 +4,13 @@
 
 namespace rhi::debug {
 
-class DebugSamplerState : public DebugObject<ISamplerState>
+class DebugSampler : public DebugObject<ISampler>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    ISamplerState* getInterface(const Guid& guid);
+    ISampler* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) override;
 };
 

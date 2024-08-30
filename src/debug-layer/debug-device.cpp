@@ -171,12 +171,12 @@ Result DebugDevice::createBufferFromSharedHandle(InteropHandle handle, const Buf
     return result;
 }
 
-Result DebugDevice::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+Result DebugDevice::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugSamplerState> outObject = new DebugSamplerState();
-    auto result = baseObject->createSamplerState(desc, outObject->baseObject.writeRef());
+    RefPtr<DebugSampler> outObject = new DebugSampler();
+    auto result = baseObject->createSampler(desc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outSampler, outObject);
