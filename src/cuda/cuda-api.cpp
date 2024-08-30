@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
-
 #define CUDA_SYM(x) x = nullptr;
 
 #include "cuda-api.h"
