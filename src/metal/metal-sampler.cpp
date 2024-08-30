@@ -1,18 +1,9 @@
-// metal-sampler.cpp
 #include "metal-sampler.h"
 #include "metal-util.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
-
-namespace metal
-{
-
-SamplerStateImpl::~SamplerStateImpl()
-{
-}
+SamplerStateImpl::~SamplerStateImpl() {}
 
 Result SamplerStateImpl::init(DeviceImpl* device, const ISamplerState::Desc& desc)
 {
@@ -45,7 +36,7 @@ Result SamplerStateImpl::init(DeviceImpl* device, const ISamplerState::Desc& des
     // TODO: no support for reduction op
 
     m_samplerState = NS::TransferPtr(m_device->m_device->newSamplerState(samplerDesc.get()));
-    
+
     return m_samplerState ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -56,5 +47,4 @@ Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

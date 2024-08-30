@@ -1,4 +1,3 @@
-// metal-shader-object-layout.h
 #pragma once
 
 #include "metal-base.h"
@@ -6,13 +5,7 @@
 
 #include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
 {
@@ -65,8 +58,7 @@ public:
     /// Offset information for a sub-object range
     struct SubObjectRangeOffset : BindingOffset
     {
-        SubObjectRangeOffset()
-        {}
+        SubObjectRangeOffset() {}
 
         SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout);
 
@@ -77,8 +69,7 @@ public:
     /// Stride information for a sub-object range
     struct SubObjectRangeStride : BindingOffset
     {
-        SubObjectRangeStride()
-        {}
+        SubObjectRangeStride() {}
 
         SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout);
 
@@ -105,9 +96,7 @@ public:
     struct Builder
     {
     public:
-        Builder(RendererBase* renderer, slang::ISession* session)
-            : m_renderer(renderer), m_session(session)
-        {}
+        Builder(RendererBase* renderer, slang::ISession* session) : m_renderer(renderer), m_session(session) {}
 
         RendererBase* m_renderer;
         slang::ISession* m_session;
@@ -131,7 +120,7 @@ public:
         Index m_subObjectCount = 0;
 
         uint32_t m_totalOrdinaryDataSize = 0;
-            
+
         /// The container type of this shader object. When `m_containerType` is
         /// `StructuredBuffer` or `Array`, this shader object represents a collection
         /// instead of a single object.
@@ -145,7 +134,8 @@ public:
         RendererBase* renderer,
         slang::ISession* session,
         slang::TypeLayoutReflection* elementType,
-        ShaderObjectLayoutImpl** outLayout);
+        ShaderObjectLayoutImpl** outLayout
+    );
 
     std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
 
@@ -163,10 +153,7 @@ public:
 
     RendererBase* getRenderer() { return m_renderer; }
 
-    slang::TypeReflection* getType()
-    {
-        return m_elementTypeLayout->getType();
-    }
+    slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
     /// Get the indices that represent all the buffer ranges in this type
     std::vector<Index> const& getBufferRanges() const { return m_bufferRanges; }
@@ -180,6 +167,7 @@ public:
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
     slang::TypeLayoutReflection* getParameterBlockTypeLayout();
+
 protected:
     Result _init(Builder const* builder);
 
@@ -212,18 +200,18 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(
-            RendererBase* renderer,
-            slang::IComponentType* program,
-            slang::ProgramLayout* programLayout)
-            : Super::Builder(renderer, program->getSession())
-            , m_program(program)
-            , m_programLayout(programLayout)
-        {}
+        Builder(RendererBase* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+            : Super::Builder(renderer, program->getSession()), m_program(program), m_programLayout(programLayout)
+        {
+        }
 
         Result build(RootShaderObjectLayoutImpl** outLayout);
         void addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
-        void addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout, slang::EntryPointLayout* slangEntryPoint);
+        void addEntryPoint(
+            SlangStage stage,
+            ShaderObjectLayoutImpl* entryPointLayout,
+            slang::EntryPointLayout* slangEntryPoint
+        );
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
@@ -238,7 +226,8 @@ public:
         RendererBase* renderer,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
-        RootShaderObjectLayoutImpl** outLayout);
+        RootShaderObjectLayoutImpl** outLayout
+    );
 
     slang::IComponentType* getSlangProgram() const { return m_program; }
     slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
@@ -246,11 +235,10 @@ public:
 protected:
     Result _init(Builder const* builder);
 
-    ComPtr<slang::IComponentType>   m_program;
+    ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
 
     std::vector<EntryPointInfo> m_entryPoints;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

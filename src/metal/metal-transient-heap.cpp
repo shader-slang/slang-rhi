@@ -1,30 +1,21 @@
-// metal-transient-heap.cpp
 #include "metal-transient-heap.h"
-
 #include "metal-device.h"
 #include "metal-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 Result TransientResourceHeapImpl::init(const ITransientResourceHeap::Desc& desc, DeviceImpl* device)
 {
     Super::init(
         desc,
         256, // TODO
-        device);
+        device
+    );
 
     return SLANG_OK;
 }
 
-TransientResourceHeapImpl::~TransientResourceHeapImpl()
-{
-}
+TransientResourceHeapImpl::~TransientResourceHeapImpl() {}
 
 Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuffer)
 {
@@ -40,5 +31,4 @@ Result TransientResourceHeapImpl::synchronizeAndReset()
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

@@ -1,17 +1,9 @@
-// metal-command-queue.cpp
 #include "metal-command-queue.h"
-
 #include "metal-command-buffer.h"
 #include "metal-fence.h"
 #include "metal-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal 
-{
+namespace rhi::metal {
 
 ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
 {
@@ -20,9 +12,7 @@ ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-CommandQueueImpl::~CommandQueueImpl()
-{
-}
+CommandQueueImpl::~CommandQueueImpl() {}
 
 void CommandQueueImpl::init(DeviceImpl* device, NS::SharedPtr<MTL::CommandQueue> commandQueue)
 {
@@ -42,10 +32,12 @@ Result CommandQueueImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-const CommandQueueImpl::Desc& CommandQueueImpl::getDesc() { return m_desc; }
+const CommandQueueImpl::Desc& CommandQueueImpl::getDesc()
+{
+    return m_desc;
+}
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(
-    GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {
     for (GfxCount i = 0; i < fenceCount; ++i)
     {
@@ -58,7 +50,11 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(
 }
 
 void CommandQueueImpl::queueSubmitImpl(
-    uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
+    uint32_t count,
+    ICommandBuffer* const* commandBuffers,
+    IFence* fence,
+    uint64_t valueToSignal
+)
 {
     // If there are any pending wait fences, encode them to a new command buffer.
     // Metal ensures that command buffers are executed in the order they are committed.
@@ -79,7 +75,10 @@ void CommandQueueImpl::queueSubmitImpl(
         // If this is the last command buffer and a fence is provided, signal the fence.
         if (i == count - 1 && fence != nullptr)
         {
-            cmdBufImpl->m_commandBuffer->encodeSignalEvent(static_cast<FenceImpl*>(fence)->m_event.get(), valueToSignal);
+            cmdBufImpl->m_commandBuffer->encodeSignalEvent(
+                static_cast<FenceImpl*>(fence)->m_event.get(),
+                valueToSignal
+            );
         }
         cmdBufImpl->m_commandBuffer->commit();
     }
@@ -94,7 +93,11 @@ void CommandQueueImpl::queueSubmitImpl(
 }
 
 void CommandQueueImpl::executeCommandBuffers(
-    GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
+    GfxCount count,
+    ICommandBuffer* const* commandBuffers,
+    IFence* fence,
+    uint64_t valueToSignal
+)
 {
     AUTORELEASEPOOL
 
@@ -105,5 +108,4 @@ void CommandQueueImpl::executeCommandBuffers(
     queueSubmitImpl(count, commandBuffers, fence, valueToSignal);
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

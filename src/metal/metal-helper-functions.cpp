@@ -1,12 +1,8 @@
-// metal-helper-functions.cpp
 #include "metal-helper-functions.h"
 #include "metal-device.h"
 #include "metal-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
+namespace rhi {
 
 Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
 {

@@ -1,23 +1,15 @@
-// metal-shader-table.cpp
 #include "metal-shader-table.h"
-
 #include "metal-device.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     PipelineStateBase* pipeline,
     TransientResourceHeapBase* transientHeap,
-    IResourceCommandEncoder* encoder)
+    IResourceCommandEncoder* encoder
+)
 {
     return RefPtr<BufferResource>(0);
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

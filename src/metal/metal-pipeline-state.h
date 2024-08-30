@@ -1,4 +1,3 @@
-// metal-pipeline-state.h
 #pragma once
 
 #include "metal-base.h"
@@ -6,13 +5,7 @@
 #include <map>
 #include <string>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 class PipelineStateImpl : public PipelineStateBase
 {
@@ -52,5 +45,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

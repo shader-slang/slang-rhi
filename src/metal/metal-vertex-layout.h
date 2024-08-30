@@ -1,17 +1,10 @@
-// metal-vertex-layout.h
 #pragma once
 
 #include "metal-base.h"
 
 #include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 class InputLayoutImpl : public InputLayoutBase
 {
@@ -23,5 +16,4 @@ public:
     NS::SharedPtr<MTL::VertexDescriptor> createVertexDescriptor(NS::UInteger vertexBufferIndexOffset);
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

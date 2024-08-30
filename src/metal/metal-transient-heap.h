@@ -1,20 +1,12 @@
-// metal-transient-heap.h
 #pragma once
 
 #include "metal-base.h"
 #include "metal-buffer.h"
 #include "metal-command-buffer.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
-
-namespace metal
-{
-
-class TransientResourceHeapImpl
-    : public TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl>
+class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl>
 {
 private:
     typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl> Super;
@@ -26,10 +18,8 @@ public:
     ~TransientResourceHeapImpl();
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL synchronizeAndReset() override;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

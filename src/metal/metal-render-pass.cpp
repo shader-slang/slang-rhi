@@ -1,15 +1,6 @@
-// metal-render-pass.cpp
 #include "metal-render-pass.h"
 
-//#include "metal-helper-functions.h"
-
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 IRenderPassLayout* RenderPassLayoutImpl::getInterface(const Guid& guid)
 {
@@ -73,5 +64,4 @@ Result RenderPassLayoutImpl::init(DeviceImpl* device, const IRenderPassLayout::D
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

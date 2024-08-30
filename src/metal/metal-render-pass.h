@@ -1,20 +1,11 @@
-// metal-render-pass.h
 #pragma once
 
 #include "metal-base.h"
 #include "metal-device.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
-
-namespace metal
-{
-
-class RenderPassLayoutImpl
-    : public IRenderPassLayout
-    , public ComObject
+class RenderPassLayoutImpl : public IRenderPassLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -27,5 +18,4 @@ public:
     Result init(DeviceImpl* device, const IRenderPassLayout::Desc& desc);
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

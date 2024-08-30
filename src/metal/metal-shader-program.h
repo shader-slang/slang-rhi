@@ -1,4 +1,3 @@
-// metal-shader-program.h
 #pragma once
 
 #include "metal-base.h"
@@ -6,13 +5,7 @@
 
 #include <string>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 class ShaderProgramImpl : public ShaderProgramBase
 {
@@ -33,9 +26,8 @@ public:
     ShaderProgramImpl(DeviceImpl* device);
     ~ShaderProgramImpl();
 
-    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode) override;
+    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+        override;
 };
 
-
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

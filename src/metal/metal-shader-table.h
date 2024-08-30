@@ -1,15 +1,8 @@
-// metal-shader-table.h
 #pragma once
 
 #include "metal-base.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 class ShaderTableImpl : public ShaderTableBase
 {
@@ -24,8 +17,8 @@ public:
     virtual RefPtr<BufferResource> createDeviceBuffer(
         PipelineStateBase* pipeline,
         TransientResourceHeapBase* transientHeap,
-        IResourceCommandEncoder* encoder) override;
+        IResourceCommandEncoder* encoder
+    ) override;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

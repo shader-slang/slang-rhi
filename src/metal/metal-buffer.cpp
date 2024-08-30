@@ -1,24 +1,14 @@
-// metal-buffer.cpp
 #include "metal-buffer.h"
 #include "metal-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 BufferResourceImpl::BufferResourceImpl(const IBufferResource::Desc& desc, DeviceImpl* device)
-    : Parent(desc)
-    , m_device(device)
+    : Parent(desc), m_device(device)
 {
 }
 
-BufferResourceImpl::~BufferResourceImpl()
-{
-}
+BufferResourceImpl::~BufferResourceImpl() {}
 
 DeviceAddress BufferResourceImpl::getDeviceAddress()
 {
@@ -55,5 +45,4 @@ Result BufferResourceImpl::setDebugName(const char* name)
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

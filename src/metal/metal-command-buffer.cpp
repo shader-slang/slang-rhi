@@ -1,18 +1,10 @@
-// metal-command-buffer.cpp
 #include "metal-command-buffer.h"
-
-#include "metal-device.h"
 #include "metal-command-encoder.h"
-#include "metal-shader-object.h"
 #include "metal-command-queue.h"
+#include "metal-device.h"
+#include "metal-shader-object.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 ICommandBuffer* CommandBufferImpl::getInterface(const Guid& guid)
 {
@@ -29,7 +21,10 @@ Result CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapImpl* tr
 }
 
 void CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass, IFramebuffer* framebuffer, IRenderCommandEncoder** outEncoder)
+    IRenderPassLayout* renderPass,
+    IFramebuffer* framebuffer,
+    IRenderCommandEncoder** outEncoder
+)
 {
     if (!m_renderCommandEncoder)
     {
@@ -72,7 +67,7 @@ void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** out
 
 void CommandBufferImpl::close()
 {
-    //m_commandBuffer->commit();
+    // m_commandBuffer->commit();
 }
 
 Result CommandBufferImpl::getNativeHandle(InteropHandle* outHandle)
@@ -131,6 +126,4 @@ void CommandBufferImpl::endMetalCommandEncoder()
     }
 }
 
-
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

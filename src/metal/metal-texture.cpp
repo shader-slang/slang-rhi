@@ -1,23 +1,11 @@
-// metal-texture.cpp
 #include "metal-texture.h"
 #include "metal-util.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
+TextureResourceImpl::TextureResourceImpl(const Desc& desc, DeviceImpl* device) : Parent(desc), m_device(device) {}
 
-namespace metal
-{
-
-TextureResourceImpl::TextureResourceImpl(const Desc& desc, DeviceImpl* device)
-    : Parent(desc)
-    , m_device(device)
-{}
-
-TextureResourceImpl::~TextureResourceImpl()
-{
-}
+TextureResourceImpl::~TextureResourceImpl() {}
 
 Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
 {
@@ -38,5 +26,4 @@ Result TextureResourceImpl::setDebugName(const char* name)
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

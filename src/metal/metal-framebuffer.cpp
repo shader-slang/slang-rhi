@@ -1,16 +1,9 @@
-// metal-framebuffer.cpp
 #include "metal-framebuffer.h"
 #include "metal-device.h"
-#include "metal-resource-views.h"
 #include "metal-helper-functions.h"
+#include "metal-resource-views.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 Result FramebufferLayoutImpl::init(const IFramebufferLayout::Desc& desc)
 {
@@ -39,7 +32,7 @@ Result FramebufferImpl::init(DeviceImpl* device, const IFramebuffer::Desc& desc)
         m_renderTargetViews[i] = static_cast<TextureResourceViewImpl*>(desc.renderTargetViews[i]);
     }
     m_depthStencilView = static_cast<TextureResourceViewImpl*>(desc.depthStencilView);
-    
+
     // Determine framebuffer dimensions & sample count;
     m_width = 1;
     m_height = 1;
@@ -67,5 +60,4 @@ Result FramebufferImpl::init(DeviceImpl* device, const IFramebuffer::Desc& desc)
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

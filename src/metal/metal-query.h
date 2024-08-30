@@ -1,16 +1,9 @@
-// metal-query.h
 #pragma once
 
 #include "metal-base.h"
 #include "metal-device.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 class QueryPoolImpl : public QueryPoolBase
 {
@@ -22,10 +15,7 @@ public:
 
     Result init(DeviceImpl* device, const IQueryPool::Desc& desc);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getResult(GfxIndex index, GfxCount count, uint64_t* data) override;
-
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex index, GfxCount count, uint64_t* data) override;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

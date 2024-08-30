@@ -1,16 +1,9 @@
-// metal-buffer.h
 #pragma once
 
 #include "metal-base.h"
 #include "metal-device.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 class BufferResourceImpl : public BufferResource
 {
@@ -36,5 +29,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setDebugName(const char* name) override;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

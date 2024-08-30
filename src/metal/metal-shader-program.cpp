@@ -1,24 +1,12 @@
-// metal-shader-program.cpp
 #include "metal-shader-program.h"
 #include "metal-device.h"
 #include "metal-util.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
+ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device) : m_device(device) {}
 
-namespace metal
-{
-
-ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
-    : m_device(device)
-{
-}
-
-ShaderProgramImpl::~ShaderProgramImpl()
-{
-}
+ShaderProgramImpl::~ShaderProgramImpl() {}
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
@@ -26,8 +14,13 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     module.stage = entryPointInfo->getStage();
     module.entryPointName = entryPointInfo->getNameOverride();
     module.code = kernelCode;
-    
-    dispatch_data_t data = dispatch_data_create(kernelCode->getBufferPointer(), kernelCode->getBufferSize(), dispatch_get_main_queue(), NULL);
+
+    dispatch_data_t data = dispatch_data_create(
+        kernelCode->getBufferPointer(),
+        kernelCode->getBufferSize(),
+        dispatch_get_main_queue(),
+        NULL
+    );
     NS::Error* error;
     module.library = NS::TransferPtr(m_device->m_device->newLibrary(data, &error));
     if (!module.library)
@@ -41,5 +34,4 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

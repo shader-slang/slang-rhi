@@ -1,4 +1,3 @@
-// metal-swap-chain.h
 #pragma once
 
 #include "metal-base.h"
@@ -8,17 +7,9 @@
 
 #include "utils/short_vector.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
-
-namespace metal
-{
-
-class SwapchainImpl
-    : public ISwapchain
-    , public ComObject
+class SwapchainImpl : public ISwapchain, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -43,8 +34,7 @@ public:
     Result init(DeviceImpl* device, const ISwapchain::Desc& desc, WindowHandle window);
 
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getImage(GfxIndex index, ITextureResource** outResource) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITextureResource** outResource) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL resize(GfxCount width, GfxCount height) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
     virtual SLANG_NO_THROW int SLANG_MCALL acquireNextImage() override;
@@ -52,5 +42,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) override;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

@@ -1,14 +1,7 @@
-// metal-vertex-layout.cpp
 #include "metal-vertex-layout.h"
 #include "metal-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 Result InputLayoutImpl::init(const IInputLayout::Desc& desc)
 {
@@ -53,5 +46,4 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
     return vertexDescriptor;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

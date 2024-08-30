@@ -1,4 +1,3 @@
-// metal-framebuffer.h
 #pragma once
 
 #include "metal-base.h"
@@ -7,13 +6,7 @@
 
 #include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 enum
 {
@@ -46,5 +39,4 @@ public:
     Result init(DeviceImpl* device, const IFramebuffer::Desc& desc);
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

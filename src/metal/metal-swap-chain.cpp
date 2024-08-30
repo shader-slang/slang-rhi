@@ -1,16 +1,8 @@
-// metal-swap-chain.cpp
 #include "metal-swap-chain.h"
-
-#include "metal-util.h"
 #include "../cocoa-util.h"
+#include "metal-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
+namespace rhi::metal {
 
 ISwapchain* SwapchainImpl::getInterface(const Guid& guid)
 {
@@ -31,7 +23,11 @@ void SwapchainImpl::createImages()
     {
         ITextureResource::Desc imageDesc = {};
         imageDesc.allowedStates = ResourceStateSet(
-            ResourceState::Present, ResourceState::RenderTarget, ResourceState::CopyDestination, ResourceState::CopySource);
+            ResourceState::Present,
+            ResourceState::RenderTarget,
+            ResourceState::CopyDestination,
+            ResourceState::CopySource
+        );
         imageDesc.type = IResource::Type::Texture2D;
         imageDesc.arraySize = 0;
         imageDesc.format = m_desc.format;
@@ -146,5 +142,4 @@ Result SwapchainImpl::setFullScreenMode(bool mode)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-} // namespace metal 
-} // namespace rhi
+} // namespace rhi::metal

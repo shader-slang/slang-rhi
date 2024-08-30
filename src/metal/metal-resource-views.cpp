@@ -1,17 +1,8 @@
-// metal-resource-views.cpp
 #include "metal-resource-views.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
-
-namespace metal
-{
-
-TextureResourceViewImpl::~TextureResourceViewImpl()
-{
-}
+TextureResourceViewImpl::~TextureResourceViewImpl() {}
 
 Result TextureResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
@@ -20,9 +11,7 @@ Result TextureResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-BufferResourceViewImpl::~BufferResourceViewImpl()
-{
-}
+BufferResourceViewImpl::~BufferResourceViewImpl() {}
 
 Result BufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
@@ -33,11 +22,10 @@ Result BufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
 
 TexelBufferResourceViewImpl::TexelBufferResourceViewImpl(DeviceImpl* device)
     : ResourceViewImpl(ViewType::TexelBuffer, device)
-{}
-
-TexelBufferResourceViewImpl::~TexelBufferResourceViewImpl()
 {
 }
+
+TexelBufferResourceViewImpl::~TexelBufferResourceViewImpl() {}
 
 Result TexelBufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
@@ -54,9 +42,6 @@ Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-AccelerationStructureImpl::~AccelerationStructureImpl()
-{
-}
+AccelerationStructureImpl::~AccelerationStructureImpl() {}
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

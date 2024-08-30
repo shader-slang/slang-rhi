@@ -1,19 +1,8 @@
-// metal-query.cpp
 #include "metal-query.h"
 
-//#include "metal-util.h"
+namespace rhi::metal {
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace metal
-{
-
-QueryPoolImpl::~QueryPoolImpl()
-{
-}
+QueryPoolImpl::~QueryPoolImpl() {}
 
 static MTL::CounterSet* findCounterSet(MTL::Device* device, QueryType queryType)
 {
@@ -50,7 +39,8 @@ Result QueryPoolImpl::init(DeviceImpl* device, const IQueryPool::Desc& desc)
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    NS::SharedPtr<MTL::CounterSampleBufferDescriptor> counterSampleBufferDesc = NS::TransferPtr(MTL::CounterSampleBufferDescriptor::alloc()->init());
+    NS::SharedPtr<MTL::CounterSampleBufferDescriptor> counterSampleBufferDesc =
+        NS::TransferPtr(MTL::CounterSampleBufferDescriptor::alloc()->init());
     counterSampleBufferDesc->setStorageMode(MTL::StorageModeShared);
     counterSampleBufferDesc->setSampleCount(m_desc.count);
     counterSampleBufferDesc->setCounterSet(counterSet);
@@ -58,7 +48,8 @@ Result QueryPoolImpl::init(DeviceImpl* device, const IQueryPool::Desc& desc)
     m_device->m_device->counterSets();
 
     NS::Error* error;
-    m_counterSampleBuffer = NS::TransferPtr(m_device->m_device->newCounterSampleBuffer(counterSampleBufferDesc.get(), &error));
+    m_counterSampleBuffer =
+        NS::TransferPtr(m_device->m_device->newCounterSampleBuffer(counterSampleBufferDesc.get(), &error));
 
     return m_counterSampleBuffer ? SLANG_OK : SLANG_FAIL;
 }
@@ -68,5 +59,4 @@ Result QueryPoolImpl::getResult(GfxIndex index, GfxCount count, uint64_t* data)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

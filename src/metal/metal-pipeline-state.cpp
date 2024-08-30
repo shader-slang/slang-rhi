@@ -1,28 +1,15 @@
-// metal-pipeline-state.cpp
 #include "metal-pipeline-state.h"
-
 #include "metal-device.h"
-#include "metal-shader-program.h"
 #include "metal-shader-object-layout.h"
-#include "metal-vertex-layout.h"
+#include "metal-shader-program.h"
 #include "metal-util.h"
+#include "metal-vertex-layout.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
+PipelineStateImpl::PipelineStateImpl(DeviceImpl* device) : m_device(device) {}
 
-namespace metal
-{
-
-PipelineStateImpl::PipelineStateImpl(DeviceImpl* device)
-    : m_device(device)
-{
-}
-
-PipelineStateImpl::~PipelineStateImpl()
-{
-}
+PipelineStateImpl::~PipelineStateImpl() {}
 
 void PipelineStateImpl::init(const GraphicsPipelineStateDesc& desc)
 {
@@ -81,7 +68,8 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     // The +1 is to account for a potential constant buffer at index 0.
     m_vertexBufferOffset = programImpl->m_rootObjectLayout->getBufferCount() + 1;
     auto inputLayoutImpl = static_cast<InputLayoutImpl*>(desc.graphics.inputLayout);
-    NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor = inputLayoutImpl->createVertexDescriptor(m_vertexBufferOffset);
+    NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor =
+        inputLayoutImpl->createVertexDescriptor(m_vertexBufferOffset);
     pd->setVertexDescriptor(vertexDescriptor.get());
     pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveType));
 
@@ -104,10 +92,15 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
             const TargetBlendDesc& targetBlendDesc = blend.targets[i];
             colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
             colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
-            colorAttachment->setDestinationRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor));
+            colorAttachment->setDestinationRGBBlendFactor(
+                MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor)
+            );
             colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
-            colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor));
-            colorAttachment->setDestinationAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor));
+            colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor)
+            );
+            colorAttachment->setDestinationAlphaBlendFactor(
+                MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
+            );
             colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
             colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
         }
@@ -128,7 +121,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     }
 
     pd->setRasterSampleCount(sampleCount);
-    
+
     NS::Error* error;
     m_renderPipelineState = NS::TransferPtr(m_device->m_device->newRenderPipelineState(pd.get(), &error));
     if (!m_renderPipelineState)
@@ -138,7 +131,8 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     }
 
     // Create depth stencil state
-    auto createStencilDesc = [](const DepthStencilOpDesc& desc, uint32_t readMask, uint32_t writeMask) -> NS::SharedPtr<MTL::StencilDescriptor>
+    auto createStencilDesc = [](const DepthStencilOpDesc& desc, uint32_t readMask, uint32_t writeMask
+                             ) -> NS::SharedPtr<MTL::StencilDescriptor>
     {
         NS::SharedPtr<MTL::StencilDescriptor> stencilDesc = NS::TransferPtr(MTL::StencilDescriptor::alloc()->init());
         stencilDesc->setStencilCompareFunction(MetalUtil::translateCompareFunction(desc.stencilFunc));
@@ -151,7 +145,8 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     };
 
     const auto& depthStencil = desc.graphics.depthStencil;
-    NS::SharedPtr<MTL::DepthStencilDescriptor> depthStencilDesc = NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
+    NS::SharedPtr<MTL::DepthStencilDescriptor> depthStencilDesc =
+        NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
     m_depthStencilState = NS::TransferPtr(m_device->m_device->newDepthStencilState(depthStencilDesc.get()));
     if (!m_depthStencilState)
     {
@@ -164,8 +159,12 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     depthStencilDesc->setDepthWriteEnabled(depthStencil.depthWriteEnable);
     if (depthStencil.stencilEnable)
     {
-        depthStencilDesc->setFrontFaceStencil(createStencilDesc(depthStencil.frontFace, depthStencil.stencilReadMask, depthStencil.stencilWriteMask).get());
-        depthStencilDesc->setBackFaceStencil(createStencilDesc(depthStencil.backFace, depthStencil.stencilReadMask, depthStencil.stencilWriteMask).get());
+        depthStencilDesc->setFrontFaceStencil(
+            createStencilDesc(depthStencil.frontFace, depthStencil.stencilReadMask, depthStencil.stencilWriteMask).get()
+        );
+        depthStencilDesc->setBackFaceStencil(
+            createStencilDesc(depthStencil.backFace, depthStencil.stencilReadMask, depthStencil.stencilWriteMask).get()
+        );
     }
 
     return SLANG_OK;
@@ -183,7 +182,7 @@ Result PipelineStateImpl::createMetalComputePipelineState()
     if (!function)
         return SLANG_FAIL;
 
-    NS::Error *error;
+    NS::Error* error;
     m_computePipelineState = NS::TransferPtr(m_device->m_device->newComputePipelineState(function.get(), &error));
 
     // Query thread group size for use during dispatch.
@@ -197,7 +196,7 @@ Result PipelineStateImpl::createMetalComputePipelineState()
 Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 {
     AUTORELEASEPOOL
-    
+
     switch (desc.type)
     {
     case PipelineType::Compute:
@@ -227,9 +226,7 @@ SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHand
     return SLANG_FAIL;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
-    : PipelineStateImpl(device)
-{}
+RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device) : PipelineStateImpl(device) {}
 
 Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
 {
@@ -241,7 +238,4 @@ Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-
-
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

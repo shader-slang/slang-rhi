@@ -1,14 +1,10 @@
-// metal-helper-functions.h
 #pragma once
+
 #include "metal-base.h"
 
 #include <vector>
 
-namespace rhi
-{
-using namespace Slang;
-namespace metal
-{
+namespace rhi::metal {
 
 /// A "simple" binding offset that records an offset in buffer/texture/sampler slots
 struct BindingOffset
@@ -71,15 +67,9 @@ struct ComputeBindingContext : public BindingContext
         return SLANG_OK;
     }
 
-    void setBuffer(MTL::Buffer* buffer, NS::UInteger index) override
-    {
-        encoder->setBuffer(buffer, 0, index);
-    }
+    void setBuffer(MTL::Buffer* buffer, NS::UInteger index) override { encoder->setBuffer(buffer, 0, index); }
 
-    void setTexture(MTL::Texture* texture, NS::UInteger index) override
-    {
-        encoder->setTexture(texture, index);
-    }
+    void setTexture(MTL::Texture* texture, NS::UInteger index) override { encoder->setTexture(texture, index); }
 
     void setSampler(MTL::SamplerState* sampler, NS::UInteger index) override
     {
@@ -117,7 +107,9 @@ struct RenderBindingContext : public BindingContext
     }
 };
 
-} // namespace metal
+} // namespace rhi::metal
+
+namespace rhi {
 
 Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outRenderer);

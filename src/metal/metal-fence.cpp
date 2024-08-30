@@ -1,18 +1,9 @@
-// metal-fence.cpp
 #include "metal-fence.h"
 #include "metal-device.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
-
-namespace metal
-{
-
-FenceImpl::~FenceImpl()
-{
-}
+FenceImpl::~FenceImpl() {}
 
 Result FenceImpl::init(DeviceImpl* device, const IFence::Desc& desc)
 {
@@ -50,5 +41,4 @@ Result FenceImpl::getNativeHandle(InteropHandle* outNativeHandle)
     return SLANG_OK;
 }
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal

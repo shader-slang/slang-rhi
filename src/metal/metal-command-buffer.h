@@ -1,22 +1,13 @@
-// metal-command-buffer.h
 #pragma once
 
-#include "metal-base.h"
-#include "metal-shader-object.h"
-#include "metal-command-encoder.h"
 #include "../simple-transient-resource-heap.h"
+#include "metal-base.h"
+#include "metal-command-encoder.h"
+#include "metal-shader-object.h"
 
-namespace rhi
-{
+namespace rhi::metal {
 
-using namespace Slang;
-
-namespace metal
-{
-
-class CommandBufferImpl
-    : public ICommandBuffer
-    , public ComObject
+class CommandBufferImpl : public ICommandBuffer, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -54,16 +45,13 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
         IRenderPassLayout* renderPass,
         IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+        IRenderCommandEncoder** outEncoder
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace metal
-} // namespace rhi
+} // namespace rhi::metal
