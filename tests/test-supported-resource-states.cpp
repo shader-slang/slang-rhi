@@ -17,10 +17,8 @@ struct SupportedResourceStatesTest
 
     ComPtr<ITextureResource> texture;
     ComPtr<IBufferResource> buffer;
-    
-    SupportedResourceStatesTest(IDevice* device)
-        : device(device)
-    {}
+
+    SupportedResourceStatesTest(IDevice* device) : device(device) {}
 
     Format convertTypelessFormat(Format format)
     {
@@ -60,10 +58,9 @@ struct SupportedResourceStatesTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -120,7 +117,8 @@ struct SupportedResourceStatesTest
                 ResourceState::ShaderResource,
                 ResourceState::UnorderedAccess,
                 ResourceState::CopySource,
-                ResourceState::CopyDestination);
+                ResourceState::CopyDestination
+            );
 
             bufferAllowedStates.add(
                 ResourceState::VertexBuffer,
@@ -133,7 +131,8 @@ struct SupportedResourceStatesTest
                 ResourceState::ShaderResource,
                 ResourceState::UnorderedAccess,
                 ResourceState::CopySource,
-                ResourceState::CopyDestination);
+                ResourceState::CopyDestination
+            );
 
             ResourceState currentState = ResourceState::CopySource;
             ITextureResource::Extents extent;
@@ -151,10 +150,7 @@ struct SupportedResourceStatesTest
             texDesc.memoryType = MemoryType::DeviceLocal;
             texDesc.format = format;
 
-            REQUIRE_CALL(device->createTextureResource(
-                texDesc,
-                nullptr,
-                texture.writeRef()));
+            REQUIRE_CALL(device->createTextureResource(texDesc, nullptr, texture.writeRef()));
 
             IBufferResource::Desc bufferDesc = {};
             bufferDesc.sizeInBytes = 256;
@@ -164,10 +160,7 @@ struct SupportedResourceStatesTest
             bufferDesc.defaultState = currentState;
             bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-            REQUIRE_CALL(device->createBufferResource(
-                bufferDesc,
-                nullptr,
-                buffer.writeRef()));
+            REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, buffer.writeRef()));
 
             transitionResourceStates(device);
         }

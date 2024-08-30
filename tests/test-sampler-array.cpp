@@ -14,13 +14,13 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(
-        device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
 
     return buffer;
 }
@@ -31,8 +31,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
@@ -41,8 +40,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     std::vector<ComPtr<ISamplerState>> samplers;
     std::vector<ComPtr<IResourceView>> srvs;
@@ -54,8 +52,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(
-            device->createBufferView(buffer, nullptr, viewDesc, uav.writeRef()));
+        REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, uav.writeRef()));
     }
     {
         ITextureResource::Desc textureDesc = {};
@@ -70,8 +67,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.allowedStates.add(ResourceState::CopyDestination);
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
         ITextureResource::SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
-        REQUIRE_CALL(
-            device->createTextureResource(textureDesc, subResourceData, texture.writeRef()));
+        REQUIRE_CALL(device->createTextureResource(textureDesc, subResourceData, texture.writeRef()));
     }
     for (uint32_t i = 0; i < 32; i++)
     {
@@ -81,8 +77,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         viewDesc.format = Format::R8G8B8A8_UNORM;
         viewDesc.subresourceRange.layerCount = 1;
         viewDesc.subresourceRange.mipLevelCount = 1;
-        REQUIRE_CALL(
-            device->createTextureView(texture, viewDesc, srv.writeRef()));
+        REQUIRE_CALL(device->createTextureView(texture, viewDesc, srv.writeRef()));
         srvs.push_back(srv);
     }
 
@@ -99,11 +94,17 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     ComPtr<IShaderObject> g;
     device->createMutableShaderObject(
-        slangReflection->findTypeByName("S0"), ShaderObjectContainerType::None, g.writeRef());
+        slangReflection->findTypeByName("S0"),
+        ShaderObjectContainerType::None,
+        g.writeRef()
+    );
 
     ComPtr<IShaderObject> s1;
     device->createMutableShaderObject(
-        slangReflection->findTypeByName("S1"), ShaderObjectContainerType::None, s1.writeRef());
+        slangReflection->findTypeByName("S1"),
+        ShaderObjectContainerType::None,
+        s1.writeRef()
+    );
 
     {
         auto cursor = ShaderCursor(s1);
@@ -128,7 +129,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     {
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -144,8 +145,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device, buffer, makeArray<float>(4.0f));
+    compareComputeResult(device, buffer, makeArray<float>(4.0f));
 }
 
 TEST_CASE("sampler-array")

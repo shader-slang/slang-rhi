@@ -8,8 +8,8 @@
 
 #include "../src/utils/blob.h"
 
-#include <string_view>
 #include <array>
+#include <string_view>
 #include <vector>
 
 namespace rhi::testing {
@@ -32,7 +32,8 @@ std::string getCaseTempDirectory();
 /// Cleanup all temp directories created by tests.
 void cleanupTestTempDirectories();
 
-struct GpuTestContext {
+struct GpuTestContext
+{
     slang::IGlobalSession* slangGlobalSession;
 };
 
@@ -45,7 +46,8 @@ Slang::Result loadComputeProgram(
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
-    slang::ProgramLayout*& slangReflection);
+    slang::ProgramLayout*& slangReflection
+);
 
 Slang::Result loadComputeProgram(
     IDevice* device,
@@ -53,12 +55,14 @@ Slang::Result loadComputeProgram(
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
-    slang::ProgramLayout*& slangReflection);
+    slang::ProgramLayout*& slangReflection
+);
 
 Slang::Result loadComputeProgramFromSource(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
-    std::string_view source);
+    std::string_view source
+);
 
 Slang::Result loadGraphicsProgram(
     IDevice* device,
@@ -66,15 +70,17 @@ Slang::Result loadGraphicsProgram(
     const char* shaderModuleName,
     const char* vertexEntryPointName,
     const char* fragmentEntryPointName,
-    slang::ProgramLayout*& slangReflection);
+    slang::ProgramLayout*& slangReflection
+);
 
-    /// Reads back the content of `buffer` and compares it against `expectedResult`.
+/// Reads back the content of `buffer` and compares it against `expectedResult`.
 void compareComputeResult(
     IDevice* device,
     IBufferResource* buffer,
     size_t offset,
     const void* expectedResult,
-    size_t expectedBufferSize);
+    size_t expectedBufferSize
+);
 
 /// Reads back the content of `texture` and compares it against `expectedResult`.
 void compareComputeResult(
@@ -83,25 +89,21 @@ void compareComputeResult(
     ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
-    size_t rowCount);
+    size_t rowCount
+);
 
-void compareComputeResultFuzzy(
-    const float* result,
-    float* expectedResult,
-    size_t expectedBufferSize);
+void compareComputeResultFuzzy(const float* result, float* expectedResult, size_t expectedBufferSize);
 
-    /// Reads back the content of `buffer` and compares it against `expectedResult` with a set tolerance.
+/// Reads back the content of `buffer` and compares it against `expectedResult` with a set tolerance.
 void compareComputeResultFuzzy(
     IDevice* device,
     IBufferResource* buffer,
     float* expectedResult,
-    size_t expectedBufferSize);
+    size_t expectedBufferSize
+);
 
-template<typename T, size_t Count>
-void compareComputeResult(
-    IDevice* device,
-    IBufferResource* buffer,
-    std::array<T, Count> expectedResult)
+template <typename T, size_t Count>
+void compareComputeResult(IDevice* device, IBufferResource* buffer, std::array<T, Count> expectedResult)
 {
     if constexpr (std::is_same<T, float>::value)
         return compareComputeResultFuzzy(device, buffer, expectedResult.data(), expectedResult.size());
@@ -113,12 +115,14 @@ ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice = true,
-    std::vector<const char*> additionalSearchPaths = {});
+    std::vector<const char*> additionalSearchPaths = {}
+);
 
 ComPtr<slang::ISession> createTestingSession(
     GpuTestContext* ctx,
     DeviceType deviceType,
-    std::vector<const char*> additionalSearchPaths = {});
+    std::vector<const char*> additionalSearchPaths = {}
+);
 
 bool isSwiftShaderDevice(IDevice* device);
 
@@ -128,7 +132,7 @@ void initializeRenderDoc();
 void renderDocBeginFrame();
 void renderDocEndFrame();
 
-template<typename T, typename ...Args>
+template <typename T, typename... Args>
 auto makeArray(Args... args)
 {
     return std::array<T, sizeof...(Args)>{static_cast<T>(args)...};

@@ -9,13 +9,13 @@ static void setUpAndRunShader(
     ComPtr<IResourceView> texView,
     ComPtr<IResourceView> bufferView,
     const char* entryPoint,
-    ComPtr<ISamplerState> sampler = nullptr)
+    ComPtr<ISamplerState> sampler = nullptr
+)
 {
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
@@ -24,13 +24,12 @@ static void setUpAndRunShader(
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -38,8 +37,7 @@ static void setUpAndRunShader(
 
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        ShaderCursor entryPointCursor(
-            rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
+        ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
         auto& desc = *tex->getDesc();
         entryPointCursor["width"].setData(desc.size.width);
@@ -48,7 +46,8 @@ static void setUpAndRunShader(
         // Bind texture view to the entry point
         entryPointCursor["tex"].setResource(texView);
 
-        if (sampler) entryPointCursor["sampler"].setSampler(sampler);
+        if (sampler)
+            entryPointCursor["sampler"].setSampler(sampler);
 
         // Bind buffer view to the entry point.
         entryPointCursor["buffer"].setResource(bufferView);
@@ -61,7 +60,12 @@ static void setUpAndRunShader(
     }
 }
 
-static ComPtr<ITextureResource> createTexture(IDevice* device, ITextureResource::Extents extents, Format format, ITextureResource::SubresourceData* initialData)
+static ComPtr<ITextureResource> createTexture(
+    IDevice* device,
+    ITextureResource::Extents extents,
+    Format format,
+    ITextureResource::SubresourceData* initialData
+)
 {
     ITextureResource::Desc texDesc = {};
     texDesc.type = IResource::Type::Texture2D;
@@ -73,15 +77,13 @@ static ComPtr<ITextureResource> createTexture(IDevice* device, ITextureResource:
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     texDesc.format = format;
     texDesc.isShared = true;
 
     ComPtr<ITextureResource> inTex;
-    REQUIRE_CALL(device->createTextureResource(
-        texDesc,
-        initialData,
-        inTex.writeRef()));
+    REQUIRE_CALL(device->createTextureResource(texDesc, initialData, inTex.writeRef()));
     return inTex;
 }
 
@@ -90,7 +92,8 @@ static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITextureResou
     ComPtr<IResourceView> texView;
     IResourceView::Desc texViewDesc = {};
     texViewDesc.type = IResourceView::Type::UnorderedAccess;
-    texViewDesc.format = inTexture->getDesc()->format; // TODO: Handle typeless formats - gfxIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
+    texViewDesc.format = inTexture->getDesc()->format; // TODO: Handle typeless formats - gfxIsTypelessFormat(format) ?
+                                                       // convertTypelessFormat(format) : format;
     REQUIRE_CALL(device->createTextureView(inTexture, texViewDesc, texView.writeRef()));
     return texView;
 }
@@ -106,15 +109,13 @@ ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialDat
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> outBuffer;
-    REQUIRE_CALL(device->createBufferResource(
-        bufferDesc,
-        initialData,
-        outBuffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, initialData, outBuffer.writeRef()));
     return outBuffer;
 }
 
@@ -124,12 +125,11 @@ static ComPtr<IResourceView> createOutBufferView(IDevice* device, ComPtr<IBuffer
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(
-        device->createBufferView(outBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    REQUIRE_CALL(device->createBufferView(outBuffer, nullptr, viewDesc, bufferView.writeRef()));
     return bufferView;
 }
 
-template<DeviceType DstDeviceType>
+template <DeviceType DstDeviceType>
 void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> srcDevice = createTestingDevice(ctx, deviceType);
@@ -138,15 +138,15 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     ISamplerState::Desc samplerDesc;
     auto sampler = dstDevice->createSamplerState(samplerDesc);
 
-    float initFloatData[16] = { 0.0f };
+    float initFloatData[16] = {0.0f};
     auto floatResults = createBuffer<float>(dstDevice, 16, initFloatData);
     auto floatBufferView = createOutBufferView(dstDevice, floatResults);
 
-    uint32_t initUintData[16] = { 0u };
+    uint32_t initUintData[16] = {0u};
     auto uintResults = createBuffer<uint32_t>(dstDevice, 16, initUintData);
     auto uintBufferView = createOutBufferView(dstDevice, uintResults);
 
-    int32_t initIntData[16] = { 0 };
+    int32_t initIntData[16] = {0};
     auto intResults = createBuffer<uint32_t>(dstDevice, 16, initIntData);
     auto intBufferView = createOutBufferView(dstDevice, intResults);
 
@@ -161,9 +161,9 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     bcSize.depth = 1;
 
     {
-        float texData[] = { 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-                            0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f };
-        ITextureResource::SubresourceData subData = { (void*)texData, 32, 0 };
+        float texData[] =
+            {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
+        ITextureResource::SubresourceData subData = {(void*)texData, 32, 0};
 
         // Create a shareable texture using srcDevice, get its handle, then create a texture using the handle using
         // dstDevice. Read back the texture and check that its contents are correct.
@@ -175,24 +175,25 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
         size_t sizeInBytes = 0;
         size_t alignment = 0;
         REQUIRE_CALL(srcDevice->getTextureAllocationInfo(*(srcTexture->getDesc()), &sizeInBytes, &alignment));
-        REQUIRE_CALL(dstDevice->createTextureFromSharedHandle(sharedHandle, *(srcTexture->getDesc()), sizeInBytes, dstTexture.writeRef()));
-        // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from dstDevice
+        REQUIRE_CALL(dstDevice->createTextureFromSharedHandle(
+            sharedHandle,
+            *(srcTexture->getDesc()),
+            sizeInBytes,
+            dstTexture.writeRef()
+        ));
+        // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
+        // dstDevice
         // TODO: Implement actual synchronization (and not this hacky solution)
-        compareComputeResult(
-            dstDevice,
-            dstTexture,
-            ResourceState::ShaderResource,
-            texData,
-            32,
-            2);
+        compareComputeResult(dstDevice, dstTexture, ResourceState::ShaderResource, texData, 32, 2);
 
         auto texView = createTexView(dstDevice, dstTexture);
         setUpAndRunShader(dstDevice, dstTexture, texView, floatBufferView, "copyTexFloat4");
         compareComputeResult(
             dstDevice,
             floatResults,
-            makeArray<float>(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-                                    0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f));
+            makeArray<
+                float>(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f)
+        );
     }
 }
 

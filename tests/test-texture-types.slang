@@ -288,7 +288,7 @@ void resourceViewTest<T:ITestCase>(
     uniform RWStructuredBuffer<Element> testResults)
 {
     uint tid = sv_dispatchThreadID.x;
-    
+
     uint tmp = tid;
     uint x = tmp % width; tmp /= width;
     uint y = tmp % height; tmp /= height;

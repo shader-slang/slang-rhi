@@ -11,7 +11,8 @@ static Slang::Result precompileProgram(
     gfx::IDevice* device,
     ISlangMutableFileSystem* fileSys,
     const char* shaderModuleName,
-    bool precompileToTarget)
+    bool precompileToTarget
+)
 {
     ComPtr<slang::ISession> slangSession;
     SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
@@ -63,8 +64,7 @@ void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context,
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     // First, load and compile the slang source.
     ComPtr<ISlangMutableFileSystem> memoryFileSystem = ComPtr<ISlangMutableFileSystem>(new Slang::MemoryFileSystem());
@@ -112,16 +112,17 @@ void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context,
         }
     )";
     memoryFileSystem->saveFile("precompiled-module.slang", moduleSrc, strlen(moduleSrc));
-    REQUIRE_CALL(loadComputeProgram(device, slangSession, shaderProgram, "precompiled-module", "computeMain", slangReflection));
+    REQUIRE_CALL(
+        loadComputeProgram(device, slangSession, shaderProgram, "precompiled-module", "computeMain", slangReflection)
+    );
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<gfx::IPipelineState> pipelineState;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     const int numberCount = 4;
-    float initialData[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float initialData[] = {0.0f, 0.0f, 0.0f, 0.0f};
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
     bufferDesc.format = gfx::Format::Unknown;
@@ -130,27 +131,24 @@ void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context,
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(
-        bufferDesc,
-        (void*)initialData,
-        numbersBuffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(
-        device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -158,8 +156,7 @@ void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context,
 
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        ShaderCursor entryPointCursor(
-            rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
+        ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
         entryPointCursor.getPath("buffer").setResource(bufferView);
 
@@ -170,10 +167,7 @@ void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context,
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device,
-        numbersBuffer,
-        Slang::makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
+    compareComputeResult(device, numbersBuffer, Slang::makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
 }
 
 void precompiledModule2TestImpl(IDevice* device, UnitTestContext* context)

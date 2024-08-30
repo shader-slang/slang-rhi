@@ -10,20 +10,19 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
+    );
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
-    float initialData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
+    float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     const int numberCount = SLANG_COUNT_OF(initialData);
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = sizeof(initialData);
@@ -33,33 +32,30 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(
-        bufferDesc,
-        (void*)initialData,
-        numbersBuffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(
-        device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     ComPtr<IShaderObject> rootObject;
     device->createMutableRootShaderObject(shaderProgram, rootObject.writeRef());
     auto entryPointCursor = ShaderCursor(rootObject->getEntryPoint(0));
     entryPointCursor.getPath("buffer").setResource(bufferView);
 
-    slang::TypeReflection* addTransformerType =
-        slangReflection->findTypeByName("AddTransformer");
+    slang::TypeReflection* addTransformerType = slangReflection->findTypeByName("AddTransformer");
     ComPtr<IShaderObject> transformer;
-    REQUIRE_CALL(device->createMutableShaderObject(
-        addTransformerType, ShaderObjectContainerType::None, transformer.writeRef()));
+    REQUIRE_CALL(
+        device->createMutableShaderObject(addTransformerType, ShaderObjectContainerType::None, transformer.writeRef())
+    );
     entryPointCursor.getPath("transformer").setObject(transformer);
 
     // Set the `c` field of the `AddTransformer`.
@@ -67,7 +63,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
 
     {
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -79,7 +75,8 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         }
 
         auto barrierEncoder = commandBuffer->encodeResourceCommands();
-        barrierEncoder->bufferBarrier(1, numbersBuffer.readRef(), ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
+        barrierEncoder
+            ->bufferBarrier(1, numbersBuffer.readRef(), ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
         barrierEncoder->endEncoding();
 
         // Mutate `transformer` object and run again.
@@ -97,10 +94,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device,
-        numbersBuffer,
-        makeArray<float>(3.0f, 4.0f, 5.0f, 6.0f));
+    compareComputeResult(device, numbersBuffer, makeArray<float>(3.0f, 4.0f, 5.0f, 6.0f));
 }
 
 TEST_CASE("root-mutable-shader-object")

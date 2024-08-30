@@ -10,29 +10,33 @@ struct Vertex
 };
 
 static const int kVertexCount = 9;
-static const Vertex kVertexData[kVertexCount] =
-{
+static const Vertex kVertexData[kVertexCount] = {
     // Triangle 1
-    {  0,  0, 1 },
-    {  4,  0, 1 },
-    {  0,  4, 1 },
+    {0, 0, 1},
+    {4, 0, 1},
+    {0, 4, 1},
 
     // Triangle 2
-    { -4,  0, 1 },
-    {  0,  0, 1 },
-    {  0,  4, 1 },
+    {-4, 0, 1},
+    {0, 0, 1},
+    {0, 4, 1},
 
     // Triangle 3
-    {  0,  0, 1 },
-    {  4,  0, 1 },
-    {  0, -4, 1 },
+    {0, 0, 1},
+    {4, 0, 1},
+    {0, -4, 1},
 };
 static const int kIndexCount = 9;
-static const uint32_t kIndexData[kIndexCount] =
-{
-    0, 1, 2,
-    3, 4, 5,
-    6, 7, 8,
+static const uint32_t kIndexData[kIndexCount] = {
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
 };
 
 struct BaseRayTracingTest
@@ -59,10 +63,7 @@ struct BaseRayTracingTest
     uint32_t width = 2;
     uint32_t height = 2;
 
-    void init(IDevice* device)
-    {
-        this->device = device;
-    }
+    void init(IDevice* device) { this->device = device; }
 
     // Load and compile shader code from source.
     Result loadShaderProgram(IDevice* device, IShaderProgram** outProgram)
@@ -86,11 +87,9 @@ struct BaseRayTracingTest
         componentTypes.push_back(entryPoint);
         SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShaderB", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(
-            module->findEntryPointByName("closestHitShaderA", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderA", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(
-            module->findEntryPointByName("closestHitShaderB", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderB", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
 
         ComPtr<slang::IComponentType> linkedProgram;
@@ -98,7 +97,8 @@ struct BaseRayTracingTest
             componentTypes.data(),
             componentTypes.size(),
             linkedProgram.writeRef(),
-            diagnosticsBlob.writeRef());
+            diagnosticsBlob.writeRef()
+        );
         SLANG_RETURN_ON_FAIL(result);
 
         IShaderProgram::Desc programDesc = {};
@@ -149,26 +149,23 @@ struct BaseRayTracingTest
         transformBufferDesc.type = IResource::Type::Buffer;
         transformBufferDesc.sizeInBytes = sizeof(float) * 12;
         transformBufferDesc.defaultState = ResourceState::ShaderResource;
-        float transformData[12] = {
-            1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
+        float transformData[12] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
         transformBuffer = device->createBufferResource(transformBufferDesc, &transformData);
         REQUIRE(transformBuffer != nullptr);
 
         createResultTexture();
 
-        IFramebufferLayout::TargetLayout renderTargetLayout = { Format::R8G8B8A8_UNORM, 1 };
-        IFramebufferLayout::TargetLayout depthLayout = { Format::D32_FLOAT, 1 };
+        IFramebufferLayout::TargetLayout renderTargetLayout = {Format::R8G8B8A8_UNORM, 1};
+        IFramebufferLayout::TargetLayout depthLayout = {Format::D32_FLOAT, 1};
         IFramebufferLayout::Desc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &renderTargetLayout;
         framebufferLayoutDesc.depthStencil = &depthLayout;
-        REQUIRE_CALL(
-            device->createFramebufferLayout(framebufferLayoutDesc, framebufferLayout.writeRef()));
+        REQUIRE_CALL(device->createFramebufferLayout(framebufferLayoutDesc, framebufferLayout.writeRef()));
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096 * 1024;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         // Build bottom level acceleration structure.
         {
@@ -176,8 +173,7 @@ struct BaseRayTracingTest
             IAccelerationStructure::PrebuildInfo accelerationStructurePrebuildInfo;
             accelerationStructureBuildInputs.descCount = 1;
             accelerationStructureBuildInputs.kind = IAccelerationStructure::Kind::BottomLevel;
-            accelerationStructureBuildInputs.flags =
-                IAccelerationStructure::BuildFlags::AllowCompaction;
+            accelerationStructureBuildInputs.flags = IAccelerationStructure::BuildFlags::AllowCompaction;
             IAccelerationStructure::GeometryDesc geomDesc;
             geomDesc.flags = IAccelerationStructure::GeometryFlags::Opaque;
             geomDesc.type = IAccelerationStructure::GeometryType::Triangles;
@@ -193,7 +189,9 @@ struct BaseRayTracingTest
 
             // Query buffer size for acceleration structure build.
             REQUIRE_CALL(device->getAccelerationStructurePrebuildInfo(
-                accelerationStructureBuildInputs, &accelerationStructurePrebuildInfo));
+                accelerationStructureBuildInputs,
+                &accelerationStructurePrebuildInfo
+            ));
             // Allocate buffers for acceleration structure.
             IBufferResource::Desc asDraftBufferDesc;
             asDraftBufferDesc.type = IResource::Type::Buffer;
@@ -211,8 +209,7 @@ struct BaseRayTracingTest
             IQueryPool::Desc queryPoolDesc;
             queryPoolDesc.count = 1;
             queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
-            REQUIRE_CALL(
-                device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
+            REQUIRE_CALL(device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
 
             ComPtr<IAccelerationStructure> draftAS;
             IAccelerationStructure::CreateDesc draftCreateDesc;
@@ -220,8 +217,7 @@ struct BaseRayTracingTest
             draftCreateDesc.kind = IAccelerationStructure::Kind::BottomLevel;
             draftCreateDesc.offset = 0;
             draftCreateDesc.size = accelerationStructurePrebuildInfo.resultDataMaxSize;
-            REQUIRE_CALL(
-                device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
+            REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
 
             compactedSizeQuery->reset();
 
@@ -268,18 +264,16 @@ struct BaseRayTracingTest
             std::vector<IAccelerationStructure::InstanceDesc> instanceDescs;
             instanceDescs.resize(1);
             instanceDescs[0].accelerationStructure = BLAS->getDeviceAddress();
-            instanceDescs[0].flags =
-                IAccelerationStructure::GeometryInstanceFlags::TriangleFacingCullDisable;
+            instanceDescs[0].flags = IAccelerationStructure::GeometryInstanceFlags::TriangleFacingCullDisable;
             instanceDescs[0].instanceContributionToHitGroupIndex = 0;
             instanceDescs[0].instanceID = 0;
             instanceDescs[0].instanceMask = 0xFF;
-            float transformMatrix[] = { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
+            float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
             memcpy(&instanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
 
             IBufferResource::Desc instanceBufferDesc;
             instanceBufferDesc.type = IResource::Type::Buffer;
-            instanceBufferDesc.sizeInBytes =
-                instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
+            instanceBufferDesc.sizeInBytes = instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
             instanceBufferDesc.defaultState = ResourceState::ShaderResource;
             instanceBuffer = device->createBufferResource(instanceBufferDesc, instanceDescs.data());
             REQUIRE(instanceBuffer != nullptr);
@@ -292,7 +286,9 @@ struct BaseRayTracingTest
 
             // Query buffer size for acceleration structure build.
             REQUIRE_CALL(device->getAccelerationStructurePrebuildInfo(
-                accelerationStructureBuildInputs, &accelerationStructurePrebuildInfo));
+                accelerationStructureBuildInputs,
+                &accelerationStructurePrebuildInfo
+            ));
 
             IBufferResource::Desc asBufferDesc;
             asBufferDesc.type = IResource::Type::Buffer;
@@ -326,11 +322,10 @@ struct BaseRayTracingTest
             queue->waitOnHost();
         }
 
-        const char* hitgroupNames[] = { "hitgroupA", "hitgroupB"};
+        const char* hitgroupNames[] = {"hitgroupA", "hitgroupB"};
 
         ComPtr<IShaderProgram> rayTracingProgram;
-        REQUIRE_CALL(
-            loadShaderProgram(device, rayTracingProgram.writeRef()));
+        REQUIRE_CALL(loadShaderProgram(device, rayTracingProgram.writeRef()));
         RayTracingPipelineStateDesc rtpDesc = {};
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = 2;
@@ -342,12 +337,11 @@ struct BaseRayTracingTest
         rtpDesc.hitGroups = hitGroups;
         rtpDesc.maxRayPayloadSize = 64;
         rtpDesc.maxRecursion = 2;
-        REQUIRE_CALL(
-            device->createRayTracingPipelineState(rtpDesc, renderPipelineState.writeRef()));
+        REQUIRE_CALL(device->createRayTracingPipelineState(rtpDesc, renderPipelineState.writeRef()));
         REQUIRE(renderPipelineState != nullptr);
 
-        const char* raygenNames[] = { "rayGenShaderA", "rayGenShaderB" };
-        const char* missNames[] = { "missShaderA", "missShaderB" };
+        const char* raygenNames[] = {"rayGenShaderA", "rayGenShaderB"};
+        const char* missNames[] = {"missShaderA", "missShaderB"};
 
         IShaderTable::Desc shaderTableDesc = {};
         shaderTableDesc.program = rayTracingProgram;
@@ -374,7 +368,12 @@ struct BaseRayTracingTest
         queue->waitOnHost();
 
         REQUIRE_CALL(device->readTextureResource(
-            resultTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize));
+            resultTexture,
+            ResourceState::CopySource,
+            resultBlob.writeRef(),
+            &rowPitch,
+            &pixelSize
+        ));
 #if 0 // for debugging only
         writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);
 #endif
@@ -388,8 +387,7 @@ struct RayTracingTestA : BaseRayTracingTest
 {
     void renderFrame()
     {
-        ComPtr<ICommandBuffer> renderCommandBuffer =
-            transientHeap->createCommandBuffer();
+        ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
         IShaderObject* rootObject = nullptr;
         renderEncoder->bindPipeline(renderPipelineState, &rootObject);
@@ -408,10 +406,7 @@ struct RayTracingTestA : BaseRayTracingTest
         createRequiredResources();
         renderFrame();
 
-        float expectedResult[16] = { 1, 1, 1, 1,
-                                        0, 0, 1, 1,
-                                        0, 1, 0, 1,
-                                        1, 0, 0, 1 };
+        float expectedResult[16] = {1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1};
         checkTestResults(expectedResult, 16);
     }
 };
@@ -420,8 +415,7 @@ struct RayTracingTestB : BaseRayTracingTest
 {
     void renderFrame()
     {
-        ComPtr<ICommandBuffer> renderCommandBuffer =
-            transientHeap->createCommandBuffer();
+        ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
         IShaderObject* rootObject = nullptr;
         renderEncoder->bindPipeline(renderPipelineState, &rootObject);
@@ -440,10 +434,7 @@ struct RayTracingTestB : BaseRayTracingTest
         createRequiredResources();
         renderFrame();
 
-        float expectedResult[16] = { 0, 0, 0, 1,
-                                        1, 1, 0, 1,
-                                        1, 0, 1, 1,
-                                        0, 1, 1, 1 };
+        float expectedResult[16] = {0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1};
         checkTestResults(expectedResult, 16);
     }
 };
@@ -464,10 +455,10 @@ void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("ray-tracing-a")
 {
-    runGpuTests(testRayTracing<RayTracingTestA>, { DeviceType::D3D12, DeviceType::Vulkan });
+    runGpuTests(testRayTracing<RayTracingTestA>, {DeviceType::D3D12, DeviceType::Vulkan});
 }
 
 TEST_CASE("ray-tracing-b")
 {
-    runGpuTests(testRayTracing<RayTracingTestB>, { DeviceType::D3D12, DeviceType::Vulkan });
+    runGpuTests(testRayTracing<RayTracingTestB>, {DeviceType::D3D12, DeviceType::Vulkan});
 }

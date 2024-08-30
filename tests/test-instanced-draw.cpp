@@ -15,31 +15,32 @@ struct Instance
 };
 
 static const int kVertexCount = 6;
-static const Vertex kVertexData[kVertexCount] =
-{
+static const Vertex kVertexData[kVertexCount] = {
     // Triangle 1
-    { 0, 0, 0.5 },
-    { 1, 0, 0.5 },
-    { 0, 1, 0.5 },
+    {0, 0, 0.5},
+    {1, 0, 0.5},
+    {0, 1, 0.5},
 
     // Triangle 2
-    { -1, 0, 0.5 },
-    {  0, 0, 0.5 },
-    { -1, 1, 0.5 },
+    {-1, 0, 0.5},
+    {0, 0, 0.5},
+    {-1, 1, 0.5},
 };
 
 static const int kInstanceCount = 2;
-static const Instance kInstanceData[kInstanceCount] =
-{
-    { { 0,  0, 0 }, { 1, 0, 0 } },
-    { { 0, -1, 0 }, { 0, 0, 1 } },
+static const Instance kInstanceData[kInstanceCount] = {
+    {{0, 0, 0}, {1, 0, 0}},
+    {{0, -1, 0}, {0, 0, 1}},
 };
 
 static const int kIndexCount = 6;
-static const uint32_t kIndexData[kIndexCount] =
-{
-    0, 2, 5,
-    0, 1, 2,
+static const uint32_t kIndexData[kIndexCount] = {
+    0,
+    2,
+    5,
+    0,
+    1,
+    2,
 };
 
 const int kWidth = 256;
@@ -92,7 +93,7 @@ static ComPtr<ITextureResource> createColorBuffer(IDevice* device)
     colorBufferDesc.numMipLevels = 1;
     colorBufferDesc.format = format;
     colorBufferDesc.defaultState = ResourceState::RenderTarget;
-    colorBufferDesc.allowedStates = { ResourceState::RenderTarget, ResourceState::CopySource };
+    colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
     ComPtr<ITextureResource> colorBuffer = device->createTextureResource(colorBufferDesc, nullptr);
     REQUIRE(colorBuffer != nullptr);
     return colorBuffer;
@@ -112,25 +113,22 @@ public:
     ComPtr<IBufferResource> instanceBuffer;
     ComPtr<ITextureResource> colorBuffer;
 
-    void init(IDevice* device)
-    {
-        this->device = device;
-    }
+    void init(IDevice* device) { this->device = device; }
 
     void createRequiredResources()
     {
         VertexStreamDesc vertexStreams[] = {
-            { sizeof(Vertex), InputSlotClass::PerVertex, 0 },
-            { sizeof(Instance), InputSlotClass::PerInstance, 1 },
+            {sizeof(Vertex), InputSlotClass::PerVertex, 0},
+            {sizeof(Instance), InputSlotClass::PerInstance, 1},
         };
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            { "POSITIONA", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0 },
+            {"POSITIONA", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
 
             // Instance buffer data
-            { "POSITIONB", 0, Format::R32G32B32_FLOAT, offsetof(Instance, position), 1 },
-            { "COLOR",     0, Format::R32G32B32_FLOAT, offsetof(Instance, color),    1 },
+            {"POSITIONB", 0, Format::R32G32B32_FLOAT, offsetof(Instance, position), 1},
+            {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Instance, color), 1},
         };
         IInputLayout::Desc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -146,12 +144,18 @@ public:
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        REQUIRE_CALL(loadGraphicsProgram(device, shaderProgram, "test-instanced-draw", "vertexMain", "fragmentMain", slangReflection));
+        REQUIRE_CALL(loadGraphicsProgram(
+            device,
+            shaderProgram,
+            "test-instanced-draw",
+            "vertexMain",
+            "fragmentMain",
+            slangReflection
+        ));
 
         IFramebufferLayout::TargetLayout targetLayout;
         targetLayout.format = format;
@@ -169,8 +173,7 @@ public:
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(
-            device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;
@@ -198,7 +201,13 @@ public:
         REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
-    void checkTestResults(int pixelCount, int channelCount, const int* testXCoords, const int* testYCoords, float* testResults)
+    void checkTestResults(
+        int pixelCount,
+        int channelCount,
+        const int* testXCoords,
+        const int* testYCoords,
+        float* testResults
+    )
     {
         // Read texture values back from four specific pixels located within the triangles
         // and compare against expected values (because testing every single pixel will be too long and tedious
@@ -207,7 +216,12 @@ public:
         size_t rowPitch = 0;
         size_t pixelSize = 0;
         REQUIRE_CALL(device->readTextureResource(
-            colorBuffer, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize));
+            colorBuffer,
+            ResourceState::CopySource,
+            resultBlob.writeRef(),
+            &rowPitch,
+            &pixelSize
+        ));
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -223,8 +237,8 @@ public:
             }
         }
 
-        float expectedResult[] = { 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-                                    0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f };
+        float expectedResult[] =
+            {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f};
         compareComputeResultFuzzy(testResults, expectedResult, sizeof(expectedResult));
     }
 };
@@ -235,7 +249,7 @@ struct DrawInstancedTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
@@ -268,8 +282,8 @@ struct DrawInstancedTest : BaseDrawTest
 
         const int kPixelCount = 4;
         const int kChannelCount = 4;
-        int testXCoords[kPixelCount] = { 64, 192, 64, 192 };
-        int testYCoords[kPixelCount] = { 100, 100, 250, 250 };
+        int testXCoords[kPixelCount] = {64, 192, 64, 192};
+        int testYCoords[kPixelCount] = {100, 100, 250, 250};
         float testResults[kPixelCount * kChannelCount];
 
         checkTestResults(kPixelCount, kChannelCount, testXCoords, testYCoords, testResults);
@@ -284,7 +298,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
@@ -321,8 +335,8 @@ struct DrawIndexedInstancedTest : BaseDrawTest
 
         const int kPixelCount = 4;
         const int kChannelCount = 4;
-        int testXCoords[kPixelCount] = { 64, 192, 64, 192 };
-        int testYCoords[kPixelCount] = { 32, 100, 150, 250 };
+        int testXCoords[kPixelCount] = {64, 192, 64, 192};
+        int testYCoords[kPixelCount] = {32, 100, 150, 250};
         float testResults[kPixelCount * kChannelCount];
 
         checkTestResults(kPixelCount, kChannelCount, testXCoords, testYCoords, testResults);
@@ -341,9 +355,8 @@ struct DrawIndirectTest : BaseDrawTest
 
     ComPtr<IBufferResource> createIndirectBuffer(IDevice* device)
     {
-        static const IndirectArgData kIndirectData =
-        {
-            42.0f, // padding
+        static const IndirectArgData kIndirectData = {
+            42.0f,        // padding
             {6, 2, 0, 0}, // args
         };
 
@@ -361,7 +374,7 @@ struct DrawIndirectTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
@@ -396,8 +409,8 @@ struct DrawIndirectTest : BaseDrawTest
 
         const int kPixelCount = 4;
         const int kChannelCount = 4;
-        int testXCoords[kPixelCount] = { 64, 192, 64, 192 };
-        int testYCoords[kPixelCount] = { 100, 100, 250, 250 };
+        int testXCoords[kPixelCount] = {64, 192, 64, 192};
+        int testYCoords[kPixelCount] = {100, 100, 250, 250};
         float testResults[kPixelCount * kChannelCount];
 
         checkTestResults(kPixelCount, kChannelCount, testXCoords, testYCoords, testResults);
@@ -417,9 +430,8 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 
     ComPtr<IBufferResource> createIndirectBuffer(IDevice* device)
     {
-        static const IndexedIndirectArgData kIndexedIndirectData =
-        {
-            42.0f, // padding
+        static const IndexedIndirectArgData kIndexedIndirectData = {
+            42.0f,           // padding
             {6, 2, 0, 0, 0}, // args
         };
 
@@ -437,7 +449,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
@@ -474,8 +486,8 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 
         const int kPixelCount = 4;
         const int kChannelCount = 4;
-        int testXCoords[kPixelCount] = { 64, 192, 64, 192 };
-        int testYCoords[kPixelCount] = { 32, 100, 150, 250 };
+        int testXCoords[kPixelCount] = {64, 192, 64, 192};
+        int testYCoords[kPixelCount] = {32, 100, 150, 250};
         float testResults[kPixelCount * kChannelCount];
 
         checkTestResults(kPixelCount, kChannelCount, testXCoords, testYCoords, testResults);

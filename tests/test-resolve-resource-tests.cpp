@@ -14,27 +14,26 @@ struct Vertex
 };
 
 static const int kVertexCount = 12;
-static const Vertex kVertexData[kVertexCount] =
-{
+static const Vertex kVertexData[kVertexCount] = {
     // Triangle 1
-    { {  0, 0, 0.5 }, { 1, 0, 0 } },
-    { {  1, 1, 0.5 }, { 1, 0, 0 } },
-    { { -1, 1, 0.5 }, { 1, 0, 0 } },
+    {{0, 0, 0.5}, {1, 0, 0}},
+    {{1, 1, 0.5}, {1, 0, 0}},
+    {{-1, 1, 0.5}, {1, 0, 0}},
 
     // Triangle 2
-    { { -1,  1, 0.5 }, { 0, 1, 0 } },
-    { {  0,  0, 0.5 }, { 0, 1, 0 } },
-    { { -1, -1, 0.5 }, { 0, 1, 0 } },
+    {{-1, 1, 0.5}, {0, 1, 0}},
+    {{0, 0, 0.5}, {0, 1, 0}},
+    {{-1, -1, 0.5}, {0, 1, 0}},
 
     // Triangle 3
-    { { -1, -1, 0.5 }, { 0, 0, 1 } },
-    { {  0,  0, 0.5 }, { 0, 0, 1 } },
-    { {  1, -1, 0.5 }, { 0, 0, 1 } },
+    {{-1, -1, 0.5}, {0, 0, 1}},
+    {{0, 0, 0.5}, {0, 0, 1}},
+    {{1, -1, 0.5}, {0, 0, 1}},
 
     // Triangle 4
-    { { 1, -1, 0.5 }, { 0, 0, 0 } },
-    { { 0,  0, 0.5 }, { 0, 0, 0 } },
-    { { 1,  1, 0.5 }, { 0, 0, 0 } },
+    {{1, -1, 0.5}, {0, 0, 0}},
+    {{0, 0, 0.5}, {0, 0, 0}},
+    {{1, 1, 0.5}, {0, 0, 0}},
 };
 
 const int kWidth = 256;
@@ -75,21 +74,18 @@ struct BaseResolveResourceTest
         ITextureResource::SubresourceData const* initData;
     };
 
-    void init(IDevice* device)
-    {
-        this->device = device;
-    }
+    void init(IDevice* device) { this->device = device; }
 
     void createRequiredResources(TextureInfo msaaTextureInfo, TextureInfo dstTextureInfo, Format format)
     {
         VertexStreamDesc vertexStreams[] = {
-            { sizeof(Vertex), InputSlotClass::PerVertex, 0 },
+            {sizeof(Vertex), InputSlotClass::PerVertex, 0},
         };
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            { "POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0 },
-            { "COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0 },
+            {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
+            {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
         };
 
         ITextureResource::Desc msaaTexDesc = {};
@@ -98,16 +94,11 @@ struct BaseResolveResourceTest
         msaaTexDesc.arraySize = dstTextureInfo.arraySize;
         msaaTexDesc.size = dstTextureInfo.extent;
         msaaTexDesc.defaultState = ResourceState::RenderTarget;
-        msaaTexDesc.allowedStates = ResourceStateSet(
-            ResourceState::RenderTarget,
-            ResourceState::ResolveSource);
+        msaaTexDesc.allowedStates = ResourceStateSet(ResourceState::RenderTarget, ResourceState::ResolveSource);
         msaaTexDesc.format = format;
         msaaTexDesc.sampleDesc.numSamples = 4;
 
-        REQUIRE_CALL(device->createTextureResource(
-            msaaTexDesc,
-            msaaTextureInfo.initData,
-            msaaTexture.writeRef()));
+        REQUIRE_CALL(device->createTextureResource(msaaTexDesc, msaaTextureInfo.initData, msaaTexture.writeRef()));
 
         ITextureResource::Desc dstTexDesc = {};
         dstTexDesc.type = IResource::Type::Texture2D;
@@ -115,15 +106,10 @@ struct BaseResolveResourceTest
         dstTexDesc.arraySize = dstTextureInfo.arraySize;
         dstTexDesc.size = dstTextureInfo.extent;
         dstTexDesc.defaultState = ResourceState::ResolveDestination;
-        dstTexDesc.allowedStates = ResourceStateSet(
-            ResourceState::ResolveDestination,
-            ResourceState::CopySource);
+        dstTexDesc.allowedStates = ResourceStateSet(ResourceState::ResolveDestination, ResourceState::CopySource);
         dstTexDesc.format = format;
 
-        REQUIRE_CALL(device->createTextureResource(
-            dstTexDesc,
-            dstTextureInfo.initData,
-            dstTexture.writeRef()));
+        REQUIRE_CALL(device->createTextureResource(dstTexDesc, dstTextureInfo.initData, dstTexture.writeRef()));
 
         IInputLayout::Desc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -137,12 +123,18 @@ struct BaseResolveResourceTest
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        REQUIRE_CALL(loadGraphicsProgram(device, shaderProgram, "test-resolve-resource-shader", "vertexMain", "fragmentMain", slangReflection));
+        REQUIRE_CALL(loadGraphicsProgram(
+            device,
+            shaderProgram,
+            "test-resolve-resource-shader",
+            "vertexMain",
+            "fragmentMain",
+            slangReflection
+        ));
 
         IFramebufferLayout::TargetLayout targetLayout;
         targetLayout.format = format;
@@ -160,8 +152,7 @@ struct BaseResolveResourceTest
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(
-            device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;
@@ -189,21 +180,24 @@ struct BaseResolveResourceTest
         REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
-    void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, ITextureResource::Extents extent)
+    void submitGPUWork(
+        SubresourceRange msaaSubresource,
+        SubresourceRange dstSubresource,
+        ITextureResource::Extents extent
+    )
     {
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
         auto rootObject = renderEncoder->bindPipeline(pipelineState);
-        
+
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
@@ -217,15 +211,33 @@ struct BaseResolveResourceTest
 
         auto resourceEncoder = commandBuffer->encodeResourceCommands();
 
-        resourceEncoder->resolveResource(msaaTexture, ResourceState::ResolveSource, msaaSubresource, dstTexture, ResourceState::ResolveDestination, dstSubresource);
-        resourceEncoder->textureSubresourceBarrier(dstTexture, dstSubresource, ResourceState::ResolveDestination, ResourceState::CopySource);
+        resourceEncoder->resolveResource(
+            msaaTexture,
+            ResourceState::ResolveSource,
+            msaaSubresource,
+            dstTexture,
+            ResourceState::ResolveDestination,
+            dstSubresource
+        );
+        resourceEncoder->textureSubresourceBarrier(
+            dstTexture,
+            dstSubresource,
+            ResourceState::ResolveDestination,
+            ResourceState::CopySource
+        );
         resourceEncoder->endEncoding();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
     }
 
-    void checkTestResults(int pixelCount, int channelCount, const int* testXCoords, const int* testYCoords, float* testResults)
+    void checkTestResults(
+        int pixelCount,
+        int channelCount,
+        const int* testXCoords,
+        const int* testYCoords,
+        float* testResults
+    )
     {
         // Read texture values back from four specific pixels located within the triangles
         // and compare against expected values (because testing every single pixel will be too long and tedious
@@ -234,7 +246,12 @@ struct BaseResolveResourceTest
         size_t rowPitch = 0;
         size_t pixelSize = 0;
         REQUIRE_CALL(device->readTextureResource(
-            dstTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize));
+            dstTexture,
+            ResourceState::CopySource,
+            resultBlob.writeRef(),
+            &rowPitch,
+            &pixelSize
+        ));
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -250,9 +267,9 @@ struct BaseResolveResourceTest
             }
         }
 
-        float expectedResult[] = { 0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.0f, 0.0f, 1.0f,
-                                        0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-                                        0.0f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.5f, 1.0f };
+        float expectedResult[] = {0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.0f, 0.0f,
+                                  1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f,
+                                  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.5f, 1.0f};
         CHECK(memcmp(testResults, expectedResult, 128) == 0);
     }
 };
@@ -268,8 +285,8 @@ struct ResolveResourceSimple : BaseResolveResourceTest
         extent.height = kHeight;
         extent.depth = 1;
 
-        TextureInfo msaaTextureInfo = { extent, 1, 1, nullptr };
-        TextureInfo dstTextureInfo = { extent, 1, 1, nullptr };
+        TextureInfo msaaTextureInfo = {extent, 1, 1, nullptr};
+        TextureInfo dstTextureInfo = {extent, 1, 1, nullptr};
 
         createRequiredResources(msaaTextureInfo, dstTextureInfo, format);
 
@@ -291,15 +308,15 @@ struct ResolveResourceSimple : BaseResolveResourceTest
 
         const int kPixelCount = 8;
         const int kChannelCount = 4;
-        int testXCoords[kPixelCount] = { 64, 127, 191, 64, 191, 64, 127, 191 };
-        int testYCoords[kPixelCount] = { 64, 64, 64, 127, 127, 191, 191, 191 };
+        int testXCoords[kPixelCount] = {64, 127, 191, 64, 191, 64, 127, 191};
+        int testYCoords[kPixelCount] = {64, 64, 64, 127, 127, 191, 191, 191};
         float testResults[kPixelCount * kChannelCount];
 
         checkTestResults(kPixelCount, kChannelCount, testXCoords, testYCoords, testResults);
     }
 };
 
-template<typename T>
+template <typename T>
 void testResolveResource(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);

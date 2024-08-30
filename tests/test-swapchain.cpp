@@ -11,12 +11,11 @@ struct Vertex
 };
 
 static const int kVertexCount = 3;
-static const Vertex kVertexData[kVertexCount] =
-{
+static const Vertex kVertexData[kVertexCount] = {
     // Triangle 1
-    {  0,  0, 1 },
-    {  4,  0, 1 },
-    {  0,  4, 1 },
+    {0, 0, 1},
+    {4, 0, 1},
+    {0, 4, 1},
 };
 
 struct SwapchainResizeTest
@@ -103,12 +102,12 @@ struct SwapchainResizeTest
         }
 
         VertexStreamDesc vertexStreams[] = {
-            { sizeof(Vertex), InputSlotClass::PerVertex, 0 },
+            {sizeof(Vertex), InputSlotClass::PerVertex, 0},
         };
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            { "POSITIONA", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0 },
+            {"POSITIONA", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
         };
         IInputLayout::Desc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -127,12 +126,18 @@ struct SwapchainResizeTest
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096 * 1024;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        REQUIRE_CALL(loadGraphicsProgram(device, shaderProgram, "swapchain-shader", "vertexMain", "fragmentMain", slangReflection));
+        REQUIRE_CALL(loadGraphicsProgram(
+            device,
+            shaderProgram,
+            "swapchain-shader",
+            "vertexMain",
+            "fragmentMain",
+            slangReflection
+        ));
 
         IFramebufferLayout::TargetLayout targetLayout;
         targetLayout.format = swapchain->getDesc().format;
@@ -150,8 +155,7 @@ struct SwapchainResizeTest
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(
-            device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;

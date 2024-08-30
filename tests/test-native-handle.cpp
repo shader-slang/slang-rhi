@@ -23,15 +23,13 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> buffer;
-    REQUIRE_CALL(device->createBufferResource(
-        bufferDesc,
-        nullptr,
-        buffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, buffer.writeRef()));
 
     InteropHandle handle;
     REQUIRE_CALL(buffer->getNativeResourceHandle(&handle));
@@ -101,7 +99,7 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
     if (isSwiftShaderDevice(device))
         return;
 
-    ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+    ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
     auto queue = device->createCommandQueue(queueDesc);
     InteropHandle handle;
     REQUIRE_CALL(queue->getNativeHandle(&handle));
@@ -135,18 +133,14 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     auto commandBuffer = transientHeap->createCommandBuffer();
     struct CloseComandBufferRAII
     {
         ICommandBuffer* m_commandBuffer;
-        ~CloseComandBufferRAII()
-        {
-            m_commandBuffer->close();
-        }
-    } closeCommandBufferRAII{ commandBuffer };
+        ~CloseComandBufferRAII() { m_commandBuffer->close(); }
+    } closeCommandBufferRAII{commandBuffer};
     InteropHandle handle = {};
     REQUIRE_CALL(commandBuffer->getNativeHandle(&handle));
     if (deviceType == DeviceType::D3D12)

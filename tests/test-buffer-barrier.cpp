@@ -18,7 +18,13 @@ struct Buffer
     ComPtr<IResourceView> view;
 };
 
-void createFloatBuffer(IDevice* device, Buffer& outBuffer, bool unorderedAccess, float* initialData, size_t elementCount)
+void createFloatBuffer(
+    IDevice* device,
+    Buffer& outBuffer,
+    bool unorderedAccess,
+    float* initialData,
+    size_t elementCount
+)
 {
     outBuffer = {};
     IBufferResource::Desc& bufferDesc = outBuffer.desc;
@@ -27,22 +33,17 @@ void createFloatBuffer(IDevice* device, Buffer& outBuffer, bool unorderedAccess,
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.defaultState = unorderedAccess ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
-    bufferDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource);
-    if (unorderedAccess) bufferDesc.allowedStates.add(ResourceState::UnorderedAccess);
+    bufferDesc.allowedStates =
+        ResourceStateSet(ResourceState::ShaderResource, ResourceState::CopyDestination, ResourceState::CopySource);
+    if (unorderedAccess)
+        bufferDesc.allowedStates.add(ResourceState::UnorderedAccess);
 
-    REQUIRE_CALL(device->createBufferResource(
-        bufferDesc,
-        (void*)initialData,
-        outBuffer.buffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, outBuffer.buffer.writeRef()));
 
     IResourceView::Desc viewDesc = {};
     viewDesc.type = unorderedAccess ? IResourceView::Type::UnorderedAccess : IResourceView::Type::ShaderResource;
     viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(
-        outBuffer.buffer, nullptr, viewDesc, outBuffer.view.writeRef()));
+    REQUIRE_CALL(device->createBufferView(outBuffer.buffer, nullptr, viewDesc, outBuffer.view.writeRef()));
 }
 
 void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
@@ -63,7 +64,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(device->createComputePipelineState(programA.pipelineDesc, programA.pipelineState.writeRef()));
     REQUIRE_CALL(device->createComputePipelineState(programB.pipelineDesc, programB.pipelineState.writeRef()));
 
-    float initialData[] = { 1.0f, 2.0f, 3.0f, 4.0f };
+    float initialData[] = {1.0f, 2.0f, 3.0f, 4.0f};
     Buffer inputBuffer;
     createFloatBuffer(device, inputBuffer, false, initialData, 4);
 
@@ -76,7 +77,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -109,10 +110,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device,
-        outputBuffer.buffer,
-        makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
+    compareComputeResult(device, outputBuffer.buffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
 }
 
 TEST_CASE("buffer-barrier")

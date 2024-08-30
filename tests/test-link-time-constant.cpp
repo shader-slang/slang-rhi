@@ -9,7 +9,8 @@ static Slang::Result loadProgram(
     const char* shaderModuleName,
     const char* entryPointName,
     slang::ProgramLayout*& slangReflection,
-    const char* additionalModuleSource)
+    const char* additionalModuleSource
+)
 {
     ComPtr<slang::ISession> slangSession;
     SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
@@ -20,12 +21,11 @@ static Slang::Result loadProgram(
         return SLANG_FAIL;
 
     auto additionalModuleBlob = UnownedBlob::create(additionalModuleSource, strlen(additionalModuleSource));
-    slang::IModule* additionalModule = slangSession->loadModuleFromSource("linkedConstants", "path",
-        additionalModuleBlob);
+    slang::IModule* additionalModule =
+        slangSession->loadModuleFromSource("linkedConstants", "path", additionalModuleBlob);
 
     ComPtr<slang::IEntryPoint> computeEntryPoint;
-    SLANG_RETURN_ON_FAIL(
-        module->findEntryPointByName(entryPointName, computeEntryPoint.writeRef()));
+    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, computeEntryPoint.writeRef()));
 
     std::vector<slang::IComponentType*> componentTypes;
     componentTypes.push_back(module);
@@ -37,7 +37,8 @@ static Slang::Result loadProgram(
         componentTypes.data(),
         componentTypes.size(),
         composedProgram.writeRef(),
-        diagnosticsBlob.writeRef());
+        diagnosticsBlob.writeRef()
+    );
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
@@ -65,18 +66,23 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-link-time-constant", "computeMain", slangReflection,
+    REQUIRE_CALL(loadProgram(
+        device,
+        shaderProgram,
+        "test-link-time-constant",
+        "computeMain",
+        slangReflection,
         R"(
             export static const bool turnOnFeature = true;
             export static const float constValue = 2.0;
             export static const uint numthread = 2;
             export static const int arraySize = 4;
-        )"));
+        )"
+    ));
 
     SlangUInt threadGroupSizes[3];
     slangReflection->findEntryPointByName("computeMain")->getComputeThreadGroupSize(3, threadGroupSizes);
@@ -87,11 +93,10 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     const int numberCount = 4;
-    float initialData[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float initialData[] = {0.0f, 0.0f, 0.0f, 0.0f};
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
@@ -100,27 +105,24 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(
-        bufferDesc,
-        (void*)initialData,
-        numbersBuffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(
-        device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -128,8 +130,7 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
 
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        ShaderCursor entryPointCursor(
-            rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
+        ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
         entryPointCursor.getPath("buffer").setResource(bufferView);
 
@@ -140,10 +141,7 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device,
-        numbersBuffer,
-        makeArray<float>(2.0));
+    compareComputeResult(device, numbersBuffer, makeArray<float>(2.0));
 }
 
 // TODO_TESTING crashes slang

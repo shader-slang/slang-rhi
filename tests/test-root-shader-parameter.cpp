@@ -14,13 +14,13 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(
-        device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
 
     return buffer;
 }
@@ -31,18 +31,17 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-root-shader-parameter", "computeMain", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-root-shader-parameter", "computeMain", slangReflection)
+    );
 
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     std::vector<ComPtr<IBufferResource>> buffers;
     std::vector<ComPtr<IResourceView>> srvs, uavs;
@@ -55,14 +54,12 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(
-            device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
+        REQUIRE_CALL(device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
         uavs.push_back(bufferView);
 
         viewDesc.type = IResourceView::Type::ShaderResource;
         viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(
-            device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
+        REQUIRE_CALL(device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
         srvs.push_back(bufferView);
     }
 
@@ -71,11 +68,20 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
     ComPtr<IShaderObject> g, s1, s2;
     device->createMutableShaderObject(
-        slangReflection->findTypeByName("S0"), ShaderObjectContainerType::None, g.writeRef());
+        slangReflection->findTypeByName("S0"),
+        ShaderObjectContainerType::None,
+        g.writeRef()
+    );
     device->createMutableShaderObject(
-        slangReflection->findTypeByName("S1"), ShaderObjectContainerType::None, s1.writeRef());
+        slangReflection->findTypeByName("S1"),
+        ShaderObjectContainerType::None,
+        s1.writeRef()
+    );
     device->createMutableShaderObject(
-        slangReflection->findTypeByName("S1"), ShaderObjectContainerType::None, s2.writeRef());
+        slangReflection->findTypeByName("S1"),
+        ShaderObjectContainerType::None,
+        s2.writeRef()
+    );
 
     {
         auto cursor = ShaderCursor(s1);
@@ -103,7 +109,7 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     {
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -119,8 +125,7 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device, buffers[8], makeArray<uint32_t>(10 - 1 + 2 - 3 + 4 + 5 - 6 + 7));
+    compareComputeResult(device, buffers[8], makeArray<uint32_t>(10 - 1 + 2 - 3 + 4 + 5 - 6 + 7));
 }
 
 TEST_CASE("root-shader-parameter")

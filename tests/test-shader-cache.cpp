@@ -1,8 +1,8 @@
 #include "testing.h"
 
-#include <map>
 #include <filesystem>
 #include <fstream>
+#include <map>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -43,20 +43,33 @@ public:
     {
         while (entries.size() >= maxEntryCount)
         {
-            auto it = std::min_element(entries.begin(), entries.end(), [](const auto& a, const auto& b) { return a.second.ticket < b.second.ticket; });
+            auto it = std::min_element(
+                entries.begin(),
+                entries.end(),
+                [](const auto& a, const auto& b) { return a.second.ticket < b.second.ticket; }
+            );
             entries.erase(it);
         }
 
-        Key key(static_cast<const uint8_t*>(key_->getBufferPointer()), static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize());
-        Data data(static_cast<const uint8_t*>(data_->getBufferPointer()), static_cast<const uint8_t*>(data_->getBufferPointer()) + data_->getBufferSize());
-        entries[key] = { ticketCounter++, data };
+        Key key(
+            static_cast<const uint8_t*>(key_->getBufferPointer()),
+            static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
+        );
+        Data data(
+            static_cast<const uint8_t*>(data_->getBufferPointer()),
+            static_cast<const uint8_t*>(data_->getBufferPointer()) + data_->getBufferSize()
+        );
+        entries[key] = {ticketCounter++, data};
         stats.entryCount = entries.size();
         return SLANG_OK;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key_, ISlangBlob** outData) override
     {
-        Key key(static_cast<const uint8_t*>(key_->getBufferPointer()), static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize());
+        Key key(
+            static_cast<const uint8_t*>(key_->getBufferPointer()),
+            static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
+        );
         auto it = entries.find(key);
         if (it == entries.end())
         {
@@ -71,7 +84,8 @@ public:
 
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
     {
-        if (uuid == IPersistentShaderCache::getTypeGuid()) {
+        if (uuid == IPersistentShaderCache::getTypeGuid())
+        {
             *outObject = static_cast<IPersistentShaderCache*>(this);
             return SLANG_OK;
         }
@@ -121,7 +135,8 @@ struct ShaderCacheTest
             var input = buffer[sv_dispatchThreadID.x];
             buffer[sv_dispatchThreadID.x] = input + 1.0f;
         }
-        )");
+        )"
+    );
 
     std::string computeShaderB = std::string(
         R"(
@@ -134,7 +149,8 @@ struct ShaderCacheTest
             var input = buffer[sv_dispatchThreadID.x];
             buffer[sv_dispatchThreadID.x] = input + 2.0f;
         }
-        )");
+        )"
+    );
 
     std::string computeShaderC = std::string(
         R"(
@@ -147,8 +163,8 @@ struct ShaderCacheTest
             var input = buffer[sv_dispatchThreadID.x];
             buffer[sv_dispatchThreadID.x] = input + 3.0f;
         }
-        )");
-
+        )"
+    );
 
     void writeShader(const std::string& source, const std::string& fileName)
     {
@@ -184,7 +200,7 @@ struct ShaderCacheTest
         slangExtDesc.compilerOptionEntryCount = entries.size();
 
         deviceDesc.extendedDescCount = 2;
-        void* extDescPtrs[2] = { &extDesc, &slangExtDesc };
+        void* extDescPtrs[2] = {&extDesc, &slangExtDesc};
         deviceDesc.extendedDescs = extDescPtrs;
 
         // TODO: We should also set the debug callback
@@ -200,7 +216,7 @@ struct ShaderCacheTest
     void createComputeResources()
     {
         const int numberCount = 4;
-        float initialData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
+        float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
         IBufferResource::Desc bufferDesc = {};
         bufferDesc.sizeInBytes = numberCount * sizeof(float);
         bufferDesc.format = Format::Unknown;
@@ -209,20 +225,17 @@ struct ShaderCacheTest
             ResourceState::ShaderResource,
             ResourceState::UnorderedAccess,
             ResourceState::CopyDestination,
-            ResourceState::CopySource);
+            ResourceState::CopySource
+        );
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        REQUIRE_CALL(device->createBufferResource(
-            bufferDesc,
-            (void*)initialData,
-            bufferResource.writeRef()));
+        REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, bufferResource.writeRef()));
 
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(
-            device->createBufferView(bufferResource, nullptr, viewDesc, bufferView.writeRef()));
+        REQUIRE_CALL(device->createBufferView(bufferResource, nullptr, viewDesc, bufferView.writeRef()));
     }
 
     void freeComputeResources()
@@ -240,8 +253,7 @@ struct ShaderCacheTest
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(
-            device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
     void createComputePipeline(std::string shaderSource)
@@ -251,8 +263,7 @@ struct ShaderCacheTest
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(
-            device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
     void dispatchComputePipeline()
@@ -260,10 +271,9 @@ struct ShaderCacheTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -291,7 +301,11 @@ struct ShaderCacheTest
         return ::memcmp(bufferBlob->getBufferPointer(), expectedOutput.data(), bufferBlob->getBufferSize()) == 0;
     }
 
-    void runComputePipeline(const char* moduleName, const char* entryPointName, const std::vector<float>& expectedOutput)
+    void runComputePipeline(
+        const char* moduleName,
+        const char* entryPointName,
+        const std::vector<float>& expectedOutput
+    )
     {
         createComputeResources();
         createComputePipeline(moduleName, entryPointName);
@@ -309,10 +323,7 @@ struct ShaderCacheTest
         freeComputeResources();
     }
 
-    VirtualShaderCache::Stats getStats()
-    {
-        return shaderCache.stats;
-    }
+    VirtualShaderCache::Stats getStats() { return shaderCache.stats; }
 
     void run(GpuTestContext* ctx_, DeviceType deviceType_, std::string tempDirectory_)
     {
@@ -344,18 +355,18 @@ struct ShaderCacheTestSourceFile : ShaderCacheTest
 
         // Cache is cold and we expect 3 misses.
         createDevice();
-        runComputePipeline("shader-cache-tmp-a", "main", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("shader-cache-tmp-b", "main", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("shader-cache-tmp-c", "main", { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline("shader-cache-tmp-a", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-tmp-b", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-tmp-c", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 3);
 
         // Cache is hot and we expect 3 hits.
         createDevice();
-        runComputePipeline("shader-cache-tmp-a", "main", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("shader-cache-tmp-b", "main", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("shader-cache-tmp-c", "main", { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline("shader-cache-tmp-a", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-tmp-b", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-tmp-c", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 3);
@@ -367,18 +378,18 @@ struct ShaderCacheTestSourceFile : ShaderCacheTest
 
         // Cache is cold again and we expect 3 misses.
         createDevice();
-        runComputePipeline("shader-cache-tmp-b", "main", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("shader-cache-tmp-c", "main", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("shader-cache-tmp-a", "main", { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline("shader-cache-tmp-b", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-tmp-c", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-tmp-a", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 6);
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 6);
 
         // Cache is hot again and we expect 3 hits.
         createDevice();
-        runComputePipeline("shader-cache-tmp-b", "main", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("shader-cache-tmp-c", "main", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("shader-cache-tmp-a", "main", { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline("shader-cache-tmp-b", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-tmp-c", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-tmp-a", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 6);
         CHECK_EQ(getStats().hitCount, 6);
         CHECK_EQ(getStats().entryCount, 6);
@@ -392,18 +403,18 @@ struct ShaderCacheTestSourceString : ShaderCacheTest
     {
         // Cache is cold and we expect 3 misses.
         createDevice();
-        runComputePipeline(computeShaderA, { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline(computeShaderB, { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline(computeShaderC, { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 3);
 
         // Cache is hot and we expect 3 hits.
         createDevice();
-        runComputePipeline(computeShaderA, { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline(computeShaderB, { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline(computeShaderC, { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 3);
@@ -417,18 +428,18 @@ struct ShaderCacheTestEntryPoint : ShaderCacheTest
     {
         // Cache is cold and we expect 3 misses, one for each entry point.
         createDevice();
-        runComputePipeline("test-shader-cache-multiple-entry-points", "computeA", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("test-shader-cache-multiple-entry-points", "computeB", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("test-shader-cache-multiple-entry-points", "computeC", { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline("test-shader-cache-multiple-entry-points", "computeA", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("test-shader-cache-multiple-entry-points", "computeB", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("test-shader-cache-multiple-entry-points", "computeC", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 3);
 
         // Cache is hot and we expect 3 hits.
         createDevice();
-        runComputePipeline("test-shader-cache-multiple-entry-points", "computeA", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("test-shader-cache-multiple-entry-points", "computeB", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("test-shader-cache-multiple-entry-points", "computeC", { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline("test-shader-cache-multiple-entry-points", "computeA", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("test-shader-cache-multiple-entry-points", "computeB", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("test-shader-cache-multiple-entry-points", "computeC", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 3);
@@ -445,7 +456,8 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
             var input = buffer[index];
             buffer[index] = input + 1.0f;
         }
-        )");
+        )"
+    );
 
     std::string importedContentsB = std::string(
         R"(
@@ -454,7 +466,8 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
             var input = buffer[index];
             buffer[index] = input + 2.0f;
         }
-        )");
+        )"
+    );
 
     std::string importFile = std::string(
         R"(
@@ -468,7 +481,8 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
         {
             processElement(buffer, sv_dispatchThreadID.x);
         }
-        )");
+        )"
+    );
 
     std::string includeFile = std::string(
         R"(
@@ -481,7 +495,8 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
             uniform RWStructuredBuffer<float> buffer)
         {
             processElement(buffer, sv_dispatchThreadID.x);
-        })");
+        })"
+    );
 
     void runTests()
     {
@@ -492,16 +507,16 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
 
         // Cache is cold and we expect 2 misses.
         createDevice();
-        runComputePipeline("shader-cache-tmp-import", "main", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("shader-cache-tmp-include", "main", { 1.f, 2.f, 3.f, 4.f });
+        runComputePipeline("shader-cache-tmp-import", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-tmp-include", "main", {1.f, 2.f, 3.f, 4.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Cache is hot and we expect 2 hits.
         createDevice();
-        runComputePipeline("shader-cache-tmp-import", "main", { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline("shader-cache-tmp-include", "main", { 1.f, 2.f, 3.f, 4.f });
+        runComputePipeline("shader-cache-tmp-import", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-tmp-include", "main", {1.f, 2.f, 3.f, 4.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 2);
@@ -511,16 +526,16 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
 
         // Cache is cold and we expect 2 misses.
         createDevice();
-        runComputePipeline("shader-cache-tmp-import", "main", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("shader-cache-tmp-include", "main", { 2.f, 3.f, 4.f, 5.f });
+        runComputePipeline("shader-cache-tmp-import", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-tmp-include", "main", {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 4);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 4);
 
         // Cache is hot and we expect 2 hits.
         createDevice();
-        runComputePipeline("shader-cache-tmp-import", "main", { 2.f, 3.f, 4.f, 5.f });
-        runComputePipeline("shader-cache-tmp-include", "main", { 2.f, 3.f, 4.f, 5.f });
+        runComputePipeline("shader-cache-tmp-import", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-tmp-include", "main", {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 4);
         CHECK_EQ(getStats().hitCount, 4);
         CHECK_EQ(getStats().entryCount, 4);
@@ -536,13 +551,17 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
     {
         ComPtr<IShaderProgram> shaderProgram;
 
-        REQUIRE_CALL(
-            loadComputeProgram(device, shaderProgram, "test-shader-cache-specialization", "computeMain", slangReflection));
+        REQUIRE_CALL(loadComputeProgram(
+            device,
+            shaderProgram,
+            "test-shader-cache-specialization",
+            "computeMain",
+            slangReflection
+        ));
 
         ComputePipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(
-            device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
     void dispatchComputePipeline(const char* transformerTypeName)
@@ -550,10 +569,9 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
@@ -563,8 +581,9 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
-        REQUIRE_CALL(device->createShaderObject(
-            transformerType, ShaderObjectContainerType::None, transformer.writeRef()));
+        REQUIRE_CALL(
+            device->createShaderObject(transformerType, ShaderObjectContainerType::None, transformer.writeRef())
+        );
 
         float c = 5.f;
         ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
@@ -593,16 +612,16 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
     {
         // Cache is cold and we expect 2 misses.
         createDevice();
-        runComputePipeline("AddTransformer", { 5.f, 6.f, 7.f, 8.f });
-        runComputePipeline("MulTransformer", { 0.f, 5.f, 10.f, 15.f });
+        runComputePipeline("AddTransformer", {5.f, 6.f, 7.f, 8.f});
+        runComputePipeline("MulTransformer", {0.f, 5.f, 10.f, 15.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Cache is hot and we expect 2 hits.
         createDevice();
-        runComputePipeline("AddTransformer", { 5.f, 6.f, 7.f, 8.f });
-        runComputePipeline("MulTransformer", { 0.f, 5.f, 10.f, 15.f });
+        runComputePipeline("AddTransformer", {5.f, 6.f, 7.f, 8.f});
+        runComputePipeline("MulTransformer", {0.f, 5.f, 10.f, 15.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 2);
@@ -617,16 +636,16 @@ struct ShaderCacheTestEviction : ShaderCacheTest
 
         // Load shader A & B. Cache is cold and we expect 2 misses.
         createDevice();
-        runComputePipeline(computeShaderA, { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline(computeShaderB, { 2.f, 3.f, 4.f, 5.f });
+        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader A & B. Cache is hot and we expect 2 hits.
         createDevice();
-        runComputePipeline(computeShaderA, { 1.f, 2.f, 3.f, 4.f });
-        runComputePipeline(computeShaderB, { 2.f, 3.f, 4.f, 5.f });
+        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 2);
@@ -635,28 +654,28 @@ struct ShaderCacheTestEviction : ShaderCacheTest
         // This will evict the least frequently used entry (shader A).
         // We expect 2 entries in the cache (shader B & C).
         createDevice();
-        runComputePipeline(computeShaderC, { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader C. Cache is hot and we expect 1 hit.
         createDevice();
-        runComputePipeline(computeShaderC, { 3.f, 4.f, 5.f, 6.f });
+        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader B. Cache is hot and we expect 1 hit.
         createDevice();
-        runComputePipeline(computeShaderB, { 2.f, 3.f, 4.f, 5.f });
+        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 4);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader A. Cache is cold and we expect 1 miss.
         createDevice();
-        runComputePipeline(computeShaderA, { 1.f, 2.f, 3.f, 4.f });
+        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
         CHECK_EQ(getStats().missCount, 4);
         CHECK_EQ(getStats().hitCount, 4);
         CHECK_EQ(getStats().entryCount, 2);
@@ -685,9 +704,9 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
     {
         const Vertex vertices[] = {
-            { 0, 0, 0.5 },
-            { 1, 0, 0.5 },
-            { 0, 1, 0.5 },
+            {0, 0, 0.5},
+            {1, 0, 0.5},
+            {0, 1, 0.5},
         };
 
         IBufferResource::Desc vertexBufferDesc;
@@ -710,7 +729,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         colorBufferDesc.numMipLevels = 1;
         colorBufferDesc.format = format;
         colorBufferDesc.defaultState = ResourceState::RenderTarget;
-        colorBufferDesc.allowedStates = { ResourceState::RenderTarget, ResourceState::CopySource };
+        colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
         ComPtr<ITextureResource> colorBuffer = device->createTextureResource(colorBufferDesc, nullptr);
         REQUIRE(colorBuffer != nullptr);
         return colorBuffer;
@@ -719,12 +738,12 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     void createGraphicsResources()
     {
         VertexStreamDesc vertexStreams[] = {
-            { sizeof(Vertex), InputSlotClass::PerVertex, 0 },
+            {sizeof(Vertex), InputSlotClass::PerVertex, 0},
         };
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            { "POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0 },
+            {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
         };
         IInputLayout::Desc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -788,8 +807,14 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     {
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        REQUIRE_CALL(
-            loadGraphicsProgram(device, shaderProgram, "test-shader-cache-graphics", "vertexMain", "fragmentMain", slangReflection));
+        REQUIRE_CALL(loadGraphicsProgram(
+            device,
+            shaderProgram,
+            "test-shader-cache-graphics",
+            "vertexMain",
+            "fragmentMain",
+            slangReflection
+        ));
 
         GraphicsPipelineStateDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -797,8 +822,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(
-            device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
     void dispatchGraphicsPipeline()
@@ -806,10 +830,9 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(
-            device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
@@ -871,23 +894,21 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         REQUIRE(fragmentModule != nullptr);
 
         ComPtr<slang::IEntryPoint> vertexEntryPoint;
-        REQUIRE_CALL(
-            vertexModule->findEntryPointByName("main", vertexEntryPoint.writeRef()));
+        REQUIRE_CALL(vertexModule->findEntryPointByName("main", vertexEntryPoint.writeRef()));
 
         ComPtr<slang::IEntryPoint> fragmentEntryPoint;
-        REQUIRE_CALL(
-            fragmentModule->findEntryPointByName("main", fragmentEntryPoint.writeRef()));
+        REQUIRE_CALL(fragmentModule->findEntryPointByName("main", fragmentEntryPoint.writeRef()));
 
         std::vector<slang::IComponentType*> componentTypes;
         componentTypes.push_back(vertexModule);
         componentTypes.push_back(fragmentModule);
 
         ComPtr<slang::IComponentType> composedProgram;
-        REQUIRE_CALL(
-            slangSession->createCompositeComponentType(
-                componentTypes.data(),
-                componentTypes.size(),
-                composedProgram.writeRef()));
+        REQUIRE_CALL(slangSession->createCompositeComponentType(
+            componentTypes.data(),
+            componentTypes.size(),
+            composedProgram.writeRef()
+        ));
 
         slang::ProgramLayout* slangReflection = composedProgram->getLayout();
 
@@ -909,8 +930,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(
-            device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
     }
 
     void runGraphicsPipeline()
@@ -939,7 +959,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
     }
 };
 
-template<typename T>
+template <typename T>
 void runTest(GpuTestContext* ctx, DeviceType deviceType)
 {
     std::string tempDirectory = getCaseTempDirectory();

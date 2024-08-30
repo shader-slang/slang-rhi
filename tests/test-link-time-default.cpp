@@ -7,7 +7,8 @@ static Slang::Result loadProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     slang::ProgramLayout*& slangReflection,
-    bool linkSpecialization = false)
+    bool linkSpecialization = false
+)
 {
     const char* moduleInterfaceSrc = R"(
         interface IFoo
@@ -63,15 +64,11 @@ static Slang::Result loadProgram(
     auto moduleInterfaceBlob = UnownedBlob::create(moduleInterfaceSrc, strlen(moduleInterfaceSrc));
     auto module0Blob = UnownedBlob::create(module0Src, strlen(module0Src));
     auto module1Blob = UnownedBlob::create(module1Src, strlen(module1Src));
-    slang::IModule* moduleInterface = slangSession->loadModuleFromSource("ifoo", "ifoo.slang",
-        moduleInterfaceBlob);
-    slang::IModule* module0 = slangSession->loadModuleFromSource("module0", "path0",
-        module0Blob);
-    slang::IModule* module1 = slangSession->loadModuleFromSource("module1", "path1",
-        module1Blob);
+    slang::IModule* moduleInterface = slangSession->loadModuleFromSource("ifoo", "ifoo.slang", moduleInterfaceBlob);
+    slang::IModule* module0 = slangSession->loadModuleFromSource("module0", "path0", module0Blob);
+    slang::IModule* module1 = slangSession->loadModuleFromSource("module1", "path1", module1Blob);
     ComPtr<slang::IEntryPoint> computeEntryPoint;
-    SLANG_RETURN_ON_FAIL(
-        module0->findEntryPointByName("computeMain", computeEntryPoint.writeRef()));
+    SLANG_RETURN_ON_FAIL(module0->findEntryPointByName("computeMain", computeEntryPoint.writeRef()));
 
     std::vector<slang::IComponentType*> componentTypes;
     componentTypes.push_back(moduleInterface);
@@ -85,7 +82,8 @@ static Slang::Result loadProgram(
         componentTypes.data(),
         componentTypes.size(),
         composedProgram.writeRef(),
-        diagnosticsBlob.writeRef());
+        diagnosticsBlob.writeRef()
+    );
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
@@ -113,8 +111,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(
-        device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
+    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.
@@ -125,8 +122,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     ComputePipelineStateDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
 
     // Create pipeline with a specialization override module linked in, so we should
     // see the result of using `Bar` for `extern Foo`.
@@ -136,11 +132,10 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     ComputePipelineStateDesc pipelineDesc1 = {};
     pipelineDesc1.program = shaderProgram1.get();
     ComPtr<IPipelineState> pipelineState1;
-    REQUIRE_CALL(
-        device->createComputePipelineState(pipelineDesc1, pipelineState1.writeRef()));
+    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc1, pipelineState1.writeRef()));
 
     const int numberCount = 4;
-    float initialData[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float initialData[] = {0.0f, 0.0f, 0.0f, 0.0f};
     IBufferResource::Desc bufferDesc = {};
     bufferDesc.sizeInBytes = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
@@ -149,24 +144,21 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
         ResourceState::ShaderResource,
         ResourceState::UnorderedAccess,
         ResourceState::CopyDestination,
-        ResourceState::CopySource);
+        ResourceState::CopySource
+    );
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(
-        bufferDesc,
-        (void*)initialData,
-        numbersBuffer.writeRef()));
+    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
     viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(
-        device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
-    ICommandQueue::Desc queueDesc = { ICommandQueue::QueueType::Graphics };
+    ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
     auto queue = device->createCommandQueue(queueDesc);
 
     // We have done all the set up work, now it is time to start recording a command buffer for
@@ -177,8 +169,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
         auto rootObject = encoder->bindPipeline(pipelineState);
 
-        ShaderCursor entryPointCursor(
-            rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
+        ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
         entryPointCursor.getPath("buffer").setResource(bufferView);
 
@@ -189,10 +180,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device,
-        numbersBuffer,
-        makeArray<float>(8.f));
+    compareComputeResult(device, numbersBuffer, makeArray<float>(8.f));
 
     // Now run again with the overrided program.
     {
@@ -201,8 +189,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
         auto rootObject = encoder->bindPipeline(pipelineState1);
 
-        ShaderCursor entryPointCursor(
-            rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
+        ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
         entryPointCursor.getPath("buffer").setResource(bufferView);
 
@@ -213,13 +200,10 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device,
-        numbersBuffer,
-        makeArray<float>(10.f));
+    compareComputeResult(device, numbersBuffer, makeArray<float>(10.f));
 }
 
 TEST_CASE("link-time-default")
 {
-    runGpuTests(testLinkTimeDefault, {DeviceType::D3D12, DeviceType::Vulkan});    
+    runGpuTests(testLinkTimeDefault, {DeviceType::D3D12, DeviceType::Vulkan});
 }
