@@ -972,8 +972,6 @@ Result DeviceImpl::initialize(const Desc& desc)
     // Initialize device info.
     {
         m_info.apiName = "Vulkan";
-        m_info.bindingStyle = BindingStyle::Vulkan;
-        m_info.projectionStyle = ProjectionStyle::Vulkan;
         m_info.deviceType = DeviceType::Vulkan;
         static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));

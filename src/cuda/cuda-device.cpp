@@ -189,8 +189,6 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
     // Initialize DeviceInfo
     {
         m_info.deviceType = DeviceType::CUDA;
-        m_info.bindingStyle = BindingStyle::CUDA;
-        m_info.projectionStyle = ProjectionStyle::DirectX;
         m_info.apiName = "CUDA";
         static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));

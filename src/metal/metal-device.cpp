@@ -42,8 +42,6 @@ Result DeviceImpl::initialize(const Desc& desc)
     // Initialize device info.
     {
         m_info.apiName = "Metal";
-        m_info.bindingStyle = BindingStyle::Metal;
-        m_info.projectionStyle = ProjectionStyle::Metal;
         m_info.deviceType = DeviceType::Metal;
         m_info.adapterName = "default";
         static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};

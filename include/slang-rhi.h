@@ -98,29 +98,6 @@ enum class DeviceType
     CountOf,
 };
 
-// TODO: Why does this exist it should go poof
-enum class ProjectionStyle
-{
-    Unknown,
-    DirectX,
-    Vulkan,
-    Metal,
-    CountOf,
-};
-
-// TODO: This should also go poof
-/// The style of the binding
-enum class BindingStyle
-{
-    Unknown,
-    DirectX,
-    Vulkan,
-    Metal,
-    CPU,
-    CUDA,
-    CountOf,
-};
-
 // TODO: Is this actually a flag when there are no bit fields?
 enum class AccessFlag
 {
@@ -2165,10 +2142,6 @@ struct DeviceInfo
     DeviceType deviceType;
 
     DeviceLimits limits;
-
-    BindingStyle bindingStyle;
-
-    ProjectionStyle projectionStyle;
 
     /// An projection matrix that ensures x, y mapping to pixels
     /// is the same on all targets

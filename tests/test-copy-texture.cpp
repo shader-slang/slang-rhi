@@ -768,7 +768,7 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    const bool isVkd3d = SLANG_ENABLE_VKD3D && strcmp(device->getDeviceInfo().apiName, "Direct3D 12") == 0;
+    const bool isVkd3d = SLANG_ENABLE_VKD3D && strcmp(device->getDeviceInfo().apiName, "D3D12") == 0;
 
     // Skip Type::Unknown and Type::Buffer as well as Format::Unknown
     // TODO: Add support for TextureCube
