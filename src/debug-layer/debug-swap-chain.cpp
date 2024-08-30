@@ -1,17 +1,9 @@
-// debug-swap-chain.cpp
 #include "debug-swap-chain.h"
-
 #include "debug-command-queue.h"
+#include "debug-helper-functions.h"
 #include "debug-texture.h"
 
-#include "debug-helper-functions.h"
-
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 const ISwapchain::Desc& DebugSwapchain::getDesc()
 {
@@ -30,7 +22,8 @@ Result DebugSwapchain::getImage(GfxIndex index, ITextureResource** outResource)
         RHI_VALIDATION_ERROR_FORMAT(
             "`index`(%d) must not exceed total number of images (%d) in the swapchain.",
             index,
-            (uint32_t)m_images.size());
+            (uint32_t)m_images.size()
+        );
     }
     returnComPtr(outResource, m_images[index]);
     return SLANG_OK;
@@ -91,5 +84,4 @@ void DebugSwapchain::maybeRebuildImageList()
     }
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

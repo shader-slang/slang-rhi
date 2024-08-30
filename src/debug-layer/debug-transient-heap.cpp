@@ -1,16 +1,8 @@
-// debug-transient-heap.cpp
 #include "debug-transient-heap.h"
-
 #include "debug-command-buffer.h"
-
 #include "debug-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 SlangResult DebugTransientResourceHeap::queryInterface(SlangUUID const& uuid, void** outObject)
 {
@@ -74,13 +66,12 @@ Result DebugTransientResourceHeapD3D12::allocateTransientDescriptorTable(
     DescriptorType type,
     GfxCount count,
     Offset& outDescriptorOffset,
-    void** outD3DDescriptorHeapHandle)
+    void** outD3DDescriptorHeapHandle
+)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->allocateTransientDescriptorTable(
-        type, count, outDescriptorOffset, outD3DDescriptorHeapHandle);
+    return baseObject->allocateTransientDescriptorTable(type, count, outDescriptorOffset, outD3DDescriptorHeapHandle);
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

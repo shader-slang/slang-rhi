@@ -1,14 +1,7 @@
-// debug-buffer.cpp
 #include "debug-buffer.h"
-
 #include "debug-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 IResource::Type DebugBufferResource::getType()
 {
@@ -63,5 +56,4 @@ Result DebugBufferResource::unmap(MemoryRange* writtenRange)
     return baseObject->unmap(writtenRange);
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

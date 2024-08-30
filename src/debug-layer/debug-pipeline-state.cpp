@@ -1,14 +1,7 @@
-// debug-pipeline-state.cpp
 #include "debug-pipeline-state.h"
-
 #include "debug-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 Result DebugPipelineState::getNativeHandle(InteropHandle* outHandle)
 {
@@ -16,5 +9,4 @@ Result DebugPipelineState::getNativeHandle(InteropHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

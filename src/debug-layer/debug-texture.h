@@ -1,13 +1,8 @@
-// debug-texture.h
 #pragma once
+
 #include "debug-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 class DebugTextureResource : public DebugObject<ITextureResource>
 {
@@ -25,5 +20,4 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override;
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

@@ -1,17 +1,9 @@
-// debug-shader-object.cpp
 #include "debug-shader-object.h"
-
+#include "debug-helper-functions.h"
 #include "debug-resource-views.h"
 #include "debug-sampler-state.h"
 
-#include "debug-helper-functions.h"
-
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 ShaderObjectContainerType DebugShaderObject::getContainerType()
 {
@@ -32,7 +24,8 @@ void DebugShaderObject::checkCompleteness()
                 RHI_VALIDATION_ERROR_FORMAT(
                     "shader parameter '%s' is not initialized in the shader object of type '%s'.",
                     var->getName(),
-                    m_slangType->getName());
+                    m_slangType->getName()
+                );
             }
         }
     }
@@ -58,8 +51,7 @@ Result DebugShaderObject::getEntryPoint(GfxIndex index, IShaderObject** entryPoi
         for (GfxIndex i = 0; i < getEntryPointCount(); i++)
         {
             RefPtr<DebugShaderObject> entryPointObj = new DebugShaderObject();
-            SLANG_RETURN_ON_FAIL(
-                baseObject->getEntryPoint(i, entryPointObj->baseObject.writeRef()));
+            SLANG_RETURN_ON_FAIL(baseObject->getEntryPoint(i, entryPointObj->baseObject.writeRef()));
             m_entryPoints.push_back(entryPointObj);
         }
     }
@@ -135,7 +127,8 @@ Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISamplerState* 
 Result DebugShaderObject::setCombinedTextureSampler(
     ShaderOffset const& offset,
     IResourceView* textureView,
-    ISamplerState* sampler)
+    ISamplerState* sampler
+)
 {
     SLANG_RHI_API_FUNC;
     auto samplerImpl = getDebugObj(sampler);
@@ -143,21 +136,20 @@ Result DebugShaderObject::setCombinedTextureSampler(
     auto viewImpl = getDebugObj(textureView);
     m_resources[ShaderOffsetKey{offset}] = viewImpl;
     m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
-    return baseObject->setCombinedTextureSampler(
-        offset, getInnerObj(viewImpl), getInnerObj(sampler));
+    return baseObject->setCombinedTextureSampler(offset, getInnerObj(viewImpl), getInnerObj(sampler));
 }
 
 Result DebugShaderObject::setSpecializationArgs(
     ShaderOffset const& offset,
     const slang::SpecializationArg* args,
-    GfxCount count)
+    GfxCount count
+)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->setSpecializationArgs(offset, args, count);
 }
 
-Result DebugShaderObject::getCurrentVersion(
-    ITransientResourceHeap* transientHeap, IShaderObject** outObject)
+Result DebugShaderObject::getCurrentVersion(ITransientResourceHeap* transientHeap, IShaderObject** outObject)
 {
     SLANG_RHI_API_FUNC;
     ComPtr<IShaderObject> innerObject;
@@ -190,7 +182,8 @@ Result DebugShaderObject::setConstantBufferOverride(IBufferResource* constantBuf
 Result DebugRootShaderObject::setSpecializationArgs(
     ShaderOffset const& offset,
     const slang::SpecializationArg* args,
-    GfxCount count)
+    GfxCount count
+)
 {
     SLANG_RHI_API_FUNC;
 
@@ -206,5 +199,4 @@ void DebugRootShaderObject::reset()
     baseObject.detach();
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

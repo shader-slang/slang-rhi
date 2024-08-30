@@ -1,14 +1,7 @@
-// debug-resource-views.cpp
 #include "debug-resource-views.h"
-
 #include "debug-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 IResourceView::Desc* DebugResourceView::getViewDesc()
 {
@@ -45,5 +38,4 @@ IResourceView::Desc* DebugAccelerationStructure::getViewDesc()
     return baseObject->getViewDesc();
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

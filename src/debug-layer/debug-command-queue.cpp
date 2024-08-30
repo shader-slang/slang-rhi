@@ -1,20 +1,12 @@
-// debug-command-queue.cpp
 #include "debug-command-queue.h"
-
 #include "debug-command-buffer.h"
 #include "debug-fence.h"
-#include "debug-transient-heap.h"
-
 #include "debug-helper-functions.h"
+#include "debug-transient-heap.h"
 
 #include <vector>
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 const ICommandQueue::Desc& DebugCommandQueue::getDesc()
 {
@@ -22,7 +14,12 @@ const ICommandQueue::Desc& DebugCommandQueue::getDesc()
     return baseObject->getDesc();
 }
 
-void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
+void DebugCommandQueue::executeCommandBuffers(
+    GfxCount count,
+    ICommandBuffer* const* commandBuffers,
+    IFence* fence,
+    uint64_t valueToSignal
+)
 {
     SLANG_RHI_API_FUNC;
     std::vector<ICommandBuffer*> innerCommandBuffers;
@@ -37,14 +34,15 @@ void DebugCommandQueue::executeCommandBuffers(GfxCount count, ICommandBuffer* co
             RHI_VALIDATION_ERROR_FORMAT(
                 "Command buffer %lld is still open. A command buffer must be closed "
                 "before submitting to a command queue.",
-                cmdBufferImpl->uid);
+                cmdBufferImpl->uid
+            );
         }
         if (i > 0)
         {
             if (cmdBufferImpl->m_transientHeap != getDebugObj(commandBuffers[0])->m_transientHeap)
             {
                 RHI_VALIDATION_ERROR("Command buffers passed to a single executeCommandBuffers "
-                                   "call must be allocated from the same transient heap.");
+                                     "call must be allocated from the same transient heap.");
             }
         }
     }
@@ -61,8 +59,7 @@ void DebugCommandQueue::waitOnHost()
     baseObject->waitOnHost();
 }
 
-Result DebugCommandQueue::waitForFenceValuesOnDevice(
-    GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result DebugCommandQueue::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {
     SLANG_RHI_API_FUNC;
     std::vector<IFence*> innerFences;
@@ -79,5 +76,4 @@ Result DebugCommandQueue::getNativeHandle(InteropHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

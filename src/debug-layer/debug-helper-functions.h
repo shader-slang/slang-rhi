@@ -1,7 +1,5 @@
-// debug-helper-functions.h
 #pragma once
 #include "debug-base.h"
-
 #include "debug-buffer.h"
 #include "debug-command-buffer.h"
 #include "debug-command-queue.h"
@@ -23,21 +21,16 @@
 
 #include <vector>
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 #ifdef __FUNCSIG__
-#    define SLANG_FUNC_SIG __FUNCSIG__
+#define SLANG_FUNC_SIG __FUNCSIG__
 #elif defined(__PRETTY_FUNCTION__)
-#    define SLANG_FUNC_SIG __FUNCSIG__
+#define SLANG_FUNC_SIG __FUNCSIG__
 #elif defined(__FUNCTION__)
-#    define SLANG_FUNC_SIG __FUNCTION__
+#define SLANG_FUNC_SIG __FUNCTION__
 #else
-#    define SLANG_FUNC_SIG "UnknownFunction"
+#define SLANG_FUNC_SIG "UnknownFunction"
 #endif
 
 extern thread_local const char* _currentFunctionName;
@@ -54,11 +47,12 @@ std::string _gfxGetFuncName(const char* input);
 
 template <typename... TArgs>
 char* _gfxDiagnoseFormat(
-    char* buffer, // Initial buffer to output formatted string.
-    size_t shortBufferSize, // Size of the initial buffer.
+    char* buffer,                   // Initial buffer to output formatted string.
+    size_t shortBufferSize,         // Size of the initial buffer.
     std::vector<char>& bufferArray, // A list for allocating a large buffer if needed.
-    const char* format, // The format string.
-    TArgs... args)
+    const char* format,             // The format string.
+    TArgs... args
+)
 {
     int length = snprintf(buffer, shortBufferSize, format, args...);
     if (length < 0)
@@ -77,86 +71,87 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 {
     char shortBuffer[256];
     std::vector<char> bufferArray;
-    auto buffer =
-        _gfxDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, args...);
+    auto buffer = _gfxDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, args...);
     getDebugCallback()->handleMessage(type, DebugMessageSource::Layer, buffer);
 }
 
-#define RHI_VALIDATION_ERROR(message)                                                                \
-    _gfxDiagnoseImpl(                                                                              \
-        DebugMessageType::Error,                                                                   \
-        "%s: %s",                                                                                  \
-        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),     \
-        message)
-#define RHI_VALIDATION_WARNING(message)                                                              \
-    _gfxDiagnoseImpl(                                                                              \
-        DebugMessageType::Warning,                                                                 \
-        "%s: %s",                                                                                  \
-        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),     \
-        message)
-#define RHI_VALIDATION_INFO(message)                                                                 \
-    _gfxDiagnoseImpl(                                                                              \
-        DebugMessageType::Info,                                                                    \
-        "%s: %s",                                                                                  \
-        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),     \
-        message)
-#define RHI_VALIDATION_FORMAT(type, format, ...)                                            \
-    {                                                                                     \
-        char shortBuffer[256];                                                            \
-        std::vector<char> bufferArray;                                                    \
-        auto message = _gfxDiagnoseFormat(                                                \
-            shortBuffer, sizeof(shortBuffer), bufferArray, format, __VA_ARGS__);          \
-        _gfxDiagnoseImpl(                                                                 \
-            type,                                                                         \
-            "%s: %s",                                                                     \
-            _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG) \
-                .c_str(),                                                                 \
-            message);                                                                     \
+#define RHI_VALIDATION_ERROR(message)                                                                                  \
+    _gfxDiagnoseImpl(                                                                                                  \
+        DebugMessageType::Error,                                                                                       \
+        "%s: %s",                                                                                                      \
+        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
+        message                                                                                                        \
+    )
+#define RHI_VALIDATION_WARNING(message)                                                                                \
+    _gfxDiagnoseImpl(                                                                                                  \
+        DebugMessageType::Warning,                                                                                     \
+        "%s: %s",                                                                                                      \
+        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
+        message                                                                                                        \
+    )
+#define RHI_VALIDATION_INFO(message)                                                                                   \
+    _gfxDiagnoseImpl(                                                                                                  \
+        DebugMessageType::Info,                                                                                        \
+        "%s: %s",                                                                                                      \
+        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
+        message                                                                                                        \
+    )
+#define RHI_VALIDATION_FORMAT(type, format, ...)                                                                       \
+    {                                                                                                                  \
+        char shortBuffer[256];                                                                                         \
+        std::vector<char> bufferArray;                                                                                 \
+        auto message = _gfxDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, __VA_ARGS__);         \
+        _gfxDiagnoseImpl(                                                                                              \
+            type,                                                                                                      \
+            "%s: %s",                                                                                                  \
+            _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                     \
+            message                                                                                                    \
+        );                                                                                                             \
     }
 #define RHI_VALIDATION_ERROR_FORMAT(...) RHI_VALIDATION_FORMAT(DebugMessageType::Error, __VA_ARGS__)
 
-#define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                    \
-    I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                 \
-    {                                                                                   \
-        return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName) \
-                    ? static_cast<I##typeName*>(this)                                   \
-                    : nullptr;                                                          \
+#define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                                                   \
+    I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                                                \
+    {                                                                                                                  \
+        return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName)                                \
+                   ? static_cast<I##typeName*>(this)                                                                   \
+                   : nullptr;                                                                                          \
     }
-#define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(typeName, parentType)                   \
-    I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                   \
-    {                                                                                     \
-        return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName || \
-                guid == GfxGUID::IID_I##parentType)                                       \
-                    ? static_cast<I##typeName*>(this)                                     \
-                    : nullptr;                                                            \
+#define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(typeName, parentType)                                                \
+    I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                                                \
+    {                                                                                                                  \
+        return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName ||                              \
+                guid == GfxGUID::IID_I##parentType)                                                                    \
+                   ? static_cast<I##typeName*>(this)                                                                   \
+                   : nullptr;                                                                                          \
     }
 
 // Utility conversion functions to get Debug* object or the inner object from a user provided
 // pointer.
-#define SLANG_RHI_DEBUG_GET_OBJ_IMPL(type)                                         \
-    inline Debug##type* getDebugObj(I##type* ptr)                                  \
-    {                                                                              \
-        return static_cast<Debug##type*>(static_cast<DebugObject<I##type>*>(ptr)); \
-    }                                                                              \
-    inline I##type* getInnerObj(I##type* ptr)                                      \
-    {                                                                              \
-        if (!ptr)                                                                  \
-            return nullptr;                                                        \
-        auto debugObj = getDebugObj(ptr);                                          \
-        return debugObj->baseObject;                                               \
+#define SLANG_RHI_DEBUG_GET_OBJ_IMPL(type)                                                                             \
+    inline Debug##type* getDebugObj(I##type* ptr)                                                                      \
+    {                                                                                                                  \
+        return static_cast<Debug##type*>(static_cast<DebugObject<I##type>*>(ptr));                                     \
+    }                                                                                                                  \
+    inline I##type* getInnerObj(I##type* ptr)                                                                          \
+    {                                                                                                                  \
+        if (!ptr)                                                                                                      \
+            return nullptr;                                                                                            \
+        auto debugObj = getDebugObj(ptr);                                                                              \
+        return debugObj->baseObject;                                                                                   \
     }
 
-#define SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(type)                                        \
-    inline Debug##type* getDebugObj(I##type* ptr)                                         \
-    {                                                                                     \
-        return static_cast<Debug##type*>(static_cast<UnownedDebugObject<I##type>*>(ptr)); \
-    }                                                                                     \
-    inline I##type* getInnerObj(I##type* ptr)                                             \
-    {                                                                                     \
-        if (!ptr)                                                                         \
-            return nullptr;                                                               \
-        auto debugObj = getDebugObj(ptr);                                                 \
-        return debugObj->baseObject;                                                      \
+#define SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(type)                                                                     \
+    inline Debug##type* getDebugObj(I##type* ptr)                                                                      \
+    {                                                                                                                  \
+        return static_cast<Debug##type*>(static_cast<UnownedDebugObject<I##type>*>(ptr));                              \
+    }                                                                                                                  \
+    inline I##type* getInnerObj(I##type* ptr)                                                                          \
+    {                                                                                                                  \
+        if (!ptr)                                                                                                      \
+            return nullptr;                                                                                            \
+        auto debugObj = getDebugObj(ptr);                                                                              \
+        return debugObj->baseObject;                                                                                   \
     }
 
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Device)
@@ -184,8 +179,6 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(AccelerationStructure)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderTable)
 
-void validateAccelerationStructureBuildInputs(
-    const IAccelerationStructure::BuildInputs& buildInputs);
+void validateAccelerationStructureBuildInputs(const IAccelerationStructure::BuildInputs& buildInputs);
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

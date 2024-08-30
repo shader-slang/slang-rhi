@@ -1,16 +1,10 @@
-// debug-framebuffer.h
 #pragma once
+
 #include "debug-base.h"
 
-namespace rhi
-{
-using namespace Slang;
+namespace rhi::debug {
 
-namespace debug
-{
-
-class DebugFramebuffer
-    : public DebugObject<IFramebuffer>
+class DebugFramebuffer : public DebugObject<IFramebuffer>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
@@ -28,5 +22,4 @@ public:
     IFramebufferLayout* getInterface(const Slang::Guid& guid);
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

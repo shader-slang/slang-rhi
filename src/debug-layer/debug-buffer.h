@@ -1,13 +1,8 @@
-// debug-buffer.h
 #pragma once
+
 #include "debug-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 class DebugBufferResource : public DebugObject<IBufferResource>
 {
@@ -25,10 +20,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setDebugName(const char* name) override;
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        map(MemoryRange* rangeToRead, void** outPointer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) override;
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

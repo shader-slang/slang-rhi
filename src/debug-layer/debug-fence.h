@@ -1,13 +1,8 @@
-// debug-fence.h
 #pragma once
+
 #include "debug-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 class DebugFence : public DebugObject<IFence>
 {
@@ -18,9 +13,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setCurrentValue(uint64_t value) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) override;
+
 public:
     uint64_t maxValueToSignal = 0;
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

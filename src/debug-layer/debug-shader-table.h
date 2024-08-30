@@ -1,13 +1,8 @@
-// debug-shader-table.h
 #pragma once
+
 #include "debug-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 class DebugShaderTable : public DebugObject<IShaderTable>
 {
@@ -16,5 +11,4 @@ public:
     IShaderTable* getInterface(const Slang::Guid& guid);
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

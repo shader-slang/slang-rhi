@@ -1,14 +1,7 @@
-// debug-fence.cpp
 #include "debug-fence.h"
-
 #include "debug-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 Result DebugFence::getSharedHandle(InteropHandle* outHandle)
 {
@@ -33,10 +26,13 @@ Result DebugFence::setCurrentValue(uint64_t value)
     SLANG_RHI_API_FUNC;
     if (value < maxValueToSignal)
     {
-        RHI_VALIDATION_ERROR_FORMAT("Cannot set fence value (%d) to lower than pending signal value (%d) on the fence.", value, maxValueToSignal);
+        RHI_VALIDATION_ERROR_FORMAT(
+            "Cannot set fence value (%d) to lower than pending signal value (%d) on the fence.",
+            value,
+            maxValueToSignal
+        );
     }
     return baseObject->setCurrentValue(value);
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

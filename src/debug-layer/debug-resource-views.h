@@ -1,13 +1,8 @@
-// debug-resource-views.h
 #pragma once
+
 #include "debug-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 class DebugResourceView : public DebugObject<IResourceView>
 {
@@ -28,10 +23,8 @@ public:
 public:
     IAccelerationStructure* getInterface(const Slang::Guid& guid);
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getNativeHandle(InteropHandle* outNativeHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) override;
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getViewDesc() override;
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

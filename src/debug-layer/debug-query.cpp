@@ -1,14 +1,7 @@
-// debug-query.cpp
 #include "debug-query.h"
-
 #include "debug-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 Result DebugQueryPool::getResult(GfxIndex index, GfxCount count, uint64_t* data)
 {
@@ -25,5 +18,4 @@ Result DebugQueryPool::reset()
     return baseObject->reset();
 }
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

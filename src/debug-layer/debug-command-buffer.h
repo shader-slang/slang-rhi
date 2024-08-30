@@ -1,16 +1,10 @@
-// debug-command-buffer.h
 #pragma once
-#include "debug-base.h"
 
+#include "debug-base.h"
 #include "debug-command-encoder.h"
 #include "debug-shader-object.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 class DebugCommandBuffer : public DebugObject<ICommandBuffer>, ICommandBufferD3D12
 {
@@ -19,6 +13,7 @@ public:
 
 public:
     DebugTransientResourceHeap* m_transientHeap;
+
 private:
     DebugRenderCommandEncoder m_renderCommandEncoder;
     DebugComputeCommandEncoder m_computeCommandEncoder;
@@ -31,13 +26,11 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
         IRenderPassLayout* renderPass,
         IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+        IRenderCommandEncoder** outEncoder
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
     virtual SLANG_NO_THROW void SLANG_MCALL invalidateDescriptorHeapBinding() override;
@@ -46,10 +39,10 @@ public:
 private:
     void checkEncodersClosedBeforeNewEncoder();
     void checkCommandBufferOpenWhenCreatingEncoder();
+
 public:
     DebugRootShaderObject rootObject;
     bool isOpen = true;
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

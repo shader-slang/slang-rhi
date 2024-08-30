@@ -1,14 +1,7 @@
-// debug-texture.cpp
 #include "debug-texture.h"
-
 #include "debug-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 IResource::Type DebugTextureResource::getType()
 {
@@ -39,7 +32,9 @@ Result DebugTextureResource::setDebugName(const char* name)
     return baseObject->setDebugName(name);
 }
 
-const char* DebugTextureResource::getDebugName() { return baseObject->getDebugName(); }
+const char* DebugTextureResource::getDebugName()
+{
+    return baseObject->getDebugName();
+}
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug

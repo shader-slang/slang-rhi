@@ -1,13 +1,8 @@
-// debug-pipeline-state.h
 #pragma once
+
 #include "debug-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace debug
-{
+namespace rhi::debug {
 
 class DebugPipelineState : public DebugObject<IPipelineState>
 {
@@ -19,5 +14,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace debug
-} // namespace rhi
+} // namespace rhi::debug
