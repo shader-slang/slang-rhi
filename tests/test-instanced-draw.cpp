@@ -83,9 +83,9 @@ static ComPtr<IBuffer> createIndexBuffer(IDevice* device)
     return indexBuffer;
 }
 
-static ComPtr<ITextureResource> createColorBuffer(IDevice* device)
+static ComPtr<ITexture> createColorBuffer(IDevice* device)
 {
-    ITextureResource::Desc colorBufferDesc;
+    ITexture::Desc colorBufferDesc;
     colorBufferDesc.type = IResource::Type::Texture2D;
     colorBufferDesc.size.width = kWidth;
     colorBufferDesc.size.height = kHeight;
@@ -94,7 +94,7 @@ static ComPtr<ITextureResource> createColorBuffer(IDevice* device)
     colorBufferDesc.format = format;
     colorBufferDesc.defaultState = ResourceState::RenderTarget;
     colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
-    ComPtr<ITextureResource> colorBuffer = device->createTextureResource(colorBufferDesc, nullptr);
+    ComPtr<ITexture> colorBuffer = device->createTexture(colorBufferDesc, nullptr);
     REQUIRE(colorBuffer != nullptr);
     return colorBuffer;
 }
@@ -111,7 +111,7 @@ public:
 
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IBuffer> instanceBuffer;
-    ComPtr<ITextureResource> colorBuffer;
+    ComPtr<ITexture> colorBuffer;
 
     void init(IDevice* device) { this->device = device; }
 
@@ -215,13 +215,9 @@ public:
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTextureResource(
-            colorBuffer,
-            ResourceState::CopySource,
-            resultBlob.writeRef(),
-            &rowPitch,
-            &pixelSize
-        ));
+        REQUIRE_CALL(
+            device->readTexture(colorBuffer, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
+        );
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;

@@ -2,9 +2,9 @@
 
 namespace rhi::metal {
 
-TextureResourceViewImpl::~TextureResourceViewImpl() {}
+TextureViewImpl::~TextureViewImpl() {}
 
-Result TextureResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TextureViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Metal;
     outHandle->handleValue = reinterpret_cast<uintptr_t>(m_textureView.get());

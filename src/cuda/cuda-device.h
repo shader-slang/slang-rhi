@@ -31,10 +31,10 @@ public:
 
     Result getCUDAFormat(Format format, CUarray_format* outFormat);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureResource(
-        const ITextureResource::Desc& desc,
-        const ITextureResource::SubresourceData* initData,
-        ITextureResource** outResource
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
+        const ITexture::Desc& desc,
+        const ITexture::SubresourceData* initData,
+        ITexture** outTexture
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -45,13 +45,13 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
-        const ITextureResource::Desc& desc,
+        const ITexture::Desc& desc,
         const size_t size,
-        ITextureResource** outResource
+        ITexture** outTexture
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
+    createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
@@ -117,13 +117,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
-        ITextureResource* texture,
-        ResourceState state,
-        ISlangBlob** outBlob,
-        size_t* outRowPitch,
-        size_t* outPixelSize
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;

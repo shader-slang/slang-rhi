@@ -208,7 +208,7 @@ uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
 
 void initSrvDesc(
     IResource::Type resourceType,
-    const ITextureResource::Desc& textureDesc,
+    const ITexture::Desc& textureDesc,
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
@@ -336,7 +336,7 @@ void initSrvDesc(
     }
 }
 
-Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc)
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITexture::Desc& srcDesc)
 {
     const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)

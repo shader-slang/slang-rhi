@@ -9,8 +9,8 @@ namespace rhi::cuda {
 class ResourceViewImpl : public ResourceViewBase
 {
 public:
-    RefPtr<BufferImpl> memoryResource;
-    RefPtr<TextureResourceImpl> textureResource;
+    RefPtr<BufferImpl> buffer;
+    RefPtr<TextureImpl> texture;
     void* proxyBuffer = nullptr;
 };
 

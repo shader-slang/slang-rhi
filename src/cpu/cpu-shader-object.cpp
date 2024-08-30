@@ -161,7 +161,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
     {
     case ResourceViewImpl::Kind::Texture:
     {
-        auto textureView = static_cast<TextureResourceViewImpl*>(view);
+        auto textureView = static_cast<TextureViewImpl*>(view);
 
         slang_prelude::IRWTexture* textureObj = textureView;
         SLANG_RETURN_ON_FAIL(setData(offset, &textureObj, sizeof(textureObj)));

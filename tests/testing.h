@@ -80,7 +80,7 @@ void compareComputeResult(
 /// Reads back the content of `texture` and compares it against `expectedResult`.
 void compareComputeResult(
     IDevice* device,
-    ITextureResource* texture,
+    ITexture* texture,
     ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,

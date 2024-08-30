@@ -71,7 +71,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    textureBarrier(GfxCount count, ITextureResource* const* textures, ResourceState src, ResourceState dst) override;
+    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
     bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
@@ -79,33 +79,29 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex index) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
-        ITextureResource* dst,
+        ITexture* dst,
         ResourceState dstState,
         SubresourceRange dstSubresource,
-        ITextureResource::Offset3D dstOffset,
-        ITextureResource* src,
+        ITexture::Offset3D dstOffset,
+        ITexture* src,
         ResourceState srcState,
         SubresourceRange srcSubresource,
-        ITextureResource::Offset3D srcOffset,
-        ITextureResource::Extents extent
+        ITexture::Offset3D srcOffset,
+        ITexture::Extents extent
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
-        ITextureResource* dst,
+        ITexture* dst,
         SubresourceRange subResourceRange,
-        ITextureResource::Offset3D offset,
-        ITextureResource::Extents extend,
-        ITextureResource::SubresourceData* subResourceData,
+        ITexture::Offset3D offset,
+        ITexture::Extents extend,
+        ITexture::SubresourceData* subResourceData,
         GfxCount subResourceDataCount
     ) override;
 
-    void _clearColorImage(TextureResourceViewImpl* viewImpl, ClearValue* clearValue);
+    void _clearColorImage(TextureViewImpl* viewImpl, ClearValue* clearValue);
 
-    void _clearDepthImage(
-        TextureResourceViewImpl* viewImpl,
-        ClearValue* clearValue,
-        ClearResourceViewFlags::Enum flags
-    );
+    void _clearDepthImage(TextureViewImpl* viewImpl, ClearValue* clearValue, ClearResourceViewFlags::Enum flags);
 
     void _clearBuffer(VkBuffer buffer, uint64_t bufferSize, const IResourceView::Desc& desc, uint32_t clearValue);
 
@@ -113,10 +109,10 @@ public:
     clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
-        ITextureResource* source,
+        ITexture* source,
         ResourceState sourceState,
         SubresourceRange sourceRange,
-        ITextureResource* dest,
+        ITexture* dest,
         ResourceState destState,
         SubresourceRange destRange
     ) override;
@@ -129,15 +125,15 @@ public:
         Offset dstOffset,
         Size dstSize,
         Size dstRowStride,
-        ITextureResource* src,
+        ITexture* src,
         ResourceState srcState,
         SubresourceRange srcSubresource,
-        ITextureResource::Offset3D srcOffset,
-        ITextureResource::Extents extent
+        ITexture::Offset3D srcOffset,
+        ITexture::Extents extent
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
-        ITextureResource* texture,
+        ITexture* texture,
         SubresourceRange subresourceRange,
         ResourceState src,
         ResourceState dst

@@ -27,15 +27,15 @@ public:
     RefPtr<DeviceImpl> m_device;
 };
 
-class TextureResourceViewImpl : public ResourceViewImpl
+class TextureViewImpl : public ResourceViewImpl
 {
 public:
-    TextureResourceViewImpl(DeviceImpl* device)
+    TextureViewImpl(DeviceImpl* device)
         : ResourceViewImpl(ViewType::Texture, device)
     {
     }
-    ~TextureResourceViewImpl();
-    RefPtr<TextureResourceImpl> m_texture;
+    ~TextureViewImpl();
+    RefPtr<TextureImpl> m_texture;
     VkImageView m_view;
     VkImageLayout m_layout;
 

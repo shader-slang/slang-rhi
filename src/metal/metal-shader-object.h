@@ -107,7 +107,7 @@ public:
     std::vector<RefPtr<BufferViewImpl>> m_buffers;
 
     /// The textures that are part of the state of this object
-    std::vector<RefPtr<TextureResourceViewImpl>> m_textures;
+    std::vector<RefPtr<TextureViewImpl>> m_textures;
 
     /// The samplers that are part of the state of this object
     std::vector<RefPtr<SamplerStateImpl>> m_samplers;

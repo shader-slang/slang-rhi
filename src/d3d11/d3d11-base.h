@@ -46,7 +46,7 @@ namespace rhi::d3d11 {
 class DeviceImpl;
 class ShaderProgramImpl;
 class BufferImpl;
-class TextureResourceImpl;
+class TextureImpl;
 class SamplerStateImpl;
 class ResourceViewImpl;
 class ShaderResourceViewImpl;

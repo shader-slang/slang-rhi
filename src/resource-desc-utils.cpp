@@ -9,9 +9,9 @@ IBuffer::Desc fixupBufferDesc(const IBuffer::Desc& desc)
     return result;
 }
 
-ITextureResource::Desc fixupTextureDesc(const ITextureResource::Desc& desc)
+ITexture::Desc fixupTextureDesc(const ITexture::Desc& desc)
 {
-    ITextureResource::Desc rs = desc;
+    ITexture::Desc rs = desc;
     if (desc.numMipLevels == 0)
         rs.numMipLevels = calcNumMipLevels(desc.type, desc.size);
     rs.allowedStates.add(rs.defaultState);

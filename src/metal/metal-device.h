@@ -30,10 +30,10 @@ public:
     createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureResource(
-        const ITextureResource::Desc& desc,
-        const ITextureResource::SubresourceData* initData,
-        ITextureResource** outResource
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
+        const ITexture::Desc& desc,
+        const ITexture::SubresourceData* initData,
+        ITexture** outTexture
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
@@ -43,7 +43,7 @@ public:
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
+    createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
         override;
@@ -77,13 +77,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
-        ITextureResource* texture,
-        ResourceState state,
-        ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
@@ -99,7 +95,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment) override;
+    getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;
 

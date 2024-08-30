@@ -3,27 +3,27 @@
 
 namespace rhi::metal {
 
-TextureResourceImpl::TextureResourceImpl(const Desc& desc, DeviceImpl* device)
+TextureImpl::TextureImpl(const Desc& desc, DeviceImpl* device)
     : Parent(desc)
     , m_device(device)
 {
 }
 
-TextureResourceImpl::~TextureResourceImpl() {}
+TextureImpl::~TextureImpl() {}
 
-Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Metal;
     outHandle->handleValue = reinterpret_cast<intptr_t>(m_texture.get());
     return SLANG_OK;
 }
 
-Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
 {
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result TextureResourceImpl::setDebugName(const char* name)
+Result TextureImpl::setDebugName(const char* name)
 {
     Parent::setDebugName(name);
     m_texture->setLabel(MetalUtil::createString(name).get());

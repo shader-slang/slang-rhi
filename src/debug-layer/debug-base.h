@@ -39,7 +39,7 @@ class DebugDevice;
 class DebugShaderTable;
 class DebugQueryPool;
 class DebugBuffer;
-class DebugTextureResource;
+class DebugTexture;
 class DebugResourceView;
 class DebugAccelerationStructure;
 class DebugSamplerState;

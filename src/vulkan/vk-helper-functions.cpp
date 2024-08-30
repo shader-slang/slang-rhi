@@ -301,7 +301,7 @@ VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
     }
 }
 
-VkImageViewType _calcImageViewType(ITextureResource::Type type, const ITextureResource::Desc& desc)
+VkImageViewType _calcImageViewType(ITexture::Type type, const ITexture::Desc& desc)
 {
     switch (type)
     {

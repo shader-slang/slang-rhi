@@ -2,12 +2,12 @@
 
 namespace rhi::vk {
 
-TextureResourceViewImpl::~TextureResourceViewImpl()
+TextureViewImpl::~TextureViewImpl()
 {
     m_device->m_api.vkDestroyImageView(m_device->m_api.m_device, m_view, nullptr);
 }
 
-Result TextureResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TextureViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Vulkan;
     outHandle->handleValue = (uint64_t)(m_view);

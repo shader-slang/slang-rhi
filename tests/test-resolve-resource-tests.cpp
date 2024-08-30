@@ -56,8 +56,8 @@ struct BaseResolveResourceTest
 {
     IDevice* device;
 
-    ComPtr<ITextureResource> msaaTexture;
-    ComPtr<ITextureResource> dstTexture;
+    ComPtr<ITexture> msaaTexture;
+    ComPtr<ITexture> dstTexture;
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipelineState> pipelineState;
@@ -68,10 +68,10 @@ struct BaseResolveResourceTest
 
     struct TextureInfo
     {
-        ITextureResource::Extents extent;
+        ITexture::Extents extent;
         int numMipLevels;
         int arraySize;
-        ITextureResource::SubresourceData const* initData;
+        ITexture::SubresourceData const* initData;
     };
 
     void init(IDevice* device) { this->device = device; }
@@ -88,7 +88,7 @@ struct BaseResolveResourceTest
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
         };
 
-        ITextureResource::Desc msaaTexDesc = {};
+        ITexture::Desc msaaTexDesc = {};
         msaaTexDesc.type = IResource::Type::Texture2D;
         msaaTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         msaaTexDesc.arraySize = dstTextureInfo.arraySize;
@@ -98,9 +98,9 @@ struct BaseResolveResourceTest
         msaaTexDesc.format = format;
         msaaTexDesc.sampleDesc.numSamples = 4;
 
-        REQUIRE_CALL(device->createTextureResource(msaaTexDesc, msaaTextureInfo.initData, msaaTexture.writeRef()));
+        REQUIRE_CALL(device->createTexture(msaaTexDesc, msaaTextureInfo.initData, msaaTexture.writeRef()));
 
-        ITextureResource::Desc dstTexDesc = {};
+        ITexture::Desc dstTexDesc = {};
         dstTexDesc.type = IResource::Type::Texture2D;
         dstTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         dstTexDesc.arraySize = dstTextureInfo.arraySize;
@@ -109,7 +109,7 @@ struct BaseResolveResourceTest
         dstTexDesc.allowedStates = ResourceStateSet(ResourceState::ResolveDestination, ResourceState::CopySource);
         dstTexDesc.format = format;
 
-        REQUIRE_CALL(device->createTextureResource(dstTexDesc, dstTextureInfo.initData, dstTexture.writeRef()));
+        REQUIRE_CALL(device->createTexture(dstTexDesc, dstTextureInfo.initData, dstTexture.writeRef()));
 
         IInputLayout::Desc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -180,11 +180,7 @@ struct BaseResolveResourceTest
         REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
-    void submitGPUWork(
-        SubresourceRange msaaSubresource,
-        SubresourceRange dstSubresource,
-        ITextureResource::Extents extent
-    )
+    void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, ITexture::Extents extent)
     {
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
@@ -245,13 +241,9 @@ struct BaseResolveResourceTest
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTextureResource(
-            dstTexture,
-            ResourceState::CopySource,
-            resultBlob.writeRef(),
-            &rowPitch,
-            &pixelSize
-        ));
+        REQUIRE_CALL(
+            device->readTexture(dstTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
+        );
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -280,7 +272,7 @@ struct ResolveResourceSimple : BaseResolveResourceTest
 {
     void run()
     {
-        ITextureResource::Extents extent = {};
+        ITexture::Extents extent = {};
         extent.width = kWidth;
         extent.height = kHeight;
         extent.depth = 1;

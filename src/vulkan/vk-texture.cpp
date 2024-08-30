@@ -2,13 +2,13 @@
 
 namespace rhi::vk {
 
-TextureResourceImpl::TextureResourceImpl(const Desc& desc, DeviceImpl* device)
+TextureImpl::TextureImpl(const Desc& desc, DeviceImpl* device)
     : Parent(desc)
     , m_device(device)
 {
 }
 
-TextureResourceImpl::~TextureResourceImpl()
+TextureImpl::~TextureImpl()
 {
     auto& vkAPI = m_device->m_api;
     if (!m_isWeakImageReference)
@@ -24,14 +24,14 @@ TextureResourceImpl::~TextureResourceImpl()
     }
 }
 
-Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->handleValue = (uint64_t)m_image;
     outHandle->api = InteropHandleAPI::Vulkan;
     return SLANG_OK;
 }
 
-Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
 {
     // Check if a shared handle already exists for this resource.
     if (sharedHandle.handleValue != 0)
@@ -77,7 +77,7 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
     outHandle->api = InteropHandleAPI::Vulkan;
     return SLANG_OK;
 }
-Result TextureResourceImpl::setDebugName(const char* name)
+Result TextureImpl::setDebugName(const char* name)
 {
     Parent::setDebugName(name);
     auto& api = m_device->m_api;

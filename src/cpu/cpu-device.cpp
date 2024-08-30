@@ -49,19 +49,16 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& desc,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::SubresourceData* initData, ITexture** outTexture)
 {
-    TextureResource::Desc srcDesc = fixupTextureDesc(desc);
+    Texture::Desc srcDesc = fixupTextureDesc(desc);
 
-    RefPtr<TextureResourceImpl> texture = new TextureResourceImpl(srcDesc);
+    RefPtr<TextureImpl> texture = new TextureImpl(srcDesc);
 
     SLANG_RETURN_ON_FAIL(texture->init(initData));
 
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
@@ -80,10 +77,10 @@ DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuf
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTextureView(ITextureResource* inTexture, IResourceView::Desc const& desc, IResourceView** outView)
+DeviceImpl::createTextureView(ITexture* inTexture, IResourceView::Desc const& desc, IResourceView** outView)
 {
-    auto texture = static_cast<TextureResourceImpl*>(inTexture);
-    RefPtr<TextureResourceViewImpl> view = new TextureResourceViewImpl(desc, texture);
+    auto texture = static_cast<TextureImpl*>(inTexture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc, texture);
     returnComPtr(outView, view);
     return SLANG_OK;
 }

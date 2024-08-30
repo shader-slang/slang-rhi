@@ -34,7 +34,7 @@ Result ShaderObjectData::setCount(Index count)
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         m_bufferView = new ResourceViewImpl();
-        m_bufferView->memoryResource = m_buffer;
+        m_bufferView->buffer = m_buffer;
         m_bufferView->m_desc = viewDesc;
     }
     auto oldSize = m_buffer->getDesc()->sizeInBytes;
@@ -202,26 +202,26 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
 
     resources[viewIndex] = cudaView;
 
-    if (cudaView->textureResource)
+    if (cudaView->texture)
     {
         if (cudaView->m_desc.type == IResourceView::Type::UnorderedAccess)
         {
-            auto handle = cudaView->textureResource->m_cudaSurfObj;
+            auto handle = cudaView->texture->m_cudaSurfObj;
             setData(offset, &handle, sizeof(uint64_t));
         }
         else
         {
-            auto handle = cudaView->textureResource->getBindlessHandle();
+            auto handle = cudaView->texture->getBindlessHandle();
             setData(offset, &handle, sizeof(uint64_t));
         }
     }
-    else if (cudaView->memoryResource)
+    else if (cudaView->buffer)
     {
-        auto handle = cudaView->memoryResource->getBindlessHandle();
+        auto handle = cudaView->buffer->getBindlessHandle();
         setData(offset, &handle, sizeof(handle));
         auto sizeOffset = offset;
         sizeOffset.uniformOffset += sizeof(handle);
-        auto& desc = *cudaView->memoryResource->getDesc();
+        auto& desc = *cudaView->buffer->getDesc();
         size_t size = desc.sizeInBytes;
         if (desc.elementSize > 1)
             size /= desc.elementSize;
@@ -233,7 +233,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         setData(offset, &handle, sizeof(handle));
         auto sizeOffset = offset;
         sizeOffset.uniformOffset += sizeof(handle);
-        auto& desc = *cudaView->memoryResource->getDesc();
+        auto& desc = *cudaView->buffer->getDesc();
         size_t size = desc.sizeInBytes;
         if (desc.elementSize > 1)
             size /= desc.elementSize;

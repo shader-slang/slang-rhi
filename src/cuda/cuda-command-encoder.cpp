@@ -27,15 +27,15 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::writeTimestamp(IQuer
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
-    ITextureResource* dst,
+    ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITextureResource::Offset3D dstOffset,
-    ITextureResource* src,
+    ITexture::Offset3D dstOffset,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    ITexture::Offset3D srcOffset,
+    ITexture::Extents extent
 )
 {
     SLANG_UNUSED(dst);
@@ -51,11 +51,11 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::uploadTextureData(
-    ITextureResource* dst,
+    ITexture* dst,
     SubresourceRange subResourceRange,
-    ITextureResource::Offset3D offset,
-    ITextureResource::Extents extent,
-    ITextureResource::SubresourceData* subResourceData,
+    ITexture::Offset3D offset,
+    ITexture::Extents extent,
+    ITexture::SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
@@ -81,10 +81,10 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::clearResourceView(
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveResource(
-    ITextureResource* source,
+    ITexture* source,
     ResourceState sourceState,
     SubresourceRange sourceRange,
-    ITextureResource* dest,
+    ITexture* dest,
     ResourceState destState,
     SubresourceRange destRange
 )
@@ -119,11 +119,11 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,
-    ITextureResource* src,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    ITexture::Offset3D srcOffset,
+    ITexture::Extents extent
 )
 {
     SLANG_UNUSED(dst);
@@ -139,7 +139,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::textureSubresourceBarrier(
-    ITextureResource* texture,
+    ITexture* texture,
     SubresourceRange subresourceRange,
     ResourceState src,
     ResourceState dst

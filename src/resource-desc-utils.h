@@ -12,9 +12,9 @@ inline int calcMipSize(int size, int level)
     return size > 0 ? size : 1;
 }
 
-inline ITextureResource::Extents calcMipSize(ITextureResource::Extents size, int mipLevel)
+inline ITexture::Extents calcMipSize(ITexture::Extents size, int mipLevel)
 {
-    ITextureResource::Extents rs;
+    ITexture::Extents rs;
     rs.width = calcMipSize(size.width, mipLevel);
     rs.height = calcMipSize(size.height, mipLevel);
     rs.depth = calcMipSize(size.depth, mipLevel);
@@ -24,7 +24,7 @@ inline ITextureResource::Extents calcMipSize(ITextureResource::Extents size, int
 /// Calculate the effective array size - in essence the amount if mip map sets needed.
 /// In practice takes into account if the arraySize is 0 (it's not an array, but it will still have
 /// at least one mip set) and if the type is a cubemap (multiplies the amount of mip sets by 6)
-inline int calcEffectiveArraySize(const ITextureResource::Desc& desc)
+inline int calcEffectiveArraySize(const ITexture::Desc& desc)
 {
     const int arrSize = (desc.arraySize > 0) ? desc.arraySize : 1;
 
@@ -45,7 +45,7 @@ inline int calcEffectiveArraySize(const ITextureResource::Desc& desc)
 }
 
 /// Given the type works out the maximum dimension size
-inline int calcMaxDimension(ITextureResource::Extents size, IResource::Type type)
+inline int calcMaxDimension(ITexture::Extents size, IResource::Type type)
 {
     switch (type)
     {
@@ -64,14 +64,14 @@ inline int calcMaxDimension(ITextureResource::Extents size, IResource::Type type
 }
 
 /// Given the type, calculates the number of mip maps. 0 on error
-inline int calcNumMipLevels(IResource::Type type, ITextureResource::Extents size)
+inline int calcNumMipLevels(IResource::Type type, ITexture::Extents size)
 {
     const int maxDimensionSize = calcMaxDimension(size, type);
     return (maxDimensionSize > 0) ? (math::log2Floor(maxDimensionSize) + 1) : 0;
 }
 
 /// Calculate the total number of sub resources. 0 on error.
-inline int calcNumSubResources(const ITextureResource::Desc& desc)
+inline int calcNumSubResources(const ITexture::Desc& desc)
 {
     const int numMipMaps = (desc.numMipLevels > 0) ? desc.numMipLevels : calcNumMipLevels(desc.type, desc.size);
     const int arrSize = (desc.arraySize > 0) ? desc.arraySize : 1;
@@ -95,7 +95,7 @@ inline int calcNumSubResources(const ITextureResource::Desc& desc)
 }
 
 IBuffer::Desc fixupBufferDesc(const IBuffer::Desc& desc);
-ITextureResource::Desc fixupTextureDesc(const ITextureResource::Desc& desc);
+ITexture::Desc fixupTextureDesc(const ITexture::Desc& desc);
 
 Format srgbToLinearFormat(Format format);
 

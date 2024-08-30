@@ -12,7 +12,7 @@ namespace rhi::vk {
 
 struct CombinedTextureSamplerSlot
 {
-    RefPtr<TextureResourceViewImpl> textureView;
+    RefPtr<TextureViewImpl> textureView;
     RefPtr<SamplerStateImpl> sampler;
     operator bool() { return textureView && sampler; }
 };

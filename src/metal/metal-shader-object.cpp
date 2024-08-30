@@ -60,8 +60,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
     case slang::BindingType::Texture:
     case slang::BindingType::MutableTexture:
         SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Texture);
-        m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] =
-            static_cast<TextureResourceViewImpl*>(resourceView);
+        m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<TextureViewImpl*>(resourceView);
         break;
     case slang::BindingType::RawBuffer:
     case slang::BindingType::ConstantBuffer:
@@ -74,7 +73,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         SLANG_RHI_ASSERT_FAILURE("Not implemented");
         // SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::TexelBuffer);
         // m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] =
-        // static_cast<TextureResourceViewImpl*>(resourceView);
+        // static_cast<TextureViewImpl*>(resourceView);
         break;
     }
     m_isArgumentBufferDirty = true;
@@ -428,7 +427,7 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
                 case slang::BindingType::Texture:
                 case slang::BindingType::MutableTexture:
                 {
-                    auto textureViewImpl = static_cast<TextureResourceViewImpl*>(m_textures[resourceIndex].get());
+                    auto textureViewImpl = static_cast<TextureViewImpl*>(m_textures[resourceIndex].get());
                     if (textureViewImpl)
                     {
                         auto resourceId = textureViewImpl->m_textureView->gpuResourceID();

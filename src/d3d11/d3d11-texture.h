@@ -4,12 +4,12 @@
 
 namespace rhi::d3d11 {
 
-class TextureResourceImpl : public TextureResource
+class TextureImpl : public Texture
 {
 public:
-    typedef TextureResource Parent;
+    typedef Texture Parent;
 
-    TextureResourceImpl(const Desc& desc)
+    TextureImpl(const Desc& desc)
         : Parent(desc)
     {
     }

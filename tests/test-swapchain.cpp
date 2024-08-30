@@ -51,7 +51,7 @@ struct SwapchainResizeTest
         framebuffers.clear();
         for (GfxIndex i = 0; i < kSwapchainImageCount; ++i)
         {
-            ComPtr<ITextureResource> colorBuffer;
+            ComPtr<ITexture> colorBuffer;
             swapchain->getImage(i, colorBuffer.writeRef());
 
             gfx::IResourceView::Desc colorBufferViewDesc;

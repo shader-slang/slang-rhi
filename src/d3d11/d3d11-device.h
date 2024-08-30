@@ -22,10 +22,10 @@ public:
     virtual void setFramebuffer(IFramebuffer* frameBuffer) override;
     virtual void setStencilReference(uint32_t referenceValue) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureResource(
-        const ITextureResource::Desc& desc,
-        const ITextureResource::SubresourceData* initData,
-        ITextureResource** outResource
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
+        const ITexture::Desc& desc,
+        const ITexture::SubresourceData* initData,
+        ITexture** outTexture
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
@@ -33,7 +33,7 @@ public:
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
+    createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
@@ -68,13 +68,9 @@ public:
     virtual void* map(IBuffer* buffer, MapFlavor flavor) override;
     virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
     virtual void copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
-        ITextureResource* texture,
-        ResourceState state,
-        ISlangBlob** outBlob,
-        size_t* outRowPitch,
-        size_t* outPixelSize
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
+        override;
 
     virtual void setPrimitiveTopology(PrimitiveTopology topology) override;
 

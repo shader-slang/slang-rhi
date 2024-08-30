@@ -125,7 +125,7 @@ Result ShaderObjectImpl::setCombinedTextureSampler(
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
     auto& slot = m_combinedTextureSamplers[bindingRange.baseIndex + offset.bindingArrayIndex];
-    slot.textureView = static_cast<TextureResourceViewImpl*>(textureView);
+    slot.textureView = static_cast<TextureViewImpl*>(textureView);
     slot.sampler = static_cast<SamplerStateImpl*>(sampler);
     return SLANG_OK;
 }
@@ -529,7 +529,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
             auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
             if (boundViewType == ResourceViewImpl::ViewType::Texture)
             {
-                auto texture = static_cast<TextureResourceViewImpl*>(resourceViews[i].Ptr());
+                auto texture = static_cast<TextureViewImpl*>(resourceViews[i].Ptr());
                 imageInfo.imageView = texture->m_view;
                 imageInfo.imageLayout = texture->m_layout;
             }

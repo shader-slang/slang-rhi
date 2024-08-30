@@ -5,7 +5,7 @@ using namespace rhi::testing;
 
 static void setUpAndRunShader(
     IDevice* device,
-    ComPtr<ITextureResource> tex,
+    ComPtr<ITexture> tex,
     ComPtr<IResourceView> texView,
     ComPtr<IResourceView> bufferView,
     const char* entryPoint,
@@ -60,14 +60,14 @@ static void setUpAndRunShader(
     }
 }
 
-static ComPtr<ITextureResource> createTexture(
+static ComPtr<ITexture> createTexture(
     IDevice* device,
-    ITextureResource::Extents extents,
+    ITexture::Extents extents,
     Format format,
-    ITextureResource::SubresourceData* initialData
+    ITexture::SubresourceData* initialData
 )
 {
-    ITextureResource::Desc texDesc = {};
+    ITexture::Desc texDesc = {};
     texDesc.type = IResource::Type::Texture2D;
     texDesc.numMipLevels = 1;
     texDesc.arraySize = 1;
@@ -82,12 +82,12 @@ static ComPtr<ITextureResource> createTexture(
     texDesc.format = format;
     texDesc.isShared = true;
 
-    ComPtr<ITextureResource> inTex;
-    REQUIRE_CALL(device->createTextureResource(texDesc, initialData, inTex.writeRef()));
+    ComPtr<ITexture> inTex;
+    REQUIRE_CALL(device->createTexture(texDesc, initialData, inTex.writeRef()));
     return inTex;
 }
 
-static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITextureResource> inTexture)
+static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITexture> inTexture)
 {
     ComPtr<IResourceView> texView;
     IResourceView::Desc texViewDesc = {};
@@ -150,12 +150,12 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     auto intResults = createBuffer<uint32_t>(dstDevice, 16, initIntData);
     auto intBufferView = createOutBufferView(dstDevice, intResults);
 
-    ITextureResource::Extents size = {};
+    ITexture::Extents size = {};
     size.width = 2;
     size.height = 2;
     size.depth = 1;
 
-    ITextureResource::Extents bcSize = {};
+    ITexture::Extents bcSize = {};
     bcSize.width = 4;
     bcSize.height = 4;
     bcSize.depth = 1;
@@ -163,7 +163,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     {
         float texData[] =
             {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
-        ITextureResource::SubresourceData subData = {(void*)texData, 32, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 32, 0};
 
         // Create a shareable texture using srcDevice, get its handle, then create a texture using the handle using
         // dstDevice. Read back the texture and check that its contents are correct.
@@ -171,7 +171,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
 
         InteropHandle sharedHandle;
         REQUIRE_CALL(srcTexture->getSharedHandle(&sharedHandle));
-        ComPtr<ITextureResource> dstTexture;
+        ComPtr<ITexture> dstTexture;
         size_t sizeInBytes = 0;
         size_t alignment = 0;
         REQUIRE_CALL(srcDevice->getTextureAllocationInfo(*(srcTexture->getDesc()), &sizeInBytes, &alignment));

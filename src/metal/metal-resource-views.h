@@ -27,15 +27,15 @@ public:
     RefPtr<DeviceImpl> m_device;
 };
 
-class TextureResourceViewImpl : public ResourceViewImpl
+class TextureViewImpl : public ResourceViewImpl
 {
 public:
-    TextureResourceViewImpl(DeviceImpl* device)
+    TextureViewImpl(DeviceImpl* device)
         : ResourceViewImpl(ViewType::Texture, device)
     {
     }
-    ~TextureResourceViewImpl();
-    RefPtr<TextureResourceImpl> m_texture;
+    ~TextureViewImpl();
+    RefPtr<TextureImpl> m_texture;
     NS::SharedPtr<MTL::Texture> m_textureView;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;

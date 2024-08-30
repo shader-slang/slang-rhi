@@ -11,7 +11,7 @@ struct CPUTextureBaseShapeInfo
     int32_t implicitArrayElementCount;
 };
 
-static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[(int)ITextureResource::Type::_Count] = {
+static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[(int)ITexture::Type::_Count] = {
     /* Unknown */ {0, 0, 0},
     /* Buffer */ {1, 1, 1},
     /* Texture1D */ {1, 1, 1},
@@ -20,7 +20,7 @@ static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[(int)ITextureReso
     /* TextureCube */ {2, 3, 6},
 };
 
-static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(ITextureResource::Type baseShape);
+static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(ITexture::Type baseShape);
 
 typedef void (*CPUTextureUnpackFunc)(void const* texelData, void* outData, size_t outSize);
 
@@ -90,7 +90,7 @@ static CPUTextureFormatInfo const* _getFormatInfo(Format format)
     return info.unpackFunc ? &info : nullptr;
 }
 
-class TextureResourceImpl : public TextureResource
+class TextureImpl : public Texture
 {
     enum
     {
@@ -98,13 +98,13 @@ class TextureResourceImpl : public TextureResource
     };
 
 public:
-    TextureResourceImpl(const TextureResource::Desc& desc)
-        : TextureResource(desc)
+    TextureImpl(const Texture::Desc& desc)
+        : Texture(desc)
     {
     }
-    ~TextureResourceImpl();
+    ~TextureImpl();
 
-    Result init(ITextureResource::SubresourceData const* initData);
+    Result init(ITexture::SubresourceData const* initData);
 
     Desc const& _getDesc() { return m_desc; }
     Format getFormat() { return m_desc.format; }

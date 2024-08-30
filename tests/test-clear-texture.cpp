@@ -12,7 +12,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     transientHeapDesc.constantBufferSize = 4096;
     REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-    ITextureResource::Desc srcTexDesc = {};
+    ITexture::Desc srcTexDesc = {};
     srcTexDesc.type = IResource::Type::Texture2D;
     srcTexDesc.numMipLevels = 1;
     srcTexDesc.arraySize = 1;
@@ -24,8 +24,8 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
         ResourceStateSet(ResourceState::RenderTarget, ResourceState::CopySource, ResourceState::CopyDestination);
     srcTexDesc.format = Format::R32G32B32A32_FLOAT;
 
-    ComPtr<ITextureResource> srcTexture;
-    REQUIRE_CALL(device->createTextureResource(srcTexDesc, nullptr, srcTexture.writeRef()));
+    ComPtr<ITexture> srcTexture;
+    REQUIRE_CALL(device->createTexture(srcTexDesc, nullptr, srcTexture.writeRef()));
 
     ComPtr<IResourceView> rtv;
     IResourceView::Desc rtvDesc = {};
@@ -58,7 +58,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 
         ComPtr<ISlangBlob> blob;
         size_t rowPitch, pixelSize;
-        device->readTextureResource(srcTexture, ResourceState::CopySource, blob.writeRef(), &rowPitch, &pixelSize);
+        device->readTexture(srcTexture, ResourceState::CopySource, blob.writeRef(), &rowPitch, &pixelSize);
         float* data = (float*)blob->getBufferPointer();
         for (int i = 0; i < 4; i++)
         {

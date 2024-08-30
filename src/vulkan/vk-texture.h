@@ -5,12 +5,12 @@
 
 namespace rhi::vk {
 
-class TextureResourceImpl : public TextureResource
+class TextureImpl : public Texture
 {
 public:
-    typedef TextureResource Parent;
-    TextureResourceImpl(const Desc& desc, DeviceImpl* device);
-    ~TextureResourceImpl();
+    typedef Texture Parent;
+    TextureImpl(const Desc& desc, DeviceImpl* device);
+    ~TextureImpl();
 
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_R8G8B8A8_UNORM;

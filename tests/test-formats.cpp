@@ -90,13 +90,13 @@ void setUpAndRunTest(
 
 ComPtr<IResourceView> createTexView(
     IDevice* device,
-    ITextureResource::Extents size,
+    ITexture::Extents size,
     Format format,
-    ITextureResource::SubresourceData* data,
+    ITexture::SubresourceData* data,
     int mips = 1
 )
 {
-    ITextureResource::Desc texDesc = {};
+    ITexture::Desc texDesc = {};
     texDesc.type = IResource::Type::Texture2D;
     texDesc.numMipLevels = mips;
     texDesc.arraySize = 1;
@@ -104,8 +104,8 @@ ComPtr<IResourceView> createTexView(
     texDesc.defaultState = ResourceState::ShaderResource;
     texDesc.format = format;
 
-    ComPtr<ITextureResource> inTex;
-    REQUIRE_CALL(device->createTextureResource(texDesc, data, inTex.writeRef()));
+    ComPtr<ITexture> inTex;
+    REQUIRE_CALL(device->createTexture(texDesc, data, inTex.writeRef()));
 
     ComPtr<IResourceView> texView;
     IResourceView::Desc texViewDesc = {};
@@ -167,12 +167,12 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     auto intResults = createBuffer<uint32_t>(device, 16, initIntData);
     auto intBufferView = createBufferView(device, intResults);
 
-    ITextureResource::Extents size = {};
+    ITexture::Extents size = {};
     size.width = 2;
     size.height = 2;
     size.depth = 1;
 
-    ITextureResource::Extents bcSize = {};
+    ITexture::Extents bcSize = {};
     bcSize.width = 4;
     bcSize.height = 4;
     bcSize.depth = 1;
@@ -182,7 +182,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     {
         float texData[] =
             {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
-        ITextureResource::SubresourceData subData = {(void*)texData, 32, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 32, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32A32_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -205,7 +205,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (false)
     {
         float texData[] = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.5f, 0.5f};
-        ITextureResource::SubresourceData subData = {(void*)texData, 24, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 24, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat3");
@@ -226,7 +226,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         float texData[] = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R32G32_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat2");
@@ -239,7 +239,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         float texData[] = {1.0f, 0.0f, 0.5f, 0.25f};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R32_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat");
@@ -253,7 +253,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     {
         uint16_t texData[] =
             {15360u, 0u, 0u, 15360u, 0u, 15360u, 0u, 15360u, 0u, 0u, 15360u, 15360u, 14336u, 14336u, 14336u, 15360u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -274,7 +274,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint16_t texData[] = {15360u, 0u, 0u, 15360u, 15360u, 15360u, 14336u, 14336u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat2");
@@ -287,7 +287,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint16_t texData[] = {15360u, 0u, 14336u, 13312u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat");
@@ -300,7 +300,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint32_t texData[] = {255u, 0u, 0u, 255u, 0u, 255u, 0u, 255u, 0u, 0u, 255u, 255u, 127u, 127u, 127u, 255u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 32, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 32, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32A32_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint4");
@@ -315,7 +315,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (false)
     {
         uint32_t texData[] = {255u, 0u, 0u, 0u, 255u, 0u, 0u, 0u, 255u, 127u, 127u, 127u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 24, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 24, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint3");
@@ -328,7 +328,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint32_t texData[] = {255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R32G32_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint2");
@@ -337,7 +337,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint32_t texData[] = {255u, 0u, 127u, 73u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R32_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint");
@@ -346,7 +346,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint16_t texData[] = {255u, 0u, 0u, 255u, 0u, 255u, 0u, 255u, 0u, 0u, 255u, 255u, 127u, 127u, 127u, 255u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint4");
@@ -359,7 +359,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint16_t texData[] = {255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint2");
@@ -368,7 +368,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint16_t texData[] = {255u, 0u, 127u, 73u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint");
@@ -377,7 +377,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint8_t texData[] = {255u, 0u, 0u, 255u, 0u, 255u, 0u, 255u, 0u, 0u, 255u, 255u, 127u, 127u, 127u, 255u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint4");
@@ -390,7 +390,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint8_t texData[] = {255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint2");
@@ -399,7 +399,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint8_t texData[] = {255u, 0u, 127u, 73u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 2, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_UINT, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint");
@@ -408,7 +408,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int32_t texData[] = {255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 127, 127, 127, 255};
-        ITextureResource::SubresourceData subData = {(void*)texData, 32, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 32, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32A32_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt4");
@@ -423,7 +423,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (false)
     {
         int32_t texData[] = {255, 0, 0, 0, 255, 0, 0, 0, 255, 127, 127, 127};
-        ITextureResource::SubresourceData subData = {(void*)texData, 24, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 24, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt3");
@@ -432,7 +432,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int32_t texData[] = {255, 0, 0, 255, 255, 255, 127, 127};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R32G32_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt2");
@@ -441,7 +441,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int32_t texData[] = {255, 0, 127, 73};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R32_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt");
@@ -450,7 +450,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int16_t texData[] = {255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 127, 127, 127, 255};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt4");
@@ -463,7 +463,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int16_t texData[] = {255, 0, 0, 255, 255, 255, 127, 127};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt2");
@@ -472,7 +472,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int16_t texData[] = {255, 0, 127, 73};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt");
@@ -481,7 +481,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int8_t texData[] = {127, 0, 0, 127, 0, 127, 0, 127, 0, 0, 127, 127, 0, 0, 0, 127};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt4");
@@ -494,7 +494,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int8_t texData[] = {127, 0, 0, 127, 127, 127, 73, 73};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt2");
@@ -503,7 +503,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int8_t texData[] = {127, 0, 73, 25};
-        ITextureResource::SubresourceData subData = {(void*)texData, 2, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_SINT, &subData);
         setUpAndRunTest(device, texView, intBufferView, "copyTexInt");
@@ -513,7 +513,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     {
         uint16_t texData[] =
             {65535u, 0u, 0u, 65535u, 0u, 65535u, 0u, 65535u, 0u, 0u, 65535u, 65535u, 32767u, 32767u, 32767u, 32767u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -543,7 +543,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint16_t texData[] = {65535u, 0u, 0u, 65535u, 65535u, 65535u, 32767u, 32767u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat2");
@@ -556,7 +556,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint16_t texData[] = {65535u, 0u, 32767u, 16383u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat");
@@ -567,7 +567,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {0u, 0u, 0u, 255u, 127u, 127u, 127u, 255u, 255u, 255u, 255u, 255u, 0u, 0u, 0u, 0u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_TYPELESS, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -649,7 +649,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_TYPELESS, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat2");
@@ -672,7 +672,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {255u, 0u, 127u, 63u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 2, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_TYPELESS, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat");
@@ -687,7 +687,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {0u, 0u, 0u, 255u, 127u, 127u, 127u, 255u, 255u, 255u, 255u, 255u, 0u, 0u, 0u, 0u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::B8G8R8A8_TYPELESS, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -767,7 +767,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int16_t texData[] = {32767, 0, 0, 32767, 0, 32767, 0, 32767, 0, 0, 32767, 32767, -32768, -32768, 0, 32767};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_SNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -780,7 +780,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int16_t texData[] = {32767, 0, 0, 32767, 32767, 32767, -32768, -32768};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_SNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat2");
@@ -789,7 +789,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int16_t texData[] = {32767, 0, -32768, 0};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_SNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat");
@@ -798,7 +798,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int8_t texData[] = {127, 0, 0, 127, 0, 127, 0, 127, 0, 0, 127, 127, -128, -128, 0, 127};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_SNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -811,7 +811,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int8_t texData[] = {127, 0, 0, 127, 127, 127, -128, -128};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_SNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat2");
@@ -820,7 +820,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         int8_t texData[] = {127, 0, -128, 0};
-        ITextureResource::SubresourceData subData = {(void*)texData, 2, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_SNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat");
@@ -831,7 +831,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {15u, 240u, 240u, 240u, 0u, 255u, 119u, 119u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::B4G4R4A4_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat4");
@@ -863,7 +863,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint16_t texData[] = {31u, 2016u, 63488u, 31727u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 4, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::B5G6R5_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat3");
@@ -901,7 +901,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint32_t texData[] = {2950951416u, 2013265920u, 3086219772u, 3087007228u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R9G9B9E5_SHAREDEXP, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat3");
@@ -916,7 +916,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint32_t texData[] = {4294967295u, 0u, 2683829759u, 1193046471u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R10G10B10A2_TYPELESS, &subData);
         setUpAndRunTest(device, texView, uintBufferView, "copyTexUint4");
@@ -962,7 +962,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         uint32_t texData[] = {3085827519u, 0u, 2951478655u, 1880884096u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R11G11B10_FLOAT, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "copyTexFloat3");
@@ -980,11 +980,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         uint8_t texData[] = {16u, 0u, 0u,  0u, 0u,   0u,   0u,   0u,   16u, 0u, 0u,  0u, 0u, 0u,
                              0u,  0u, 16u, 0u, 0u,   0u,   0u,   0u,   0u,  0u, 16u, 0u, 0u, 0u,
                              0u,  0u, 0u,  0u, 255u, 255u, 255u, 255u, 0u,  0u, 0u,  0u};
-        ITextureResource::SubresourceData subData[] = {
-            ITextureResource::SubresourceData{(void*)texData, 16, 32},
-            ITextureResource::SubresourceData{(void*)(texData + 32), 8, 0}
+        ITexture::SubresourceData subData[] = {
+            ITexture::SubresourceData{(void*)texData, 16, 32},
+            ITexture::SubresourceData{(void*)(texData + 32), 8, 0}
         };
-        ITextureResource::Extents size = {};
+        ITexture::Extents size = {};
         size.width = 8;
         size.height = 8;
         size.depth = 1;
@@ -1002,7 +1002,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {255u, 255u, 255u, 255u, 255u, 255u, 255u, 255u, 16u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC2_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "sampleTex", sampler);
@@ -1017,7 +1017,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {0u, 255u, 255u, 255u, 255u, 255u, 255u, 255u, 16u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC3_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "sampleTex", sampler);
@@ -1032,7 +1032,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {127u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 8, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC4_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "sampleTex", sampler);
@@ -1047,7 +1047,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {127u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 127u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC5_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "sampleTex", sampler);
@@ -1067,7 +1067,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {98u, 238u, 232u, 77u, 240u, 66u, 148u, 31u, 124u, 95u, 2u, 224u, 255u, 107u, 77u, 250u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC6H_UF16, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "sampleTex", sampler);
@@ -1078,7 +1078,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {107u, 238u, 232u, 77u, 240u, 71u, 128u, 127u, 1u, 0u, 255u, 255u, 170u, 218u, 221u, 254u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC6H_SF16, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "sampleTex", sampler);
@@ -1089,7 +1089,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
     if (!isSwiftShader)
     {
         uint8_t texData[] = {104u, 0u, 0u, 0u, 64u, 163u, 209u, 104u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-        ITextureResource::SubresourceData subData = {(void*)texData, 16, 0};
+        ITexture::SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC7_UNORM, &subData);
         setUpAndRunTest(device, texView, floatBufferView, "sampleTex", sampler);

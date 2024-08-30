@@ -167,7 +167,7 @@ Result DeviceImpl::createBuffer(
 }
 
 Result DeviceImpl::captureTextureToSurface(
-    TextureResourceImpl* resourceImpl,
+    TextureImpl* resourceImpl,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
@@ -178,7 +178,7 @@ Result DeviceImpl::captureTextureToSurface(
 
     const D3D12_RESOURCE_STATES initialState = D3DUtil::getResourceState(state);
 
-    const ITextureResource::Desc& rhiDesc = *resourceImpl->getDesc();
+    const ITexture::Desc& rhiDesc = *resourceImpl->getDesc();
     const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
 
     // Don't bother supporting MSAA for right now
@@ -977,28 +977,22 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTextureResource(
-    ITextureResource* resource,
+Result DeviceImpl::readTexture(
+    ITexture* resource,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
     Size* outPixelSize
 )
 {
-    return captureTextureToSurface(
-        static_cast<TextureResourceImpl*>(resource),
-        state,
-        outBlob,
-        outRowPitch,
-        outPixelSize
-    );
+    return captureTextureToSurface(static_cast<TextureImpl*>(resource), state, outBlob, outRowPitch, outPixelSize);
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment)
 {
-    TextureResource::Desc srcDesc = fixupTextureDesc(desc);
+    Texture::Desc srcDesc = fixupTextureDesc(desc);
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureResourceDesc(resourceDesc, srcDesc);
+    initTextureDesc(resourceDesc, srcDesc);
     auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
     *outSize = (Size)allocInfo.SizeInBytes;
     *outAlignment = (Size)allocInfo.Alignment;
@@ -1011,23 +1005,23 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& descIn,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
+Result DeviceImpl::createTexture(
+    const ITexture::Desc& descIn,
+    const ITexture::SubresourceData* initData,
+    ITexture** outTexture
 )
 {
     // Description of uploading on Dx12
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899215%28v=vs.85%29.aspx
 
-    TextureResource::Desc srcDesc = fixupTextureDesc(descIn);
+    Texture::Desc srcDesc = fixupTextureDesc(descIn);
 
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureResourceDesc(resourceDesc, srcDesc);
+    initTextureDesc(resourceDesc, srcDesc);
     const int arraySize = calcEffectiveArraySize(srcDesc);
     const int numMipMaps = srcDesc.numMipLevels;
 
-    RefPtr<TextureResourceImpl> texture(new TextureResourceImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
 
     // Create the target resource
     {
@@ -1148,7 +1142,7 @@ Result DeviceImpl::createTextureResource(
                 const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[j];
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
 
-                TextureResource::Extents mipSize = calcMipSize(srcDesc.size, j);
+                Texture::Extents mipSize = calcMipSize(srcDesc.size, j);
                 if (rhiIsCompressedFormat(descIn.format))
                 {
                     mipSize.width = int(D3DUtil::calcAligned(mipSize.width, 4));
@@ -1228,17 +1222,17 @@ Result DeviceImpl::createTextureResource(
         submitResourceCommandsAndWait(encodeInfo);
     }
 
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
 Result DeviceImpl::createTextureFromNativeHandle(
     InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
-    ITextureResource** outResource
+    const ITexture::Desc& srcDesc,
+    ITexture** outTexture
 )
 {
-    RefPtr<TextureResourceImpl> texture(new TextureResourceImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
 
     if (handle.api == InteropHandleAPI::D3D12)
     {
@@ -1249,7 +1243,7 @@ Result DeviceImpl::createTextureFromNativeHandle(
         return SLANG_FAIL;
     }
 
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
@@ -1343,13 +1337,9 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
-    auto resourceImpl = (TextureResourceImpl*)texture;
+    auto resourceImpl = (TextureImpl*)texture;
 
     RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
     viewImpl->m_resource = resourceImpl;
@@ -1681,11 +1671,10 @@ Result DeviceImpl::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffe
         framebuffer->renderTargetDescriptors[i] = framebuffer->renderTargetViews[i]->m_descriptor.cpuHandle;
         if (static_cast<ResourceViewImpl*>(desc.renderTargetViews[i])->m_resource.Ptr())
         {
-            auto clearValue = static_cast<TextureResourceImpl*>(
-                                  static_cast<ResourceViewImpl*>(desc.renderTargetViews[i])->m_resource.Ptr()
-            )
-                                  ->getDesc()
-                                  ->optimalClearValue;
+            auto clearValue =
+                static_cast<TextureImpl*>(static_cast<ResourceViewImpl*>(desc.renderTargetViews[i])->m_resource.Ptr())
+                    ->getDesc()
+                    ->optimalClearValue;
             if (clearValue)
             {
                 memcpy(&framebuffer->renderTargetClearValues[i], &clearValue->color, sizeof(ColorClearValue));
@@ -1700,7 +1689,7 @@ Result DeviceImpl::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffe
     if (desc.depthStencilView)
     {
         auto clearValue =
-            static_cast<TextureResourceImpl*>(static_cast<ResourceViewImpl*>(desc.depthStencilView)->m_resource.Ptr())
+            static_cast<TextureImpl*>(static_cast<ResourceViewImpl*>(desc.depthStencilView)->m_resource.Ptr())
                 ->getDesc()
                 ->optimalClearValue;
 

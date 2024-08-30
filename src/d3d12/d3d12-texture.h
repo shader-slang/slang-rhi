@@ -4,14 +4,14 @@
 
 namespace rhi::d3d12 {
 
-class TextureResourceImpl : public TextureResource
+class TextureImpl : public Texture
 {
 public:
-    typedef TextureResource Parent;
+    typedef Texture Parent;
 
-    TextureResourceImpl(const Desc& desc);
+    TextureImpl(const Desc& desc);
 
-    ~TextureResourceImpl();
+    ~TextureImpl();
 
     D3D12Resource m_resource;
     D3D12_RESOURCE_STATES m_defaultState;

@@ -176,8 +176,8 @@ Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffe
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTextureResource(
-    ITextureResource* texture,
+Result DeviceImpl::readTexture(
+    ITexture* texture,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
@@ -186,7 +186,7 @@ Result DeviceImpl::readTextureResource(
 {
     AUTORELEASEPOOL
 
-    TextureResourceImpl* textureImpl = static_cast<TextureResourceImpl*>(texture);
+    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
 
     if (textureImpl->getDesc()->sampleDesc.numSamples > 1)
     {
@@ -195,7 +195,7 @@ Result DeviceImpl::readTextureResource(
 
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
-    const ITextureResource::Desc& desc = *textureImpl->getDesc();
+    const ITexture::Desc& desc = *textureImpl->getDesc();
     GfxCount width = std::max(desc.size.width, 1);
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
@@ -286,19 +286,19 @@ Result DeviceImpl::createAccelerationStructure(
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const ITexture::Desc& descIn, Size* outSize, Size* outAlignment)
 {
     AUTORELEASEPOOL
 
     auto alignTo = [&](Size size, Size alignment) -> Size { return ((size + alignment - 1) / alignment) * alignment; };
 
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    Texture::Desc desc = fixupTextureDesc(descIn);
     FormatInfo formatInfo;
     rhiGetFormatInfo(desc.format, &formatInfo);
     MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;
-    ITextureResource::Extents extents = desc.size;
+    ITexture::Extents extents = desc.size;
     extents.width = extents.width ? extents.width : 1;
     extents.height = extents.height ? extents.height : 1;
     extents.depth = extents.depth ? extents.depth : 1;
@@ -330,15 +330,15 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& descIn,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
+Result DeviceImpl::createTexture(
+    const ITexture::Desc& descIn,
+    const ITexture::SubresourceData* initData,
+    ITexture** outTexture
 )
 {
     AUTORELEASEPOOL
 
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    Texture::Desc desc = fixupTextureDesc(descIn);
 
     // Metal doesn't support mip-mapping for 1D textures
     // However, we still need to use the provided mip level count when initializing the texture
@@ -352,7 +352,7 @@ Result DeviceImpl::createTextureResource(
         return SLANG_FAIL;
     }
 
-    RefPtr<TextureResourceImpl> textureImpl(new TextureResourceImpl(desc, this));
+    RefPtr<TextureImpl> textureImpl(new TextureImpl(desc, this));
 
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
     switch (desc.memoryType)
@@ -476,7 +476,7 @@ Result DeviceImpl::createTextureResource(
             {
                 if (level >= desc.numMipLevels)
                     continue;
-                const ITextureResource::SubresourceData& subresourceData = initData[slice * initMipLevels + level];
+                const ITexture::SubresourceData& subresourceData = initData[slice * initMipLevels + level];
                 stagingTexture->replaceRegion(
                     region,
                     level,
@@ -498,7 +498,7 @@ Result DeviceImpl::createTextureResource(
         commandBuffer->waitUntilCompleted();
     }
 
-    returnComPtr(outResource, textureImpl);
+    returnComPtr(outTexture, textureImpl);
     return SLANG_OK;
 }
 
@@ -571,16 +571,12 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
     AUTORELEASEPOOL
 
-    auto textureImpl = static_cast<TextureResourceImpl*>(texture);
-    RefPtr<TextureResourceViewImpl> viewImpl = new TextureResourceViewImpl(this);
+    auto textureImpl = static_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(this);
     viewImpl->m_desc = desc;
     viewImpl->m_device = this;
     viewImpl->m_texture = textureImpl;
@@ -590,7 +586,7 @@ Result DeviceImpl::createTextureView(
         return SLANG_OK;
     }
 
-    const ITextureResource::Desc& textureDesc = *textureImpl->getDesc();
+    const ITexture::Desc& textureDesc = *textureImpl->getDesc();
     SubresourceRange sr = desc.subresourceRange;
     sr.mipLevelCount = sr.mipLevelCount == 0 ? textureDesc.numMipLevels - sr.mipLevel : sr.mipLevelCount;
     sr.layerCount = sr.layerCount == 0 ? textureDesc.arraySize - sr.baseArrayLayer : sr.layerCount;

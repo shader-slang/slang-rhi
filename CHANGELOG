@@ -1,2 +1,4 @@
+- rename ITextureResource -> ITexture
+- rename IDevice::createTextureResource -> IDevice::createTexture
 - rename IBufferResource -> IBuffer
 - rename IDevice::createBufferResource -> IDevice::createBuffer

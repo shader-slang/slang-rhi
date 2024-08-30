@@ -666,7 +666,7 @@ struct SubresourceRange
     GfxCount layerCount;     // For cube maps, this is a multiple of 6.
 };
 
-class ITextureResource : public IResource
+class ITexture : public IResource
 {
     SLANG_COM_INTERFACE(0x423090a2, 0x8be7, 0x4421, {0x98, 0x71, 0x7e, 0xe2, 0x63, 0xf4, 0xea, 0x3d});
 
@@ -1583,15 +1583,15 @@ public:
     /// and layerCount = 0, the entire resource is being copied and dstOffset, srcOffset and extent
     /// arguments are ignored.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
-        ITextureResource* dst,
+        ITexture* dst,
         ResourceState dstState,
         SubresourceRange dstSubresource,
-        ITextureResource::Offset3D dstOffset,
-        ITextureResource* src,
+        ITexture::Offset3D dstOffset,
+        ITexture* src,
         ResourceState srcState,
         SubresourceRange srcSubresource,
-        ITextureResource::Offset3D srcOffset,
-        ITextureResource::Extents extent
+        ITexture::Offset3D srcOffset,
+        ITexture::Extents extent
     ) = 0;
 
     /// Copies texture to a buffer. Each row is aligned to kTexturePitchAlignment.
@@ -1600,25 +1600,25 @@ public:
         Offset dstOffset,
         Size dstSize,
         Size dstRowStride,
-        ITextureResource* src,
+        ITexture* src,
         ResourceState srcState,
         SubresourceRange srcSubresource,
-        ITextureResource::Offset3D srcOffset,
-        ITextureResource::Extents extent
+        ITexture::Offset3D srcOffset,
+        ITexture::Extents extent
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
-        ITextureResource* dst,
+        ITexture* dst,
         SubresourceRange subResourceRange,
-        ITextureResource::Offset3D offset,
-        ITextureResource::Extents extent,
-        ITextureResource::SubresourceData* subResourceData,
+        ITexture::Offset3D offset,
+        ITexture::Extents extent,
+        ITexture::SubresourceData* subResourceData,
         GfxCount subResourceDataCount
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    textureBarrier(GfxCount count, ITextureResource* const* textures, ResourceState src, ResourceState dst) = 0;
+    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
-        ITextureResource* texture,
+        ITexture* texture,
         SubresourceRange subresourceRange,
         ResourceState src,
         ResourceState dst
@@ -1628,10 +1628,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
-        ITextureResource* source,
+        ITexture* source,
         ResourceState sourceState,
         SubresourceRange sourceRange,
-        ITextureResource* dest,
+        ITexture* dest,
         ResourceState destState,
         SubresourceRange destRange
     ) = 0;
@@ -1639,7 +1639,7 @@ public:
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() = 0;
-    inline void textureBarrier(ITextureResource* texture, ResourceState src, ResourceState dst)
+    inline void textureBarrier(ITexture* texture, ResourceState src, ResourceState dst)
     {
         textureBarrier(1, &texture, src, dst);
     }
@@ -1997,7 +1997,7 @@ public:
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() = 0;
 
     /// Returns the back buffer image at `index`.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITextureResource** outResource) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITexture** outTexture) = 0;
 
     /// Present the next image in the swapchain.
     virtual SLANG_NO_THROW Result SLANG_MCALL present() = 0;
@@ -2236,7 +2236,7 @@ public:
     /// Create a texture resource.
     ///
     /// If `initData` is non-null, then it must point to an array of
-    /// `ITextureResource::SubresourceData` with one element for each
+    /// `ITexture::SubresourceData` with one element for each
     /// subresource of the texture being created.
     ///
     /// The number of subresources in a texture is:
@@ -2247,35 +2247,29 @@ public:
     ///
     ///     effectiveElementCount = (isArray ? arrayElementCount : 1) * (isCube ? 6 : 1);
     ///
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureResource(
-        const ITextureResource::Desc& desc,
-        const ITextureResource::SubresourceData* initData,
-        ITextureResource** outResource
-    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTexture(const ITexture::Desc& desc, const ITexture::SubresourceData* initData, ITexture** outTexture) = 0;
 
     /// Create a texture resource. initData holds the initialize data to set the contents of the texture when
     /// constructed.
-    inline SLANG_NO_THROW ComPtr<ITextureResource> createTextureResource(
-        const ITextureResource::Desc& desc,
-        const ITextureResource::SubresourceData* initData = nullptr
+    inline SLANG_NO_THROW ComPtr<ITexture> createTexture(
+        const ITexture::Desc& desc,
+        const ITexture::SubresourceData* initData = nullptr
     )
     {
-        ComPtr<ITextureResource> resource;
-        SLANG_RETURN_NULL_ON_FAIL(createTextureResource(desc, initData, resource.writeRef()));
+        ComPtr<ITexture> resource;
+        SLANG_RETURN_NULL_ON_FAIL(createTexture(desc, initData, resource.writeRef()));
         return resource;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
-        InteropHandle handle,
-        const ITextureResource::Desc& srcDesc,
-        ITextureResource** outResource
-    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
-        const ITextureResource::Desc& srcDesc,
+        const ITexture::Desc& srcDesc,
         const Size size,
-        ITextureResource** outResource
+        ITexture** outTexture
     ) = 0;
 
     /// Create a buffer resource
@@ -2306,9 +2300,9 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) = 0;
+    createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) = 0;
 
-    inline ComPtr<IResourceView> createTextureView(ITextureResource* texture, IResourceView::Desc const& desc)
+    inline ComPtr<IResourceView> createTextureView(ITexture* texture, IResourceView::Desc const& desc)
     {
         ComPtr<IResourceView> view;
         SLANG_RETURN_NULL_ON_FAIL(createTextureView(texture, desc, view.writeRef()));
@@ -2487,8 +2481,8 @@ public:
     createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState) = 0;
 
     /// Read back texture resource and stores the result in `outBlob`.
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTextureResource(
-        ITextureResource* resource,
+    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTexture(
+        ITexture* resource,
         ResourceState state,
         ISlangBlob** outBlob,
         Size* outRowPitch,
@@ -2519,7 +2513,7 @@ public:
     waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment) = 0;
+    getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) = 0;
 

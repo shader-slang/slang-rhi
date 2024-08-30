@@ -231,7 +231,7 @@ Result loadGraphicsProgram(
 
 void compareComputeResult(
     IDevice* device,
-    ITextureResource* texture,
+    ITexture* texture,
     ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
@@ -242,7 +242,7 @@ void compareComputeResult(
     ComPtr<ISlangBlob> resultBlob;
     size_t rowPitch = 0;
     size_t pixelSize = 0;
-    REQUIRE_CALL(device->readTextureResource(texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
+    REQUIRE_CALL(device->readTexture(texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
     // Compare results.
     for (size_t row = 0; row < rowCount; row++)
     {

@@ -56,7 +56,7 @@ struct BaseRayTracingTest
     ComPtr<IAccelerationStructure> BLAS;
     ComPtr<IBuffer> TLASBuffer;
     ComPtr<IAccelerationStructure> TLAS;
-    ComPtr<ITextureResource> resultTexture;
+    ComPtr<ITexture> resultTexture;
     ComPtr<IResourceView> resultTextureUAV;
     ComPtr<IShaderTable> shaderTable;
 
@@ -110,7 +110,7 @@ struct BaseRayTracingTest
 
     void createResultTexture()
     {
-        ITextureResource::Desc resultTextureDesc = {};
+        ITexture::Desc resultTextureDesc = {};
         resultTextureDesc.type = IResource::Type::Texture2D;
         resultTextureDesc.numMipLevels = 1;
         resultTextureDesc.size.width = width;
@@ -118,7 +118,7 @@ struct BaseRayTracingTest
         resultTextureDesc.size.depth = 1;
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
         resultTextureDesc.format = Format::R32G32B32A32_FLOAT;
-        resultTexture = device->createTextureResource(resultTextureDesc);
+        resultTexture = device->createTexture(resultTextureDesc);
         IResourceView::Desc resultUAVDesc = {};
         resultUAVDesc.format = resultTextureDesc.format;
         resultUAVDesc.type = IResourceView::Type::UnorderedAccess;
@@ -367,13 +367,9 @@ struct BaseRayTracingTest
         queue->executeCommandBuffer(cmdBuffer.get());
         queue->waitOnHost();
 
-        REQUIRE_CALL(device->readTextureResource(
-            resultTexture,
-            ResourceState::CopySource,
-            resultBlob.writeRef(),
-            &rowPitch,
-            &pixelSize
-        ));
+        REQUIRE_CALL(
+            device->readTexture(resultTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
+        );
 #if 0 // for debugging only
         writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);
 #endif

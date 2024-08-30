@@ -30,7 +30,7 @@ struct GUID
     static const Guid IID_ISamplerState;
     static const Guid IID_IResource;
     static const Guid IID_IBuffer;
-    static const Guid IID_ITextureResource;
+    static const Guid IID_ITexture;
     static const Guid IID_IInputLayout;
     static const Guid IID_IDevice;
     static const Guid IID_IPersistentShaderCache;
@@ -253,7 +253,7 @@ protected:
     Desc m_desc;
 };
 
-class TextureResource : public ITextureResource, public Resource
+class Texture : public ITexture, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -263,14 +263,14 @@ public:
     typedef Resource Parent;
 
     /// Ctor
-    TextureResource(const Desc& desc)
+    Texture(const Desc& desc)
         : Parent(desc.type)
         , m_desc(desc)
     {
     }
 
     virtual SLANG_NO_THROW IResource::Type SLANG_MCALL getType() SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW ITextureResource::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW ITexture::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
 
@@ -1187,17 +1187,15 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE;
     IDevice* getInterface(const Guid& guid);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
-        InteropHandle handle,
-        const ITextureResource::Desc& srcDesc,
-        ITextureResource** outResource
-    ) SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture)
+        SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
-        const ITextureResource::Desc& srcDesc,
+        const ITexture::Desc& srcDesc,
         const Size size,
-        ITextureResource** outResource
+        ITexture** outTexture
     ) SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -1284,7 +1282,7 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment) override;
+    getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;

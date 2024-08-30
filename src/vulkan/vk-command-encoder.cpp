@@ -242,7 +242,7 @@ void ResourceCommandEncoder::uploadBufferData(IBuffer* buffer, Offset offset, Si
 
 void ResourceCommandEncoder::textureBarrier(
     GfxCount count,
-    ITextureResource* const* textures,
+    ITexture* const* textures,
     ResourceState src,
     ResourceState dst
 )
@@ -251,7 +251,7 @@ void ResourceCommandEncoder::textureBarrier(
 
     for (GfxIndex i = 0; i < count; i++)
     {
-        auto image = static_cast<TextureResourceImpl*>(textures[i]);
+        auto image = static_cast<TextureImpl*>(textures[i]);
         auto desc = image->getDesc();
 
         VkImageMemoryBarrier barrier = {};
@@ -359,21 +359,21 @@ void ResourceCommandEncoder::writeTimestamp(IQueryPool* queryPool, GfxIndex inde
 }
 
 void ResourceCommandEncoder::copyTexture(
-    ITextureResource* dst,
+    ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITextureResource::Offset3D dstOffset,
-    ITextureResource* src,
+    ITexture::Offset3D dstOffset,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    ITexture::Offset3D srcOffset,
+    ITexture::Extents extent
 )
 {
-    auto srcImage = static_cast<TextureResourceImpl*>(src);
+    auto srcImage = static_cast<TextureImpl*>(src);
     auto srcDesc = srcImage->getDesc();
     auto srcImageLayout = VulkanUtil::getImageLayoutFromState(srcState);
-    auto dstImage = static_cast<TextureResourceImpl*>(dst);
+    auto dstImage = static_cast<TextureImpl*>(dst);
     auto dstDesc = dstImage->getDesc();
     auto dstImageLayout = VulkanUtil::getImageLayoutFromState(dstState);
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0)
@@ -418,19 +418,19 @@ void ResourceCommandEncoder::copyTexture(
 }
 
 void ResourceCommandEncoder::uploadTextureData(
-    ITextureResource* dst,
+    ITexture* dst,
     SubresourceRange subResourceRange,
-    ITextureResource::Offset3D offset,
-    ITextureResource::Extents extend,
-    ITextureResource::SubresourceData* subResourceData,
+    ITexture::Offset3D offset,
+    ITexture::Extents extend,
+    ITexture::SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
     // VALIDATION: dst must be in TransferDst state.
 
     auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    auto dstImpl = static_cast<TextureResourceImpl*>(dst);
-    std::vector<TextureResource::Extents> mipSizes;
+    auto dstImpl = static_cast<TextureImpl*>(dst);
+    std::vector<Texture::Extents> mipSizes;
 
     VkCommandBuffer commandBuffer = m_commandBuffer->m_commandBuffer;
     auto& desc = *dstImpl->getDesc();
@@ -439,7 +439,7 @@ void ResourceCommandEncoder::uploadTextureData(
     // Calculate how large an array entry is
     for (GfxIndex j = subResourceRange.mipLevel; j < subResourceRange.mipLevel + subResourceRange.mipLevelCount; ++j)
     {
-        const TextureResource::Extents mipSize = calcMipSize(desc.size, j);
+        const Texture::Extents mipSize = calcMipSize(desc.size, j);
 
         auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
         auto numRows = calcNumRows(desc.format, mipSize.height);
@@ -557,7 +557,7 @@ void ResourceCommandEncoder::uploadTextureData(
     }
 }
 
-void ResourceCommandEncoder::_clearColorImage(TextureResourceViewImpl* viewImpl, ClearValue* clearValue)
+void ResourceCommandEncoder::_clearColorImage(TextureViewImpl* viewImpl, ClearValue* clearValue)
 {
     auto& api = m_commandBuffer->m_renderer->m_api;
     auto layout = viewImpl->m_layout;
@@ -607,7 +607,7 @@ void ResourceCommandEncoder::_clearColorImage(TextureResourceViewImpl* viewImpl,
 }
 
 void ResourceCommandEncoder::_clearDepthImage(
-    TextureResourceViewImpl* viewImpl,
+    TextureViewImpl* viewImpl,
     ClearValue* clearValue,
     ClearResourceViewFlags::Enum flags
 )
@@ -697,13 +697,13 @@ void ResourceCommandEncoder::clearResourceView(
     {
     case IResourceView::Type::RenderTarget:
     {
-        auto viewImpl = static_cast<TextureResourceViewImpl*>(view);
+        auto viewImpl = static_cast<TextureViewImpl*>(view);
         _clearColorImage(viewImpl, clearValue);
     }
     break;
     case IResourceView::Type::DepthStencil:
     {
-        auto viewImpl = static_cast<TextureResourceViewImpl*>(view);
+        auto viewImpl = static_cast<TextureViewImpl*>(view);
         _clearDepthImage(viewImpl, clearValue, flags);
     }
     break;
@@ -714,7 +714,7 @@ void ResourceCommandEncoder::clearResourceView(
         {
         case ResourceViewImpl::ViewType::Texture:
         {
-            auto viewImpl = static_cast<TextureResourceViewImpl*>(viewImplBase);
+            auto viewImpl = static_cast<TextureViewImpl*>(viewImplBase);
             if ((flags & ClearResourceViewFlags::ClearDepth) || (flags & ClearResourceViewFlags::ClearStencil))
             {
                 _clearDepthImage(viewImpl, clearValue, flags);
@@ -769,17 +769,17 @@ void ResourceCommandEncoder::clearResourceView(
 }
 
 void ResourceCommandEncoder::resolveResource(
-    ITextureResource* source,
+    ITexture* source,
     ResourceState sourceState,
     SubresourceRange sourceRange,
-    ITextureResource* dest,
+    ITexture* dest,
     ResourceState destState,
     SubresourceRange destRange
 )
 {
-    auto srcTexture = static_cast<TextureResourceImpl*>(source);
+    auto srcTexture = static_cast<TextureImpl*>(source);
     auto srcExtent = srcTexture->getDesc()->size;
-    auto dstTexture = static_cast<TextureResourceImpl*>(dest);
+    auto dstTexture = static_cast<TextureImpl*>(dest);
 
     auto srcImage = srcTexture->m_image;
     auto dstImage = dstTexture->m_image;
@@ -847,16 +847,16 @@ void ResourceCommandEncoder::copyTextureToBuffer(
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,
-    ITextureResource* src,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    ITexture::Offset3D srcOffset,
+    ITexture::Extents extent
 )
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
-    auto image = static_cast<TextureResourceImpl*>(src);
+    auto image = static_cast<TextureImpl*>(src);
     auto desc = image->getDesc();
     auto buffer = static_cast<BufferImpl*>(dst);
     auto srcImageLayout = VulkanUtil::getImageLayoutFromState(srcState);
@@ -884,14 +884,14 @@ void ResourceCommandEncoder::copyTextureToBuffer(
 }
 
 void ResourceCommandEncoder::textureSubresourceBarrier(
-    ITextureResource* texture,
+    ITexture* texture,
     SubresourceRange subresourceRange,
     ResourceState src,
     ResourceState dst
 )
 {
     short_vector<VkImageMemoryBarrier> barriers;
-    auto image = static_cast<TextureResourceImpl*>(texture);
+    auto image = static_cast<TextureImpl*>(texture);
     auto desc = image->getDesc();
 
     VkImageMemoryBarrier barrier = {};

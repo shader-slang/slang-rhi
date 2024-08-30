@@ -45,7 +45,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     std::vector<ComPtr<ISamplerState>> samplers;
     std::vector<ComPtr<IResourceView>> srvs;
     ComPtr<IResourceView> uav;
-    ComPtr<ITextureResource> texture;
+    ComPtr<ITexture> texture;
     ComPtr<IBuffer> buffer = createBuffer(device, 0);
 
     {
@@ -55,7 +55,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, uav.writeRef()));
     }
     {
-        ITextureResource::Desc textureDesc = {};
+        ITexture::Desc textureDesc = {};
         textureDesc.type = IResource::Type::Texture2D;
         textureDesc.format = Format::R8G8B8A8_UNORM;
         textureDesc.size.width = 2;
@@ -66,8 +66,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.defaultState = ResourceState::ShaderResource;
         textureDesc.allowedStates.add(ResourceState::CopyDestination);
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
-        ITextureResource::SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
-        REQUIRE_CALL(device->createTextureResource(textureDesc, subResourceData, texture.writeRef()));
+        ITexture::SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
+        REQUIRE_CALL(device->createTexture(textureDesc, subResourceData, texture.writeRef()));
     }
     for (uint32_t i = 0; i < 32; i++)
     {

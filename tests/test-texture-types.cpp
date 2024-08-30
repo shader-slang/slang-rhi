@@ -21,7 +21,7 @@ struct BaseTextureViewTest
     RefPtr<TextureInfo> textureInfo;
     RefPtr<ValidationTextureFormatBase> validationFormat;
 
-    ComPtr<ITextureResource> texture;
+    ComPtr<ITexture> texture;
     ComPtr<IResourceView> textureView;
     ComPtr<IBuffer> resultsBuffer;
     ComPtr<IResourceView> bufferView;
@@ -122,7 +122,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 {
     void createRequiredResources()
     {
-        ITextureResource::Desc textureDesc = {};
+        ITexture::Desc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
         textureDesc.numMipLevels = textureInfo->mipLevelCount;
         textureDesc.arraySize = textureInfo->arrayLayerCount;
@@ -132,9 +132,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             ResourceStateSet(textureDesc.defaultState, ResourceState::CopySource, ResourceState::CopyDestination);
         textureDesc.format = textureInfo->format;
 
-        REQUIRE_CALL(
-            device->createTextureResource(textureDesc, textureInfo->subresourceDatas.data(), texture.writeRef())
-        );
+        REQUIRE_CALL(device->createTexture(textureDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
 
         IResourceView::Desc textureViewDesc = {};
         textureViewDesc.type = viewType;
@@ -246,13 +244,9 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             ComPtr<ISlangBlob> textureBlob;
             size_t rowPitch;
             size_t pixelSize;
-            REQUIRE_CALL(device->readTextureResource(
-                texture,
-                ResourceState::CopySource,
-                textureBlob.writeRef(),
-                &rowPitch,
-                &pixelSize
-            ));
+            REQUIRE_CALL(
+                device->readTexture(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize)
+            );
             auto textureValues = (uint8_t*)textureBlob->getBufferPointer();
 
             ValidationTextureData textureResults;
@@ -351,7 +345,7 @@ struct RenderTargetTests : BaseTextureViewTest
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
-    ComPtr<ITextureResource> sampledTexture;
+    ComPtr<ITexture> sampledTexture;
     ComPtr<IBuffer> vertexBuffer;
 
     void createRequiredResources()
@@ -374,7 +368,7 @@ struct RenderTargetTests : BaseTextureViewTest
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
         };
 
-        ITextureResource::Desc sampledTexDesc = {};
+        ITexture::Desc sampledTexDesc = {};
         sampledTexDesc.type = textureInfo->textureType;
         sampledTexDesc.numMipLevels = textureInfo->mipLevelCount;
         sampledTexDesc.arraySize = textureInfo->arrayLayerCount;
@@ -385,13 +379,11 @@ struct RenderTargetTests : BaseTextureViewTest
         sampledTexDesc.format = textureInfo->format;
         sampledTexDesc.sampleDesc.numSamples = sampleCount;
 
-        REQUIRE_CALL(device->createTextureResource(
-            sampledTexDesc,
-            textureInfo->subresourceDatas.data(),
-            sampledTexture.writeRef()
-        ));
+        REQUIRE_CALL(
+            device->createTexture(sampledTexDesc, textureInfo->subresourceDatas.data(), sampledTexture.writeRef())
+        );
 
-        ITextureResource::Desc texDesc = {};
+        ITexture::Desc texDesc = {};
         texDesc.type = textureInfo->textureType;
         texDesc.numMipLevels = textureInfo->mipLevelCount;
         texDesc.arraySize = textureInfo->arrayLayerCount;
@@ -400,7 +392,7 @@ struct RenderTargetTests : BaseTextureViewTest
         texDesc.allowedStates = ResourceStateSet(ResourceState::ResolveDestination, ResourceState::CopySource);
         texDesc.format = textureInfo->format;
 
-        REQUIRE_CALL(device->createTextureResource(texDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
+        REQUIRE_CALL(device->createTexture(texDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
 
         IInputLayout::Desc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -567,17 +559,13 @@ struct RenderTargetTests : BaseTextureViewTest
         size_t pixelSize;
         if (sampleCount > 1)
         {
-            REQUIRE_CALL(device->readTextureResource(
-                texture,
-                ResourceState::CopySource,
-                textureBlob.writeRef(),
-                &rowPitch,
-                &pixelSize
-            ));
+            REQUIRE_CALL(
+                device->readTexture(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize)
+            );
         }
         else
         {
-            REQUIRE_CALL(device->readTextureResource(
+            REQUIRE_CALL(device->readTexture(
                 sampledTexture,
                 ResourceState::CopySource,
                 textureBlob.writeRef(),

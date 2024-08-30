@@ -53,13 +53,13 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc);
 void initSrvDesc(
     IResource::Type resourceType,
-    const ITextureResource::Desc& textureDesc,
+    const ITexture::Desc& textureDesc,
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
     D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
 );
-Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc);
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITexture::Desc& srcDesc);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 Result uploadBufferDataImpl(
     ID3D12Device* device,

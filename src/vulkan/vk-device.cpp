@@ -1128,15 +1128,15 @@ Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffe
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTextureResource(
-    ITextureResource* texture,
+Result DeviceImpl::readTexture(
+    ITexture* texture,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
     Size* outPixelSize
 )
 {
-    auto textureImpl = static_cast<TextureResourceImpl*>(texture);
+    auto textureImpl = static_cast<TextureImpl*>(texture);
 
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
@@ -1146,7 +1146,7 @@ Result DeviceImpl::readTextureResource(
     Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
 
-    std::vector<TextureResource::Extents> mipSizes;
+    std::vector<Texture::Extents> mipSizes;
 
     const int numMipMaps = desc->numMipLevels;
     auto arraySize = calcEffectiveArraySize(*desc);
@@ -1156,7 +1156,7 @@ Result DeviceImpl::readTextureResource(
     // Calculate how large an array entry is
     for (int j = 0; j < numMipMaps; ++j)
     {
-        const TextureResource::Extents mipSize = calcMipSize(desc->size, j);
+        const Texture::Extents mipSize = calcMipSize(desc->size, j);
 
         auto rowSizeInBytes = calcRowSize(desc->format, mipSize.width);
         auto numRows = calcNumRows(desc->format, mipSize.height);
@@ -1336,7 +1336,7 @@ void DeviceImpl::_transitionImageLayout(
     VkCommandBuffer commandBuffer,
     VkImage image,
     VkFormat format,
-    const TextureResource::Desc& desc,
+    const Texture::Desc& desc,
     VkImageLayout oldLayout,
     VkImageLayout newLayout
 )
@@ -1380,7 +1380,7 @@ uint32_t DeviceImpl::getQueueFamilyIndex(ICommandQueue::QueueType queueType)
 void DeviceImpl::_transitionImageLayout(
     VkImage image,
     VkFormat format,
-    const TextureResource::Desc& desc,
+    const Texture::Desc& desc,
     VkImageLayout oldLayout,
     VkImageLayout newLayout
 )
@@ -1389,9 +1389,9 @@ void DeviceImpl::_transitionImageLayout(
     _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const ITexture::Desc& descIn, Size* outSize, Size* outAlignment)
 {
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    Texture::Desc desc = fixupTextureDesc(descIn);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -1470,13 +1470,13 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& descIn,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
+Result DeviceImpl::createTexture(
+    const ITexture::Desc& descIn,
+    const ITexture::SubresourceData* initData,
+    ITexture** outTexture
 )
 {
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    Texture::Desc desc = fixupTextureDesc(descIn);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -1487,7 +1487,7 @@ Result DeviceImpl::createTextureResource(
 
     const int arraySize = calcEffectiveArraySize(desc);
 
-    RefPtr<TextureResourceImpl> texture(new TextureResourceImpl(desc, this));
+    RefPtr<TextureImpl> texture(new TextureImpl(desc, this));
     texture->m_vkformat = format;
     // Create the image
 
@@ -1599,7 +1599,7 @@ Result DeviceImpl::createTextureResource(
     VKBufferHandleRAII uploadBuffer;
     if (initData)
     {
-        std::vector<TextureResource::Extents> mipSizes;
+        std::vector<Texture::Extents> mipSizes;
 
         VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
@@ -1610,7 +1610,7 @@ Result DeviceImpl::createTextureResource(
         // Calculate how large an array entry is
         for (int j = 0; j < numMipMaps; ++j)
         {
-            const TextureResource::Extents mipSize = calcMipSize(desc.size, j);
+            const Texture::Extents mipSize = calcMipSize(desc.size, j);
 
             auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
             auto numRows = calcNumRows(desc.format, mipSize.height);
@@ -1856,7 +1856,7 @@ Result DeviceImpl::createTextureResource(
         }
     }
     m_deviceQueue.flushAndWait();
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
@@ -2019,14 +2019,10 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
-    auto resourceImpl = static_cast<TextureResourceImpl*>(texture);
-    RefPtr<TextureResourceViewImpl> view = new TextureResourceViewImpl(this);
+    auto resourceImpl = static_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this);
     view->m_texture = resourceImpl;
     view->m_desc = desc;
     if (!texture)

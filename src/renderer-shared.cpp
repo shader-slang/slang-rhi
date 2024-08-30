@@ -25,7 +25,7 @@ const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
 const Guid GUID::IID_ISamplerState = ISamplerState::getTypeGuid();
 const Guid GUID::IID_IResource = IResource::getTypeGuid();
 const Guid GUID::IID_IBuffer = IBuffer::getTypeGuid();
-const Guid GUID::IID_ITextureResource = ITextureResource::getTypeGuid();
+const Guid GUID::IID_ITexture = ITexture::getTypeGuid();
 const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
@@ -84,30 +84,30 @@ Result Buffer::getSharedHandle(InteropHandle* outHandle)
     return SLANG_FAIL;
 }
 
-IResource* TextureResource::getInterface(const Guid& guid)
+IResource* Texture::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITextureResource)
-        return static_cast<ITextureResource*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITexture)
+        return static_cast<ITexture*>(this);
     return nullptr;
 }
 
-SLANG_NO_THROW IResource::Type SLANG_MCALL TextureResource::getType()
+SLANG_NO_THROW IResource::Type SLANG_MCALL Texture::getType()
 {
     return m_type;
 }
-SLANG_NO_THROW ITextureResource::Desc* SLANG_MCALL TextureResource::getDesc()
+SLANG_NO_THROW ITexture::Desc* SLANG_MCALL Texture::getDesc()
 {
     return &m_desc;
 }
 
-Result TextureResource::getNativeResourceHandle(InteropHandle* outHandle)
+Result Texture::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->handleValue = 0;
     outHandle->api = InteropHandleAPI::Unknown;
     return SLANG_FAIL;
 }
 
-Result TextureResource::getSharedHandle(InteropHandle* outHandle)
+Result Texture::getSharedHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Unknown;
     outHandle->handleValue = 0;
@@ -406,29 +406,26 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::getSlangSession(slang::ISession*
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromNativeHandle(
-    InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
-    ITextureResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+RendererBase::createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outTexture);
     return SLANG_E_NOT_AVAILABLE;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromSharedHandle(
     InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
+    const ITexture::Desc& srcDesc,
     const Size size,
-    ITextureResource** outResource
+    ITexture** outTexture
 )
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
     SLANG_UNUSED(size);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outTexture);
     return SLANG_E_NOT_AVAILABLE;
 }
 
@@ -650,7 +647,7 @@ Result RendererBase::waitForFences(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment)
+Result RendererBase::getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment)
 {
     SLANG_UNUSED(desc);
     *outSize = 0;

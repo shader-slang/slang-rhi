@@ -2,13 +2,13 @@
 
 namespace rhi::d3d12 {
 
-TextureResourceImpl::TextureResourceImpl(const Desc& desc)
+TextureImpl::TextureImpl(const Desc& desc)
     : Parent(desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
-TextureResourceImpl::~TextureResourceImpl()
+TextureImpl::~TextureImpl()
 {
     if (sharedHandle.handleValue != 0)
     {
@@ -16,14 +16,14 @@ TextureResourceImpl::~TextureResourceImpl()
     }
 }
 
-Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeResourceHandle(InteropHandle* outHandle)
 {
     outHandle->handleValue = (uint64_t)m_resource.getResource();
     outHandle->api = InteropHandleAPI::D3D12;
     return SLANG_OK;
 }
 
-Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
 {
 #if !SLANG_WINDOWS_FAMILY
     return SLANG_E_NOT_IMPLEMENTED;
@@ -47,7 +47,7 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
 #endif
 }
 
-Result TextureResourceImpl::setDebugName(const char* name)
+Result TextureImpl::setDebugName(const char* name)
 {
     Parent::setDebugName(name);
     m_resource.setDebugName(name);

@@ -40,16 +40,16 @@ private:
     RefPtr<BufferImpl> m_buffer;
 };
 
-class TextureResourceViewImpl : public ResourceViewImpl, public slang_prelude::IRWTexture
+class TextureViewImpl : public ResourceViewImpl, public slang_prelude::IRWTexture
 {
 public:
-    TextureResourceViewImpl(Desc const& desc, TextureResourceImpl* texture)
+    TextureViewImpl(Desc const& desc, TextureImpl* texture)
         : ResourceViewImpl(Kind::Texture, desc)
         , m_texture(texture)
     {
     }
 
-    TextureResourceImpl* getTexture() const;
+    TextureImpl* getTexture() const;
 
     //
     // ITexture interface
@@ -77,7 +77,7 @@ public:
     void* refAt(const uint32_t* texelCoords) SLANG_OVERRIDE;
 
 private:
-    RefPtr<TextureResourceImpl> m_texture;
+    RefPtr<TextureImpl> m_texture;
 
     void* _getTexelPtr(int32_t const* texelCoords);
 };

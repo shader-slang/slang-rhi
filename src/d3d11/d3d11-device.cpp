@@ -422,8 +422,8 @@ void DeviceImpl::setStencilReference(uint32_t referenceValue)
     m_depthStencilStateDirty = true;
 }
 
-Result DeviceImpl::readTextureResource(
-    ITextureResource* resource,
+Result DeviceImpl::readTexture(
+    ITexture* resource,
     ResourceState state,
     ISlangBlob** outBlob,
     size_t* outRowPitch,
@@ -432,7 +432,7 @@ Result DeviceImpl::readTextureResource(
 {
     SLANG_UNUSED(state);
 
-    auto texture = static_cast<TextureResourceImpl*>(resource);
+    auto texture = static_cast<TextureImpl*>(resource);
     // Don't bother supporting MSAA for right now
     if (texture->getDesc()->sampleDesc.numSamples > 1)
     {
@@ -502,13 +502,13 @@ Result DeviceImpl::readTextureResource(
     }
 }
 
-Result DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& descIn,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
+Result DeviceImpl::createTexture(
+    const ITexture::Desc& descIn,
+    const ITexture::SubresourceData* initData,
+    ITexture** outTexture
 )
 {
-    TextureResource::Desc srcDesc = fixupTextureDesc(descIn);
+    Texture::Desc srcDesc = fixupTextureDesc(descIn);
 
     const int effectiveArraySize = calcEffectiveArraySize(srcDesc);
 
@@ -550,7 +550,7 @@ Result DeviceImpl::createTextureResource(
 
     const int accessFlags = _calcResourceAccessFlags(srcDesc.memoryType);
 
-    RefPtr<TextureResourceImpl> texture(new TextureResourceImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
 
     switch (srcDesc.type)
     {
@@ -623,7 +623,7 @@ Result DeviceImpl::createTextureResource(
         return SLANG_FAIL;
     }
 
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
@@ -763,13 +763,9 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
-    auto resourceImpl = (TextureResourceImpl*)texture;
+    auto resourceImpl = (TextureImpl*)texture;
 
     switch (desc.type)
     {

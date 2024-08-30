@@ -13,7 +13,7 @@ const ISwapchain::Desc& DebugSwapchain::getDesc()
     return desc;
 }
 
-Result DebugSwapchain::getImage(GfxIndex index, ITextureResource** outResource)
+Result DebugSwapchain::getImage(GfxIndex index, ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
     maybeRebuildImageList();
@@ -25,7 +25,7 @@ Result DebugSwapchain::getImage(GfxIndex index, ITextureResource** outResource)
             (uint32_t)m_images.size()
         );
     }
-    returnComPtr(outResource, m_images[index]);
+    returnComPtr(outTexture, m_images[index]);
     return SLANG_OK;
 }
 
@@ -78,7 +78,7 @@ void DebugSwapchain::maybeRebuildImageList()
     m_images.clear();
     for (GfxIndex i = 0; i < baseObject->getDesc().imageCount; i++)
     {
-        RefPtr<DebugTextureResource> image = new DebugTextureResource();
+        RefPtr<DebugTexture> image = new DebugTexture();
         baseObject->getImage(i, image->baseObject.writeRef());
         m_images.push_back(image);
     }

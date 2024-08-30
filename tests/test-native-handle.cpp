@@ -59,7 +59,7 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
     if (isSwiftShaderDevice(device))
         return;
 
-    ITextureResource::Desc desc = {};
+    ITexture::Desc desc = {};
     desc.type = IResource::Type::Texture2D;
     desc.numMipLevels = 1;
     desc.size.width = 1;
@@ -68,8 +68,8 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
     desc.defaultState = ResourceState::UnorderedAccess;
     desc.format = Format::R16G16B16A16_FLOAT;
 
-    ComPtr<ITextureResource> buffer;
-    buffer = device->createTextureResource(desc);
+    ComPtr<ITexture> buffer;
+    buffer = device->createTexture(desc);
 
     InteropHandle handle;
     REQUIRE_CALL(buffer->getNativeResourceHandle(&handle));

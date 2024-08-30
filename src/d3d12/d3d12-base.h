@@ -39,7 +39,7 @@ namespace rhi::d3d12 {
 
 class DeviceImpl;
 class BufferImpl;
-class TextureResourceImpl;
+class TextureImpl;
 class CommandBufferImpl;
 class PipelineCommandEncoder;
 class ResourceCommandEncoderImpl;

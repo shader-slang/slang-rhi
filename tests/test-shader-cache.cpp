@@ -696,7 +696,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     static const Format format = Format::R32G32B32A32_FLOAT;
 
     ComPtr<IBuffer> vertexBuffer;
-    ComPtr<ITextureResource> colorBuffer;
+    ComPtr<ITexture> colorBuffer;
     ComPtr<IInputLayout> inputLayout;
     ComPtr<IFramebufferLayout> framebufferLayout;
     ComPtr<IRenderPassLayout> renderPass;
@@ -720,9 +720,9 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         return vertexBuffer;
     }
 
-    ComPtr<ITextureResource> createColorBuffer(IDevice* device)
+    ComPtr<ITexture> createColorBuffer(IDevice* device)
     {
-        ITextureResource::Desc colorBufferDesc;
+        ITexture::Desc colorBufferDesc;
         colorBufferDesc.type = IResource::Type::Texture2D;
         colorBufferDesc.size.width = kWidth;
         colorBufferDesc.size.height = kHeight;
@@ -731,7 +731,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         colorBufferDesc.format = format;
         colorBufferDesc.defaultState = ResourceState::RenderTarget;
         colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
-        ComPtr<ITextureResource> colorBuffer = device->createTextureResource(colorBufferDesc, nullptr);
+        ComPtr<ITexture> colorBuffer = device->createTexture(colorBufferDesc, nullptr);
         REQUIRE(colorBuffer != nullptr);
         return colorBuffer;
     }

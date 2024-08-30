@@ -262,7 +262,7 @@ D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT m
 
 void initSrvDesc(
     IResource::Type resourceType,
-    const ITextureResource::Desc& textureDesc,
+    const ITexture::Desc& textureDesc,
     DXGI_FORMAT pixelFormat,
     D3D11_SHADER_RESOURCE_VIEW_DESC& descOut
 );

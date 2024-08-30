@@ -5,13 +5,13 @@
 
 namespace rhi::metal {
 
-class TextureResourceImpl : public TextureResource
+class TextureImpl : public Texture
 {
 public:
-    typedef TextureResource Parent;
+    typedef Texture Parent;
 
-    TextureResourceImpl(const Desc& desc, DeviceImpl* device);
-    ~TextureResourceImpl();
+    TextureImpl(const Desc& desc, DeviceImpl* device);
+    ~TextureImpl();
 
     BreakableReference<DeviceImpl> m_device;
     NS::SharedPtr<MTL::Texture> m_texture;

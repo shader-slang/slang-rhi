@@ -60,15 +60,15 @@ void ResourceCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer*
 }
 
 void ResourceCommandEncoder::copyTexture(
-    ITextureResource* dst,
+    ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITextureResource::Offset3D dstOffset,
-    ITextureResource* src,
+    ITexture::Offset3D dstOffset,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    ITexture::Offset3D srcOffset,
+    ITexture::Extents extent
 )
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
@@ -77,8 +77,8 @@ void ResourceCommandEncoder::copyTexture(
         srcSubresource.mipLevelCount == 0)
     {
         encoder->copyFromTexture(
-            static_cast<TextureResourceImpl*>(src)->m_texture.get(),
-            static_cast<TextureResourceImpl*>(dst)->m_texture.get()
+            static_cast<TextureImpl*>(src)->m_texture.get(),
+            static_cast<TextureImpl*>(dst)->m_texture.get()
         );
     }
     else
@@ -86,12 +86,12 @@ void ResourceCommandEncoder::copyTexture(
         for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
         {
             encoder->copyFromTexture(
-                static_cast<TextureResourceImpl*>(src)->m_texture.get(),
+                static_cast<TextureImpl*>(src)->m_texture.get(),
                 srcSubresource.baseArrayLayer + layer,
                 srcSubresource.mipLevel,
                 MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
                 MTL::Size(extent.width, extent.height, extent.depth),
-                static_cast<TextureResourceImpl*>(dst)->m_texture.get(),
+                static_cast<TextureImpl*>(dst)->m_texture.get(),
                 dstSubresource.baseArrayLayer + layer,
                 dstSubresource.mipLevel,
                 MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
@@ -105,18 +105,18 @@ void ResourceCommandEncoder::copyTextureToBuffer(
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,
-    ITextureResource* src,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    ITexture::Offset3D srcOffset,
+    ITexture::Extents extent
 )
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->copyFromTexture(
-        static_cast<TextureResourceImpl*>(src)->m_texture.get(),
+        static_cast<TextureImpl*>(src)->m_texture.get(),
         srcSubresource.baseArrayLayer,
         srcSubresource.mipLevel,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
@@ -134,11 +134,11 @@ void ResourceCommandEncoder::uploadBufferData(IBuffer* buffer, Offset offset, Si
 }
 
 void ResourceCommandEncoder::uploadTextureData(
-    ITextureResource* dst,
+    ITexture* dst,
     SubresourceRange subResourceRange,
-    ITextureResource::Offset3D offset,
-    ITextureResource::Extents extend,
-    ITextureResource::SubresourceData* subResourceData,
+    ITexture::Offset3D offset,
+    ITexture::Extents extend,
+    ITexture::SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
@@ -157,7 +157,7 @@ void ResourceCommandEncoder::bufferBarrier(
 
 void ResourceCommandEncoder::textureBarrier(
     GfxCount count,
-    ITextureResource* const* textures,
+    ITexture* const* textures,
     ResourceState src,
     ResourceState dst
 )
@@ -166,7 +166,7 @@ void ResourceCommandEncoder::textureBarrier(
 }
 
 void ResourceCommandEncoder::textureSubresourceBarrier(
-    ITextureResource* texture,
+    ITexture* texture,
     SubresourceRange subresourceRange,
     ResourceState src,
     ResourceState dst
@@ -185,10 +185,10 @@ void ResourceCommandEncoder::clearResourceView(
 }
 
 void ResourceCommandEncoder::resolveResource(
-    ITextureResource* source,
+    ITexture* source,
     ResourceState sourceState,
     SubresourceRange sourceRange,
-    ITextureResource* dest,
+    ITexture* dest,
     ResourceState destState,
     SubresourceRange destRange
 )
@@ -242,7 +242,7 @@ void RenderCommandEncoder::beginPass(IRenderPassLayout* renderPass, IFramebuffer
 
     for (Index i = 0; i < m_framebuffer->m_renderTargetViews.size(); ++i)
     {
-        TextureResourceViewImpl* renderTargetView = m_framebuffer->m_renderTargetViews[i];
+        TextureViewImpl* renderTargetView = m_framebuffer->m_renderTargetViews[i];
         MTL::RenderPassColorAttachmentDescriptor* colorAttachment = m_renderPassDesc->colorAttachments()->object(i);
         colorAttachment->setTexture(renderTargetView->m_textureView.get());
         colorAttachment->setLevel(renderTargetView->m_desc.subresourceRange.mipLevel);
@@ -251,7 +251,7 @@ void RenderCommandEncoder::beginPass(IRenderPassLayout* renderPass, IFramebuffer
 
     if (m_framebuffer->m_depthStencilView)
     {
-        TextureResourceViewImpl* depthStencilView = m_framebuffer->m_depthStencilView.get();
+        TextureViewImpl* depthStencilView = m_framebuffer->m_depthStencilView.get();
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencilView->m_desc.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {

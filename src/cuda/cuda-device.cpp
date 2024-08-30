@@ -314,15 +314,12 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
     }
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& desc,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::SubresourceData* initData, ITexture** outTexture)
 {
-    TextureResource::Desc srcDesc = fixupTextureDesc(desc);
+    Texture::Desc srcDesc = fixupTextureDesc(desc);
 
-    RefPtr<TextureResourceImpl> tex = new TextureResourceImpl(srcDesc);
+    RefPtr<TextureImpl> tex = new TextureImpl(srcDesc);
     tex->m_cudaContext = m_context;
 
     CUresourcetype resourceType;
@@ -330,7 +327,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
     // The size of the element/texel in bytes
     size_t elementSize = 0;
 
-    // Our `ITextureResource::Desc` uses an enumeration to specify
+    // Our `ITexture::Desc` uses an enumeration to specify
     // the "shape"/rank of a texture (1D, 2D, 3D, Cube), but CUDA's
     // `cuMipmappedArrayCreate` seemingly relies on a policy where
     // the extents of the array in dimenions above the rank are
@@ -721,7 +718,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
         SLANG_CUDA_RETURN_ON_FAIL(cuTexObjectCreate(&tex->m_cudaTexObj, &resDesc, &texDesc, nullptr));
     }
 
-    returnComPtr(outResource, tex);
+    returnComPtr(outTexture, tex);
     return SLANG_OK;
 }
 
@@ -805,19 +802,19 @@ DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::De
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
     InteropHandle handle,
-    const ITextureResource::Desc& desc,
+    const ITexture::Desc& desc,
     const size_t size,
-    ITextureResource** outResource
+    ITexture** outTexture
 )
 {
     if (handle.handleValue == 0)
     {
-        *outResource = nullptr;
+        *outTexture = nullptr;
         return SLANG_OK;
     }
 
-    RefPtr<TextureResourceImpl> resource = new TextureResourceImpl(desc);
-    resource->m_cudaContext = m_context;
+    RefPtr<TextureImpl> texture = new TextureImpl(desc);
+    texture->m_cudaContext = m_context;
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship
@@ -842,7 +839,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
 
     CUexternalMemory externalMemory;
     SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));
-    resource->m_cudaExternalMemory = externalMemory;
+    texture->m_cudaExternalMemory = externalMemory;
 
     FormatInfo formatInfo;
     SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &formatInfo));
@@ -863,11 +860,11 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
     CUmipmappedArray mipArray;
     SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedMipmappedArray(&mipArray, externalMemory, &externalMemoryMipDesc)
     );
-    resource->m_cudaMipMappedArray = mipArray;
+    texture->m_cudaMipMappedArray = mipArray;
 
     CUarray cuArray;
     SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&cuArray, mipArray, 0));
-    resource->m_cudaArray = cuArray;
+    texture->m_cudaArray = cuArray;
 
     CUDA_RESOURCE_DESC surfDesc;
     memset(&surfDesc, 0, sizeof(surfDesc));
@@ -876,18 +873,18 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
 
     CUsurfObject surface;
     SLANG_CUDA_RETURN_ON_FAIL(cuSurfObjectCreate(&surface, &surfDesc));
-    resource->m_cudaSurfObj = surface;
+    texture->m_cudaSurfObj = surface;
 
-    returnComPtr(outResource, resource);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView)
+DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
     RefPtr<ResourceViewImpl> view = new ResourceViewImpl();
     view->m_desc = desc;
-    view->textureResource = dynamic_cast<TextureResourceImpl*>(texture);
+    view->texture = dynamic_cast<TextureImpl*>(texture);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
@@ -901,7 +898,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferView(
 {
     RefPtr<ResourceViewImpl> view = new ResourceViewImpl();
     view->m_desc = desc;
-    view->memoryResource = dynamic_cast<BufferImpl*>(buffer);
+    view->buffer = dynamic_cast<BufferImpl*>(buffer);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
@@ -1115,15 +1112,15 @@ DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, I
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTextureResource(
-    ITextureResource* texture,
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTexture(
+    ITexture* texture,
     ResourceState state,
     ISlangBlob** outBlob,
     size_t* outRowPitch,
     size_t* outPixelSize
 )
 {
-    auto textureImpl = static_cast<TextureResourceImpl*>(texture);
+    auto textureImpl = static_cast<TextureImpl*>(texture);
 
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
