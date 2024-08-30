@@ -1,12 +1,11 @@
 #include "nvapi-util.h"
-
 #include "nvapi-include.h"
 
 namespace rhi {
 
 static SlangResult g_initStatus = SLANG_E_UNINITIALIZED;
 
-/* static */SlangResult NVAPIUtil::initialize()
+/* static */ SlangResult NVAPIUtil::initialize()
 {
 #ifdef SLANG_RHI_NVAPI
     if (g_initStatus == SLANG_E_UNINITIALIZED)
@@ -22,9 +21,9 @@ static SlangResult g_initStatus = SLANG_E_UNINITIALIZED;
     return g_initStatus;
 }
 
-/* static */bool NVAPIUtil::isAvailable()
+/* static */ bool NVAPIUtil::isAvailable()
 {
     return SLANG_SUCCEEDED(g_initStatus);
 }
 
-} // namespace::rhi
+} // namespace rhi
