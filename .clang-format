@@ -1,0 +1,52 @@
+BasedOnStyle: Microsoft
+ColumnLimit: 120
+MaxEmptyLinesToKeep: 2
+SortIncludes: false
+SortUsingDeclarations: false
+SpaceAfterTemplateKeyword: false
+DerivePointerAlignment: false
+PointerAlignment: Left
+FixNamespaceComments: true
+
+AllowAllConstructorInitializersOnNextLine: true
+BreakConstructorInitializers: BeforeComma
+Cpp11BracedListStyle: true
+SpaceBeforeCpp11BracedList: false
+AlwaysBreakTemplateDeclarations: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortEnumsOnASingleLine: true
+AllowAllArgumentsOnNextLine: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackParameters: false
+ExperimentalAutoDetectBinPacking: false
+AlignAfterOpenBracket: BlockIndent
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterCaseLabel: true
+    AfterClass: true
+    AfterControlStatement: Always
+    AfterEnum: true
+    AfterFunction: true
+    AfterNamespace: false
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: true
+    BeforeCatch: false
+    BeforeElse: true
+    BeforeLambdaBody: true
+    BeforeWhile: true
+    SplitEmptyRecord: false
+
+AlignTrailingComments: true
+ReflowComments: true
+CommentPragmas: '^\\.+'
+PenaltyBreakComment: 0
+
+AlwaysBreakAfterDefinitionReturnType: None
+# BreakAfterReturnType: Automatic
+PenaltyReturnTypeOnItsOwnLine: 1000000000
+AlwaysBreakBeforeMultilineStrings: true
+
+IndentAccessModifiers: false
+AccessModifierOffset: -4

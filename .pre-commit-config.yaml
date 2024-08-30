@@ -1,0 +1,24 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v3.2.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-case-conflict
+  - id: check-executables-have-shebangs
+  - id: check-symlinks
+  - id: check-merge-conflict
+  - id: check-yaml
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v18.1.8
+  hooks:
+  - id: clang-format
+exclude: |
+  (?x)^(
+      build/.*|
+      external/.*|
+      src/prelude/.*|
+      tools/.*|
+  )$
