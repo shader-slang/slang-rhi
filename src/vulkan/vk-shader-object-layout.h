@@ -75,7 +75,8 @@ public:
     {
         SubObjectRangeOffset() {}
 
-        SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout) : BindingOffset(varLayout)
+        SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
+            : BindingOffset(varLayout)
         {
             if (auto pendingLayout = varLayout->getPendingDataLayout())
             {
@@ -130,7 +131,11 @@ public:
     struct Builder
     {
     public:
-        Builder(DeviceImpl* renderer, slang::ISession* session) : m_renderer(renderer), m_session(session) {}
+        Builder(DeviceImpl* renderer, slang::ISession* session)
+            : m_renderer(renderer)
+            , m_session(session)
+        {
+        }
 
         DeviceImpl* m_renderer;
         slang::ISession* m_session;
@@ -313,7 +318,10 @@ class EntryPointLayout : public ShaderObjectLayoutImpl
 public:
     struct Builder : Super::Builder
     {
-        Builder(DeviceImpl* device, slang::ISession* session) : Super::Builder(device, session) {}
+        Builder(DeviceImpl* device, slang::ISession* session)
+            : Super::Builder(device, session)
+        {
+        }
 
         Result build(EntryPointLayout** outLayout);
 
@@ -354,7 +362,9 @@ public:
     struct Builder : Super::Builder
     {
         Builder(DeviceImpl* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
-            : Super::Builder(renderer, program->getSession()), m_program(program), m_programLayout(programLayout)
+            : Super::Builder(renderer, program->getSession())
+            , m_program(program)
+            , m_programLayout(programLayout)
         {
         }
 

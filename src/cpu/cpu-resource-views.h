@@ -9,7 +9,8 @@ namespace rhi::cpu {
 class ResourceViewImpl : public ResourceViewBase
 {
 public:
-    enum class Kind {
+    enum class Kind
+    {
         Buffer,
         Texture,
     };
@@ -28,7 +29,8 @@ class BufferResourceViewImpl : public ResourceViewImpl
 {
 public:
     BufferResourceViewImpl(Desc const& desc, BufferResourceImpl* buffer)
-        : ResourceViewImpl(Kind::Buffer, desc), m_buffer(buffer)
+        : ResourceViewImpl(Kind::Buffer, desc)
+        , m_buffer(buffer)
     {
     }
 
@@ -42,7 +44,8 @@ class TextureResourceViewImpl : public ResourceViewImpl, public slang_prelude::I
 {
 public:
     TextureResourceViewImpl(Desc const& desc, TextureResourceImpl* texture)
-        : ResourceViewImpl(Kind::Texture, desc), m_texture(texture)
+        : ResourceViewImpl(Kind::Texture, desc)
+        , m_texture(texture)
     {
     }
 

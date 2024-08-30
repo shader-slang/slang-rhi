@@ -14,9 +14,15 @@ private:
     UInt referenceCount;
 
 public:
-    RefObject() : referenceCount(0) {}
+    RefObject()
+        : referenceCount(0)
+    {
+    }
 
-    RefObject(const RefObject&) : referenceCount(0) {}
+    RefObject(const RefObject&)
+        : referenceCount(0)
+    {
+    }
 
     RefObject& operator=(const RefObject&) { return *this; }
 
@@ -87,13 +93,28 @@ SLANG_FORCE_INLINE const T* as(const RefObject* obj)
 template <typename T>
 struct SLANG_RHI_API RefPtr
 {
-    RefPtr() : pointer(nullptr) {}
+    RefPtr()
+        : pointer(nullptr)
+    {
+    }
 
-    RefPtr(T* p) : pointer(p) { addReference(p); }
+    RefPtr(T* p)
+        : pointer(p)
+    {
+        addReference(p);
+    }
 
-    RefPtr(RefPtr<T> const& p) : pointer(p.pointer) { addReference(p.pointer); }
+    RefPtr(RefPtr<T> const& p)
+        : pointer(p.pointer)
+    {
+        addReference(p.pointer);
+    }
 
-    RefPtr(RefPtr<T>&& p) : pointer(p.pointer) { p.pointer = nullptr; }
+    RefPtr(RefPtr<T>&& p)
+        : pointer(p.pointer)
+    {
+        p.pointer = nullptr;
+    }
 
     template <typename U>
     RefPtr(RefPtr<U> const& p, typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0)

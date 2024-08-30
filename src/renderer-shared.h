@@ -212,7 +212,10 @@ public:
     SLANG_FORCE_INLINE bool isBuffer() const { return m_type == IResource::Type::Buffer; }
 
 protected:
-    Resource(IResource::Type type) : m_type(type) {}
+    Resource(IResource::Type type)
+        : m_type(type)
+    {
+    }
 
     IResource::Type m_type;
     InteropHandle sharedHandle = {};
@@ -229,7 +232,11 @@ public:
     typedef Resource Parent;
 
     /// Ctor
-    BufferResource(const Desc& desc) : Parent(Type::Buffer), m_desc(desc) {}
+    BufferResource(const Desc& desc)
+        : Parent(Type::Buffer)
+        , m_desc(desc)
+    {
+    }
 
     virtual SLANG_NO_THROW IResource::Type SLANG_MCALL getType() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW IBufferResource::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
@@ -257,7 +264,11 @@ public:
     typedef Resource Parent;
 
     /// Ctor
-    TextureResource(const Desc& desc) : Parent(desc.type), m_desc(desc) {}
+    TextureResource(const Desc& desc)
+        : Parent(desc.type)
+        , m_desc(desc)
+    {
+    }
 
     virtual SLANG_NO_THROW IResource::Type SLANG_MCALL getType() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW ITextureResource::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;

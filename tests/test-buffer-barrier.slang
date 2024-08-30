@@ -19,4 +19,3 @@ void computeB(
 {
     outBuffer[sv_dispatchThreadID.x] = inBuffer[sv_dispatchThreadID.x] + 10.0f;
 }
-

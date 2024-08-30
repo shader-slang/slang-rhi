@@ -2,7 +2,12 @@
 
 namespace rhi::d3d12 {
 
-D3D12DescriptorHeap::D3D12DescriptorHeap() : m_totalSize(0), m_currentIndex(0), m_descriptorSize(0) {}
+D3D12DescriptorHeap::D3D12DescriptorHeap()
+    : m_totalSize(0)
+    , m_currentIndex(0)
+    , m_descriptorSize(0)
+{
+}
 
 Result D3D12DescriptorHeap::init(
     ID3D12Device* device,

@@ -9,7 +9,10 @@ class TextureResourceImpl : public TextureResource
 public:
     typedef TextureResource Parent;
 
-    TextureResourceImpl(const Desc& desc) : Parent(desc) {}
+    TextureResourceImpl(const Desc& desc)
+        : Parent(desc)
+    {
+    }
     ComPtr<ID3D11Resource> m_resource;
 };
 

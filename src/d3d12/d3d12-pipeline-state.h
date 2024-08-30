@@ -7,7 +7,10 @@ namespace rhi::d3d12 {
 class PipelineStateImpl : public PipelineStateBase
 {
 public:
-    PipelineStateImpl(DeviceImpl* device) : m_device(device) {}
+    PipelineStateImpl(DeviceImpl* device)
+        : m_device(device)
+    {
+    }
     DeviceImpl* m_device;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     void init(const GraphicsPipelineStateDesc& inDesc);

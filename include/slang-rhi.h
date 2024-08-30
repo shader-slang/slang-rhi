@@ -534,7 +534,10 @@ public:
         add(states...);
     }
     bool contains(ResourceState state) const { return (m_bitFields & (1LL << (uint32_t)state)) != 0; }
-    ResourceStateSet() : m_bitFields(0) {}
+    ResourceStateSet()
+        : m_bitFields(0)
+    {
+    }
     ResourceStateSet(const ResourceStateSet& other) = default;
     ResourceStateSet(ResourceState state) { add(state); }
     template <typename... TResourceState>
@@ -721,7 +724,12 @@ public:
         GfxIndex y = 0;
         GfxIndex z = 0;
         Offset3D() = default;
-        Offset3D(GfxIndex _x, GfxIndex _y, GfxIndex _z) : x(_x), y(_y), z(_z) {}
+        Offset3D(GfxIndex _x, GfxIndex _y, GfxIndex _z)
+            : x(_x)
+            , y(_y)
+            , z(_z)
+        {
+        }
     };
 
     struct SampleDesc
@@ -2096,7 +2104,10 @@ struct AdapterInfo
 class AdapterList
 {
 public:
-    AdapterList(ISlangBlob* blob) : m_blob(blob) {}
+    AdapterList(ISlangBlob* blob)
+        : m_blob(blob)
+    {
+    }
 
     const AdapterInfo* getAdapters() const
     {

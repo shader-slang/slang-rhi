@@ -10,10 +10,13 @@ struct DeviceCheckFlag
 {
     enum Enum : DeviceCheckFlags
     {
-        UseFullFeatureLevel = 0x1, //< If set will use full feature level (on dx this is  D3D_FEATURE_LEVEL_11_1 else
-                                   //will try D3D_FEATURE_LEVEL_11_0)
-        UseHardwareDevice = 0x2,   //< If set will try a hardware device
-        UseDebug = 0x4,            //< If set will enable use of debug
+        /// If set will use full feature level (on dx this is  D3D_FEATURE_LEVEL_11_1 else will try
+        /// D3D_FEATURE_LEVEL_11_0)
+        UseFullFeatureLevel = 0x1,
+        /// If set will try a hardware device
+        UseHardwareDevice = 0x2,
+        /// If set will enable use of debug
+        UseDebug = 0x4,
     };
 };
 

@@ -7,7 +7,10 @@
 
 namespace rhi::metal {
 
-PipelineStateImpl::PipelineStateImpl(DeviceImpl* device) : m_device(device) {}
+PipelineStateImpl::PipelineStateImpl(DeviceImpl* device)
+    : m_device(device)
+{
+}
 
 PipelineStateImpl::~PipelineStateImpl() {}
 
@@ -226,7 +229,10 @@ SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHand
     return SLANG_FAIL;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device) : PipelineStateImpl(device) {}
+RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
+    : PipelineStateImpl(device)
+{
+}
 
 Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
 {

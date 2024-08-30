@@ -148,8 +148,8 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
     slang::ISession* session,
     slang::ProgramLayout* programLayout
 )
-    : ShaderObjectLayoutImpl(renderer, session, programLayout->getGlobalParamsTypeLayout()),
-      m_programLayout(programLayout)
+    : ShaderObjectLayoutImpl(renderer, session, programLayout->getGlobalParamsTypeLayout())
+    , m_programLayout(programLayout)
 {
     for (UInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {

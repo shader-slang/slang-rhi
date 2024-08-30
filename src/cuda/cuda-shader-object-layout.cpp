@@ -130,8 +130,8 @@ Index ShaderObjectLayoutImpl::getBindingRangeCount() const
 }
 
 RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ProgramLayout* inProgramLayout)
-    : ShaderObjectLayoutImpl(renderer, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout()),
-      programLayout(inProgramLayout)
+    : ShaderObjectLayoutImpl(renderer, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout())
+    , programLayout(inProgramLayout)
 {
     for (UInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {

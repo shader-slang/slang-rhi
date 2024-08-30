@@ -83,8 +83,9 @@ struct ShaderCursor
     ShaderCursor() {}
 
     ShaderCursor(IShaderObject* object)
-        : m_baseObject(object), m_typeLayout(object->getElementTypeLayout()),
-          m_containerType(object->getContainerType())
+        : m_baseObject(object)
+        , m_typeLayout(object->getElementTypeLayout())
+        , m_containerType(object->getContainerType())
     {
     }
 

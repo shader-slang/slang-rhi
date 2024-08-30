@@ -37,8 +37,14 @@ public:
     }
 
 private:
-    explicit OwnedBlob(size_t size) : m_data(size) {}
-    explicit OwnedBlob(const void* data, size_t size) : m_data((const uint8_t*)data, (const uint8_t*)data + size) {}
+    explicit OwnedBlob(size_t size)
+        : m_data(size)
+    {
+    }
+    explicit OwnedBlob(const void* data, size_t size)
+        : m_data((const uint8_t*)data, (const uint8_t*)data + size)
+    {
+    }
 
     std::vector<uint8_t> m_data;
 };
@@ -55,7 +61,11 @@ public:
     }
 
 private:
-    explicit UnownedBlob(const void* data, size_t size) : m_data(data), m_size(size) {}
+    explicit UnownedBlob(const void* data, size_t size)
+        : m_data(data)
+        , m_size(size)
+    {
+    }
 
     const void* m_data;
     size_t m_size;

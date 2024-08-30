@@ -125,7 +125,11 @@ public:
     struct Builder
     {
     public:
-        Builder(RendererBase* renderer, slang::ISession* session) : m_renderer(renderer), m_session(session) {}
+        Builder(RendererBase* renderer, slang::ISession* session)
+            : m_renderer(renderer)
+            , m_session(session)
+        {
+        }
 
         RendererBase* m_renderer;
         slang::ISession* m_session;
@@ -237,7 +241,9 @@ public:
     struct Builder : Super::Builder
     {
         Builder(RendererBase* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
-            : Super::Builder(renderer, program->getSession()), m_program(program), m_programLayout(programLayout)
+            : Super::Builder(renderer, program->getSession())
+            , m_program(program)
+            , m_programLayout(programLayout)
         {
         }
 
@@ -268,7 +274,10 @@ public:
     {
         DeviceImpl* m_device;
 
-        RootSignatureDescBuilder(DeviceImpl* device) : m_device(device) {}
+        RootSignatureDescBuilder(DeviceImpl* device)
+            : m_device(device)
+        {
+        }
 
         // We will use one descriptor set for the global scope and one additional
         // descriptor set for each `ParameterBlock` binding range in the shader object
@@ -341,7 +350,8 @@ public:
             BindingRegisterOffsetPair() {}
 
             BindingRegisterOffsetPair(slang::VariableLayoutReflection* varLayout)
-                : primary(varLayout), pending(varLayout->getPendingDataLayout())
+                : primary(varLayout)
+                , pending(varLayout->getPendingDataLayout())
             {
             }
 

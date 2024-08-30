@@ -18,10 +18,16 @@ public:
     ComBaseObject& operator=(const ComBaseObject&) { return *this; }
 
     /// Copy Ctor, does not copy ref count
-    ComBaseObject(const ComBaseObject&) : m_refCount(0) {}
+    ComBaseObject(const ComBaseObject&)
+        : m_refCount(0)
+    {
+    }
 
     /// Default Ctor sets with no refs
-    ComBaseObject() : m_refCount(0) {}
+    ComBaseObject()
+        : m_refCount(0)
+    {
+    }
 
     /// Dtor needs to be virtual to avoid needing to
     /// Implement release for all derived types.
@@ -80,8 +86,15 @@ protected:
     std::atomic<uint32_t> comRefCount;
 
 public:
-    ComObject() : comRefCount(0) {}
-    ComObject(const ComObject& rhs) : RefObject(rhs), comRefCount(0) {}
+    ComObject()
+        : comRefCount(0)
+    {
+    }
+    ComObject(const ComObject& rhs)
+        : RefObject(rhs)
+        , comRefCount(0)
+    {
+    }
 
     ComObject& operator=(const ComObject&) { return *this; }
 

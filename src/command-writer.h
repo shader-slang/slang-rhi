@@ -39,26 +39,34 @@ struct Command
     CommandName name;
     uint32_t operands[kMaxCommandOperands];
     Command() = default;
-    Command(CommandName inName, uint32_t op) : name(inName) { operands[0] = op; }
-    Command(CommandName inName, uint32_t op1, uint32_t op2) : name(inName)
+    Command(CommandName inName, uint32_t op)
+        : name(inName)
+    {
+        operands[0] = op;
+    }
+    Command(CommandName inName, uint32_t op1, uint32_t op2)
+        : name(inName)
     {
         operands[0] = op1;
         operands[1] = op2;
     }
-    Command(CommandName inName, uint32_t op1, uint32_t op2, uint32_t op3) : name(inName)
+    Command(CommandName inName, uint32_t op1, uint32_t op2, uint32_t op3)
+        : name(inName)
     {
         operands[0] = op1;
         operands[1] = op2;
         operands[2] = op3;
     }
-    Command(CommandName inName, uint32_t op1, uint32_t op2, uint32_t op3, uint32_t op4) : name(inName)
+    Command(CommandName inName, uint32_t op1, uint32_t op2, uint32_t op3, uint32_t op4)
+        : name(inName)
     {
         operands[0] = op1;
         operands[1] = op2;
         operands[2] = op3;
         operands[3] = op4;
     }
-    Command(CommandName inName, uint32_t op1, uint32_t op2, uint32_t op3, uint32_t op4, uint32_t op5) : name(inName)
+    Command(CommandName inName, uint32_t op1, uint32_t op2, uint32_t op3, uint32_t op4, uint32_t op5)
+        : name(inName)
     {
         operands[0] = op1;
         operands[1] = op2;

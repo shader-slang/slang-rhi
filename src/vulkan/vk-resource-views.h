@@ -18,7 +18,11 @@ public:
     };
 
 public:
-    ResourceViewImpl(ViewType viewType, DeviceImpl* device) : m_type(viewType), m_device(device) {}
+    ResourceViewImpl(ViewType viewType, DeviceImpl* device)
+        : m_type(viewType)
+        , m_device(device)
+    {
+    }
     ViewType m_type;
     RefPtr<DeviceImpl> m_device;
 };
@@ -26,7 +30,10 @@ public:
 class TextureResourceViewImpl : public ResourceViewImpl
 {
 public:
-    TextureResourceViewImpl(DeviceImpl* device) : ResourceViewImpl(ViewType::Texture, device) {}
+    TextureResourceViewImpl(DeviceImpl* device)
+        : ResourceViewImpl(ViewType::Texture, device)
+    {
+    }
     ~TextureResourceViewImpl();
     RefPtr<TextureResourceImpl> m_texture;
     VkImageView m_view;

@@ -43,7 +43,8 @@ struct D3D12BarrierSubmitter
 
     /// Ctor
     SLANG_FORCE_INLINE D3D12BarrierSubmitter(ID3D12GraphicsCommandList* commandList)
-        : m_numBarriers(0), m_commandList(commandList)
+        : m_numBarriers(0)
+        , m_commandList(commandList)
     {
     }
     /// Dtor
@@ -83,7 +84,10 @@ struct D3D12ResourceBase
     static DXGI_FORMAT calcFormat(D3DUtil::UsageType usage, ID3D12Resource* resource);
 
     /// Ctor
-    SLANG_FORCE_INLINE D3D12ResourceBase() : m_resource(nullptr) {}
+    SLANG_FORCE_INLINE D3D12ResourceBase()
+        : m_resource(nullptr)
+    {
+    }
 
 protected:
     /// This is protected so as clients cannot slice the class, and so state tracking is lost

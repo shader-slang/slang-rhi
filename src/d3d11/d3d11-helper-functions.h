@@ -63,7 +63,9 @@ struct BindingContext
     ID3D11DeviceContext* context = nullptr;
 
     /// Initialize a binding context for binding to the given `device` and `context`
-    BindingContext(DeviceImpl* device, ID3D11DeviceContext* context) : device(device), context(context)
+    BindingContext(DeviceImpl* device, ID3D11DeviceContext* context)
+        : device(device)
+        , context(context)
     {
         memset(uavs, 0, sizeof(uavs));
     }
@@ -73,7 +75,10 @@ struct BindingContext
 struct ComputeBindingContext : BindingContext
 {
     /// Initialize a binding context for binding to the given `device` and `context`
-    ComputeBindingContext(DeviceImpl* device, ID3D11DeviceContext* context) : BindingContext(device, context) {}
+    ComputeBindingContext(DeviceImpl* device, ID3D11DeviceContext* context)
+        : BindingContext(device, context)
+    {
+    }
 
     void setCBV(UINT index, ID3D11Buffer* buffer) SLANG_OVERRIDE { context->CSSetConstantBuffers(index, 1, &buffer); }
 
@@ -92,7 +97,10 @@ struct ComputeBindingContext : BindingContext
 struct GraphicsBindingContext : BindingContext
 {
     /// Initialize a binding context for binding to the given `device` and `context`
-    GraphicsBindingContext(DeviceImpl* device, ID3D11DeviceContext* context) : BindingContext(device, context) {}
+    GraphicsBindingContext(DeviceImpl* device, ID3D11DeviceContext* context)
+        : BindingContext(device, context)
+    {
+    }
 
     // TODO: The operations here are only dealing with vertex and fragment
     // shaders for now. We should eventually extend them to handle HS/DS/GS
@@ -201,17 +209,22 @@ struct BindingOffset : SimpleBindingOffset
     BindingOffset() {}
 
     /// Create an offset from a simple offset
-    explicit BindingOffset(SimpleBindingOffset const& offset) : SimpleBindingOffset(offset) {}
+    explicit BindingOffset(SimpleBindingOffset const& offset)
+        : SimpleBindingOffset(offset)
+    {
+    }
 
     /// Create an offset based on offset information in the given Slang `varLayout`
     BindingOffset(slang::VariableLayoutReflection* varLayout)
-        : SimpleBindingOffset(varLayout), pending(varLayout->getPendingDataLayout())
+        : SimpleBindingOffset(varLayout)
+        , pending(varLayout->getPendingDataLayout())
     {
     }
 
     /// Create an offset based on size/stride information in the given Slang `typeLayout`
     BindingOffset(slang::TypeLayoutReflection* typeLayout)
-        : SimpleBindingOffset(typeLayout), pending(typeLayout->getPendingDataTypeLayout())
+        : SimpleBindingOffset(typeLayout)
+        , pending(typeLayout->getPendingDataTypeLayout())
     {
     }
 

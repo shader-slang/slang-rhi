@@ -93,7 +93,12 @@ public:
     using const_iterator = const value_type*;
 
     /// Default constructor.
-    short_vector() noexcept : m_data(m_short_data), m_size(0), m_capacity(N) {}
+    short_vector() noexcept
+        : m_data(m_short_data)
+        , m_size(0)
+        , m_capacity(N)
+    {
+    }
 
 #if 0
     /// Size constructor.
@@ -130,7 +135,8 @@ public:
         }
     }
 
-    short_vector(const short_vector& other) : short_vector()
+    short_vector(const short_vector& other)
+        : short_vector()
     {
         grow(other.m_size);
         detail::copy_range(other.m_data, other.m_data + other.m_size, m_data);

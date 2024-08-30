@@ -345,7 +345,10 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
 #if SLANG_RHI_DXR
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device) : m_device(device) {}
+RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
+    : m_device(device)
+{
+}
 
 void RayTracingPipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc)
 {

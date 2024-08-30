@@ -8,7 +8,10 @@ namespace rhi::cuda {
 class BufferResourceImpl : public BufferResource
 {
 public:
-    BufferResourceImpl(const Desc& _desc) : BufferResource(_desc) {}
+    BufferResourceImpl(const Desc& _desc)
+        : BufferResource(_desc)
+    {
+    }
 
     ~BufferResourceImpl();
 

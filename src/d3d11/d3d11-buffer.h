@@ -9,7 +9,10 @@ class BufferResourceImpl : public BufferResource
 public:
     typedef BufferResource Parent;
 
-    BufferResourceImpl(const IBufferResource::Desc& desc) : Parent(desc) {}
+    BufferResourceImpl(const IBufferResource::Desc& desc)
+        : Parent(desc)
+    {
+    }
 
     MapFlavor m_mapFlavor;
     D3D11_USAGE m_d3dUsage;

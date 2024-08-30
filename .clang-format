@@ -8,7 +8,7 @@ AlwaysBreakTemplateDeclarations: true
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortEnumsOnASingleLine: true
 AllowAllConstructorInitializersOnNextLine: true
-# BreakConstructorInitializers: BeforeComma
+BreakConstructorInitializers: BeforeComma
 AllowAllArgumentsOnNextLine: false
 BinPackArguments: false
 AllowAllParametersOfDeclarationOnNextLine: false

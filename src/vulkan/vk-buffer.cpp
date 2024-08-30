@@ -87,7 +87,8 @@ Result VKBufferHandleRAII::init(
 }
 
 BufferResourceImpl::BufferResourceImpl(const IBufferResource::Desc& desc, DeviceImpl* renderer)
-    : Parent(desc), m_renderer(renderer)
+    : Parent(desc)
+    , m_renderer(renderer)
 {
     assert(renderer);
 }

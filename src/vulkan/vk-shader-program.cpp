@@ -4,7 +4,8 @@
 
 namespace rhi::vk {
 
-ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device) : m_device(device)
+ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
+    : m_device(device)
 {
     for (auto& shaderModule : m_modules)
         shaderModule = VK_NULL_HANDLE;

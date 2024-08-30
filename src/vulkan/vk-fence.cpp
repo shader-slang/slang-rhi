@@ -4,7 +4,10 @@
 
 namespace rhi::vk {
 
-FenceImpl::FenceImpl(DeviceImpl* device) : m_device(device) {}
+FenceImpl::FenceImpl(DeviceImpl* device)
+    : m_device(device)
+{
+}
 
 FenceImpl::~FenceImpl()
 {

@@ -92,10 +92,16 @@ static CPUTextureFormatInfo const* _getFormatInfo(Format format)
 
 class TextureResourceImpl : public TextureResource
 {
-    enum { kMaxRank = 3 };
+    enum
+    {
+        kMaxRank = 3
+    };
 
 public:
-    TextureResourceImpl(const TextureResource::Desc& desc) : TextureResource(desc) {}
+    TextureResourceImpl(const TextureResource::Desc& desc)
+        : TextureResource(desc)
+    {
+    }
     ~TextureResourceImpl();
 
     Result init(ITextureResource::SubresourceData const* initData);

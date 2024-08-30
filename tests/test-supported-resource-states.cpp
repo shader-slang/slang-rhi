@@ -18,7 +18,10 @@ struct SupportedResourceStatesTest
     ComPtr<ITextureResource> texture;
     ComPtr<IBufferResource> buffer;
 
-    SupportedResourceStatesTest(IDevice* device) : device(device) {}
+    SupportedResourceStatesTest(IDevice* device)
+        : device(device)
+    {
+    }
 
     Format convertTypelessFormat(Format format)
     {

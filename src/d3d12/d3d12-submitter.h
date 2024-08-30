@@ -35,7 +35,10 @@ struct GraphicsSubmitter : public Submitter
     ) override;
     virtual void setPipelineState(PipelineStateBase* pipeline) override;
 
-    GraphicsSubmitter(ID3D12GraphicsCommandList* commandList) : m_commandList(commandList) {}
+    GraphicsSubmitter(ID3D12GraphicsCommandList* commandList)
+        : m_commandList(commandList)
+    {
+    }
 
     ID3D12GraphicsCommandList* m_commandList;
 };
@@ -54,7 +57,10 @@ struct ComputeSubmitter : public Submitter
         void const* srcData
     ) override;
     virtual void setPipelineState(PipelineStateBase* pipeline) override;
-    ComputeSubmitter(ID3D12GraphicsCommandList* commandList) : m_commandList(commandList) {}
+    ComputeSubmitter(ID3D12GraphicsCommandList* commandList)
+        : m_commandList(commandList)
+    {
+    }
 
     ID3D12GraphicsCommandList* m_commandList;
 };

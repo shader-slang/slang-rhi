@@ -2,4 +2,4 @@
 #include "d3d11-base.h"
 
 namespace rhi::d3d11 {
-} // namespace d3d11
+} // namespace rhi::d3d11

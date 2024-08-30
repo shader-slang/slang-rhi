@@ -1408,7 +1408,9 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
         struct RayTracingSubmitter : public ComputeSubmitter
         {
             ID3D12GraphicsCommandList4* m_cmdList4;
-            RayTracingSubmitter(ID3D12GraphicsCommandList4* cmdList4) : ComputeSubmitter(cmdList4), m_cmdList4(cmdList4)
+            RayTracingSubmitter(ID3D12GraphicsCommandList4* cmdList4)
+                : ComputeSubmitter(cmdList4)
+                , m_cmdList4(cmdList4)
             {
             }
             virtual void setPipelineState(PipelineStateBase* pipeline) override

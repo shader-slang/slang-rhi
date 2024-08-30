@@ -99,11 +99,15 @@ struct BindingOffset : SimpleBindingOffset
     BindingOffset() {}
 
     /// Create an offset from a simple offset
-    explicit BindingOffset(SimpleBindingOffset const& offset) : SimpleBindingOffset(offset) {}
+    explicit BindingOffset(SimpleBindingOffset const& offset)
+        : SimpleBindingOffset(offset)
+    {
+    }
 
     /// Create an offset based on offset information in the given Slang `varLayout`
     BindingOffset(slang::VariableLayoutReflection* varLayout)
-        : SimpleBindingOffset(varLayout), pending(varLayout->getPendingDataLayout())
+        : SimpleBindingOffset(varLayout)
+        , pending(varLayout->getPendingDataLayout())
     {
     }
 

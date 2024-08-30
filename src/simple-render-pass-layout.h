@@ -9,12 +9,9 @@
 #include "utils/common.h"
 #include "utils/short_vector.h"
 
-namespace rhi
-{
+namespace rhi {
 
-class SimpleRenderPassLayout
-    : public IRenderPassLayout
-    , public ComObject
+class SimpleRenderPassLayout : public IRenderPassLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -27,4 +24,4 @@ public:
     void init(const IRenderPassLayout::Desc& desc);
 };
 
-}
+} // namespace rhi

@@ -66,8 +66,8 @@ private:
 
 public:
     EntryPointLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::EntryPointLayout* entryPointLayout)
-        : ShaderObjectLayoutImpl(renderer, session, entryPointLayout->getTypeLayout()),
-          m_entryPointLayout(entryPointLayout)
+        : ShaderObjectLayoutImpl(renderer, session, entryPointLayout->getTypeLayout())
+        , m_entryPointLayout(entryPointLayout)
     {
     }
 

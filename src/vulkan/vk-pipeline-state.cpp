@@ -342,7 +342,10 @@ SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHand
     return SLANG_OK;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device) : PipelineStateImpl(device) {}
+RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
+    : PipelineStateImpl(device)
+{
+}
 uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
     const std::map<std::string, Index>& entryPointNameToIndex,
     const char* name

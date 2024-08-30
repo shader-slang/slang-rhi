@@ -31,7 +31,8 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
 {
     int componentCount;
 
-    ValidationTextureFormat(int componentCount) : componentCount(componentCount) {};
+    ValidationTextureFormat(int componentCount)
+        : componentCount(componentCount) {};
 
     virtual void validateBlocksEqual(const void* actual, const void* expected) override
     {
@@ -91,7 +92,10 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
     int aBits;
 
     PackedValidationTextureFormat(int rBits, int gBits, int bBits, int aBits)
-        : rBits(rBits), gBits(gBits), bBits(bBits), aBits(aBits) {};
+        : rBits(rBits)
+        , gBits(gBits)
+        , bBits(bBits)
+        , aBits(aBits) {};
 
     virtual void validateBlocksEqual(const void* actual, const void* expected) override
     {

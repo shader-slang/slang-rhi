@@ -21,7 +21,10 @@ public:
     /// Returns true if has been initialized
     bool isInitialized() const { return m_api != nullptr; }
 
-    VKBufferHandleRAII() : m_api(nullptr) {}
+    VKBufferHandleRAII()
+        : m_api(nullptr)
+    {
+    }
 
     ~VKBufferHandleRAII()
     {

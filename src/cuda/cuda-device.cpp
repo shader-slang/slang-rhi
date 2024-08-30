@@ -82,7 +82,8 @@ SlangResult DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
             if (major == 9999 && minor == 9999)
             {
                 smPerMultiproc = 1;
-            } else
+            }
+            else
             {
                 smPerMultiproc = _calcSMCountPerMultiProcessor(major, minor);
             }
@@ -99,7 +100,8 @@ SlangResult DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
                 maxComputePerf = compute_perf;
                 maxPerfDevice = currentDevice;
             }
-        } else
+        }
+        else
         {
             devicesProhibited++;
         }
@@ -161,7 +163,8 @@ SLANG_NO_THROW SlangResult SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
         }
         if (m_deviceIndex >= deviceCount)
             return SLANG_E_INVALID_ARG;
-    } else
+    }
+    else
     {
         SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&m_deviceIndex));
     }
@@ -415,7 +418,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 {
                     arrayDesc.Flags |= CUDA_ARRAY3D_LAYERED;
                     arrayDesc.Depth = desc.arraySize;
-                } else
+                }
+                else
                 {
                     SLANG_RHI_ASSERT(!"Arrays only supported for 1D and 2D");
                     return SLANG_FAIL;
@@ -430,7 +434,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
             SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.numMipLevels)
             );
-        } else
+        }
+        else
         {
             resourceType = CU_RESOURCE_TYPE_ARRAY;
 
@@ -464,7 +469,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
 
                 SLANG_CUDA_RETURN_ON_FAIL(cuArray3DCreate(&tex->m_cudaArray, &arrayDesc));
-            } else if (desc.type == IResource::Type::Texture3D || desc.type == IResource::Type::TextureCube)
+            }
+            else if (desc.type == IResource::Type::Texture3D || desc.type == IResource::Type::TextureCube)
             {
                 CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
                 memset(&arrayDesc, 0, sizeof(arrayDesc));
@@ -485,7 +491,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
 
                 SLANG_CUDA_RETURN_ON_FAIL(cuArray3DCreate(&tex->m_cudaArray, &arrayDesc));
-            } else
+            }
+            else
             {
                 CUDA_ARRAY_DESCRIPTOR arrayDesc;
                 memset(&arrayDesc, 0, sizeof(arrayDesc));
@@ -570,7 +577,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
 
                 srcDataPtr = workspace.data();
-            } else
+            }
+            else
             {
                 if (desc.type == IResource::Type::TextureCube)
                 {
@@ -584,7 +592,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                         ::memcpy(workspace.data() + faceSizeInBytes * j, srcData, faceSizeInBytes);
                     }
                     srcDataPtr = workspace.data();
-                } else
+                }
+                else
                 {
                     const auto srcData = initData[mipLevel].data;
                     srcDataPtr = srcData;
@@ -618,7 +627,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
 
                 SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
-            } else
+            }
+            else
             {
                 switch (desc.type)
                 {

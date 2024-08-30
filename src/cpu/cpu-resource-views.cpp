@@ -2,7 +2,8 @@
 
 namespace rhi::cpu {
 
-ResourceViewImpl::ResourceViewImpl(Kind kind, Desc const& desc) : m_kind(kind)
+ResourceViewImpl::ResourceViewImpl(Kind kind, Desc const& desc)
+    : m_kind(kind)
 {
     m_desc = desc;
 }

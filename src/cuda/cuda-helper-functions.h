@@ -19,7 +19,10 @@ enum class CUDAReportStyle
 struct CUDAErrorInfo
 {
     CUDAErrorInfo(const char* filePath, int lineNo, const char* errorName = nullptr, const char* errorString = nullptr)
-        : m_filePath(filePath), m_lineNo(lineNo), m_errorName(errorName), m_errorString(errorString)
+        : m_filePath(filePath)
+        , m_lineNo(lineNo)
+        , m_errorName(errorName)
+        , m_errorString(errorString)
     {
     }
     SlangResult handle() const;

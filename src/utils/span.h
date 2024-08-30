@@ -56,7 +56,10 @@ namespace TCB_SPAN_NAMESPACE_NAME {
 #if defined(TCB_SPAN_THROW_ON_CONTRACT_VIOLATION)
 struct contract_violation_error : std::logic_error
 {
-    explicit contract_violation_error(const char* msg) : std::logic_error(msg) {}
+    explicit contract_violation_error(const char* msg)
+        : std::logic_error(msg)
+    {
+    }
 };
 
 inline void contract_violation(const char* msg)
@@ -148,7 +151,10 @@ struct span_storage
 {
     constexpr span_storage() noexcept = default;
 
-    constexpr span_storage(E* p_ptr, std::size_t /*unused*/) noexcept : ptr(p_ptr) {}
+    constexpr span_storage(E* p_ptr, std::size_t /*unused*/) noexcept
+        : ptr(p_ptr)
+    {
+    }
 
     E* ptr = nullptr;
     static constexpr std::size_t size = S;
@@ -159,7 +165,11 @@ struct span_storage<E, dynamic_extent>
 {
     constexpr span_storage() noexcept = default;
 
-    constexpr span_storage(E* p_ptr, std::size_t p_size) noexcept : ptr(p_ptr), size(p_size) {}
+    constexpr span_storage(E* p_ptr, std::size_t p_size) noexcept
+        : ptr(p_ptr)
+        , size(p_size)
+    {
+    }
 
     E* ptr = nullptr;
     std::size_t size = 0;
@@ -315,12 +325,14 @@ public:
     {
     }
 
-    TCB_SPAN_CONSTEXPR11 span(pointer ptr, size_type count) : storage_(ptr, count)
+    TCB_SPAN_CONSTEXPR11 span(pointer ptr, size_type count)
+        : storage_(ptr, count)
     {
         TCB_SPAN_EXPECT(extent == dynamic_extent || count == extent);
     }
 
-    TCB_SPAN_CONSTEXPR11 span(pointer first_elem, pointer last_elem) : storage_(first_elem, last_elem - first_elem)
+    TCB_SPAN_CONSTEXPR11 span(pointer first_elem, pointer last_elem)
+        : storage_(first_elem, last_elem - first_elem)
     {
         TCB_SPAN_EXPECT(extent == dynamic_extent || last_elem - first_elem == static_cast<std::ptrdiff_t>(extent));
     }
@@ -332,7 +344,8 @@ public:
             (E == dynamic_extent || N == E) &&
                 detail::is_container_element_type_compatible<element_type (&)[N], ElementType>::value,
             int>::type = 0>
-    constexpr span(element_type (&arr)[N]) noexcept : storage_(arr, N)
+    constexpr span(element_type (&arr)[N]) noexcept
+        : storage_(arr, N)
     {
     }
 
@@ -344,7 +357,8 @@ public:
             (E == dynamic_extent || N == E) &&
                 detail::is_container_element_type_compatible<std::array<T, N>&, ElementType>::value,
             int>::type = 0>
-    TCB_SPAN_ARRAY_CONSTEXPR span(std::array<T, N>& arr) noexcept : storage_(arr.data(), N)
+    TCB_SPAN_ARRAY_CONSTEXPR span(std::array<T, N>& arr) noexcept
+        : storage_(arr.data(), N)
     {
     }
 
@@ -356,7 +370,8 @@ public:
             (E == dynamic_extent || N == E) &&
                 detail::is_container_element_type_compatible<const std::array<T, N>&, ElementType>::value,
             int>::type = 0>
-    TCB_SPAN_ARRAY_CONSTEXPR span(const std::array<T, N>& arr) noexcept : storage_(arr.data(), N)
+    TCB_SPAN_ARRAY_CONSTEXPR span(const std::array<T, N>& arr) noexcept
+        : storage_(arr.data(), N)
     {
     }
 
@@ -367,7 +382,8 @@ public:
             E == dynamic_extent && detail::is_container<Container>::value &&
                 detail::is_container_element_type_compatible<Container&, ElementType>::value,
             int>::type = 0>
-    constexpr span(Container& cont) : storage_(detail::data(cont), detail::size(cont))
+    constexpr span(Container& cont)
+        : storage_(detail::data(cont), detail::size(cont))
     {
     }
 
@@ -378,7 +394,8 @@ public:
             E == dynamic_extent && detail::is_container<Container>::value &&
                 detail::is_container_element_type_compatible<const Container&, ElementType>::value,
             int>::type = 0>
-    constexpr span(const Container& cont) : storage_(detail::data(cont), detail::size(cont))
+    constexpr span(const Container& cont)
+        : storage_(detail::data(cont), detail::size(cont))
     {
     }
 
@@ -391,7 +408,8 @@ public:
             (Extent == dynamic_extent || OtherExtent == dynamic_extent || Extent == OtherExtent) &&
                 std::is_convertible<OtherElementType (*)[], ElementType (*)[]>::value,
             int>::type = 0>
-    constexpr span(const span<OtherElementType, OtherExtent>& other) noexcept : storage_(other.data(), other.size())
+    constexpr span(const span<OtherElementType, OtherExtent>& other) noexcept
+        : storage_(other.data(), other.size())
     {
     }
 

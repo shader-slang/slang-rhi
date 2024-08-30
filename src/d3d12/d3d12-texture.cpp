@@ -3,7 +3,8 @@
 namespace rhi::d3d12 {
 
 TextureResourceImpl::TextureResourceImpl(const Desc& desc)
-    : Parent(desc), m_defaultState(D3DUtil::getResourceState(desc.defaultState))
+    : Parent(desc)
+    , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 

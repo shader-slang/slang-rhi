@@ -7,7 +7,10 @@ namespace rhi::d3d11 {
 class ScopeNVAPI
 {
 public:
-    ScopeNVAPI() : m_renderer(nullptr) {}
+    ScopeNVAPI()
+        : m_renderer(nullptr)
+    {
+    }
     SlangResult init(DeviceImpl* renderer, Index regIndex);
     ~ScopeNVAPI();
 

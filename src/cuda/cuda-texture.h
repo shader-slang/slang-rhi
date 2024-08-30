@@ -8,7 +8,10 @@ namespace rhi::cuda {
 class TextureResourceImpl : public TextureResource
 {
 public:
-    TextureResourceImpl(const TextureResource::Desc& desc) : TextureResource(desc) {}
+    TextureResourceImpl(const TextureResource::Desc& desc)
+        : TextureResource(desc)
+    {
+    }
     ~TextureResourceImpl();
 
     uint64_t getBindlessHandle();

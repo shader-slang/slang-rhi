@@ -15,7 +15,7 @@ void CocoaUtil::getNSWindowContentSize(void* nswindow, int* widthOut, int* heigh
 
 void* CocoaUtil::createMetalLayer(void* nswindow)
 {
-    CAMetalLayer *layer = [CAMetalLayer layer];
+    CAMetalLayer* layer = [CAMetalLayer layer];
     NSWindow* window = (NSWindow*)nswindow;
     window.contentView.layer = layer;
     window.contentView.wantsLayer = YES;
