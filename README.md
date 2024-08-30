@@ -1,3 +1,5 @@
+[![CI](https://github.com/shader-slang/slang-rhi/actions/workflows/ci.yml/badge.svg)](https://github.com/shader-slang/slang-rhi/actions/workflows/ci.yml)
+
 # slang-rhi
 
 ## Introduction
