@@ -25,15 +25,11 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Setup CMake
+      - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
 
-      - name: Setup Ninja
-        uses: ashutoshvarma/setup-ninja@master
-
       - name: Configure
-        run: >
-          cmake -S . -B build
+        run: cmake -S . -B build
 
       - name: Build
         run: cmake --build build -j 2
