@@ -41,8 +41,10 @@ void DebugCommandQueue::executeCommandBuffers(
         {
             if (cmdBufferImpl->m_transientHeap != getDebugObj(commandBuffers[0])->m_transientHeap)
             {
-                RHI_VALIDATION_ERROR("Command buffers passed to a single executeCommandBuffers "
-                                     "call must be allocated from the same transient heap.");
+                RHI_VALIDATION_ERROR(
+                    "Command buffers passed to a single executeCommandBuffers "
+                    "call must be allocated from the same transient heap."
+                );
             }
         }
     }

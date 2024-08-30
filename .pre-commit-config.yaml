@@ -11,7 +11,6 @@ repos:
   - id: check-symlinks
   - id: check-merge-conflict
   - id: check-yaml
-  - id: check-added-large-files
 - repo: https://github.com/pre-commit/mirrors-clang-format
   rev: v18.1.8
   hooks:

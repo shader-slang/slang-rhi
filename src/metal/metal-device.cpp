@@ -79,8 +79,10 @@ Result DeviceImpl::initialize(const Desc& desc)
         MTL::CaptureDestination captureDest = MTL::CaptureDestination::CaptureDestinationGPUTraceDocument;
         if (!captureManager->supportsDestination(MTL::CaptureDestinationGPUTraceDocument))
         {
-            printf("Cannot capture MTL calls to document; ensure that Info.plist exists with 'MetalCaptureEnabled' set "
-                   "to 'true'.\n");
+            printf(
+                "Cannot capture MTL calls to document; ensure that Info.plist exists with 'MetalCaptureEnabled' set "
+                "to 'true'.\n"
+            );
             exit(1);
         }
         d->setDestination(MTL::CaptureDestinationGPUTraceDocument);

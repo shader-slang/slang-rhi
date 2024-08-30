@@ -102,18 +102,24 @@ void DebugCommandBuffer::close()
     }
     if (m_renderCommandEncoder.isOpen)
     {
-        RHI_VALIDATION_ERROR("A render command encoder on this command buffer is still open. "
-                             "IRenderCommandEncoder::endEncoding() must be called before closing a command buffer.");
+        RHI_VALIDATION_ERROR(
+            "A render command encoder on this command buffer is still open. "
+            "IRenderCommandEncoder::endEncoding() must be called before closing a command buffer."
+        );
     }
     if (m_computeCommandEncoder.isOpen)
     {
-        RHI_VALIDATION_ERROR("A compute command encoder on this command buffer is still open. "
-                             "IComputeCommandEncoder::endEncoding() must be called before closing a command buffer.");
+        RHI_VALIDATION_ERROR(
+            "A compute command encoder on this command buffer is still open. "
+            "IComputeCommandEncoder::endEncoding() must be called before closing a command buffer."
+        );
     }
     if (m_resourceCommandEncoder.isOpen)
     {
-        RHI_VALIDATION_ERROR("A resource command encoder on this command buffer is still open. "
-                             "IResourceCommandEncoder::endEncoding() must be called before closing a command buffer.");
+        RHI_VALIDATION_ERROR(
+            "A resource command encoder on this command buffer is still open. "
+            "IResourceCommandEncoder::endEncoding() must be called before closing a command buffer."
+        );
     }
     isOpen = false;
     baseObject->close();
@@ -155,8 +161,10 @@ void DebugCommandBuffer::checkEncodersClosedBeforeNewEncoder()
 {
     if (m_renderCommandEncoder.isOpen || m_resourceCommandEncoder.isOpen || m_computeCommandEncoder.isOpen)
     {
-        RHI_VALIDATION_ERROR("A previouse command encoder created on this command buffer is still open. "
-                             "endEncoding() must be called on the encoder before creating an encoder.");
+        RHI_VALIDATION_ERROR(
+            "A previouse command encoder created on this command buffer is still open. "
+            "endEncoding() must be called on the encoder before creating an encoder."
+        );
     }
 }
 
@@ -164,8 +172,10 @@ void DebugCommandBuffer::checkCommandBufferOpenWhenCreatingEncoder()
 {
     if (!isOpen)
     {
-        RHI_VALIDATION_ERROR("The command buffer is already closed. Encoders can only be retrieved "
-                             "while the command buffer is open.");
+        RHI_VALIDATION_ERROR(
+            "The command buffer is already closed. Encoders can only be retrieved "
+            "while the command buffer is open."
+        );
     }
 }
 
