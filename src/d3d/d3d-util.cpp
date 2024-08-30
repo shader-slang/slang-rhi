@@ -20,7 +20,7 @@
 
 namespace rhi {
 
-/* static */ D3D_PRIMITIVE_TOPOLOGY D3DUtil::getPrimitiveTopology(PrimitiveTopology topology)
+D3D_PRIMITIVE_TOPOLOGY D3DUtil::getPrimitiveTopology(PrimitiveTopology topology)
 {
     switch (topology)
     {
@@ -136,7 +136,7 @@ D3D12_DEPTH_STENCILOP_DESC D3DUtil::translateStencilOpDesc(DepthStencilOpDesc de
     return rs;
 }
 
-/* static */ DXGI_FORMAT D3DUtil::getMapFormat(Format format)
+DXGI_FORMAT D3DUtil::getMapFormat(Format format)
 {
     switch (format)
     {
@@ -332,7 +332,7 @@ D3D12_DEPTH_STENCILOP_DESC D3DUtil::translateStencilOpDesc(DepthStencilOpDesc de
     }
 }
 
-/* static */ DXGI_FORMAT D3DUtil::calcResourceFormat(UsageType usage, Int usageFlags, DXGI_FORMAT format)
+DXGI_FORMAT D3DUtil::calcResourceFormat(UsageType usage, Int usageFlags, DXGI_FORMAT format)
 {
     SLANG_UNUSED(usage);
     if (usageFlags)
@@ -355,7 +355,7 @@ D3D12_DEPTH_STENCILOP_DESC D3DUtil::translateStencilOpDesc(DepthStencilOpDesc de
     return format;
 }
 
-/* static */ DXGI_FORMAT D3DUtil::calcFormat(UsageType usage, DXGI_FORMAT format)
+DXGI_FORMAT D3DUtil::calcFormat(UsageType usage, DXGI_FORMAT format)
 {
     switch (usage)
     {
@@ -458,7 +458,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     return false;
 }
 
-/* static */ Int D3DUtil::getNumColorChannelBits(DXGI_FORMAT fmt)
+Int D3DUtil::getNumColorChannelBits(DXGI_FORMAT fmt)
 {
     switch (fmt)
     {
@@ -521,7 +521,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
 //
 // TODO: we can probably remove that code completely by switching to a PSO-like model across all APIs.
 //
-/* static */ Result D3DUtil::compileHLSLShader(
+Result D3DUtil::compileHLSLShader(
     char const* sourcePath,
     char const* source,
     char const* entryPointName,
@@ -613,7 +613,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
 #endif // SLANG_ENABLE_DXBC_SUPPORT
 }
 
-/* static */ SharedLibraryHandle D3DUtil::getDxgiModule()
+SharedLibraryHandle D3DUtil::getDxgiModule()
 {
     const char* const libName = SLANG_ENABLE_DXVK ? "dxvk_dxgi" : "dxgi";
 
@@ -630,7 +630,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     return s_dxgiModule;
 }
 
-/* static */ Result D3DUtil::createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory)
+Result D3DUtil::createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory)
 {
     auto dxgiModule = getDxgiModule();
     if (!dxgiModule)
@@ -671,7 +671,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     }
 }
 
-/* static */ Result D3DUtil::findAdapters(
+Result D3DUtil::findAdapters(
     DeviceCheckFlags flags,
     const AdapterLUID* adapterLUID,
     std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters
@@ -682,7 +682,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     return findAdapters(flags, adapterLUID, factory, outDxgiAdapters);
 }
 
-/* static */ AdapterLUID D3DUtil::getAdapterLUID(IDXGIAdapter* dxgiAdapter)
+AdapterLUID D3DUtil::getAdapterLUID(IDXGIAdapter* dxgiAdapter)
 {
     DXGI_ADAPTER_DESC desc;
     dxgiAdapter->GetDesc(&desc);
@@ -692,7 +692,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     return luid;
 }
 
-/* static */ bool D3DUtil::isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
+bool D3DUtil::isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
 {
     ComPtr<IDXGIFactory4> dxgiFactory4;
     if (SLANG_SUCCEEDED(dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory4.writeRef()))))
@@ -965,7 +965,7 @@ D3D12_RESOURCE_STATES D3DUtil::getResourceState(ResourceState state)
     }
 }
 
-/* static */ Result D3DUtil::reportLiveObjects()
+Result D3DUtil::reportLiveObjects()
 {
     static IDXGIDebug* dxgiDebug = nullptr;
 
@@ -1001,7 +1001,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
     return D3DUtil::reportLiveObjects();
 }
 
-/* static */ Result D3DUtil::waitForCrashDumpCompletion(HRESULT res)
+Result D3DUtil::waitForCrashDumpCompletion(HRESULT res)
 {
     // If it's not a device remove/reset then theres nothing to wait for
     if (!(res == DXGI_ERROR_DEVICE_REMOVED || res == DXGI_ERROR_DEVICE_RESET))
@@ -1052,7 +1052,7 @@ Result SLANG_MCALL reportD3DLiveObjects()
     return SLANG_OK;
 }
 
-/* static */ Result D3DUtil::findAdapters(
+Result D3DUtil::findAdapters(
     DeviceCheckFlags flags,
     const AdapterLUID* adapterLUID,
     IDXGIFactory* dxgiFactory,

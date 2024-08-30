@@ -5,7 +5,7 @@ namespace rhi {
 
 static Result g_initStatus = SLANG_E_UNINITIALIZED;
 
-/* static */ Result NVAPIUtil::initialize()
+Result NVAPIUtil::initialize()
 {
 #ifdef SLANG_RHI_NVAPI
     if (g_initStatus == SLANG_E_UNINITIALIZED)
@@ -21,7 +21,7 @@ static Result g_initStatus = SLANG_E_UNINITIALIZED;
     return g_initStatus;
 }
 
-/* static */ bool NVAPIUtil::isAvailable()
+bool NVAPIUtil::isAvailable()
 {
     return SLANG_SUCCEEDED(g_initStatus);
 }

@@ -39,9 +39,9 @@ namespace rhi::d3d12 {
 static const uint32_t D3D_FEATURE_LEVEL_12_2 = 0xc200;
 
 #if SLANG_RHI_NV_AFTERMATH
-/* static */ const bool DeviceImpl::g_isAftermathEnabled = true;
+const bool DeviceImpl::g_isAftermathEnabled = true;
 #else
-/* static */ const bool DeviceImpl::g_isAftermathEnabled = false;
+const bool DeviceImpl::g_isAftermathEnabled = false;
 #endif
 
 struct ShaderModelInfo

@@ -59,7 +59,7 @@ void D3D12BarrierSubmitter::transition(
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! D3D12ResourceBase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
-/* static */ DXGI_FORMAT D3D12ResourceBase::calcFormat(D3DUtil::UsageType usage, ID3D12Resource* resource)
+DXGI_FORMAT D3D12ResourceBase::calcFormat(D3DUtil::UsageType usage, ID3D12Resource* resource)
 {
     return resource ? D3DUtil::calcFormat(usage, resource->GetDesc().Format) : DXGI_FORMAT_UNKNOWN;
 }
@@ -79,7 +79,7 @@ void D3D12ResourceBase::transition(
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!! D3D12Resource !!!!!!!!!!!!!!!!!!!!!!!! */
 
-/* static */ void D3D12Resource::setDebugName(ID3D12Resource* resource, const char* name)
+void D3D12Resource::setDebugName(ID3D12Resource* resource, const char* name)
 {
     if (resource)
     {

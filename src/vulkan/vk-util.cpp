@@ -7,7 +7,7 @@
 
 namespace rhi::vk {
 
-/* static */ VkFormat VulkanUtil::getVkFormat(Format format)
+VkFormat VulkanUtil::getVkFormat(Format format)
 {
     switch (format)
     {
@@ -247,7 +247,7 @@ VkImageAspectFlags VulkanUtil::getAspectMask(TextureAspect aspect, VkFormat form
     }
 }
 
-/* static */ Result VulkanUtil::toResult(VkResult res)
+Result VulkanUtil::toResult(VkResult res)
 {
     return (res == VK_SUCCESS) ? SLANG_OK : SLANG_FAIL;
 }
@@ -606,7 +606,7 @@ VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
     }
 }
 
-/* static */ Result VulkanUtil::handleFail(VkResult res)
+Result VulkanUtil::handleFail(VkResult res)
 {
     if (res != VK_SUCCESS)
     {
@@ -615,13 +615,13 @@ VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
     return toResult(res);
 }
 
-/* static */ void VulkanUtil::checkFail(VkResult res)
+void VulkanUtil::checkFail(VkResult res)
 {
     SLANG_RHI_ASSERT(res != VK_SUCCESS);
     SLANG_RHI_ASSERT_FAILURE("Vulkan check failed");
 }
 
-/* static */ VkPrimitiveTopology VulkanUtil::getVkPrimitiveTopology(PrimitiveTopology topology)
+VkPrimitiveTopology VulkanUtil::getVkPrimitiveTopology(PrimitiveTopology topology)
 {
     switch (topology)
     {
