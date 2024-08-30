@@ -47,7 +47,7 @@ class ResourceCommandEncoderImpl : public IResourceCommandEncoder, public Pipeli
 public:
     virtual void* getInterface(SlangUUID const& uuid)
     {
-        if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+        if (uuid == GUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
     }
@@ -139,7 +139,7 @@ public:
     SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IComputeCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder ||
+        if (uuid == GUID::IID_IComputeCommandEncoder || uuid == GUID::IID_IResourceCommandEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
@@ -173,7 +173,7 @@ public:
     SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IRenderCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder ||
+        if (uuid == GUID::IID_IRenderCommandEncoder || uuid == GUID::IID_IResourceCommandEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
@@ -271,7 +271,7 @@ public:
     SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IRayTracingCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder ||
+        if (uuid == GUID::IID_IRayTracingCommandEncoder || uuid == GUID::IID_IResourceCommandEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;

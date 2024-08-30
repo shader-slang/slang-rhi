@@ -16,9 +16,9 @@ DebugCommandBuffer::DebugCommandBuffer()
 
 ICommandBuffer* DebugCommandBuffer::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ICommandBuffer || guid == GfxGUID::IID_ISlangUnknown)
+    if (guid == GUID::IID_ICommandBuffer || guid == GUID::IID_ISlangUnknown)
         return (DebugObject<ICommandBuffer>*)this;
-    if (guid == GfxGUID::IID_ICommandBufferD3D12)
+    if (guid == GUID::IID_ICommandBufferD3D12)
         return static_cast<ICommandBufferD3D12*>(this);
     return nullptr;
 }

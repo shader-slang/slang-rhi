@@ -10,7 +10,7 @@ namespace rhi::vk {
 
 ISwapchain* SwapchainImpl::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ISwapchain)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISwapchain)
         return static_cast<ISwapchain*>(this);
     return nullptr;
 }

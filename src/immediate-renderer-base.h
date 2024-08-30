@@ -25,7 +25,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ICommandQueue* getInterface(const Guid& guid)
     {
-        if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ICommandQueue)
+        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
             return static_cast<ICommandQueue*>(this);
         return nullptr;
     }

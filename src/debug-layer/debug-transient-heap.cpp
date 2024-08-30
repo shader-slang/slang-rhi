@@ -6,9 +6,9 @@ namespace rhi::debug {
 
 Result DebugTransientResourceHeap::queryInterface(SlangUUID const& uuid, void** outObject)
 {
-    if (uuid == GfxGUID::IID_ISlangUnknown || uuid == GfxGUID::IID_ITransientResourceHeap)
+    if (uuid == GUID::IID_ISlangUnknown || uuid == GUID::IID_ITransientResourceHeap)
         *outObject = static_cast<ITransientResourceHeap*>(this);
-    if (uuid == GfxGUID::IID_ITransientResourceHeapD3D12)
+    if (uuid == GUID::IID_ITransientResourceHeapD3D12)
     {
         RefPtr<DebugTransientResourceHeapD3D12> result = new DebugTransientResourceHeapD3D12();
         baseObject->queryInterface(uuid, (void**)result->baseObject.writeRef());
@@ -47,9 +47,9 @@ Result DebugTransientResourceHeap::createCommandBuffer(ICommandBuffer** outComma
 
 Result DebugTransientResourceHeapD3D12::queryInterface(SlangUUID const& uuid, void** outObject)
 {
-    if (uuid == GfxGUID::IID_ISlangUnknown || uuid == GfxGUID::IID_ITransientResourceHeapD3D12)
+    if (uuid == GUID::IID_ISlangUnknown || uuid == GUID::IID_ITransientResourceHeapD3D12)
         *outObject = static_cast<ITransientResourceHeapD3D12*>(this);
-    if (uuid == GfxGUID::IID_ITransientResourceHeap)
+    if (uuid == GUID::IID_ITransientResourceHeap)
     {
         RefPtr<DebugTransientResourceHeap> result = new DebugTransientResourceHeap();
         baseObject->queryInterface(uuid, (void**)result->baseObject.writeRef());

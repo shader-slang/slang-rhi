@@ -12,40 +12,40 @@
 
 namespace rhi {
 
-const Guid GfxGUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
-const Guid GfxGUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
-const Guid GfxGUID::IID_IInputLayout = IInputLayout::getTypeGuid();
-const Guid GfxGUID::IID_IPipelineState = IPipelineState::getTypeGuid();
-const Guid GfxGUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
-const Guid GfxGUID::IID_IResourceView = IResourceView::getTypeGuid();
-const Guid GfxGUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
-const Guid GfxGUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
+const Guid GUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
+const Guid GUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
+const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
+const Guid GUID::IID_IPipelineState = IPipelineState::getTypeGuid();
+const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
+const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
+const Guid GUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
+const Guid GUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
-const Guid GfxGUID::IID_ISwapchain = ISwapchain::getTypeGuid();
-const Guid GfxGUID::IID_ISamplerState = ISamplerState::getTypeGuid();
-const Guid GfxGUID::IID_IResource = IResource::getTypeGuid();
-const Guid GfxGUID::IID_IBufferResource = IBufferResource::getTypeGuid();
-const Guid GfxGUID::IID_ITextureResource = ITextureResource::getTypeGuid();
-const Guid GfxGUID::IID_IDevice = IDevice::getTypeGuid();
-const Guid GfxGUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
-const Guid GfxGUID::IID_IShaderObject = IShaderObject::getTypeGuid();
+const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
+const Guid GUID::IID_ISamplerState = ISamplerState::getTypeGuid();
+const Guid GUID::IID_IResource = IResource::getTypeGuid();
+const Guid GUID::IID_IBufferResource = IBufferResource::getTypeGuid();
+const Guid GUID::IID_ITextureResource = ITextureResource::getTypeGuid();
+const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
+const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
+const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
-const Guid GfxGUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
-const Guid GfxGUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
-const Guid GfxGUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
-const Guid GfxGUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
-const Guid GfxGUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
+const Guid GUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
 
-const Guid GfxGUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
-const Guid GfxGUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
+const Guid GUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
+const Guid GUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
 
-const Guid GfxGUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
-const Guid GfxGUID::IID_IQueryPool = IQueryPool::getTypeGuid();
-const Guid GfxGUID::IID_IAccelerationStructure = IAccelerationStructure::getTypeGuid();
-const Guid GfxGUID::IID_IFence = IFence::getTypeGuid();
-const Guid GfxGUID::IID_IShaderTable = IShaderTable::getTypeGuid();
-const Guid GfxGUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
-const Guid GfxGUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
+const Guid GUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
+const Guid GUID::IID_IQueryPool = IQueryPool::getTypeGuid();
+const Guid GUID::IID_IAccelerationStructure = IAccelerationStructure::getTypeGuid();
+const Guid GUID::IID_IFence = IFence::getTypeGuid();
+const Guid GUID::IID_IShaderTable = IShaderTable::getTypeGuid();
+const Guid GUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
+const Guid GUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
 StageType translateStage(SlangStage slangStage)
 {
@@ -80,14 +80,14 @@ StageType translateStage(SlangStage slangStage)
 
 IFence* FenceBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IFence)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFence)
         return static_cast<IFence*>(this);
     return nullptr;
 }
 
 IResource* BufferResource::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IResource || guid == GfxGUID::IID_IBufferResource)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IBufferResource)
         return static_cast<IBufferResource*>(this);
     return nullptr;
 }
@@ -117,7 +117,7 @@ Result BufferResource::getSharedHandle(InteropHandle* outHandle)
 
 IResource* TextureResource::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IResource || guid == GfxGUID::IID_ITextureResource)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITextureResource)
         return static_cast<ITextureResource*>(this);
     return nullptr;
 }
@@ -185,7 +185,7 @@ StageType mapStage(SlangStage stage)
 
 IResourceView* ResourceViewBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IResourceView)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResourceView)
         return static_cast<IResourceView*>(this);
     return nullptr;
 }
@@ -199,7 +199,7 @@ Result ResourceViewBase::getNativeHandle(InteropHandle* outHandle)
 
 ISamplerState* SamplerStateBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ISamplerState)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISamplerState)
         return static_cast<ISamplerState*>(this);
     return nullptr;
 }
@@ -213,8 +213,7 @@ Result SamplerStateBase::getNativeHandle(InteropHandle* outHandle)
 
 IAccelerationStructure* AccelerationStructureBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IResourceView ||
-        guid == GfxGUID::IID_IAccelerationStructure)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResourceView || guid == GUID::IID_IAccelerationStructure)
         return static_cast<IAccelerationStructure*>(this);
     return nullptr;
 }
@@ -281,42 +280,42 @@ bool _doesValueFitInExistentialPayload(
 
 IShaderProgram* ShaderProgramBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IShaderProgram)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderProgram)
         return static_cast<IShaderProgram*>(this);
     return nullptr;
 }
 
 IInputLayout* InputLayoutBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IInputLayout)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IInputLayout)
         return static_cast<IInputLayout*>(this);
     return nullptr;
 }
 
 IFramebufferLayout* FramebufferLayoutBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IFramebufferLayout)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebufferLayout)
         return static_cast<IFramebufferLayout*>(this);
     return nullptr;
 }
 
 IFramebuffer* FramebufferBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IFramebuffer)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebuffer)
         return static_cast<IFramebuffer*>(this);
     return nullptr;
 }
 
 IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IQueryPool)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
         return static_cast<IQueryPool*>(this);
     return nullptr;
 }
 
 IPipelineState* PipelineStateBase::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IPipelineState)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipelineState)
         return static_cast<IPipelineState*>(this);
     return nullptr;
 }
@@ -396,7 +395,7 @@ Result RendererBase::queryInterface(SlangUUID const& uuid, void** outObject)
 
 IDevice* RendererBase::getInterface(const Guid& guid)
 {
-    return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IDevice) ? static_cast<IDevice*>(this) : nullptr;
+    return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IDevice) ? static_cast<IDevice*>(this) : nullptr;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
@@ -406,7 +405,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
     if (desc.apiCommandDispatcher)
     {
         desc.apiCommandDispatcher->queryInterface(
-            GfxGUID::IID_IPipelineCreationAPIDispatcher,
+            GUID::IID_IPipelineCreationAPIDispatcher,
             (void**)m_pipelineCreationAPIDispatcher.writeRef()
         );
     }

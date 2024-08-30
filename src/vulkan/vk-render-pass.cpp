@@ -7,7 +7,7 @@ namespace rhi::vk {
 
 IRenderPassLayout* RenderPassLayoutImpl::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IRenderPassLayout)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IRenderPassLayout)
         return static_cast<IRenderPassLayout*>(this);
     return nullptr;
 }

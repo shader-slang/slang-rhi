@@ -9,8 +9,7 @@ namespace rhi::d3d12 {
 
 ICommandBufferD3D12* CommandBufferImpl::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ICommandBuffer ||
-        guid == GfxGUID::IID_ICommandBufferD3D12)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandBuffer || guid == GUID::IID_ICommandBufferD3D12)
         return static_cast<ICommandBufferD3D12*>(this);
     return nullptr;
 }

@@ -17,7 +17,7 @@
 
 namespace rhi {
 
-struct GfxGUID
+struct GUID
 {
     static const Guid IID_ISlangUnknown;
     static const Guid IID_IShaderProgram;
@@ -466,7 +466,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderObject* getInterface(const Guid& guid)
     {
-        if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IShaderObject)
+        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderObject)
             return static_cast<IShaderObject*>(this);
         return nullptr;
     }
@@ -1115,7 +1115,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ITransientResourceHeap* getInterface(const Guid& guid)
     {
-        if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ITransientResourceHeap)
+        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ITransientResourceHeap)
             return static_cast<ITransientResourceHeap*>(this);
         return nullptr;
     }
@@ -1141,7 +1141,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
     {
-        if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IShaderTable)
+        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderTable)
             return static_cast<IShaderTable*>(this);
         return nullptr;
     }

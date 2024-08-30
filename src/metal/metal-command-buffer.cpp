@@ -8,7 +8,7 @@ namespace rhi::metal {
 
 ICommandBuffer* CommandBufferImpl::getInterface(const Guid& guid)
 {
-    if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ICommandBuffer)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandBuffer)
         return static_cast<ICommandBuffer*>(this);
     return nullptr;
 }

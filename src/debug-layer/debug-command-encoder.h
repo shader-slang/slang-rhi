@@ -95,7 +95,7 @@ public:
     virtual IResourceCommandEncoder* getBaseResourceEncoder() override { return baseObject; }
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IComputeCommandEncoder ||
+        if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IComputeCommandEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
         {
             return this;
@@ -128,7 +128,7 @@ public:
     virtual IResourceCommandEncoder* getBaseResourceEncoder() override { return baseObject; }
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+        if (uuid == GUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
         {
             return this;
         }
@@ -153,7 +153,7 @@ public:
     virtual IResourceCommandEncoder* getBaseResourceEncoder() override { return baseObject; }
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IRenderCommandEncoder ||
+        if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IRenderCommandEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
         {
             return this;
@@ -224,7 +224,7 @@ public:
     virtual IResourceCommandEncoder* getBaseResourceEncoder() override { return baseObject; }
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IRayTracingCommandEncoder ||
+        if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IRayTracingCommandEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
         {
             return this;

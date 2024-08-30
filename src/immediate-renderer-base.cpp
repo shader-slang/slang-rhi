@@ -17,7 +17,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ICommandBuffer* getInterface(const Guid& guid)
     {
-        if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ICommandBuffer)
+        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandBuffer)
             return static_cast<ICommandBuffer*>(this);
         return nullptr;
     }
@@ -50,7 +50,7 @@ public:
 
         virtual void* getInterface(SlangUUID const& uuid)
         {
-            if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+            if (uuid == GUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
             {
                 return this;
             }
@@ -237,7 +237,7 @@ public:
         SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
         virtual void* getInterface(SlangUUID const& uuid) override
         {
-            if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IRenderCommandEncoder ||
+            if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IRenderCommandEncoder ||
                 uuid == ISlangUnknown::getTypeGuid())
             {
                 return this;
@@ -452,7 +452,7 @@ public:
         SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
         virtual void* getInterface(SlangUUID const& uuid) override
         {
-            if (uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == GfxGUID::IID_IComputeCommandEncoder ||
+            if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IComputeCommandEncoder ||
                 uuid == ISlangUnknown::getTypeGuid())
             {
                 return this;

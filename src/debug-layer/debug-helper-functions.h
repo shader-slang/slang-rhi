@@ -113,15 +113,13 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                                                   \
     I##typeName* Debug##typeName::getInterface(const Guid& guid)                                                       \
     {                                                                                                                  \
-        return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName)                                \
-                   ? static_cast<I##typeName*>(this)                                                                   \
-                   : nullptr;                                                                                          \
+        return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_I##typeName) ? static_cast<I##typeName*>(this)    \
+                                                                                  : nullptr;                           \
     }
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(typeName, parentType)                                                \
     I##typeName* Debug##typeName::getInterface(const Guid& guid)                                                       \
     {                                                                                                                  \
-        return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName ||                              \
-                guid == GfxGUID::IID_I##parentType)                                                                    \
+        return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_I##typeName || guid == GUID::IID_I##parentType)   \
                    ? static_cast<I##typeName*>(this)                                                                   \
                    : nullptr;                                                                                          \
     }
