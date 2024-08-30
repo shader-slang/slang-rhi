@@ -136,7 +136,7 @@ void ResourceCommandEncoder::copyTextureToBuffer(
 
 void ResourceCommandEncoder::uploadBufferData(IBufferResource* buffer, Offset offset, Size size, void* data)
 {
-    SLANG_RHI_UNIMPLEMENTED_X("uploadBufferData");
+    SLANG_RHI_UNIMPLEMENTED("uploadBufferData");
 }
 
 void ResourceCommandEncoder::uploadTextureData(
@@ -148,7 +148,7 @@ void ResourceCommandEncoder::uploadTextureData(
     GfxCount subResourceDataCount
 )
 {
-    SLANG_RHI_UNIMPLEMENTED_X("uploadTextureData");
+    SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
 void ResourceCommandEncoder::bufferBarrier(
@@ -187,7 +187,7 @@ void ResourceCommandEncoder::clearResourceView(
     ClearResourceViewFlags::Enum flags
 )
 {
-    SLANG_RHI_UNIMPLEMENTED_X("clearResourceView");
+    SLANG_RHI_UNIMPLEMENTED("clearResourceView");
 }
 
 void ResourceCommandEncoder::resolveResource(
@@ -199,7 +199,7 @@ void ResourceCommandEncoder::resolveResource(
     SubresourceRange destRange
 )
 {
-    SLANG_RHI_UNIMPLEMENTED_X("resolveResource");
+    SLANG_RHI_UNIMPLEMENTED("resolveResource");
 }
 
 void ResourceCommandEncoder::resolveQuery(
@@ -546,7 +546,7 @@ Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
 
 Result ComputeCommandEncoder::dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset)
 {
-    SLANG_RHI_UNIMPLEMENTED_X("dispatchComputeIndirect");
+    SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }
 
 void RayTracingCommandEncoder::_memoryBarrier(

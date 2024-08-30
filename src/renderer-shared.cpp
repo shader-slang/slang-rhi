@@ -818,7 +818,7 @@ ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
         return getComponentId(key);
     }
         // TODO: collect specialization arguments and append them to `key`.
-        SLANG_RHI_UNIMPLEMENTED_X("specialized type");
+        SLANG_RHI_UNIMPLEMENTED("specialized type");
     default:
         break;
     }

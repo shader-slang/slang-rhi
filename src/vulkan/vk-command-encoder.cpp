@@ -1279,7 +1279,7 @@ Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
 
 Result ComputeCommandEncoder::dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset)
 {
-    SLANG_RHI_UNIMPLEMENTED_X("dispatchComputeIndirect");
+    SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }
 
 void RayTracingCommandEncoder::_memoryBarrier(

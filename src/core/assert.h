@@ -17,7 +17,7 @@ namespace rhi {
             SLANG_RHI_ASSERT_FAILURE(#x);                                                                              \
     }
 
-#define SLANG_RHI_UNIMPLEMENTED_X(what)                                                                                \
+#define SLANG_RHI_UNIMPLEMENTED(what)                                                                                  \
     {                                                                                                                  \
         SLANG_RHI_ASSERT_FAILURE("Not implemented");                                                                   \
     }

@@ -117,7 +117,7 @@ public:
             SLANG_UNUSED(srcSubresource);
             SLANG_UNUSED(srcOffset);
             SLANG_UNUSED(extent);
-            SLANG_RHI_UNIMPLEMENTED_X("copyTexture");
+            SLANG_RHI_UNIMPLEMENTED("copyTexture");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
@@ -135,7 +135,7 @@ public:
             SLANG_UNUSED(extend);
             SLANG_UNUSED(subResourceData);
             SLANG_UNUSED(subResourceDataCount);
-            SLANG_RHI_UNIMPLEMENTED_X("uploadTextureData");
+            SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
@@ -144,7 +144,7 @@ public:
             SLANG_UNUSED(view);
             SLANG_UNUSED(clearValue);
             SLANG_UNUSED(flags);
-            SLANG_RHI_UNIMPLEMENTED_X("clearResourceView");
+            SLANG_RHI_UNIMPLEMENTED("clearResourceView");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
@@ -162,7 +162,7 @@ public:
             SLANG_UNUSED(dest);
             SLANG_UNUSED(destState);
             SLANG_UNUSED(destRange);
-            SLANG_RHI_UNIMPLEMENTED_X("resolveResource");
+            SLANG_RHI_UNIMPLEMENTED("resolveResource");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
@@ -174,7 +174,7 @@ public:
             SLANG_UNUSED(count);
             SLANG_UNUSED(buffer);
             SLANG_UNUSED(offset);
-            SLANG_RHI_UNIMPLEMENTED_X("resolveQuery");
+            SLANG_RHI_UNIMPLEMENTED("resolveQuery");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
@@ -198,7 +198,7 @@ public:
             SLANG_UNUSED(srcSubresource);
             SLANG_UNUSED(srcOffset);
             SLANG_UNUSED(extent);
-            SLANG_RHI_UNIMPLEMENTED_X("copyTextureToBuffer");
+            SLANG_RHI_UNIMPLEMENTED("copyTextureToBuffer");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
@@ -212,7 +212,7 @@ public:
             SLANG_UNUSED(subresourceRange);
             SLANG_UNUSED(src);
             SLANG_UNUSED(dst);
-            SLANG_RHI_UNIMPLEMENTED_X("textureSubresourceBarrier");
+            SLANG_RHI_UNIMPLEMENTED("textureSubresourceBarrier");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override
@@ -365,7 +365,7 @@ public:
             SLANG_UNUSED(argOffset);
             SLANG_UNUSED(countBuffer);
             SLANG_UNUSED(countOffset);
-            SLANG_RHI_UNIMPLEMENTED_X("ImmediateRenderBase::drawIndirect");
+            SLANG_RHI_UNIMPLEMENTED("ImmediateRenderBase::drawIndirect");
             return SLANG_OK;
         }
 
@@ -382,13 +382,13 @@ public:
             SLANG_UNUSED(argOffset);
             SLANG_UNUSED(countBuffer);
             SLANG_UNUSED(countOffset);
-            SLANG_RHI_UNIMPLEMENTED_X("ImmediateRenderBase::drawIndirect");
+            SLANG_RHI_UNIMPLEMENTED("ImmediateRenderBase::drawIndirect");
             return SLANG_OK;
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL drawMeshTasks(int, int, int) override
         {
-            SLANG_RHI_UNIMPLEMENTED_X("ImmediateRenderBase::drawMeshTasks");
+            SLANG_RHI_UNIMPLEMENTED("ImmediateRenderBase::drawMeshTasks");
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL setSamplePositions(
@@ -499,7 +499,7 @@ public:
         virtual SLANG_NO_THROW Result SLANG_MCALL
         dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset) override
         {
-            SLANG_RHI_UNIMPLEMENTED_X("ImmediateRenderBase::dispatchComputeIndirect");
+            SLANG_RHI_UNIMPLEMENTED("ImmediateRenderBase::dispatchComputeIndirect");
         }
     };
 

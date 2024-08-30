@@ -2072,7 +2072,7 @@ Result DeviceImpl::createTextureView(
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
         break;
     default:
-        SLANG_RHI_UNIMPLEMENTED_X("Unknown Texture type.");
+        SLANG_RHI_UNIMPLEMENTED("Unknown Texture type.");
         break;
     }
 
@@ -2108,7 +2108,7 @@ Result DeviceImpl::createTextureView(
         view->m_layout = VK_IMAGE_LAYOUT_GENERAL;
         break;
     default:
-        SLANG_RHI_UNIMPLEMENTED_X("Unknown TextureViewDesc type.");
+        SLANG_RHI_UNIMPLEMENTED("Unknown TextureViewDesc type.");
         break;
     }
     m_api.vkCreateImageView(m_device, &createInfo, nullptr, &view->m_view);
