@@ -11,7 +11,7 @@
 #include "metal-texture.h"
 #include "metal-util.h"
 
-namespace rhi::debug {
+namespace rhi::metal {
 
 void PipelineCommandEncoder::init(CommandBufferImpl* commandBuffer)
 {
@@ -620,4 +620,4 @@ Result RayTracingCommandEncoder::dispatchRays(
 
 void RayTracingCommandEncoder::endEncoding() {}
 
-} // namespace rhi::debug
+} // namespace rhi::metal

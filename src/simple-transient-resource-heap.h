@@ -5,6 +5,8 @@
 
 #include <slang-rhi.h>
 
+#include "renderer-shared.h"
+
 namespace rhi {
 
 template<typename TDevice, typename TCommandBuffer>

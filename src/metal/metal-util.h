@@ -59,6 +59,6 @@ struct ScopedAutoreleasePool
     NS::AutoreleasePool* m_pool;
 };
 
-#define AUTORELEASEPOOL ScopedAutoreleasePool _pool_;
+#define AUTORELEASEPOOL ::rhi::metal::ScopedAutoreleasePool _pool_;
 
 } // namespace rhi::metal
