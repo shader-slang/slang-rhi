@@ -1,4 +1,3 @@
-// vk-shader-object-layout.h
 #pragma once
 
 #include "vk-base.h"
@@ -7,16 +6,10 @@
 
 #include "utils/static_vector.h"
 
-#include <vector>
 #include <map>
+#include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 enum
 {
@@ -82,13 +75,11 @@ public:
     {
         SubObjectRangeOffset() {}
 
-        SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
-            : BindingOffset(varLayout)
+        SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout) : BindingOffset(varLayout)
         {
             if (auto pendingLayout = varLayout->getPendingDataLayout())
             {
-                pendingOrdinaryData =
-                    (uint32_t)pendingLayout->getOffset(SLANG_PARAMETER_CATEGORY_UNIFORM);
+                pendingOrdinaryData = (uint32_t)pendingLayout->getOffset(SLANG_PARAMETER_CATEGORY_UNIFORM);
             }
         }
 
@@ -139,9 +130,7 @@ public:
     struct Builder
     {
     public:
-        Builder(DeviceImpl* renderer, slang::ISession* session)
-            : m_renderer(renderer), m_session(session)
-        {}
+        Builder(DeviceImpl* renderer, slang::ISession* session) : m_renderer(renderer), m_session(session) {}
 
         DeviceImpl* m_renderer;
         slang::ISession* m_session;
@@ -184,8 +173,7 @@ public:
 
         /// Add any descriptor ranges implied by this object containing a leaf
         /// sub-object described by `typeLayout`, at the given `offset`.
-        void _addDescriptorRangesAsValue(
-            slang::TypeLayoutReflection* typeLayout, BindingOffset const& offset);
+        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, BindingOffset const& offset);
 
         /// Add the descriptor ranges implied by a `ConstantBuffer<X>` where `X` is
         /// described by `elementTypeLayout`.
@@ -196,7 +184,8 @@ public:
         void _addDescriptorRangesAsConstantBuffer(
             slang::TypeLayoutReflection* elementTypeLayout,
             BindingOffset const& containerOffset,
-            BindingOffset const& elementOffset);
+            BindingOffset const& elementOffset
+        );
 
         /// Add the descriptor ranges implied by a `PushConstantBuffer<X>` where `X` is
         /// described by `elementTypeLayout`.
@@ -207,7 +196,8 @@ public:
         void _addDescriptorRangesAsPushConstantBuffer(
             slang::TypeLayoutReflection* elementTypeLayout,
             BindingOffset const& containerOffset,
-            BindingOffset const& elementOffset);
+            BindingOffset const& elementOffset
+        );
 
         /// Add binding ranges to this shader object layout, as implied by the given
         /// `typeLayout`
@@ -222,7 +212,8 @@ public:
         DeviceImpl* renderer,
         slang::ISession* session,
         slang::TypeLayoutReflection* elementType,
-        ShaderObjectLayoutImpl** outLayout);
+        ShaderObjectLayoutImpl** outLayout
+    );
 
     ~ShaderObjectLayoutImpl();
 
@@ -248,10 +239,7 @@ public:
     /// Get the total number of descriptor sets that would need to be allocated and bound
     /// to represent this object and its children (transitively) as a parameter block.
     ///
-    uint32_t getTotalDescriptorSetCount()
-    {
-        return getOwnDescriptorSetCount() + getChildDescriptorSetCount();
-    }
+    uint32_t getTotalDescriptorSetCount() { return getOwnDescriptorSetCount() + getChildDescriptorSetCount(); }
 
     /// Get the total number of `binding`s required to represent this type and its
     /// (transitive) children.
@@ -263,10 +251,7 @@ public:
     uint32_t getTotalBindingCount() { return m_totalBindingCount; }
 
     /// Get the list of push constant ranges required to bind the state of this object itself.
-    std::vector<VkPushConstantRange> const& getOwnPushConstantRanges() const
-    {
-        return m_ownPushConstantRanges;
-    }
+    std::vector<VkPushConstantRange> const& getOwnPushConstantRanges() const { return m_ownPushConstantRanges; }
 
     /// Get the number of push constant ranges required to bind the state of this object itself.
     uint32_t getOwnPushConstantRangeCount() { return (uint32_t)m_ownPushConstantRanges.size(); }
@@ -328,9 +313,7 @@ class EntryPointLayout : public ShaderObjectLayoutImpl
 public:
     struct Builder : Super::Builder
     {
-        Builder(DeviceImpl* device, slang::ISession* session)
-            : Super::Builder(device, session)
-        {}
+        Builder(DeviceImpl* device, slang::ISession* session) : Super::Builder(device, session) {}
 
         Result build(EntryPointLayout** outLayout);
 
@@ -370,14 +353,10 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(
-            DeviceImpl* renderer,
-            slang::IComponentType* program,
-            slang::ProgramLayout* programLayout)
-            : Super::Builder(renderer, program->getSession())
-            , m_program(program)
-            , m_programLayout(programLayout)
-        {}
+        Builder(DeviceImpl* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+            : Super::Builder(renderer, program->getSession()), m_program(program), m_programLayout(programLayout)
+        {
+        }
 
         Result build(RootShaderObjectLayout** outLayout);
 
@@ -403,7 +382,8 @@ public:
         DeviceImpl* renderer,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
-        RootShaderObjectLayout** outLayout);
+        RootShaderObjectLayout** outLayout
+    );
 
     SimpleBindingOffset const& getPendingDataOffset() const { return m_pendingDataOffset; }
 
@@ -448,5 +428,4 @@ public:
     DeviceImpl* m_renderer = nullptr;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

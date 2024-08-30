@@ -1,19 +1,11 @@
-// vk-command-queue.cpp
 #include "vk-command-queue.h"
-
 #include "vk-command-buffer.h"
 #include "vk-fence.h"
 #include "vk-transient-heap.h"
 
 #include "utils/static_vector.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
 {
@@ -38,8 +30,7 @@ void CommandQueueImpl::init(DeviceImpl* renderer, VkQueue queue, uint32_t queueF
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     semaphoreCreateInfo.flags = 0;
-    m_renderer->m_api.vkCreateSemaphore(
-        m_renderer->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_semaphore);
+    m_renderer->m_api.vkCreateSemaphore(m_renderer->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_semaphore);
 }
 
 void CommandQueueImpl::waitOnHost()
@@ -55,10 +46,12 @@ Result CommandQueueImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-const CommandQueueImpl::Desc& CommandQueueImpl::getDesc() { return m_desc; }
+const CommandQueueImpl::Desc& CommandQueueImpl::getDesc()
+{
+    return m_desc;
+}
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(
-    GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {
     for (GfxIndex i = 0; i < fenceCount; ++i)
     {
@@ -71,7 +64,11 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(
 }
 
 void CommandQueueImpl::queueSubmitImpl(
-    uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
+    uint32_t count,
+    ICommandBuffer* const* commandBuffers,
+    IFence* fence,
+    uint64_t valueToSignal
+)
 {
     auto& vkAPI = m_renderer->m_api;
     m_submitCommandBuffers.clear();
@@ -90,8 +87,7 @@ void CommandQueueImpl::queueSubmitImpl(
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    VkPipelineStageFlags stageFlag[] = {
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
+    VkPipelineStageFlags stageFlag[] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
     submitInfo.pWaitDstStageMask = stageFlag;
     submitInfo.commandBufferCount = (uint32_t)m_submitCommandBuffers.size();
     submitInfo.pCommandBuffers = m_submitCommandBuffers.data();
@@ -111,8 +107,7 @@ void CommandQueueImpl::queueSubmitImpl(
         waitValues.push_back(fenceWait.waitValue);
     }
     m_pendingWaitFences.clear();
-    VkTimelineSemaphoreSubmitInfo timelineSubmitInfo = {
-        VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
+    VkTimelineSemaphoreSubmitInfo timelineSubmitInfo = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
     if (fence)
     {
         auto fenceImpl = static_cast<FenceImpl*>(fence);
@@ -146,12 +141,15 @@ void CommandQueueImpl::queueSubmitImpl(
 }
 
 void CommandQueueImpl::executeCommandBuffers(
-    GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
+    GfxCount count,
+    ICommandBuffer* const* commandBuffers,
+    IFence* fence,
+    uint64_t valueToSignal
+)
 {
     if (count == 0 && fence == nullptr)
         return;
     queueSubmitImpl(count, commandBuffers, fence, valueToSignal);
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

@@ -1,17 +1,9 @@
-// vk-command-buffer.cpp
 #include "vk-command-buffer.h"
-
 #include "vk-device.h"
 #include "vk-shader-object.h"
 #include "vk-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 // There are a pair of cyclic references between a `TransientResourceHeap` and
 // a `CommandBuffer` created from the heap. We need to break the cycle when
@@ -24,10 +16,12 @@ ICommandBuffer* CommandBufferImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void CommandBufferImpl::comFree() { m_transientHeap.breakStrongReference(); }
+void CommandBufferImpl::comFree()
+{
+    m_transientHeap.breakStrongReference();
+}
 
-Result CommandBufferImpl::init(
-    DeviceImpl* renderer, VkCommandPool pool, TransientResourceHeapImpl* transientHeap)
+Result CommandBufferImpl::init(DeviceImpl* renderer, VkCommandPool pool, TransientResourceHeapImpl* transientHeap)
 {
     m_renderer = renderer;
     m_transientHeap = transientHeap;
@@ -39,8 +33,7 @@ Result CommandBufferImpl::init(
     allocInfo.commandPool = pool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    SLANG_VK_RETURN_ON_FAIL(
-        api.vkAllocateCommandBuffers(api.m_device, &allocInfo, &m_commandBuffer));
+    SLANG_VK_RETURN_ON_FAIL(api.vkAllocateCommandBuffers(api.m_device, &allocInfo, &m_commandBuffer));
 
     beginCommandBuffer();
     return SLANG_OK;
@@ -49,10 +42,8 @@ Result CommandBufferImpl::init(
 void CommandBufferImpl::beginCommandBuffer()
 {
     auto& api = m_renderer->m_api;
-    VkCommandBufferBeginInfo beginInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        nullptr,
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
+    VkCommandBufferBeginInfo beginInfo =
+        {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
     api.vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
     if (m_preCommandBuffer)
     {
@@ -69,12 +60,9 @@ Result CommandBufferImpl::createPreCommandBuffer()
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
     auto& api = m_renderer->m_api;
-    SLANG_VK_RETURN_ON_FAIL(
-        api.vkAllocateCommandBuffers(api.m_device, &allocInfo, &m_preCommandBuffer));
-    VkCommandBufferBeginInfo beginInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        nullptr,
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
+    SLANG_VK_RETURN_ON_FAIL(api.vkAllocateCommandBuffers(api.m_device, &allocInfo, &m_preCommandBuffer));
+    VkCommandBufferBeginInfo beginInfo =
+        {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
     api.vkBeginCommandBuffer(m_preCommandBuffer, &beginInfo);
     return SLANG_OK;
 }
@@ -89,7 +77,10 @@ VkCommandBuffer CommandBufferImpl::getPreCommandBuffer()
 }
 
 void CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass, IFramebuffer* framebuffer, IRenderCommandEncoder** outEncoder)
+    IRenderPassLayout* renderPass,
+    IFramebuffer* framebuffer,
+    IRenderCommandEncoder** outEncoder
+)
 {
     if (!m_renderCommandEncoder)
     {
@@ -154,7 +145,8 @@ void CommandBufferImpl::close()
             0,
             nullptr,
             0,
-            nullptr);
+            nullptr
+        );
         vkAPI.vkEndCommandBuffer(m_preCommandBuffer);
     }
     vkAPI.vkEndCommandBuffer(m_commandBuffer);
@@ -167,5 +159,4 @@ Result CommandBufferImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

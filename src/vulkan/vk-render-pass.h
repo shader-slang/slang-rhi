@@ -1,20 +1,11 @@
-// vk-render-pass.h
 #pragma once
 
 #include "vk-base.h"
 #include "vk-device.h"
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
-
-class RenderPassLayoutImpl
-    : public IRenderPassLayout
-    , public ComObject
+class RenderPassLayoutImpl : public IRenderPassLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -28,5 +19,4 @@ public:
     Result init(DeviceImpl* renderer, const IRenderPassLayout::Desc& desc);
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

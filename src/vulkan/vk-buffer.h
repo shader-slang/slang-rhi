@@ -1,16 +1,9 @@
-// vk-buffer.h
 #pragma once
 
 #include "vk-base.h"
 #include "vk-device.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 class VKBufferHandleRAII
 {
@@ -22,14 +15,13 @@ public:
         VkBufferUsageFlags usage,
         VkMemoryPropertyFlags reqMemoryProperties,
         bool isShared = false,
-        VkExternalMemoryHandleTypeFlagsKHR extMemHandleType = 0);
+        VkExternalMemoryHandleTypeFlagsKHR extMemHandleType = 0
+    );
 
     /// Returns true if has been initialized
     bool isInitialized() const { return m_api != nullptr; }
 
-    VKBufferHandleRAII()
-        : m_api(nullptr)
-    {}
+    VKBufferHandleRAII() : m_api(nullptr) {}
 
     ~VKBufferHandleRAII()
     {
@@ -60,18 +52,15 @@ public:
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getNativeResourceHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        map(MemoryRange* rangeToRead, void** outPointer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL setDebugName(const char* name) override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

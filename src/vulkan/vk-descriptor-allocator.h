@@ -1,5 +1,3 @@
-// vk-descriptor-allocator.h
-
 #pragma once
 
 #include "vk-api.h"
@@ -8,8 +6,8 @@
 
 #include <vector>
 
-namespace rhi
-{
+namespace rhi::vk {
+
 struct VulkanDescriptorSet
 {
     VkDescriptorSet handle;
@@ -28,10 +26,7 @@ public:
         return newPool();
     }
     VulkanDescriptorSet allocate(VkDescriptorSetLayout layout);
-    void free(VulkanDescriptorSet set)
-    {
-        m_api->vkFreeDescriptorSets(m_api->m_device, set.pool, 1, &set.handle);
-    }
+    void free(VulkanDescriptorSet set) { m_api->vkFreeDescriptorSets(m_api->m_device, set.pool, 1, &set.handle); }
     void reset()
     {
         for (auto pool : pools)
@@ -43,4 +38,5 @@ public:
             m_api->vkDestroyDescriptorPool(m_api->m_device, pool, nullptr);
     }
 };
-} // namespace rhi
+
+} // namespace rhi::vk

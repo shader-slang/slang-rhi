@@ -1,17 +1,8 @@
-// vk-sampler.cpp
 #include "vk-sampler.h"
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
-
-SamplerStateImpl::SamplerStateImpl(DeviceImpl* device)
-    : m_device(device)
-{}
+SamplerStateImpl::SamplerStateImpl(DeviceImpl* device) : m_device(device) {}
 
 SamplerStateImpl::~SamplerStateImpl()
 {
@@ -25,5 +16,4 @@ Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

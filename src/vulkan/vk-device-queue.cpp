@@ -1,12 +1,10 @@
-// vk-device-queue.cpp
 #include "vk-device-queue.h"
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-namespace rhi {
-using namespace Slang;
+namespace rhi::vk {
 
 VulkanDeviceQueue::~VulkanDeviceQueue()
 {
@@ -35,7 +33,7 @@ void VulkanDeviceQueue::destroy()
 SlangResult VulkanDeviceQueue::init(const VulkanApi& api, VkQueue queue, int queueIndex)
 {
     assert(m_api == nullptr);
-    
+
     for (int i = 0; i < int(EventType::CountOf); ++i)
     {
         m_semaphores[i] = VK_NULL_HANDLE;
@@ -135,7 +133,7 @@ void VulkanDeviceQueue::flushStepA()
     makeCompleted(EventType::EndFrame);
 }
 
-void VulkanDeviceQueue::_updateFenceAtIndex( int fenceIndex, bool blocking)
+void VulkanDeviceQueue::_updateFenceAtIndex(int fenceIndex, bool blocking)
 {
     Fence& fence = m_fences[fenceIndex];
 
@@ -211,4 +209,4 @@ void VulkanDeviceQueue::makeCompleted(EventType eventType)
     m_currentSemaphores[int(eventType)] = VK_NULL_HANDLE;
 }
 
-} // renderer_test
+} // namespace rhi::vk

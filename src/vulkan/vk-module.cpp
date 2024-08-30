@@ -1,20 +1,18 @@
-// module.cpp
 #include "vk-module.h"
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #if SLANG_WINDOWS_FAMILY
-#   include <windows.h>
+#include <windows.h>
 #else
-#   include <dlfcn.h>
+#include <dlfcn.h>
 #endif
 
 #include "../renderer-shared.h"
 
-namespace rhi {
-using namespace Slang;
+namespace rhi::vk {
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanModule !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -81,4 +79,4 @@ void VulkanModule::destroy()
     m_module = nullptr;
 }
 
-} // renderer_test
+} // namespace rhi::vk

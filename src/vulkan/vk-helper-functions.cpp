@@ -1,25 +1,16 @@
-// vk-helper-functions.cpp
 #include "vk-helper-functions.h"
-
 #include "vk-device.h"
 #include "vk-util.h"
 
 #include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 Size calcRowSize(Format format, int width)
 {
     FormatInfo sizeInfo;
     gfxGetFormatInfo(format, &sizeInfo);
-    return Size(
-        (width + sizeInfo.blockWidth - 1) / sizeInfo.blockWidth * sizeInfo.blockSizeInBytes);
+    return Size((width + sizeInfo.blockWidth - 1) / sizeInfo.blockWidth * sizeInfo.blockSizeInBytes);
 }
 
 GfxCount calcNumRows(Format format, int height)
@@ -118,8 +109,7 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::IndexBuffer:
         return VK_ACCESS_INDEX_READ_BIT;
     case ResourceState::RenderTarget:
-        return VkAccessFlagBits(
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
+        return VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
     case ResourceState::ShaderResource:
     case ResourceState::NonPixelShaderResource:
     case ResourceState::PixelShaderResource:
@@ -130,8 +120,8 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
         return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
     case ResourceState::DepthWrite:
         return VkAccessFlagBits(
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+        );
     case ResourceState::IndirectArgument:
         return VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
     case ResourceState::ResolveDestination:
@@ -142,8 +132,8 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
         return VK_ACCESS_TRANSFER_READ_BIT;
     case ResourceState::AccelerationStructure:
         return VkAccessFlagBits(
-            VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR |
-            VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR);
+            VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
+        );
     case ResourceState::AccelerationStructureBuildInput:
         return VkAccessFlagBits(VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR);
     case ResourceState::General:
@@ -168,11 +158,11 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
     case ResourceState::ConstantBuffer:
     case ResourceState::UnorderedAccess:
         return VkPipelineStageFlagBits(
-            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-            VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
-            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT |
-            VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR);
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
+        );
     case ResourceState::ShaderResource:
     case ResourceState::NonPixelShaderResource:
     case ResourceState::PixelShaderResource:
@@ -182,7 +172,8 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
     case ResourceState::DepthRead:
     case ResourceState::DepthWrite:
         return VkPipelineStageFlagBits(
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
+            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+        );
     case ResourceState::IndirectArgument:
         return VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
     case ResourceState::CopySource:
@@ -191,19 +182,17 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
     case ResourceState::ResolveDestination:
         return VK_PIPELINE_STAGE_TRANSFER_BIT;
     case ResourceState::Present:
-        return src ? VkPipelineStageFlagBits(
-            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_ALL_COMMANDS_BIT)
-            : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        return src ? VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_ALL_COMMANDS_BIT)
+                   : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     case ResourceState::General:
         return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
     case ResourceState::AccelerationStructure:
         return VkPipelineStageFlagBits(
-            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-            VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
-            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT |
-            VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR |
-            VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR);
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR | VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
+        );
     case ResourceState::AccelerationStructureBuildInput:
         return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR);
     default:
@@ -216,8 +205,8 @@ VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access)
 {
     VkAccessFlags result = 0;
     if ((uint32_t)access & (uint32_t)AccessFlag::Read)
-        result |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_SHADER_READ_BIT |
-        VK_ACCESS_TRANSFER_READ_BIT;
+        result |=
+            VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
     if ((uint32_t)access & (uint32_t)AccessFlag::Write)
         result |= VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
     return result;
@@ -243,13 +232,11 @@ VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceState state)
         return VkBufferUsageFlagBits(0);
     }
     case ResourceState::UnorderedAccess:
-        return (
-            VkBufferUsageFlagBits)(VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        return (VkBufferUsageFlagBits)(VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     case ResourceState::ShaderResource:
     case ResourceState::NonPixelShaderResource:
     case ResourceState::PixelShaderResource:
-        return (
-            VkBufferUsageFlagBits)(VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        return (VkBufferUsageFlagBits)(VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     case ResourceState::CopySource:
         return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     case ResourceState::CopyDestination:
@@ -353,8 +340,7 @@ VkImageUsageFlagBits _calcImageUsageFlags(ResourceStateSet states)
     return VkImageUsageFlagBits(dstFlags);
 }
 
-VkImageUsageFlags _calcImageUsageFlags(
-    ResourceStateSet states, MemoryType memoryType, const void* initData)
+VkImageUsageFlags _calcImageUsageFlags(ResourceStateSet states, MemoryType memoryType, const void* initData)
 {
     VkImageUsageFlags usage = _calcImageUsageFlags(states);
 
@@ -382,9 +368,7 @@ VkAccessFlags calcAccessFlagsFromImageLayout(VkImageLayout layout)
     case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
     case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
     case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-        return (
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
+        return (VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
     case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
     case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
@@ -426,8 +410,7 @@ VkPipelineStageFlags calcPipelineStageFlagsFromImageLayout(VkImageLayout layout)
     case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
     case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
     case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
-        return (
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
+        return (VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
     default:
         assert(!"Unsupported VkImageLayout");
         return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
@@ -457,8 +440,8 @@ AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicalDevice)
 {
     AdapterLUID luid = {};
 
-    VkPhysicalDeviceIDPropertiesKHR idProps = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR };
-    VkPhysicalDeviceProperties2 props = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+    VkPhysicalDeviceIDPropertiesKHR idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR};
+    VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
     props.pNext = &idProps;
     SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
     api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
@@ -476,20 +459,22 @@ AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicalDevice)
     return luid;
 }
 
-} // namespace vk
+} // namespace rhi::vk
+
+namespace rhi {
 
 Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     for (int forceSoftware = 0; forceSoftware <= 1; forceSoftware++)
     {
-        VulkanModule module;
+        vk::VulkanModule module;
         if (module.init(forceSoftware != 0) != SLANG_OK)
             continue;
-        VulkanApi api;
+        vk::VulkanApi api;
         if (api.initGlobalProcs(module) != SLANG_OK)
             continue;
 
-        VkInstanceCreateInfo instanceCreateInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+        VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
         const char* instanceExtensions[] = {
             VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 #if SLANG_APPLE_FAMILY
@@ -515,7 +500,9 @@ Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
 
             std::vector<VkPhysicalDevice> physicalDevices;
             physicalDevices.resize(numPhysicalDevices);
-            SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data()));
+            SLANG_VK_RETURN_ON_FAIL(
+                api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
+            );
 
             for (const auto& physicalDevice : physicalDevices)
             {

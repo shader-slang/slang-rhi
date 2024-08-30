@@ -1,19 +1,10 @@
-// vk-shader-program.cpp
 #include "vk-shader-program.h"
-
 #include "vk-device.h"
 #include "vk-util.h"
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
-
-ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
-    : m_device(device)
+ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device) : m_device(device)
 {
     for (auto& shaderModule : m_modules)
         shaderModule = VK_NULL_HANDLE;
@@ -30,13 +21,17 @@ ShaderProgramImpl::~ShaderProgramImpl()
     }
 }
 
-void ShaderProgramImpl::comFree() { m_device.breakStrongReference(); }
+void ShaderProgramImpl::comFree()
+{
+    m_device.breakStrongReference();
+}
 
 VkPipelineShaderStageCreateInfo ShaderProgramImpl::compileEntryPoint(
     const char* entryPointName,
     ISlangBlob* code,
     VkShaderStageFlagBits stage,
-    VkShaderModule& outShaderModule)
+    VkShaderModule& outShaderModule
+)
 {
     char const* dataBegin = (char const*)code->getBufferPointer();
     char const* dataEnd = (char const*)code->getBufferPointer() + code->getBufferSize();
@@ -49,12 +44,10 @@ VkPipelineShaderStageCreateInfo ShaderProgramImpl::compileEntryPoint(
     moduleCreateInfo.codeSize = code->getBufferSize();
 
     VkShaderModule module;
-    SLANG_VK_CHECK(m_device->m_api.vkCreateShaderModule(
-        m_device->m_device, &moduleCreateInfo, nullptr, &module));
+    SLANG_VK_CHECK(m_device->m_api.vkCreateShaderModule(m_device->m_device, &moduleCreateInfo, nullptr, &module));
     outShaderModule = module;
 
-    VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     shaderStageCreateInfo.stage = stage;
 
     shaderStageCreateInfo.module = module;
@@ -63,8 +56,7 @@ VkPipelineShaderStageCreateInfo ShaderProgramImpl::compileEntryPoint(
     return shaderStageCreateInfo;
 }
 
-Result ShaderProgramImpl::createShaderModule(
-    slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
     m_codeBlobs.push_back(kernelCode);
     VkShaderModule shaderModule;
@@ -74,11 +66,11 @@ Result ShaderProgramImpl::createShaderModule(
         spirvBinaryEntryPointName,
         kernelCode,
         (VkShaderStageFlagBits)VulkanUtil::getShaderStage(entryPointInfo->getStage()),
-        shaderModule));
+        shaderModule
+    ));
     m_entryPointNames.push_back(realEntryPointName);
     m_modules.push_back(shaderModule);
     return SLANG_OK;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

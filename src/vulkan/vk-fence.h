@@ -1,15 +1,8 @@
-// vk-fence.h
 #pragma once
 
 #include "vk-base.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 class FenceImpl : public FenceBase
 {
@@ -29,9 +22,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getNativeHandle(InteropHandle* outNativeHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

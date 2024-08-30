@@ -1,18 +1,8 @@
-// vk-texture.cpp
 #include "vk-texture.h"
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
-
-TextureResourceImpl::TextureResourceImpl(const Desc& desc, DeviceImpl* device)
-    : Parent(desc)
-    , m_device(device)
-{}
+TextureResourceImpl::TextureResourceImpl(const Desc& desc, DeviceImpl* device) : Parent(desc), m_device(device) {}
 
 TextureResourceImpl::~TextureResourceImpl()
 {
@@ -62,8 +52,8 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
         return SLANG_FAIL;
     }
     SLANG_RETURN_ON_FAIL(
-        vkCreateSharedHandle(m_device->m_device, &info, (HANDLE*)&outHandle->handleValue) !=
-        VK_SUCCESS);
+        vkCreateSharedHandle(m_device->m_device, &info, (HANDLE*)&outHandle->handleValue) != VK_SUCCESS
+    );
 #else
     VkMemoryGetFdInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -78,9 +68,7 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(
-        vkCreateSharedHandle(m_device->m_device, &info, (int*)&outHandle->handleValue) !=
-        VK_SUCCESS);
+    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (int*)&outHandle->handleValue) != VK_SUCCESS);
 #endif
     outHandle->api = InteropHandleAPI::Vulkan;
     return SLANG_OK;
@@ -101,5 +89,4 @@ Result TextureResourceImpl::setDebugName(const char* name)
     return SLANG_OK;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

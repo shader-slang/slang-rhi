@@ -1,4 +1,3 @@
-// vk-transient-heap.h
 #pragma once
 
 #include "vk-base.h"
@@ -7,16 +6,9 @@
 
 #include <vector>
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
-
-class TransientResourceHeapImpl
-    : public TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl>
+class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl>
 {
 private:
     typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl> Super;
@@ -35,10 +27,8 @@ public:
     ~TransientResourceHeapImpl();
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL synchronizeAndReset() override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

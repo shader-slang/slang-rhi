@@ -1,15 +1,8 @@
-// vk-query.cpp
 #include "vk-query.h"
-
 #include "vk-util.h"
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
 Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
 {
     m_device = device;
@@ -34,8 +27,7 @@ Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
     default:
         return SLANG_E_INVALID_ARG;
     }
-    SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkCreateQueryPool(m_device->m_api.m_device, &createInfo, nullptr, &m_pool));
+    SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkCreateQueryPool(m_device->m_api.m_device, &createInfo, nullptr, &m_pool));
     return SLANG_OK;
 }
 
@@ -62,18 +54,16 @@ Result QueryPoolImpl::getResult(GfxIndex index, GfxCount count, uint64_t* data)
         sizeof(uint64_t) * count,
         data,
         sizeof(uint64_t),
-        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
+        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+    ));
     return SLANG_OK;
 }
 
-void _writeTimestamp(
-    VulkanApi* api, VkCommandBuffer vkCmdBuffer, IQueryPool* queryPool, SlangInt index)
+void _writeTimestamp(VulkanApi* api, VkCommandBuffer vkCmdBuffer, IQueryPool* queryPool, SlangInt index)
 {
     auto queryPoolImpl = static_cast<QueryPoolImpl*>(queryPool);
     api->vkCmdResetQueryPool(vkCmdBuffer, queryPoolImpl->m_pool, (uint32_t)index, 1);
-    api->vkCmdWriteTimestamp(
-        vkCmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPoolImpl->m_pool, (uint32_t)index);
+    api->vkCmdWriteTimestamp(vkCmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPoolImpl->m_pool, (uint32_t)index);
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

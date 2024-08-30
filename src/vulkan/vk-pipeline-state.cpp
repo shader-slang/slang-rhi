@@ -1,26 +1,17 @@
-// vk-pipeline-state.cpp
 #include "vk-pipeline-state.h"
-
 #include "vk-device.h"
-#include "vk-shader-program.h"
-#include "vk-shader-object-layout.h"
-#include "vk-vertex-layout.h"
-
 #include "vk-helper-functions.h"
+#include "vk-shader-object-layout.h"
+#include "vk-shader-program.h"
+#include "vk-vertex-layout.h"
 
 #include "utils/static_vector.h"
 
-#include <vector>
 #include <map>
 #include <string>
+#include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 PipelineStateImpl::PipelineStateImpl(DeviceImpl* device)
 {
@@ -41,9 +32,15 @@ PipelineStateImpl::~PipelineStateImpl()
     }
 }
 
-void PipelineStateImpl::establishStrongDeviceReference() { m_device.establishStrongReference(); }
+void PipelineStateImpl::establishStrongDeviceReference()
+{
+    m_device.establishStrongReference();
+}
 
-void PipelineStateImpl::comFree() { m_device.breakStrongReference(); }
+void PipelineStateImpl::comFree()
+{
+    m_device.breakStrongReference();
+}
 
 void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
 {
@@ -76,8 +73,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     auto inputLayoutImpl = (InputLayoutImpl*)desc.graphics.inputLayout;
 
     // VertexBuffer/s
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 0;
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
@@ -97,8 +93,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     // All other forms of primitive toplogies are specified via dynamic state.
-    inputAssembly.topology =
-        VulkanUtil::translatePrimitiveTypeToListTopology(desc.graphics.primitiveType);
+    inputAssembly.topology = VulkanUtil::translatePrimitiveTypeToListTopology(desc.graphics.primitiveType);
     inputAssembly.primitiveRestartEnable = VK_FALSE; // TODO: Currently unsupported
 
     VkViewport viewport = {};
@@ -127,8 +122,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
 
     VkPipelineRasterizationStateCreateInfo rasterizer = {};
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable =
-        VK_TRUE; // TODO: Depth clipping and clamping are different between Vk and D3D12
+    rasterizer.depthClampEnable = VK_TRUE; // TODO: Depth clipping and clamping are different between Vk and D3D12
     rasterizer.rasterizerDiscardEnable = VK_FALSE; // TODO: Currently unsupported
     rasterizer.polygonMode = VulkanUtil::translateFillMode(rasterizerDesc.fillMode);
     rasterizer.cullMode = VulkanUtil::translateCullMode(rasterizerDesc.cullMode);
@@ -140,33 +134,27 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     rasterizer.lineWidth = 1.0f; // TODO: Currently unsupported
 
     VkPipelineRasterizationConservativeStateCreateInfoEXT conservativeRasterInfo = {};
-    conservativeRasterInfo.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT;
-    conservativeRasterInfo.conservativeRasterizationMode =
-        VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT;
+    conservativeRasterInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT;
+    conservativeRasterInfo.conservativeRasterizationMode = VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT;
     if (desc.graphics.rasterizer.enableConservativeRasterization)
     {
         rasterizer.pNext = &conservativeRasterInfo;
     }
 
-    auto framebufferLayoutImpl =
-        static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
+    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
     auto forcedSampleCount = rasterizerDesc.forcedSampleCount;
     auto blendDesc = desc.graphics.blend;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.rasterizationSamples = (forcedSampleCount == 0)
-                                             ? framebufferLayoutImpl->m_sampleCount
-                                             : VulkanUtil::translateSampleCount(forcedSampleCount);
-    multisampling.sampleShadingEnable =
-        VK_FALSE; // TODO: Should check if fragment shader needs this
+    multisampling.rasterizationSamples = (forcedSampleCount == 0) ? framebufferLayoutImpl->m_sampleCount
+                                                                  : VulkanUtil::translateSampleCount(forcedSampleCount);
+    multisampling.sampleShadingEnable = VK_FALSE; // TODO: Should check if fragment shader needs this
     // TODO: Sample mask is dynamic in D3D12 but PSO state in Vulkan
     multisampling.alphaToCoverageEnable = blendDesc.alphaToCoverageEnable;
     multisampling.alphaToOneEnable = VK_FALSE;
 
-    auto targetCount =
-        GfxCount(std::min(framebufferLayoutImpl->m_renderTargetCount, (uint32_t)blendDesc.targetCount));
+    auto targetCount = GfxCount(std::min(framebufferLayoutImpl->m_renderTargetCount, (uint32_t)blendDesc.targetCount));
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendTargets;
 
     // Regardless of whether blending is enabled, Vulkan always applies the color write mask
@@ -195,15 +183,11 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
             auto& vkBlendDesc = colorBlendTargets[i];
 
             vkBlendDesc.blendEnable = rhiBlendDesc.enableBlend;
-            vkBlendDesc.srcColorBlendFactor =
-                VulkanUtil::translateBlendFactor(rhiBlendDesc.color.srcFactor);
-            vkBlendDesc.dstColorBlendFactor =
-                VulkanUtil::translateBlendFactor(rhiBlendDesc.color.dstFactor);
+            vkBlendDesc.srcColorBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.color.srcFactor);
+            vkBlendDesc.dstColorBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.color.dstFactor);
             vkBlendDesc.colorBlendOp = VulkanUtil::translateBlendOp(rhiBlendDesc.color.op);
-            vkBlendDesc.srcAlphaBlendFactor =
-                VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.srcFactor);
-            vkBlendDesc.dstAlphaBlendFactor =
-                VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.dstFactor);
+            vkBlendDesc.srcAlphaBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.srcFactor);
+            vkBlendDesc.dstAlphaBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.dstFactor);
             vkBlendDesc.alphaBlendOp = VulkanUtil::translateBlendOp(rhiBlendDesc.alpha.op);
             vkBlendDesc.colorWriteMask = (VkColorComponentFlags)rhiBlendDesc.writeMask;
         }
@@ -228,7 +212,8 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     dynamicStates.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
     // It's not valid to specify VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT when
     // the pipeline contains a mesh shader.
-    if (!m_program->isMeshShaderProgram() && m_device->m_api.m_extendedFeatures.extendedDynamicStateFeatures.extendedDynamicState)
+    if (!m_program->isMeshShaderProgram() &&
+        m_device->m_api.m_extendedFeatures.extendedDynamicStateFeatures.extendedDynamicState)
 
     {
         dynamicStates.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY_EXT);
@@ -241,17 +226,14 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {};
     depthStencilStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencilStateInfo.depthTestEnable = desc.graphics.depthStencil.depthTestEnable ? 1 : 0;
-    depthStencilStateInfo.back =
-        VulkanUtil::translateStencilState(desc.graphics.depthStencil.backFace);
-    depthStencilStateInfo.front =
-        VulkanUtil::translateStencilState(desc.graphics.depthStencil.frontFace);
+    depthStencilStateInfo.back = VulkanUtil::translateStencilState(desc.graphics.depthStencil.backFace);
+    depthStencilStateInfo.front = VulkanUtil::translateStencilState(desc.graphics.depthStencil.frontFace);
     depthStencilStateInfo.back.compareMask = desc.graphics.depthStencil.stencilReadMask;
     depthStencilStateInfo.back.writeMask = desc.graphics.depthStencil.stencilWriteMask;
     depthStencilStateInfo.front.compareMask = desc.graphics.depthStencil.stencilReadMask;
     depthStencilStateInfo.front.writeMask = desc.graphics.depthStencil.stencilWriteMask;
     depthStencilStateInfo.depthBoundsTestEnable = 0; // TODO: Currently unsupported
-    depthStencilStateInfo.depthCompareOp =
-        VulkanUtil::translateComparisonFunc(desc.graphics.depthStencil.depthFunc);
+    depthStencilStateInfo.depthCompareOp = VulkanUtil::translateComparisonFunc(desc.graphics.depthStencil.depthFunc);
     depthStencilStateInfo.depthWriteEnable = desc.graphics.depthStencil.depthWriteEnable ? 1 : 0;
     depthStencilStateInfo.stencilTestEnable = desc.graphics.depthStencil.stencilEnable ? 1 : 0;
 
@@ -281,17 +263,19 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        SLANG_RETURN_ON_FAIL(
-            m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
-                m_device,
-                programImpl->linkedProgram.get(),
-                &pipelineInfo,
-                (void**)&m_pipeline));
+        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
+            m_device,
+            programImpl->linkedProgram.get(),
+            &pipelineInfo,
+            (void**)&m_pipeline
+        ));
     }
     else
     {
-        SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkCreateGraphicsPipelines(
-            m_device->m_device, pipelineCache, 1, &pipelineInfo, nullptr, &m_pipeline));
+        SLANG_VK_RETURN_ON_FAIL(
+            m_device->m_api
+                .vkCreateGraphicsPipelines(m_device->m_device, pipelineCache, 1, &pipelineInfo, nullptr, &m_pipeline)
+        );
     }
 
     return SLANG_OK;
@@ -305,25 +289,30 @@ Result PipelineStateImpl::createVKComputePipelineState()
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
     }
 
-    VkComputePipelineCreateInfo computePipelineInfo = {
-            VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    VkComputePipelineCreateInfo computePipelineInfo = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     computePipelineInfo.stage = programImpl->m_stageCreateInfos[0];
     computePipelineInfo.layout = programImpl->m_rootObjectLayout->m_pipelineLayout;
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        SLANG_RETURN_ON_FAIL(
-            m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
-                m_device,
-                programImpl->linkedProgram.get(),
-                &computePipelineInfo,
-                (void**)&m_pipeline));
+        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
+            m_device,
+            programImpl->linkedProgram.get(),
+            &computePipelineInfo,
+            (void**)&m_pipeline
+        ));
     }
     else
     {
         VkPipelineCache pipelineCache = VK_NULL_HANDLE;
         SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkCreateComputePipelines(
-            m_device->m_device, pipelineCache, 1, &computePipelineInfo, nullptr, &m_pipeline));
+            m_device->m_device,
+            pipelineCache,
+            1,
+            &computePipelineInfo,
+            nullptr,
+            &m_pipeline
+        ));
     }
     return SLANG_OK;
 }
@@ -353,11 +342,11 @@ SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHand
     return SLANG_OK;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
-    : PipelineStateImpl(device)
-{}
+RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device) : PipelineStateImpl(device) {}
 uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
-    const std::map<std::string, Index>& entryPointNameToIndex, const char* name)
+    const std::map<std::string, Index>& entryPointNameToIndex,
+    const char* name
+)
 {
     if (!name)
         return VK_SHADER_UNUSED_KHR;
@@ -376,8 +365,7 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
     }
 
-    VkRayTracingPipelineCreateInfoKHR raytracingPipelineInfo = {
-        VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
+    VkRayTracingPipelineCreateInfoKHR raytracingPipelineInfo = {VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
     raytracingPipelineInfo.pNext = nullptr;
     raytracingPipelineInfo.flags = translateRayTracingPipelineFlags(desc.rayTracing.flags);
 
@@ -394,13 +382,13 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
         auto stageCreateInfo = programImpl->m_stageCreateInfos[i];
         auto entryPointName = programImpl->m_entryPointNames[i];
         entryPointNameToIndex.emplace(entryPointName, i);
-        if (stageCreateInfo.stage &
-            (VK_SHADER_STAGE_ANY_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
-             VK_SHADER_STAGE_INTERSECTION_BIT_KHR))
+        if (stageCreateInfo.stage & (VK_SHADER_STAGE_ANY_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
+                                     VK_SHADER_STAGE_INTERSECTION_BIT_KHR))
             continue;
 
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
-            VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
+            VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR
+        };
         shaderGroupInfo.pNext = nullptr;
         shaderGroupInfo.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
         shaderGroupInfo.generalShader = i;
@@ -419,7 +407,8 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
     for (int32_t i = 0; i < desc.rayTracing.hitGroups.size(); ++i)
     {
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
-            VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
+            VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR
+        };
         auto& groupDesc = desc.rayTracing.hitGroups[i];
 
         shaderGroupInfo.pNext = nullptr;
@@ -457,7 +446,9 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
         m_device->m_pipelineCreationAPIDispatcher->beforeCreateRayTracingState(
-            m_device, programImpl->linkedProgram.get());
+            m_device,
+            programImpl->linkedProgram.get()
+        );
     }
 
     VkPipelineCache pipelineCache = VK_NULL_HANDLE;
@@ -468,13 +459,16 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
         1,
         &raytracingPipelineInfo,
         nullptr,
-        &m_pipeline));
+        &m_pipeline
+    ));
     shaderGroupCount = shaderGroupInfos.size();
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
         m_device->m_pipelineCreationAPIDispatcher->afterCreateRayTracingState(
-            m_device, programImpl->linkedProgram.get());
+            m_device,
+            programImpl->linkedProgram.get()
+        );
     }
     return SLANG_OK;
 }
@@ -501,5 +495,4 @@ Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

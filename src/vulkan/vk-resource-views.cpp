@@ -1,13 +1,6 @@
-// vk-resource-views.cpp
 #include "vk-resource-views.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 TextureResourceViewImpl::~TextureResourceViewImpl()
 {
@@ -23,7 +16,8 @@ Result TextureResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
 
 TexelBufferResourceViewImpl::TexelBufferResourceViewImpl(DeviceImpl* device)
     : ResourceViewImpl(ViewType::TexelBuffer, device)
-{}
+{
+}
 
 TexelBufferResourceViewImpl::~TexelBufferResourceViewImpl()
 {
@@ -39,7 +33,8 @@ Result TexelBufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
 
 PlainBufferResourceViewImpl::PlainBufferResourceViewImpl(DeviceImpl* device)
     : ResourceViewImpl(ViewType::PlainBuffer, device)
-{}
+{
+}
 
 Result PlainBufferResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
 {
@@ -62,10 +57,8 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     if (m_device)
     {
-        m_device->m_api.vkDestroyAccelerationStructureKHR(
-            m_device->m_api.m_device, m_vkHandle, nullptr);
+        m_device->m_api.vkDestroyAccelerationStructureKHR(m_device->m_api.m_device, m_vkHandle, nullptr);
     }
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

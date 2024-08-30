@@ -1,17 +1,10 @@
-// vk-vertex-layout.h
 #pragma once
 
 #include "vk-base.h"
 
 #include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 class InputLayoutImpl : public InputLayoutBase
 {
@@ -20,5 +13,4 @@ public:
     std::vector<VkVertexInputBindingDescription> m_streamDescs;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

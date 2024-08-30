@@ -1,4 +1,3 @@
-// vk-command-buffer.h
 #pragma once
 
 #include "vk-base.h"
@@ -6,17 +5,9 @@
 #include "vk-shader-object.h"
 #include "vk-transient-heap.h"
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
-
-class CommandBufferImpl
-    : public ICommandBuffer
-    , public ComObject
+class CommandBufferImpl : public ICommandBuffer, public ComObject
 {
 public:
     // There are a pair of cyclic references between a `TransientResourceHeap` and
@@ -57,16 +48,13 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
         IRenderPassLayout* renderPass,
         IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+        IRenderCommandEncoder** outEncoder
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

@@ -1,4 +1,3 @@
-// vk-shader-program.h
 #pragma once
 
 #include "vk-base.h"
@@ -6,13 +5,7 @@
 
 #include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 class ShaderProgramImpl : public ShaderProgramBase
 {
@@ -35,12 +28,11 @@ public:
         const char* entryPointName,
         ISlangBlob* code,
         VkShaderStageFlagBits stage,
-        VkShaderModule& outShaderModule);
+        VkShaderModule& outShaderModule
+    );
 
-    virtual Result createShaderModule(
-        slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode) override;
+    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+        override;
 };
 
-
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

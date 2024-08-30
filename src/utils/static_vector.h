@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <utility>
 #include <array>
+#include <utility>
 
 namespace rhi {
 
@@ -13,8 +13,9 @@ namespace rhi {
  * \tparam T Element type
  * \tparam N Maximum size of the static vector
  */
-template<typename T, std::size_t N>
-class static_vector {
+template <typename T, std::size_t N>
+class static_vector
+{
 public:
     static_assert(N > 0, "static_vector must have a size greater than zero.");
 
@@ -90,7 +91,7 @@ public:
         m_data[m_size++] = std::move(value);
     }
 
-    template<typename... Args>
+    template <typename... Args>
     void emplace_back(Args&&... args)
     {
         SLANG_RHI_ASSERT(m_size < capacity());

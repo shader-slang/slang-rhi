@@ -1,20 +1,11 @@
-// vk-framebuffer.cpp
 #include "vk-framebuffer.h"
-
 #include "vk-device.h"
-#include "vk-resource-views.h"
-
 #include "vk-helper-functions.h"
+#include "vk-resource-views.h"
 
 #include "utils/static_vector.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 FramebufferLayoutImpl::~FramebufferLayoutImpl()
 {
@@ -107,8 +98,9 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayou
     renderPassCreateInfo.pAttachments = m_targetDescs.data();
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpassDesc;
-    SLANG_VK_RETURN_ON_FAIL(m_renderer->m_api.vkCreateRenderPass(
-        m_renderer->m_api.m_device, &renderPassCreateInfo, nullptr, &m_renderPass));
+    SLANG_VK_RETURN_ON_FAIL(
+        m_renderer->m_api.vkCreateRenderPass(m_renderer->m_api.m_device, &renderPassCreateInfo, nullptr, &m_renderPass)
+    );
     return SLANG_OK;
 }
 
@@ -122,8 +114,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     m_renderer = renderer;
     uint32_t layerCount = 0;
 
-    auto dsv = desc.depthStencilView ? static_cast<TextureResourceViewImpl*>(desc.depthStencilView)
-                                     : nullptr;
+    auto dsv = desc.depthStencilView ? static_cast<TextureResourceViewImpl*>(desc.depthStencilView) : nullptr;
     // Get frame dimensions from attachments.
     if (dsv)
     {
@@ -144,7 +135,8 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
         auto size = resourceDesc->size;
         m_width = getMipLevelSize(viewDesc->subresourceRange.mipLevel, size.width);
         m_height = getMipLevelSize(viewDesc->subresourceRange.mipLevel, size.height);
-        layerCount = (resourceDesc->type == IResource::Type::Texture3D) ? size.depth : viewDesc->subresourceRange.layerCount;
+        layerCount =
+            (resourceDesc->type == IResource::Type::Texture3D) ? size.depth : viewDesc->subresourceRange.layerCount;
     }
     else
     {
@@ -173,7 +165,8 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
             memcpy(
                 &m_clearValues[i],
                 &resourceView->m_texture->getDesc()->optimalClearValue->color,
-                sizeof(ColorClearValue));
+                sizeof(ColorClearValue)
+            );
         }
     }
 
@@ -186,7 +179,8 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
             memcpy(
                 &m_clearValues[desc.renderTargetCount],
                 &dsv->m_texture->getDesc()->optimalClearValue->depthStencil,
-                sizeof(DepthStencilClearValue));
+                sizeof(DepthStencilClearValue)
+            );
         }
     }
 
@@ -201,10 +195,10 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     framebufferInfo.height = m_height;
     framebufferInfo.layers = layerCount;
 
-    SLANG_VK_RETURN_ON_FAIL(m_renderer->m_api.vkCreateFramebuffer(
-        m_renderer->m_api.m_device, &framebufferInfo, nullptr, &m_handle));
+    SLANG_VK_RETURN_ON_FAIL(
+        m_renderer->m_api.vkCreateFramebuffer(m_renderer->m_api.m_device, &framebufferInfo, nullptr, &m_handle)
+    );
     return SLANG_OK;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

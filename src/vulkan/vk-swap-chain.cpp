@@ -1,20 +1,12 @@
-// vk-swap-chain.cpp
 #include "vk-swap-chain.h"
-
-#include "vk-util.h"
 #include "cocoa-util.h"
+#include "vk-util.h"
 
 #include "utils/static_vector.h"
 
 #include <vector>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 ISwapchain* SwapchainImpl::getInterface(const Guid& guid)
 {
@@ -47,8 +39,7 @@ void SwapchainImpl::getWindowSize(int* widthOut, int* heightOut) const
     CocoaUtil::getNSWindowContentSize((void*)m_windowHandle.handleValues[0], widthOut, heightOut);
 #elif defined(SLANG_ENABLE_XLIB)
     XWindowAttributes winAttr = {};
-    XGetWindowAttributes(
-        (Display*)m_windowHandle.handleValues[0], (Window)m_windowHandle.handleValues[1], &winAttr);
+    XGetWindowAttributes((Display*)m_windowHandle.handleValues[0], (Window)m_windowHandle.handleValues[1], &winAttr);
 
     *widthOut = winAttr.width;
     *heightOut = winAttr.height;
@@ -81,23 +72,27 @@ Result SwapchainImpl::createSwapchainAndImages()
     {
         VkSurfaceCapabilitiesKHR surfaceCaps;
 
-        SLANG_VK_RETURN_ON_FAIL(m_api->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-            m_api->m_physicalDevice, m_surface, &surfaceCaps));
+        SLANG_VK_RETURN_ON_FAIL(
+            m_api->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_api->m_physicalDevice, m_surface, &surfaceCaps)
+        );
     }
 
     VkPresentModeKHR presentMode;
     std::vector<VkPresentModeKHR> presentModes;
     uint32_t numPresentModes = 0;
-    m_api->vkGetPhysicalDeviceSurfacePresentModesKHR(
-        m_api->m_physicalDevice, m_surface, &numPresentModes, nullptr);
+    m_api->vkGetPhysicalDeviceSurfacePresentModesKHR(m_api->m_physicalDevice, m_surface, &numPresentModes, nullptr);
     presentModes.resize(numPresentModes);
     m_api->vkGetPhysicalDeviceSurfacePresentModesKHR(
-        m_api->m_physicalDevice, m_surface, &numPresentModes, presentModes.data());
+        m_api->m_physicalDevice,
+        m_surface,
+        &numPresentModes,
+        presentModes.data()
+    );
 
     {
         int numCheckPresentOptions = 3;
-        VkPresentModeKHR presentOptions[] = {
-            VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR};
+        VkPresentModeKHR presentOptions[] =
+            {VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR};
         if (m_desc.enableVSync)
         {
             presentOptions[0] = VK_PRESENT_MODE_FIFO_KHR;
@@ -133,8 +128,7 @@ Result SwapchainImpl::createSwapchainAndImages()
     swapchainDesc.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchainDesc.imageExtent = imageExtent;
     swapchainDesc.imageArrayLayers = 1;
-    swapchainDesc.imageUsage =
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    swapchainDesc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     swapchainDesc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swapchainDesc.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     swapchainDesc.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -142,23 +136,21 @@ Result SwapchainImpl::createSwapchainAndImages()
     swapchainDesc.clipped = VK_TRUE;
     swapchainDesc.oldSwapchain = oldSwapchain;
 
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api->vkCreateSwapchainKHR(m_api->m_device, &swapchainDesc, nullptr, &m_swapChain));
+    SLANG_VK_RETURN_ON_FAIL(m_api->vkCreateSwapchainKHR(m_api->m_device, &swapchainDesc, nullptr, &m_swapChain));
 
     uint32_t numSwapChainImages = 0;
     m_api->vkGetSwapchainImagesKHR(m_api->m_device, m_swapChain, &numSwapChainImages, nullptr);
     std::vector<VkImage> vkImages;
     {
         vkImages.resize(numSwapChainImages);
-        m_api->vkGetSwapchainImagesKHR(
-            m_api->m_device, m_swapChain, &numSwapChainImages, vkImages.data());
+        m_api->vkGetSwapchainImagesKHR(m_api->m_device, m_swapChain, &numSwapChainImages, vkImages.data());
     }
 
     for (GfxIndex i = 0; i < m_desc.imageCount; i++)
     {
         ITextureResource::Desc imageDesc = {};
-        imageDesc.allowedStates = ResourceStateSet(
-            ResourceState::Present, ResourceState::RenderTarget, ResourceState::CopyDestination);
+        imageDesc.allowedStates =
+            ResourceStateSet(ResourceState::Present, ResourceState::RenderTarget, ResourceState::CopyDestination);
         imageDesc.type = IResource::Type::Texture2D;
         imageDesc.arraySize = 0;
         imageDesc.format = m_desc.format;
@@ -216,8 +208,10 @@ Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& desc, W
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    SLANG_VK_RETURN_ON_FAIL(renderer->m_api.vkCreateSemaphore(
-        renderer->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore));
+    SLANG_VK_RETURN_ON_FAIL(
+        renderer->m_api
+            .vkCreateSemaphore(renderer->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore)
+    );
 
     m_queue = static_cast<CommandQueueImpl*>(desc.queue);
 
@@ -229,37 +223,41 @@ Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& desc, W
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
     surfaceCreateInfo.hwnd = (HWND)window.handleValues[0];
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api->vkCreateWin32SurfaceKHR(m_api->m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+    SLANG_VK_RETURN_ON_FAIL(m_api->vkCreateWin32SurfaceKHR(m_api->m_instance, &surfaceCreateInfo, nullptr, &m_surface));
 #elif SLANG_APPLE_FAMILY
     m_metalLayer = CocoaUtil::createMetalLayer((void*)window.handleValues[0]);
     VkMetalSurfaceCreateInfoEXT surfaceCreateInfo = {};
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     surfaceCreateInfo.pLayer = (CAMetalLayer*)m_metalLayer;
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api->vkCreateMetalSurfaceEXT(m_api->m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+    SLANG_VK_RETURN_ON_FAIL(m_api->vkCreateMetalSurfaceEXT(m_api->m_instance, &surfaceCreateInfo, nullptr, &m_surface));
 #elif SLANG_ENABLE_XLIB
     VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
     surfaceCreateInfo.dpy = (Display*)window.handleValues[0];
     surfaceCreateInfo.window = (Window)window.handleValues[1];
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api->vkCreateXlibSurfaceKHR(m_api->m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+    SLANG_VK_RETURN_ON_FAIL(m_api->vkCreateXlibSurfaceKHR(m_api->m_instance, &surfaceCreateInfo, nullptr, &m_surface));
 #else
     return SLANG_E_NOT_AVAILABLE;
 #endif
 
     VkBool32 supported = false;
     m_api->vkGetPhysicalDeviceSurfaceSupportKHR(
-        m_api->m_physicalDevice, renderer->m_queueFamilyIndex, m_surface, &supported);
+        m_api->m_physicalDevice,
+        renderer->m_queueFamilyIndex,
+        m_surface,
+        &supported
+    );
 
     uint32_t numSurfaceFormats = 0;
     std::vector<VkSurfaceFormatKHR> surfaceFormats;
-    m_api->vkGetPhysicalDeviceSurfaceFormatsKHR(
-        m_api->m_physicalDevice, m_surface, &numSurfaceFormats, nullptr);
+    m_api->vkGetPhysicalDeviceSurfaceFormatsKHR(m_api->m_physicalDevice, m_surface, &numSurfaceFormats, nullptr);
     surfaceFormats.resize(int(numSurfaceFormats));
     m_api->vkGetPhysicalDeviceSurfaceFormatsKHR(
-        m_api->m_physicalDevice, m_surface, &numSurfaceFormats, surfaceFormats.data());
+        m_api->m_physicalDevice,
+        m_surface,
+        &numSurfaceFormats,
+        surfaceFormats.data()
+    );
 
     // Look for a suitable format
     std::vector<VkFormat> formats;
@@ -362,10 +360,10 @@ int SwapchainImpl::acquireNextImage()
         UINT64_MAX,
         m_nextImageSemaphore,
         VK_NULL_HANDLE,
-        (uint32_t*)&m_currentImageIndex);
+        (uint32_t*)&m_currentImageIndex
+    );
 
-    if (
-        result != VK_SUCCESS
+    if (result != VK_SUCCESS
 #if SLANG_APPLE_FAMILY
         && result != VK_SUBOPTIMAL_KHR
 #endif
@@ -380,7 +378,9 @@ int SwapchainImpl::acquireNextImage()
     return m_currentImageIndex;
 }
 
-Result SwapchainImpl::setFullScreenMode(bool mode) { return SLANG_FAIL; }
+Result SwapchainImpl::setFullScreenMode(bool mode)
+{
+    return SLANG_FAIL;
+}
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

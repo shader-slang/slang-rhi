@@ -1,16 +1,8 @@
-// vk-transient-heap.cpp
 #include "vk-transient-heap.h"
-
 #include "vk-device.h"
 #include "vk-util.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 void TransientResourceHeapImpl::advanceFence()
 {
@@ -21,27 +13,21 @@ void TransientResourceHeapImpl::advanceFence()
         VkFenceCreateInfo fenceCreateInfo = {};
         fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        m_device->m_api.vkCreateFence(
-            m_device->m_api.m_device, &fenceCreateInfo, nullptr, &m_fences[m_fenceIndex]);
+        m_device->m_api.vkCreateFence(m_device->m_api.m_device, &fenceCreateInfo, nullptr, &m_fences[m_fenceIndex]);
     }
 }
 
 Result TransientResourceHeapImpl::init(const ITransientResourceHeap::Desc& desc, DeviceImpl* device)
 {
-    Super::init(
-        desc,
-        (uint32_t)device->m_api.m_deviceProperties.limits.minUniformBufferOffsetAlignment,
-        device);
+    Super::init(desc, (uint32_t)device->m_api.m_deviceProperties.limits.minUniformBufferOffsetAlignment, device);
 
     m_descSetAllocator.m_api = &device->m_api;
 
     VkCommandPoolCreateInfo poolCreateInfo = {};
     poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolCreateInfo.queueFamilyIndex =
-        device->getQueueFamilyIndex(ICommandQueue::QueueType::Graphics);
-    device->m_api.vkCreateCommandPool(
-        device->m_api.m_device, &poolCreateInfo, nullptr, &m_commandPool);
+    poolCreateInfo.queueFamilyIndex = device->getQueueFamilyIndex(ICommandQueue::QueueType::Graphics);
+    device->m_api.vkCreateCommandPool(device->m_api.m_device, &poolCreateInfo, nullptr, &m_commandPool);
 
     advanceFence();
     return SLANG_OK;
@@ -82,9 +68,7 @@ Result TransientResourceHeapImpl::synchronizeAndReset()
 {
     m_commandBufferAllocId = 0;
     auto& api = m_device->m_api;
-    if (api.vkWaitForFences(
-            api.m_device, (uint32_t)m_fences.size(), m_fences.data(), 1, UINT64_MAX) !=
-        VK_SUCCESS)
+    if (api.vkWaitForFences(api.m_device, (uint32_t)m_fences.size(), m_fences.data(), 1, UINT64_MAX) != VK_SUCCESS)
     {
         return SLANG_FAIL;
     }
@@ -95,5 +79,4 @@ Result TransientResourceHeapImpl::synchronizeAndReset()
     return SLANG_OK;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

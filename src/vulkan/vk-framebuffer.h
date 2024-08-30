@@ -1,18 +1,11 @@
-// vk-framebuffer.h
 #pragma once
 
 #include "vk-base.h"
 
-#include "utils/static_vector.h"
 #include "utils/short_vector.h"
+#include "utils/static_vector.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 enum
 {
@@ -55,5 +48,4 @@ public:
     Result init(DeviceImpl* renderer, const IFramebuffer::Desc& desc);
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

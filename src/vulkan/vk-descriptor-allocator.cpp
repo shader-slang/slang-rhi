@@ -3,8 +3,8 @@
 
 #include "utils/static_vector.h"
 
-namespace rhi
-{
+namespace rhi::vk {
+
 VkDescriptorPool DescriptorSetAllocator::newPool()
 {
     VkDescriptorPoolCreateInfo descriptorPoolInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -33,13 +33,14 @@ VkDescriptorPool DescriptorSetAllocator::newPool()
     descriptorPoolInfo.pPoolSizes = poolSizes.data();
     descriptorPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
-    VkDescriptorPoolInlineUniformBlockCreateInfo inlineUniformBlockInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO };
+    VkDescriptorPoolInlineUniformBlockCreateInfo inlineUniformBlockInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO
+    };
     inlineUniformBlockInfo.maxInlineUniformBlockBindings = 16;
     descriptorPoolInfo.pNext = &inlineUniformBlockInfo;
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-    SLANG_VK_CHECK(m_api->vkCreateDescriptorPool(
-        m_api->m_device, &descriptorPoolInfo, nullptr, &descriptorPool));
+    SLANG_VK_CHECK(m_api->vkCreateDescriptorPool(m_api->m_device, &descriptorPoolInfo, nullptr, &descriptorPool));
     pools.push_back(descriptorPool);
     return descriptorPool;
 }
@@ -79,4 +80,5 @@ VulkanDescriptorSet DescriptorSetAllocator::allocate(VkDescriptorSetLayout layou
     assert(!"descriptor set allocation failed.");
     return rs;
 }
-}
+
+} // namespace rhi::vk

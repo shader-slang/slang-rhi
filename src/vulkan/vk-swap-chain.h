@@ -1,4 +1,3 @@
-// vk-swap-chain.h
 #pragma once
 
 #include "vk-base.h"
@@ -10,17 +9,9 @@
 
 #include <vector>
 
-namespace rhi
-{
+namespace rhi::vk {
 
-using namespace Slang;
-
-namespace vk
-{
-
-class SwapchainImpl
-    : public ISwapchain
-    , public ComObject
+class SwapchainImpl : public ISwapchain, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -29,7 +20,8 @@ public:
 public:
     VkSwapchainKHR m_swapChain;
     VkSurfaceKHR m_surface;
-    VkSemaphore m_nextImageSemaphore; // Semaphore to signal after `acquireNextImage`.
+    /// Semaphore to signal after `acquireNextImage`.
+    VkSemaphore m_nextImageSemaphore;
     ISwapchain::Desc m_desc;
     VkFormat m_vkformat;
     RefPtr<CommandQueueImpl> m_queue;
@@ -56,8 +48,7 @@ public:
     Result init(DeviceImpl* renderer, const ISwapchain::Desc& desc, WindowHandle window);
 
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getImage(GfxIndex index, ITextureResource** outResource) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITextureResource** outResource) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL resize(GfxCount width, GfxCount height) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
     virtual SLANG_NO_THROW int SLANG_MCALL acquireNextImage() override;
@@ -65,5 +56,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

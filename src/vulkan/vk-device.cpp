@@ -1,45 +1,36 @@
-// vk-device.cpp
 #include "vk-device.h"
-
 #include "vk-buffer.h"
 #include "vk-command-queue.h"
 #include "vk-fence.h"
+#include "vk-helper-functions.h"
 #include "vk-query.h"
 #include "vk-render-pass.h"
 #include "vk-resource-views.h"
 #include "vk-sampler.h"
-#include "vk-shader-object.h"
 #include "vk-shader-object-layout.h"
+#include "vk-shader-object.h"
 #include "vk-shader-program.h"
 #include "vk-shader-table.h"
 #include "vk-swap-chain.h"
 #include "vk-transient-heap.h"
 #include "vk-vertex-layout.h"
 
-#include "vk-helper-functions.h"
-
 #include "utils/common.h"
-#include "utils/static_vector.h"
 #include "utils/short_vector.h"
+#include "utils/static_vector.h"
 
 #include <algorithm>
-#include <vector>
 #include <set>
 #include <string>
+#include <vector>
 
 #ifdef SLANG_RHI_NV_AFTERMATH
-#   include "GFSDK_Aftermath.h"
-#   include "GFSDK_Aftermath_Defines.h"
-#   include "GFSDK_Aftermath_GpuCrashDump.h"
+#include "GFSDK_Aftermath.h"
+#include "GFSDK_Aftermath_Defines.h"
+#include "GFSDK_Aftermath_GpuCrashDump.h"
 #endif
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 DeviceImpl::~DeviceImpl()
 {
@@ -71,8 +62,7 @@ DeviceImpl::~DeviceImpl()
         m_device = VK_NULL_HANDLE;
         if (m_debugReportCallback != VK_NULL_HANDLE)
             m_api.vkDestroyDebugReportCallbackEXT(m_api.m_instance, m_debugReportCallback, nullptr);
-        if (m_api.m_instance != VK_NULL_HANDLE &&
-            m_desc.existingDeviceHandles.handles[0].handleValue == 0)
+        if (m_api.m_instance != VK_NULL_HANDLE && m_desc.existingDeviceHandles.handles[0].handleValue == 0)
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
 }
@@ -85,7 +75,8 @@ VkBool32 DeviceImpl::handleDebugMessage(
     Size location,
     int32_t msgCode,
     const char* pLayerPrefix,
-    const char* pMsg)
+    const char* pMsg
+)
 {
     DebugMessageType msgType = DebugMessageType::Info;
 
@@ -122,7 +113,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
     int32_t msgCode,
     const char* pLayerPrefix,
     const char* pMsg,
-    void* pUserData)
+    void* pUserData
+)
 {
     return ((DeviceImpl*)pUserData)
         ->handleDebugMessage(flags, objType, srcObject, location, msgCode, pLayerPrefix, pMsg);
@@ -139,17 +131,17 @@ Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
     return SLANG_OK;
 }
 
-template<typename T>
+template <typename T>
 static bool _hasAnySetBits(const T& val, size_t offset)
 {
     const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&val);
     for (size_t i = offset; i < sizeof(val); i++)
-        if (ptr[i]) return true;
+        if (ptr[i])
+            return true;
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(
-    const InteropHandle* handles, bool useValidationLayer)
+Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, bool useValidationLayer)
 {
     m_features.clear();
 
@@ -165,16 +157,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         switch (stype)
         {
         case StructType::RayTracingValidationDesc:
-            enableRayTracingValidation = static_cast<RayTracingValidationDesc*>(m_desc.extendedDescs[i])->enableRaytracingValidation;
+            enableRayTracingValidation =
+                static_cast<RayTracingValidationDesc*>(m_desc.extendedDescs[i])->enableRaytracingValidation;
             break;
         }
     }
 
-
     VkInstance instance = VK_NULL_HANDLE;
     if (handles[0].handleValue == 0)
     {
-        VkApplicationInfo applicationInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
+        VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
         applicationInfo.pApplicationName = "slang-rhi";
         applicationInfo.pEngineName = "slang-rhi";
         applicationInfo.apiVersion = VK_API_VERSION_1_1;
@@ -209,7 +201,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         if (ENABLE_VALIDATION_LAYER || isGfxDebugLayerEnabled())
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
-        VkInstanceCreateInfo instanceCreateInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+        VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
 #if SLANG_APPLE_FAMILY
         instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
@@ -217,10 +209,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
         instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
-        const char* layerNames[] = { nullptr };
+        const char* layerNames[] = {nullptr};
 
         VkValidationFeaturesEXT validationFeatures = {};
-        VkValidationFeatureEnableEXT enabledValidationFeatures[1] = { VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT };
+        VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
         if (useValidationLayer)
         {
             // Depending on driver version, validation layer may or may not exist.
@@ -238,10 +230,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
             for (auto& layer : availableLayers)
             {
-                if (strncmp(
-                    layer.layerName,
-                    "VK_LAYER_KHRONOS_validation",
-                    sizeof("VK_LAYER_KHRONOS_validation")) == 0)
+                if (strncmp(layer.layerName, "VK_LAYER_KHRONOS_validation", sizeof("VK_LAYER_KHRONOS_validation")) == 0)
                 {
                     layerNames[0] = "VK_LAYER_KHRONOS_validation";
                     break;
@@ -254,9 +243,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 for (auto& layer : availableLayers)
                 {
                     if (strncmp(
-                        layer.layerName,
-                        "VK_LAYER_LUNARG_standard_validation",
-                        sizeof("VK_LAYER_LUNARG_standard_validation")) == 0)
+                            layer.layerName,
+                            "VK_LAYER_LUNARG_standard_validation",
+                            sizeof("VK_LAYER_LUNARG_standard_validation")
+                        ) == 0)
                     {
                         layerNames[0] = "VK_LAYER_LUNARG_standard_validation";
                         break;
@@ -275,7 +265,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 instanceCreateInfo.pNext = &validationFeatures;
             }
         }
-        uint32_t apiVersionsToTry[] = { VK_API_VERSION_1_2, VK_API_VERSION_1_1, VK_API_VERSION_1_0 };
+        uint32_t apiVersionsToTry[] = {VK_API_VERSION_1_2, VK_API_VERSION_1_1, VK_API_VERSION_1_0};
         for (auto apiVersion : apiVersionsToTry)
         {
             applicationInfo.apiVersion = apiVersion;
@@ -284,7 +274,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             // the layer is known earlier). It might, for example, be absent
             // from the system library search path, and not referenced with an
             // absolute path in VkLayer_khronos_validation.json.
-            const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance) ;
+            const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
             if (r == VK_SUCCESS)
             {
                 break;
@@ -301,30 +291,28 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
     if ((enableRayTracingValidation || useValidationLayer) && m_api.vkCreateDebugReportCallbackEXT)
     {
-        VkDebugReportFlagsEXT debugFlags =
-            VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+        VkDebugReportFlagsEXT debugFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
 
-        VkDebugReportCallbackCreateInfoEXT debugCreateInfo = {
-            VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT };
+        VkDebugReportCallbackCreateInfoEXT debugCreateInfo = {VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT};
         debugCreateInfo.pfnCallback = &debugMessageCallback;
         debugCreateInfo.pUserData = this;
         debugCreateInfo.flags = debugFlags;
 
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateDebugReportCallbackEXT(
-            instance, &debugCreateInfo, nullptr, &m_debugReportCallback));
+        SLANG_VK_RETURN_ON_FAIL(
+            m_api.vkCreateDebugReportCallbackEXT(instance, &debugCreateInfo, nullptr, &m_debugReportCallback)
+        );
     }
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     if (handles[1].handleValue == 0)
     {
         uint32_t numPhysicalDevices = 0;
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
 
         std::vector<VkPhysicalDevice> physicalDevices;
         physicalDevices.resize(numPhysicalDevices);
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(
-            instance, &numPhysicalDevices, physicalDevices.data()));
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
+        );
 
         // Use first physical device by default.
         Index selectedDeviceIndex = 0;
@@ -367,12 +355,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
     // Query the available extensions
     uint32_t extensionCount = 0;
-    m_api.vkEnumerateDeviceExtensionProperties(
-        m_api.m_physicalDevice, NULL, &extensionCount, NULL);
+    m_api.vkEnumerateDeviceExtensionProperties(m_api.m_physicalDevice, NULL, &extensionCount, NULL);
     std::vector<VkExtensionProperties> extensions;
     extensions.resize(extensionCount);
-    m_api.vkEnumerateDeviceExtensionProperties(
-        m_api.m_physicalDevice, NULL, &extensionCount, extensions.data());
+    m_api.vkEnumerateDeviceExtensionProperties(m_api.m_physicalDevice, NULL, &extensionCount, extensions.data());
     std::set<std::string> extensionNames;
     for (const auto& e : extensions)
         extensionNames.emplace(e.extensionName);
@@ -384,7 +370,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     deviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
 
-    VkDeviceCreateInfo deviceCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+    VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount = 1;
     deviceCreateInfo.pEnabledFeatures = &m_api.m_deviceFeatures;
 
@@ -444,8 +430,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
     // API version check, can't use vkGetPhysicalDeviceProperties2 yet since this device might not
     // support it
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1 &&
-        m_api.vkGetPhysicalDeviceProperties2 && m_api.vkGetPhysicalDeviceFeatures2)
+    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1 && m_api.vkGetPhysicalDeviceProperties2 &&
+        m_api.vkGetPhysicalDeviceFeatures2)
     {
         // Get device features
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {};
@@ -474,7 +460,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         // Variable pointer features.
         extendedFeatures.variablePointersFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.variablePointersFeatures;
-        
+
         // Compute shader derivative features.
         extendedFeatures.computeShaderDerivativeFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.computeShaderDerivativeFeatures;
@@ -495,7 +481,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.clockFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.clockFeatures;
 
-        // Atomic Float 
+        // Atomic Float
         // To detect atomic float we need
         // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkPhysicalDeviceShaderAtomicFloatFeaturesEXT.html
 
@@ -558,12 +544,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             m_features.push_back("half");
         }
 
-        const auto addFeatureExtension = [&](const bool feature, auto& featureStruct, const char* extension = nullptr){
-            if(!feature)
+        const auto addFeatureExtension = [&](const bool feature, auto& featureStruct, const char* extension = nullptr)
+        {
+            if (!feature)
                 return false;
-            if(extension)
+            if (extension)
             {
-                if(!extensionNames.count(extension))
+                if (!extensionNames.count(extension))
                     return false;
                 deviceExtensions.push_back(extension);
             }
@@ -578,13 +565,15 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         // they are both present then the extensions are added, the struct
         // linked into the deviceCreateInfo chain and the features added to the
         // supported features list.
-#define SIMPLE_EXTENSION_FEATURE(s, m, e, ...) \
-        do{ \
-            const static auto fs = {__VA_ARGS__}; \
-            if(addFeatureExtension(s.m, s, e)) \
-                for(const auto& p : fs) \
-                    m_features.push_back(p); \
-        } while(0)
+#define SIMPLE_EXTENSION_FEATURE(s, m, e, ...)                                                                         \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        const static auto fs = {__VA_ARGS__};                                                                          \
+        if (addFeatureExtension(s.m, s, e))                                                                            \
+            for (const auto& p : fs)                                                                                   \
+                m_features.push_back(p);                                                                               \
+    }                                                                                                                  \
+    while (0)
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.storage16BitFeatures,
@@ -621,9 +610,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             "extended-dynamic-states"
         );
 
-        if (extendedFeatures.accelerationStructureFeatures.accelerationStructure
-            && extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)
-            && extensionNames.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME))
+        if (extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
+            extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
+            extensionNames.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME))
         {
             extendedFeatures.accelerationStructureFeatures.pNext = (void*)deviceCreateInfo.pNext;
             deviceCreateInfo.pNext = &extendedFeatures.accelerationStructureFeatures;
@@ -704,7 +693,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
             "variable-pointer"
         );
-        
+
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.computeShaderDerivativeFeatures,
             computeDerivativeGroupLinear,
@@ -713,7 +702,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         );
 
         // Only enable raytracing validation if both requested and supported
-        if(enableRayTracingValidation && extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
+        if (enableRayTracingValidation && extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
         {
             SIMPLE_EXTENSION_FEATURE(
                 extendedFeatures.rayTracingValidationFeatures,
@@ -739,18 +728,18 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         if (_hasAnySetBits(
                 extendedFeatures.vulkan12Features,
-                offsetof(VkPhysicalDeviceVulkan12Features, pNext) + sizeof(void*)))
+                offsetof(VkPhysicalDeviceVulkan12Features, pNext) + sizeof(void*)
+            ))
         {
             extendedFeatures.vulkan12Features.pNext = (void*)deviceCreateInfo.pNext;
             deviceCreateInfo.pNext = &extendedFeatures.vulkan12Features;
         }
 
-        VkPhysicalDeviceProperties2 extendedProps = {
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+        VkPhysicalDeviceProperties2 extendedProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProps = {
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
-        VkPhysicalDeviceSubgroupProperties subgroupProps = {
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES };
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR
+        };
+        VkPhysicalDeviceSubgroupProperties subgroupProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES};
 
         rtProps.pNext = extendedProps.pNext;
         extendedProps.pNext = &rtProps;
@@ -761,16 +750,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         m_api.m_rtProperties = rtProps;
 
         // Approximate DX12's WaveOps boolean
-        if(subgroupProps.supportedOperations &
-           ( VK_SUBGROUP_FEATURE_BASIC_BIT
-           | VK_SUBGROUP_FEATURE_VOTE_BIT
-           | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT
-           | VK_SUBGROUP_FEATURE_BALLOT_BIT
-           | VK_SUBGROUP_FEATURE_SHUFFLE_BIT
-           | VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT
-           | VK_SUBGROUP_FEATURE_CLUSTERED_BIT
-           | VK_SUBGROUP_FEATURE_QUAD_BIT
-           | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV))
+        if (subgroupProps.supportedOperations &
+            (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
+             VK_SUBGROUP_FEATURE_BALLOT_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT |
+             VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT | VK_SUBGROUP_FEATURE_CLUSTERED_BIT |
+             VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV))
         {
             m_features.push_back("wave-ops");
         }
@@ -854,13 +838,32 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         // Derive approximate DX12 shader model.
         const char* featureTable[] = {
-            "sm_6_0", "wave-ops", "atomic-int64", nullptr,
-            "sm_6_1", "barycentrics", "multiview", nullptr,
-            "sm_6_2", "half", nullptr,
-            "sm_6_3", "ray-tracing-pipeline", nullptr,
-            "sm_6_4", "fragment-shading-rate", nullptr,
-            "sm_6_5", "ray-query", "mesh-shader", nullptr,
-            "sm_6_6", "wave-ops", "atomic-float", "atomic-int64", nullptr,
+            "sm_6_0",
+            "wave-ops",
+            "atomic-int64",
+            nullptr,
+            "sm_6_1",
+            "barycentrics",
+            "multiview",
+            nullptr,
+            "sm_6_2",
+            "half",
+            nullptr,
+            "sm_6_3",
+            "ray-tracing-pipeline",
+            nullptr,
+            "sm_6_4",
+            "fragment-shading-rate",
+            nullptr,
+            "sm_6_5",
+            "ray-query",
+            "mesh-shader",
+            nullptr,
+            "sm_6_6",
+            "wave-ops",
+            "atomic-float",
+            "atomic-int64",
+            nullptr,
             nullptr,
         };
 
@@ -880,9 +883,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 {
                     break;
                 }
-                hasAll &= std::any_of(m_features.begin(), m_features.end(), [&](const std::string& f) {
-                    return f == feature;
-                });
+                hasAll &= std::any_of(
+                    m_features.begin(),
+                    m_features.end(),
+                    [&](const std::string& f) { return f == feature; }
+                );
             }
             if (hasAll)
             {
@@ -920,11 +925,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         // Set up device creation info for Aftermath feature flag configuration.
         VkDeviceDiagnosticsConfigFlagsNV aftermathFlags =
-            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV |  // Enable automatic call stack checkpoints.
-            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV |      // Enable tracking of resources.
-            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV;       // Generate debug information for shaders.
-            // Not available on the version of Vulkan currently building with.
-            //VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_ERROR_REPORTING_BIT_NV;  // Enable additional runtime shader error reporting.
+            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV | // Enable automatic call stack
+                                                                               // checkpoints.
+            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV |     // Enable tracking of resources.
+            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV; // Generate debug information for shaders.
+        // Not available on the version of Vulkan currently building with.
+        // VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_ERROR_REPORTING_BIT_NV;  // Enable additional runtime shader error
+        // reporting.
 
         aftermathInfo.sType = VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV;
         aftermathInfo.flags = aftermathFlags;
@@ -937,7 +944,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     if (handles[2].handleValue == 0)
     {
         float queuePriority = 0.0f;
-        VkDeviceQueueCreateInfo queueCreateInfo = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
+        VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
         queueCreateInfo.queueFamilyIndex = m_queueFamilyIndex;
         queueCreateInfo.queueCount = 1;
         queueCreateInfo.pQueuePriorities = &queuePriority;
@@ -947,8 +954,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-        if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) !=
-            VK_SUCCESS)
+        if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) != VK_SUCCESS)
             return SLANG_FAIL;
     }
     else
@@ -969,7 +975,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
         m_info.bindingStyle = BindingStyle::Vulkan;
         m_info.projectionStyle = ProjectionStyle::Vulkan;
         m_info.deviceType = DeviceType::Vulkan;
-        static const float kIdentity[] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
     }
 
@@ -988,7 +994,9 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
             continue;
         descriptorSetAllocator.m_api = &m_api;
         initDeviceResult = initVulkanInstanceAndDevice(
-            desc.existingDeviceHandles.handles, ENABLE_VALIDATION_LAYER != 0 || isGfxDebugLayerEnabled());
+            desc.existingDeviceHandles.handles,
+            ENABLE_VALIDATION_LAYER != 0 || isGfxDebugLayerEnabled()
+        );
         if (initDeviceResult == SLANG_OK)
             break;
     }
@@ -1006,11 +1014,12 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
         desc.extendedDescs,
         SLANG_SPIRV,
         "sm_5_1",
-        make_array(slang::PreprocessorMacroDesc{ "__VK__", "1" })));
+        make_array(slang::PreprocessorMacroDesc{"__VK__", "1"})
+    ));
 
     // Create default sampler.
     {
-        VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+        VkSamplerCreateInfo samplerInfo = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
         samplerInfo.magFilter = VK_FILTER_NEAREST;
         samplerInfo.minFilter = VK_FILTER_NEAREST;
         samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
@@ -1025,8 +1034,7 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
     }
 
     // Create empty frame buffer.
@@ -1047,12 +1055,20 @@ SlangResult DeviceImpl::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-void DeviceImpl::waitForGpu() { m_deviceQueue.flushAndWait(); }
+void DeviceImpl::waitForGpu()
+{
+    m_deviceQueue.flushAndWait();
+}
 
-SLANG_NO_THROW const DeviceInfo& SLANG_MCALL DeviceImpl::getDeviceInfo() const { return m_info; }
+SLANG_NO_THROW const DeviceInfo& SLANG_MCALL DeviceImpl::getDeviceInfo() const
+{
+    return m_info;
+}
 
 Result DeviceImpl::createTransientResourceHeap(
-    const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap)
+    const ITransientResourceHeap::Desc& desc,
+    ITransientResourceHeap** outHeap
+)
 {
     RefPtr<TransientResourceHeapImpl> result = new TransientResourceHeapImpl();
     SLANG_RETURN_ON_FAIL(result->init(desc, this));
@@ -1075,8 +1091,7 @@ Result DeviceImpl::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQ
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSwapchain(
-    const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
+Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
 {
 #if !defined(SLANG_ENABLE_XLIB)
     if (window.type == WindowHandle::Type::XLibHandle)
@@ -1091,8 +1106,7 @@ Result DeviceImpl::createSwapchain(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(
-    const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout)
+Result DeviceImpl::createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout)
 {
     RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->init(this, desc));
@@ -1100,8 +1114,7 @@ Result DeviceImpl::createFramebufferLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPassLayout(
-    const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
+Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
 {
     RefPtr<RenderPassLayoutImpl> result = new RenderPassLayoutImpl();
     SLANG_RETURN_ON_FAIL(result->init(this, desc));
@@ -1122,7 +1135,8 @@ SlangResult DeviceImpl::readTextureResource(
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
-    Size* outPixelSize)
+    Size* outPixelSize
+)
 {
     auto textureImpl = static_cast<TextureResourceImpl*>(texture);
 
@@ -1161,7 +1175,8 @@ SlangResult DeviceImpl::readTextureResource(
         m_api,
         bufferSize,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    ));
 
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
     VkImage srcImage = textureImpl->m_image;
@@ -1187,12 +1202,10 @@ SlangResult DeviceImpl::readTextureResource(
             region.imageSubresource.mipLevel = uint32_t(j);
             region.imageSubresource.baseArrayLayer = i;
             region.imageSubresource.layerCount = 1;
-            region.imageOffset = { 0, 0, 0 };
-            region.imageExtent = {
-                uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth) };
+            region.imageOffset = {0, 0, 0};
+            region.imageExtent = {uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth)};
 
-            m_api.vkCmdCopyImageToBuffer(
-                commandBuffer, srcImage, srcImageLayout, staging.m_buffer, 1, &region);
+            m_api.vkCmdCopyImageToBuffer(commandBuffer, srcImage, srcImageLayout, staging.m_buffer, 1, &region);
 
             dstOffset += rowSizeInBytes * numRows * mipSize.depth;
         }
@@ -1204,8 +1217,7 @@ SlangResult DeviceImpl::readTextureResource(
 
     // Write out the data from the buffer
     void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(
-        m_api.vkMapMemory(m_device, staging.m_memory, 0, bufferSize, 0, &mappedData));
+    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, bufferSize, 0, &mappedData));
 
     ::memcpy((void*)blob->getBufferPointer(), mappedData, bufferSize);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
@@ -1217,8 +1229,7 @@ SlangResult DeviceImpl::readTextureResource(
     return SLANG_OK;
 }
 
-SlangResult DeviceImpl::readBufferResource(
-    IBufferResource* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
+SlangResult DeviceImpl::readBufferResource(IBufferResource* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(inBuffer);
 
@@ -1229,7 +1240,8 @@ SlangResult DeviceImpl::readBufferResource(
         m_api,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    ));
 
     // Copy from real buffer to staging buffer
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
@@ -1256,14 +1268,14 @@ SlangResult DeviceImpl::readBufferResource(
 
 Result DeviceImpl::getAccelerationStructurePrebuildInfo(
     const IAccelerationStructure::BuildInputs& buildInputs,
-    IAccelerationStructure::PrebuildInfo* outPrebuildInfo)
+    IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+)
 {
     if (!m_api.vkGetAccelerationStructureBuildSizesKHR)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {
-        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
+    VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
     AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
     SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(buildInputs, getDebugCallback()));
     m_api.vkGetAccelerationStructureBuildSizesKHR(
@@ -1271,7 +1283,8 @@ Result DeviceImpl::getAccelerationStructurePrebuildInfo(
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
         &geomInfoBuilder.buildInfo,
         geomInfoBuilder.primitiveCounts.data(),
-        &sizeInfo);
+        &sizeInfo
+    );
     outPrebuildInfo->resultDataMaxSize = (Size)sizeInfo.accelerationStructureSize;
     outPrebuildInfo->scratchDataSize = (Size)sizeInfo.buildScratchSize;
     outPrebuildInfo->updateScratchDataSize = (Size)sizeInfo.updateScratchSize;
@@ -1279,7 +1292,9 @@ Result DeviceImpl::getAccelerationStructurePrebuildInfo(
 }
 
 Result DeviceImpl::createAccelerationStructure(
-    const IAccelerationStructure::CreateDesc& desc, IAccelerationStructure** outAS)
+    const IAccelerationStructure::CreateDesc& desc,
+    IAccelerationStructure** outAS
+)
 {
     if (!m_api.vkCreateAccelerationStructureKHR)
     {
@@ -1291,8 +1306,7 @@ Result DeviceImpl::createAccelerationStructure(
     resultAS->m_buffer = static_cast<BufferResourceImpl*>(desc.buffer);
     resultAS->m_device = this;
     resultAS->m_desc.type = IResourceView::Type::AccelerationStructure;
-    VkAccelerationStructureCreateInfoKHR createInfo = {
-        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR };
+    VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     createInfo.buffer = resultAS->m_buffer->m_buffer.m_buffer;
     createInfo.offset = desc.offset;
     createInfo.size = desc.size;
@@ -1308,12 +1322,14 @@ Result DeviceImpl::createAccelerationStructure(
         getDebugCallback()->handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
-            "invalid value of IAccelerationStructure::Kind encountered in desc.kind");
+            "invalid value of IAccelerationStructure::Kind encountered in desc.kind"
+        );
         return SLANG_E_INVALID_ARG;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateAccelerationStructureKHR(
-        m_api.m_device, &createInfo, nullptr, &resultAS->m_vkHandle));
+    SLANG_VK_RETURN_ON_FAIL(
+        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &resultAS->m_vkHandle)
+    );
     returnComPtr(outAS, resultAS);
     return SLANG_OK;
 }
@@ -1324,7 +1340,8 @@ void DeviceImpl::_transitionImageLayout(
     VkFormat format,
     const TextureResource::Desc& desc,
     VkImageLayout oldLayout,
-    VkImageLayout newLayout)
+    VkImageLayout newLayout
+)
 {
     if (oldLayout == newLayout)
         return;
@@ -1349,8 +1366,7 @@ void DeviceImpl::_transitionImageLayout(
     VkPipelineStageFlags sourceStage = calcPipelineStageFlagsFromImageLayout(oldLayout);
     VkPipelineStageFlags destinationStage = calcPipelineStageFlagsFromImageLayout(newLayout);
 
-    m_api.vkCmdPipelineBarrier(
-        commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    m_api.vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
 uint32_t DeviceImpl::getQueueFamilyIndex(ICommandQueue::QueueType queueType)
@@ -1368,14 +1384,14 @@ void DeviceImpl::_transitionImageLayout(
     VkFormat format,
     const TextureResource::Desc& desc,
     VkImageLayout oldLayout,
-    VkImageLayout newLayout)
+    VkImageLayout newLayout
+)
 {
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
     _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
-Result DeviceImpl::getTextureAllocationInfo(
-    const ITextureResource::Desc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn, Size* outSize, Size* outAlignment)
 {
     TextureResource::Desc desc = fixupTextureDesc(descIn);
 
@@ -1387,27 +1403,25 @@ Result DeviceImpl::getTextureAllocationInfo(
     }
     const int arraySize = calcEffectiveArraySize(desc);
 
-    VkImageCreateInfo imageInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {
     case IResource::Type::Texture1D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
-        imageInfo.extent = VkExtent3D{ uint32_t(descIn.size.width), 1, 1 };
+        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
     case IResource::Type::Texture2D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent =
-            VkExtent3D{ uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1 };
+        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         break;
     }
     case IResource::Type::TextureCube:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent =
-            VkExtent3D{ uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1 };
+        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
@@ -1417,10 +1431,8 @@ Result DeviceImpl::getTextureAllocationInfo(
         assert(desc.arraySize <= 1);
 
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent = VkExtent3D{
-            uint32_t(descIn.size.width),
-            uint32_t(descIn.size.height),
-            uint32_t(descIn.size.depth) };
+        imageInfo.extent =
+            VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
         break;
     }
     default:
@@ -1463,7 +1475,8 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
 Result DeviceImpl::createTextureResource(
     const ITextureResource::Desc& descIn,
     const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource)
+    ITextureResource** outResource
+)
 {
     TextureResource::Desc desc = fixupTextureDesc(descIn);
 
@@ -1480,27 +1493,25 @@ Result DeviceImpl::createTextureResource(
     texture->m_vkformat = format;
     // Create the image
 
-    VkImageCreateInfo imageInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {
     case IResource::Type::Texture1D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
-        imageInfo.extent = VkExtent3D{ uint32_t(descIn.size.width), 1, 1 };
+        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
     case IResource::Type::Texture2D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent =
-            VkExtent3D{ uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1 };
+        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         break;
     }
     case IResource::Type::TextureCube:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent =
-            VkExtent3D{ uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1 };
+        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
@@ -1510,10 +1521,8 @@ Result DeviceImpl::createTextureResource(
         assert(desc.arraySize <= 1);
 
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent = VkExtent3D{
-            uint32_t(descIn.size.width),
-            uint32_t(descIn.size.height),
-            uint32_t(descIn.size.depth) };
+        imageInfo.extent =
+            VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
         break;
     }
     default:
@@ -1534,8 +1543,8 @@ Result DeviceImpl::createTextureResource(
 
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleDesc.numSamples;
 
-    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {
-        VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO };
+    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
+    };
     VkExternalMemoryHandleTypeFlags extMemoryHandleType =
 #if SLANG_WINDOWS_FAMILY
         VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
@@ -1555,40 +1564,36 @@ Result DeviceImpl::createTextureResource(
 
     // Allocate the memory
     VkMemoryPropertyFlags reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    int memoryTypeIndex =
-        m_api.findMemoryTypeIndex(memRequirements.memoryTypeBits, reqMemoryProperties);
+    int memoryTypeIndex = m_api.findMemoryTypeIndex(memRequirements.memoryTypeBits, reqMemoryProperties);
     assert(memoryTypeIndex >= 0);
 
     VkMemoryPropertyFlags actualMemoryProperites =
         m_api.m_deviceMemoryProperties.memoryTypes[memoryTypeIndex].propertyFlags;
-    VkMemoryAllocateInfo allocInfo = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+    VkMemoryAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = memoryTypeIndex;
 #if SLANG_WINDOWS_FAMILY
     VkExportMemoryWin32HandleInfoKHR exportMemoryWin32HandleInfo = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR };
+        VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR
+    };
 #endif
-    VkExportMemoryAllocateInfoKHR exportMemoryAllocateInfo = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR };
+    VkExportMemoryAllocateInfoKHR exportMemoryAllocateInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
     if (descIn.isShared)
     {
 #if SLANG_WINDOWS_FAMILY
         exportMemoryWin32HandleInfo.pNext = nullptr;
         exportMemoryWin32HandleInfo.pAttributes = nullptr;
-        exportMemoryWin32HandleInfo.dwAccess =
-            DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
+        exportMemoryWin32HandleInfo.dwAccess = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
         exportMemoryWin32HandleInfo.name = NULL;
 
-        exportMemoryAllocateInfo.pNext =
-            extMemoryHandleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR
-            ? &exportMemoryWin32HandleInfo
-            : nullptr;
+        exportMemoryAllocateInfo.pNext = extMemoryHandleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR
+                                             ? &exportMemoryWin32HandleInfo
+                                             : nullptr;
 #endif
         exportMemoryAllocateInfo.handleTypes = extMemoryHandleType;
         allocInfo.pNext = &exportMemoryAllocateInfo;
     }
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &texture->m_imageMemory));
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &texture->m_imageMemory));
 
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
@@ -1624,7 +1629,8 @@ Result DeviceImpl::createTextureResource(
             m_api,
             bufferSize,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        ));
 
         assert(mipSizes.size() == numMipMaps);
 
@@ -1686,9 +1692,10 @@ Result DeviceImpl::createTextureResource(
             format,
             *texture->getDesc(),
             VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        );
 
-        if(desc.sampleDesc.numSamples != 1)
+        if (desc.sampleDesc.numSamples != 1)
         {
             // Handle senario where texture is sampled. We cannot use
             // a simple buffer copy for sampled textures. ClearColorImage
@@ -1697,67 +1704,68 @@ Result DeviceImpl::createTextureResource(
             gfxGetFormatInfo(desc.format, &formatInfo);
             uint32_t data = 0;
             VkClearColorValue clearColor;
-            switch(formatInfo.channelType)
+            switch (formatInfo.channelType)
             {
             case SLANG_SCALAR_TYPE_INT32:
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.int32[i] = *reinterpret_cast<int32_t*>(const_cast<void*>(initData->data));
                 break;
             case SLANG_SCALAR_TYPE_UINT32:
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.uint32[i] = *reinterpret_cast<uint32_t*>(const_cast<void*>(initData->data));
                 break;
             case SLANG_SCALAR_TYPE_INT64:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.int32[i] = int32_t(*reinterpret_cast<int64_t*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_UINT64:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.uint32[i] = uint32_t(*reinterpret_cast<uint64_t*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_FLOAT16:
             {
-                for(int i = 0; i < 4; i++)
-                    clearColor.float32[i] = math::halfToFloat(*reinterpret_cast<uint16_t*>(const_cast<void*>(initData->data)));
+                for (int i = 0; i < 4; i++)
+                    clearColor.float32[i] =
+                        math::halfToFloat(*reinterpret_cast<uint16_t*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_FLOAT32:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.float32[i] = (*reinterpret_cast<float*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_FLOAT64:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.float32[i] = float(*reinterpret_cast<double*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_INT8:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.int32[i] = int32_t(*reinterpret_cast<int8_t*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_UINT8:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.uint32[i] = uint32_t(*reinterpret_cast<uint8_t*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_INT16:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.int32[i] = int32_t(*reinterpret_cast<int16_t*>(const_cast<void*>(initData->data)));
                 break;
             }
             case SLANG_SCALAR_TYPE_UINT16:
             {
-                for(int i = 0; i < 4; i++)
+                for (int i = 0; i < 4; i++)
                     clearColor.uint32[i] = uint32_t(*reinterpret_cast<uint16_t*>(const_cast<void*>(initData->data)));
                 break;
             }
@@ -1776,7 +1784,8 @@ Result DeviceImpl::createTextureResource(
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 &clearColor,
                 1,
-                &range);
+                &range
+            );
         }
         else
         {
@@ -1807,9 +1816,8 @@ Result DeviceImpl::createTextureResource(
                     region.imageSubresource.mipLevel = uint32_t(j);
                     region.imageSubresource.baseArrayLayer = i;
                     region.imageSubresource.layerCount = 1;
-                    region.imageOffset = { 0, 0, 0 };
-                    region.imageExtent = {
-                        uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth) };
+                    region.imageOffset = {0, 0, 0};
+                    region.imageExtent = {uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth)};
 
                     // Do the copy (do all depths in a single go)
                     m_api.vkCmdCopyBufferToImage(
@@ -1818,7 +1826,8 @@ Result DeviceImpl::createTextureResource(
                         texture->m_image,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         1,
-                        &region);
+                        &region
+                    );
 
                     // Next
                     srcOffset += rowSizeInBytes * numRows * mipSize.depth;
@@ -1831,7 +1840,8 @@ Result DeviceImpl::createTextureResource(
             format,
             *texture->getDesc(),
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            defaultLayout);
+            defaultLayout
+        );
     }
     else
     {
@@ -1843,7 +1853,8 @@ Result DeviceImpl::createTextureResource(
                 format,
                 *texture->getDesc(),
                 VK_IMAGE_LAYOUT_UNDEFINED,
-                defaultLayout);
+                defaultLayout
+            );
         }
     }
     m_deviceQueue.flushAndWait();
@@ -1852,7 +1863,10 @@ Result DeviceImpl::createTextureResource(
 }
 
 Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn, const void* initData, IBufferResource** outResource)
+    const IBufferResource::Desc& descIn,
+    const void* initData,
+    IBufferResource** outResource
+)
 {
     return createBufferResourceImpl(descIn, 0, initData, outResource);
 }
@@ -1861,7 +1875,8 @@ Result DeviceImpl::createBufferResourceImpl(
     const IBufferResource::Desc& descIn,
     VkBufferUsageFlags additionalUsageFlag,
     const void* initData,
-    IBufferResource** outResource)
+    IBufferResource** outResource
+)
 {
     BufferResource::Desc desc = fixupBufferDesc(descIn);
 
@@ -1884,11 +1899,10 @@ Result DeviceImpl::createBufferResourceImpl(
         usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     }
 
-    if (desc.allowedStates.contains(ResourceState::ConstantBuffer) ||
-        desc.memoryType == MemoryType::Upload || desc.memoryType == MemoryType::ReadBack)
+    if (desc.allowedStates.contains(ResourceState::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
+        desc.memoryType == MemoryType::ReadBack)
     {
-        reqMemoryProperties =
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     }
     else
     {
@@ -1904,18 +1918,13 @@ Result DeviceImpl::createBufferResourceImpl(
 #else
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(
-            m_api,
-            desc.sizeInBytes,
-            usage,
-            reqMemoryProperties,
-            desc.isShared,
-            extMemHandleType));
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_buffer.init(m_api, desc.sizeInBytes, usage, reqMemoryProperties, desc.isShared, extMemHandleType)
+        );
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.sizeInBytes, usage, reqMemoryProperties));
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.sizeInBytes, usage, reqMemoryProperties));
     }
 
     if (initData)
@@ -1926,11 +1935,11 @@ Result DeviceImpl::createBufferResourceImpl(
                 m_api,
                 bufferSize,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            ));
             // Copy into staging buffer
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(
-                m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
             ::memcpy(mappedData, initData, bufferSize);
             m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
 
@@ -1944,15 +1953,15 @@ Result DeviceImpl::createBufferResourceImpl(
                 buffer->m_uploadBuffer.m_buffer,
                 buffer->m_buffer.m_buffer,
                 1,
-                &copyInfo);
+                &copyInfo
+            );
             m_deviceQueue.flush();
         }
         else
         {
             // Copy into mapped buffer directly
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(
-                m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData));
             ::memcpy(mappedData, initData, bufferSize);
             m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
         }
@@ -1963,7 +1972,10 @@ Result DeviceImpl::createBufferResourceImpl(
 }
 
 Result DeviceImpl::createBufferFromNativeHandle(
-    InteropHandle handle, const IBufferResource::Desc& srcDesc, IBufferResource** outResource)
+    InteropHandle handle,
+    const IBufferResource::Desc& srcDesc,
+    IBufferResource** outResource
+)
 {
     RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc, this));
 
@@ -1982,7 +1994,7 @@ Result DeviceImpl::createBufferFromNativeHandle(
 
 Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
 {
-    VkSamplerCreateInfo samplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    VkSamplerCreateInfo samplerInfo = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
 
     samplerInfo.magFilter = VulkanUtil::translateFilterMode(desc.minFilter);
     samplerInfo.minFilter = VulkanUtil::translateFilterMode(desc.magFilter);
@@ -2004,7 +2016,7 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     samplerInfo.minLod = std::max(0.0f, desc.minLOD);
     samplerInfo.maxLod = std::clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
 
-    VkSamplerReductionModeCreateInfo reductionInfo = { VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO };
+    VkSamplerReductionModeCreateInfo reductionInfo = {VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO};
     reductionInfo.reductionMode = VulkanUtil::translateReductionOp(desc.reductionOp);
     samplerInfo.pNext = &reductionInfo;
 
@@ -2018,7 +2030,10 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
 }
 
 Result DeviceImpl::createTextureView(
-    ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView)
+    ITextureResource* texture,
+    IResourceView::Desc const& desc,
+    IResourceView** outView
+)
 {
     auto resourceImpl = static_cast<TextureResourceImpl*>(texture);
     RefPtr<TextureResourceViewImpl> view = new TextureResourceViewImpl(this);
@@ -2035,15 +2050,15 @@ Result DeviceImpl::createTextureView(
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;
-    createInfo.format = gfxIsTypelessFormat(texture->getDesc()->format)
-        ? VulkanUtil::getVkFormat(desc.format)
-        : resourceImpl->m_vkformat;
+    createInfo.format = gfxIsTypelessFormat(texture->getDesc()->format) ? VulkanUtil::getVkFormat(desc.format)
+                                                                        : resourceImpl->m_vkformat;
     createInfo.image = resourceImpl->m_image;
     createInfo.components = VkComponentMapping{
         VK_COMPONENT_SWIZZLE_R,
         VK_COMPONENT_SWIZZLE_G,
         VK_COMPONENT_SWIZZLE_B,
-        VK_COMPONENT_SWIZZLE_A };
+        VK_COMPONENT_SWIZZLE_A
+    };
     switch (resourceImpl->getType())
     {
     case IResource::Type::Texture1D:
@@ -2076,9 +2091,8 @@ Result DeviceImpl::createTextureView(
             createInfo.subresourceRange.layerCount = 6;
         }
     }
-    createInfo.subresourceRange.levelCount = desc.subresourceRange.mipLevelCount == 0
-        ? VK_REMAINING_MIP_LEVELS
-        : desc.subresourceRange.mipLevelCount;
+    createInfo.subresourceRange.levelCount =
+        desc.subresourceRange.mipLevelCount == 0 ? VK_REMAINING_MIP_LEVELS : desc.subresourceRange.mipLevelCount;
     switch (desc.type)
     {
     case IResourceView::Type::DepthStencil:
@@ -2111,8 +2125,7 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
     VkFormat vkFormat = VulkanUtil::getVkFormat(format);
 
     VkFormatProperties supportedProperties = {};
-    m_api.vkGetPhysicalDeviceFormatProperties(
-        m_api.m_physicalDevice, vkFormat, &supportedProperties);
+    m_api.vkGetPhysicalDeviceFormatProperties(m_api.m_physicalDevice, vkFormat, &supportedProperties);
 
     std::set<VkFormat> presentableFormats;
     // TODO: enable this once we have VK_GOOGLE_surfaceless_query.
@@ -2130,8 +2143,8 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
         presentableFormats.emplace(surfaceFormat.format);
     }
 #else
-// Until we have a solution to query presentable formats without needing a surface,
-// hard code presentable formats that is supported by most drivers.
+    // Until we have a solution to query presentable formats without needing a surface,
+    // hard code presentable formats that is supported by most drivers.
     presentableFormats.emplace(VK_FORMAT_R8G8B8A8_UNORM);
     presentableFormats.emplace(VK_FORMAT_B8G8R8A8_UNORM);
     presentableFormats.emplace(VK_FORMAT_R8G8B8A8_SRGB);
@@ -2165,11 +2178,10 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
     if (bufferFeatures & VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT)
         allowedStates.add(ResourceState::ShaderResource);
     // UnorderedAccess
-    if (imageFeatures &
-        (VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT))
+    if (imageFeatures & (VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT))
         allowedStates.add(ResourceState::UnorderedAccess);
-    if (bufferFeatures & (VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT |
-        VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT))
+    if (bufferFeatures &
+        (VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT | VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT))
         allowedStates.add(ResourceState::UnorderedAccess);
     // RenderTarget
     if (imageFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
@@ -2212,14 +2224,14 @@ Result DeviceImpl::createBufferView(
     IBufferResource* buffer,
     IBufferResource* counterBuffer,
     IResourceView::Desc const& desc,
-    IResourceView** outView)
+    IResourceView** outView
+)
 {
     auto resourceImpl = (BufferResourceImpl*)buffer;
 
     VkDeviceSize offset = (VkDeviceSize)desc.bufferRange.offset;
-    VkDeviceSize size = desc.bufferRange.size == 0
-        ? (buffer ? resourceImpl->getDesc()->sizeInBytes : 0)
-        : (VkDeviceSize)desc.bufferRange.size;
+    VkDeviceSize size = desc.bufferRange.size == 0 ? (buffer ? resourceImpl->getDesc()->sizeInBytes : 0)
+                                                   : (VkDeviceSize)desc.bufferRange.size;
 
     // There are two different cases we need to think about for buffers.
     //
@@ -2269,7 +2281,7 @@ Result DeviceImpl::createBufferView(
         //
         // FALLTHROUGH
         {
-            VkBufferViewCreateInfo info = { VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO };
+            VkBufferViewCreateInfo info = {VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO};
 
             VkBufferView view = VK_NULL_HANDLE;
 
@@ -2334,9 +2346,8 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
         auto& srcStream = srcVertexStreams[i];
         dstStream.stride = (uint32_t)srcStream.stride;
         dstStream.binding = (uint32_t)i;
-        dstStream.inputRate = (srcStream.slotClass == InputSlotClass::PerInstance)
-            ? VK_VERTEX_INPUT_RATE_INSTANCE
-            : VK_VERTEX_INPUT_RATE_VERTEX;
+        dstStream.inputRate = (srcStream.slotClass == InputSlotClass::PerInstance) ? VK_VERTEX_INPUT_RATE_INSTANCE
+                                                                                   : VK_VERTEX_INPUT_RATE_VERTEX;
     }
 
     for (Int i = 0; i < numElements; ++i)
@@ -2363,7 +2374,10 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
 }
 
 Result DeviceImpl::createProgram(
-    const IShaderProgram::Desc& desc, IShaderProgram** outProgram, ISlangBlob** outDiagnosticBlob)
+    const IShaderProgram::Desc& desc,
+    IShaderProgram** outProgram,
+    ISlangBlob** outDiagnosticBlob
+)
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
@@ -2374,7 +2388,8 @@ Result DeviceImpl::createProgram(
         this,
         shaderProgram->linkedProgram,
         shaderProgram->linkedProgram->getLayout(),
-        shaderProgram->m_rootObjectLayout.writeRef());
+        shaderProgram->m_rootObjectLayout.writeRef()
+    );
 
     if (!shaderProgram->isSpecializable())
     {
@@ -2388,11 +2403,11 @@ Result DeviceImpl::createProgram(
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout)
+    ShaderObjectLayoutBase** outLayout
+)
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
+    SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
     returnRefPtrMove(outLayout, layout);
     return SLANG_OK;
 }
@@ -2400,14 +2415,14 @@ Result DeviceImpl::createShaderObjectLayout(
 Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(ShaderObjectImpl::create(
-        this, static_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(
+        ShaderObjectImpl::create(this, static_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
+    );
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(
-    ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
 {
     auto layoutImpl = static_cast<ShaderObjectLayoutImpl*>(layout);
 
@@ -2436,8 +2451,7 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createGraphicsPipelineState(
-    const GraphicsPipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& inDesc, IPipelineState** outState)
 {
     GraphicsPipelineStateDesc desc = inDesc;
     RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
@@ -2449,8 +2463,7 @@ Result DeviceImpl::createGraphicsPipelineState(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipelineState(
-    const ComputePipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& inDesc, IPipelineState** outState)
 {
     ComputePipelineStateDesc desc = inDesc;
     RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
@@ -2461,8 +2474,7 @@ Result DeviceImpl::createComputePipelineState(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRayTracingPipelineState(
-    const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
 {
     RefPtr<RayTracingPipelineStateImpl> pipelineStateImpl = new RayTracingPipelineStateImpl(this);
     pipelineStateImpl->init(desc);
@@ -2489,7 +2501,12 @@ Result DeviceImpl::createFence(const IFence::Desc& desc, IFence** outFence)
 }
 
 Result DeviceImpl::waitForFences(
-    GfxCount fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
+    GfxCount fenceCount,
+    IFence** fences,
+    uint64_t* fenceValues,
+    bool waitForAll,
+    uint64_t timeout
+)
 {
     short_vector<VkSemaphore> semaphores;
     for (Index i = 0; i < fenceCount; ++i)
@@ -2510,5 +2527,4 @@ Result DeviceImpl::waitForFences(
     return result == VK_SUCCESS ? SLANG_OK : SLANG_FAIL;
 }
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

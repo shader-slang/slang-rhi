@@ -1,4 +1,3 @@
-// vk-pipeline-state.h
 #pragma once
 
 #include "vk-base.h"
@@ -6,13 +5,7 @@
 #include <map>
 #include <string>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 class PipelineStateImpl : public PipelineStateBase
 {
@@ -52,8 +45,7 @@ public:
 
     RayTracingPipelineStateImpl(DeviceImpl* device);
 
-    uint32_t findEntryPointIndexByName(
-        const std::map<std::string, Index>& entryPointNameToIndex, const char* name);
+    uint32_t findEntryPointIndexByName(const std::map<std::string, Index>& entryPointNameToIndex, const char* name);
 
     Result createVKRayTracingPipelineState();
 
@@ -62,5 +54,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

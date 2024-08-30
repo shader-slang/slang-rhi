@@ -1,16 +1,9 @@
-// vk-sampler.h
 #pragma once
 
 #include "vk-base.h"
 #include "vk-device.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 class SamplerStateImpl : public SamplerStateBase
 {
@@ -22,5 +15,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk

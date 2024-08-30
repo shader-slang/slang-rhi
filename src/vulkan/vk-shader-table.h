@@ -1,15 +1,8 @@
-// vk-shader-table.h
 #pragma once
 
 #include "vk-base.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace vk
-{
+namespace rhi::vk {
 
 class ShaderTableImpl : public ShaderTableBase
 {
@@ -24,8 +17,8 @@ public:
     virtual RefPtr<BufferResource> createDeviceBuffer(
         PipelineStateBase* pipeline,
         TransientResourceHeapBase* transientHeap,
-        IResourceCommandEncoder* encoder) override;
+        IResourceCommandEncoder* encoder
+    ) override;
 };
 
-} // namespace vk
-} // namespace rhi
+} // namespace rhi::vk
