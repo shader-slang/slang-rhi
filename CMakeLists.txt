@@ -32,7 +32,6 @@ if(MSVC)
 endif()
 
 if(APPLE)
-    enable_language(OBJCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
 
