@@ -1,15 +1,7 @@
-// d3d11-scopeNVAPI.cpp
 #include "d3d11-scopeNVAPI.h"
-
 #include "d3d11-device.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 SlangResult ScopeNVAPI::init(DeviceImpl* device, Index regIndex)
 {
@@ -45,5 +37,4 @@ ScopeNVAPI::~ScopeNVAPI()
     }
 }
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

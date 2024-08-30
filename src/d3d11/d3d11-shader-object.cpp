@@ -1,20 +1,9 @@
-// d3d11-shader-object.cpp
 #include "d3d11-shader-object.h"
-
 #include "d3d11-device.h"
 
-namespace rhi
-{
+namespace rhi::d3d11 {
 
-using namespace Slang;
-
-namespace d3d11
-{
-
-Result ShaderObjectImpl::create(
-    IDevice* device,
-    ShaderObjectLayoutImpl* layout,
-    ShaderObjectImpl** outShaderObject)
+Result ShaderObjectImpl::create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject)
 {
     auto object = RefPtr<ShaderObjectImpl>(new ShaderObjectImpl());
     SLANG_RETURN_ON_FAIL(object->init(device, layout));
@@ -24,7 +13,7 @@ Result ShaderObjectImpl::create(
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-    ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
+ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
 {
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
@@ -53,8 +42,7 @@ SLANG_NO_THROW Result SLANG_MCALL
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* resourceView)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* resourceView)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -141,8 +129,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
         for (Index i = 0; i < bindingRangeInfo.count; ++i)
         {
             RefPtr<ShaderObjectImpl> subObject;
-            SLANG_RETURN_ON_FAIL(
-                ShaderObjectImpl::create(device, subObjectLayout, subObject.writeRef()));
+            SLANG_RETURN_ON_FAIL(ShaderObjectImpl::create(device, subObjectLayout, subObject.writeRef()));
             m_objects[bindingRangeInfo.subObjectIndex + i] = subObject;
         }
     }
@@ -150,10 +137,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::_writeOrdinaryData(
-    void* dest,
-    size_t                  destSize,
-    ShaderObjectLayoutImpl* specializedLayout)
+Result ShaderObjectImpl::_writeOrdinaryData(void* dest, size_t destSize, ShaderObjectLayoutImpl* specializedLayout)
 {
     // We start by simply writing in the ordinary data contained directly in this object.
     //
@@ -247,7 +231,8 @@ Result ShaderObjectImpl::_writeOrdinaryData(
 
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     DeviceImpl* device,
-    ShaderObjectLayoutImpl* specializedLayout)
+    ShaderObjectLayoutImpl* specializedLayout
+)
 {
     auto specializedOrdinaryDataSize = specializedLayout->getTotalOrdinaryDataSize();
     if (specializedOrdinaryDataSize == 0)
@@ -262,11 +247,9 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.sizeInBytes = specializedOrdinaryDataSize;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
-        bufferDesc.allowedStates =
-            ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
+        bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_ON_FAIL(
-            device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
+        SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
         m_ordinaryDataBuffer = static_cast<BufferResourceImpl*>(bufferResourcePtr.get());
     }
 
@@ -291,7 +274,8 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
 Result ShaderObjectImpl::_bindOrdinaryDataBufferIfNeeded(
     BindingContext* context,
     BindingOffset& ioOffset,
-    ShaderObjectLayoutImpl* specializedLayout)
+    ShaderObjectLayoutImpl* specializedLayout
+)
 {
     // We start by ensuring that the buffer is created, if it is needed.
     //
@@ -312,7 +296,8 @@ Result ShaderObjectImpl::_bindOrdinaryDataBufferIfNeeded(
 Result ShaderObjectImpl::bindAsConstantBuffer(
     BindingContext* context,
     BindingOffset const& inOffset,
-    ShaderObjectLayoutImpl* specializedLayout)
+    ShaderObjectLayoutImpl* specializedLayout
+)
 {
     // When binding a `ConstantBuffer<X>` we need to first bind a constant
     // buffer for any "ordinary" data in `X`, and then bind the remaining
@@ -338,7 +323,8 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
 Result ShaderObjectImpl::bindAsValue(
     BindingContext* context,
     BindingOffset const& offset,
-    ShaderObjectLayoutImpl* specializedLayout)
+    ShaderObjectLayoutImpl* specializedLayout
+)
 {
     // We start by iterating over the binding ranges in this type, isolating
     // just those ranges that represent SRVs, UAVs, and samplers.
@@ -494,7 +480,8 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
         m_layout->m_slangSession,
         extendedType.slangType,
         m_layout->getContainerType(),
-        (ShaderObjectLayoutBase**)layout.writeRef()));
+        (ShaderObjectLayoutBase**)layout.writeRef()
+    ));
 
     returnRefPtrMove(outLayout, layout);
     return SLANG_OK;
@@ -503,7 +490,8 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
 Result RootShaderObjectImpl::create(
     IDevice* device,
     RootShaderObjectLayoutImpl* layout,
-    RootShaderObjectImpl** outShaderObject)
+    RootShaderObjectImpl** outShaderObject
+)
 {
     RefPtr<RootShaderObjectImpl> object = new RootShaderObjectImpl();
     SLANG_RETURN_ON_FAIL(object->init(device, layout));
@@ -522,9 +510,7 @@ Result RootShaderObjectImpl::collectSpecializationArgs(ExtendedShaderObjectTypeL
     return SLANG_OK;
 }
 
-Result RootShaderObjectImpl::bindAsRoot(
-    BindingContext* context,
-    RootShaderObjectLayoutImpl* specializedLayout)
+Result RootShaderObjectImpl::bindAsRoot(BindingContext* context, RootShaderObjectLayoutImpl* specializedLayout)
 {
     // When binding an entire root shader object, we need to deal with
     // the way that specialization might have allocated space for "pending"
@@ -552,7 +538,8 @@ Result RootShaderObjectImpl::bindAsRoot(
     // really be querying an appropriate absolute offset from `specializedLayout`.
     //
     BindingOffset ordinaryDataBufferOffset = offset;
-    SLANG_RETURN_ON_FAIL(_bindOrdinaryDataBufferIfNeeded(context, /*inout*/ ordinaryDataBufferOffset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(_bindOrdinaryDataBufferIfNeeded(context, /*inout*/ ordinaryDataBufferOffset, specializedLayout)
+    );
     SLANG_RETURN_ON_FAIL(bindAsValue(context, offset, specializedLayout));
 
     // Once the state stored in the root shader object itself has been bound,
@@ -587,8 +574,7 @@ Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* l
     for (auto entryPointInfo : layout->getEntryPoints())
     {
         RefPtr<ShaderObjectImpl> entryPoint;
-        SLANG_RETURN_ON_FAIL(
-            ShaderObjectImpl::create(device, entryPointInfo.layout, entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(ShaderObjectImpl::create(device, entryPointInfo.layout, entryPoint.writeRef()));
         m_entryPoints.push_back(entryPoint);
     }
 
@@ -643,7 +629,8 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
         specializationArgs.components.data(),
         specializationArgs.getCount(),
         specializedComponentType.writeRef(),
-        diagnosticBlob.writeRef());
+        diagnosticBlob.writeRef()
+    );
 
     // TODO: print diagnostic message via debug output interface.
 
@@ -652,7 +639,12 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
 
     auto slangSpecializedLayout = specializedComponentType->getLayout();
     RefPtr<RootShaderObjectLayoutImpl> specializedLayout;
-    RootShaderObjectLayoutImpl::create(getRenderer(), specializedComponentType, slangSpecializedLayout, specializedLayout.writeRef());
+    RootShaderObjectLayoutImpl::create(
+        getRenderer(),
+        specializedComponentType,
+        slangSpecializedLayout,
+        specializedLayout.writeRef()
+    );
 
     // Note: Computing the layout for the specialized program will have also computed
     // the layouts for the entry points, and we really need to attach that information
@@ -673,5 +665,5 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     returnRefPtrMove(outLayout, specializedLayout);
     return SLANG_OK;
 }
-} // namespace d3d11
-} // namespace rhi
+
+} // namespace rhi::d3d11

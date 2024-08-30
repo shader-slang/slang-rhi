@@ -1,4 +1,3 @@
-// d3d12-command-encoder.h
 #pragma once
 
 #include "d3d12-base.h"
@@ -7,12 +6,7 @@
 #include "d3d12-render-pass.h"
 #include "d3d12-submitter.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 static const Int kMaxRTVCount = 8;
 
@@ -48,9 +42,7 @@ public:
     Result _bindRenderState(Submitter* submitter, RefPtr<PipelineStateBase>& newPipeline);
 };
 
-class ResourceCommandEncoderImpl
-    : public IResourceCommandEncoder
-    , public PipelineCommandEncoder
+class ResourceCommandEncoderImpl : public IResourceCommandEncoder, public PipelineCommandEncoder
 {
 public:
     virtual void* getInterface(SlangUUID const& uuid)
@@ -59,8 +51,7 @@ public:
             return this;
         return nullptr;
     }
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
-        queryInterface(SlangUUID const& uuid, void** outObject) override
+    virtual SLANG_NO_THROW SlangResult SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
     {
         if (auto ptr = getInterface(uuid))
         {
@@ -72,27 +63,16 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
-        IBufferResource* dst,
-        Offset dstOffset,
-        IBufferResource* src,
-        Offset srcOffset,
-        Size size) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-        uploadBufferData(IBufferResource* dst, Offset offset, Size size, void* data) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL textureBarrier(
-        GfxCount count,
-        ITextureResource* const* textures,
-        ResourceState src,
-        ResourceState dst) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL bufferBarrier(
-        GfxCount count,
-        IBufferResource* const* buffers,
-        ResourceState src,
-        ResourceState dst) override;
+    copyBuffer(IBufferResource* dst, Offset dstOffset, IBufferResource* src, Offset srcOffset, Size size) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    uploadBufferData(IBufferResource* dst, Offset offset, Size size, void* data) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    textureBarrier(GfxCount count, ITextureResource* const* textures, ResourceState src, ResourceState dst) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    bufferBarrier(GfxCount count, IBufferResource* const* buffers, ResourceState src, ResourceState dst) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        writeTimestamp(IQueryPool* pool, GfxIndex index) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* pool, GfxIndex index) override;
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
         ITextureResource* dst,
         ResourceState dstState,
@@ -102,7 +82,8 @@ public:
         ResourceState srcState,
         SubresourceRange srcSubresource,
         ITextureResource::Offset3D srcOffset,
-        ITextureResource::Extents extent) override;
+        ITextureResource::Extents extent
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITextureResource* dst,
@@ -110,10 +91,11 @@ public:
         ITextureResource::Offset3D offset,
         ITextureResource::Extents extent,
         ITextureResource::SubresourceData* subResourceData,
-        GfxCount subResourceDataCount) override;
+        GfxCount subResourceDataCount
+    ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL clearResourceView(
-        IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
         ITextureResource* source,
@@ -121,14 +103,12 @@ public:
         SubresourceRange sourceRange,
         ITextureResource* dest,
         ResourceState destState,
-        SubresourceRange destRange) override;
+        SubresourceRange destRange
+    ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL resolveQuery(
-        IQueryPool* queryPool,
-        GfxIndex index,
-        GfxCount count,
-        IBufferResource* buffer,
-        Offset offset) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBufferResource* buffer, Offset offset)
+        override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
         IBufferResource* dst,
@@ -139,49 +119,46 @@ public:
         ResourceState srcState,
         SubresourceRange srcSubresource,
         ITextureResource::Offset3D srcOffset,
-        ITextureResource::Extents extent) override;
+        ITextureResource::Extents extent
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
         ITextureResource* texture,
         SubresourceRange subresourceRange,
         ResourceState src,
-        ResourceState dst) override;
+        ResourceState dst
+    ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        beginDebugEvent(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;
 };
 
-class ComputeCommandEncoderImpl
-    : public IComputeCommandEncoder
-    , public ResourceCommandEncoderImpl
+class ComputeCommandEncoderImpl : public IComputeCommandEncoder, public ResourceCommandEncoderImpl
 {
 public:
     SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IComputeCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+        if (uuid == GfxGUID::IID_IComputeCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder ||
+            uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
     }
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
-    void init(
-        DeviceImpl* renderer,
-        TransientResourceHeapImpl* transientHeap,
-        CommandBufferImpl* cmdBuffer);
+    void init(DeviceImpl* renderer, TransientResourceHeapImpl* transientHeap, CommandBufferImpl* cmdBuffer);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipeline(IPipelineState* state, IShaderObject** outRootObject) override;
+    bindPipeline(IPipelineState* state, IShaderObject** outRootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) override;
+    bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset) override;
+    dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset) override;
 };
 
 struct BoundVertexBuffer
@@ -190,15 +167,14 @@ struct BoundVertexBuffer
     int m_offset;
 };
 
-class RenderCommandEncoderImpl
-    : public IRenderCommandEncoder
-    , public ResourceCommandEncoderImpl
+class RenderCommandEncoderImpl : public IRenderCommandEncoder, public ResourceCommandEncoderImpl
 {
 public:
     SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IRenderCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+        if (uuid == GfxGUID::IID_IRenderCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder ||
+            uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
     }
@@ -225,37 +201,32 @@ public:
         TransientResourceHeapImpl* transientHeap,
         CommandBufferImpl* cmdBuffer,
         RenderPassLayoutImpl* renderPass,
-        FramebufferImpl* framebuffer);
+        FramebufferImpl* framebuffer
+    );
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipeline(IPipelineState* state, IShaderObject** outRootObject) override;
+    bindPipeline(IPipelineState* state, IShaderObject** outRootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) override;
+    bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL setViewports(GfxCount count, const Viewport* viewports) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL setScissorRects(GfxCount count, const ScissorRect* rects) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL setPrimitiveTopology(PrimitiveTopology topology) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-        setViewports(GfxCount count, const Viewport* viewports) override;
+    setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBufferResource* const* buffers, const Offset* offsets)
+        override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-        setScissorRects(GfxCount count, const ScissorRect* rects) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        setPrimitiveTopology(PrimitiveTopology topology) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL setVertexBuffers(
-        GfxIndex startSlot,
-        GfxCount slotCount,
-        IBufferResource* const* buffers,
-        const Offset* offsets) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL
-        setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset = 0) override;
+    setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset = 0) override;
 
     Result prepareDraw();
+    virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex = 0) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        draw(GfxCount vertexCount, GfxIndex startVertex = 0) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) override;
+    drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setStencilReference(uint32_t referenceValue) override;
@@ -265,46 +236,43 @@ public:
         IBufferResource* argBuffer,
         Offset argOffset,
         IBufferResource* countBuffer,
-        Offset countOffset) override;
+        Offset countOffset
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndexedIndirect(
         GfxCount maxDrawCount,
         IBufferResource* argBuffer,
         Offset argOffset,
         IBufferResource* countBuffer,
-        Offset countOffset) override;
+        Offset countOffset
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSamplePositions(
-        GfxCount samplesPerPixel,
-        GfxCount pixelCount,
-        const SamplePosition* samplePositions) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    setSamplePositions(GfxCount samplesPerPixel, GfxCount pixelCount, const SamplePosition* samplePositions) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL drawInstanced(
-        GfxCount vertexCount,
-        GfxCount instanceCount,
-        GfxIndex startVertex,
-        GfxIndex startInstanceLocation) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    drawInstanced(GfxCount vertexCount, GfxCount instanceCount, GfxIndex startVertex, GfxIndex startInstanceLocation)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndexedInstanced(
         GfxCount indexCount,
         GfxCount instanceCount,
         GfxIndex startIndexLocation,
         GfxIndex baseVertexLocation,
-        GfxIndex startInstanceLocation) override;
+        GfxIndex startInstanceLocation
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        drawMeshTasks(int x, int y, int z) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL drawMeshTasks(int x, int y, int z) override;
 };
 
-class RayTracingCommandEncoderImpl
-    : public IRayTracingCommandEncoder
-    , public ResourceCommandEncoderImpl
+class RayTracingCommandEncoderImpl : public IRayTracingCommandEncoder, public ResourceCommandEncoderImpl
 {
 public:
     SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GfxGUID::IID_IRayTracingCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+        if (uuid == GfxGUID::IID_IRayTracingCommandEncoder || uuid == GfxGUID::IID_IResourceCommandEncoder ||
+            uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
     }
@@ -313,35 +281,34 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const IAccelerationStructure::BuildDesc& desc,
         GfxCount propertyQueryCount,
-        AccelerationStructureQueryDesc* queryDescs) override;
+        AccelerationStructureQueryDesc* queryDescs
+    ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
         IAccelerationStructure* dest,
         IAccelerationStructure* src,
-        AccelerationStructureCopyMode mode) override;
+        AccelerationStructureCopyMode mode
+    ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
         GfxCount accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
         GfxCount queryCount,
-        AccelerationStructureQueryDesc* queryDescs) override;
+        AccelerationStructureQueryDesc* queryDescs
+    ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-        serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
-        IAccelerationStructure* dest, DeviceAddress source) override;
+    serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipeline(IPipelineState* state, IShaderObject** outRootObject) override;
+    bindPipeline(IPipelineState* state, IShaderObject** outRootObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) override
+    bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) override
     {
         return bindPipelineWithRootObjectImpl(state, rootObject);
     }
-    virtual SLANG_NO_THROW Result SLANG_MCALL dispatchRays(
-        GfxIndex rayGenShaderIndex,
-        IShaderTable* shaderTable,
-        GfxCount width,
-        GfxCount height,
-        GfxCount depth) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    dispatchRays(GfxIndex rayGenShaderIndex, IShaderTable* shaderTable, GfxCount width, GfxCount height, GfxCount depth)
+        override;
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

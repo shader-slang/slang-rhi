@@ -1,5 +1,3 @@
-// d3d12-base.h
-// Shared header file for D3D12 implementation
 #pragma once
 
 #include "../command-encoder-com-forward.h"
@@ -9,8 +7,10 @@
 #include "../simple-render-pass-layout.h"
 #include "../transient-resource-heap-base.h"
 #include "d3d12-descriptor-heap.h"
-#include "d3d12-resource.h"
 #include "d3d12-posix-synchapi.h"
+#include "d3d12-resource.h"
+
+#include "utils/common.h"
 
 #pragma push_macro("WIN32_LEAN_AND_MEAN")
 #pragma push_macro("NOMINMAX")
@@ -29,52 +29,48 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
-#include "utils/common.h"
-
 #ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
 // If can't find a definition of CommandList1, just use an empty definition
 struct ID3D12GraphicsCommandList1
 {};
 #endif
 
-namespace rhi
-{
-namespace d3d12
-{
-    class DeviceImpl;
-    class BufferResourceImpl;
-    class TextureResourceImpl;
-    class CommandBufferImpl;
-    class PipelineCommandEncoder;
-    class ResourceCommandEncoderImpl;
-    class ComputeCommandEncoderImpl;
-    class RenderCommandEncoderImpl;
-    class CommandQueueImpl;
-    class FenceImpl;
-    class FramebufferLayoutImpl;
-    class FramebufferImpl;
-    class QueryPoolImpl;
-    class PlainBufferProxyQueryPoolImpl;
-    class PipelineStateImpl;
-    class RenderPassLayoutImpl;
-    class ResourceViewInternalImpl;
-    class ResourceViewImpl;
-    class AccelerationStructureImpl;
-    class SamplerStateImpl;
-    class ShaderObjectImpl;
-    class RootShaderObjectImpl;
-    class MutableRootShaderObjectImpl;
-    class ShaderObjectLayoutImpl;
-    class RootShaderObjectLayoutImpl;
-    class ShaderProgramImpl;
-    class ShaderTableImpl;
-    class SwapChainImpl;
-    class TransientResourceHeapImpl;
-    class InputLayoutImpl;
+namespace rhi::d3d12 {
+
+class DeviceImpl;
+class BufferResourceImpl;
+class TextureResourceImpl;
+class CommandBufferImpl;
+class PipelineCommandEncoder;
+class ResourceCommandEncoderImpl;
+class ComputeCommandEncoderImpl;
+class RenderCommandEncoderImpl;
+class CommandQueueImpl;
+class FenceImpl;
+class FramebufferLayoutImpl;
+class FramebufferImpl;
+class QueryPoolImpl;
+class PlainBufferProxyQueryPoolImpl;
+class PipelineStateImpl;
+class RenderPassLayoutImpl;
+class ResourceViewInternalImpl;
+class ResourceViewImpl;
+class AccelerationStructureImpl;
+class SamplerStateImpl;
+class ShaderObjectImpl;
+class RootShaderObjectImpl;
+class MutableRootShaderObjectImpl;
+class ShaderObjectLayoutImpl;
+class RootShaderObjectLayoutImpl;
+class ShaderProgramImpl;
+class ShaderTableImpl;
+class SwapChainImpl;
+class TransientResourceHeapImpl;
+class InputLayoutImpl;
 
 #if SLANG_RHI_DXR
-    class RayTracingCommandEncoderImpl;
-    class RayTracingPipelineStateImpl;
+class RayTracingCommandEncoderImpl;
+class RayTracingPipelineStateImpl;
 #endif
-}
-}
+
+} // namespace rhi::d3d12

@@ -1,18 +1,12 @@
-// d3d12-resource-views.h
 #pragma once
 
-#include "d3d12-base.h"
 #include "../d3d/d3d-util.h"
+#include "d3d12-base.h"
 #include "d3d12-buffer.h"
 
 #include <map>
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class ResourceViewImpl;
 
@@ -34,7 +28,8 @@ public:
         DeviceImpl* device,
         ResourceViewImpl* view,
         uint32_t bufferStride,
-        D3D12Descriptor& outDescriptor);
+        D3D12Descriptor& outDescriptor
+    );
 };
 
 SlangResult createD3D12BufferDescriptor(
@@ -44,11 +39,10 @@ SlangResult createD3D12BufferDescriptor(
     uint32_t bufferStride,
     DeviceImpl* device,
     D3D12GeneralExpandingDescriptorHeap* descriptorHeap,
-    D3D12Descriptor* outDescriptor);
+    D3D12Descriptor* outDescriptor
+);
 
-class ResourceViewImpl
-    : public ResourceViewBase
-    , public ResourceViewInternalImpl
+class ResourceViewImpl : public ResourceViewBase, public ResourceViewInternalImpl
 {
 public:
     RefPtr<Resource> m_resource;
@@ -59,9 +53,7 @@ public:
 
 #if SLANG_RHI_DXR
 
-class AccelerationStructureImpl
-    : public AccelerationStructureBase
-    , public ResourceViewInternalImpl
+class AccelerationStructureImpl : public AccelerationStructureBase, public ResourceViewInternalImpl
 {
 public:
     RefPtr<BufferResourceImpl> m_buffer;
@@ -74,7 +66,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-#endif
+#endif // SLANG_RHI_DXR
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

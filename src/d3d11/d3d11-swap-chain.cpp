@@ -1,16 +1,8 @@
-// d3d11-swap-chain.cpp
 #include "d3d11-swap-chain.h"
-
 #include "d3d11-device.h"
 #include "d3d11-texture.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& swapchainDesc, WindowHandle window)
 {
@@ -36,10 +28,8 @@ void SwapchainImpl::createSwapchainBufferImages()
     imageDesc.size.depth = 1;
     imageDesc.format = m_desc.format;
     imageDesc.defaultState = ResourceState::Present;
-    imageDesc.allowedStates = ResourceStateSet(
-        ResourceState::Present,
-        ResourceState::CopyDestination,
-        ResourceState::RenderTarget);
+    imageDesc.allowedStates =
+        ResourceStateSet(ResourceState::Present, ResourceState::CopyDestination, ResourceState::RenderTarget);
     RefPtr<TextureResourceImpl> image = new TextureResourceImpl(imageDesc);
     image->m_resource = d3dResource;
     for (GfxIndex i = 0; i < m_desc.imageCount; i++)
@@ -65,5 +55,4 @@ SLANG_NO_THROW Result SLANG_MCALL SwapchainImpl::setFullScreenMode(bool mode)
     return SLANG_FAIL;
 }
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

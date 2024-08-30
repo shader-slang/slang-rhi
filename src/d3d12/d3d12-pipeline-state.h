@@ -1,21 +1,13 @@
-// d3d12-ray-tracing.h
 #pragma once
 
 #include "d3d12-base.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class PipelineStateImpl : public PipelineStateBase
 {
 public:
-    PipelineStateImpl(DeviceImpl* device)
-        : m_device(device)
-    {}
+    PipelineStateImpl(DeviceImpl* device) : m_device(device) {}
     DeviceImpl* m_device;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     void init(const GraphicsPipelineStateDesc& inDesc);
@@ -37,5 +29,4 @@ public:
 };
 #endif
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

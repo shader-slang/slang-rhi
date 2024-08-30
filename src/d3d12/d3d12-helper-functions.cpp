@@ -1,38 +1,30 @@
-// d3d12-helper-functions.cpp
 #include "d3d12-helper-functions.h"
+#include "d3d12-buffer.h"
+#include "d3d12-query.h"
+#include "d3d12-transient-heap.h"
 
 #ifdef SLANG_RHI_NVAPI
-#    include "../nvapi/nvapi-include.h"
+#include "../nvapi/nvapi-include.h"
 #endif
 
 #include "../nvapi/nvapi-util.h"
-#include "d3d12-buffer.h"
-#include "d3d12-transient-heap.h"
-#include "d3d12-query.h"
 
 #include "utils/string.h"
 
 #ifdef _DEBUG
-#    define ENABLE_DEBUG_LAYER 1
+#define ENABLE_DEBUG_LAYER 1
 #else
-#    define ENABLE_DEBUG_LAYER 0
+#define ENABLE_DEBUG_LAYER 0
 #endif
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d12
-{
+namespace rhi::d3d12 {
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
 {
 #ifdef SLANG_RHI_NVAPI
     {
         bool isSupported;
-        NvAPI_Status status =
-            NvAPI_D3D12_IsNvShaderExtnOpCodeSupported(dev, NvU32(op), &isSupported);
+        NvAPI_Status status = NvAPI_D3D12_IsNvShaderExtnOpCodeSupported(dev, NvU32(op), &isSupported);
         return status == NVAPI_OK && isSupported;
     }
 #else
@@ -99,8 +91,8 @@ DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format)
         return DXGI_FORMAT_R32_TYPELESS;
     case Format::D32_FLOAT_S8_UINT:
         return DXGI_FORMAT_R32G8X24_TYPELESS;
-    //case Format::D24_UNORM_S8_UINT:
-    //    return DXGI_FORMAT_R24G8_TYPELESS;
+    // case Format::D24_UNORM_S8_UINT:
+    //     return DXGI_FORMAT_R24G8_TYPELESS;
     default:
         return D3DUtil::getMapFormat(format);
     }
@@ -127,8 +119,8 @@ D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
     default:
         return D3D12_FILTER_TYPE(0);
 
-#define CASE(SRC, DST)              \
-    case TextureFilteringMode::SRC: \
+#define CASE(SRC, DST)                                                                                                 \
+    case TextureFilteringMode::SRC:                                                                                    \
         return D3D12_FILTER_TYPE_##DST
 
         CASE(Point, POINT);
@@ -145,8 +137,8 @@ D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op)
     default:
         return D3D12_FILTER_REDUCTION_TYPE(0);
 
-#define CASE(SRC, DST)            \
-    case TextureReductionOp::SRC: \
+#define CASE(SRC, DST)                                                                                                 \
+    case TextureReductionOp::SRC:                                                                                      \
         return D3D12_FILTER_REDUCTION_TYPE_##DST
 
         CASE(Average, STANDARD);
@@ -165,8 +157,8 @@ D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode)
     default:
         return D3D12_TEXTURE_ADDRESS_MODE(0);
 
-#define CASE(SRC, DST)               \
-    case TextureAddressingMode::SRC: \
+#define CASE(SRC, DST)                                                                                                 \
+    case TextureAddressingMode::SRC:                                                                                   \
         return D3D12_TEXTURE_ADDRESS_MODE_##DST
 
         CASE(Wrap, WRAP);
@@ -187,8 +179,8 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
         // TODO: need to report failures
         return D3D12_COMPARISON_FUNC_ALWAYS;
 
-#define CASE(FROM, TO)         \
-    case ComparisonFunc::FROM: \
+#define CASE(FROM, TO)                                                                                                 \
+    case ComparisonFunc::FROM:                                                                                         \
         return D3D12_COMPARISON_FUNC_##TO
 
         CASE(Never, NEVER);
@@ -205,12 +197,13 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
 
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
 {
-    return std::max({
-        desc.srvDescriptorCount,
-        desc.uavDescriptorCount,
-        desc.accelerationStructureDescriptorCount,
-        desc.constantBufferDescriptorCount,
-        GfxCount(2048)});
+    return std::max(
+        {desc.srvDescriptorCount,
+         desc.uavDescriptorCount,
+         desc.accelerationStructureDescriptorCount,
+         desc.constantBufferDescriptorCount,
+         GfxCount(2048)}
+    );
 }
 
 void initSrvDesc(
@@ -219,14 +212,14 @@ void initSrvDesc(
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
-    D3D12_SHADER_RESOURCE_VIEW_DESC& descOut)
+    D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
+)
 {
     // create SRV
     descOut = D3D12_SHADER_RESOURCE_VIEW_DESC();
 
-    descOut.Format = (pixelFormat == DXGI_FORMAT_UNKNOWN)
-        ? D3DUtil::calcFormat(D3DUtil::USAGE_SRV, desc.Format)
-        : pixelFormat;
+    descOut.Format =
+        (pixelFormat == DXGI_FORMAT_UNKNOWN) ? D3DUtil::calcFormat(D3DUtil::USAGE_SRV, desc.Format) : pixelFormat;
     descOut.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     if (desc.DepthOrArraySize == 1)
     {
@@ -235,25 +228,25 @@ void initSrvDesc(
         case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
             descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
             descOut.Texture1D.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels - subresourceRange.mipLevel
-                : subresourceRange.mipLevelCount;
+                                              ? desc.MipLevels - subresourceRange.mipLevel
+                                              : subresourceRange.mipLevelCount;
             descOut.Texture1D.MostDetailedMip = subresourceRange.mipLevel;
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-            descOut.ViewDimension = textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
-            descOut.Texture2D.PlaneSlice =
-                D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
+            descOut.ViewDimension =
+                textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
+            descOut.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
             descOut.Texture2D.ResourceMinLODClamp = 0.0f;
             descOut.Texture2D.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels - subresourceRange.mipLevel
-                : subresourceRange.mipLevelCount;
+                                              ? desc.MipLevels - subresourceRange.mipLevel
+                                              : subresourceRange.mipLevelCount;
             descOut.Texture2D.MostDetailedMip = subresourceRange.mipLevel;
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
             descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
             descOut.Texture3D.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels - subresourceRange.mipLevel
-                : subresourceRange.mipLevelCount;
+                                              ? desc.MipLevels - subresourceRange.mipLevel
+                                              : subresourceRange.mipLevelCount;
             descOut.Texture3D.MostDetailedMip = subresourceRange.mipLevel;
             break;
         default:
@@ -266,13 +259,12 @@ void initSrvDesc(
         {
             descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
 
-            descOut.TextureCubeArray.NumCubes = subresourceRange.layerCount == 0
-                ? textureDesc.arraySize
-                : subresourceRange.layerCount / 6;
+            descOut.TextureCubeArray.NumCubes =
+                subresourceRange.layerCount == 0 ? textureDesc.arraySize : subresourceRange.layerCount / 6;
             descOut.TextureCubeArray.First2DArrayFace = subresourceRange.baseArrayLayer;
             descOut.TextureCubeArray.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels - subresourceRange.mipLevel
-                : subresourceRange.mipLevelCount;
+                                                     ? desc.MipLevels - subresourceRange.mipLevel
+                                                     : subresourceRange.mipLevelCount;
             descOut.TextureCubeArray.MostDetailedMip = subresourceRange.mipLevel;
             descOut.TextureCubeArray.ResourceMinLODClamp = 0;
         }
@@ -281,8 +273,8 @@ void initSrvDesc(
             descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 
             descOut.TextureCube.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels - subresourceRange.mipLevel
-                : subresourceRange.mipLevelCount;
+                                                ? desc.MipLevels - subresourceRange.mipLevel
+                                                : subresourceRange.mipLevelCount;
             descOut.TextureCube.MostDetailedMip = subresourceRange.mipLevel;
             descOut.TextureCube.ResourceMinLODClamp = 0;
         }
@@ -296,51 +288,46 @@ void initSrvDesc(
         case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
             descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
             descOut.Texture1D.MostDetailedMip = subresourceRange.mipLevel;
-            descOut.Texture1D.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels
-                : subresourceRange.mipLevelCount;
-            descOut.Texture1DArray.ArraySize = subresourceRange.layerCount == 0
-                ? desc.DepthOrArraySize
-                : subresourceRange.layerCount;
+            descOut.Texture1D.MipLevels =
+                subresourceRange.mipLevelCount == 0 ? desc.MipLevels : subresourceRange.mipLevelCount;
+            descOut.Texture1DArray.ArraySize =
+                subresourceRange.layerCount == 0 ? desc.DepthOrArraySize : subresourceRange.layerCount;
             descOut.Texture1DArray.FirstArraySlice = subresourceRange.baseArrayLayer;
             descOut.Texture1DArray.ResourceMinLODClamp = 0;
             descOut.Texture1DArray.MostDetailedMip = subresourceRange.mipLevel;
             descOut.Texture1DArray.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels - subresourceRange.mipLevel
-                : subresourceRange.mipLevelCount;
+                                                   ? desc.MipLevels - subresourceRange.mipLevel
+                                                   : subresourceRange.mipLevelCount;
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-            descOut.ViewDimension = textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-            if(descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DARRAY)
+            descOut.ViewDimension = textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY
+                                                                          : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            if (descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DARRAY)
             {
-                descOut.Texture2DArray.ArraySize = subresourceRange.layerCount == 0
-                    ? desc.DepthOrArraySize
-                    : subresourceRange.layerCount;
+                descOut.Texture2DArray.ArraySize =
+                    subresourceRange.layerCount == 0 ? desc.DepthOrArraySize : subresourceRange.layerCount;
                 descOut.Texture2DArray.FirstArraySlice = subresourceRange.baseArrayLayer;
-                descOut.Texture2DArray.PlaneSlice =
-                    D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
+                descOut.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
                 descOut.Texture2DArray.ResourceMinLODClamp = 0;
                 descOut.Texture2DArray.MostDetailedMip = subresourceRange.mipLevel;
                 descOut.Texture2DArray.MipLevels = subresourceRange.mipLevelCount == 0
-                    ? desc.MipLevels - subresourceRange.mipLevel
-                    : subresourceRange.mipLevelCount;
+                                                       ? desc.MipLevels - subresourceRange.mipLevel
+                                                       : subresourceRange.mipLevelCount;
             }
             else
             {
                 assert(descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY);
                 descOut.Texture2DMSArray.FirstArraySlice = subresourceRange.baseArrayLayer;
-                descOut.Texture2DMSArray.ArraySize = subresourceRange.layerCount == 0
-                    ? desc.DepthOrArraySize
-                    : subresourceRange.layerCount;
+                descOut.Texture2DMSArray.ArraySize =
+                    subresourceRange.layerCount == 0 ? desc.DepthOrArraySize : subresourceRange.layerCount;
             }
 
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
             descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
             descOut.Texture3D.MostDetailedMip = subresourceRange.mipLevel;
-            descOut.Texture3D.MipLevels = subresourceRange.mipLevelCount == 0
-                ? desc.MipLevels
-                : subresourceRange.mipLevelCount;
+            descOut.Texture3D.MipLevels =
+                subresourceRange.mipLevelCount == 0 ? desc.MipLevels : subresourceRange.mipLevelCount;
             break;
 
         default:
@@ -349,8 +336,7 @@ void initSrvDesc(
     }
 }
 
-Result initTextureResourceDesc(
-    D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc)
+Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc)
 {
     const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
@@ -384,9 +370,8 @@ Result initTextureResourceDesc(
 
     resourceDesc.Alignment = 0;
 
-    if (isDepthFormat(srcDesc.format) &&
-        (srcDesc.allowedStates.contains(ResourceState::ShaderResource) ||
-            srcDesc.allowedStates.contains(ResourceState::UnorderedAccess)))
+    if (isDepthFormat(srcDesc.format) && (srcDesc.allowedStates.contains(ResourceState::ShaderResource) ||
+                                          srcDesc.allowedStates.contains(ResourceState::UnorderedAccess)))
     {
         resourceDesc.Format = getTypelessFormatFromDepthFormat(srcDesc.format);
     }
@@ -418,30 +403,30 @@ Result uploadBufferDataImpl(
     BufferResourceImpl* buffer,
     Offset offset,
     Size size,
-    void* data)
+    void* data
+)
 {
     IBufferResource* uploadResource;
     Offset uploadResourceOffset = 0;
     if (buffer->getDesc()->memoryType != MemoryType::Upload)
     {
-        SLANG_RETURN_ON_FAIL(transientHeap->allocateStagingBuffer(
-            size, uploadResource, uploadResourceOffset, MemoryType::Upload));
+        SLANG_RETURN_ON_FAIL(
+            transientHeap->allocateStagingBuffer(size, uploadResource, uploadResourceOffset, MemoryType::Upload)
+        );
     }
     else
     {
         uploadResourceOffset = offset;
     }
-    D3D12Resource& uploadResourceRef =
-        (buffer->getDesc()->memoryType == MemoryType::Upload)
-        ? buffer->m_resource
-        : static_cast<BufferResourceImpl*>(uploadResource)->m_resource;
+    D3D12Resource& uploadResourceRef = (buffer->getDesc()->memoryType == MemoryType::Upload)
+                                           ? buffer->m_resource
+                                           : static_cast<BufferResourceImpl*>(uploadResource)->m_resource;
 
     D3D12_RANGE readRange = {};
     readRange.Begin = 0;
     readRange.End = 0;
     void* uploadData;
-    SLANG_RETURN_ON_FAIL(
-        uploadResourceRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&uploadData)));
+    SLANG_RETURN_ON_FAIL(uploadResourceRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&uploadData)));
     memcpy((uint8_t*)uploadData + uploadResourceOffset, data, size);
     D3D12_RANGE writtenRange = {};
     writtenRange.Begin = uploadResourceOffset;
@@ -455,7 +440,8 @@ Result uploadBufferDataImpl(
             offset,
             uploadResourceRef.getResource(),
             uploadResourceOffset,
-            size);
+            size
+        );
     }
 
     return SLANG_OK;
@@ -464,7 +450,8 @@ Result uploadBufferDataImpl(
 Result createNullDescriptor(
     ID3D12Device* d3dDevice,
     D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor,
-    const ShaderObjectLayoutImpl::BindingRangeInfo& bindingRange)
+    const ShaderObjectLayoutImpl::BindingRangeInfo& bindingRange
+)
 {
     switch (bindingRange.bindingType)
     {
@@ -592,7 +579,8 @@ Result createNullDescriptor(
 void translatePostBuildInfoDescs(
     int propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs,
-    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs)
+    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs
+)
 {
     postBuildInfoDescs.resize(propertyQueryCount);
     for (int i = 0; i < propertyQueryCount; i++)
@@ -600,37 +588,36 @@ void translatePostBuildInfoDescs(
         switch (queryDescs[i].queryType)
         {
         case QueryType::AccelerationStructureCompactedSize:
-            postBuildInfoDescs[i].InfoType =
-                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE;
+            postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE;
             postBuildInfoDescs[i].DestBuffer =
                 static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                ->m_bufferResource->getDeviceAddress() +
+                    ->m_bufferResource->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
-                queryDescs[i].firstQueryIndex;
+                    queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureCurrentSize:
-            postBuildInfoDescs[i].InfoType =
-                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE;
+            postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE;
             postBuildInfoDescs[i].DestBuffer =
                 static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                ->m_bufferResource->getDeviceAddress() +
+                    ->m_bufferResource->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
-                queryDescs[i].firstQueryIndex;
+                    queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureSerializedSize:
-            postBuildInfoDescs[i].InfoType =
-                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION;
+            postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION;
             postBuildInfoDescs[i].DestBuffer =
                 static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                ->m_bufferResource->getDeviceAddress() +
+                    ->m_bufferResource->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC) *
-                queryDescs[i].firstQueryIndex;
+                    queryDescs[i].firstQueryIndex;
             break;
         }
     }
 }
 
-} // namespace d3d12
+} // namespace rhi::d3d12
+
+namespace rhi {
 
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
 {

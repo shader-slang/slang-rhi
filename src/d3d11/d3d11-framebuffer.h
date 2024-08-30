@@ -1,17 +1,10 @@
-// d3d11-framebuffer.h
 #pragma once
 
 #include "d3d11-base.h"
 
 #include "utils/short_vector.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 enum
 {
@@ -36,5 +29,4 @@ public:
     ID3D11DepthStencilView* d3dDepthStencilView;
 };
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

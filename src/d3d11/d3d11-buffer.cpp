@@ -1,21 +1,13 @@
-// d3d11-buffer.cpp
 #include "d3d11-buffer.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 SLANG_NO_THROW DeviceAddress SLANG_MCALL BufferResourceImpl::getDeviceAddress()
 {
     return 0;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-    BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     SLANG_UNUSED(outPointer);
@@ -28,5 +20,4 @@ SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::unmap(MemoryRange* written
     return SLANG_FAIL;
 }
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

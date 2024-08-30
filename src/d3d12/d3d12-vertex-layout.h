@@ -1,14 +1,8 @@
-// d3d12-vertex-layout.h
 #pragma once
 
 #include "d3d12-base.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class InputLayoutImpl : public InputLayoutBase
 {
@@ -18,5 +12,4 @@ public:
     std::vector<char> m_text; ///< Holds all strings to keep in scope
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

@@ -1,18 +1,11 @@
-// d3d12-command-queue.cpp
 #include "d3d12-command-queue.h"
-
 #include "d3d12-command-buffer.h"
 #include "d3d12-device.h"
 #include "d3d12-fence.h"
 
 #include "utils/short_vector.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 Result CommandQueueImpl::init(DeviceImpl* device, uint32_t queueIndex)
 {
@@ -21,12 +14,10 @@ Result CommandQueueImpl::init(DeviceImpl* device, uint32_t queueIndex)
     m_device = device->m_device;
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    SLANG_RETURN_ON_FAIL(
-        m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
-    SLANG_RETURN_ON_FAIL(
-        m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
-    globalWaitHandle = CreateEventEx(
-        nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
+    SLANG_RETURN_ON_FAIL(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
+    SLANG_RETURN_ON_FAIL(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
+    globalWaitHandle =
+        CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
     return SLANG_OK;
 }
 
@@ -38,7 +29,11 @@ CommandQueueImpl::~CommandQueueImpl()
 }
 
 void CommandQueueImpl::executeCommandBuffers(
-    GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
+    GfxCount count,
+    ICommandBuffer* const* commandBuffers,
+    IFence* fence,
+    uint64_t valueToSignal
+)
 {
     short_vector<ID3D12CommandList*> commandLists;
     for (GfxCount i = 0; i < count; i++)
@@ -81,8 +76,7 @@ void CommandQueueImpl::waitOnHost()
     WaitForSingleObject(globalWaitHandle, INFINITE);
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(
-    GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {
     for (GfxCount i = 0; i < fenceCount; ++i)
     {
@@ -92,7 +86,10 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(
     return SLANG_OK;
 }
 
-const CommandQueueImpl::Desc& CommandQueueImpl::getDesc() { return m_desc; }
+const CommandQueueImpl::Desc& CommandQueueImpl::getDesc()
+{
+    return m_desc;
+}
 
 ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
 {
@@ -108,5 +105,4 @@ Result CommandQueueImpl::getNativeHandle(InteropHandle* handle)
     return SLANG_OK;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

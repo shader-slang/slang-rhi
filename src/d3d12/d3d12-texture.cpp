@@ -1,17 +1,11 @@
-// d3d12-texture.cpp
 #include "d3d12-texture.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 TextureResourceImpl::TextureResourceImpl(const Desc& desc)
-    : Parent(desc)
-    , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
-{}
+    : Parent(desc), m_defaultState(D3DUtil::getResourceState(desc.defaultState))
+{
+}
 
 TextureResourceImpl::~TextureResourceImpl()
 {
@@ -44,8 +38,9 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
     ComPtr<ID3D12Device> pDevice;
     auto pResource = m_resource.getResource();
     pResource->GetDevice(IID_PPV_ARGS(pDevice.writeRef()));
-    SLANG_RETURN_ON_FAIL(pDevice->CreateSharedHandle(
-        pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue));
+    SLANG_RETURN_ON_FAIL(
+        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue)
+    );
     outHandle->api = InteropHandleAPI::D3D12;
     return SLANG_OK;
 #endif
@@ -58,5 +53,4 @@ Result TextureResourceImpl::setDebugName(const char* name)
     return SLANG_OK;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

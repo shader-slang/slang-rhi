@@ -1,13 +1,13 @@
-// d3d12-helper-functions.h
 #pragma once
 
-#include "slang-rhi.h"
 #include "d3d12-base.h"
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-submitter.h"
 
 #include "utils/common.h"
 #include "utils/short_vector.h"
+
+#include "slang-rhi.h"
 
 #include <vector>
 
@@ -17,13 +17,7 @@ struct ID3D12GraphicsCommandList1
 {};
 #endif
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d12
-{
+namespace rhi::d3d12 {
 struct PendingDescriptorTableBinding
 {
     uint32_t rootIndex;
@@ -38,7 +32,7 @@ struct BindingContext
     TransientResourceHeapImpl* transientHeap;
     DeviceImpl* device;
     D3D12_DESCRIPTOR_HEAP_TYPE
-        outOfMemoryHeap; // The type of descriptor heap that is OOM during binding.
+    outOfMemoryHeap; // The type of descriptor heap that is OOM during binding.
     short_vector<PendingDescriptorTableBinding>* pendingTableBindings;
 };
 
@@ -63,9 +57,9 @@ void initSrvDesc(
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
-    D3D12_SHADER_RESOURCE_VIEW_DESC& descOut);
-Result initTextureResourceDesc(
-    D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc);
+    D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
+);
+Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc);
 void initBufferResourceDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 Result uploadBufferDataImpl(
     ID3D12Device* device,
@@ -74,19 +68,24 @@ Result uploadBufferDataImpl(
     BufferResourceImpl* buffer,
     Offset offset,
     Size size,
-    void* data);
+    void* data
+);
 
 Result createNullDescriptor(
     ID3D12Device* d3dDevice,
     D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor,
-    const ShaderObjectLayoutImpl::BindingRangeInfo& bindingRange);
+    const ShaderObjectLayoutImpl::BindingRangeInfo& bindingRange
+);
 
 void translatePostBuildInfoDescs(
     int propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs,
-    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs);
+    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs
+);
 
-} // namespace d3d12
+} // namespace rhi::d3d12
+
+namespace rhi {
 
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
 

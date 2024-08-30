@@ -1,13 +1,7 @@
-// d3d12-resource-views.cpp
 #include "d3d12-resource-views.h"
 #include "d3d12-device.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 ResourceViewInternalImpl::~ResourceViewInternalImpl()
 {
@@ -26,7 +20,8 @@ SlangResult createD3D12BufferDescriptor(
     uint32_t bufferStride,
     DeviceImpl* device,
     D3D12GeneralExpandingDescriptorHeap* descriptorHeap,
-    D3D12Descriptor* outDescriptor)
+    D3D12Descriptor* outDescriptor
+)
 {
 
     auto resourceImpl = (BufferResourceImpl*)buffer;
@@ -83,7 +78,8 @@ SlangResult createD3D12BufferDescriptor(
                 resourceImpl->m_resource,
                 counterResourceImpl ? counterResourceImpl->m_resource.getResource() : nullptr,
                 &uavDesc,
-                outDescriptor->cpuHandle);
+                outDescriptor->cpuHandle
+            );
         }
     }
     break;
@@ -127,8 +123,7 @@ SlangResult createD3D12BufferDescriptor(
         else
         {
             SLANG_RETURN_ON_FAIL(descriptorHeap->allocate(outDescriptor));
-            device->m_device->CreateShaderResourceView(
-                resourceImpl->m_resource, &srvDesc, outDescriptor->cpuHandle);
+            device->m_device->CreateShaderResourceView(resourceImpl->m_resource, &srvDesc, outDescriptor->cpuHandle);
         }
     }
     break;
@@ -140,7 +135,8 @@ SlangResult ResourceViewInternalImpl::getBufferDescriptorForBinding(
     DeviceImpl* device,
     ResourceViewImpl* view,
     uint32_t bufferStride,
-    D3D12Descriptor& outDescriptor)
+    D3D12Descriptor& outDescriptor
+)
 {
     // Look for an existing descriptor from the cache if it exists.
     auto it = m_mapBufferStrideToDescriptor.find(bufferStride);
@@ -161,7 +157,8 @@ SlangResult ResourceViewInternalImpl::getBufferDescriptorForBinding(
         bufferStride,
         device,
         m_allocator,
-        &outDescriptor));
+        &outDescriptor
+    ));
     m_mapBufferStrideToDescriptor[bufferStride] = outDescriptor;
 
     return SLANG_OK;
@@ -190,5 +187,4 @@ Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
 
 #endif // SLANG_RHI_DXR
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

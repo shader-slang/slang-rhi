@@ -1,17 +1,11 @@
-// d3d12-buffer.cpp
 #include "d3d12-buffer.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 BufferResourceImpl::BufferResourceImpl(const Desc& desc)
-    : Parent(desc)
-    , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
-{}
+    : Parent(desc), m_defaultState(D3DUtil::getResourceState(desc.defaultState))
+{
+}
 
 BufferResourceImpl::~BufferResourceImpl()
 {
@@ -49,8 +43,9 @@ Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
     ComPtr<ID3D12Device> pDevice;
     auto pResource = m_resource.getResource();
     pResource->GetDevice(IID_PPV_ARGS(pDevice.writeRef()));
-    SLANG_RETURN_ON_FAIL(pDevice->CreateSharedHandle(
-        pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue));
+    SLANG_RETURN_ON_FAIL(
+        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue)
+    );
     outHandle->api = InteropHandleAPI::D3D12;
     sharedHandle = *outHandle;
     return SLANG_OK;
@@ -65,8 +60,7 @@ Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
         range.Begin = (SIZE_T)rangeToRead->offset;
         range.End = (SIZE_T)(rangeToRead->offset + rangeToRead->size);
     }
-    SLANG_RETURN_ON_FAIL(
-        m_resource.getResource()->Map(0, rangeToRead ? &range : nullptr, outPointer));
+    SLANG_RETURN_ON_FAIL(m_resource.getResource()->Map(0, rangeToRead ? &range : nullptr, outPointer));
     return SLANG_OK;
 }
 
@@ -89,5 +83,4 @@ Result BufferResourceImpl::setDebugName(const char* name)
     return SLANG_OK;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

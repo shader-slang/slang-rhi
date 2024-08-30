@@ -1,21 +1,13 @@
-// d3d12-transient-heap.cpp
 #include "d3d12-transient-heap.h"
-
-#include "d3d12-device.h"
 #include "d3d12-buffer.h"
 #include "d3d12-command-buffer.h"
+#include "d3d12-device.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 Result TransientResourceHeapImpl::synchronize()
 {
-    WaitForMultipleObjects(
-        (DWORD)m_waitHandles.size(), m_waitHandles.data(), TRUE, INFINITE);
+    WaitForMultipleObjects((DWORD)m_waitHandles.size(), m_waitHandles.data(), TRUE, INFINITE);
     m_waitHandles.clear();
     return SLANG_OK;
 }
@@ -52,8 +44,7 @@ Result TransientResourceHeapImpl::finish()
     return SLANG_OK;
 }
 
-TransientResourceHeapImpl::QueueWaitInfo& TransientResourceHeapImpl::getQueueWaitInfo(
-    uint32_t queueIndex)
+TransientResourceHeapImpl::QueueWaitInfo& TransientResourceHeapImpl::getQueueWaitInfo(uint32_t queueIndex)
 {
     if (queueIndex < (uint32_t)m_waitInfos.size())
     {
@@ -94,10 +85,10 @@ Result TransientResourceHeapImpl::allocateTransientDescriptorTable(
     DescriptorType type,
     GfxCount count,
     Offset& outDescriptorOffset,
-    void** outD3DDescriptorHeapHandle)
+    void** outD3DDescriptorHeapHandle
+)
 {
-    auto& heap =
-        (type == DescriptorType::ResourceView) ? getCurrentViewHeap() : getCurrentSamplerHeap();
+    auto& heap = (type == DescriptorType::ResourceView) ? getCurrentViewHeap() : getCurrentSamplerHeap();
     int allocResult = heap.allocate((int)count);
     if (allocResult == -1)
     {
@@ -119,27 +110,23 @@ Result TransientResourceHeapImpl::init(
     const ITransientResourceHeap::Desc& desc,
     DeviceImpl* device,
     uint32_t viewHeapSize,
-    uint32_t samplerHeapSize)
+    uint32_t samplerHeapSize
+)
 {
     Super::init(desc, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, device);
     m_canResize = (desc.flags & ITransientResourceHeap::Flags::AllowResizing) != 0;
     m_viewHeapSize = viewHeapSize;
     m_samplerHeapSize = samplerHeapSize;
 
-    m_stagingCpuViewHeap.init(
-        device->m_device,
-        1000000,
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    m_stagingCpuSamplerHeap.init(
-        device->m_device,
-        1000000,
-        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-        D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    m_stagingCpuViewHeap
+        .init(device->m_device, 1000000, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    m_stagingCpuSamplerHeap
+        .init(device->m_device, 1000000, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
     auto d3dDevice = device->m_device;
-    SLANG_RETURN_ON_FAIL(d3dDevice->CreateCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_commandAllocator.writeRef())));
+    SLANG_RETURN_ON_FAIL(
+        d3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_commandAllocator.writeRef()))
+    );
 
     allocateNewViewDescriptorHeap(device);
     allocateNewSamplerDescriptorHeap(device);
@@ -162,7 +149,8 @@ Result TransientResourceHeapImpl::allocateNewViewDescriptorHeap(DeviceImpl* devi
         d3dDevice,
         m_viewHeapSize,
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
+        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+    ));
     m_currentViewHeapIndex = (int32_t)m_viewHeaps.size();
     m_viewHeaps.push_back(_Move(viewHeap));
     return SLANG_OK;
@@ -183,7 +171,8 @@ Result TransientResourceHeapImpl::allocateNewSamplerDescriptorHeap(DeviceImpl* d
         d3dDevice,
         m_samplerHeapSize,
         D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
+        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+    ));
     m_currentSamplerHeapIndex = (int32_t)m_samplerHeaps.size();
     m_samplerHeaps.push_back(_Move(samplerHeap));
     return SLANG_OK;
@@ -193,8 +182,7 @@ Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuf
 {
     if ((Index)m_commandListAllocId < m_commandBufferPool.size())
     {
-        auto result =
-            static_cast<CommandBufferImpl*>(m_commandBufferPool[m_commandListAllocId].Ptr());
+        auto result = static_cast<CommandBufferImpl*>(m_commandBufferPool[m_commandListAllocId].Ptr());
         m_d3dCommandListPool[m_commandListAllocId]->Reset(m_commandAllocator, nullptr);
         result->reinit();
         ++m_commandListAllocId;
@@ -207,7 +195,8 @@ Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuf
         D3D12_COMMAND_LIST_TYPE_DIRECT,
         m_commandAllocator,
         nullptr,
-        IID_PPV_ARGS(cmdList.writeRef())));
+        IID_PPV_ARGS(cmdList.writeRef())
+    ));
 
     m_d3dCommandListPool.push_back(cmdList);
     RefPtr<CommandBufferImpl> cmdBuffer = new CommandBufferImpl();
@@ -218,5 +207,4 @@ Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuf
     return SLANG_OK;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

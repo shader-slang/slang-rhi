@@ -1,13 +1,6 @@
-// d3d11-pipeline-state.cpp
 #include "d3d11-pipeline-state.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 void GraphicsPipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
 {
@@ -25,5 +18,4 @@ void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

@@ -1,15 +1,8 @@
-// d3d11-query.cpp
 #include "d3d11-query.h"
 
 #include <thread>
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
 {
@@ -34,12 +27,12 @@ ID3D11Query* QueryPoolImpl::getQuery(SlangInt index)
     return m_queries[index].get();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
-    GfxIndex queryIndex, GfxCount count, uint64_t* data)
+SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
 {
     D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
-    while (S_OK != m_device->m_immediateContext->GetData(
-        m_device->m_disjointQuery, &disjointData, sizeof(D3D11_QUERY_DATA_TIMESTAMP_DISJOINT), 0))
+    while (S_OK !=
+           m_device->m_immediateContext
+               ->GetData(m_device->m_disjointQuery, &disjointData, sizeof(D3D11_QUERY_DATA_TIMESTAMP_DISJOINT), 0))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -47,11 +40,11 @@ SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
 
     for (SlangInt i = 0; i < count; i++)
     {
-        SLANG_RETURN_ON_FAIL(m_device->m_immediateContext->GetData(
-            m_queries[queryIndex + i], data + i, sizeof(uint64_t), 0));
+        SLANG_RETURN_ON_FAIL(
+            m_device->m_immediateContext->GetData(m_queries[queryIndex + i], data + i, sizeof(uint64_t), 0)
+        );
     }
     return SLANG_OK;
 }
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

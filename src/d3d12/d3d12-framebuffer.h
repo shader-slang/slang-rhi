@@ -1,4 +1,3 @@
-// d3d12-framebuffer.h
 #pragma once
 
 #include "d3d12-base.h"
@@ -6,12 +5,7 @@
 
 #include "utils/short_vector.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
@@ -36,5 +30,4 @@ public:
     DepthStencilClearValue depthStencilClearValue;
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

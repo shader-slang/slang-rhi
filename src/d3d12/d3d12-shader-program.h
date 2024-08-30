@@ -1,18 +1,12 @@
-// d3d12-shader-program.h
 #pragma once
 
 #include "d3d12-base.h"
 #include "d3d12-shader-object-layout.h"
 
-#include <vector>
 #include <string>
+#include <vector>
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 struct ShaderBinary
 {
@@ -28,9 +22,8 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<ShaderBinary> m_shaders;
 
-    virtual Result createShaderModule(
-        slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode) override;
+    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+        override;
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

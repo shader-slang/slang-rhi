@@ -1,14 +1,7 @@
-// d3d12-command-buffer.cpp
 #include "d3d12-command-buffer.h"
-
 #include "d3d12-transient-heap.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 // There are a pair of cyclic references between a `TransientResourceHeap` and
 // a `CommandBuffer` created from the heap. We need to break the cycle upon
@@ -51,7 +44,8 @@ void CommandBufferImpl::reinit()
 void CommandBufferImpl::init(
     DeviceImpl* renderer,
     ID3D12GraphicsCommandList* d3dCommandList,
-    TransientResourceHeapImpl* transientHeap)
+    TransientResourceHeapImpl* transientHeap
+)
 {
     m_transientHeap = transientHeap;
     m_renderer = renderer;
@@ -84,14 +78,18 @@ void CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEnco
 }
 
 void CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass, IFramebuffer* framebuffer, IRenderCommandEncoder** outEncoder)
+    IRenderPassLayout* renderPass,
+    IFramebuffer* framebuffer,
+    IRenderCommandEncoder** outEncoder
+)
 {
     m_renderCommandEncoder.init(
         m_renderer,
         m_transientHeap,
         this,
         static_cast<RenderPassLayoutImpl*>(renderPass),
-        static_cast<FramebufferImpl*>(framebuffer));
+        static_cast<FramebufferImpl*>(framebuffer)
+    );
     *outEncoder = &m_renderCommandEncoder;
 }
 
@@ -107,11 +105,13 @@ void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** out
     m_rayTracingCommandEncoder.init(this);
     *outEncoder = &m_rayTracingCommandEncoder;
 #else
-    * outEncoder = nullptr;
+    *outEncoder = nullptr;
 #endif
 }
 
-void CommandBufferImpl::close() { m_cmdList->Close(); }
+void CommandBufferImpl::close()
+{
+    m_cmdList->Close();
+}
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

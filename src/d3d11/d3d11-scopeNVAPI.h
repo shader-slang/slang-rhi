@@ -1,15 +1,8 @@
-// d3d11-scopeNVAPI.h
 #pragma once
 
 #include "d3d11-base.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 class ScopeNVAPI
 {
@@ -22,5 +15,4 @@ protected:
     DeviceImpl* m_renderer;
 };
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

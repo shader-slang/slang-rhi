@@ -1,14 +1,8 @@
-// d3d12-shader-table.h
 #pragma once
 
 #include "d3d12-base.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class ShaderTableImpl : public ShaderTableBase
 {
@@ -23,8 +17,8 @@ public:
     virtual RefPtr<BufferResource> createDeviceBuffer(
         PipelineStateBase* pipeline,
         TransientResourceHeapBase* transientHeap,
-        IResourceCommandEncoder* encoder) override;
+        IResourceCommandEncoder* encoder
+    ) override;
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

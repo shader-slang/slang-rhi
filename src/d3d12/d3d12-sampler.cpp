@@ -1,14 +1,11 @@
-// d3d12-sampler.cpp
 #include "d3d12-sampler.h"
 
-namespace rhi
-{
-namespace d3d12
-{
+namespace rhi::d3d12 {
 
-using namespace Slang;
-
-SamplerStateImpl::~SamplerStateImpl() { m_allocator->free(m_descriptor); }
+SamplerStateImpl::~SamplerStateImpl()
+{
+    m_allocator->free(m_descriptor);
+}
 
 Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
 {
@@ -17,5 +14,4 @@ Result SamplerStateImpl::getNativeHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

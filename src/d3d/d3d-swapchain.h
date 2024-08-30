@@ -1,18 +1,17 @@
 #pragma once
 
-#include "slang-rhi.h"
-#include <dxgi1_4.h>
 #include "../renderer-shared.h"
 #include "d3d-util.h"
-
 #include "utils/common.h"
 #include "utils/short_vector.h"
 
-namespace rhi
-{
-class D3DSwapchainBase
-    : public ISwapchain
-    , public ComObject
+#include "slang-rhi.h"
+
+#include <dxgi1_4.h>
+
+namespace rhi {
+
+class D3DSwapchainBase : public ISwapchain, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -61,10 +60,12 @@ public:
         if (!dxgiFactory2)
         {
             ComPtr<IDXGISwapChain> swapChain;
-            SLANG_RETURN_ON_FAIL(getDXGIFactory()->CreateSwapChain(
-                getOwningDevice(), &swapChainDesc, swapChain.writeRef()));
-            SLANG_RETURN_ON_FAIL(getDXGIFactory()->MakeWindowAssociation(
-                (HWND)window.handleValues[0], DXGI_MWA_NO_ALT_ENTER));
+            SLANG_RETURN_ON_FAIL(
+                getDXGIFactory()->CreateSwapChain(getOwningDevice(), &swapChainDesc, swapChain.writeRef())
+            );
+            SLANG_RETURN_ON_FAIL(
+                getDXGIFactory()->MakeWindowAssociation((HWND)window.handleValues[0], DXGI_MWA_NO_ALT_ENTER)
+            );
             SLANG_RETURN_ON_FAIL(swapChain->QueryInterface(m_swapChain.writeRef()));
         }
         else
@@ -85,7 +86,8 @@ public:
                 &desc1,
                 nullptr,
                 nullptr,
-                swapChain1.writeRef()));
+                swapChain1.writeRef()
+            ));
             SLANG_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
         }
 
@@ -93,8 +95,7 @@ public:
         return SLANG_OK;
     }
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getImage(GfxIndex index, ITextureResource** outResource) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITextureResource** outResource) override
     {
         returnComPtr(outResource, m_images[index]);
         return SLANG_OK;
@@ -123,23 +124,23 @@ public:
         return (int)(count % m_desc.imageCount);
     }
 
-
     virtual SLANG_NO_THROW Result SLANG_MCALL resize(GfxCount width, GfxCount height) override
     {
         if (width == m_desc.width && height == m_desc.height)
             return SLANG_OK;
-        
+
         m_desc.width = width;
         m_desc.height = height;
         for (auto& image : m_images)
             image = nullptr;
         m_images.clear();
         auto result = m_swapChain->ResizeBuffers(
-                m_desc.imageCount,
-                width,
-                height,
-                D3DUtil::getMapFormat(m_desc.format),
-            m_desc.enableVSync ? 0 : DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+            m_desc.imageCount,
+            width,
+            height,
+            D3DUtil::getMapFormat(m_desc.format),
+            m_desc.enableVSync ? 0 : DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+        );
         if (result != 0)
             return SLANG_FAIL;
         createSwapchainBufferImages();
@@ -155,4 +156,4 @@ public:
     short_vector<RefPtr<TextureResource>> m_images;
 };
 
-}
+} // namespace rhi

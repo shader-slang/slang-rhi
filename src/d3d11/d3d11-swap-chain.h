@@ -1,15 +1,8 @@
-// d3d11-swap-chain.h
 #pragma once
 
 #include "d3d11-base.h"
 
-namespace rhi
-{
-
-using namespace Slang;
-
-namespace d3d11
-{
+namespace rhi::d3d11 {
 
 class SwapchainImpl : public D3DSwapchainBase
 {
@@ -27,5 +20,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) override;
 };
 
-} // namespace d3d11
-} // namespace rhi
+} // namespace rhi::d3d11

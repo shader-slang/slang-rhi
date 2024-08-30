@@ -1,15 +1,9 @@
-// d3d12-render-pass.h
 #pragma once
 
 #include "d3d12-base.h"
 #include "d3d12-framebuffer.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class RenderPassLayoutImpl : public SimpleRenderPassLayout
 {
@@ -18,5 +12,4 @@ public:
     void init(const IRenderPassLayout::Desc& desc);
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

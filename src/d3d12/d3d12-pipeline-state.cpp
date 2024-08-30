@@ -1,30 +1,24 @@
-// d3d12-ray-tracing.cpp
 #include "d3d12-pipeline-state.h"
+#include "d3d12-device.h"
+#include "d3d12-framebuffer.h"
+#include "d3d12-pipeline-state-stream.h"
+#include "d3d12-shader-program.h"
+#include "d3d12-vertex-layout.h"
 
 #ifdef SLANG_RHI_NVAPI
-#    include "../nvapi/nvapi-include.h"
+#include "../nvapi/nvapi-include.h"
 #endif
 
 #include "../nvapi/nvapi-util.h"
-#include "d3d12-device.h"
-#include "d3d12-framebuffer.h"
-#include "d3d12-shader-program.h"
-#include "d3d12-vertex-layout.h"
-#include "d3d12-pipeline-state-stream.h"
 
-#include "utils/string.h"
 #include "utils/stable_vector.h"
+#include "utils/string.h"
 
 #include <climits>
 
 #include <string>
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
 {
@@ -66,14 +60,14 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
         auto inputLayoutImpl = (InputLayoutImpl*)desc.graphics.inputLayout;
 
         // A helper to fill common fields between graphics and mesh pipeline descs
-        const auto fillCommonGraphicsState = [&](auto& psoDesc){
+        const auto fillCommonGraphicsState = [&](auto& psoDesc)
+        {
             psoDesc.pRootSignature = programImpl->m_rootObjectLayout->m_rootSignature;
 
             psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveType);
 
             {
-                auto framebufferLayout =
-                    static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
+                auto framebufferLayout = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
                 const int numRenderTargets = int(framebufferLayout->m_renderTargets.size());
 
                 if (framebufferLayout->m_hasDepthStencil)
@@ -92,8 +86,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 psoDesc.NumRenderTargets = numRenderTargets;
                 for (Int i = 0; i < numRenderTargets; i++)
                 {
-                    psoDesc.RTVFormats[i] =
-                        D3DUtil::getMapFormat(framebufferLayout->m_renderTargets[i].format);
+                    psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(framebufferLayout->m_renderTargets[i].format);
                 }
 
                 psoDesc.SampleDesc.Quality = 0;
@@ -105,19 +98,17 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 rs.FillMode = D3DUtil::getFillMode(desc.graphics.rasterizer.fillMode);
                 rs.CullMode = D3DUtil::getCullMode(desc.graphics.rasterizer.cullMode);
                 rs.FrontCounterClockwise =
-                    desc.graphics.rasterizer.frontFace == FrontFaceMode::CounterClockwise ? TRUE
-                    : FALSE;
+                    desc.graphics.rasterizer.frontFace == FrontFaceMode::CounterClockwise ? TRUE : FALSE;
                 rs.DepthBias = desc.graphics.rasterizer.depthBias;
                 rs.DepthBiasClamp = desc.graphics.rasterizer.depthBiasClamp;
                 rs.SlopeScaledDepthBias = desc.graphics.rasterizer.slopeScaledDepthBias;
                 rs.DepthClipEnable = desc.graphics.rasterizer.depthClipEnable ? TRUE : FALSE;
                 rs.MultisampleEnable = desc.graphics.rasterizer.multisampleEnable ? TRUE : FALSE;
-                rs.AntialiasedLineEnable =
-                    desc.graphics.rasterizer.antialiasedLineEnable ? TRUE : FALSE;
+                rs.AntialiasedLineEnable = desc.graphics.rasterizer.antialiasedLineEnable ? TRUE : FALSE;
                 rs.ForcedSampleCount = desc.graphics.rasterizer.forcedSampleCount;
                 rs.ConservativeRaster = desc.graphics.rasterizer.enableConservativeRasterization
-                    ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON
-                    : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+                                            ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON
+                                            : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
             }
 
             {
@@ -131,32 +122,28 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                     d3dDesc.BlendEnable = desc.graphics.blend.targets[i].enableBlend ? TRUE : FALSE;
                     d3dDesc.BlendOp = D3DUtil::getBlendOp(desc.graphics.blend.targets[i].color.op);
                     d3dDesc.BlendOpAlpha = D3DUtil::getBlendOp(desc.graphics.blend.targets[i].alpha.op);
-                    d3dDesc.DestBlend =
-                        D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].color.dstFactor);
-                    d3dDesc.DestBlendAlpha =
-                        D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].alpha.dstFactor);
+                    d3dDesc.DestBlend = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].color.dstFactor);
+                    d3dDesc.DestBlendAlpha = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].alpha.dstFactor);
                     d3dDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
                     d3dDesc.LogicOpEnable = FALSE;
                     d3dDesc.RenderTargetWriteMask = desc.graphics.blend.targets[i].writeMask;
-                    d3dDesc.SrcBlend =
-                        D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].color.srcFactor);
-                    d3dDesc.SrcBlendAlpha =
-                        D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].alpha.srcFactor);
+                    d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].color.srcFactor);
+                    d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].alpha.srcFactor);
                 }
                 for (GfxIndex i = 1; i < desc.graphics.blend.targetCount; i++)
                 {
                     if (memcmp(
-                        &desc.graphics.blend.targets[i],
-                        &desc.graphics.blend.targets[0],
-                        sizeof(desc.graphics.blend.targets[0])) != 0)
+                            &desc.graphics.blend.targets[i],
+                            &desc.graphics.blend.targets[0],
+                            sizeof(desc.graphics.blend.targets[0])
+                        ) != 0)
                     {
                         blend.IndependentBlendEnable = TRUE;
                         break;
                     }
                 }
-                for (uint32_t i = (uint32_t)desc.graphics.blend.targetCount;
-                    i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
-                    ++i)
+                for (uint32_t i = (uint32_t)desc.graphics.blend.targetCount; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
+                     ++i)
                 {
                     blend.RenderTarget[i] = blend.RenderTarget[0];
                 }
@@ -166,9 +153,8 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 auto& ds = psoDesc.DepthStencilState;
 
                 ds.DepthEnable = desc.graphics.depthStencil.depthTestEnable;
-                ds.DepthWriteMask = desc.graphics.depthStencil.depthWriteEnable
-                    ? D3D12_DEPTH_WRITE_MASK_ALL
-                    : D3D12_DEPTH_WRITE_MASK_ZERO;
+                ds.DepthWriteMask = desc.graphics.depthStencil.depthWriteEnable ? D3D12_DEPTH_WRITE_MASK_ALL
+                                                                                : D3D12_DEPTH_WRITE_MASK_ZERO;
                 ds.DepthFunc = D3DUtil::getComparisonFunc(desc.graphics.depthStencil.depthFunc);
                 ds.StencilEnable = desc.graphics.depthStencil.stencilEnable;
                 ds.StencilReadMask = (UINT8)desc.graphics.depthStencil.stencilReadMask;
@@ -178,10 +164,9 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             }
 
             psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveType);
-
         };
 
-        if(m_program->isMeshShaderProgram())
+        if (m_program->isMeshShaderProgram())
         {
             D3DX12_MESH_SHADER_PIPELINE_STATE_DESC meshDesc = {};
             for (auto& shaderBin : programImpl->m_shaders)
@@ -189,39 +174,41 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 switch (shaderBin.stage)
                 {
                 case SLANG_STAGE_FRAGMENT:
-                    meshDesc.PS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    meshDesc.PS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 case SLANG_STAGE_AMPLIFICATION:
-                    meshDesc.AS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    meshDesc.AS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 case SLANG_STAGE_MESH:
-                    meshDesc.MS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    meshDesc.MS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 default:
                     getDebugCallback()->handleMessage(
                         DebugMessageType::Error,
                         DebugMessageSource::Layer,
-                        "Unsupported shader stage.");
+                        "Unsupported shader stage."
+                    );
                     return SLANG_E_NOT_AVAILABLE;
                 }
             }
             fillCommonGraphicsState(meshDesc);
             if (m_device->m_pipelineCreationAPIDispatcher)
             {
-                SLANG_RETURN_ON_FAIL(
-                    m_device->m_pipelineCreationAPIDispatcher->createMeshPipelineState(
-                        m_device,
-                        programImpl->linkedProgram.get(),
-                        &meshDesc,
-                        (void**)m_pipelineState.writeRef()));
+                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createMeshPipelineState(
+                    m_device,
+                    programImpl->linkedProgram.get(),
+                    &meshDesc,
+                    (void**)m_pipelineState.writeRef()
+                ));
             }
             else
             {
                 CD3DX12_PIPELINE_STATE_STREAM2 meshStateStream{meshDesc};
                 D3D12_PIPELINE_STATE_STREAM_DESC streamDesc{sizeof(meshStateStream), &meshStateStream};
 
-                SLANG_RETURN_ON_FAIL(m_device->m_device5->CreatePipelineState(
-                    &streamDesc, IID_PPV_ARGS(m_pipelineState.writeRef())));
+                SLANG_RETURN_ON_FAIL(
+                    m_device->m_device5->CreatePipelineState(&streamDesc, IID_PPV_ARGS(m_pipelineState.writeRef()))
+                );
             }
         }
         else
@@ -232,25 +219,26 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                 switch (shaderBin.stage)
                 {
                 case SLANG_STAGE_VERTEX:
-                    graphicsDesc.VS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    graphicsDesc.VS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 case SLANG_STAGE_FRAGMENT:
-                    graphicsDesc.PS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    graphicsDesc.PS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 case SLANG_STAGE_DOMAIN:
-                    graphicsDesc.DS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    graphicsDesc.DS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 case SLANG_STAGE_HULL:
-                    graphicsDesc.HS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    graphicsDesc.HS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 case SLANG_STAGE_GEOMETRY:
-                    graphicsDesc.GS = { shaderBin.code.data(), SIZE_T(shaderBin.code.size()) };
+                    graphicsDesc.GS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 default:
                     getDebugCallback()->handleMessage(
                         DebugMessageType::Error,
                         DebugMessageSource::Layer,
-                        "Unsupported shader stage.");
+                        "Unsupported shader stage."
+                    );
                     return SLANG_E_NOT_AVAILABLE;
                 }
             }
@@ -259,24 +247,27 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             {
                 graphicsDesc.InputLayout = {
                     inputLayoutImpl->m_elements.data(),
-                    UINT(inputLayoutImpl->m_elements.size()) };
+                    UINT(inputLayoutImpl->m_elements.size())
+                };
             }
 
             fillCommonGraphicsState(graphicsDesc);
 
             if (m_device->m_pipelineCreationAPIDispatcher)
             {
-                SLANG_RETURN_ON_FAIL(
-                    m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
-                        m_device,
-                        programImpl->linkedProgram.get(),
-                        &graphicsDesc,
-                        (void**)m_pipelineState.writeRef()));
+                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
+                    m_device,
+                    programImpl->linkedProgram.get(),
+                    &graphicsDesc,
+                    (void**)m_pipelineState.writeRef()
+                ));
             }
             else
             {
                 SLANG_RETURN_ON_FAIL(m_device->m_device->CreateGraphicsPipelineState(
-                    &graphicsDesc, IID_PPV_ARGS(m_pipelineState.writeRef())));
+                    &graphicsDesc,
+                    IID_PPV_ARGS(m_pipelineState.writeRef())
+                ));
             }
         }
     }
@@ -291,11 +282,9 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             D3D12_COMPUTE_PIPELINE_STATE_DESC computeDesc = {};
             computeDesc.pRootSignature =
                 desc.compute.d3d12RootSignatureOverride
-                ? static_cast<ID3D12RootSignature*>(desc.compute.d3d12RootSignatureOverride)
-                : programImpl->m_rootObjectLayout->m_rootSignature;
-            computeDesc.CS = {
-                programImpl->m_shaders[0].code.data(),
-                SIZE_T(programImpl->m_shaders[0].code.size()) };
+                    ? static_cast<ID3D12RootSignature*>(desc.compute.d3d12RootSignatureOverride)
+                    : programImpl->m_rootObjectLayout->m_rootSignature;
+            computeDesc.CS = {programImpl->m_shaders[0].code.data(), SIZE_T(programImpl->m_shaders[0].code.size())};
 
 #ifdef SLANG_RHI_NVAPI
             if (m_device->m_nvapi)
@@ -312,7 +301,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
                 // Put the pointer to the extension into an array - there can be multiple extensions
                 // enabled at once.
-                const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = { &extensionDesc };
+                const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
 
                 // Now create the PSO.
                 const NvAPI_Status nvapiStatus = NvAPI_D3D12_CreateComputePipelineState(
@@ -320,7 +309,8 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
                     &computeDesc,
                     SLANG_COUNT_OF(extensions),
                     extensions,
-                    m_pipelineState.writeRef());
+                    m_pipelineState.writeRef()
+                );
 
                 if (nvapiStatus != NVAPI_OK)
                 {
@@ -332,17 +322,19 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             {
                 if (m_device->m_pipelineCreationAPIDispatcher)
                 {
-                    SLANG_RETURN_ON_FAIL(
-                        m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
-                            m_device,
-                            programImpl->linkedProgram.get(),
-                            &computeDesc,
-                            (void**)m_pipelineState.writeRef()));
+                    SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
+                        m_device,
+                        programImpl->linkedProgram.get(),
+                        &computeDesc,
+                        (void**)m_pipelineState.writeRef()
+                    ));
                 }
                 else
                 {
                     SLANG_RETURN_ON_FAIL(m_device->m_device->CreateComputePipelineState(
-                        &computeDesc, IID_PPV_ARGS(m_pipelineState.writeRef())));
+                        &computeDesc,
+                        IID_PPV_ARGS(m_pipelineState.writeRef())
+                    ));
                 }
             }
         }
@@ -353,9 +345,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
 #if SLANG_RHI_DXR
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
-    : m_device(device)
-{}
+RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device) : m_device(device) {}
 
 void RayTracingPipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc)
 {
@@ -408,19 +398,24 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     pipelineConfigSubobject.pDesc = &pipelineConfig;
     subObjects.push_back(pipelineConfigSubobject);
 
-    auto compileShader = [&](slang::EntryPointLayout* entryPointInfo,
-        slang::IComponentType* component,
-        SlangInt entryPointIndex)
+    auto compileShader =
+        [&](slang::EntryPointLayout* entryPointInfo, slang::IComponentType* component, SlangInt entryPointIndex)
     {
         ComPtr<ISlangBlob> codeBlob;
-        auto compileResult = m_device->getEntryPointCodeFromShaderCache(component,
-            entryPointIndex, 0, codeBlob.writeRef(), diagnostics.writeRef());
+        auto compileResult = m_device->getEntryPointCodeFromShaderCache(
+            component,
+            entryPointIndex,
+            0,
+            codeBlob.writeRef(),
+            diagnostics.writeRef()
+        );
         if (diagnostics.get())
         {
             getDebugCallback()->handleMessage(
                 compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
                 DebugMessageSource::Slang,
-                (char*)diagnostics->getBufferPointer());
+                (char*)diagnostics->getBufferPointer()
+            );
         }
         SLANG_RETURN_ON_FAIL(compileResult);
         codeBlobs.push_back(codeBlob);
@@ -446,16 +441,16 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     {
         for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
         {
-            SLANG_RETURN_ON_FAIL(compileShader(
-                programLayout->getEntryPointByIndex(i), program->linkedProgram, (SlangInt)i));
+            SLANG_RETURN_ON_FAIL(
+                compileShader(programLayout->getEntryPointByIndex(i), program->linkedProgram, (SlangInt)i)
+            );
         }
     }
     else
     {
         for (auto& entryPoint : program->linkedEntryPoints)
         {
-            SLANG_RETURN_ON_FAIL(
-                compileShader(entryPoint->getLayout()->getEntryPointByIndex(0), entryPoint, 0));
+            SLANG_RETURN_ON_FAIL(compileShader(entryPoint->getLayout()->getEntryPointByIndex(0), entryPoint, 0));
         }
     }
 
@@ -463,9 +458,8 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     {
         auto& hitGroup = desc.rayTracing.hitGroups[i];
         D3D12_HIT_GROUP_DESC hitGroupDesc = {};
-        hitGroupDesc.Type = hitGroup.intersectionEntryPoint.empty()
-            ? D3D12_HIT_GROUP_TYPE_TRIANGLES
-            : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+        hitGroupDesc.Type = hitGroup.intersectionEntryPoint.empty() ? D3D12_HIT_GROUP_TYPE_TRIANGLES
+                                                                    : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
 
         if (!hitGroup.anyHitEntryPoint.empty())
         {
@@ -473,13 +467,11 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
         }
         if (!hitGroup.closestHitEntryPoint.empty())
         {
-            hitGroupDesc.ClosestHitShaderImport =
-                getWStr(hitGroup.closestHitEntryPoint.data());
+            hitGroupDesc.ClosestHitShaderImport = getWStr(hitGroup.closestHitEntryPoint.data());
         }
         if (!hitGroup.intersectionEntryPoint.empty())
         {
-            hitGroupDesc.IntersectionShaderImport =
-                getWStr(hitGroup.intersectionEntryPoint.data());
+            hitGroupDesc.IntersectionShaderImport = getWStr(hitGroup.intersectionEntryPoint.data());
         }
         hitGroupDesc.HitGroupExport = getWStr(hitGroup.hitGroupName.data());
 
@@ -509,26 +501,22 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        m_device->m_pipelineCreationAPIDispatcher->beforeCreateRayTracingState(
-            m_device, slangGlobalScope);
+        m_device->m_pipelineCreationAPIDispatcher->beforeCreateRayTracingState(m_device, slangGlobalScope);
     }
 
     D3D12_STATE_OBJECT_DESC rtpsoDesc = {};
     rtpsoDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
     rtpsoDesc.NumSubobjects = (UINT)subObjects.size();
     rtpsoDesc.pSubobjects = subObjects.data();
-    SLANG_RETURN_ON_FAIL(
-        m_device->m_device5->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(m_stateObject.writeRef())));
+    SLANG_RETURN_ON_FAIL(m_device->m_device5->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(m_stateObject.writeRef())));
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        m_device->m_pipelineCreationAPIDispatcher->afterCreateRayTracingState(
-            m_device, slangGlobalScope);
+        m_device->m_pipelineCreationAPIDispatcher->afterCreateRayTracingState(m_device, slangGlobalScope);
     }
     return SLANG_OK;
 }
 
-#endif
+#endif // SLANG_RHI_DXR
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

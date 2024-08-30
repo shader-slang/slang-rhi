@@ -1,17 +1,9 @@
-// d3d12-shader-object-layout.cpp
 #include "d3d12-shader-object-layout.h"
-
 #include "d3d12-device.h"
 
-namespace rhi
-{
-namespace d3d12
-{
+namespace rhi::d3d12 {
 
-using namespace Slang;
-
-ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(
-    slang::VariableLayoutReflection* varLayout)
+ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
 {
     if (auto pendingLayout = varLayout->getPendingDataLayout())
     {
@@ -19,8 +11,7 @@ ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(
     }
 }
 
-ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(
-    slang::TypeLayoutReflection* typeLayout)
+ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
 {
     if (auto pendingLayout = typeLayout->getPendingDataTypeLayout())
     {
@@ -32,7 +23,8 @@ bool ShaderObjectLayoutImpl::isBindingRangeRootParameter(
     SlangSession* globalSession,
     const char* rootParameterAttributeName,
     slang::TypeLayoutReflection* typeLayout,
-    Index bindingRangeIndex)
+    Index bindingRangeIndex
+)
 {
     bool isRootParameter = false;
     if (rootParameterAttributeName)
@@ -52,7 +44,8 @@ Result ShaderObjectLayoutImpl::createForElementType(
     RendererBase* renderer,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementType,
-    ShaderObjectLayoutImpl** outLayout)
+    ShaderObjectLayoutImpl** outLayout
+)
 {
     Builder builder(renderer, session);
     builder.setElementTypeLayout(elementType);
@@ -63,7 +56,7 @@ Result ShaderObjectLayoutImpl::init(Builder* builder)
 {
     auto renderer = builder->m_renderer;
 
-    initBase(renderer, builder->m_session,  builder->m_elementTypeLayout);
+    initBase(renderer, builder->m_session, builder->m_elementTypeLayout);
 
     m_containerType = builder->m_containerType;
 
@@ -80,8 +73,7 @@ Result ShaderObjectLayoutImpl::init(Builder* builder)
     return SLANG_OK;
 }
 
-Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
-    slang::TypeLayoutReflection* typeLayout)
+Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutReflection* typeLayout)
 {
     typeLayout = _unwrapParameterGroups(typeLayout, m_containerType);
     m_elementTypeLayout = typeLayout;
@@ -114,9 +106,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
     {
         slang::BindingType slangBindingType = typeLayout->getBindingRangeType(r);
         uint32_t count = (uint32_t)typeLayout->getBindingRangeBindingCount(r);
-        slang::TypeLayoutReflection* slangLeafTypeLayout =
-            typeLayout->getBindingRangeLeafTypeLayout(r);
-        
+        slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(r);
+
         BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
         bindingRangeInfo.resourceShape = slangLeafTypeLayout->getResourceShape();
@@ -125,7 +116,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
             m_renderer->slangContext.globalSession,
             static_cast<DeviceImpl*>(m_renderer)->m_extendedDesc.rootParameterShaderAttributeName,
             typeLayout,
-            r);
+            r
+        );
         bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
         switch (slangBindingType)
         {
@@ -133,14 +125,14 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
         case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableRawBuffer:
         case slang::BindingType::MutableTypedBuffer:
+        {
+            auto bufferElementType = slangLeafTypeLayout->getElementTypeLayout();
+            if (bufferElementType)
             {
-                auto bufferElementType = slangLeafTypeLayout->getElementTypeLayout();
-                if (bufferElementType)
-                {
-                    bindingRangeInfo.bufferElementStride = (uint32_t)bufferElementType->getStride();
-                }
+                bindingRangeInfo.bufferElementStride = (uint32_t)bufferElementType->getStride();
             }
-            break;
+        }
+        break;
         }
         if (bindingRangeInfo.isRootParameter)
         {
@@ -225,8 +217,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
         SlangInt bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(r);
         auto slangBindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
         auto count = (uint32_t)typeLayout->getBindingRangeBindingCount(bindingRangeIndex);
-        slang::TypeLayoutReflection* slangLeafTypeLayout =
-            typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
+        slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
 
         // A sub-object range can either represent a sub-object of a known
         // type, like a `ConstantBuffer<Foo>` or `ParameterBlock<Foo>`
@@ -249,7 +240,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
                 m_renderer,
                 m_session,
                 slangLeafTypeLayout->getElementTypeLayout(),
-                subObjectLayout.writeRef());
+                subObjectLayout.writeRef()
+            );
         }
 
         SubObjectRangeInfo subObjectRange;
@@ -297,12 +289,10 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
         {
             // We only treat buffers of interface types as actual sub-object binding
             // range.
-            auto bindingRangeTypeLayout =
-                typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
+            auto bindingRangeTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
             if (!bindingRangeTypeLayout)
                 continue;
-            auto elementType = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex)
-                ->getElementTypeLayout();
+            auto elementType = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex)->getElementTypeLayout();
             if (!elementType)
                 continue;
             if (elementType->getKind() != slang::TypeReflection::Kind::Interface)
@@ -359,8 +349,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
                 //
                 // Otherwise the logic here is identical to the constant buffer case.
                 //
-                objectCounts.resource =
-                    subObjectLayout->getTotalResourceDescriptorCountWithoutOrdinaryDataBuffer();
+                objectCounts.resource = subObjectLayout->getTotalResourceDescriptorCountWithoutOrdinaryDataBuffer();
                 objectCounts.sampler = subObjectLayout->getTotalSamplerDescriptorCount();
                 objectCounts.rootParam = subObjectRange.layout->getChildRootParameterCount();
 
@@ -378,9 +367,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(
                 // increase the size of the ordinary data buffer we need to
                 // allocate for the parent object.
                 //
-                uint32_t ordinaryDataEnd =
-                    subObjectRange.offset.pendingOrdinaryData +
-                    (uint32_t)count * subObjectRange.stride.pendingOrdinaryData;
+                uint32_t ordinaryDataEnd = subObjectRange.offset.pendingOrdinaryData +
+                                           (uint32_t)count * subObjectRange.stride.pendingOrdinaryData;
 
                 if (ordinaryDataEnd > m_totalOrdinaryDataSize)
                 {
@@ -439,14 +427,12 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
     return SLANG_OK;
 }
 
-void RootShaderObjectLayoutImpl::Builder::addGlobalParams(
-    slang::VariableLayoutReflection* globalsLayout)
+void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
 {
     setElementTypeLayout(globalsLayout->getTypeLayout());
 }
 
-void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
-    SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout)
+void RootShaderObjectLayoutImpl::Builder::addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout)
 {
     EntryPointInfo info;
     info.layout = entryPointLayout;
@@ -465,7 +451,9 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
 }
 
 Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::translateDescriptorRangeType(
-    slang::BindingType c, D3D12_DESCRIPTOR_RANGE_TYPE* outType)
+    slang::BindingType c,
+    D3D12_DESCRIPTOR_RANGE_TYPE* outType
+)
 {
     switch (c)
     {
@@ -515,7 +503,8 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
     UINT registerIndex,
     UINT spaceIndex,
     UINT count,
-    bool isRootParameter)
+    bool isRootParameter
+)
 {
     if (isRootParameter)
     {
@@ -532,7 +521,8 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
             getDebugCallback()->handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Layer,
-                "A shader parameter marked as root parameter is neither SRV nor UAV.");
+                "A shader parameter marked as root parameter is neither SRV nor UAV."
+            );
             return SLANG_FAIL;
         }
         rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -589,14 +579,14 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
     BindingRegisterOffset const& elementOffset,
     Index logicalDescriptorSetIndex,
     Index descriptorRangeIndex,
-    bool isRootParameter)
+    bool isRootParameter
+)
 {
-    auto bindingType = typeLayout->getDescriptorSetDescriptorRangeType(
-        logicalDescriptorSetIndex, descriptorRangeIndex);
-    auto count = typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
-        logicalDescriptorSetIndex, descriptorRangeIndex);
-    auto index = typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
-        logicalDescriptorSetIndex, descriptorRangeIndex);
+    auto bindingType = typeLayout->getDescriptorSetDescriptorRangeType(logicalDescriptorSetIndex, descriptorRangeIndex);
+    auto count =
+        typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(logicalDescriptorSetIndex, descriptorRangeIndex);
+    auto index =
+        typeLayout->getDescriptorSetDescriptorRangeIndexOffset(logicalDescriptorSetIndex, descriptorRangeIndex);
     auto space = typeLayout->getDescriptorSetSpaceOffset(logicalDescriptorSetIndex);
 
     D3D12_DESCRIPTOR_RANGE_TYPE rangeType;
@@ -608,7 +598,8 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
         (UINT)index + elementOffset[rangeType],
         (UINT)space + elementOffset.spaceOffset,
         (UINT)count,
-        isRootParameter);
+        isRootParameter
+    );
 }
 
 /// Add one binding range to the computed layout.
@@ -630,18 +621,18 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addBindingRange(
     Index physicalDescriptorSetIndex,
     BindingRegisterOffset const& containerOffset,
     BindingRegisterOffset const& elementOffset,
-    Index bindingRangeIndex)
+    Index bindingRangeIndex
+)
 {
-    auto logicalDescriptorSetIndex =
-        typeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
-    auto firstDescriptorRangeIndex =
-        typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
+    auto logicalDescriptorSetIndex = typeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
+    auto firstDescriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
     Index descriptorRangeCount = typeLayout->getBindingRangeDescriptorRangeCount(bindingRangeIndex);
     bool isRootParameter = isBindingRangeRootParameter(
         m_device->slangContext.globalSession,
         m_device->m_extendedDesc.rootParameterShaderAttributeName,
         typeLayout,
-        bindingRangeIndex);
+        bindingRangeIndex
+    );
     for (Index i = 0; i < descriptorRangeCount; ++i)
     {
         auto descriptorRangeIndex = firstDescriptorRangeIndex + i;
@@ -657,12 +648,15 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addBindingRange(
             elementOffset,
             logicalDescriptorSetIndex,
             descriptorRangeIndex,
-            isRootParameter);
+            isRootParameter
+        );
     }
 }
 
 void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
-    slang::VariableLayoutReflection* varLayout, Index physicalDescriptorSetIndex)
+    slang::VariableLayoutReflection* varLayout,
+    Index physicalDescriptorSetIndex
+)
 {
     BindingRegisterOffsetPair offset(varLayout);
     auto elementOffset = offset;
@@ -692,7 +686,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsConstantBuffer(
     slang::TypeLayoutReflection* typeLayout,
     Index physicalDescriptorSetIndex,
     BindingRegisterOffsetPair offsetForChildrenThatNeedNewSpace,
-    BindingRegisterOffsetPair offsetForOrdinaryChildren)
+    BindingRegisterOffsetPair offsetForOrdinaryChildren
+)
 {
     if (typeLayout->getSize(SLANG_PARAMETER_CATEGORY_UNIFORM) != 0)
     {
@@ -704,7 +699,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsConstantBuffer(
             offsetForRangeType,
             offsetForOrdinaryChildren.primary.spaceOffset,
             1,
-            false);
+            false
+        );
         offsetForRangeType++;
     }
 
@@ -715,7 +711,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
     slang::TypeLayoutReflection* typeLayout,
     Index physicalDescriptorSetIndex,
     BindingRegisterOffsetPair containerOffset,
-    BindingRegisterOffsetPair elementOffset)
+    BindingRegisterOffsetPair elementOffset
+)
 {
     // Our first task is to add the binding ranges for stuff that is
     // directly contained in `typeLayout` rather than via sub-objects.
@@ -750,16 +747,15 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             physicalDescriptorSetIndex,
             containerOffset.primary,
             elementOffset.primary,
-            bindingRangeIndex);
+            bindingRangeIndex
+        );
     }
 
     // Next we need to recursively include everything bound via sub-objects
     Index subObjectRangeCount = typeLayout->getSubObjectRangeCount();
-    for (Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount;
-        subObjectRangeIndex++)
+    for (Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount; subObjectRangeIndex++)
     {
-        auto bindingRangeIndex =
-            typeLayout->getSubObjectRangeBindingRangeIndex(subObjectRangeIndex);
+        auto bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(subObjectRangeIndex);
         auto bindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
 
         auto subObjectTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
@@ -792,8 +788,7 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             BindingRegisterOffsetPair elementOffset = subObjectRangeElementOffset;
             elementOffset += BindingRegisterOffsetPair(elementVarLayout);
 
-            addAsConstantBuffer(
-                elementTypeLayout, physicalDescriptorSetIndex, containerOffset, elementOffset);
+            addAsConstantBuffer(elementTypeLayout, physicalDescriptorSetIndex, containerOffset, elementOffset);
         }
         break;
 
@@ -809,10 +804,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             SLANG_RHI_ASSERT(elementTypeLayout);
 
             BindingRegisterOffsetPair subDescriptorSetOffset;
-            subDescriptorSetOffset.primary.spaceOffset =
-                subObjectRangeContainerOffset.primary.spaceOffset;
-            subDescriptorSetOffset.pending.spaceOffset =
-                subObjectRangeContainerOffset.pending.spaceOffset;
+            subDescriptorSetOffset.primary.spaceOffset = subObjectRangeContainerOffset.primary.spaceOffset;
+            subDescriptorSetOffset.pending.spaceOffset = subObjectRangeContainerOffset.pending.spaceOffset;
 
             auto subPhysicalDescriptorSetIndex = addDescriptorSet();
 
@@ -833,7 +826,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
                 elementTypeLayout,
                 subPhysicalDescriptorSetIndex,
                 offsetForChildrenThatNeedNewSpace,
-                offsetForOrindaryChildren);
+                offsetForOrindaryChildren
+            );
         }
         break;
 
@@ -848,11 +842,7 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
                 BindingRegisterOffsetPair pendingOffset;
                 pendingOffset.primary = subObjectRangeElementOffset.pending;
 
-                addAsValue(
-                    specializedTypeLayout,
-                    physicalDescriptorSetIndex,
-                    pendingOffset,
-                    pendingOffset);
+                addAsValue(specializedTypeLayout, physicalDescriptorSetIndex, pendingOffset, pendingOffset);
             }
         }
         break;
@@ -869,18 +859,15 @@ D3D12_ROOT_SIGNATURE_DESC1& RootShaderObjectLayoutImpl::RootSignatureDescBuilder
         {
             D3D12_ROOT_PARAMETER1 rootParam = {};
             rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-            rootParam.DescriptorTable.NumDescriptorRanges =
-                (UINT)descriptorSet.m_resourceRanges.size();
-            rootParam.DescriptorTable.pDescriptorRanges =
-                descriptorSet.m_resourceRanges.data();
+            rootParam.DescriptorTable.NumDescriptorRanges = (UINT)descriptorSet.m_resourceRanges.size();
+            rootParam.DescriptorTable.pDescriptorRanges = descriptorSet.m_resourceRanges.data();
             m_rootParameters.push_back(rootParam);
         }
         if (descriptorSet.m_samplerRanges.size())
         {
             D3D12_ROOT_PARAMETER1 rootParam = {};
             rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-            rootParam.DescriptorTable.NumDescriptorRanges =
-                (UINT)descriptorSet.m_samplerRanges.size();
+            rootParam.DescriptorTable.NumDescriptorRanges = (UINT)descriptorSet.m_samplerRanges.size();
             rootParam.DescriptorTable.pDescriptorRanges = descriptorSet.m_samplerRanges.data();
             m_rootParameters.push_back(rootParam);
         }
@@ -906,7 +893,8 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
     RootShaderObjectLayoutImpl* rootLayout,
     slang::IComponentType* program,
     ID3D12RootSignature** outRootSignature,
-    ID3DBlob** outError)
+    ID3DBlob** outError
+)
 {
     // We are going to build up the root signature by adding
     // binding/descritpor ranges and nested parameter blocks
@@ -956,21 +944,22 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
     versionedDesc.Desc_1_1 = rootSignatureDesc;
     ComPtr<ID3DBlob> signature;
     ComPtr<ID3DBlob> error;
-    if (SLANG_FAILED(device->m_D3D12SerializeVersionedRootSignature(
-        &versionedDesc,
-        signature.writeRef(),
-        error.writeRef())))
+    if (SLANG_FAILED(
+            device->m_D3D12SerializeVersionedRootSignature(&versionedDesc, signature.writeRef(), error.writeRef())
+        ))
     {
         getDebugCallback()->handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
-            "error: D3D12SerializeRootSignature failed");
+            "error: D3D12SerializeRootSignature failed"
+        );
         if (error)
         {
             getDebugCallback()->handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Driver,
-                (const char*)error->GetBufferPointer());
+                (const char*)error->GetBufferPointer()
+            );
             if (outError)
                 returnComPtr(outError, error);
         }
@@ -981,7 +970,8 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         0,
         signature->GetBufferPointer(),
         signature->GetBufferSize(),
-        IID_PPV_ARGS(outRootSignature)));
+        IID_PPV_ARGS(outRootSignature)
+    ));
     return SLANG_OK;
 }
 
@@ -990,7 +980,8 @@ Result RootShaderObjectLayoutImpl::create(
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
     RootShaderObjectLayoutImpl** outLayout,
-    ID3DBlob** outError)
+    ID3DBlob** outError
+)
 {
     RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout);
     builder.addGlobalParams(programLayout->getGlobalParamsVarLayout());
@@ -1001,7 +992,11 @@ Result RootShaderObjectLayoutImpl::create(
         auto slangEntryPoint = programLayout->getEntryPointByIndex(e);
         RefPtr<ShaderObjectLayoutImpl> entryPointLayout;
         SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(
-            device, program->getSession(), slangEntryPoint->getTypeLayout(), entryPointLayout.writeRef()));
+            device,
+            program->getSession(),
+            slangEntryPoint->getTypeLayout(),
+            entryPointLayout.writeRef()
+        ));
         builder.addEntryPoint(slangEntryPoint->getStage(), entryPointLayout);
     }
 
@@ -1016,8 +1011,9 @@ Result RootShaderObjectLayoutImpl::create(
         // to create without walking through the shader-object hierarchy again.
         // We build out this array along with root signature construction and store
         // it in `m_gpuDescriptorSetInfos`.
-        SLANG_RETURN_ON_FAIL(createRootSignatureFromSlang(
-            device, layout, program, layout->m_rootSignature.writeRef(), outError));
+        SLANG_RETURN_ON_FAIL(
+            createRootSignatureFromSlang(device, layout, program, layout->m_rootSignature.writeRef(), outError)
+        );
     }
 
     *outLayout = layout.detach();
@@ -1037,5 +1033,4 @@ Result RootShaderObjectLayoutImpl::init(Builder* builder)
     return SLANG_OK;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

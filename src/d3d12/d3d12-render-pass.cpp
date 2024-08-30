@@ -1,12 +1,6 @@
-// d3d12-render-pass.cpp
 #include "d3d12-render-pass.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 void RenderPassLayoutImpl::init(const IRenderPassLayout::Desc& desc)
 {
@@ -15,5 +9,4 @@ void RenderPassLayoutImpl::init(const IRenderPassLayout::Desc& desc)
     m_hasDepthStencil = m_framebufferLayout->m_hasDepthStencil;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

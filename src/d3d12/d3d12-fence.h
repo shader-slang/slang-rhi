@@ -1,15 +1,8 @@
-// d3d12-fence.h
 #pragma once
 
 #include "d3d12-base.h"
 
-
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class FenceImpl : public FenceBase
 {
@@ -29,9 +22,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-        getNativeHandle(InteropHandle* outNativeHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) override;
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

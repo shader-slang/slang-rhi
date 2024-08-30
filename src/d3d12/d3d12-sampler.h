@@ -1,14 +1,8 @@
-// d3d12-sampler.h
 #pragma once
 
 #include "d3d12-base.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 class SamplerStateImpl : public SamplerStateBase
 {
@@ -19,5 +13,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12

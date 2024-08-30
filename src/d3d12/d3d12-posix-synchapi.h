@@ -33,20 +33,16 @@
 #define WAIT_FAILED 0xffffffff
 #define WAIT_OBJECT_0 0
 
-typedef struct _SECURITY_ATTRIBUTES *LPSECURITY_ATTRIBUTES;
+typedef struct _SECURITY_ATTRIBUTES* LPSECURITY_ATTRIBUTES;
 
 #define CREATE_EVENT_MANUAL_RESET 1
-#define CREATE_EVENT_INITIAL_SET  2
+#define CREATE_EVENT_INITIAL_SET 2
 
-#define SYNCHRONIZE               0x00100000
-#define STANDARD_RIGHTS_REQUIRED  0x000f0000
-#define EVENT_ALL_ACCESS          (STANDARD_RIGHTS_REQUIRED|SYNCHRONIZE|0x3)
+#define SYNCHRONIZE 0x00100000
+#define STANDARD_RIGHTS_REQUIRED 0x000f0000
+#define EVENT_ALL_ACCESS (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x3)
 
-HANDLE CreateEventEx(
-    LPSECURITY_ATTRIBUTES lpEventAttributes,
-    LPCSTR                lpName,
-    DWORD                 dwFlags,
-    DWORD                 dwDesiredAccess);
+HANDLE CreateEventEx(LPSECURITY_ATTRIBUTES lpEventAttributes, LPCSTR lpName, DWORD dwFlags, DWORD dwDesiredAccess);
 
 BOOL CloseHandle(HANDLE h);
 
@@ -56,10 +52,6 @@ BOOL SetEvent(HANDLE h);
 
 DWORD WaitForSingleObject(HANDLE h, DWORD ms);
 
-DWORD WaitForMultipleObjects(
-    DWORD        nHandles,
-    const HANDLE *handles,
-    BOOL         bWaitAll,
-    DWORD        dwMilliseconds);
+DWORD WaitForMultipleObjects(DWORD nHandles, const HANDLE* handles, BOOL bWaitAll, DWORD dwMilliseconds);
 
 #endif // SLANG_LINUX_FAMILY

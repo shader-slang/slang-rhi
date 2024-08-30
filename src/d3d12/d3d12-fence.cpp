@@ -1,14 +1,7 @@
-// d3d12-fence.cpp
 #include "d3d12-fence.h"
-
 #include "d3d12-device.h"
 
-namespace rhi
-{
-namespace d3d12
-{
-
-using namespace Slang;
+namespace rhi::d3d12 {
 
 FenceImpl::~FenceImpl()
 {
@@ -29,7 +22,8 @@ Result FenceImpl::init(DeviceImpl* device, const IFence::Desc& desc)
     SLANG_RETURN_ON_FAIL(device->m_device->CreateFence(
         desc.initialValue,
         desc.isShared ? D3D12_FENCE_FLAG_SHARED : D3D12_FENCE_FLAG_NONE,
-        IID_PPV_ARGS(m_fence.writeRef())));
+        IID_PPV_ARGS(m_fence.writeRef())
+    ));
     return SLANG_OK;
 }
 
@@ -59,8 +53,9 @@ Result FenceImpl::getSharedHandle(InteropHandle* outHandle)
 
     ComPtr<ID3D12Device> devicePtr;
     m_fence->GetDevice(IID_PPV_ARGS(devicePtr.writeRef()));
-    SLANG_RETURN_ON_FAIL(devicePtr->CreateSharedHandle(
-        m_fence, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue));
+    SLANG_RETURN_ON_FAIL(
+        devicePtr->CreateSharedHandle(m_fence, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue)
+    );
     outHandle->api = InteropHandleAPI::D3D12;
     sharedHandle = *outHandle;
     return SLANG_OK;
@@ -74,5 +69,4 @@ Result FenceImpl::getNativeHandle(InteropHandle* outNativeHandle)
     return SLANG_OK;
 }
 
-} // namespace d3d12
-} // namespace rhi
+} // namespace rhi::d3d12
