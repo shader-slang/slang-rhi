@@ -6,8 +6,8 @@ using namespace testing;
 static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 {
     ComPtr<IBuffer> buffer;
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = sizeof(uint32_t);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(uint32_t);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(

@@ -1,3 +1,8 @@
+- rename BufferDesc::sizeInBytes -> size
+- replace IResource::Type with TextureType, buffers don't have a type
+- remove nested structs from IBuffer & ITexture
+- rename ITexture::Desc -> TextureDesc
+- rename IBuffer::Desc -> BufferDesc
 - rename ITextureResource -> ITexture
 - rename IDevice::createTextureResource -> IDevice::createTexture
 - rename IBufferResource -> IBuffer

@@ -136,7 +136,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
         m_width = getMipLevelSize(viewDesc->subresourceRange.mipLevel, size.width);
         m_height = getMipLevelSize(viewDesc->subresourceRange.mipLevel, size.height);
         layerCount =
-            (resourceDesc->type == IResource::Type::Texture3D) ? size.depth : viewDesc->subresourceRange.layerCount;
+            (resourceDesc->type == TextureType::Texture3D) ? size.depth : viewDesc->subresourceRange.layerCount;
     }
     else
     {

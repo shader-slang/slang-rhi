@@ -23,8 +23,8 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     const int numberCount = 4;
     uint16_t initialData[] = {0, 1, 2, 3};
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(uint16_t);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(uint16_t);
     bufferDesc.format = Format::Unknown;
     // Note: we don't specify any element size here, and rhi should be able to derive the
     // correct element size from the reflection infomation.

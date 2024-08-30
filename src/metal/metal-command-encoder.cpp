@@ -63,12 +63,12 @@ void ResourceCommandEncoder::copyTexture(
     ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITexture::Offset3D dstOffset,
+    Offset3D dstOffset,
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
@@ -108,8 +108,8 @@ void ResourceCommandEncoder::copyTextureToBuffer(
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
@@ -136,9 +136,9 @@ void ResourceCommandEncoder::uploadBufferData(IBuffer* buffer, Offset offset, Si
 void ResourceCommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subResourceRange,
-    ITexture::Offset3D offset,
-    ITexture::Extents extend,
-    ITexture::SubresourceData* subResourceData,
+    Offset3D offset,
+    Extents extend,
+    SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {

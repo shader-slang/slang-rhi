@@ -23,8 +23,8 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
 
     const int numberCount = 4;
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(

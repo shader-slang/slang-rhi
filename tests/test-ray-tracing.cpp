@@ -110,8 +110,8 @@ struct BaseRayTracingTest
 
     void createResultTexture()
     {
-        ITexture::Desc resultTextureDesc = {};
-        resultTextureDesc.type = IResource::Type::Texture2D;
+        TextureDesc resultTextureDesc = {};
+        resultTextureDesc.type = TextureType::Texture2D;
         resultTextureDesc.numMipLevels = 1;
         resultTextureDesc.size.width = width;
         resultTextureDesc.size.height = height;
@@ -131,23 +131,20 @@ struct BaseRayTracingTest
         queueDesc.type = ICommandQueue::QueueType::Graphics;
         queue = device->createCommandQueue(queueDesc);
 
-        IBuffer::Desc vertexBufferDesc;
-        vertexBufferDesc.type = IResource::Type::Buffer;
-        vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::ShaderResource;
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         REQUIRE(vertexBuffer != nullptr);
 
-        IBuffer::Desc indexBufferDesc;
-        indexBufferDesc.type = IResource::Type::Buffer;
-        indexBufferDesc.sizeInBytes = kIndexCount * sizeof(int32_t);
+        BufferDesc indexBufferDesc;
+        indexBufferDesc.size = kIndexCount * sizeof(int32_t);
         indexBufferDesc.defaultState = ResourceState::ShaderResource;
         indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
         REQUIRE(indexBuffer != nullptr);
 
-        IBuffer::Desc transformBufferDesc;
-        transformBufferDesc.type = IResource::Type::Buffer;
-        transformBufferDesc.sizeInBytes = sizeof(float) * 12;
+        BufferDesc transformBufferDesc;
+        transformBufferDesc.size = sizeof(float) * 12;
         transformBufferDesc.defaultState = ResourceState::ShaderResource;
         float transformData[12] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
         transformBuffer = device->createBuffer(transformBufferDesc, &transformData);
@@ -193,15 +190,13 @@ struct BaseRayTracingTest
                 &accelerationStructurePrebuildInfo
             ));
             // Allocate buffers for acceleration structure.
-            IBuffer::Desc asDraftBufferDesc;
-            asDraftBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc asDraftBufferDesc;
             asDraftBufferDesc.defaultState = ResourceState::AccelerationStructure;
-            asDraftBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
+            asDraftBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
             ComPtr<IBuffer> draftBuffer = device->createBuffer(asDraftBufferDesc);
-            IBuffer::Desc scratchBufferDesc;
-            scratchBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc scratchBufferDesc;
             scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
+            scratchBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
             ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
             // Build acceleration structure.
@@ -238,10 +233,9 @@ struct BaseRayTracingTest
 
             uint64_t compactedSize = 0;
             compactedSizeQuery->getResult(0, 1, &compactedSize);
-            IBuffer::Desc asBufferDesc;
-            asBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc asBufferDesc;
             asBufferDesc.defaultState = ResourceState::AccelerationStructure;
-            asBufferDesc.sizeInBytes = (size_t)compactedSize;
+            asBufferDesc.size = (size_t)compactedSize;
             BLASBuffer = device->createBuffer(asBufferDesc);
             IAccelerationStructure::CreateDesc createDesc;
             createDesc.buffer = BLASBuffer;
@@ -271,9 +265,8 @@ struct BaseRayTracingTest
             float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
             memcpy(&instanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
 
-            IBuffer::Desc instanceBufferDesc;
-            instanceBufferDesc.type = IResource::Type::Buffer;
-            instanceBufferDesc.sizeInBytes = instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
+            BufferDesc instanceBufferDesc;
+            instanceBufferDesc.size = instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
             instanceBufferDesc.defaultState = ResourceState::ShaderResource;
             instanceBuffer = device->createBuffer(instanceBufferDesc, instanceDescs.data());
             REQUIRE(instanceBuffer != nullptr);
@@ -290,16 +283,14 @@ struct BaseRayTracingTest
                 &accelerationStructurePrebuildInfo
             ));
 
-            IBuffer::Desc asBufferDesc;
-            asBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc asBufferDesc;
             asBufferDesc.defaultState = ResourceState::AccelerationStructure;
-            asBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
+            asBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
             TLASBuffer = device->createBuffer(asBufferDesc);
 
-            IBuffer::Desc scratchBufferDesc;
-            scratchBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc scratchBufferDesc;
             scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
+            scratchBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
             ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
             IAccelerationStructure::CreateDesc createDesc;

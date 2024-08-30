@@ -315,9 +315,9 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::SubresourceData* initData, ITexture** outTexture)
+DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
-    Texture::Desc srcDesc = fixupTextureDesc(desc);
+    TextureDesc srcDesc = fixupTextureDesc(desc);
 
     RefPtr<TextureImpl> tex = new TextureImpl(srcDesc);
     tex->m_cudaContext = m_context;
@@ -327,7 +327,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
     // The size of the element/texel in bytes
     size_t elementSize = 0;
 
-    // Our `ITexture::Desc` uses an enumeration to specify
+    // Our `TextureDesc` uses an enumeration to specify
     // the "shape"/rank of a texture (1D, 2D, 3D, Cube), but CUDA's
     // `cuMipmappedArrayCreate` seemingly relies on a policy where
     // the extents of the array in dimenions above the rank are
@@ -342,19 +342,19 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
     int depth = desc.size.depth;
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         height = 0;
         depth = 0;
         break;
 
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
         depth = 0;
         break;
 
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         break;
 
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         depth = 1;
         break;
     }
@@ -408,8 +408,8 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
 
             if (desc.arraySize > 1)
             {
-                if (desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Flags |= CUDA_ARRAY3D_LAYERED;
                     arrayDesc.Depth = desc.arraySize;
@@ -421,7 +421,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
                 }
             }
 
-            if (desc.type == IResource::Type::TextureCube)
+            if (desc.type == TextureType::TextureCube)
             {
                 arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
                 arrayDesc.Depth *= 6;
@@ -436,8 +436,8 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
 
             if (desc.arraySize > 1)
             {
-                if (desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube)
                 {
                     SLANG_RHI_ASSERT_FAILURE("Only 1D, 2D and Cube arrays supported");
                     return SLANG_FAIL;
@@ -448,7 +448,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
 
                 // Set the depth as the array length
                 arrayDesc.Depth = desc.arraySize;
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Depth *= 6;
                 }
@@ -458,14 +458,14 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
                 arrayDesc.Format = format;
                 arrayDesc.NumChannels = numChannels;
 
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
                 }
 
                 SLANG_CUDA_RETURN_ON_FAIL(cuArray3DCreate(&tex->m_cudaArray, &arrayDesc));
             }
-            else if (desc.type == IResource::Type::Texture3D || desc.type == IResource::Type::TextureCube)
+            else if (desc.type == TextureType::Texture3D || desc.type == TextureType::TextureCube)
             {
                 CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
                 memset(&arrayDesc, 0, sizeof(arrayDesc));
@@ -479,7 +479,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
                 arrayDesc.Flags = 0;
 
                 // Handle cube texture
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Depth = 6;
                     arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
@@ -518,7 +518,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
             mipDepth = (mipDepth == 0) ? 1 : mipDepth;
 
             // If it's a cubemap then the depth is always 6
-            if (desc.type == IResource::Type::TextureCube)
+            if (desc.type == TextureType::TextureCube)
             {
                 mipDepth = 6;
             }
@@ -545,8 +545,8 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
             if (desc.arraySize > 1)
             {
                 SLANG_RHI_ASSERT(
-                    desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube
+                    desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube
                 );
 
                 // TODO(JS): Here I assume that arrays are just held contiguously within a
@@ -554,7 +554,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
                 const size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
 
                 Index faceCount = desc.arraySize;
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     faceCount *= 6;
                 }
@@ -575,7 +575,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
             }
             else
             {
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
 
@@ -598,8 +598,8 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
             if (desc.arraySize > 1)
             {
                 SLANG_RHI_ASSERT(
-                    desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube
+                    desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube
                 );
 
                 CUDA_MEMCPY3D copyParam;
@@ -616,7 +616,7 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
                 // Set the depth to the array length
                 copyParam.Depth = desc.arraySize;
 
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     copyParam.Depth *= 6;
                 }
@@ -627,8 +627,8 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
             {
                 switch (desc.type)
                 {
-                case IResource::Type::Texture1D:
-                case IResource::Type::Texture2D:
+                case TextureType::Texture1D:
+                case TextureType::Texture2D:
                 {
                     CUDA_MEMCPY2D copyParam;
                     memset(&copyParam, 0, sizeof(copyParam));
@@ -642,8 +642,8 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
                     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy2D(&copyParam));
                     break;
                 }
-                case IResource::Type::Texture3D:
-                case IResource::Type::TextureCube:
+                case TextureType::Texture3D:
+                case TextureType::TextureCube:
                 {
                     CUDA_MEMCPY3D copyParam;
                     memset(&copyParam, 0, sizeof(copyParam));
@@ -723,24 +723,23 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
+DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
     RefPtr<BufferImpl> buffer = new BufferImpl(desc);
     buffer->m_cudaContext = m_context;
-    SLANG_CUDA_RETURN_ON_FAIL(
-        cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.sizeInBytes, CU_MEM_ATTACH_GLOBAL)
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL)
     );
     if (initData)
     {
-        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.sizeInBytes));
+        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.size));
     }
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& desc, IBuffer** outBuffer)
+DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     if (handle.handleValue == 0)
     {
@@ -769,7 +768,7 @@ DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::De
         return SLANG_FAIL;
     }
     externalMemoryHandleDesc.handle.win32.handle = (void*)handle.handleValue;
-    externalMemoryHandleDesc.size = desc.sizeInBytes;
+    externalMemoryHandleDesc.size = desc.size;
     externalMemoryHandleDesc.flags = CUDA_EXTERNAL_MEMORY_DEDICATED;
 
     // Once we have filled in the descriptor, we can request
@@ -788,7 +787,7 @@ DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::De
     // the size).
     CUDA_EXTERNAL_MEMORY_BUFFER_DESC bufferDesc;
     memset(&bufferDesc, 0, sizeof(bufferDesc));
-    bufferDesc.size = desc.sizeInBytes;
+    bufferDesc.size = desc.size;
 
     // Finally, we can "map" the buffer to get a device address.
     void* deviceAddress;
@@ -802,7 +801,7 @@ DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::De
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
     InteropHandle handle,
-    const ITexture::Desc& desc,
+    const TextureDesc& desc,
     const size_t size,
     ITexture** outTexture
 )

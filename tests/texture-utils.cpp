@@ -259,7 +259,7 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
                 }
             }
 
-            ITexture::SubresourceData subData = {};
+            SubresourceData subData = {};
             subData.data = subresource->textureData;
             subData.strideY = subresource->strides.y;
             subData.strideZ = subresource->strides.z;

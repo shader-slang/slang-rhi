@@ -9,7 +9,7 @@ class TextureImpl : public Texture
 {
 public:
     typedef Texture Parent;
-    TextureImpl(const Desc& desc, DeviceImpl* device);
+    TextureImpl(const TextureDesc& desc, DeviceImpl* device);
     ~TextureImpl();
 
     VkImage m_image = VK_NULL_HANDLE;

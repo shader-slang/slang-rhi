@@ -195,7 +195,7 @@ Result DeviceImpl::readTexture(
 
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
-    const ITexture::Desc& desc = *textureImpl->getDesc();
+    const TextureDesc& desc = *textureImpl->getDesc();
     GfxCount width = std::max(desc.size.width, 1);
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
@@ -286,19 +286,19 @@ Result DeviceImpl::createAccelerationStructure(
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITexture::Desc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
 {
     AUTORELEASEPOOL
 
     auto alignTo = [&](Size size, Size alignment) -> Size { return ((size + alignment - 1) / alignment) * alignment; };
 
-    Texture::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
     FormatInfo formatInfo;
     rhiGetFormatInfo(desc.format, &formatInfo);
     MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;
-    ITexture::Extents extents = desc.size;
+    Extents extents = desc.size;
     extents.width = extents.width ? extents.width : 1;
     extents.height = extents.height ? extents.height : 1;
     extents.depth = extents.depth ? extents.depth : 1;
@@ -330,20 +330,16 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createTexture(
-    const ITexture::Desc& descIn,
-    const ITexture::SubresourceData* initData,
-    ITexture** outTexture
-)
+Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
     AUTORELEASEPOOL
 
-    Texture::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
 
     // Metal doesn't support mip-mapping for 1D textures
     // However, we still need to use the provided mip level count when initializing the texture
     GfxCount initMipLevels = desc.numMipLevels;
-    desc.numMipLevels = desc.type == IResource::Type::Texture1D ? 1 : desc.numMipLevels;
+    desc.numMipLevels = desc.type == TextureType::Texture1D ? 1 : desc.numMipLevels;
 
     const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     if (pixelFormat == MTL::PixelFormat::PixelFormatInvalid)
@@ -373,11 +369,11 @@ Result DeviceImpl::createTexture(
 
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         textureDesc->setTextureType(isArray ? MTL::TextureType1DArray : MTL::TextureType1D);
         textureDesc->setWidth(desc.size.width);
         break;
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
         if (desc.sampleDesc.numSamples > 1)
         {
             textureDesc->setTextureType(isArray ? MTL::TextureType2DMultisampleArray : MTL::TextureType2DMultisample);
@@ -390,12 +386,12 @@ Result DeviceImpl::createTexture(
         textureDesc->setWidth(descIn.size.width);
         textureDesc->setHeight(descIn.size.height);
         break;
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         textureDesc->setTextureType(isArray ? MTL::TextureTypeCubeArray : MTL::TextureTypeCube);
         textureDesc->setWidth(descIn.size.width);
         textureDesc->setHeight(descIn.size.height);
         break;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         textureDesc->setTextureType(MTL::TextureType::TextureType3D);
         textureDesc->setWidth(descIn.size.width);
         textureDesc->setHeight(descIn.size.height);
@@ -462,7 +458,7 @@ Result DeviceImpl::createTexture(
         }
 
         GfxCount sliceCount = isArray ? desc.arraySize : 1;
-        if (desc.type == IResource::Type::TextureCube)
+        if (desc.type == TextureType::TextureCube)
         {
             sliceCount *= 6;
         }
@@ -476,7 +472,7 @@ Result DeviceImpl::createTexture(
             {
                 if (level >= desc.numMipLevels)
                     continue;
-                const ITexture::SubresourceData& subresourceData = initData[slice * initMipLevels + level];
+                const SubresourceData& subresourceData = initData[slice * initMipLevels + level];
                 stagingTexture->replaceRegion(
                     region,
                     level,
@@ -502,13 +498,13 @@ Result DeviceImpl::createTexture(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 
-    Buffer::Desc desc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(descIn);
 
-    const Size bufferSize = desc.sizeInBytes;
+    const Size bufferSize = desc.size;
 
     MTL::ResourceOptions resourceOptions = MTL::ResourceOptions(0);
     switch (desc.memoryType)
@@ -554,7 +550,7 @@ Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initDat
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 
@@ -586,7 +582,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
         return SLANG_OK;
     }
 
-    const ITexture::Desc& textureDesc = *textureImpl->getDesc();
+    const TextureDesc& textureDesc = *textureImpl->getDesc();
     SubresourceRange sr = desc.subresourceRange;
     sr.mipLevelCount = sr.mipLevelCount == 0 ? textureDesc.numMipLevels - sr.mipLevel : sr.mipLevelCount;
     sr.layerCount = sr.layerCount == 0 ? textureDesc.arraySize - sr.baseArrayLayer : sr.layerCount;
@@ -668,7 +664,7 @@ Result DeviceImpl::createBufferView(
     viewImpl->m_desc = desc;
     viewImpl->m_buffer = bufferImpl;
     viewImpl->m_offset = desc.bufferRange.offset;
-    viewImpl->m_size = desc.bufferRange.size == 0 ? bufferImpl->getDesc()->sizeInBytes : desc.bufferRange.size;
+    viewImpl->m_size = desc.bufferRange.size == 0 ? bufferImpl->getDesc()->size : desc.bufferRange.size;
     returnComPtr(outView, viewImpl);
     return SLANG_OK;
 }

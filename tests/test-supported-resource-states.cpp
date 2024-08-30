@@ -138,13 +138,13 @@ struct SupportedResourceStatesTest
             );
 
             ResourceState currentState = ResourceState::CopySource;
-            ITexture::Extents extent;
+            Extents extent;
             extent.width = 4;
             extent.height = 4;
             extent.depth = 1;
 
-            ITexture::Desc texDesc = {};
-            texDesc.type = IResource::Type::Texture2D;
+            TextureDesc texDesc = {};
+            texDesc.type = TextureType::Texture2D;
             texDesc.numMipLevels = 1;
             texDesc.arraySize = 1;
             texDesc.size = extent;
@@ -155,8 +155,8 @@ struct SupportedResourceStatesTest
 
             REQUIRE_CALL(device->createTexture(texDesc, nullptr, texture.writeRef()));
 
-            IBuffer::Desc bufferDesc = {};
-            bufferDesc.sizeInBytes = 256;
+            BufferDesc bufferDesc = {};
+            bufferDesc.size = 256;
             bufferDesc.format = Format::Unknown;
             bufferDesc.elementSize = sizeof(float);
             bufferDesc.allowedStates = formatSupportedStates & bufferAllowedStates;

@@ -21,14 +21,14 @@ void SwapchainImpl::createImages()
     m_images.resize(m_desc.imageCount);
     for (GfxCount i = 0; i < m_desc.imageCount; ++i)
     {
-        ITexture::Desc imageDesc = {};
+        TextureDesc imageDesc = {};
         imageDesc.allowedStates = ResourceStateSet(
             ResourceState::Present,
             ResourceState::RenderTarget,
             ResourceState::CopyDestination,
             ResourceState::CopySource
         );
-        imageDesc.type = IResource::Type::Texture2D;
+        imageDesc.type = TextureType::Texture2D;
         imageDesc.arraySize = 0;
         imageDesc.format = m_desc.format;
         imageDesc.size.width = m_desc.width;

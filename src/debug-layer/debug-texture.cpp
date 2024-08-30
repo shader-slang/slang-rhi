@@ -3,13 +3,7 @@
 
 namespace rhi::debug {
 
-IResource::Type DebugTexture::getType()
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->getType();
-}
-
-ITexture::Desc* DebugTexture::getDesc()
+TextureDesc* DebugTexture::getDesc()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDesc();

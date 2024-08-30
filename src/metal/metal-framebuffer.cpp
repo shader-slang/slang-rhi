@@ -40,7 +40,7 @@ Result FramebufferImpl::init(DeviceImpl* device, const IFramebuffer::Desc& desc)
 
     auto visitView = [this](TextureViewImpl* view)
     {
-        const ITexture::Desc* textureDesc = view->m_texture->getDesc();
+        const TextureDesc* textureDesc = view->m_texture->getDesc();
         const IResourceView::Desc* viewDesc = view->getViewDesc();
         m_width = std::max(1u, uint32_t(textureDesc->size.width >> viewDesc->subresourceRange.mipLevel));
         m_height = std::max(1u, uint32_t(textureDesc->size.height >> viewDesc->subresourceRange.mipLevel));

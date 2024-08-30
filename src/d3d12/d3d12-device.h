@@ -110,19 +110,16 @@ public:
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment) override;
+    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
-        const ITexture::Desc& desc,
-        const ITexture::SubresourceData* initData,
-        ITexture** outTexture
-    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture) override;
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
+    createTextureFromNativeHandle(InteropHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) override;
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;

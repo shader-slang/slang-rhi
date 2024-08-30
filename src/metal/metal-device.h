@@ -30,15 +30,12 @@ public:
     createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
-        const ITexture::Desc& desc,
-        const ITexture::SubresourceData* initData,
-        ITexture** outTexture
-    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) override;
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
 
@@ -95,7 +92,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment) override;
+    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;
 

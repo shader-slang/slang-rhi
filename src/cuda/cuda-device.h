@@ -31,21 +31,18 @@ public:
 
     Result getCUDAFormat(Format format, CUarray_format* outFormat);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
-        const ITexture::Desc& desc,
-        const ITexture::SubresourceData* initData,
-        ITexture** outTexture
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer) override;
+    createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& desc, IBuffer** outBuffer) override;
+    createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
-        const ITexture::Desc& desc,
+        const TextureDesc& desc,
         const size_t size,
         ITexture** outTexture
     ) override;

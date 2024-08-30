@@ -2,16 +2,16 @@
 
 namespace rhi {
 
-IBuffer::Desc fixupBufferDesc(const IBuffer::Desc& desc)
+BufferDesc fixupBufferDesc(const BufferDesc& desc)
 {
-    IBuffer::Desc result = desc;
+    BufferDesc result = desc;
     result.allowedStates.add(result.defaultState);
     return result;
 }
 
-ITexture::Desc fixupTextureDesc(const ITexture::Desc& desc)
+TextureDesc fixupTextureDesc(const TextureDesc& desc)
 {
-    ITexture::Desc rs = desc;
+    TextureDesc rs = desc;
     if (desc.numMipLevels == 0)
         rs.numMipLevels = calcNumMipLevels(desc.type, desc.size);
     rs.allowedStates.add(rs.defaultState);

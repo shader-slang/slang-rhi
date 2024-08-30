@@ -243,9 +243,8 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     if (!m_ordinaryDataBuffer)
     {
         ComPtr<IBuffer> buffer;
-        IBuffer::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
-        bufferDesc.sizeInBytes = specializedOrdinaryDataSize;
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = specializedOrdinaryDataSize;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;

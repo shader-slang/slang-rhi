@@ -2,7 +2,7 @@
 
 namespace rhi::d3d12 {
 
-BufferImpl::BufferImpl(const Desc& desc)
+BufferImpl::BufferImpl(const BufferDesc& desc)
     : Parent(desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {

@@ -45,7 +45,7 @@ class BufferImpl : public Buffer
 public:
     typedef Buffer Parent;
 
-    BufferImpl(const IBuffer::Desc& desc, DeviceImpl* renderer);
+    BufferImpl(const BufferDesc& desc, DeviceImpl* renderer);
 
     ~BufferImpl();
 

@@ -278,12 +278,12 @@ void DebugResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITexture::Offset3D dstOffset,
+    Offset3D dstOffset,
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_RHI_API_FUNC;
@@ -303,9 +303,9 @@ void DebugResourceCommandEncoderImpl::copyTexture(
 void DebugResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subResourceRange,
-    ITexture::Offset3D offset,
-    ITexture::Extents extent,
-    ITexture::SubresourceData* subResourceData,
+    Offset3D offset,
+    Extents extent,
+    SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
@@ -371,8 +371,8 @@ void DebugResourceCommandEncoderImpl::copyTextureToBuffer(
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_RHI_API_FUNC;

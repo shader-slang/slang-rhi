@@ -50,9 +50,9 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::SubresourceData* initData, ITexture** outTexture)
+DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
-    Texture::Desc srcDesc = fixupTextureDesc(desc);
+    TextureDesc srcDesc = fixupTextureDesc(desc);
 
     RefPtr<TextureImpl> texture = new TextureImpl(srcDesc);
 
@@ -63,14 +63,14 @@ DeviceImpl::createTexture(const ITexture::Desc& desc, const ITexture::Subresourc
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
+DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
     RefPtr<BufferImpl> buffer = new BufferImpl(desc);
     SLANG_RETURN_ON_FAIL(buffer->init());
     if (initData)
     {
-        SLANG_RETURN_ON_FAIL(buffer->setData(0, desc.sizeInBytes, initData));
+        SLANG_RETURN_ON_FAIL(buffer->setData(0, desc.size, initData));
     }
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;

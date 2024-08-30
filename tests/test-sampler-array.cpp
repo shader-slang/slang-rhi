@@ -6,8 +6,8 @@ using namespace rhi::testing;
 static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 {
     ComPtr<IBuffer> buffer;
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = sizeof(uint32_t);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(uint32_t);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -55,8 +55,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, uav.writeRef()));
     }
     {
-        ITexture::Desc textureDesc = {};
-        textureDesc.type = IResource::Type::Texture2D;
+        TextureDesc textureDesc = {};
+        textureDesc.type = TextureType::Texture2D;
         textureDesc.format = Format::R8G8B8A8_UNORM;
         textureDesc.size.width = 2;
         textureDesc.size.height = 2;
@@ -66,7 +66,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.defaultState = ResourceState::ShaderResource;
         textureDesc.allowedStates.add(ResourceState::CopyDestination);
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
-        ITexture::SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
+        SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
         REQUIRE_CALL(device->createTexture(textureDesc, subResourceData, texture.writeRef()));
     }
     for (uint32_t i = 0; i < 32; i++)

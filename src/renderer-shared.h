@@ -202,21 +202,7 @@ protected:
 
 class Resource : public ComObject
 {
-public:
-    /// Get the type
-    SLANG_FORCE_INLINE IResource::Type getType() const { return m_type; }
-    /// True if it's a texture derived type
-    SLANG_FORCE_INLINE bool isTexture() const { return int(m_type) >= int(IResource::Type::Texture1D); }
-    /// True if it's a buffer derived type
-    SLANG_FORCE_INLINE bool isBuffer() const { return m_type == IResource::Type::Buffer; }
-
 protected:
-    Resource(IResource::Type type)
-        : m_type(type)
-    {
-    }
-
-    IResource::Type m_type;
     InteropHandle sharedHandle = {};
     std::string m_debugName;
 };
@@ -231,14 +217,12 @@ public:
     typedef Resource Parent;
 
     /// Ctor
-    Buffer(const Desc& desc)
-        : Parent(Type::Buffer)
-        , m_desc(desc)
+    Buffer(const BufferDesc& desc)
+        : m_desc(desc)
     {
     }
 
-    virtual SLANG_NO_THROW IResource::Type SLANG_MCALL getType() SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW IBuffer::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW BufferDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
 
@@ -250,7 +234,7 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override { return m_debugName.data(); }
 
 protected:
-    Desc m_desc;
+    BufferDesc m_desc;
 };
 
 class Texture : public ITexture, public Resource
@@ -263,14 +247,12 @@ public:
     typedef Resource Parent;
 
     /// Ctor
-    Texture(const Desc& desc)
-        : Parent(desc.type)
-        , m_desc(desc)
+    Texture(const TextureDesc& desc)
+        : m_desc(desc)
     {
     }
 
-    virtual SLANG_NO_THROW IResource::Type SLANG_MCALL getType() SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW ITexture::Desc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW TextureDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
 
@@ -282,7 +264,7 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override { return m_debugName.data(); }
 
 protected:
-    Desc m_desc;
+    TextureDesc m_desc;
 };
 
 class ResourceViewInternalBase : public ComObject
@@ -1188,23 +1170,21 @@ public:
     IDevice* getInterface(const Guid& guid);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture)
+    createTextureFromNativeHandle(InteropHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
         SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
-        const ITexture::Desc& srcDesc,
+        const TextureDesc& srcDesc,
         const Size size,
         ITexture** outTexture
     ) SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
-        SLANG_OVERRIDE;
+    createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
-        SLANG_OVERRIDE;
+    createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createProgram2(
         const IShaderProgram::CreateDesc2& desc,
@@ -1282,7 +1262,7 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment) override;
+    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;

@@ -27,12 +27,11 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
 
     auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
     ComPtr<IBuffer> buffer;
-    IBuffer::Desc bufferDesc = {};
+    BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.allowedStates.add(ResourceState::NonPixelShaderResource);
-    bufferDesc.type = IResource::Type::Buffer;
-    bufferDesc.sizeInBytes = tableSize;
+    bufferDesc.size = tableSize;
     m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef());
 
     ComPtr<ID3D12StateObjectProperties> stateObjectProperties;

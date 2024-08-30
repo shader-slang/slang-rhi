@@ -308,7 +308,7 @@ void ResourceCommandEncoder::bufferBarrier(
         barrier.dstAccessMask = calcAccessFlags(dst);
         barrier.buffer = bufferImpl->m_buffer.m_buffer;
         barrier.offset = 0;
-        barrier.size = bufferImpl->getDesc()->sizeInBytes;
+        barrier.size = bufferImpl->getDesc()->size;
 
         barriers.push_back(barrier);
     }
@@ -362,12 +362,12 @@ void ResourceCommandEncoder::copyTexture(
     ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITexture::Offset3D dstOffset,
+    Offset3D dstOffset,
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     auto srcImage = static_cast<TextureImpl*>(src);
@@ -420,9 +420,9 @@ void ResourceCommandEncoder::copyTexture(
 void ResourceCommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subResourceRange,
-    ITexture::Offset3D offset,
-    ITexture::Extents extend,
-    ITexture::SubresourceData* subResourceData,
+    Offset3D offset,
+    Extents extend,
+    SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
@@ -430,7 +430,7 @@ void ResourceCommandEncoder::uploadTextureData(
 
     auto& vkApi = m_commandBuffer->m_renderer->m_api;
     auto dstImpl = static_cast<TextureImpl*>(dst);
-    std::vector<Texture::Extents> mipSizes;
+    std::vector<Extents> mipSizes;
 
     VkCommandBuffer commandBuffer = m_commandBuffer->m_commandBuffer;
     auto& desc = *dstImpl->getDesc();
@@ -439,7 +439,7 @@ void ResourceCommandEncoder::uploadTextureData(
     // Calculate how large an array entry is
     for (GfxIndex j = subResourceRange.mipLevel; j < subResourceRange.mipLevel + subResourceRange.mipLevelCount; ++j)
     {
-        const Texture::Extents mipSize = calcMipSize(desc.size, j);
+        const Extents mipSize = calcMipSize(desc.size, j);
 
         auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
         auto numRows = calcNumRows(desc.format, mipSize.height);
@@ -736,7 +736,7 @@ void ResourceCommandEncoder::clearResourceView(
             uint64_t clearStart = viewImpl->m_desc.bufferRange.offset;
             uint64_t clearSize = viewImpl->m_desc.bufferRange.size;
             if (clearSize == 0)
-                clearSize = viewImpl->m_buffer->getDesc()->sizeInBytes - clearStart;
+                clearSize = viewImpl->m_buffer->getDesc()->size - clearStart;
             api.vkCmdFillBuffer(
                 m_commandBuffer->m_commandBuffer,
                 viewImpl->m_buffer->m_buffer.m_buffer,
@@ -756,7 +756,7 @@ void ResourceCommandEncoder::clearResourceView(
             auto viewImpl = static_cast<TexelBufferViewImpl*>(viewImplBase);
             _clearBuffer(
                 viewImpl->m_buffer->m_buffer.m_buffer,
-                viewImpl->m_buffer->getDesc()->sizeInBytes,
+                viewImpl->m_buffer->getDesc()->size,
                 viewImpl->m_desc,
                 clearValue->color.uintValues[0]
             );
@@ -850,8 +850,8 @@ void ResourceCommandEncoder::copyTextureToBuffer(
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);

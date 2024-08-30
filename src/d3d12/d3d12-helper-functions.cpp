@@ -61,20 +61,18 @@ D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states)
     return (D3D12_RESOURCE_FLAGS)dstFlags;
 }
 
-D3D12_RESOURCE_DIMENSION calcResourceDimension(IResource::Type type)
+D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type)
 {
     switch (type)
     {
-    case IResource::Type::Buffer:
-        return D3D12_RESOURCE_DIMENSION_BUFFER;
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-    case IResource::Type::TextureCube:
-    case IResource::Type::Texture2D:
+    case TextureType::TextureCube:
+    case TextureType::Texture2D:
     {
         return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     }
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
     default:
         return D3D12_RESOURCE_DIMENSION_UNKNOWN;
@@ -207,8 +205,7 @@ uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
 }
 
 void initSrvDesc(
-    IResource::Type resourceType,
-    const ITexture::Desc& textureDesc,
+    const TextureDesc& textureDesc,
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
@@ -253,7 +250,7 @@ void initSrvDesc(
             SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
         }
     }
-    else if (resourceType == IResource::Type::TextureCube)
+    else if (textureDesc.type == TextureType::TextureCube)
     {
         if (textureDesc.arraySize > 1)
         {
@@ -336,7 +333,7 @@ void initSrvDesc(
     }
 }
 
-Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITexture::Desc& srcDesc)
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc)
 {
     const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)

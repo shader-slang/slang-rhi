@@ -13,7 +13,7 @@ public:
     BreakableReference<DeviceImpl> m_device;
     NS::SharedPtr<MTL::Buffer> m_buffer;
 
-    BufferImpl(const IBuffer::Desc& desc, DeviceImpl* device);
+    BufferImpl(const BufferDesc& desc, DeviceImpl* device);
     ~BufferImpl();
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;

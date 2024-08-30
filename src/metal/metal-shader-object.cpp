@@ -254,9 +254,8 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* de
     if (!m_ordinaryDataBuffer)
     {
         ComPtr<IBuffer> buffer;
-        IBuffer::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
-        bufferDesc.sizeInBytes = ordinaryDataSize;
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = ordinaryDataSize;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
@@ -350,9 +349,9 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
     if (!m_argumentBuffer)
     {
         ComPtr<IBuffer> buffer;
-        IBuffer::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
-        bufferDesc.sizeInBytes = typeLayout->getSize();
+        BufferDesc bufferDesc = {};
+        bufferDesc.type = TextureType::Buffer;
+        bufferDesc.size = typeLayout->getSize();
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;

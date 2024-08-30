@@ -3,7 +3,7 @@
 
 namespace rhi::metal {
 
-BufferImpl::BufferImpl(const IBuffer::Desc& desc, DeviceImpl* device)
+BufferImpl::BufferImpl(const BufferDesc& desc, DeviceImpl* device)
     : Parent(desc)
     , m_device(device)
 {
@@ -42,7 +42,7 @@ Result BufferImpl::unmap(MemoryRange* writtenRange)
 Result BufferImpl::setDebugName(const char* name)
 {
     Parent::setDebugName(name);
-    m_buffer->addDebugMarker(MetalUtil::createString(name).get(), NS::Range(0, m_desc.sizeInBytes));
+    m_buffer->addDebugMarker(MetalUtil::createString(name).get(), NS::Range(0, m_desc.size));
     return SLANG_OK;
 }
 

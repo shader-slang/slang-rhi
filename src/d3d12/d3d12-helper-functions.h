@@ -40,7 +40,7 @@ bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op);
 
 D3D12_RESOURCE_FLAGS calcResourceFlag(ResourceState state);
 D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states);
-D3D12_RESOURCE_DIMENSION calcResourceDimension(IResource::Type type);
+D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type);
 
 DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format);
 bool isTypelessDepthFormat(DXGI_FORMAT format);
@@ -52,14 +52,13 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
 
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc);
 void initSrvDesc(
-    IResource::Type resourceType,
-    const ITexture::Desc& textureDesc,
+    const TextureDesc& textureDesc,
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
     D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
 );
-Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITexture::Desc& srcDesc);
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 Result uploadBufferDataImpl(
     ID3D12Device* device,

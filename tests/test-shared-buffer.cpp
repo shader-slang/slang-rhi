@@ -13,8 +13,8 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     // dstDevice. Read back the buffer and check that its contents are correct.
     const int numberCount = 4;
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -41,9 +41,9 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     InteropHandle testHandle;
     REQUIRE_CALL(dstBuffer->getNativeResourceHandle(&testHandle));
-    IBuffer::Desc* testDesc = dstBuffer->getDesc();
+    BufferDesc* testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc->elementSize, sizeof(float));
-    CHECK_EQ(testDesc->sizeInBytes, numberCount * sizeof(float));
+    CHECK_EQ(testDesc->size, numberCount * sizeof(float));
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
     // Check that dstBuffer can be successfully used in a compute dispatch using dstDevice.

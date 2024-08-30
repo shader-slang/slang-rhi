@@ -22,13 +22,10 @@ public:
     virtual void setFramebuffer(IFramebuffer* frameBuffer) override;
     virtual void setStencilReference(uint32_t referenceValue) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
-        const ITexture::Desc& desc,
-        const ITexture::SubresourceData* initData,
-        ITexture** outTexture
-    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
 

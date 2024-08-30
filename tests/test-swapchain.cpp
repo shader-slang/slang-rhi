@@ -57,7 +57,7 @@ struct SwapchainResizeTest
             gfx::IResourceView::Desc colorBufferViewDesc;
             memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
             colorBufferViewDesc.format = swapchain->getDesc().format;
-            colorBufferViewDesc.renderTarget.shape = gfx::IResource::Type::Texture2D;
+            colorBufferViewDesc.renderTarget.shape = gfx::TextureType::Texture2D;
             colorBufferViewDesc.type = gfx::IResourceView::Type::RenderTarget;
             auto rtv = device->createTextureView(colorBuffer.get(), colorBufferViewDesc);
 
@@ -117,9 +117,8 @@ struct SwapchainResizeTest
         auto inputLayout = device->createInputLayout(inputLayoutDesc);
         SLANG_CHECK_ABORT(inputLayout != nullptr);
 
-        IBuffer::Desc vertexBufferDesc;
-        vertexBufferDesc.type = IResource::Type::Buffer;
-        vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         SLANG_CHECK_ABORT(vertexBuffer != nullptr);

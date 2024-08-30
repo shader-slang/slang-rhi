@@ -80,7 +80,7 @@ void TextureViewImpl::SampleLevel(
 
     auto& mipLevelInfo = texture->m_mipLevels[integerMipLevel];
 
-    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::ITexture::Type::TextureCube);
+    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::TextureType::TextureCube);
     int32_t effectiveArrayElementCount = texture->m_effectiveArrayElementCount;
     int32_t coordIndex = baseCoordCount;
     int32_t elementIndex = 0;
@@ -132,10 +132,9 @@ void* TextureViewImpl::_getTexelPtr(int32_t const* texelCoords)
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
-    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::ITexture::Type::TextureCube);
+    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::TextureType::TextureCube);
     bool isMultisample = desc.sampleDesc.numSamples > 1;
-    bool isBuffer = desc.type == rhi::ITexture::Type::Buffer;
-    bool hasMipLevels = !(isMultisample || isBuffer);
+    bool hasMipLevels = !isMultisample;
 
     int32_t effectiveArrayElementCount = texture->m_effectiveArrayElementCount;
 

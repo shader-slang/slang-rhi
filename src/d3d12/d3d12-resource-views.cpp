@@ -29,7 +29,7 @@ Result createD3D12BufferDescriptor(
     const auto counterResourceImpl = static_cast<BufferImpl*>(counterBuffer);
 
     uint64_t offset = desc.bufferRange.offset;
-    uint64_t size = desc.bufferRange.size == 0 ? buffer->getDesc()->sizeInBytes - offset : desc.bufferRange.size;
+    uint64_t size = desc.bufferRange.size == 0 ? buffer->getDesc()->size - offset : desc.bufferRange.size;
 
     switch (desc.type)
     {

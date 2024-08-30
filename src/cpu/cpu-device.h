@@ -13,14 +13,11 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
-        const ITexture::Desc& desc,
-        const ITexture::SubresourceData* initData,
-        ITexture** outTexture
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer) override;
+    createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* inTexture, IResourceView::Desc const& desc, IResourceView** outView) override;

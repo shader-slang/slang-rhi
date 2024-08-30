@@ -39,8 +39,7 @@ ResourceViewBase* CPUShaderObjectData::getResourceView(
     SLANG_UNUSED(device);
     if (!m_buffer)
     {
-        IBuffer::Desc desc = {};
-        desc.type = IResource::Type::Buffer;
+        BufferDesc desc = {};
         desc.elementSize = (int)elementLayout->getSize();
         m_buffer = new BufferImpl(desc);
 
@@ -49,7 +48,7 @@ ResourceViewBase* CPUShaderObjectData::getResourceView(
         viewDesc.format = Format::Unknown;
         m_bufferView = new BufferViewImpl(viewDesc, m_buffer);
     }
-    m_buffer->getDesc()->sizeInBytes = m_ordinaryData.size();
+    m_buffer->getDesc()->size = m_ordinaryData.size();
     m_buffer->m_data = m_ordinaryData.data();
     return m_bufferView.Ptr();
 }
@@ -175,7 +174,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         auto desc = *buffer->getDesc();
 
         void* dataPtr = buffer->m_data;
-        size_t size = desc.sizeInBytes;
+        size_t size = desc.size;
         if (desc.elementSize > 1)
             size /= desc.elementSize;
 

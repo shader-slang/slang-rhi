@@ -559,32 +559,6 @@ class IResource : public ISlangUnknown
     SLANG_COM_INTERFACE(0xa8dd4704, 0xf000, 0x4278, {0x83, 0x4d, 0x29, 0x4c, 0xef, 0xfe, 0x95, 0x93});
 
 public:
-    /// The type of resource.
-    /// NOTE! The order needs to be such that all texture types are at or after Texture1D (otherwise isTexture won't
-    /// work correctly)
-    enum class Type
-    {
-        Unknown,     ///< Unknown
-        Buffer,      ///< A buffer (like a constant/index/vertex buffer)
-        Texture1D,   ///< A 1d texture
-        Texture2D,   ///< A 2d texture
-        Texture3D,   ///< A 3d texture
-        TextureCube, ///< A cubemap consists of 6 Texture2D like faces
-        _Count,
-    };
-
-    /// Base class for Descs
-    struct DescBase
-    {
-        Type type = Type::Unknown;
-        ResourceState defaultState = ResourceState::Undefined;
-        ResourceStateSet allowedStates = ResourceStateSet();
-        MemoryType memoryType = MemoryType::DeviceLocal;
-        InteropHandle existingHandle = {};
-        bool isShared = false;
-    };
-
-    virtual SLANG_NO_THROW Type SLANG_MCALL getType() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) = 0;
 
@@ -599,21 +573,30 @@ struct MemoryRange
     uint64_t size;
 };
 
+struct BufferDesc
+{
+    /// Total size in bytes.
+    Size size = 0;
+    /// Get the element stride. If > 0, this is a structured buffer.
+    Size elementSize = 0;
+    /// Format used for typed views.
+    Format format = Format::Unknown;
+
+    MemoryType memoryType = MemoryType::DeviceLocal;
+
+    ResourceState defaultState = ResourceState::Undefined;
+    ResourceStateSet allowedStates = ResourceStateSet();
+
+    InteropHandle existingHandle = {};
+    bool isShared = false;
+};
+
 class IBuffer : public IResource
 {
     SLANG_COM_INTERFACE(0xf3eeb08f, 0xa0cc, 0x4eea, {0x93, 0xfd, 0x2a, 0xfe, 0x95, 0x1c, 0x7f, 0x63});
 
 public:
-    struct Desc : public DescBase
-    {
-        /// Total size in bytes
-        Size sizeInBytes = 0;
-        /// Get the element stride. If > 0, this is a structured buffer
-        Size elementSize = 0;
-        Format format = Format::Unknown;
-    };
-
-    virtual SLANG_NO_THROW Desc* SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW BufferDesc* SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) = 0;
@@ -643,6 +626,14 @@ struct BufferRange
     Size size;
 };
 
+enum class TextureType
+{
+    Texture1D,   ///< A 1d texture
+    Texture2D,   ///< A 2d texture
+    Texture3D,   ///< A 3d texture
+    TextureCube, ///< A cubemap consists of 6 Texture2D like faces
+};
+
 enum class TextureAspect : uint32_t
 {
     Default = 0,
@@ -666,104 +657,110 @@ struct SubresourceRange
     GfxCount layerCount;     // For cube maps, this is a multiple of 6.
 };
 
+/// Data for a single subresource of a texture.
+///
+/// Each subresource is a tensor with `1 <= rank <= 3`,
+/// where the rank is deterined by the base shape of the
+/// texture (Buffer, 1D, 2D, 3D, or Cube). For the common
+/// case of a 2D texture, `rank == 2` and each subresource
+/// is a 2D image.
+///
+/// Subresource tensors must be stored in a row-major layout,
+/// so that the X axis strides over texels, the Y axis strides
+/// over 1D rows of texels, and the Z axis strides over 2D
+/// "layers" of texels.
+///
+/// For a texture with multiple mip levels or array elements,
+/// each mip level and array element is stores as a distinct
+/// subresource. When indexing into an array of subresources,
+/// the index of a subresoruce for mip level `m` and array
+/// index `a` is `m + a*mipLevelCount`.
+///
+struct SubresourceData
+{
+    /// Pointer to texel data for the subresource tensor.
+    void const* data;
+
+    /// Stride in bytes between rows of the subresource tensor.
+    ///
+    /// This is the number of bytes to add to a pointer to a texel
+    /// at (X,Y,Z) to get to a texel at (X,Y+1,Z).
+    ///
+    /// Devices may not support all possible values for `strideY`.
+    /// In particular, they may only support strictly positive strides.
+    ///
+    Size strideY;
+
+    /// Stride in bytes between layers of the subresource tensor.
+    ///
+    /// This is the number of bytes to add to a pointer to a texel
+    /// at (X,Y,Z) to get to a texel at (X,Y,Z+1).
+    ///
+    /// Devices may not support all possible values for `strideZ`.
+    /// In particular, they may only support strictly positive strides.
+    ///
+    Size strideZ;
+};
+
+static const GfxCount kRemainingTextureSize = 0xffffffff;
+struct Offset3D
+{
+    GfxIndex x = 0;
+    GfxIndex y = 0;
+    GfxIndex z = 0;
+    Offset3D() = default;
+    Offset3D(GfxIndex _x, GfxIndex _y, GfxIndex _z)
+        : x(_x)
+        , y(_y)
+        , z(_z)
+    {
+    }
+};
+
+struct SampleDesc
+{
+    /// Number of samples per pixel.
+    GfxCount numSamples = 1;
+    /// The quality measure for the samples.
+    int quality = 0;
+};
+
+struct Extents
+{
+    /// Width in pixels.
+    GfxCount width = 0;
+    /// Height in pixels (if 2d or 3d).
+    GfxCount height = 0;
+    /// Depth (if 3d).
+    GfxCount depth = 0;
+};
+struct TextureDesc
+{
+    TextureType type = TextureType::Texture2D;
+    ResourceState defaultState = ResourceState::Undefined;
+    ResourceStateSet allowedStates = ResourceStateSet();
+    MemoryType memoryType = MemoryType::DeviceLocal;
+    InteropHandle existingHandle = {};
+    bool isShared = false;
+
+    Extents size;
+    /// Array size.
+    GfxCount arraySize = 0;
+    /// Number of mip levels - if 0 will create all mip levels.
+    GfxCount numMipLevels = 0;
+    /// The resources format.
+    Format format;
+    /// How the resource is sampled.
+    SampleDesc sampleDesc;
+    ClearValue* optimalClearValue = nullptr;
+};
+
 class ITexture : public IResource
 {
     SLANG_COM_INTERFACE(0x423090a2, 0x8be7, 0x4421, {0x98, 0x71, 0x7e, 0xe2, 0x63, 0xf4, 0xea, 0x3d});
 
 public:
-    static const GfxCount kRemainingTextureSize = 0xffffffff;
-    struct Offset3D
-    {
-        GfxIndex x = 0;
-        GfxIndex y = 0;
-        GfxIndex z = 0;
-        Offset3D() = default;
-        Offset3D(GfxIndex _x, GfxIndex _y, GfxIndex _z)
-            : x(_x)
-            , y(_y)
-            , z(_z)
-        {
-        }
-    };
-
-    struct SampleDesc
-    {
-        /// Number of samples per pixel.
-        GfxCount numSamples = 1;
-        /// The quality measure for the samples.
-        int quality = 0;
-    };
-
-    struct Extents
-    {
-        /// Width in pixels.
-        GfxCount width = 0;
-        /// Height in pixels (if 2d or 3d).
-        GfxCount height = 0;
-        /// Depth (if 3d).
-        GfxCount depth = 0;
-    };
-
-    struct Desc : public DescBase
-    {
-        Extents size;
-        /// Array size.
-        GfxCount arraySize = 0;
-        /// Number of mip levels - if 0 will create all mip levels.
-        GfxCount numMipLevels = 0;
-        /// The resources format.
-        Format format;
-        /// How the resource is sampled.
-        SampleDesc sampleDesc;
-        ClearValue* optimalClearValue = nullptr;
-    };
-
-    /// Data for a single subresource of a texture.
-    ///
-    /// Each subresource is a tensor with `1 <= rank <= 3`,
-    /// where the rank is deterined by the base shape of the
-    /// texture (Buffer, 1D, 2D, 3D, or Cube). For the common
-    /// case of a 2D texture, `rank == 2` and each subresource
-    /// is a 2D image.
-    ///
-    /// Subresource tensors must be stored in a row-major layout,
-    /// so that the X axis strides over texels, the Y axis strides
-    /// over 1D rows of texels, and the Z axis strides over 2D
-    /// "layers" of texels.
-    ///
-    /// For a texture with multiple mip levels or array elements,
-    /// each mip level and array element is stores as a distinct
-    /// subresource. When indexing into an array of subresources,
-    /// the index of a subresoruce for mip level `m` and array
-    /// index `a` is `m + a*mipLevelCount`.
-    ///
-    struct SubresourceData
-    {
-        /// Pointer to texel data for the subresource tensor.
-        void const* data;
-
-        /// Stride in bytes between rows of the subresource tensor.
-        ///
-        /// This is the number of bytes to add to a pointer to a texel
-        /// at (X,Y,Z) to get to a texel at (X,Y+1,Z).
-        ///
-        /// Devices may not support all possible values for `strideY`.
-        /// In particular, they may only support strictly positive strides.
-        ///
-        Size strideY;
-
-        /// Stride in bytes between layers of the subresource tensor.
-        ///
-        /// This is the number of bytes to add to a pointer to a texel
-        /// at (X,Y,Z) to get to a texel at (X,Y,Z+1).
-        ///
-        /// Devices may not support all possible values for `strideZ`.
-        /// In particular, they may only support strictly positive strides.
-        ///
-        Size strideZ;
-    };
-
-    virtual SLANG_NO_THROW Desc* SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW TextureDesc* SLANG_MCALL getDesc() = 0;
 };
 
 enum class ComparisonFunc : uint8_t
@@ -847,7 +844,7 @@ public:
     struct RenderTargetDesc
     {
         // The resource shape of this render target view.
-        IResource::Type shape;
+        TextureType shape;
     };
 
     struct Desc
@@ -1586,12 +1583,12 @@ public:
         ITexture* dst,
         ResourceState dstState,
         SubresourceRange dstSubresource,
-        ITexture::Offset3D dstOffset,
+        Offset3D dstOffset,
         ITexture* src,
         ResourceState srcState,
         SubresourceRange srcSubresource,
-        ITexture::Offset3D srcOffset,
-        ITexture::Extents extent
+        Offset3D srcOffset,
+        Extents extent
     ) = 0;
 
     /// Copies texture to a buffer. Each row is aligned to kTexturePitchAlignment.
@@ -1603,15 +1600,15 @@ public:
         ITexture* src,
         ResourceState srcState,
         SubresourceRange srcSubresource,
-        ITexture::Offset3D srcOffset,
-        ITexture::Extents extent
+        Offset3D srcOffset,
+        Extents extent
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subResourceRange,
-        ITexture::Offset3D offset,
-        ITexture::Extents extent,
-        ITexture::SubresourceData* subResourceData,
+        Offset3D offset,
+        Extents extent,
+        SubresourceData* subResourceData,
         GfxCount subResourceDataCount
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
@@ -2236,7 +2233,7 @@ public:
     /// Create a texture resource.
     ///
     /// If `initData` is non-null, then it must point to an array of
-    /// `ITexture::SubresourceData` with one element for each
+    /// `SubresourceData` with one element for each
     /// subresource of the texture being created.
     ///
     /// The number of subresources in a texture is:
@@ -2248,13 +2245,13 @@ public:
     ///     effectiveElementCount = (isArray ? arrayElementCount : 1) * (isCube ? 6 : 1);
     ///
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTexture(const ITexture::Desc& desc, const ITexture::SubresourceData* initData, ITexture** outTexture) = 0;
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) = 0;
 
     /// Create a texture resource. initData holds the initialize data to set the contents of the texture when
     /// constructed.
     inline SLANG_NO_THROW ComPtr<ITexture> createTexture(
-        const ITexture::Desc& desc,
-        const ITexture::SubresourceData* initData = nullptr
+        const TextureDesc& desc,
+        const SubresourceData* initData = nullptr
     )
     {
         ComPtr<ITexture> resource;
@@ -2263,20 +2260,20 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture) = 0;
+    createTextureFromNativeHandle(InteropHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
-        const ITexture::Desc& srcDesc,
+        const TextureDesc& srcDesc,
         const Size size,
         ITexture** outTexture
     ) = 0;
 
     /// Create a buffer resource
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) = 0;
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) = 0;
 
-    inline SLANG_NO_THROW ComPtr<IBuffer> createBuffer(const IBuffer::Desc& desc, const void* initData = nullptr)
+    inline SLANG_NO_THROW ComPtr<IBuffer> createBuffer(const BufferDesc& desc, const void* initData = nullptr)
     {
         ComPtr<IBuffer> resource;
         SLANG_RETURN_NULL_ON_FAIL(createBuffer(desc, initData, resource.writeRef()));
@@ -2284,10 +2281,10 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) = 0;
@@ -2513,7 +2510,7 @@ public:
     waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment) = 0;
+    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) = 0;
 

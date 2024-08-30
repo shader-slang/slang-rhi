@@ -2,7 +2,7 @@
 
 namespace rhi::d3d12 {
 
-TextureImpl::TextureImpl(const Desc& desc)
+TextureImpl::TextureImpl(const TextureDesc& desc)
     : Parent(desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {

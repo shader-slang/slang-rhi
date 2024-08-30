@@ -9,7 +9,7 @@ class BufferImpl : public Buffer
 public:
     typedef Buffer Parent;
 
-    BufferImpl(const IBuffer::Desc& desc)
+    BufferImpl(const BufferDesc& desc)
         : Parent(desc)
     {
     }

@@ -502,13 +502,9 @@ Result DeviceImpl::readTexture(
     }
 }
 
-Result DeviceImpl::createTexture(
-    const ITexture::Desc& descIn,
-    const ITexture::SubresourceData* initData,
-    ITexture** outTexture
-)
+Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
-    Texture::Desc srcDesc = fixupTextureDesc(descIn);
+    TextureDesc srcDesc = fixupTextureDesc(descIn);
 
     const int effectiveArraySize = calcEffectiveArraySize(srcDesc);
 
@@ -554,7 +550,7 @@ Result DeviceImpl::createTexture(
 
     switch (srcDesc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
     {
         D3D11_TEXTURE1D_DESC desc = {0};
         desc.BindFlags = bindFlags;
@@ -572,8 +568,8 @@ Result DeviceImpl::createTexture(
         texture->m_resource = texture1D;
         break;
     }
-    case IResource::Type::TextureCube:
-    case IResource::Type::Texture2D:
+    case TextureType::TextureCube:
+    case TextureType::Texture2D:
     {
         D3D11_TEXTURE2D_DESC desc = {0};
         desc.BindFlags = bindFlags;
@@ -589,7 +585,7 @@ Result DeviceImpl::createTexture(
         desc.SampleDesc.Count = srcDesc.sampleDesc.numSamples;
         desc.SampleDesc.Quality = srcDesc.sampleDesc.quality;
 
-        if (srcDesc.type == IResource::Type::TextureCube)
+        if (srcDesc.type == TextureType::TextureCube)
         {
             desc.MiscFlags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
         }
@@ -600,7 +596,7 @@ Result DeviceImpl::createTexture(
         texture->m_resource = texture2D;
         break;
     }
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
     {
         D3D11_TEXTURE3D_DESC desc = {0};
         desc.BindFlags = bindFlags;
@@ -627,13 +623,13 @@ Result DeviceImpl::createTexture(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    IBuffer::Desc srcDesc = fixupBufferDesc(descIn);
+    BufferDesc srcDesc = fixupBufferDesc(descIn);
 
     auto d3dBindFlags = _calcResourceBindFlags(srcDesc.allowedStates);
 
-    size_t alignedSizeInBytes = srcDesc.sizeInBytes;
+    size_t alignedSizeInBytes = srcDesc.size;
 
     if (d3dBindFlags & D3D11_BIND_CONSTANT_BUFFER)
     {
@@ -643,10 +639,10 @@ Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initDat
 
     // Hack to make the initialization never read from out of bounds memory, by copying into a buffer
     std::vector<uint8_t> initDataBuffer;
-    if (initData && alignedSizeInBytes > srcDesc.sizeInBytes)
+    if (initData && alignedSizeInBytes > srcDesc.size)
     {
         initDataBuffer.resize(alignedSizeInBytes);
-        ::memcpy(initDataBuffer.data(), initData, srcDesc.sizeInBytes);
+        ::memcpy(initDataBuffer.data(), initData, srcDesc.size);
         initData = initDataBuffer.data();
     }
 
@@ -825,7 +821,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
     case IResourceView::Type::ShaderResource:
     {
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-        initSrvDesc(resourceImpl->getType(), *resourceImpl->getDesc(), D3DUtil::getMapFormat(desc.format), srvDesc);
+        initSrvDesc(*resourceImpl->getDesc(), D3DUtil::getMapFormat(desc.format), srvDesc);
 
         ComPtr<ID3D11ShaderResourceView> srv;
         SLANG_RETURN_ON_FAIL(m_device->CreateShaderResourceView(resourceImpl->m_resource, &srvDesc, srv.writeRef()));
@@ -866,20 +862,20 @@ Result DeviceImpl::createBufferView(
 
         if (resourceDesc.elementSize)
         {
-            uavDesc.Buffer.NumElements = UINT(resourceDesc.sizeInBytes / resourceDesc.elementSize);
+            uavDesc.Buffer.NumElements = UINT(resourceDesc.size / resourceDesc.elementSize);
         }
         else if (desc.format == Format::Unknown)
         {
             uavDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
             uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-            uavDesc.Buffer.NumElements = UINT(resourceDesc.sizeInBytes / 4);
+            uavDesc.Buffer.NumElements = UINT(resourceDesc.size / 4);
         }
         else
         {
             FormatInfo sizeInfo;
             rhiGetFormatInfo(desc.format, &sizeInfo);
             uavDesc.Buffer.NumElements =
-                UINT(resourceDesc.sizeInBytes / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
+                UINT(resourceDesc.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
         }
 
         ComPtr<ID3D11UnorderedAccessView> uav;
@@ -904,7 +900,7 @@ Result DeviceImpl::createBufferView(
 
         if (resourceDesc.elementSize)
         {
-            srvDesc.Buffer.NumElements = UINT(resourceDesc.sizeInBytes / resourceDesc.elementSize);
+            srvDesc.Buffer.NumElements = UINT(resourceDesc.size / resourceDesc.elementSize);
         }
         else if (desc.format == Format::Unknown)
         {
@@ -922,14 +918,14 @@ Result DeviceImpl::createBufferView(
 
             srvDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
             srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-            srvDesc.BufferEx.NumElements = UINT(resourceDesc.sizeInBytes / 4);
+            srvDesc.BufferEx.NumElements = UINT(resourceDesc.size / 4);
         }
         else
         {
             FormatInfo sizeInfo;
             rhiGetFormatInfo(desc.format, &sizeInfo);
             srvDesc.Buffer.NumElements =
-                UINT(resourceDesc.sizeInBytes / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
+                UINT(resourceDesc.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
         }
 
         ComPtr<ID3D11ShaderResourceView> srv;
@@ -1074,7 +1070,7 @@ void* DeviceImpl::map(IBuffer* bufferIn, MapFlavor flavor)
         // If buffer is not dynamic, we need to use staging buffer.
         if (bufferImpl->m_d3dUsage != D3D11_USAGE_DYNAMIC)
         {
-            bufferImpl->m_uploadStagingBuffer.resize(bufferImpl->getDesc()->sizeInBytes);
+            bufferImpl->m_uploadStagingBuffer.resize(bufferImpl->getDesc()->size);
             return bufferImpl->m_uploadStagingBuffer.data();
         }
         break;

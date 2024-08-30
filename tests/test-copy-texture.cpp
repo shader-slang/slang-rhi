@@ -13,16 +13,16 @@ struct TextureToTextureCopyInfo
 {
     SubresourceRange srcSubresource;
     SubresourceRange dstSubresource;
-    ITexture::Extents extent;
-    ITexture::Offset3D srcOffset;
-    ITexture::Offset3D dstOffset;
+    Extents extent;
+    Offset3D srcOffset;
+    Offset3D dstOffset;
 };
 
 struct TextureToBufferCopyInfo
 {
     SubresourceRange srcSubresource;
-    ITexture::Extents extent;
-    ITexture::Offset3D textureOffset;
+    Extents extent;
+    Offset3D textureOffset;
     Offset bufferOffset;
     Offset bufferSize;
 };
@@ -50,7 +50,7 @@ struct BaseCopyTextureTest
         GpuTestContext* ctx,
         Format format,
         RefPtr<ValidationTextureFormatBase> validationFormat,
-        ITexture::Type type
+        TextureType type
     )
     {
         this->device = device;
@@ -68,7 +68,7 @@ struct BaseCopyTextureTest
 
     void createRequiredResources()
     {
-        ITexture::Desc srcTexDesc = {};
+        TextureDesc srcTexDesc = {};
         srcTexDesc.type = srcTextureInfo->textureType;
         srcTexDesc.numMipLevels = srcTextureInfo->mipLevelCount;
         srcTexDesc.arraySize = srcTextureInfo->arrayLayerCount;
@@ -84,7 +84,7 @@ struct BaseCopyTextureTest
 
         REQUIRE_CALL(device->createTexture(srcTexDesc, srcTextureInfo->subresourceDatas.data(), srcTexture.writeRef()));
 
-        ITexture::Desc dstTexDesc = {};
+        TextureDesc dstTexDesc = {};
         dstTexDesc.type = dstTextureInfo->textureType;
         dstTexDesc.numMipLevels = dstTextureInfo->mipLevelCount;
         dstTexDesc.arraySize = dstTextureInfo->arrayLayerCount;
@@ -106,8 +106,8 @@ struct BaseCopyTextureTest
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
         alignedRowStride = (bufferCopyExtents.width * texelSize + alignment - 1) & ~(alignment - 1);
-        IBuffer::Desc bufferDesc = {};
-        bufferDesc.sizeInBytes = bufferCopyExtents.height * bufferCopyExtents.depth * alignedRowStride;
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = bufferCopyExtents.height * bufferCopyExtents.depth * alignedRowStride;
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = 0;
         bufferDesc.allowedStates = ResourceStateSet(
@@ -121,7 +121,7 @@ struct BaseCopyTextureTest
 
         REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, resultsBuffer.writeRef()));
 
-        bufferCopyInfo.bufferSize = bufferDesc.sizeInBytes;
+        bufferCopyInfo.bufferSize = bufferDesc.size;
     }
 
     void submitGPUWork()
@@ -237,11 +237,7 @@ struct BaseCopyTextureTest
         }
     }
 
-    void checkTestResults(
-        ITexture::Extents srcMipExtent,
-        const void* expectedCopiedData,
-        const void* expectedOriginalData
-    )
+    void checkTestResults(Extents srcMipExtent, const void* expectedCopiedData, const void* expectedOriginalData)
     {
         ComPtr<ISlangBlob> resultBlob;
         REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, bufferCopyInfo.bufferSize, resultBlob.writeRef()));
@@ -283,8 +279,8 @@ struct SimpleCopyTexture : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 4;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLayerCount = 1;
 
@@ -335,10 +331,10 @@ struct CopyTextureSection : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 4;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 2;
-        srcTextureInfo->arrayLayerCount = (textureType == ITexture::Type::Texture3D) ? 1 : 2;
+        srcTextureInfo->arrayLayerCount = (textureType == TextureType::Texture3D) ? 1 : 2;
 
         dstTextureInfo = srcTextureInfo;
 
@@ -348,7 +344,7 @@ struct CopyTextureSection : BaseCopyTextureTest
         srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
-        srcSubresource.baseArrayLayer = (textureType == ITexture::Type::Texture3D) ? 0 : 1;
+        srcSubresource.baseArrayLayer = (textureType == TextureType::Texture3D) ? 0 : 1;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
@@ -374,7 +370,7 @@ struct CopyTextureSection : BaseCopyTextureTest
 
         auto subresourceIndex =
             getSubresourceIndex(srcSubresource.mipLevel, srcTextureInfo->mipLevelCount, srcSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedData = srcTextureInfo->subresourceDatas[subresourceIndex];
+        SubresourceData expectedData = srcTextureInfo->subresourceDatas[subresourceIndex];
         checkTestResults(srcTextureInfo->extents, expectedData.data, nullptr);
     }
 };
@@ -387,16 +383,16 @@ struct LargeSrcToSmallDst : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 8;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 8;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLayerCount = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
         dstTextureInfo->extents.width = 4;
-        dstTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 4;
-        dstTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         dstTextureInfo->mipLevelCount = 1;
         dstTextureInfo->arrayLayerCount = 1;
 
@@ -430,7 +426,7 @@ struct LargeSrcToSmallDst : BaseCopyTextureTest
 
         auto subresourceIndex =
             getSubresourceIndex(srcSubresource.mipLevel, srcTextureInfo->mipLevelCount, srcSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedData = srcTextureInfo->subresourceDatas[subresourceIndex];
+        SubresourceData expectedData = srcTextureInfo->subresourceDatas[subresourceIndex];
         checkTestResults(srcTextureInfo->extents, expectedData.data, nullptr);
     }
 };
@@ -443,16 +439,16 @@ struct SmallSrcToLargeDst : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 4;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLayerCount = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
         dstTextureInfo->extents.width = 8;
-        dstTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 8;
-        dstTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
+        dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         dstTextureInfo->mipLevelCount = 1;
         dstTextureInfo->arrayLayerCount = 1;
 
@@ -488,10 +484,10 @@ struct SmallSrcToLargeDst : BaseCopyTextureTest
 
         auto copiedSubresourceIndex =
             getSubresourceIndex(srcSubresource.mipLevel, srcTextureInfo->mipLevelCount, srcSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
+        SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
         auto originalSubresourceIndex =
             getSubresourceIndex(dstSubresource.mipLevel, dstTextureInfo->mipLevelCount, dstSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
+        SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
         checkTestResults(srcTextureInfo->extents, expectedCopiedData.data, expectedOriginalData.data);
     }
 };
@@ -504,16 +500,16 @@ struct CopyBetweenMips : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 16;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 16;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 16;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 4;
         srcTextureInfo->arrayLayerCount = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
         dstTextureInfo->extents.width = 16;
-        dstTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 16;
-        dstTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 16;
+        dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         dstTextureInfo->mipLevelCount = 4;
         dstTextureInfo->arrayLayerCount = 1;
 
@@ -552,8 +548,8 @@ struct CopyBetweenMips : BaseCopyTextureTest
         createRequiredResources();
         submitGPUWork();
 
-        ITexture::SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
-        ITexture::SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
+        SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
+        SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
         auto srcMipExtent = srcTextureInfo->subresourceObjects[2]->extents;
         checkTestResults(srcMipExtent, expectedCopiedData.data, expectedOriginalData.data);
     }
@@ -567,10 +563,10 @@ struct CopyBetweenLayers : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 4;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = (textureType == ITexture::Type::Texture3D) ? 1 : 2;
+        srcTextureInfo->arrayLayerCount = (textureType == TextureType::Texture3D) ? 1 : 2;
 
         generateTextureData(srcTextureInfo, validationFormat);
         dstTextureInfo = srcTextureInfo;
@@ -586,7 +582,7 @@ struct CopyBetweenLayers : BaseCopyTextureTest
         dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
-        dstSubresource.baseArrayLayer = (textureType == ITexture::Type::Texture3D) ? 0 : 1;
+        dstSubresource.baseArrayLayer = (textureType == TextureType::Texture3D) ? 0 : 1;
         dstSubresource.layerCount = 1;
 
         texCopyInfo.srcSubresource = srcSubresource;
@@ -605,10 +601,10 @@ struct CopyBetweenLayers : BaseCopyTextureTest
 
         auto copiedSubresourceIndex =
             getSubresourceIndex(srcSubresource.mipLevel, srcTextureInfo->mipLevelCount, srcSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
+        SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
         auto originalSubresourceIndex =
             getSubresourceIndex(dstSubresource.mipLevel, dstTextureInfo->mipLevelCount, dstSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
+        SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
         checkTestResults(srcTextureInfo->extents, expectedCopiedData.data, expectedOriginalData.data);
     }
 };
@@ -621,16 +617,16 @@ struct CopyWithOffsets : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 8;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 8;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLayerCount = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
         dstTextureInfo->extents.width = 16;
-        dstTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 16;
-        dstTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 4 : 1;
+        dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 16;
+        dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 4 : 1;
         dstTextureInfo->mipLevelCount = 1;
         dstTextureInfo->arrayLayerCount = 1;
 
@@ -658,13 +654,13 @@ struct CopyWithOffsets : BaseCopyTextureTest
         texCopyInfo.srcOffset = {2, 2, 0};
         texCopyInfo.dstOffset = {4, 4, 0};
 
-        if (textureType == ITexture::Type::Texture1D)
+        if (textureType == TextureType::Texture1D)
         {
             texCopyInfo.extent.height = 1;
             texCopyInfo.srcOffset.y = 0;
             texCopyInfo.dstOffset.y = 0;
         }
-        else if (textureType == ITexture::Type::Texture3D)
+        else if (textureType == TextureType::Texture3D)
         {
             texCopyInfo.extent.depth = srcTextureInfo->extents.depth;
             texCopyInfo.dstOffset.z = 1;
@@ -680,10 +676,10 @@ struct CopyWithOffsets : BaseCopyTextureTest
 
         auto copiedSubresourceIndex =
             getSubresourceIndex(srcSubresource.mipLevel, srcTextureInfo->mipLevelCount, srcSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
+        SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
         auto originalSubresourceIndex =
             getSubresourceIndex(dstSubresource.mipLevel, dstTextureInfo->mipLevelCount, dstSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
+        SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
         checkTestResults(srcTextureInfo->extents, expectedCopiedData.data, expectedOriginalData.data);
     }
 };
@@ -696,8 +692,8 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
         auto format = srcTextureInfo->format;
 
         srcTextureInfo->extents.width = 8;
-        srcTextureInfo->extents.height = (textureType == ITexture::Type::Texture1D) ? 1 : 8;
-        srcTextureInfo->extents.depth = (textureType == ITexture::Type::Texture3D) ? 2 : 1;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLayerCount = 1;
 
@@ -726,12 +722,12 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
         texCopyInfo.srcOffset = {0, 0, 0};
         texCopyInfo.dstOffset = {4, 4, 0};
 
-        if (textureType == ITexture::Type::Texture1D)
+        if (textureType == TextureType::Texture1D)
         {
             texCopyInfo.extent.height = 1;
             texCopyInfo.dstOffset.y = 0;
         }
-        else if (textureType == ITexture::Type::Texture3D)
+        else if (textureType == TextureType::Texture3D)
         {
             texCopyInfo.extent.depth = srcTextureInfo->extents.depth;
         }
@@ -746,10 +742,10 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
 
         auto copiedSubresourceIndex =
             getSubresourceIndex(srcSubresource.mipLevel, srcTextureInfo->mipLevelCount, srcSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
+        SubresourceData expectedCopiedData = srcTextureInfo->subresourceDatas[copiedSubresourceIndex];
         auto originalSubresourceIndex =
             getSubresourceIndex(dstSubresource.mipLevel, dstTextureInfo->mipLevelCount, dstSubresource.baseArrayLayer);
-        ITexture::SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
+        SubresourceData expectedOriginalData = dstTextureInfo->subresourceDatas[originalSubresourceIndex];
         checkTestResults(srcTextureInfo->extents, expectedCopiedData.data, expectedOriginalData.data);
     }
 };
@@ -770,7 +766,7 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
         Format::R10G10B10A2_UNORM,
         Format::B5G5R5A1_UNORM
     };
-    for (uint32_t i = 2; i < (uint32_t)ITexture::Type::_Count - 1; ++i)
+    for (uint32_t i = (uint32_t)(TextureType::Texture1D); i <= (uint32_t)TextureType::Texture3D; ++i)
     {
         for (auto format : formats)
         {
@@ -780,7 +776,7 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
             {
                 continue;
             }
-            auto type = (ITexture::Type)i;
+            auto type = (TextureType)i;
             auto validationFormat = getValidationTextureFormat(format);
             if (!validationFormat)
                 continue;

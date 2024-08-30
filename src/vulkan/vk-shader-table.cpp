@@ -26,12 +26,11 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
 
     auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
     ComPtr<IBuffer> buffer;
-    IBuffer::Desc bufferDesc = {};
+    BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.allowedStates = ResourceStateSet(ResourceState::General, ResourceState::CopyDestination);
-    bufferDesc.type = IResource::Type::Buffer;
-    bufferDesc.sizeInBytes = tableSize;
+    bufferDesc.size = tableSize;
     static_cast<vk::DeviceImpl*>(m_device)
         ->createBufferImpl(bufferDesc, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, nullptr, buffer.writeRef());
 

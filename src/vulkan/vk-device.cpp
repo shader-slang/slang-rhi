@@ -1146,7 +1146,7 @@ Result DeviceImpl::readTexture(
     Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
 
-    std::vector<Texture::Extents> mipSizes;
+    std::vector<Extents> mipSizes;
 
     const int numMipMaps = desc->numMipLevels;
     auto arraySize = calcEffectiveArraySize(*desc);
@@ -1156,7 +1156,7 @@ Result DeviceImpl::readTexture(
     // Calculate how large an array entry is
     for (int j = 0; j < numMipMaps; ++j)
     {
-        const Texture::Extents mipSize = calcMipSize(desc->size, j);
+        const Extents mipSize = calcMipSize(desc->size, j);
 
         auto rowSizeInBytes = calcRowSize(desc->format, mipSize.width);
         auto numRows = calcNumRows(desc->format, mipSize.height);
@@ -1336,7 +1336,7 @@ void DeviceImpl::_transitionImageLayout(
     VkCommandBuffer commandBuffer,
     VkImage image,
     VkFormat format,
-    const Texture::Desc& desc,
+    const TextureDesc& desc,
     VkImageLayout oldLayout,
     VkImageLayout newLayout
 )
@@ -1380,7 +1380,7 @@ uint32_t DeviceImpl::getQueueFamilyIndex(ICommandQueue::QueueType queueType)
 void DeviceImpl::_transitionImageLayout(
     VkImage image,
     VkFormat format,
-    const Texture::Desc& desc,
+    const TextureDesc& desc,
     VkImageLayout oldLayout,
     VkImageLayout newLayout
 )
@@ -1389,9 +1389,9 @@ void DeviceImpl::_transitionImageLayout(
     _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITexture::Desc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
 {
-    Texture::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -1404,26 +1404,26 @@ Result DeviceImpl::getTextureAllocationInfo(const ITexture::Desc& descIn, Size* 
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         break;
     }
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
         SLANG_RHI_ASSERT(desc.arraySize <= 1);
@@ -1470,13 +1470,9 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTexture(
-    const ITexture::Desc& descIn,
-    const ITexture::SubresourceData* initData,
-    ITexture** outTexture
-)
+Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
-    Texture::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -1494,26 +1490,26 @@ Result DeviceImpl::createTexture(
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         break;
     }
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
         SLANG_RHI_ASSERT(desc.arraySize <= 1);
@@ -1599,7 +1595,7 @@ Result DeviceImpl::createTexture(
     VKBufferHandleRAII uploadBuffer;
     if (initData)
     {
-        std::vector<Texture::Extents> mipSizes;
+        std::vector<Extents> mipSizes;
 
         VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
@@ -1610,7 +1606,7 @@ Result DeviceImpl::createTexture(
         // Calculate how large an array entry is
         for (int j = 0; j < numMipMaps; ++j)
         {
-            const Texture::Extents mipSize = calcMipSize(desc.size, j);
+            const Extents mipSize = calcMipSize(desc.size, j);
 
             auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
             auto numRows = calcNumRows(desc.format, mipSize.height);
@@ -1860,21 +1856,21 @@ Result DeviceImpl::createTexture(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     return createBufferImpl(descIn, 0, initData, outBuffer);
 }
 
 Result DeviceImpl::createBufferImpl(
-    const IBuffer::Desc& descIn,
+    const BufferDesc& descIn,
     VkBufferUsageFlags additionalUsageFlag,
     const void* initData,
     IBuffer** outBuffer
 )
 {
-    Buffer::Desc desc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(descIn);
 
-    const Size bufferSize = desc.sizeInBytes;
+    const Size bufferSize = desc.size;
 
     VkMemoryPropertyFlags reqMemoryProperties = 0;
 
@@ -1913,12 +1909,12 @@ Result DeviceImpl::createBufferImpl(
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
         SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.sizeInBytes, usage, reqMemoryProperties, desc.isShared, extMemHandleType)
+            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, desc.isShared, extMemHandleType)
         );
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.sizeInBytes, usage, reqMemoryProperties));
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
     }
 
     if (initData)
@@ -1965,7 +1961,7 @@ Result DeviceImpl::createBufferImpl(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc, this));
 
@@ -2045,18 +2041,18 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
         VK_COMPONENT_SWIZZLE_B,
         VK_COMPONENT_SWIZZLE_A
     };
-    switch (resourceImpl->getType())
+    switch (resourceImpl->getDesc()->type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
         break;
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
         break;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
         break;
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
         break;
     default:
@@ -2216,8 +2212,8 @@ Result DeviceImpl::createBufferView(
     auto resourceImpl = (BufferImpl*)buffer;
 
     VkDeviceSize offset = (VkDeviceSize)desc.bufferRange.offset;
-    VkDeviceSize size = desc.bufferRange.size == 0 ? (buffer ? resourceImpl->getDesc()->sizeInBytes : 0)
-                                                   : (VkDeviceSize)desc.bufferRange.size;
+    VkDeviceSize size =
+        desc.bufferRange.size == 0 ? (buffer ? resourceImpl->getDesc()->size : 0) : (VkDeviceSize)desc.bufferRange.size;
 
     // There are two different cases we need to think about for buffers.
     //

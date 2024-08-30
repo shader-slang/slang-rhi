@@ -218,8 +218,8 @@ struct ShaderCacheTest
     {
         const int numberCount = 4;
         float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-        IBuffer::Desc bufferDesc = {};
-        bufferDesc.sizeInBytes = numberCount * sizeof(float);
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = numberCount * sizeof(float);
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = sizeof(float);
         bufferDesc.allowedStates = ResourceStateSet(
@@ -710,9 +710,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             {0, 1, 0.5},
         };
 
-        IBuffer::Desc vertexBufferDesc;
-        vertexBufferDesc.type = IResource::Type::Buffer;
-        vertexBufferDesc.sizeInBytes = sizeof(vertices);
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = sizeof(vertices);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
         vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
         ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, vertices);
@@ -722,8 +721,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
     ComPtr<ITexture> createColorBuffer(IDevice* device)
     {
-        ITexture::Desc colorBufferDesc;
-        colorBufferDesc.type = IResource::Type::Texture2D;
+        TextureDesc colorBufferDesc;
+        colorBufferDesc.type = TextureType::Texture2D;
         colorBufferDesc.size.width = kWidth;
         colorBufferDesc.size.height = kHeight;
         colorBufferDesc.size.depth = 1;
@@ -781,7 +780,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
         colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         auto rtv = device->createTextureView(colorBuffer, colorBufferViewDesc);
 

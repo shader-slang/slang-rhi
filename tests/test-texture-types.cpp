@@ -35,7 +35,7 @@ struct BaseTextureViewTest
         Format format,
         RefPtr<ValidationTextureFormatBase> validationFormat,
         IResourceView::Type viewType,
-        IResource::Type type
+        TextureType type
     )
     {
         this->device = device;
@@ -74,16 +74,16 @@ struct BaseTextureViewTest
 
         switch (textureInfo->textureType)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             shape = "1D";
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             shape = "2D";
             break;
-        case IResource::Type::Texture3D:
+        case TextureType::Texture3D:
             shape = "3D";
             break;
-        case IResource::Type::TextureCube:
+        case TextureType::TextureCube:
             shape = "Cube";
             break;
         default:
@@ -122,7 +122,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 {
     void createRequiredResources()
     {
-        ITexture::Desc textureDesc = {};
+        TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
         textureDesc.numMipLevels = textureInfo->mipLevelCount;
         textureDesc.arraySize = textureInfo->arrayLayerCount;
@@ -144,9 +144,9 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
         alignedRowStride = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
-        IBuffer::Desc bufferDesc = {};
+        BufferDesc bufferDesc = {};
         // All of the values read back from the shader will be uint32_t
-        bufferDesc.sizeInBytes =
+        bufferDesc.size =
             textureDesc.size.width * textureDesc.size.height * textureDesc.size.depth * texelSize * sizeof(uint32_t);
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = sizeof(uint32_t);
@@ -267,8 +267,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         }
 
         ComPtr<ISlangBlob> bufferBlob;
-        REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, resultsBuffer->getDesc()->sizeInBytes, bufferBlob.writeRef())
-        );
+        REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, resultsBuffer->getDesc()->size, bufferBlob.writeRef()));
         auto results = (uint32_t*)bufferBlob->getBufferPointer();
 
         auto elementCount = textureInfo->extents.width * textureInfo->extents.height * textureInfo->extents.depth * 4;
@@ -287,8 +286,8 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 
         // TODO: Should test multiple mip levels and array layers
         textureInfo->extents.width = 4;
-        textureInfo->extents.height = (textureInfo->textureType == IResource::Type::Texture1D) ? 1 : 4;
-        textureInfo->extents.depth = (textureInfo->textureType != IResource::Type::Texture3D) ? 1 : 2;
+        textureInfo->extents.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
+        textureInfo->extents.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
         textureInfo->mipLevelCount = 1;
         textureInfo->arrayLayerCount = 1;
         generateTextureData(textureInfo, validationFormat);
@@ -350,9 +349,8 @@ struct RenderTargetTests : BaseTextureViewTest
 
     void createRequiredResources()
     {
-        IBuffer::Desc vertexBufferDesc;
-        vertexBufferDesc.type = IResource::Type::Buffer;
-        vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
         vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
@@ -368,7 +366,7 @@ struct RenderTargetTests : BaseTextureViewTest
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
         };
 
-        ITexture::Desc sampledTexDesc = {};
+        TextureDesc sampledTexDesc = {};
         sampledTexDesc.type = textureInfo->textureType;
         sampledTexDesc.numMipLevels = textureInfo->mipLevelCount;
         sampledTexDesc.arraySize = textureInfo->arrayLayerCount;
@@ -383,7 +381,7 @@ struct RenderTargetTests : BaseTextureViewTest
             device->createTexture(sampledTexDesc, textureInfo->subresourceDatas.data(), sampledTexture.writeRef())
         );
 
-        ITexture::Desc texDesc = {};
+        TextureDesc texDesc = {};
         texDesc.type = textureInfo->textureType;
         texDesc.numMipLevels = textureInfo->mipLevelCount;
         texDesc.arraySize = textureInfo->arrayLayerCount;
@@ -595,8 +593,8 @@ struct RenderTargetTests : BaseTextureViewTest
         //             sampler = device->createSamplerState(samplerDesc);
 
         textureInfo->extents.width = 4;
-        textureInfo->extents.height = (textureInfo->textureType == IResource::Type::Texture1D) ? 1 : 4;
-        textureInfo->extents.depth = (textureInfo->textureType != IResource::Type::Texture3D) ? 1 : 2;
+        textureInfo->extents.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
+        textureInfo->extents.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
         textureInfo->mipLevelCount = 1;
         textureInfo->arrayLayerCount = 1;
         generateTextureData(textureInfo, validationFormat);
@@ -617,11 +615,11 @@ void testShaderAndUnordered(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
     // TODO: Buffer and TextureCube
-    for (Int i = 2; i < (int32_t)IResource::Type::TextureCube; ++i)
+    for (Int i = 2; i < (int32_t)TextureType::TextureCube; ++i)
     {
         for (Int j = 3; j < (int32_t)IResourceView::Type::AccelerationStructure; ++j)
         {
-            auto shape = (IResource::Type)i;
+            auto shape = (TextureType)i;
             auto view = (IResourceView::Type)j;
             auto format = Format::R8G8B8A8_UINT;
             auto validationFormat = getValidationTextureFormat(format);
@@ -639,9 +637,9 @@ void testRrenderTarget(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
     // TODO: Buffer and TextureCube
-    for (Int i = 2; i < (int32_t)IResource::Type::TextureCube; ++i)
+    for (Int i = 2; i < (int32_t)TextureType::TextureCube; ++i)
     {
-        auto shape = (IResource::Type)i;
+        auto shape = (TextureType)i;
         auto view = IResourceView::Type::RenderTarget;
         auto format = Format::R32G32B32A32_FLOAT;
         auto validationFormat = getValidationTextureFormat(format);

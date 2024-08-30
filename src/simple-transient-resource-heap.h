@@ -20,11 +20,10 @@ public:
     Result init(TDevice* device, const ITransientResourceHeap::Desc& desc)
     {
         m_device = device;
-        IBuffer::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
+        BufferDesc bufferDesc = {};
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
-        bufferDesc.sizeInBytes = desc.constantBufferSize;
+        bufferDesc.size = desc.constantBufferSize;
         bufferDesc.memoryType = MemoryType::Upload;
         SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, m_constantBuffer.writeRef()));
         return SLANG_OK;

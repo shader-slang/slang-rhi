@@ -11,8 +11,7 @@ public:
 
 public:
     ITexture* getInterface(const Guid& guid);
-    virtual SLANG_NO_THROW Type SLANG_MCALL getType() override;
-    virtual SLANG_NO_THROW Desc* SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW TextureDesc* SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) override;
 

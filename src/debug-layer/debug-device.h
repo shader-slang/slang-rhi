@@ -24,25 +24,22 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
-        const ITexture::Desc& desc,
-        const ITexture::SubresourceData* initData,
-        ITexture** outTexture
-    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture) override;
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTextureFromNativeHandle(InteropHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         InteropHandle handle,
-        const ITexture::Desc& srcDesc,
+        const TextureDesc& srcDesc,
         const Size size,
         ITexture** outTexture
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer) override;
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) override;
+    createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer) override;
+    createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -125,7 +122,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITexture::Desc& desc, size_t* outSize, size_t* outAlignment) override;
+    getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) override;

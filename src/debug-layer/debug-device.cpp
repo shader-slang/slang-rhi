@@ -90,11 +90,7 @@ Result DebugDevice::createTransientResourceHeap(
     return result;
 }
 
-Result DebugDevice::createTexture(
-    const ITexture::Desc& desc,
-    const ITexture::SubresourceData* initData,
-    ITexture** outTexture
-)
+Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
 
@@ -108,7 +104,7 @@ Result DebugDevice::createTexture(
 
 Result DebugDevice::createTextureFromNativeHandle(
     InteropHandle handle,
-    const ITexture::Desc& srcDesc,
+    const TextureDesc& srcDesc,
     ITexture** outTexture
 )
 {
@@ -124,7 +120,7 @@ Result DebugDevice::createTextureFromNativeHandle(
 
 Result DebugDevice::createTextureFromSharedHandle(
     InteropHandle handle,
-    const ITexture::Desc& srcDesc,
+    const TextureDesc& srcDesc,
     const size_t size,
     ITexture** outTexture
 )
@@ -139,7 +135,7 @@ Result DebugDevice::createTextureFromSharedHandle(
     return result;
 }
 
-Result DebugDevice::createBuffer(const IBuffer::Desc& desc, const void* initData, IBuffer** outBuffer)
+Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
@@ -151,11 +147,7 @@ Result DebugDevice::createBuffer(const IBuffer::Desc& desc, const void* initData
     return result;
 }
 
-Result DebugDevice::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBuffer::Desc& srcDesc,
-    IBuffer** outBuffer
-)
+Result DebugDevice::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
@@ -167,11 +159,7 @@ Result DebugDevice::createBufferFromNativeHandle(
     return result;
 }
 
-Result DebugDevice::createBufferFromSharedHandle(
-    InteropHandle handle,
-    const IBuffer::Desc& srcDesc,
-    IBuffer** outBuffer
-)
+Result DebugDevice::createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
@@ -611,7 +599,7 @@ Result DebugDevice::waitForFences(
     return baseObject->waitForFences(fenceCount, innerFences.data(), values, waitForAll, timeout);
 }
 
-Result DebugDevice::getTextureAllocationInfo(const ITexture::Desc& desc, size_t* outSize, size_t* outAlignment)
+Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getTextureAllocationInfo(desc, outSize, outAlignment);

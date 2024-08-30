@@ -9,7 +9,7 @@ class TextureImpl : public Texture
 public:
     typedef Texture Parent;
 
-    TextureImpl(const Desc& desc);
+    TextureImpl(const TextureDesc& desc);
 
     ~TextureImpl();
 

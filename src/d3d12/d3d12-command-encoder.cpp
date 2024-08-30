@@ -177,12 +177,12 @@ void ResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITexture::Offset3D dstOffset,
+    Offset3D dstOffset,
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     auto dstTexture = static_cast<TextureImpl*>(dst);
@@ -252,9 +252,9 @@ void ResourceCommandEncoderImpl::copyTexture(
 void ResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subResourceRange,
-    ITexture::Offset3D offset,
-    ITexture::Extents extent,
-    ITexture::SubresourceData* subResourceData,
+    Offset3D offset,
+    Extents extent,
+    SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
@@ -287,7 +287,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         footprint.Offset = 0;
         footprint.Footprint.Format = texDesc.Format;
         uint32_t mipLevel = D3DUtil::getSubresourceMipLevel(subresourceIndex, dstTexture->getDesc()->numMipLevels);
-        if (extent.width != ITexture::kRemainingTextureSize)
+        if (extent.width != kRemainingTextureSize)
         {
             footprint.Footprint.Width = extent.width;
         }
@@ -295,7 +295,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         {
             footprint.Footprint.Width = std::max(1, (textureSize.width >> mipLevel)) - offset.x;
         }
-        if (extent.height != ITexture::kRemainingTextureSize)
+        if (extent.height != kRemainingTextureSize)
         {
             footprint.Footprint.Height = extent.height;
         }
@@ -303,7 +303,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         {
             footprint.Footprint.Height = std::max(1, (textureSize.height >> mipLevel)) - offset.y;
         }
-        if (extent.depth != ITexture::kRemainingTextureSize)
+        if (extent.depth != kRemainingTextureSize)
         {
             footprint.Footprint.Depth = extent.depth;
         }
@@ -386,16 +386,15 @@ void ResourceCommandEncoderImpl::clearResourceView(
     {
         ID3D12Resource* d3dResource = nullptr;
         D3D12Descriptor descriptor = viewImpl->m_descriptor;
-        switch (viewImpl->m_resource->getType())
+        if (viewImpl->m_isBufferView)
         {
-        case IResource::Type::Buffer:
             d3dResource = static_cast<BufferImpl*>(viewImpl->m_resource.Ptr())->m_resource.getResource();
             // D3D12 requires a UAV descriptor with zero buffer stride for calling ClearUnorderedAccessViewUint/Float.
             viewImpl->getBufferDescriptorForBinding(m_commandBuffer->m_renderer, viewImpl, 0, descriptor);
-            break;
-        default:
+        }
+        else
+        {
             d3dResource = static_cast<TextureImpl*>(viewImpl->m_resource.Ptr())->m_resource.getResource();
-            break;
         }
         auto gpuHandleIndex = m_commandBuffer->m_transientHeap->getCurrentViewHeap().allocate(1);
         if (gpuHandleIndex == -1)
@@ -552,8 +551,8 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
@@ -1023,7 +1022,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
                     D3D12_VERTEX_BUFFER_VIEW& vertexView = vertexViews[numVertexViews++];
                     vertexView.BufferLocation =
                         buffer->m_resource.getResource()->GetGPUVirtualAddress() + boundVertexBuffer.m_offset;
-                    vertexView.SizeInBytes = UINT(buffer->getDesc()->sizeInBytes - boundVertexBuffer.m_offset);
+                    vertexView.SizeInBytes = UINT(buffer->getDesc()->size - boundVertexBuffer.m_offset);
                     vertexView.StrideInBytes = inputLayout->m_vertexStreamStrides[i];
                 }
             }
@@ -1036,7 +1035,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
         D3D12_INDEX_BUFFER_VIEW indexBufferView;
         indexBufferView.BufferLocation =
             m_boundIndexBuffer->m_resource.getResource()->GetGPUVirtualAddress() + m_boundIndexOffset;
-        indexBufferView.SizeInBytes = UINT(m_boundIndexBuffer->getDesc()->sizeInBytes - m_boundIndexOffset);
+        indexBufferView.SizeInBytes = UINT(m_boundIndexBuffer->getDesc()->size - m_boundIndexOffset);
         indexBufferView.Format = m_boundIndexFormat;
 
         m_d3dCmdList->IASetIndexBuffer(&indexBufferView);

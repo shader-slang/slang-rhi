@@ -24,8 +24,8 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     const int numberCount = SLANG_COUNT_OF(initialData);
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = sizeof(initialData);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(initialData);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(

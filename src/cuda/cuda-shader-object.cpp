@@ -23,9 +23,8 @@ Result ShaderObjectData::setCount(Index count)
 
     if (!m_buffer)
     {
-        IBuffer::Desc desc;
-        desc.type = IResource::Type::Buffer;
-        desc.sizeInBytes = count;
+        BufferDesc desc;
+        desc.size = count;
         m_buffer = new BufferImpl(desc);
         if (count)
         {
@@ -37,7 +36,7 @@ Result ShaderObjectData::setCount(Index count)
         m_bufferView->buffer = m_buffer;
         m_bufferView->m_desc = viewDesc;
     }
-    auto oldSize = m_buffer->getDesc()->sizeInBytes;
+    auto oldSize = m_buffer->getDesc()->size;
     if ((size_t)count != oldSize)
     {
         void* newMemory = nullptr;
@@ -53,7 +52,7 @@ Result ShaderObjectData::setCount(Index count)
         }
         cuMemFree((CUdeviceptr)m_buffer->m_cudaMemory);
         m_buffer->m_cudaMemory = newMemory;
-        m_buffer->getDesc()->sizeInBytes = count;
+        m_buffer->getDesc()->size = count;
     }
     return SLANG_OK;
 }
@@ -63,7 +62,7 @@ Index ShaderObjectData::getCount()
     if (isHostOnly)
         return m_cpuBuffer.size();
     if (m_buffer)
-        return (Index)(m_buffer->getDesc()->sizeInBytes);
+        return (Index)(m_buffer->getDesc()->size);
     else
         return 0;
 }
@@ -222,7 +221,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         auto sizeOffset = offset;
         sizeOffset.uniformOffset += sizeof(handle);
         auto& desc = *cudaView->buffer->getDesc();
-        size_t size = desc.sizeInBytes;
+        size_t size = desc.size;
         if (desc.elementSize > 1)
             size /= desc.elementSize;
         setData(sizeOffset, &size, sizeof(size));
@@ -234,7 +233,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         auto sizeOffset = offset;
         sizeOffset.uniformOffset += sizeof(handle);
         auto& desc = *cudaView->buffer->getDesc();
-        size_t size = desc.sizeInBytes;
+        size_t size = desc.size;
         if (desc.elementSize > 1)
             size /= desc.elementSize;
         setData(sizeOffset, &size, sizeof(size));

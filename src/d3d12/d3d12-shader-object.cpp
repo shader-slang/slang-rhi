@@ -925,7 +925,7 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
         case IResourceView::Type::UnorderedAccess:
         {
             auto resourceViewImpl = static_cast<ResourceViewImpl*>(resourceView);
-            if (resourceViewImpl->m_resource->isBuffer())
+            if (resourceViewImpl->m_isBufferView)
             {
                 rootArg = static_cast<BufferImpl*>(resourceViewImpl->m_resource.Ptr())->getDeviceAddress();
             }

@@ -7,8 +7,8 @@ ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t data, ResourceState defau
 {
     uint32_t initialData[] = {data, data, data, data};
     const int numberCount = SLANG_COUNT_OF(initialData);
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = sizeof(initialData);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(initialData);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(uint32_t) * 4;
     bufferDesc.allowedStates = ResourceStateSet(

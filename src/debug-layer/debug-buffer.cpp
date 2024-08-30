@@ -3,13 +3,7 @@
 
 namespace rhi::debug {
 
-IResource::Type DebugBuffer::getType()
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->getType();
-}
-
-IBuffer::Desc* DebugBuffer::getDesc()
+BufferDesc* DebugBuffer::getDesc()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDesc();

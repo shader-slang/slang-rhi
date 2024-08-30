@@ -45,6 +45,7 @@ Result createD3D12BufferDescriptor(
 class ResourceViewImpl : public ResourceViewBase, public ResourceViewInternalImpl
 {
 public:
+    bool m_isBufferView;
     RefPtr<Resource> m_resource;
     // null, unless this is a structuredbuffer with a separate counter buffer
     RefPtr<Resource> m_counterResource;

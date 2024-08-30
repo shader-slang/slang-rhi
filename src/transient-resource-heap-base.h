@@ -56,12 +56,11 @@ public:
         size_t pageSize = kStagingBufferDefaultPageSize;
 
         ComPtr<IBuffer> bufferPtr;
-        IBuffer::Desc bufferDesc;
-        bufferDesc.type = IResource::Type::Buffer;
+        BufferDesc bufferDesc;
         bufferDesc.defaultState = ResourceState::General;
         bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
-        bufferDesc.sizeInBytes = pageSize;
+        bufferDesc.size = pageSize;
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
         page.resource = static_cast<TBuffer*>(bufferPtr.get());
@@ -73,12 +72,11 @@ public:
     Result newLargeBuffer(size_t size)
     {
         ComPtr<IBuffer> bufferPtr;
-        IBuffer::Desc bufferDesc;
-        bufferDesc.type = IResource::Type::Buffer;
+        BufferDesc bufferDesc;
         bufferDesc.defaultState = ResourceState::General;
         bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
-        bufferDesc.sizeInBytes = size;
+        bufferDesc.size = size;
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
         auto bufferImpl = static_cast<TBuffer*>(bufferPtr.get());
         m_largeAllocations.push_back(bufferImpl);
@@ -101,7 +99,7 @@ public:
         for (GfxIndex i = m_pageAllocCounter; i < m_pages.size(); i++)
         {
             auto cb = m_pages[i].resource.Ptr();
-            if (bufferAllocOffset + size <= cb->getDesc()->sizeInBytes)
+            if (bufferAllocOffset + size <= cb->getDesc()->size)
             {
                 bufferId = i;
                 break;

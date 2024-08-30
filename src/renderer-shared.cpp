@@ -61,11 +61,7 @@ IResource* Buffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
-SLANG_NO_THROW IResource::Type SLANG_MCALL Buffer::getType()
-{
-    return m_type;
-}
-SLANG_NO_THROW IBuffer::Desc* SLANG_MCALL Buffer::getDesc()
+SLANG_NO_THROW BufferDesc* SLANG_MCALL Buffer::getDesc()
 {
     return &m_desc;
 }
@@ -91,11 +87,7 @@ IResource* Texture::getInterface(const Guid& guid)
     return nullptr;
 }
 
-SLANG_NO_THROW IResource::Type SLANG_MCALL Texture::getType()
-{
-    return m_type;
-}
-SLANG_NO_THROW ITexture::Desc* SLANG_MCALL Texture::getDesc()
+SLANG_NO_THROW TextureDesc* SLANG_MCALL Texture::getDesc()
 {
     return &m_desc;
 }
@@ -407,7 +399,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::getSlangSession(slang::ISession*
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::createTextureFromNativeHandle(InteropHandle handle, const ITexture::Desc& srcDesc, ITexture** outTexture)
+RendererBase::createTextureFromNativeHandle(InteropHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -417,7 +409,7 @@ RendererBase::createTextureFromNativeHandle(InteropHandle handle, const ITexture
 
 SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromSharedHandle(
     InteropHandle handle,
-    const ITexture::Desc& srcDesc,
+    const TextureDesc& srcDesc,
     const Size size,
     ITexture** outTexture
 )
@@ -430,7 +422,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromSharedHandle(
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
+RendererBase::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -439,7 +431,7 @@ RendererBase::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::createBufferFromSharedHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
+RendererBase::createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -647,7 +639,7 @@ Result RendererBase::waitForFences(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment)
+Result RendererBase::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
 {
     SLANG_UNUSED(desc);
     *outSize = 0;
@@ -864,13 +856,12 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     if (!m_structuredBuffer)
     {
         // Create structured buffer resource if it has not been created.
-        IBuffer::Desc desc = {};
+        BufferDesc desc = {};
         desc.allowedStates = ResourceStateSet(ResourceState::ShaderResource, ResourceState::UnorderedAccess);
         desc.defaultState = ResourceState::ShaderResource;
         desc.elementSize = (int)elementLayout->getSize();
         desc.format = Format::Unknown;
-        desc.type = IResource::Type::Buffer;
-        desc.sizeInBytes = (Size)m_ordinaryData.size();
+        desc.size = (Size)m_ordinaryData.size();
         ComPtr<IBuffer> buffer;
         SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(desc, m_ordinaryData.data(), buffer.writeRef()));
         m_structuredBuffer = static_cast<Buffer*>(buffer.get());

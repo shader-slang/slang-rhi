@@ -60,15 +60,10 @@ static void setUpAndRunShader(
     }
 }
 
-static ComPtr<ITexture> createTexture(
-    IDevice* device,
-    ITexture::Extents extents,
-    Format format,
-    ITexture::SubresourceData* initialData
-)
+static ComPtr<ITexture> createTexture(IDevice* device, Extents extents, Format format, SubresourceData* initialData)
 {
-    ITexture::Desc texDesc = {};
-    texDesc.type = IResource::Type::Texture2D;
+    TextureDesc texDesc = {};
+    texDesc.type = TextureType::Texture2D;
     texDesc.numMipLevels = 1;
     texDesc.arraySize = 1;
     texDesc.size = extents;
@@ -101,8 +96,8 @@ static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITexture> inT
 template<typename T>
 ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
 {
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = size * sizeof(T);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = size * sizeof(T);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(T);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -150,12 +145,12 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     auto intResults = createBuffer<uint32_t>(dstDevice, 16, initIntData);
     auto intBufferView = createOutBufferView(dstDevice, intResults);
 
-    ITexture::Extents size = {};
+    Extents size = {};
     size.width = 2;
     size.height = 2;
     size.depth = 1;
 
-    ITexture::Extents bcSize = {};
+    Extents bcSize = {};
     bcSize.width = 4;
     bcSize.height = 4;
     bcSize.depth = 1;
@@ -163,7 +158,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     {
         float texData[] =
             {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
-        ITexture::SubresourceData subData = {(void*)texData, 32, 0};
+        SubresourceData subData = {(void*)texData, 32, 0};
 
         // Create a shareable texture using srcDevice, get its handle, then create a texture using the handle using
         // dstDevice. Read back the texture and check that its contents are correct.

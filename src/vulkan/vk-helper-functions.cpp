@@ -301,17 +301,17 @@ VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
     }
 }
 
-VkImageViewType _calcImageViewType(ITexture::Type type, const ITexture::Desc& desc)
+VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc)
 {
     switch (type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
         return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
         SLANG_RHI_ASSERT(desc.arraySize <= 1);

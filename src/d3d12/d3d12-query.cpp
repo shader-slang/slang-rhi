@@ -114,11 +114,10 @@ IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
 Result PlainBufferProxyQueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device, uint32_t stride)
 {
     ComPtr<IBuffer> buffer;
-    IBuffer::Desc bufferDesc = {};
+    BufferDesc bufferDesc = {};
     bufferDesc.defaultState = ResourceState::CopySource;
     bufferDesc.elementSize = 0;
-    bufferDesc.type = IResource::Type::Buffer;
-    bufferDesc.sizeInBytes = desc.count * stride;
+    bufferDesc.size = desc.count * stride;
     bufferDesc.format = Format::Unknown;
     bufferDesc.allowedStates.add(ResourceState::UnorderedAccess);
     SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));

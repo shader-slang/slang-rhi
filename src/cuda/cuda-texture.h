@@ -8,7 +8,7 @@ namespace rhi::cuda {
 class TextureImpl : public Texture
 {
 public:
-    TextureImpl(const Texture::Desc& desc)
+    TextureImpl(const TextureDesc& desc)
         : Texture(desc)
     {
     }

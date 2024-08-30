@@ -12,7 +12,7 @@ BufferImpl::~BufferImpl()
 
 Result BufferImpl::init()
 {
-    m_data = malloc(m_desc.sizeInBytes);
+    m_data = malloc(m_desc.size);
     if (!m_data)
         return SLANG_E_OUT_OF_MEMORY;
     return SLANG_OK;

@@ -178,7 +178,7 @@ Result DeviceImpl::captureTextureToSurface(
 
     const D3D12_RESOURCE_STATES initialState = D3DUtil::getResourceState(state);
 
-    const ITexture::Desc& rhiDesc = *resourceImpl->getDesc();
+    const TextureDesc& rhiDesc = *resourceImpl->getDesc();
     const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
 
     // Don't bother supporting MSAA for right now
@@ -988,9 +988,9 @@ Result DeviceImpl::readTexture(
     return captureTextureToSurface(static_cast<TextureImpl*>(resource), state, outBlob, outRowPitch, outPixelSize);
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITexture::Desc& desc, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
 {
-    Texture::Desc srcDesc = fixupTextureDesc(desc);
+    TextureDesc srcDesc = fixupTextureDesc(desc);
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
     auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
@@ -1005,16 +1005,12 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTexture(
-    const ITexture::Desc& descIn,
-    const ITexture::SubresourceData* initData,
-    ITexture** outTexture
-)
+Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
     // Description of uploading on Dx12
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899215%28v=vs.85%29.aspx
 
-    Texture::Desc srcDesc = fixupTextureDesc(descIn);
+    TextureDesc srcDesc = fixupTextureDesc(descIn);
 
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
@@ -1142,7 +1138,7 @@ Result DeviceImpl::createTexture(
                 const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[j];
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
 
-                Texture::Extents mipSize = calcMipSize(srcDesc.size, j);
+                Extents mipSize = calcMipSize(srcDesc.size, j);
                 if (rhiIsCompressedFormat(descIn.format))
                 {
                     mipSize.width = int(D3DUtil::calcAligned(mipSize.width, 4));
@@ -1228,7 +1224,7 @@ Result DeviceImpl::createTexture(
 
 Result DeviceImpl::createTextureFromNativeHandle(
     InteropHandle handle,
-    const ITexture::Desc& srcDesc,
+    const TextureDesc& srcDesc,
     ITexture** outTexture
 )
 {
@@ -1247,14 +1243,14 @@ Result DeviceImpl::createTextureFromNativeHandle(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    Buffer::Desc srcDesc = fixupBufferDesc(descIn);
+    BufferDesc srcDesc = fixupBufferDesc(descIn);
 
     RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
     D3D12_RESOURCE_DESC bufferDesc;
-    initBufferDesc(descIn.sizeInBytes, bufferDesc);
+    initBufferDesc(descIn.size, bufferDesc);
 
     bufferDesc.Flags |= calcResourceFlags(srcDesc.allowedStates);
 
@@ -1262,7 +1258,7 @@ Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initDat
     SLANG_RETURN_ON_FAIL(createBuffer(
         bufferDesc,
         initData,
-        srcDesc.sizeInBytes,
+        srcDesc.size,
         initialState,
         buffer->m_resource,
         descIn.isShared,
@@ -1273,7 +1269,7 @@ Result DeviceImpl::createBuffer(const IBuffer::Desc& descIn, const void* initDat
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const IBuffer::Desc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
@@ -1342,6 +1338,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
     auto resourceImpl = (TextureImpl*)texture;
 
     RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
+    viewImpl->m_isBufferView = false;
     viewImpl->m_resource = resourceImpl;
     viewImpl->m_desc = desc;
     bool isArray = resourceImpl ? resourceImpl->getDesc()->arraySize > 1 : false;
@@ -1359,7 +1356,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
         rtvDesc.Format = D3DUtil::getMapFormat(desc.format);
         switch (desc.renderTarget.shape)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             rtvDesc.ViewDimension = isArray ? D3D12_RTV_DIMENSION_TEXTURE1DARRAY : D3D12_RTV_DIMENSION_TEXTURE1D;
             if (isArray)
             {
@@ -1373,7 +1370,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
             }
 
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             if (isMultiSample)
             {
                 rtvDesc.ViewDimension =
@@ -1408,7 +1405,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
                 }
             }
             break;
-        case IResource::Type::TextureCube:
+        case TextureType::TextureCube:
             rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
             rtvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
             rtvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
@@ -1420,14 +1417,11 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
                                                       )
                                                     : 0;
             break;
-        case IResource::Type::Texture3D:
+        case TextureType::Texture3D:
             rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
             rtvDesc.Texture3D.MipSlice = desc.subresourceRange.mipLevel;
             rtvDesc.Texture3D.FirstWSlice = desc.subresourceRange.baseArrayLayer;
             rtvDesc.Texture3D.WSize = (desc.subresourceRange.layerCount == 0) ? -1 : desc.subresourceRange.layerCount;
-            break;
-        case IResource::Type::Buffer:
-            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_BUFFER;
             break;
         default:
             return SLANG_FAIL;
@@ -1448,11 +1442,11 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
         dsvDesc.Format = D3DUtil::getMapFormat(desc.format);
         switch (desc.renderTarget.shape)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1D;
             dsvDesc.Texture1D.MipSlice = desc.subresourceRange.mipLevel;
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             if (isMultiSample)
             {
                 dsvDesc.ViewDimension =
@@ -1468,7 +1462,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
                 dsvDesc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
             }
             break;
-        case IResource::Type::TextureCube:
+        case TextureType::TextureCube:
             dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
             dsvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
             dsvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
@@ -1499,7 +1493,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
                                : D3DUtil::getMapFormat(texture->getDesc()->format);
         switch (resourceImpl->getDesc()->type)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             d3d12desc.ViewDimension = isArray ? D3D12_UAV_DIMENSION_TEXTURE1DARRAY : D3D12_UAV_DIMENSION_TEXTURE1D;
             if (isArray)
             {
@@ -1513,7 +1507,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
                 d3d12desc.Texture1DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
             }
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             d3d12desc.ViewDimension = isArray ? D3D12_UAV_DIMENSION_TEXTURE2DARRAY : D3D12_UAV_DIMENSION_TEXTURE2D;
             if (isArray)
             {
@@ -1531,7 +1525,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
                     D3DUtil::getPlaneSlice(d3d12desc.Format, desc.subresourceRange.aspectMask);
             }
             break;
-        case IResource::Type::TextureCube:
+        case TextureType::TextureCube:
             d3d12desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
             d3d12desc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
             d3d12desc.Texture2DArray.ArraySize =
@@ -1540,7 +1534,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
             d3d12desc.Texture2DArray.PlaneSlice =
                 D3DUtil::getPlaneSlice(d3d12desc.Format, desc.subresourceRange.aspectMask);
             break;
-        case IResource::Type::Texture3D:
+        case TextureType::Texture3D:
             d3d12desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
             d3d12desc.Texture3D.MipSlice = desc.subresourceRange.mipLevel;
             d3d12desc.Texture3D.FirstWSlice = desc.subresourceRange.baseArrayLayer;
@@ -1571,14 +1565,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
             desc.format == Format::Unknown ? resourceDesc.Format : D3DUtil::getMapFormat(desc.format);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-        initSrvDesc(
-            resourceImpl->getType(),
-            *resourceImpl->getDesc(),
-            resourceDesc,
-            pixelFormat,
-            desc.subresourceRange,
-            srvDesc
-        );
+        initSrvDesc(*resourceImpl->getDesc(), resourceDesc, pixelFormat, desc.subresourceRange, srvDesc);
 
         m_device->CreateShaderResourceView(resourceImpl->m_resource, &srvDesc, viewImpl->m_descriptor.cpuHandle);
     }
@@ -1647,6 +1634,7 @@ Result DeviceImpl::createBufferView(
     const auto counterResourceImpl = static_cast<BufferImpl*>(counterBuffer);
 
     RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
+    viewImpl->m_isBufferView = true;
     viewImpl->m_resource = resourceImpl;
     viewImpl->m_counterResource = counterResourceImpl;
     viewImpl->m_desc = desc;
@@ -1806,7 +1794,7 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
 
     BufferImpl* buffer = static_cast<BufferImpl*>(bufferIn);
 
-    const Size bufferSize = buffer->getDesc()->sizeInBytes;
+    const Size bufferSize = buffer->getDesc()->size;
 
     // This will be slow!!! - it blocks CPU on GPU completion
     D3D12Resource& resource = buffer->m_resource;

@@ -30,12 +30,12 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITexture::Offset3D dstOffset,
+    Offset3D dstOffset,
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_UNUSED(dst);
@@ -53,9 +53,9 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subResourceRange,
-    ITexture::Offset3D offset,
-    ITexture::Extents extent,
-    ITexture::SubresourceData* subResourceData,
+    Offset3D offset,
+    Extents extent,
+    SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
@@ -122,8 +122,8 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
     ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITexture::Offset3D srcOffset,
-    ITexture::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_UNUSED(dst);

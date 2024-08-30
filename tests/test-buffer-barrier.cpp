@@ -13,7 +13,7 @@ struct Shader
 
 struct Buffer
 {
-    IBuffer::Desc desc;
+    BufferDesc desc;
     ComPtr<IBuffer> buffer;
     ComPtr<IResourceView> view;
 };
@@ -27,8 +27,8 @@ void createFloatBuffer(
 )
 {
     outBuffer = {};
-    IBuffer::Desc& bufferDesc = outBuffer.desc;
-    bufferDesc.sizeInBytes = elementCount * sizeof(float);
+    BufferDesc& bufferDesc = outBuffer.desc;
+    bufferDesc.size = elementCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.defaultState = unorderedAccess ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;

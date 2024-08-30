@@ -10,7 +10,7 @@ class TextureImpl : public Texture
 public:
     typedef Texture Parent;
 
-    TextureImpl(const Desc& desc, DeviceImpl* device);
+    TextureImpl(const TextureDesc& desc, DeviceImpl* device);
     ~TextureImpl();
 
     BreakableReference<DeviceImpl> m_device;

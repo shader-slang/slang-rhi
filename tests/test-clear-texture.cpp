@@ -12,8 +12,8 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     transientHeapDesc.constantBufferSize = 4096;
     REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-    ITexture::Desc srcTexDesc = {};
-    srcTexDesc.type = IResource::Type::Texture2D;
+    TextureDesc srcTexDesc = {};
+    srcTexDesc.type = TextureType::Texture2D;
     srcTexDesc.numMipLevels = 1;
     srcTexDesc.arraySize = 1;
     srcTexDesc.size.width = 4;
@@ -31,7 +31,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     IResourceView::Desc rtvDesc = {};
     rtvDesc.type = IResourceView::Type::RenderTarget;
     rtvDesc.format = Format::R32G32B32A32_FLOAT;
-    rtvDesc.renderTarget.shape = IResource::Type::Texture2D;
+    rtvDesc.renderTarget.shape = TextureType::Texture2D;
     rtvDesc.subresourceRange.layerCount = 1;
     rtvDesc.subresourceRange.mipLevelCount = 1;
     rtv = device->createTextureView(srcTexture, rtvDesc);

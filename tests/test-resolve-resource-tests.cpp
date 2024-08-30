@@ -42,9 +42,8 @@ Format format = Format::R32G32B32A32_FLOAT;
 
 static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
-    IBuffer::Desc vertexBufferDesc;
-    vertexBufferDesc.type = IResource::Type::Buffer;
-    vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+    BufferDesc vertexBufferDesc;
+    vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
     vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
     ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
@@ -68,10 +67,10 @@ struct BaseResolveResourceTest
 
     struct TextureInfo
     {
-        ITexture::Extents extent;
+        Extents extent;
         int numMipLevels;
         int arraySize;
-        ITexture::SubresourceData const* initData;
+        SubresourceData const* initData;
     };
 
     void init(IDevice* device) { this->device = device; }
@@ -88,8 +87,8 @@ struct BaseResolveResourceTest
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
         };
 
-        ITexture::Desc msaaTexDesc = {};
-        msaaTexDesc.type = IResource::Type::Texture2D;
+        TextureDesc msaaTexDesc = {};
+        msaaTexDesc.type = TextureType::Texture2D;
         msaaTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         msaaTexDesc.arraySize = dstTextureInfo.arraySize;
         msaaTexDesc.size = dstTextureInfo.extent;
@@ -100,8 +99,8 @@ struct BaseResolveResourceTest
 
         REQUIRE_CALL(device->createTexture(msaaTexDesc, msaaTextureInfo.initData, msaaTexture.writeRef()));
 
-        ITexture::Desc dstTexDesc = {};
-        dstTexDesc.type = IResource::Type::Texture2D;
+        TextureDesc dstTexDesc = {};
+        dstTexDesc.type = TextureType::Texture2D;
         dstTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         dstTexDesc.arraySize = dstTextureInfo.arraySize;
         dstTexDesc.size = dstTextureInfo.extent;
@@ -168,7 +167,7 @@ struct BaseResolveResourceTest
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
         colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         auto rtv = device->createTextureView(msaaTexture, colorBufferViewDesc);
 
@@ -180,7 +179,7 @@ struct BaseResolveResourceTest
         REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
-    void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, ITexture::Extents extent)
+    void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
     {
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
@@ -272,7 +271,7 @@ struct ResolveResourceSimple : BaseResolveResourceTest
 {
     void run()
     {
-        ITexture::Extents extent = {};
+        Extents extent = {};
         extent.width = kWidth;
         extent.height = kHeight;
         extent.depth = 1;

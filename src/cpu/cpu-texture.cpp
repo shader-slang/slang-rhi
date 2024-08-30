@@ -2,7 +2,7 @@
 
 namespace rhi::cpu {
 
-static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(ITexture::Type baseShape)
+static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(TextureType baseShape)
 {
     return &kCPUTextureBaseShapeInfos[(int)baseShape];
 }
@@ -90,7 +90,7 @@ TextureImpl::~TextureImpl()
     free(m_data);
 }
 
-Result TextureImpl::init(ITexture::SubresourceData const* initData)
+Result TextureImpl::init(SubresourceData const* initData)
 {
     auto desc = m_desc;
 

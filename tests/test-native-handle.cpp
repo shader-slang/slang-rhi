@@ -15,8 +15,8 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
         return;
 
     const int numberCount = 1;
-    IBuffer::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -59,8 +59,8 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
     if (isSwiftShaderDevice(device))
         return;
 
-    ITexture::Desc desc = {};
-    desc.type = IResource::Type::Texture2D;
+    TextureDesc desc = {};
+    desc.type = TextureType::Texture2D;
     desc.numMipLevels = 1;
     desc.size.width = 1;
     desc.size.height = 1;

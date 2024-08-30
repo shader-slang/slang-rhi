@@ -354,7 +354,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
     BufferImpl* buffer
 )
 {
-    writeBufferDescriptor(context, offset, descriptorType, buffer, 0, buffer->getDesc()->sizeInBytes);
+    writeBufferDescriptor(context, offset, descriptorType, buffer, 0, buffer->getDesc()->size);
 }
 
 void ShaderObjectImpl::writePlainBufferDescriptor(
