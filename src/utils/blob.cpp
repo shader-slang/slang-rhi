@@ -14,8 +14,7 @@ void* BlobBase::castAs(const SlangUUID& guid)
 
 ISlangUnknown* BlobBase::getInterface(const Guid& guid)
 {
-    if (guid == ISlangUnknown::getTypeGuid() || 
-        guid == ISlangBlob::getTypeGuid())
+    if (guid == ISlangUnknown::getTypeGuid() || guid == ISlangBlob::getTypeGuid())
     {
         return static_cast<ISlangBlob*>(this);
     }

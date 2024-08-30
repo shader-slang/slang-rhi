@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include <utility>
 #include <algorithm>
 #include <type_traits>
+#include <utility>
 
 namespace rhi {
 
 namespace detail {
-template<typename T>
+template <typename T>
 inline void construct_range(T* begin, T* end)
 {
     if (!std::is_trivial_v<T>)
@@ -22,7 +22,7 @@ inline void construct_range(T* begin, T* end)
     }
 }
 
-template<typename T>
+template <typename T>
 inline void copy_range(T* begin, T* end, T* dest)
 {
     if (std::is_trivial_v<T>)
@@ -40,7 +40,7 @@ inline void copy_range(T* begin, T* end, T* dest)
     }
 }
 
-template<typename T>
+template <typename T>
 inline void move_range(T* begin, T* end, T* dest)
 {
     if (std::is_trivial_v<T>)
@@ -58,7 +58,7 @@ inline void move_range(T* begin, T* end, T* dest)
     }
 }
 
-template<typename T>
+template <typename T>
 inline void destruct_range(T* begin, T* end)
 {
     if (!std::is_trivial_v<T>)
@@ -69,7 +69,7 @@ inline void destruct_range(T* begin, T* end)
             begin++;
         }
     }
-}    
+}
 } // namespace detail
 
 /**
@@ -78,8 +78,9 @@ inline void destruct_range(T* begin, T* end)
  * \tparam T Element type
  * \tparam N Size of the short vector
  */
-template<typename T, std::size_t N = 16>
-class short_vector {
+template <typename T, std::size_t N = 16>
+class short_vector
+{
 public:
     static_assert(N > 0, "short_vector must have a size greater than zero.");
 
@@ -92,12 +93,7 @@ public:
     using const_iterator = const value_type*;
 
     /// Default constructor.
-    short_vector() noexcept
-        : m_data(m_short_data)
-        , m_size(0)
-        , m_capacity(N)
-    {
-    }
+    short_vector() noexcept : m_data(m_short_data), m_size(0), m_capacity(N) {}
 
 #if 0
     /// Size constructor.
@@ -250,7 +246,7 @@ public:
         m_size++;
     }
 
-    template<typename... Args>
+    template <typename... Args>
     void emplace_back(Args&&... args)
     {
         static_assert(!std::is_trivial_v<T>, "Use push_back() instead of emplace_back() with trivial types");

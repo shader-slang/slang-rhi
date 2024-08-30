@@ -1,12 +1,11 @@
 #pragma once
 
-namespace rhi
-{
+namespace rhi {
 
-    /// A virtual free-list allocater.
-    /// This class doesn't actually allocates memory, instead it operates on a
-    /// virtual integer space. Can be used to implement various types of object pools
-    /// that needs to support contiguous allocations of more than one elements.
+/// A virtual free-list allocater.
+/// This class doesn't actually allocates memory, instead it operates on a
+/// virtual integer space. Can be used to implement various types of object pools
+/// that needs to support contiguous allocations of more than one elements.
 class VirtualObjectPool
 {
 public:
@@ -66,6 +65,7 @@ public:
         }
         return result;
     }
+
     void free(int offset, int size)
     {
         if (!freeListHead)
