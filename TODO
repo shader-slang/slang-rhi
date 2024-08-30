@@ -1,7 +1,5 @@
 address TODO_TESTING
 check use of stable_vector, maybe we can get rid of it
-move utils to core
-check SLANG_OVERRIDE
 
 
 macros:
