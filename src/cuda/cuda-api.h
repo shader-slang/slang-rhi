@@ -2,8 +2,8 @@
 
 #define SLANG_RHI_USE_DYNAMIC_CUDA 1
 
-bool gfxCudaApiInit();
-void gfxCudaApiShutdown();
+bool rhiCudaApiInit();
+void rhiCudaApiShutdown();
 
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 

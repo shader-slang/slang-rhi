@@ -29,7 +29,7 @@ Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL reportD3DLiveObjects();
 
 static bool debugLayerEnabled = false;
-bool isGfxDebugLayerEnabled()
+bool isRhiDebugLayerEnabled()
 {
     return debugLayerEnabled;
 }
@@ -200,7 +200,7 @@ static void _compileTimeAsserts()
 
 extern "C"
 {
-    SLANG_RHI_API bool SLANG_MCALL gfxIsCompressedFormat(Format format)
+    SLANG_RHI_API bool SLANG_MCALL rhiIsCompressedFormat(Format format)
     {
         switch (format)
         {
@@ -224,7 +224,7 @@ extern "C"
         }
     }
 
-    SLANG_RHI_API bool SLANG_MCALL gfxIsTypelessFormat(Format format)
+    SLANG_RHI_API bool SLANG_MCALL rhiIsTypelessFormat(Format format)
     {
         switch (format)
         {
@@ -246,13 +246,13 @@ extern "C"
         }
     }
 
-    SLANG_RHI_API Result SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo)
+    SLANG_RHI_API Result SLANG_MCALL rhiGetFormatInfo(Format format, FormatInfo* outInfo)
     {
         *outInfo = s_formatInfoMap.get(format);
         return SLANG_OK;
     }
 
-    SLANG_RHI_API Result SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
+    SLANG_RHI_API Result SLANG_MCALL rhiGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
     {
         std::vector<AdapterInfo> adapters;
 
@@ -353,7 +353,7 @@ extern "C"
         }
     }
 
-    SLANG_RHI_API Result SLANG_MCALL gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
+    SLANG_RHI_API Result SLANG_MCALL rhiCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
     {
         ComPtr<IDevice> innerDevice;
         auto resultCode = _createDevice(desc, innerDevice.writeRef());
@@ -370,7 +370,7 @@ extern "C"
         return resultCode;
     }
 
-    SLANG_RHI_API Result SLANG_MCALL gfxReportLiveObjects()
+    SLANG_RHI_API Result SLANG_MCALL rhiReportLiveObjects()
     {
 #if SLANG_RHI_ENABLE_D3D12
         SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
@@ -378,18 +378,18 @@ extern "C"
         return SLANG_OK;
     }
 
-    SLANG_RHI_API Result SLANG_MCALL gfxSetDebugCallback(IDebugCallback* callback)
+    SLANG_RHI_API Result SLANG_MCALL rhiSetDebugCallback(IDebugCallback* callback)
     {
         _getDebugCallback() = callback;
         return SLANG_OK;
     }
 
-    SLANG_RHI_API void SLANG_MCALL gfxEnableDebugLayer()
+    SLANG_RHI_API void SLANG_MCALL rhiEnableDebugLayer()
     {
         debugLayerEnabled = true;
     }
 
-    const char* SLANG_MCALL gfxGetDeviceTypeName(DeviceType type)
+    const char* SLANG_MCALL rhiGetDeviceTypeName(DeviceType type)
     {
         switch (type)
         {
@@ -414,7 +414,7 @@ extern "C"
         }
     }
 
-    bool gfxIsDeviceTypeSupported(DeviceType type)
+    bool rhiIsDeviceTypeSupported(DeviceType type)
     {
         switch (type)
         {
@@ -430,35 +430,12 @@ extern "C"
             return true;
         case DeviceType::CUDA:
 #if SLANG_RHI_ENABLE_CUDA
-            return gfxCudaApiInit();
+            return rhiCudaApiInit();
 #else
             return false;
 #endif
         default:
             return false;
-        }
-    }
-
-    void SLANG_MCALL gfxGetIdentityProjection(ProjectionStyle style, float projMatrix[16])
-    {
-        switch (style)
-        {
-        case ProjectionStyle::DirectX:
-        {
-            static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-            ::memcpy(projMatrix, kIdentity, sizeof(kIdentity));
-            break;
-        }
-        case ProjectionStyle::Vulkan:
-        {
-            static const float kIdentity[] = {1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-            ::memcpy(projMatrix, kIdentity, sizeof(kIdentity));
-            break;
-        }
-        default:
-        {
-            SLANG_RHI_ASSERT_FAILURE("Not handled");
-        }
         }
     }
 }

@@ -200,7 +200,7 @@ Result DeviceImpl::readTextureResource(
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
     FormatInfo formatInfo;
-    gfxGetFormatInfo(desc.format, &formatInfo);
+    rhiGetFormatInfo(desc.format, &formatInfo);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;
     Size bytesPerSlice = Size(height) * bytesPerRow;
@@ -300,7 +300,7 @@ Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn
 
     TextureResource::Desc desc = fixupTextureDesc(descIn);
     FormatInfo formatInfo;
-    gfxGetFormatInfo(desc.format, &formatInfo);
+    rhiGetFormatInfo(desc.format, &formatInfo);
     MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;

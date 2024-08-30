@@ -25,7 +25,7 @@ SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(AccelerationStructure, ResourceView)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(ShaderTable)
 
-std::string _gfxGetFuncName(const char* input)
+std::string _rhiGetFuncName(const char* input)
 {
     std::string_view str(input);
     auto prefixIndex = str.find("Debug");

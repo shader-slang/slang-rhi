@@ -107,7 +107,7 @@ Result TextureResourceImpl::init(ITextureResource::SubresourceData const* initDa
     //
     auto format = desc.format;
     FormatInfo texelInfo;
-    gfxGetFormatInfo(format, &texelInfo);
+    rhiGetFormatInfo(format, &texelInfo);
     uint32_t texelSize = uint32_t(texelInfo.blockSizeInBytes / texelInfo.pixelsPerBlock);
     m_texelSize = texelSize;
 

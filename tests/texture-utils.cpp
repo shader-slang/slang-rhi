@@ -32,7 +32,7 @@ TextureAspect getTextureAspect(Format format)
 Size getTexelSize(Format format)
 {
     FormatInfo info;
-    REQUIRE_CALL(gfxGetFormatInfo(format, &info));
+    REQUIRE_CALL(rhiGetFormatInfo(format, &info));
     return info.blockSizeInBytes / info.pixelsPerBlock;
 }
 

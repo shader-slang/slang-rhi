@@ -189,7 +189,7 @@ Result DeviceImpl::captureTextureToSurface(
     }
 
     FormatInfo formatInfo;
-    gfxGetFormatInfo(rhiDesc.format, &formatInfo);
+    rhiGetFormatInfo(rhiDesc.format, &formatInfo);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = int(desc.Width) * bytesPerPixel;
     static const Size align = 256;                    // D3D requires minimum 256 byte alignment for texture data.
@@ -507,7 +507,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 #endif
 
     // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
-    if (ENABLE_DEBUG_LAYER || isGfxDebugLayerEnabled() && !g_isAftermathEnabled)
+    if (ENABLE_DEBUG_LAYER || isRhiDebugLayerEnabled() && !g_isAftermathEnabled)
     {
         m_D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)loadProc(d3dModule, "D3D12GetDebugInterface");
         if (m_D3D12GetDebugInterface)
@@ -544,7 +544,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         // TODO: we should probably provide a command-line option
         // to override UseDebug of default rather than leave it
         // up to each back-end to specify.
-        if (ENABLE_DEBUG_LAYER || isGfxDebugLayerEnabled())
+        if (ENABLE_DEBUG_LAYER || isRhiDebugLayerEnabled())
         {
             /// First try debug then non debug.
             combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);
@@ -1151,7 +1151,7 @@ Result DeviceImpl::createTextureResource(
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
 
                 TextureResource::Extents mipSize = calcMipSize(srcDesc.size, j);
-                if (gfxIsCompressedFormat(descIn.format))
+                if (rhiIsCompressedFormat(descIn.format))
                 {
                     mipSize.width = int(D3DUtil::calcAligned(mipSize.width, 4));
                     mipSize.height = int(D3DUtil::calcAligned(mipSize.height, 4));
@@ -1180,7 +1180,7 @@ Result DeviceImpl::createTextureResource(
                     //
                     const uint8_t* srcRow = srcLayer;
                     uint8_t* dstRow = dstLayer;
-                    int j = gfxIsCompressedFormat(descIn.format) ? 4 : 1; // BC compressed formats are organized into
+                    int j = rhiIsCompressedFormat(descIn.format) ? 4 : 1; // BC compressed formats are organized into
                                                                           // 4x4 blocks
                     for (int k = 0; k < mipSize.height; k += j)
                     {
@@ -1514,7 +1514,7 @@ Result DeviceImpl::createTextureView(
         viewImpl->m_allocator = m_cpuViewHeap;
         D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12desc = {};
         auto& resourceDesc = *resourceImpl->getDesc();
-        d3d12desc.Format = gfxIsTypelessFormat(texture->getDesc()->format)
+        d3d12desc.Format = rhiIsTypelessFormat(texture->getDesc()->format)
                                ? D3DUtil::getMapFormat(desc.format)
                                : D3DUtil::getMapFormat(texture->getDesc()->format);
         switch (resourceImpl->getDesc()->type)

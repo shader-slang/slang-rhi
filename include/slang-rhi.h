@@ -2649,42 +2649,42 @@ public:
 extern "C"
 {
     /// Checks if format is compressed
-    SLANG_RHI_API bool SLANG_MCALL gfxIsCompressedFormat(Format format);
+    SLANG_RHI_API bool SLANG_MCALL rhiIsCompressedFormat(Format format);
 
     /// Checks if format is typeless
-    SLANG_RHI_API bool SLANG_MCALL gfxIsTypelessFormat(Format format);
+    SLANG_RHI_API bool SLANG_MCALL rhiIsTypelessFormat(Format format);
 
     /// Gets information about the format
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetFormatInfo(Format format, FormatInfo* outInfo);
+    SLANG_RHI_API SlangResult SLANG_MCALL rhiGetFormatInfo(Format format, FormatInfo* outInfo);
 
     /// Gets a list of available adapters for a given device type
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob);
+    SLANG_RHI_API SlangResult SLANG_MCALL rhiGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob);
 
     /// Given a type returns a function that can construct it, or nullptr if there isn't one
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxCreateDevice(const IDevice::Desc* desc, IDevice** outDevice);
+    SLANG_RHI_API SlangResult SLANG_MCALL rhiCreateDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
     /// Reports current set of live objects in rhi.
     /// Currently this only calls D3D's ReportLiveObjects.
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxReportLiveObjects();
+    SLANG_RHI_API SlangResult SLANG_MCALL rhiReportLiveObjects();
 
     /// Sets a callback for receiving debug messages.
     /// The layer does not hold a strong reference to the callback object.
     /// The user is responsible for holding the callback object alive.
-    SLANG_RHI_API SlangResult SLANG_MCALL gfxSetDebugCallback(IDebugCallback* callback);
+    SLANG_RHI_API SlangResult SLANG_MCALL rhiSetDebugCallback(IDebugCallback* callback);
 
     /// Enables debug layer. The debug layer will check all `rhi` calls and verify that uses are valid.
-    SLANG_RHI_API void SLANG_MCALL gfxEnableDebugLayer();
+    SLANG_RHI_API void SLANG_MCALL rhiEnableDebugLayer();
 
-    SLANG_RHI_API const char* SLANG_MCALL gfxGetDeviceTypeName(DeviceType type);
+    SLANG_RHI_API const char* SLANG_MCALL rhiGetDeviceTypeName(DeviceType type);
 
-    SLANG_RHI_API bool gfxIsDeviceTypeSupported(DeviceType type);
+    SLANG_RHI_API bool rhiIsDeviceTypeSupported(DeviceType type);
 }
 
 /// Gets a list of available adapters for a given device type
-inline AdapterList gfxGetAdapters(DeviceType type)
+inline AdapterList rhiGetAdapters(DeviceType type)
 {
     ComPtr<ISlangBlob> blob;
-    gfxGetAdapters(type, blob.writeRef());
+    rhiGetAdapters(type, blob.writeRef());
     return AdapterList(blob);
 }
 

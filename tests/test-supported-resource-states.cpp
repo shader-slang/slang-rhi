@@ -101,12 +101,12 @@ struct SupportedResourceStatesTest
         {
             auto baseFormat = (Format)i;
             FormatInfo info;
-            gfxGetFormatInfo(baseFormat, &info);
+            rhiGetFormatInfo(baseFormat, &info);
             // Ignore 3-channel textures for now since validation layer seem to report unsupported errors there.
             if (info.channelCount == 3)
                 continue;
 
-            auto format = gfxIsTypelessFormat(baseFormat) ? convertTypelessFormat(baseFormat) : baseFormat;
+            auto format = rhiIsTypelessFormat(baseFormat) ? convertTypelessFormat(baseFormat) : baseFormat;
             REQUIRE_CALL(device->getFormatSupportedResourceStates(format, &formatSupportedStates));
 
             textureAllowedStates.add(

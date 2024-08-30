@@ -13,7 +13,7 @@
 
 rhi::SharedLibraryHandle gCudaApiModule;
 
-bool gfxCudaApiInit()
+bool rhiCudaApiInit()
 {
     if (gCudaApiModule)
         return true;
@@ -151,15 +151,15 @@ bool gfxCudaApiInit()
 
     if (symbol)
     {
-        gfxCudaApiShutdown();
-        printf("gfxCudaApiInit(): could not find symbol \"%s\"\n", symbol);
+        rhiCudaApiShutdown();
+        printf("rhiCudaApiInit(): could not find symbol \"%s\"\n", symbol);
         return false;
     }
 
     return true;
 }
 
-void gfxCudaApiShutdown()
+void rhiCudaApiShutdown()
 {
     if (!gCudaApiModule)
         return;
@@ -243,11 +243,11 @@ void gfxCudaApiShutdown()
 
 #else // SLANG_RHI_USE_DYNAMIC_CUDA
 
-bool gfxCudaApiInit()
+bool rhiCudaApiInit()
 {
     return true;
 }
 
-void gfxCudaApiShutdown() {}
+void rhiCudaApiShutdown() {}
 
 #endif // SLANG_RHI_USE_DYNAMIC_CUDA

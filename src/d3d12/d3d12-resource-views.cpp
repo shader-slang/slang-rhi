@@ -57,7 +57,7 @@ Result createD3D12BufferDescriptor(
         else
         {
             FormatInfo sizeInfo;
-            gfxGetFormatInfo(desc.format, &sizeInfo);
+            rhiGetFormatInfo(desc.format, &sizeInfo);
             SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
             uavDesc.Buffer.FirstElement = offset / sizeInfo.blockSizeInBytes;
             uavDesc.Buffer.NumElements = UINT(size / sizeInfo.blockSizeInBytes);
@@ -106,7 +106,7 @@ Result createD3D12BufferDescriptor(
         else
         {
             FormatInfo sizeInfo;
-            gfxGetFormatInfo(desc.format, &sizeInfo);
+            rhiGetFormatInfo(desc.format, &sizeInfo);
             SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
             srvDesc.Buffer.FirstElement = offset / sizeInfo.blockSizeInBytes;
             srvDesc.Buffer.NumElements = UINT(size / sizeInfo.blockSizeInBytes);

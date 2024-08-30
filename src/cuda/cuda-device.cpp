@@ -118,7 +118,7 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
 
 Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
 {
-    if (!gfxCudaApiInit())
+    if (!rhiCudaApiInit())
     {
         return SLANG_FAIL;
     }
@@ -370,7 +370,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
         SLANG_RETURN_ON_FAIL(getCUDAFormat(desc.format, &format));
         FormatInfo info;
-        gfxGetFormatInfo(desc.format, &info);
+        rhiGetFormatInfo(desc.format, &info);
         numChannels = info.channelCount;
 
         switch (format)
@@ -854,7 +854,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
     resource->m_cudaExternalMemory = externalMemory;
 
     FormatInfo formatInfo;
-    SLANG_RETURN_ON_FAIL(gfxGetFormatInfo(desc.format, &formatInfo));
+    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &formatInfo));
     CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
     arrayDesc.Depth = desc.size.depth;
     arrayDesc.Height = desc.size.height;
@@ -1138,7 +1138,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTextureResource(
     auto width = desc->size.width;
     auto height = desc->size.height;
     FormatInfo sizeInfo;
-    SLANG_RETURN_ON_FAIL(gfxGetFormatInfo(desc->format, &sizeInfo));
+    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc->format, &sizeInfo));
     size_t pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     size_t rowPitch = width * pixelSize;
     size_t size = height * rowPitch;

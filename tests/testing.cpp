@@ -350,10 +350,10 @@ ComPtr<IDevice> createTestingDevice(
     // (And in general reduce the differences (and duplication) between
     // here and render-test-main.cpp)
 #ifdef _DEBUG
-    gfxEnableDebugLayer();
+    rhiEnableDebugLayer();
 #endif
 
-    REQUIRE_CALL(gfxCreateDevice(&deviceDesc, device.writeRef()));
+    REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
 
     if (useCachedDevice)
     {
@@ -478,7 +478,7 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 {
     for (auto deviceType : deviceTypes)
     {
-        if (!gfxIsDeviceTypeSupported(deviceType))
+        if (!rhiIsDeviceTypeSupported(deviceType))
         {
             continue;
         }

@@ -22,7 +22,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
     auto searchPaths = getSlangSearchPaths();
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
-    CHECK_CALL(gfxCreateDevice(&deviceDesc, device.writeRef()));
+    CHECK_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};

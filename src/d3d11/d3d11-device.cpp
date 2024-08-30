@@ -443,7 +443,7 @@ Result DeviceImpl::readTextureResource(
     }
 
     FormatInfo sizeInfo;
-    gfxGetFormatInfo(texture->getDesc()->format, &sizeInfo);
+    rhiGetFormatInfo(texture->getDesc()->format, &sizeInfo);
     size_t bytesPerPixel = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     size_t rowPitch = int(texture->getDesc()->size.width) * bytesPerPixel;
     size_t bufferSize = rowPitch * int(texture->getDesc()->size.height);
@@ -887,7 +887,7 @@ Result DeviceImpl::createBufferView(
         else
         {
             FormatInfo sizeInfo;
-            gfxGetFormatInfo(desc.format, &sizeInfo);
+            rhiGetFormatInfo(desc.format, &sizeInfo);
             uavDesc.Buffer.NumElements =
                 UINT(resourceDesc.sizeInBytes / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
         }
@@ -937,7 +937,7 @@ Result DeviceImpl::createBufferView(
         else
         {
             FormatInfo sizeInfo;
-            gfxGetFormatInfo(desc.format, &sizeInfo);
+            rhiGetFormatInfo(desc.format, &sizeInfo);
             srvDesc.Buffer.NumElements =
                 UINT(resourceDesc.sizeInBytes / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
         }

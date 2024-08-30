@@ -207,10 +207,10 @@ struct ShaderCacheTest
         // (And in general reduce the differences (and duplication) between
         // here and render-test-main.cpp)
 #ifdef _DEBUG
-        gfxEnableDebugLayer();
+        rhiEnableDebugLayer();
 #endif
 
-        REQUIRE_CALL(gfxCreateDevice(&deviceDesc, device.writeRef()));
+        REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
     }
 
     void createComputeResources()

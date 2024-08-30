@@ -53,7 +53,7 @@ struct GUID
     static const Guid IID_ITransientResourceHeapD3D12;
 };
 
-bool isGfxDebugLayerEnabled();
+bool isRhiDebugLayerEnabled();
 
 // We use a `BreakableReference` to avoid the cyclic reference situation in rhi implementation.
 // It is a common scenario where objects created from an `IDevice` implementation needs to hold

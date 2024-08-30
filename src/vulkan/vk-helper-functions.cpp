@@ -9,14 +9,14 @@ namespace rhi::vk {
 Size calcRowSize(Format format, int width)
 {
     FormatInfo sizeInfo;
-    gfxGetFormatInfo(format, &sizeInfo);
+    rhiGetFormatInfo(format, &sizeInfo);
     return Size((width + sizeInfo.blockWidth - 1) / sizeInfo.blockWidth * sizeInfo.blockSizeInBytes);
 }
 
 GfxCount calcNumRows(Format format, int height)
 {
     FormatInfo sizeInfo;
-    gfxGetFormatInfo(format, &sizeInfo);
+    rhiGetFormatInfo(format, &sizeInfo);
     return (GfxCount)(height + sizeInfo.blockHeight - 1) / sizeInfo.blockHeight;
 }
 

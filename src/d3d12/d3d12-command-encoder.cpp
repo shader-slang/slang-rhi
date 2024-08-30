@@ -268,7 +268,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     );
     auto textureSize = dstTexture->getDesc()->size;
     FormatInfo formatInfo = {};
-    gfxGetFormatInfo(dstTexture->getDesc()->format, &formatInfo);
+    rhiGetFormatInfo(dstTexture->getDesc()->format, &formatInfo);
     for (GfxCount i = 0; i < subResourceDataCount; i++)
     {
         auto subresourceIndex = baseSubresourceIndex + i;
@@ -569,7 +569,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     );
     auto textureSize = srcTexture->getDesc()->size;
     FormatInfo formatInfo = {};
-    gfxGetFormatInfo(srcTexture->getDesc()->format, &formatInfo);
+    rhiGetFormatInfo(srcTexture->getDesc()->format, &formatInfo);
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = srcTexture->getDesc()->numMipLevels;
     if (srcSubresource.layerCount == 0)

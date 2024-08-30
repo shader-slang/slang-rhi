@@ -198,7 +198,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
 #endif
         }
 
-        if (ENABLE_VALIDATION_LAYER || isGfxDebugLayerEnabled())
+        if (ENABLE_VALIDATION_LAYER || isRhiDebugLayerEnabled())
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
         VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -995,7 +995,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         descriptorSetAllocator.m_api = &m_api;
         initDeviceResult = initVulkanInstanceAndDevice(
             desc.existingDeviceHandles.handles,
-            ENABLE_VALIDATION_LAYER != 0 || isGfxDebugLayerEnabled()
+            ENABLE_VALIDATION_LAYER != 0 || isRhiDebugLayerEnabled()
         );
         if (initDeviceResult == SLANG_OK)
             break;
@@ -1144,7 +1144,7 @@ Result DeviceImpl::readTextureResource(
     auto width = desc->size.width;
     auto height = desc->size.height;
     FormatInfo sizeInfo;
-    SLANG_RETURN_ON_FAIL(gfxGetFormatInfo(desc->format, &sizeInfo));
+    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc->format, &sizeInfo));
     Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
 
@@ -1701,7 +1701,7 @@ Result DeviceImpl::createTextureResource(
             // a simple buffer copy for sampled textures. ClearColorImage
             // is not data accurate but it is fine for testing & works.
             FormatInfo formatInfo;
-            gfxGetFormatInfo(desc.format, &formatInfo);
+            rhiGetFormatInfo(desc.format, &formatInfo);
             uint32_t data = 0;
             VkClearColorValue clearColor;
             switch (formatInfo.channelType)
@@ -2050,7 +2050,7 @@ Result DeviceImpl::createTextureView(
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;
-    createInfo.format = gfxIsTypelessFormat(texture->getDesc()->format) ? VulkanUtil::getVkFormat(desc.format)
+    createInfo.format = rhiIsTypelessFormat(texture->getDesc()->format) ? VulkanUtil::getVkFormat(desc.format)
                                                                         : resourceImpl->m_vkformat;
     createInfo.image = resourceImpl->m_image;
     createInfo.components = VkComponentMapping{

@@ -43,10 +43,10 @@ struct SetCurrentFuncRAII
 #define SLANG_RHI_API_FUNC_NAME(x) SetCurrentFuncRAII setFuncNameRAII(x)
 
 /// Returns the public API function name from a `SLANG_FUNC_SIG` string.
-std::string _gfxGetFuncName(const char* input);
+std::string _rhiGetFuncName(const char* input);
 
 template<typename... TArgs>
-char* _gfxDiagnoseFormat(
+char* _rhiDiagnoseFormat(
     char* buffer,                   // Initial buffer to output formatted string.
     size_t shortBufferSize,         // Size of the initial buffer.
     std::vector<char>& bufferArray, // A list for allocating a large buffer if needed.
@@ -67,44 +67,44 @@ char* _gfxDiagnoseFormat(
 }
 
 template<typename... TArgs>
-void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
+void _rhiDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 {
     char shortBuffer[256];
     std::vector<char> bufferArray;
-    auto buffer = _gfxDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, args...);
+    auto buffer = _rhiDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, args...);
     getDebugCallback()->handleMessage(type, DebugMessageSource::Layer, buffer);
 }
 
 #define RHI_VALIDATION_ERROR(message)                                                                                  \
-    _gfxDiagnoseImpl(                                                                                                  \
+    _rhiDiagnoseImpl(                                                                                                  \
         DebugMessageType::Error,                                                                                       \
         "%s: %s",                                                                                                      \
-        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
+        _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
         message                                                                                                        \
     )
 #define RHI_VALIDATION_WARNING(message)                                                                                \
-    _gfxDiagnoseImpl(                                                                                                  \
+    _rhiDiagnoseImpl(                                                                                                  \
         DebugMessageType::Warning,                                                                                     \
         "%s: %s",                                                                                                      \
-        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
+        _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
         message                                                                                                        \
     )
 #define RHI_VALIDATION_INFO(message)                                                                                   \
-    _gfxDiagnoseImpl(                                                                                                  \
+    _rhiDiagnoseImpl(                                                                                                  \
         DebugMessageType::Info,                                                                                        \
         "%s: %s",                                                                                                      \
-        _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
+        _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
         message                                                                                                        \
     )
 #define RHI_VALIDATION_FORMAT(type, format, ...)                                                                       \
     {                                                                                                                  \
         char shortBuffer[256];                                                                                         \
         std::vector<char> bufferArray;                                                                                 \
-        auto message = _gfxDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, __VA_ARGS__);         \
-        _gfxDiagnoseImpl(                                                                                              \
+        auto message = _rhiDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, __VA_ARGS__);         \
+        _rhiDiagnoseImpl(                                                                                              \
             type,                                                                                                      \
             "%s: %s",                                                                                                  \
-            _gfxGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                     \
+            _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                     \
             message                                                                                                    \
         );                                                                                                             \
     }

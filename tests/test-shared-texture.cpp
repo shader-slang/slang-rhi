@@ -92,7 +92,7 @@ static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITextureResou
     ComPtr<IResourceView> texView;
     IResourceView::Desc texViewDesc = {};
     texViewDesc.type = IResourceView::Type::UnorderedAccess;
-    texViewDesc.format = inTexture->getDesc()->format; // TODO: Handle typeless formats - gfxIsTypelessFormat(format) ?
+    texViewDesc.format = inTexture->getDesc()->format; // TODO: Handle typeless formats - rhiIsTypelessFormat(format) ?
                                                        // convertTypelessFormat(format) : format;
     REQUIRE_CALL(device->createTextureView(inTexture, texViewDesc, texView.writeRef()));
     return texView;

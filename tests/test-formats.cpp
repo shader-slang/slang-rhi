@@ -110,7 +110,7 @@ ComPtr<IResourceView> createTexView(
     ComPtr<IResourceView> texView;
     IResourceView::Desc texViewDesc = {};
     texViewDesc.type = IResourceView::Type::ShaderResource;
-    texViewDesc.format = gfxIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
+    texViewDesc.format = rhiIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
     REQUIRE_CALL(device->createTextureView(inTex, texViewDesc, texView.writeRef()));
     return texView;
 }

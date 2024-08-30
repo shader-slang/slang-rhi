@@ -136,7 +136,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 
         IResourceView::Desc textureViewDesc = {};
         textureViewDesc.type = viewType;
-        textureViewDesc.format = textureDesc.format; // TODO: Handle typeless formats - gfxIsTypelessFormat(format) ?
+        textureViewDesc.format = textureDesc.format; // TODO: Handle typeless formats - rhiIsTypelessFormat(format) ?
                                                      // convertTypelessFormat(format) : format;
         REQUIRE_CALL(device->createTextureView(texture, textureViewDesc, textureView.writeRef()));
 
