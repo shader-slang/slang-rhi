@@ -63,27 +63,6 @@ enum class StructType
     RayTracingValidationDesc
 };
 
-// TODO: Rename to Stage
-enum class StageType
-{
-    Unknown,
-    Vertex,
-    Hull,
-    Domain,
-    Geometry,
-    Fragment,
-    Compute,
-    RayGeneration,
-    Intersection,
-    AnyHit,
-    ClosestHit,
-    Miss,
-    Callable,
-    Amplification,
-    Mesh,
-    CountOf,
-};
-
 // TODO: Implementation or backend or something else?
 enum class DeviceType
 {

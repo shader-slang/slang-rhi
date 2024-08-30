@@ -190,8 +190,6 @@ void returnRefPtrMove(TDest** outPtr, RefPtr<TImpl>& refPtr)
     *outPtr = refPtr.detach();
 }
 
-StageType translateStage(SlangStage slangStage);
-
 class FenceBase : public IFence, public ComObject
 {
 public:

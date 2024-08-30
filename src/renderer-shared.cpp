@@ -47,37 +47,6 @@ const Guid GUID::IID_IShaderTable = IShaderTable::getTypeGuid();
 const Guid GUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
-StageType translateStage(SlangStage slangStage)
-{
-    switch (slangStage)
-    {
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unhandled case");
-        return StageType::Unknown;
-
-#define CASE(FROM, TO)                                                                                                 \
-    case SLANG_STAGE_##FROM:                                                                                           \
-        return StageType::TO
-
-        CASE(VERTEX, Vertex);
-        CASE(HULL, Hull);
-        CASE(DOMAIN, Domain);
-        CASE(GEOMETRY, Geometry);
-        CASE(FRAGMENT, Fragment);
-
-        CASE(COMPUTE, Compute);
-
-        CASE(RAY_GENERATION, RayGeneration);
-        CASE(INTERSECTION, Intersection);
-        CASE(ANY_HIT, AnyHit);
-        CASE(CLOSEST_HIT, ClosestHit);
-        CASE(MISS, Miss);
-        CASE(CALLABLE, Callable);
-
-#undef CASE
-    }
-}
-
 IFence* FenceBase::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFence)
@@ -143,44 +112,6 @@ Result TextureResource::getSharedHandle(InteropHandle* outHandle)
     outHandle->api = InteropHandleAPI::Unknown;
     outHandle->handleValue = 0;
     return SLANG_OK;
-}
-
-StageType mapStage(SlangStage stage)
-{
-    switch (stage)
-    {
-    default:
-        return StageType::Unknown;
-
-    case SLANG_STAGE_AMPLIFICATION:
-        return StageType::Amplification;
-    case SLANG_STAGE_ANY_HIT:
-        return StageType::AnyHit;
-    case SLANG_STAGE_CALLABLE:
-        return StageType::Callable;
-    case SLANG_STAGE_CLOSEST_HIT:
-        return StageType::ClosestHit;
-    case SLANG_STAGE_COMPUTE:
-        return StageType::Compute;
-    case SLANG_STAGE_DOMAIN:
-        return StageType::Domain;
-    case SLANG_STAGE_FRAGMENT:
-        return StageType::Fragment;
-    case SLANG_STAGE_GEOMETRY:
-        return StageType::Geometry;
-    case SLANG_STAGE_HULL:
-        return StageType::Hull;
-    case SLANG_STAGE_INTERSECTION:
-        return StageType::Intersection;
-    case SLANG_STAGE_MESH:
-        return StageType::Mesh;
-    case SLANG_STAGE_MISS:
-        return StageType::Miss;
-    case SLANG_STAGE_RAY_GENERATION:
-        return StageType::RayGeneration;
-    case SLANG_STAGE_VERTEX:
-        return StageType::Vertex;
-    }
 }
 
 IResourceView* ResourceViewBase::getInterface(const Guid& guid)
