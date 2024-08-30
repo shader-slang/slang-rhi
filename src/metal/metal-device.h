@@ -5,7 +5,7 @@
 #include "metal-device.h"
 #include "metal-framebuffer.h"
 
-#include "utils/stable_vector.h"
+#include "core/stable_vector.h"
 
 #include <string>
 

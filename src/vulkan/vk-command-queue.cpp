@@ -3,7 +3,7 @@
 #include "vk-fence.h"
 #include "vk-transient-heap.h"
 
-#include "utils/static_vector.h"
+#include "core/static_vector.h"
 
 namespace rhi::vk {
 

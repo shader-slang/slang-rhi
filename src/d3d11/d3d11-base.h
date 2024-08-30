@@ -7,7 +7,7 @@
 #include "../mutable-shader-object.h"
 #include "../nvapi/nvapi-util.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <slang-com-ptr.h>
 

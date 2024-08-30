@@ -1,7 +1,7 @@
 #include "vk-descriptor-allocator.h"
 #include "vk-util.h"
 
-#include "utils/static_vector.h"
+#include "core/static_vector.h"
 
 namespace rhi::vk {
 

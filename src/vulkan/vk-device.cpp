@@ -15,9 +15,9 @@
 #include "vk-transient-heap.h"
 #include "vk-vertex-layout.h"
 
-#include "utils/common.h"
-#include "utils/short_vector.h"
-#include "utils/static_vector.h"
+#include "core/common.h"
+#include "core/short_vector.h"
+#include "core/static_vector.h"
 
 #include <algorithm>
 #include <set>

@@ -3,7 +3,7 @@
 #include "d3d12-device.h"
 #include "d3d12-fence.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 namespace rhi::d3d12 {
 

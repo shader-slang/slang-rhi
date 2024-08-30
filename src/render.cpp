@@ -6,7 +6,7 @@
 #include "cuda/cuda-api.h"
 #endif
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <cstring>
 #include <vector>

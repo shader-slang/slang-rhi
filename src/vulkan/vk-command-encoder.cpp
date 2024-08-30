@@ -11,7 +11,7 @@
 #include "vk-texture.h"
 #include "vk-transient-heap.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 #include <vector>
 

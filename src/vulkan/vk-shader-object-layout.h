@@ -4,7 +4,7 @@
 #include "vk-device.h"
 #include "vk-helper-functions.h"
 
-#include "utils/static_vector.h"
+#include "core/static_vector.h"
 
 #include <map>
 #include <vector>

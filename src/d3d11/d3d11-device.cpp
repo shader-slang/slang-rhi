@@ -13,7 +13,7 @@
 #include "d3d11-texture.h"
 #include "d3d11-vertex-layout.h"
 
-#include "utils/string.h"
+#include "core/string.h"
 
 #if SLANG_RHI_ENABLE_AFTERMATH
 #include "GFSDK_Aftermath.h"

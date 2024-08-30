@@ -9,7 +9,7 @@
 
 #include "../nvapi/nvapi-util.h"
 
-#include "utils/string.h"
+#include "core/string.h"
 
 #ifdef _DEBUG
 #define ENABLE_DEBUG_LAYER 1

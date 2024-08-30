@@ -2,7 +2,7 @@
 
 #include "d3d11-base.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 namespace rhi::d3d11 {
 

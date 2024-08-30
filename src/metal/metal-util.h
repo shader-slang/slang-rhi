@@ -3,7 +3,7 @@
 #include <slang-rhi.h>
 
 #include "metal-api.h"
-#include "utils/common.h"
+#include "core/common.h"
 
 namespace rhi::metal {
 

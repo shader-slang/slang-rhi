@@ -15,8 +15,8 @@
 #include "d3d12-swap-chain.h"
 #include "d3d12-vertex-layout.h"
 
-#include "utils/short_vector.h"
-#include "utils/string.h"
+#include "core/short_vector.h"
+#include "core/string.h"
 
 #ifdef _DEBUG
 #define ENABLE_DEBUG_LAYER 1

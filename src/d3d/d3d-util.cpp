@@ -1,6 +1,6 @@
 #include "d3d-util.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <d3d12.h>
 #include <dxgi1_4.h>

@@ -8,7 +8,7 @@
 #include "vk-descriptor-allocator.h"
 #include "vk-device-queue.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 namespace rhi::vk {
 

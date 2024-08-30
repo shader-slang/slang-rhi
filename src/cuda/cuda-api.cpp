@@ -6,7 +6,7 @@
 
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 
-#include "utils/platform.h"
+#include "core/platform.h"
 
 #include <cstdio>
 #include <cstring>

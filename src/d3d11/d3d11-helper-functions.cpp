@@ -1,7 +1,7 @@
 #include "d3d11-helper-functions.h"
 #include "d3d11-device.h"
 
-#include "utils/string.h"
+#include "core/string.h"
 
 namespace rhi::d3d11 {
 

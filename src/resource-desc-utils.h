@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 
-#include "utils/common.h"
+#include "core/common.h"
 
 namespace rhi {
 

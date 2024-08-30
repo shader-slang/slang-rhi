@@ -3,7 +3,7 @@
 #include <slang-rhi.h>
 
 #include "renderer-shared.h"
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <map>
 #include <set>

@@ -6,8 +6,8 @@
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-submitter.h"
 
-#include "utils/common.h"
-#include "utils/short_vector.h"
+#include "core/common.h"
+#include "core/short_vector.h"
 
 #include <vector>
 

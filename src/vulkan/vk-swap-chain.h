@@ -5,7 +5,7 @@
 #include "vk-device.h"
 #include "vk-texture.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 #include <vector>
 

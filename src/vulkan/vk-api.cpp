@@ -1,6 +1,6 @@
 #include "vk-api.h"
 
-#include "utils/assert.h"
+#include "core/assert.h"
 
 #include <vector>
 

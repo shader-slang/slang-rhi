@@ -6,7 +6,7 @@
 #include "../command-encoder-com-forward.h"
 #include "../renderer-shared.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 namespace rhi::debug {
 

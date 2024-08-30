@@ -19,7 +19,7 @@
 // #include "metal-pipeline-dump-layer.h"
 // #include "metal-helper-functions.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <cstdio>
 #include <vector>

@@ -3,7 +3,7 @@
 #include "d3d12-pipeline-state.h"
 #include "d3d12-transient-heap.h"
 
-#include "utils/string.h"
+#include "core/string.h"
 
 namespace rhi::d3d12 {
 

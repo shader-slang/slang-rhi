@@ -1,5 +1,5 @@
 #include "metal-util.h"
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,7 +1,7 @@
 #include "renderer-shared.h"
 #include "mutable-shader-object.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <slang.h>
 

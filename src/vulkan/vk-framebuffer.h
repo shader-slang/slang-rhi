@@ -2,8 +2,8 @@
 
 #include "vk-base.h"
 
-#include "utils/short_vector.h"
-#include "utils/static_vector.h"
+#include "core/short_vector.h"
+#include "core/static_vector.h"
 
 namespace rhi::vk {
 

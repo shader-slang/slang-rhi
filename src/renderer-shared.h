@@ -6,8 +6,8 @@
 
 #include "resource-desc-utils.h"
 
-#include "utils/common.h"
-#include "utils/short_vector.h"
+#include "core/common.h"
+#include "core/short_vector.h"
 
 #include <map>
 #include <memory>

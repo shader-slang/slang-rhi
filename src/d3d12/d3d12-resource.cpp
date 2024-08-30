@@ -1,6 +1,6 @@
 #include "d3d12-resource.h"
 
-#include "utils/string.h"
+#include "core/string.h"
 
 namespace rhi {
 

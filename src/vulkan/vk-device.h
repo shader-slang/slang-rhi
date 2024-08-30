@@ -3,7 +3,7 @@
 #include "vk-base.h"
 #include "vk-framebuffer.h"
 
-#include "utils/stable_vector.h"
+#include "core/stable_vector.h"
 
 #include <string>
 

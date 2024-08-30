@@ -4,7 +4,7 @@
 #include "d3d12-helper-functions.h"
 #include "d3d12-submitter.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 #include <vector>
 

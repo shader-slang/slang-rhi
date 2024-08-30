@@ -17,7 +17,7 @@
 #include "debug-transient-heap.h"
 #include "debug-vertex-layout.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 #include <vector>
 

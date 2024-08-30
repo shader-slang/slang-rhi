@@ -2,7 +2,7 @@
 
 #include "metal-base.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 #include <vector>
 

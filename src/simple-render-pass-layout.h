@@ -6,8 +6,8 @@
 
 #include <slang-rhi.h>
 
-#include "utils/common.h"
-#include "utils/short_vector.h"
+#include "core/common.h"
+#include "core/short_vector.h"
 
 namespace rhi {
 

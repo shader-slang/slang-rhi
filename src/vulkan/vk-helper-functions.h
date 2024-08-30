@@ -3,7 +3,7 @@
 #include "vk-base.h"
 #include "vk-util.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <vector>
 

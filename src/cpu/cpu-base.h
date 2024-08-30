@@ -6,7 +6,7 @@
 #define SLANG_PRELUDE_NAMESPACE slang_prelude
 #include "prelude/slang-cpp-types.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <slang-com-helper.h>
 #include <slang-com-ptr.h>

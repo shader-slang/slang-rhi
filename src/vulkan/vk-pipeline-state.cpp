@@ -5,7 +5,7 @@
 #include "vk-shader-program.h"
 #include "vk-vertex-layout.h"
 
-#include "utils/static_vector.h"
+#include "core/static_vector.h"
 
 #include <map>
 #include <string>

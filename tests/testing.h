@@ -6,7 +6,7 @@
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
 
-#include "../src/utils/blob.h"
+#include "../src/core/blob.h"
 
 #include <array>
 #include <string_view>

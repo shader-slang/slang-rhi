@@ -89,9 +89,9 @@ endif()
 
 file(GLOB RHI_SOURCES
     src/*.cpp
+    src/core/*.cpp
     src/cpu/*.cpp
     src/debug-layer/*.cpp
-    src/utils/*.cpp
 )
 target_sources(slang-rhi PRIVATE ${RHI_SOURCES})
 

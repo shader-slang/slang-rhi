@@ -2,7 +2,7 @@
 #include "cocoa-util.h"
 #include "vk-util.h"
 
-#include "utils/static_vector.h"
+#include "core/static_vector.h"
 
 #include <vector>
 

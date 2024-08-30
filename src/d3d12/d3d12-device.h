@@ -8,7 +8,7 @@
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
 
-#include "utils/virtual-object-pool.h"
+#include "core/virtual-object-pool.h"
 
 namespace rhi::d3d12 {
 

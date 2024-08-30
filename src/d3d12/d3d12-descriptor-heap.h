@@ -1,8 +1,8 @@
 #pragma once
 
-#include "utils/common.h"
-#include "utils/short_vector.h"
-#include "utils/virtual-object-pool.h"
+#include "core/common.h"
+#include "core/short_vector.h"
+#include "core/virtual-object-pool.h"
 
 #include <slang-com-ptr.h>
 

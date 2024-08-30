@@ -11,7 +11,7 @@
 #include "d3d12-transient-heap.h"
 #include "d3d12-vertex-layout.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 namespace rhi::d3d12 {
 

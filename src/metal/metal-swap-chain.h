@@ -5,7 +5,7 @@
 #include "metal-device.h"
 #include "metal-texture.h"
 
-#include "utils/short_vector.h"
+#include "core/short_vector.h"
 
 namespace rhi::metal {
 

@@ -3,7 +3,7 @@
 #include "vk-helper-functions.h"
 #include "vk-resource-views.h"
 
-#include "utils/static_vector.h"
+#include "core/static_vector.h"
 
 namespace rhi::vk {
 

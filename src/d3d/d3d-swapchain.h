@@ -4,8 +4,8 @@
 
 #include "../renderer-shared.h"
 #include "d3d-util.h"
-#include "utils/common.h"
-#include "utils/short_vector.h"
+#include "core/common.h"
+#include "core/short_vector.h"
 
 #include <dxgi1_4.h>
 

@@ -11,8 +11,8 @@
 
 #include "../nvapi/nvapi-util.h"
 
-#include "utils/stable_vector.h"
-#include "utils/string.h"
+#include "core/stable_vector.h"
+#include "core/string.h"
 
 #include <climits>
 

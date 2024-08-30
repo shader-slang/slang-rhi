@@ -1,6 +1,6 @@
 #include "d3d12-posix-synchapi.h"
 
-#include "utils/common.h"
+#include "core/common.h"
 
 #include <slang.h>
 
