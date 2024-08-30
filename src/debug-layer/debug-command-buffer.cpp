@@ -14,7 +14,7 @@ DebugCommandBuffer::DebugCommandBuffer()
     m_rayTracingCommandEncoder.commandBuffer = this;
 }
 
-ICommandBuffer* DebugCommandBuffer::getInterface(const Slang::Guid& guid)
+ICommandBuffer* DebugCommandBuffer::getInterface(const Guid& guid)
 {
     if (guid == GfxGUID::IID_ICommandBuffer || guid == GfxGUID::IID_ISlangUnknown)
         return (DebugObject<ICommandBuffer>*)this;

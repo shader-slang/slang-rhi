@@ -10,7 +10,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    IRenderPassLayout* getInterface(const Slang::Guid& guid);
+    IRenderPassLayout* getInterface(const Guid& guid);
 };
 
 } // namespace rhi::debug

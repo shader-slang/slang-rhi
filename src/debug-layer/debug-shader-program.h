@@ -10,11 +10,11 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    IShaderProgram* getInterface(const Slang::Guid& guid);
+    IShaderProgram* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
 
 public:
-    Slang::ComPtr<slang::IComponentType> m_slangProgram;
+    ComPtr<slang::IComponentType> m_slangProgram;
 };
 
 } // namespace rhi::debug

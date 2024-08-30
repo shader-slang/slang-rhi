@@ -15,7 +15,7 @@ class SimpleRenderPassLayout : public IRenderPassLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IRenderPassLayout* getInterface(const Slang::Guid& guid);
+    IRenderPassLayout* getInterface(const Guid& guid);
 
 public:
     short_vector<TargetAccessDesc> m_renderTargetAccesses;

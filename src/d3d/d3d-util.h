@@ -69,7 +69,7 @@ public:
         char const* source,
         char const* entryPointName,
         char const* dxProfileName,
-        Slang::ComPtr<ID3DBlob>& shaderBlobOut
+        ComPtr<ID3DBlob>& shaderBlobOut
     );
 
     /// Given a slang pixel format returns the equivalent DXGI_ pixel format. If the format is not known, will return
@@ -88,7 +88,7 @@ public:
     /// RGB565 -> 5)
     static Int getNumColorChannelBits(DXGI_FORMAT fmt);
 
-    static Result createFactory(DeviceCheckFlags flags, Slang::ComPtr<IDXGIFactory>& outFactory);
+    static Result createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory);
 
     /// Get the dxgiModule
     static SharedLibraryHandle getDxgiModule();
@@ -98,13 +98,13 @@ public:
         DeviceCheckFlags flags,
         const AdapterLUID* adapterLUID,
         IDXGIFactory* dxgiFactory,
-        std::vector<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters
+        std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
     );
     /// Find adapters
     static Result findAdapters(
         DeviceCheckFlags flags,
         const AdapterLUID* adapterLUID,
-        std::vector<Slang::ComPtr<IDXGIAdapter>>& dxgiAdapters
+        std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
     );
 
     static AdapterLUID getAdapterLUID(IDXGIAdapter* dxgiAdapter);

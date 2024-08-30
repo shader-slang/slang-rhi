@@ -13,7 +13,7 @@ public:
 
 public:
     DebugDevice();
-    IDevice* getInterface(const Slang::Guid& guid);
+    IDevice* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

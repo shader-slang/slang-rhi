@@ -10,7 +10,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    ICommandQueue* getInterface(const Slang::Guid& guid);
+    ICommandQueue* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW void SLANG_MCALL
     executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)

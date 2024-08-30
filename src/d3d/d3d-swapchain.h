@@ -15,7 +15,7 @@ class D3DSwapchainBase : public ISwapchain, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ISwapchain* getInterface(const Slang::Guid& guid)
+    ISwapchain* getInterface(const Guid& guid)
     {
         if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ISwapchain)
             return static_cast<ISwapchain*>(this);

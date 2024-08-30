@@ -75,9 +75,9 @@ public:
     D3D12DescriptorHeap();
 
 protected:
-    Slang::ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12Device> m_device;
     /// The underlying heap being allocated from
-    Slang::ComPtr<ID3D12DescriptorHeap> m_heap;
+    ComPtr<ID3D12DescriptorHeap> m_heap;
     /// Total amount of allocations available on the heap
     int m_totalSize;
     /// The current descriptor

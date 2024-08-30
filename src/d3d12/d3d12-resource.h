@@ -127,7 +127,7 @@ struct D3D12Resource : public D3D12ResourceBase
     ID3D12Resource* detach();
 
     /// Swaps the resource contents with the contents of the smart pointer
-    void swap(Slang::ComPtr<ID3D12Resource>& resourceInOut);
+    void swap(ComPtr<ID3D12Resource>& resourceInOut);
 
     /// Set the debug name on a resource
     static void setDebugName(ID3D12Resource* resource, const char* name);

@@ -12,7 +12,7 @@ class SimpleTransientResourceHeap : public TransientResourceHeapBase
 {
 public:
     RefPtr<TDevice> m_device;
-    Slang::ComPtr<IBufferResource> m_constantBuffer;
+    ComPtr<IBufferResource> m_constantBuffer;
 
 public:
     Result init(TDevice* device, const ITransientResourceHeap::Desc& desc)

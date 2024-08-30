@@ -11,8 +11,8 @@ namespace rhi {
 class SlangContext
 {
 public:
-    Slang::ComPtr<slang::IGlobalSession> globalSession;
-    Slang::ComPtr<slang::ISession> session;
+    ComPtr<slang::IGlobalSession> globalSession;
+    ComPtr<slang::ISession> session;
     Result initialize(
         const IDevice::SlangDesc& desc,
         uint32_t extendedDescCount,

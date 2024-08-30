@@ -8,7 +8,7 @@ class DebugShaderTable : public DebugObject<IShaderTable>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
-    IShaderTable* getInterface(const Slang::Guid& guid);
+    IShaderTable* getInterface(const Guid& guid);
 };
 
 } // namespace rhi::debug

@@ -158,17 +158,6 @@ struct SLANG_RHI_API RefPtr
         releaseReference(old);
     }
 
-#if 0
-        HashCode getHashCode() const
-        {
-            // Note: We need a `RefPtr<T>` to hash the same as a `T*`,
-            // so that a `T*` can be used as a key in a dictionary with
-            // `RefPtr<T>` keys, and vice versa.
-            //
-            return Slang::getHashCode(pointer);
-        }
-#endif
-
     bool operator==(const T* ptr) const { return pointer == ptr; }
 
     bool operator!=(const T* ptr) const { return pointer != ptr; }
@@ -182,17 +171,6 @@ struct SLANG_RHI_API RefPtr
     {
         return RefPtr<U>(dynamic_cast<U>(pointer));
     }
-
-#if 0
-        template<typename U>
-        RefPtr<U> as() const
-        {
-            return RefPtr<U>(Slang::as<U>(pointer));
-        }
-
-        template <typename U>
-        bool is() const { return Slang::as<U>(pointer) != nullptr; }
-#endif
 
     ~RefPtr() { releaseReference(static_cast<RefObject*>(pointer)); }
 

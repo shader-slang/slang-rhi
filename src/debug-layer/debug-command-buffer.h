@@ -22,7 +22,7 @@ private:
 
 public:
     DebugCommandBuffer();
-    ICommandBuffer* getInterface(const Slang::Guid& guid);
+    ICommandBuffer* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
         IRenderPassLayout* renderPass,
         IFramebuffer* framebuffer,

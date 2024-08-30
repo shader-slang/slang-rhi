@@ -4,7 +4,7 @@
 
 namespace rhi {
 
-IRenderPassLayout* SimpleRenderPassLayout::getInterface(const Slang::Guid& guid)
+IRenderPassLayout* SimpleRenderPassLayout::getInterface(const Guid& guid)
 {
     if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IRenderPassLayout)
         return static_cast<IRenderPassLayout*>(this);

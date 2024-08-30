@@ -111,14 +111,14 @@ void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 #define RHI_VALIDATION_ERROR_FORMAT(...) RHI_VALIDATION_FORMAT(DebugMessageType::Error, __VA_ARGS__)
 
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                                                   \
-    I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                                                \
+    I##typeName* Debug##typeName::getInterface(const Guid& guid)                                                       \
     {                                                                                                                  \
         return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName)                                \
                    ? static_cast<I##typeName*>(this)                                                                   \
                    : nullptr;                                                                                          \
     }
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(typeName, parentType)                                                \
-    I##typeName* Debug##typeName::getInterface(const Slang::Guid& guid)                                                \
+    I##typeName* Debug##typeName::getInterface(const Guid& guid)                                                       \
     {                                                                                                                  \
         return (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_I##typeName ||                              \
                 guid == GfxGUID::IID_I##parentType)                                                                    \

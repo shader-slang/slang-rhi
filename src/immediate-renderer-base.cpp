@@ -8,8 +8,6 @@
 #include "utils/short_vector.h"
 
 namespace rhi {
-using Slang::ComPtr;
-using Slang::Guid;
 
 namespace {
 

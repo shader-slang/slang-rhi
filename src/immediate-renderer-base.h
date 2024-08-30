@@ -23,7 +23,7 @@ public:
     // forming a cyclic reference. Therefore we need a free-op here to break the cycle when
     // the public reference count of the queue drops to 0.
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ICommandQueue* getInterface(const Slang::Guid& guid)
+    ICommandQueue* getInterface(const Guid& guid)
     {
         if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ICommandQueue)
             return static_cast<ICommandQueue*>(this);

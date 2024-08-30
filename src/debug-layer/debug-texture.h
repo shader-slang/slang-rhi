@@ -10,7 +10,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    ITextureResource* getInterface(const Slang::Guid& guid);
+    ITextureResource* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Type SLANG_MCALL getType() override;
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) override;

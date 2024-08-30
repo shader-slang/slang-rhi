@@ -12,40 +12,40 @@
 
 namespace rhi {
 
-const Slang::Guid GfxGUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
-const Slang::Guid GfxGUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IInputLayout = IInputLayout::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IPipelineState = IPipelineState::getTypeGuid();
-const Slang::Guid GfxGUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IResourceView = IResourceView::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
+const Guid GfxGUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
+const Guid GfxGUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
+const Guid GfxGUID::IID_IInputLayout = IInputLayout::getTypeGuid();
+const Guid GfxGUID::IID_IPipelineState = IPipelineState::getTypeGuid();
+const Guid GfxGUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
+const Guid GfxGUID::IID_IResourceView = IResourceView::getTypeGuid();
+const Guid GfxGUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
+const Guid GfxGUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_ISwapchain = ISwapchain::getTypeGuid();
-const Slang::Guid GfxGUID::IID_ISamplerState = ISamplerState::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IResource = IResource::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IBufferResource = IBufferResource::getTypeGuid();
-const Slang::Guid GfxGUID::IID_ITextureResource = ITextureResource::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IDevice = IDevice::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IShaderObject = IShaderObject::getTypeGuid();
+const Guid GfxGUID::IID_ISwapchain = ISwapchain::getTypeGuid();
+const Guid GfxGUID::IID_ISamplerState = ISamplerState::getTypeGuid();
+const Guid GfxGUID::IID_IResource = IResource::getTypeGuid();
+const Guid GfxGUID::IID_IBufferResource = IBufferResource::getTypeGuid();
+const Guid GfxGUID::IID_ITextureResource = ITextureResource::getTypeGuid();
+const Guid GfxGUID::IID_IDevice = IDevice::getTypeGuid();
+const Guid GfxGUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
+const Guid GfxGUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
+const Guid GfxGUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
+const Guid GfxGUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
+const Guid GfxGUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
+const Guid GfxGUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
+const Guid GfxGUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
-const Slang::Guid GfxGUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
+const Guid GfxGUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
+const Guid GfxGUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
 
-const Slang::Guid GfxGUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IQueryPool = IQueryPool::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IAccelerationStructure = IAccelerationStructure::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IFence = IFence::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IShaderTable = IShaderTable::getTypeGuid();
-const Slang::Guid GfxGUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
-const Slang::Guid GfxGUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
+const Guid GfxGUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
+const Guid GfxGUID::IID_IQueryPool = IQueryPool::getTypeGuid();
+const Guid GfxGUID::IID_IAccelerationStructure = IAccelerationStructure::getTypeGuid();
+const Guid GfxGUID::IID_IFence = IFence::getTypeGuid();
+const Guid GfxGUID::IID_IShaderTable = IShaderTable::getTypeGuid();
+const Guid GfxGUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
+const Guid GfxGUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
 StageType translateStage(SlangStage slangStage)
 {
@@ -78,14 +78,14 @@ StageType translateStage(SlangStage slangStage)
     }
 }
 
-IFence* FenceBase::getInterface(const Slang::Guid& guid)
+IFence* FenceBase::getInterface(const Guid& guid)
 {
     if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IFence)
         return static_cast<IFence*>(this);
     return nullptr;
 }
 
-IResource* BufferResource::getInterface(const Slang::Guid& guid)
+IResource* BufferResource::getInterface(const Guid& guid)
 {
     if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IResource || guid == GfxGUID::IID_IBufferResource)
         return static_cast<IBufferResource*>(this);
@@ -115,7 +115,7 @@ Result BufferResource::getSharedHandle(InteropHandle* outHandle)
     return SLANG_FAIL;
 }
 
-IResource* TextureResource::getInterface(const Slang::Guid& guid)
+IResource* TextureResource::getInterface(const Guid& guid)
 {
     if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IResource || guid == GfxGUID::IID_ITextureResource)
         return static_cast<ITextureResource*>(this);
@@ -197,7 +197,7 @@ Result ResourceViewBase::getNativeHandle(InteropHandle* outHandle)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-ISamplerState* SamplerStateBase::getInterface(const Slang::Guid& guid)
+ISamplerState* SamplerStateBase::getInterface(const Guid& guid)
 {
     if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ISamplerState)
         return static_cast<ISamplerState*>(this);
@@ -211,7 +211,7 @@ Result SamplerStateBase::getNativeHandle(InteropHandle* outHandle)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-IAccelerationStructure* AccelerationStructureBase::getInterface(const Slang::Guid& guid)
+IAccelerationStructure* AccelerationStructureBase::getInterface(const Guid& guid)
 {
     if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IResourceView ||
         guid == GfxGUID::IID_IAccelerationStructure)

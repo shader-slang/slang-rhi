@@ -10,7 +10,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    IResourceView* getInterface(const Slang::Guid& guid);
+    IResourceView* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getViewDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) override;
 };
@@ -21,7 +21,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    IAccelerationStructure* getInterface(const Slang::Guid& guid);
+    IAccelerationStructure* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) override;
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getViewDesc() override;

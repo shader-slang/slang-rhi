@@ -25,7 +25,7 @@ template<typename TInterface>
 class DebugObject : public TInterface, public DebugObjectBase
 {
 public:
-    Slang::ComPtr<TInterface> baseObject;
+    ComPtr<TInterface> baseObject;
 };
 
 template<typename TInterface>

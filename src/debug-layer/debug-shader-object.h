@@ -37,7 +37,7 @@ public:
     void checkCompleteness();
 
 public:
-    IShaderObject* getInterface(const Slang::Guid& guid);
+    IShaderObject* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() override;
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override;
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
@@ -69,7 +69,7 @@ public:
 
     // The slang program from which a root shader object is created, this is null for ordinary
     // objects.
-    Slang::ComPtr<slang::IComponentType> m_rootComponentType;
+    ComPtr<slang::IComponentType> m_rootComponentType;
 
     DebugDevice* m_device;
 

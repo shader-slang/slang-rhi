@@ -55,7 +55,7 @@ public:
         StagingBufferPage page;
         size_t pageSize = kStagingBufferDefaultPageSize;
 
-        Slang::ComPtr<IBufferResource> bufferPtr;
+        ComPtr<IBufferResource> bufferPtr;
         IBufferResource::Desc bufferDesc;
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.defaultState = ResourceState::General;
@@ -72,7 +72,7 @@ public:
 
     Result newLargeBuffer(size_t size)
     {
-        Slang::ComPtr<IBufferResource> bufferPtr;
+        ComPtr<IBufferResource> bufferPtr;
         IBufferResource::Desc bufferDesc;
         bufferDesc.type = IResource::Type::Buffer;
         bufferDesc.defaultState = ResourceState::General;

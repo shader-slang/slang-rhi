@@ -12,7 +12,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    ISwapchain* getInterface(const Slang::Guid& guid);
+    ISwapchain* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITextureResource** outResource) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;

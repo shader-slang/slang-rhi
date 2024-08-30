@@ -19,38 +19,38 @@ namespace rhi {
 
 struct GfxGUID
 {
-    static const Slang::Guid IID_ISlangUnknown;
-    static const Slang::Guid IID_IShaderProgram;
-    static const Slang::Guid IID_ITransientResourceHeap;
-    static const Slang::Guid IID_IPipelineState;
-    static const Slang::Guid IID_IResourceView;
-    static const Slang::Guid IID_IFramebuffer;
-    static const Slang::Guid IID_IFramebufferLayout;
-    static const Slang::Guid IID_ISwapchain;
-    static const Slang::Guid IID_ISamplerState;
-    static const Slang::Guid IID_IResource;
-    static const Slang::Guid IID_IBufferResource;
-    static const Slang::Guid IID_ITextureResource;
-    static const Slang::Guid IID_IInputLayout;
-    static const Slang::Guid IID_IDevice;
-    static const Slang::Guid IID_IPersistentShaderCache;
-    static const Slang::Guid IID_IShaderObjectLayout;
-    static const Slang::Guid IID_IShaderObject;
-    static const Slang::Guid IID_IRenderPassLayout;
-    static const Slang::Guid IID_ICommandEncoder;
-    static const Slang::Guid IID_IRenderCommandEncoder;
-    static const Slang::Guid IID_IComputeCommandEncoder;
-    static const Slang::Guid IID_IResourceCommandEncoder;
-    static const Slang::Guid IID_IRayTracingCommandEncoder;
-    static const Slang::Guid IID_ICommandBuffer;
-    static const Slang::Guid IID_ICommandBufferD3D12;
-    static const Slang::Guid IID_ICommandQueue;
-    static const Slang::Guid IID_IQueryPool;
-    static const Slang::Guid IID_IAccelerationStructure;
-    static const Slang::Guid IID_IFence;
-    static const Slang::Guid IID_IShaderTable;
-    static const Slang::Guid IID_IPipelineCreationAPIDispatcher;
-    static const Slang::Guid IID_ITransientResourceHeapD3D12;
+    static const Guid IID_ISlangUnknown;
+    static const Guid IID_IShaderProgram;
+    static const Guid IID_ITransientResourceHeap;
+    static const Guid IID_IPipelineState;
+    static const Guid IID_IResourceView;
+    static const Guid IID_IFramebuffer;
+    static const Guid IID_IFramebufferLayout;
+    static const Guid IID_ISwapchain;
+    static const Guid IID_ISamplerState;
+    static const Guid IID_IResource;
+    static const Guid IID_IBufferResource;
+    static const Guid IID_ITextureResource;
+    static const Guid IID_IInputLayout;
+    static const Guid IID_IDevice;
+    static const Guid IID_IPersistentShaderCache;
+    static const Guid IID_IShaderObjectLayout;
+    static const Guid IID_IShaderObject;
+    static const Guid IID_IRenderPassLayout;
+    static const Guid IID_ICommandEncoder;
+    static const Guid IID_IRenderCommandEncoder;
+    static const Guid IID_IComputeCommandEncoder;
+    static const Guid IID_IResourceCommandEncoder;
+    static const Guid IID_IRayTracingCommandEncoder;
+    static const Guid IID_ICommandBuffer;
+    static const Guid IID_ICommandBufferD3D12;
+    static const Guid IID_ICommandQueue;
+    static const Guid IID_IQueryPool;
+    static const Guid IID_IAccelerationStructure;
+    static const Guid IID_IFence;
+    static const Guid IID_IShaderTable;
+    static const Guid IID_IPipelineCreationAPIDispatcher;
+    static const Guid IID_ITransientResourceHeapD3D12;
 };
 
 bool isGfxDebugLayerEnabled();
@@ -166,7 +166,7 @@ void returnComPtr(TInterface** outInterface, const RefPtr<TImpl>& refPtr)
 }
 
 template<typename TInterface, typename TImpl>
-void returnComPtr(TInterface** outInterface, Slang::ComPtr<TImpl>& comPtr)
+void returnComPtr(TInterface** outInterface, ComPtr<TImpl>& comPtr)
 {
     static_assert(!std::is_base_of<RefObject, TInterface>::value, "TInterface must be an interface type.");
     *outInterface = comPtr.detach();
@@ -196,7 +196,7 @@ class FenceBase : public IFence, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IFence* getInterface(const Slang::Guid& guid);
+    IFence* getInterface(const Guid& guid);
 
 protected:
     InteropHandle sharedHandle = {};
@@ -227,7 +227,7 @@ class BufferResource : public IBufferResource, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IResource* getInterface(const Slang::Guid& guid);
+    IResource* getInterface(const Guid& guid);
 
 public:
     typedef Resource Parent;
@@ -259,7 +259,7 @@ class TextureResource : public ITextureResource, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IResource* getInterface(const Slang::Guid& guid);
+    IResource* getInterface(const Guid& guid);
 
 public:
     typedef Resource Parent;
@@ -295,7 +295,7 @@ class ResourceViewBase : public IResourceView, public ResourceViewInternalBase
 public:
     Desc m_desc = {};
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IResourceView* getInterface(const Slang::Guid& guid);
+    IResourceView* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getViewDesc() override { return &m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
@@ -304,7 +304,7 @@ class SamplerStateBase : public ISamplerState, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ISamplerState* getInterface(const Slang::Guid& guid);
+    ISamplerState* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
@@ -314,7 +314,7 @@ public:
     IResourceView::Desc m_desc = {};
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IAccelerationStructure* getInterface(const Slang::Guid& guid);
+    IAccelerationStructure* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Desc* SLANG_MCALL getViewDesc() override { return &m_desc; }
 };
 
@@ -464,7 +464,7 @@ class ShaderObjectBase : public IShaderObject, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IShaderObject* getInterface(const Slang::Guid& guid)
+    IShaderObject* getInterface(const Guid& guid)
     {
         if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IShaderObject)
             return static_cast<IShaderObject*>(this);
@@ -800,19 +800,19 @@ class ShaderProgramBase : public IShaderProgram, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IShaderProgram* getInterface(const Slang::Guid& guid);
+    IShaderProgram* getInterface(const Guid& guid);
 
     Desc desc;
 
-    Slang::ComPtr<slang::IComponentType> slangGlobalScope;
+    ComPtr<slang::IComponentType> slangGlobalScope;
     std::vector<ComPtr<slang::IComponentType>> slangEntryPoints;
 
     // Linked program when linkingStyle is GraphicsCompute, or the original global scope
     // when linking style is RayTracing.
-    Slang::ComPtr<slang::IComponentType> linkedProgram;
+    ComPtr<slang::IComponentType> linkedProgram;
 
     // Linked program for each entry point when linkingStyle is RayTracing.
-    std::vector<Slang::ComPtr<slang::IComponentType>> linkedEntryPoints;
+    std::vector<ComPtr<slang::IComponentType>> linkedEntryPoints;
 
     void init(const IShaderProgram::Desc& desc);
 
@@ -833,10 +833,7 @@ public:
     }
 
     Result compileShaders(RendererBase* device);
-    virtual Result createShaderModule(
-        slang::EntryPointReflection* entryPointInfo,
-        Slang::ComPtr<ISlangBlob> kernelCode
-    );
+    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override
     {
@@ -850,28 +847,28 @@ class InputLayoutBase : public IInputLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IInputLayout* getInterface(const Slang::Guid& guid);
+    IInputLayout* getInterface(const Guid& guid);
 };
 
 class FramebufferLayoutBase : public IFramebufferLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IFramebufferLayout* getInterface(const Slang::Guid& guid);
+    IFramebufferLayout* getInterface(const Guid& guid);
 };
 
 class FramebufferBase : public IFramebuffer, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IFramebuffer* getInterface(const Slang::Guid& guid);
+    IFramebuffer* getInterface(const Guid& guid);
 };
 
 class QueryPoolBase : public IQueryPool, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IQueryPool* getInterface(const Slang::Guid& guid);
+    IQueryPool* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
 
     IQueryPool::Desc m_desc;
@@ -963,7 +960,7 @@ class PipelineStateBase : public IPipelineState, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IPipelineState* getInterface(const Slang::Guid& guid);
+    IPipelineState* getInterface(const Guid& guid);
 
     struct PipelineStateDesc
     {
@@ -1116,7 +1113,7 @@ public:
 
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ITransientResourceHeap* getInterface(const Slang::Guid& guid)
+    ITransientResourceHeap* getInterface(const Guid& guid)
     {
         if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_ITransientResourceHeap)
             return static_cast<ITransientResourceHeap*>(this);
@@ -1142,7 +1139,7 @@ public:
     std::map<PipelineStateBase*, RefPtr<BufferResource>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IShaderTable* getInterface(const Slang::Guid& guid)
+    IShaderTable* getInterface(const Guid& guid)
     {
         if (guid == GfxGUID::IID_ISlangUnknown || guid == GfxGUID::IID_IShaderTable)
             return static_cast<IShaderTable*>(this);
@@ -1190,7 +1187,7 @@ public:
     getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE;
-    IDevice* getInterface(const Slang::Guid& guid);
+    IDevice* getInterface(const Guid& guid);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
         InteropHandle handle,
@@ -1350,10 +1347,10 @@ public:
     SlangContext slangContext;
     ShaderCache shaderCache;
 
-    Slang::ComPtr<IPersistentShaderCache> persistentShaderCache;
+    ComPtr<IPersistentShaderCache> persistentShaderCache;
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
-    Slang::ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
+    ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
 };
 
 bool isDepthFormat(Format format);
