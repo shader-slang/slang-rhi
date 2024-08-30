@@ -8,8 +8,8 @@
 
 #include "utils/platform.h"
 
-#include <cstring>
 #include <cstdio>
+#include <cstring>
 
 rhi::SharedLibraryHandle gCudaApiModule;
 
@@ -35,8 +35,8 @@ bool gfxCudaApiInit()
     };
     return false;
 #endif
-#if 1
-    for (const char* path : cudaPaths) {
+    for (const char* path : cudaPaths)
+    {
         if (SLANG_SUCCEEDED(rhi::loadSharedLibrary(path, gCudaApiModule)))
             break;
     }
@@ -52,7 +52,8 @@ bool gfxCudaApiInit()
         break;                                                                                                         \
     symbol = nullptr
 
-    do {
+    do
+    {
         LOAD(cuGetErrorString);
         LOAD(cuGetErrorName);
         LOAD(cuInit);
@@ -144,16 +145,17 @@ bool gfxCudaApiInit()
         LOAD(cuSurfObjectDestroy);
         LOAD(cuTexObjectCreate);
         LOAD(cuTexObjectDestroy);
-
-    } while (false);
+    }
+    while (false);
 #undef LOAD
 
-    if (symbol) {
+    if (symbol)
+    {
         gfxCudaApiShutdown();
         printf("gfxCudaApiInit(): could not find symbol \"%s\"\n", symbol);
         return false;
     }
-#endif
+
     return true;
 }
 
@@ -246,6 +248,6 @@ bool gfxCudaApiInit()
     return true;
 }
 
-void gfxCudaApiShutdown() { }
+void gfxCudaApiShutdown() {}
 
 #endif // SLANG_RHI_USE_DYNAMIC_CUDA

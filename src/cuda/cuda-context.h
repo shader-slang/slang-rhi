@@ -1,13 +1,8 @@
-// cuda-context.h
 #pragma once
+
 #include "cuda-base.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 class CUDAContext : public RefObject
 {
@@ -16,5 +11,4 @@ public:
     ~CUDAContext() { cuCtxDestroy(m_context); }
 };
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

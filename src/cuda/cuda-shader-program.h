@@ -1,18 +1,10 @@
-// cuda-shader-program.h
 #pragma once
-#include "cuda-base.h"
 
+#include "cuda-base.h"
 #include "cuda-context.h"
 #include "cuda-shader-object-layout.h"
 
-#include <string>
-
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 class ShaderProgramImpl : public ShaderProgramBase
 {
@@ -25,5 +17,4 @@ public:
     ~ShaderProgramImpl();
 };
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

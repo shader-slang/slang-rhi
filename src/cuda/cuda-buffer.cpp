@@ -1,14 +1,7 @@
-// cuda-buffer.cpp
 #include "cuda-buffer.h"
-
 #include "cuda-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 BufferResourceImpl::~BufferResourceImpl()
 {
@@ -18,7 +11,10 @@ BufferResourceImpl::~BufferResourceImpl()
     }
 }
 
-uint64_t BufferResourceImpl::getBindlessHandle() { return (uint64_t)m_cudaMemory; }
+uint64_t BufferResourceImpl::getBindlessHandle()
+{
+    return (uint64_t)m_cudaMemory;
+}
 
 DeviceAddress BufferResourceImpl::getDeviceAddress()
 {
@@ -45,5 +41,4 @@ Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
     return SLANG_FAIL;
 }
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

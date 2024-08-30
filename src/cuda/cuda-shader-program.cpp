@@ -1,12 +1,6 @@
-// cuda-shader-program.cpp
 #include "cuda-shader-program.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 ShaderProgramImpl::~ShaderProgramImpl()
 {
@@ -14,5 +8,4 @@ ShaderProgramImpl::~ShaderProgramImpl()
         cuModuleUnload(cudaModule);
 }
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

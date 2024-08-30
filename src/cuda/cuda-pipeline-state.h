@@ -1,14 +1,9 @@
-// cuda-pipeline-state.h
 #pragma once
+
 #include "cuda-base.h"
 #include "cuda-shader-program.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 class PipelineStateImpl : public PipelineStateBase
 {
@@ -22,5 +17,4 @@ public:
     void init(const ComputePipelineStateDesc& inDesc);
 };
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

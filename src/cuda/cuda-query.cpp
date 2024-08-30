@@ -1,12 +1,6 @@
-// cuda-query.cpp
 #include "cuda-query.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 Result QueryPoolImpl::init(const IQueryPool::Desc& desc)
 {
@@ -29,8 +23,7 @@ QueryPoolImpl::~QueryPoolImpl()
     cuEventDestroy(m_startEvent);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
-    GfxIndex queryIndex, GfxCount count, uint64_t* data)
+SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
 {
     for (GfxIndex i = 0; i < count; i++)
     {
@@ -42,5 +35,4 @@ SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(
     return SLANG_OK;
 }
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

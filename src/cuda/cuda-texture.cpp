@@ -1,14 +1,7 @@
-// cuda-texture.cpp
 #include "cuda-texture.h"
-
 #include "cuda-helper-functions.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 TextureResourceImpl::~TextureResourceImpl()
 {
@@ -42,5 +35,4 @@ Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
     return SLANG_OK;
 }
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

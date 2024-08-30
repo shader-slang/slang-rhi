@@ -1,22 +1,14 @@
-// cuda-texture.h
 #pragma once
-#include "cuda-base.h"
 
+#include "cuda-base.h"
 #include "cuda-context.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 class TextureResourceImpl : public TextureResource
 {
 public:
-    TextureResourceImpl(const TextureResource::Desc& desc)
-        : TextureResource(desc)
-    {}
+    TextureResourceImpl(const TextureResource::Desc& desc) : TextureResource(desc) {}
     ~TextureResourceImpl();
 
     uint64_t getBindlessHandle();
@@ -38,5 +30,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) override;
 };
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

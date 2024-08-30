@@ -1,12 +1,6 @@
-// cuda-command-buffer.cpp
 #include "cuda-command-buffer.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 ICommandBuffer* CommandBufferImpl::getInterface(const Guid& guid)
 {
@@ -24,29 +18,27 @@ void CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapBase* tran
 SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeRenderCommands(
     IRenderPassLayout* renderPass,
     IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder)
+    IRenderCommandEncoder** outEncoder
+)
 {
     SLANG_UNUSED(renderPass);
     SLANG_UNUSED(framebuffer);
     *outEncoder = nullptr;
 }
 
-SLANG_NO_THROW void SLANG_MCALL
-    CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
     m_resourceCommandEncoder.init(this);
     *outEncoder = &m_resourceCommandEncoder;
 }
 
-SLANG_NO_THROW void SLANG_MCALL
-    CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
     m_computeCommandEncoder.init(this);
     *outEncoder = &m_computeCommandEncoder;
 }
 
-SLANG_NO_THROW void SLANG_MCALL
-    CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
     *outEncoder = nullptr;
 }
@@ -56,5 +48,4 @@ SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::getNativeHandle(InteropHand
     return SLANG_FAIL;
 }
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

@@ -1,15 +1,8 @@
-// cuda-shader-object-layout.h
 #pragma once
+
 #include "cuda-base.h"
 
-#include <string_view>
-
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 struct BindingRangeInfo
 {
@@ -72,5 +65,4 @@ public:
     void getKernelThreadGroupSize(int kernelIndex, UInt* threadGroupSizes);
 };
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

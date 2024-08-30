@@ -31,32 +31,36 @@ using CUexternalMemory = struct CUextMemory_st*;
 using CUexternalSemaphore = struct CUextSemaphore_st*;
 using CUfunction = struct CUfunc_st*;
 
-
 #ifndef CU_UUID_HAS_BEEN_DEFINED
 #define CU_UUID_HAS_BEEN_DEFINED
-typedef struct CUuuid_st {
+typedef struct CUuuid_st
+{
     char bytes[16];
 } CUuuid;
 #endif
 
-enum CUstream_flags {
+enum CUstream_flags
+{
     CU_STREAM_DEFAULT = 0x0,
     CU_STREAM_NON_BLOCKING = 0x1,
 };
 
-enum CUevent_flags {
+enum CUevent_flags
+{
     CU_EVENT_DEFAULT = 0x0,
     CU_EVENT_BLOCKING_SYNC = 0x1,
     CU_EVENT_DISABLE_TIMING = 0x2,
     CU_EVENT_INTERPROCESS = 0x4,
 };
 
-enum CUevent_wait_flags {
+enum CUevent_wait_flags
+{
     CU_EVENT_WAIT_DEFAULT = 0x0,
     CU_EVENT_WAIT_EXTERNAL = 0x1,
 };
 
-enum CUarray_format {
+enum CUarray_format
+{
     CU_AD_FORMAT_UNSIGNED_INT8 = 0x01,
     CU_AD_FORMAT_UNSIGNED_INT16 = 0x02,
     CU_AD_FORMAT_UNSIGNED_INT32 = 0x03,
@@ -94,19 +98,22 @@ enum CUarray_format {
     CU_AD_FORMAT_BC7_UNORM_SRGB = 0x9e,
 };
 
-enum CUaddress_mode {
+enum CUaddress_mode
+{
     CU_TR_ADDRESS_MODE_WRAP = 0,
     CU_TR_ADDRESS_MODE_CLAMP = 1,
     CU_TR_ADDRESS_MODE_MIRROR = 2,
     CU_TR_ADDRESS_MODE_BORDER = 3,
 };
 
-enum CUfilter_mode {
+enum CUfilter_mode
+{
     CU_TR_FILTER_MODE_POINT = 0,
     CU_TR_FILTER_MODE_LINEAR = 1,
 };
 
-enum CUdevice_attribute {
+enum CUdevice_attribute
+{
     CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK = 1,
     CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X = 2,
     CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y = 3,
@@ -250,14 +257,16 @@ enum CUdevice_attribute {
     CU_DEVICE_ATTRIBUTE_MAX,
 };
 
-enum CUmemorytype {
+enum CUmemorytype
+{
     CU_MEMORYTYPE_HOST = 0x01,
     CU_MEMORYTYPE_DEVICE = 0x02,
     CU_MEMORYTYPE_ARRAY = 0x03,
     CU_MEMORYTYPE_UNIFIED = 0x04,
 };
 
-enum CUmem_advise {
+enum CUmem_advise
+{
     CU_MEM_ADVISE_SET_READ_MOSTLY = 1,
     CU_MEM_ADVISE_UNSET_READ_MOSTLY = 2,
     CU_MEM_ADVISE_SET_PREFERRED_LOCATION = 3,
@@ -266,7 +275,8 @@ enum CUmem_advise {
     CU_MEM_ADVISE_UNSET_ACCESSED_BY = 6,
 };
 
-enum CUarray_cubemap_face {
+enum CUarray_cubemap_face
+{
     CU_CUBEMAP_FACE_POSITIVE_X = 0x00,
     CU_CUBEMAP_FACE_NEGATIVE_X = 0x01,
     CU_CUBEMAP_FACE_POSITIVE_Y = 0x02,
@@ -275,14 +285,16 @@ enum CUarray_cubemap_face {
     CU_CUBEMAP_FACE_NEGATIVE_Z = 0x05,
 };
 
-enum CUresourcetype {
+enum CUresourcetype
+{
     CU_RESOURCE_TYPE_ARRAY = 0x00,
     CU_RESOURCE_TYPE_MIPMAPPED_ARRAY = 0x01,
     CU_RESOURCE_TYPE_LINEAR = 0x02,
     CU_RESOURCE_TYPE_PITCH2D = 0x03,
 };
 
-enum CUresult {
+enum CUresult
+{
     CUDA_SUCCESS = 0,
     CUDA_ERROR_INVALID_VALUE = 1,
     CUDA_ERROR_OUT_OF_MEMORY = 2,
@@ -379,7 +391,8 @@ enum CUresult {
     CUDA_ERROR_UNKNOWN = 999,
 };
 
-struct CUDA_MEMCPY2D {
+struct CUDA_MEMCPY2D
+{
     size_t srcXInBytes;
     size_t srcY;
 
@@ -402,7 +415,8 @@ struct CUDA_MEMCPY2D {
     size_t Height;
 };
 
-struct CUDA_MEMCPY3D {
+struct CUDA_MEMCPY3D
+{
     size_t srcXInBytes;
     size_t srcY;
     size_t srcZ;
@@ -432,7 +446,8 @@ struct CUDA_MEMCPY3D {
     size_t Depth;
 };
 
-struct CUDA_ARRAY_DESCRIPTOR {
+struct CUDA_ARRAY_DESCRIPTOR
+{
     size_t Width;
     size_t Height;
 
@@ -440,7 +455,8 @@ struct CUDA_ARRAY_DESCRIPTOR {
     unsigned int NumChannels;
 };
 
-struct CUDA_ARRAY3D_DESCRIPTOR {
+struct CUDA_ARRAY3D_DESCRIPTOR
+{
     size_t Width;
     size_t Height;
     size_t Depth;
@@ -450,29 +466,36 @@ struct CUDA_ARRAY3D_DESCRIPTOR {
     unsigned int Flags;
 };
 
-struct CUDA_ARRAY_MEMORY_REQUIREMENTS {
+struct CUDA_ARRAY_MEMORY_REQUIREMENTS
+{
     size_t size;
     size_t alignment;
     unsigned int reserved[4];
 };
 
-struct CUDA_RESOURCE_DESC {
+struct CUDA_RESOURCE_DESC
+{
     CUresourcetype resType;
 
-    union {
-        struct {
+    union
+    {
+        struct
+        {
             CUarray hArray;
         } array;
-        struct {
+        struct
+        {
             CUmipmappedArray hMipmappedArray;
         } mipmap;
-        struct {
+        struct
+        {
             CUdeviceptr devPtr;
             CUarray_format format;
             unsigned int numChannels;
             size_t sizeInBytes;
         } linear;
-        struct {
+        struct
+        {
             CUdeviceptr devPtr;
             CUarray_format format;
             unsigned int numChannels;
@@ -480,7 +503,8 @@ struct CUDA_RESOURCE_DESC {
             size_t height;
             size_t pitchInBytes;
         } pitch2D;
-        struct {
+        struct
+        {
             int reserved[32];
         } reserved;
     } res;
@@ -488,7 +512,8 @@ struct CUDA_RESOURCE_DESC {
     unsigned int flags;
 };
 
-struct CUDA_TEXTURE_DESC {
+struct CUDA_TEXTURE_DESC
+{
     CUaddress_mode addressMode[3];
     CUfilter_mode filterMode;
     unsigned int flags;
@@ -501,7 +526,8 @@ struct CUDA_TEXTURE_DESC {
     int reserved[12];
 };
 
-enum CUresourceViewFormat {
+enum CUresourceViewFormat
+{
     CU_RES_VIEW_FORMAT_NONE = 0x00,
     CU_RES_VIEW_FORMAT_UINT_1X8 = 0x01,
     CU_RES_VIEW_FORMAT_UINT_2X8 = 0x02,
@@ -539,7 +565,8 @@ enum CUresourceViewFormat {
     CU_RES_VIEW_FORMAT_UNSIGNED_BC7 = 0x22,
 };
 
-struct CUDA_RESOURCE_VIEW_DESC {
+struct CUDA_RESOURCE_VIEW_DESC
+{
     CUresourceViewFormat format;
     size_t width;
     size_t height;
@@ -551,8 +578,8 @@ struct CUDA_RESOURCE_VIEW_DESC {
     unsigned int reserved[16];
 };
 
-
-enum CUexternalMemoryHandleType {
+enum CUexternalMemoryHandleType
+{
     CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD = 1,
     CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32 = 2,
     CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT = 3,
@@ -565,11 +592,14 @@ enum CUexternalMemoryHandleType {
 
 #define CUDA_EXTERNAL_MEMORY_DEDICATED 0x1
 
-struct CUDA_EXTERNAL_MEMORY_HANDLE_DESC {
+struct CUDA_EXTERNAL_MEMORY_HANDLE_DESC
+{
     CUexternalMemoryHandleType type;
-    union {
+    union
+    {
         int fd;
-        struct {
+        struct
+        {
             void* handle;
             const void* name;
         } win32;
@@ -580,21 +610,24 @@ struct CUDA_EXTERNAL_MEMORY_HANDLE_DESC {
     unsigned int reserved[16];
 };
 
-struct CUDA_EXTERNAL_MEMORY_BUFFER_DESC {
+struct CUDA_EXTERNAL_MEMORY_BUFFER_DESC
+{
     unsigned long long offset;
     unsigned long long size;
     unsigned int flags;
     unsigned int reserved[16];
 };
 
-struct CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC {
+struct CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC
+{
     unsigned long long offset;
     CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
     unsigned int numLevels;
     unsigned int reserved[16];
 };
 
-enum CUexternalSemaphoreHandleType {
+enum CUexternalSemaphoreHandleType
+{
     CU_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD = 1,
     CU_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32 = 2,
     CU_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT = 3,
@@ -607,11 +640,14 @@ enum CUexternalSemaphoreHandleType {
     CU_EXTERNAL_SEMAPHORE_HANDLE_TYPE_TIMELINE_SEMAPHORE_WIN32 = 10,
 };
 
-struct CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC {
+struct CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC
+{
     CUexternalSemaphoreHandleType type;
-    union {
+    union
+    {
         int fd;
-        struct {
+        struct
+        {
             void* handle;
             const void* name;
         } win32;
@@ -621,16 +657,21 @@ struct CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC {
     unsigned int reserved[16];
 };
 
-struct CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS {
-    struct {
-        struct {
+struct CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS
+{
+    struct
+    {
+        struct
+        {
             unsigned long long value;
         } fence;
-        union {
+        union
+        {
             void* fence;
             unsigned long long reserved;
         } nvSciSync;
-        struct {
+        struct
+        {
             unsigned long long key;
         } keyedMutex;
         unsigned int reserved[12];
@@ -639,16 +680,21 @@ struct CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS {
     unsigned int reserved[16];
 };
 
-struct CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS {
-    struct {
-        struct {
+struct CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS
+{
+    struct
+    {
+        struct
+        {
             unsigned long long value;
         } fence;
-        union {
+        union
+        {
             void* fence;
             unsigned long long reserved;
         } nvSciSync;
-        struct {
+        struct
+        {
             unsigned long long key;
             unsigned int timeoutMs;
         } keyedMutex;
@@ -658,7 +704,8 @@ struct CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS {
     unsigned int reserved[16];
 };
 
-enum CUmemLocationType {
+enum CUmemLocationType
+{
     CU_MEM_LOCATION_TYPE_INVALID = 0x0,
     CU_MEM_LOCATION_TYPE_DEVICE = 0x1,
     CU_MEM_LOCATION_TYPE_HOST = 0x2,
@@ -667,7 +714,8 @@ enum CUmemLocationType {
     CU_MEM_LOCATION_TYPE_MAX = 0x7FFFFFFF,
 };
 
-struct CUmemLocation {
+struct CUmemLocation
+{
     CUmemLocationType type;
     int id;
 };
@@ -681,8 +729,8 @@ struct CUmemLocation {
 #define CUDA_ARRAY3D_SPARSE 0x40
 #define CUDA_ARRAY3D_DEFERRED_MAPPING 0x80
 
-#define CU_DEVICE_CPU ((CUdevice)-1)
-#define CU_DEVICE_INVALID ((CUdevice)-2)
+#define CU_DEVICE_CPU ((CUdevice) - 1)
+#define CU_DEVICE_INVALID ((CUdevice) - 2)
 
 #if !defined(CUDA_SYM)
 #define CUDA_SYM(x) extern x;
@@ -786,7 +834,6 @@ CUDA_SYM(CUresult (*cuTexObjectCreate)(CUtexObject*, const CUDA_RESOURCE_DESC*, 
 CUDA_SYM(CUresult (*cuTexObjectDestroy)(CUtexObject));
 // clang-format on
 
-
 #define CU_LAUNCH_PARAM_END_AS_INT 0x00
 #define CU_LAUNCH_PARAM_END ((void*)CU_LAUNCH_PARAM_END_AS_INT)
 #define CU_LAUNCH_PARAM_BUFFER_POINTER_AS_INT 0x01
@@ -794,12 +841,12 @@ CUDA_SYM(CUresult (*cuTexObjectDestroy)(CUtexObject));
 #define CU_LAUNCH_PARAM_BUFFER_SIZE_AS_INT 0x02
 #define CU_LAUNCH_PARAM_BUFFER_SIZE ((void*)CU_LAUNCH_PARAM_BUFFER_SIZE_AS_INT)
 
-enum CUcomputemode {
+enum CUcomputemode
+{
     CU_COMPUTEMODE_DEFAULT = 0,
     CU_COMPUTEMODE_PROHIBITED = 2,
     CU_COMPUTEMODE_EXCLUSIVE_PROCESS = 3,
 };
-
 
 #define CU_TRSF_READ_AS_INTEGER 0x01
 #define CU_TRSF_NORMALIZED_COORDINATES 0x02
@@ -807,7 +854,8 @@ enum CUcomputemode {
 #define CU_TRSF_DISABLE_TRILINEAR_OPTIMIZATION 0x20
 #define CU_TRSF_SEAMLESS_CUBEMAP 0x40
 
-enum CUmemAttach_flags {
+enum CUmemAttach_flags
+{
     CU_MEM_ATTACH_GLOBAL = 0x1,
     CU_MEM_ATTACH_HOST = 0x2,
     CU_MEM_ATTACH_SINGLE = 0x4,

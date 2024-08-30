@@ -1,12 +1,6 @@
-// cuda-pipeline-state.cpp
 #include "cuda-pipeline-state.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
 {
@@ -16,5 +10,4 @@ void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda

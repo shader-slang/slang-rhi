@@ -20,14 +20,14 @@ BraceWrapping:
     AfterCaseLabel: true
     AfterClass: true
     AfterControlStatement: Always
-    AfterEnum: false
+    AfterEnum: true
     AfterFunction: true
     AfterNamespace: false
     AfterStruct: true
     AfterUnion: true
     AfterExternBlock: true
     BeforeCatch: false
-    BeforeElse: false
+    BeforeElse: true
     BeforeLambdaBody: true
     BeforeWhile: true
     SplitEmptyRecord: false

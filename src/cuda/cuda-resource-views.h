@@ -1,24 +1,17 @@
-// cuda-resource-views.h
 #pragma once
-#include "cuda-base.h"
 
+#include "cuda-base.h"
 #include "cuda-buffer.h"
 #include "cuda-texture.h"
 
-namespace rhi
-{
-using namespace Slang;
-
-namespace cuda
-{
+namespace rhi::cuda {
 
 class ResourceViewImpl : public ResourceViewBase
 {
 public:
-    RefPtr<BufferResourceImpl> memoryResource = nullptr;
-    RefPtr<TextureResourceImpl> textureResource = nullptr;
+    RefPtr<BufferResourceImpl> memoryResource;
+    RefPtr<TextureResourceImpl> textureResource;
     void* proxyBuffer = nullptr;
 };
 
-} // namespace cuda
-} // namespace rhi
+} // namespace rhi::cuda
