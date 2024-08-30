@@ -10,6 +10,7 @@
 #include <numeric>
 #include <type_traits>
 #include <vector>
+#include <limits>
 
 #include "static_vector.h"
 

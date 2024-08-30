@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <algorithm>
 
 using namespace rhi;
 using namespace rhi::testing;

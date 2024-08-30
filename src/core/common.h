@@ -8,6 +8,9 @@
 #include <tuple>
 #include <vector>
 
+#include <cstring>
+#include <cstdint>
+
 #include "blob.h"
 #include "com-object.h"
 #include "platform.h"

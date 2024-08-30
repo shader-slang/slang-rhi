@@ -2,6 +2,8 @@
 
 #include "texture-utils.h"
 
+#include <string>
+
 #if SLANG_WINDOWS_FAMILY
 #include <d3d12.h>
 #endif

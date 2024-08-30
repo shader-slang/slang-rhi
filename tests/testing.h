@@ -9,6 +9,7 @@
 #include <array>
 #include <string_view>
 #include <vector>
+#include <cstring>
 
 namespace rhi::testing {
 
