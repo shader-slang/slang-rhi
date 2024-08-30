@@ -145,6 +145,7 @@ target_compile_definitions(slang-rhi
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_17)
+set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(SLANG_RHI_BUILD_TESTS)
     add_library(doctest INTERFACE)
