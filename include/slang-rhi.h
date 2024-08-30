@@ -66,7 +66,6 @@ enum class StructType
 // TODO: Implementation or backend or something else?
 enum class DeviceType
 {
-    Unknown,
     Default,
     D3D11,
     D3D12,
@@ -74,7 +73,6 @@ enum class DeviceType
     Metal,
     CPU,
     CUDA,
-    CountOf,
 };
 
 // TODO: Is this actually a flag when there are no bit fields?
@@ -839,14 +837,11 @@ public:
     enum class Type
     {
         Unknown,
-
         RenderTarget,
         DepthStencil,
         ShaderResource,
         UnorderedAccess,
         AccelerationStructure,
-
-        CountOf_,
     };
 
     struct RenderTargetDesc
