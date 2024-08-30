@@ -29,23 +29,23 @@ struct CPUTextureFormatInfo
     CPUTextureUnpackFunc unpackFunc;
 };
 
-template <int N>
+template<int N>
 void _unpackFloatTexel(void const* texelData, void* outData, size_t outSize);
 
-template <int N>
+template<int N>
 void _unpackFloat16Texel(void const* texelData, void* outData, size_t outSize);
 
 static inline float _unpackUnorm8Value(uint8_t value);
 
-template <int N>
+template<int N>
 void _unpackUnorm8Texel(void const* texelData, void* outData, size_t outSize);
 
 void _unpackUnormBGRA8Texel(void const* texelData, void* outData, size_t outSize);
 
-template <int N>
+template<int N>
 void _unpackUInt16Texel(void const* texelData, void* outData, size_t outSize);
 
-template <int N>
+template<int N>
 void _unpackUInt32Texel(void const* texelData, void* outData, size_t outSize);
 
 struct CPUFormatInfoMap

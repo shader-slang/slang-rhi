@@ -4,7 +4,7 @@
 
 namespace rhi {
 
-template <typename TDevice, typename TBufferResource>
+template<typename TDevice, typename TBufferResource>
 class StagingBufferPool
 {
 public:
@@ -125,7 +125,7 @@ public:
     }
 };
 
-template <typename TDevice, typename TBufferResource>
+template<typename TDevice, typename TBufferResource>
 class TransientResourceHeapBaseImpl : public TransientResourceHeapBase
 {
 public:

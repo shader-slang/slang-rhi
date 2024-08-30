@@ -763,7 +763,7 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
     }
 };
 
-template <typename T>
+template<typename T>
 void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);

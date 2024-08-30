@@ -111,13 +111,13 @@ public:
         return offset;
     }
 
-    template <typename T>
+    template<typename T>
     T* getObject(uint32_t offset)
     {
         return static_cast<T*>(m_objects[offset].Ptr());
     }
 
-    template <typename T>
+    template<typename T>
     T* getData(Offset offset)
     {
         return reinterpret_cast<T*>(m_data.data() + offset);

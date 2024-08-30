@@ -527,7 +527,7 @@ struct ResourceStateSet
 {
 public:
     void add(ResourceState state) { m_bitFields |= (1LL << (uint32_t)state); }
-    template <typename... TResourceState>
+    template<typename... TResourceState>
     void add(ResourceState s, TResourceState... states)
     {
         add(s);
@@ -540,7 +540,7 @@ public:
     }
     ResourceStateSet(const ResourceStateSet& other) = default;
     ResourceStateSet(ResourceState state) { add(state); }
-    template <typename... TResourceState>
+    template<typename... TResourceState>
     ResourceStateSet(TResourceState... states)
     {
         add(states...);

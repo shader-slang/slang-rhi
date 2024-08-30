@@ -19,13 +19,13 @@ namespace rhi {
 
 using Index = int;
 
-template <typename T>
+template<typename T>
 inline T&& _Move(T& obj)
 {
     return static_cast<T&&>(obj);
 }
 
-template <class T>
+template<class T>
 inline void hash_combine(std::size_t& seed, const T& v)
 {
     std::hash<T> hasher;
@@ -43,7 +43,7 @@ inline uint32_t hash_data(const void* data, size_t size)
     return hash;
 }
 
-template <typename... Args>
+template<typename... Args>
 auto make_array(Args... args)
 {
     using T = std::tuple_element_t<0, std::tuple<Args...>>;
@@ -52,7 +52,7 @@ auto make_array(Args... args)
 }
 
 namespace math {
-template <typename T>
+template<typename T>
 inline T getLowestBit(T val)
 {
     return val & (-val);

@@ -66,31 +66,31 @@ SLANG_FORCE_INLINE void releaseReference(RefObject* obj)
 
 // For straight dynamic cast.
 // Use instead of dynamic_cast as it allows for replacement without using Rtti in the future
-template <typename T>
+template<typename T>
 SLANG_FORCE_INLINE T* dynamicCast(RefObject* obj)
 {
     return dynamic_cast<T*>(obj);
 }
-template <typename T>
+template<typename T>
 SLANG_FORCE_INLINE const T* dynamicCast(const RefObject* obj)
 {
     return dynamic_cast<const T*>(obj);
 }
 
 // Like a dynamicCast, but allows a type to implement a specific implementation that is suitable for it
-template <typename T>
+template<typename T>
 SLANG_FORCE_INLINE T* as(RefObject* obj)
 {
     return dynamicCast<T>(obj);
 }
-template <typename T>
+template<typename T>
 SLANG_FORCE_INLINE const T* as(const RefObject* obj)
 {
     return dynamicCast<T>(obj);
 }
 
 // "Smart" pointer to a reference-counted object
-template <typename T>
+template<typename T>
 struct SLANG_RHI_API RefPtr
 {
     RefPtr()
@@ -116,7 +116,7 @@ struct SLANG_RHI_API RefPtr
         p.pointer = nullptr;
     }
 
-    template <typename U>
+    template<typename U>
     RefPtr(RefPtr<U> const& p, typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0)
         : pointer(static_cast<U*>(p))
     {
@@ -148,7 +148,7 @@ struct SLANG_RHI_API RefPtr
         p.pointer = old;
     }
 
-    template <typename U>
+    template<typename U>
     typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type operator=(RefPtr<U> const& p)
     {
         T* old = pointer;
@@ -176,7 +176,7 @@ struct SLANG_RHI_API RefPtr
 
     bool operator!=(RefPtr<T> const& ptr) const { return pointer != ptr.pointer; }
 
-    template <typename U>
+    template<typename U>
     RefPtr<U> dynamicCast() const
     {
         return RefPtr<U>(dynamic_cast<U>(pointer));
@@ -245,7 +245,7 @@ struct SLANG_RHI_API RefPtr
 private:
     T* pointer;
 
-    template <typename T2>
+    template<typename T2>
     friend class RefPtr;
 };
 

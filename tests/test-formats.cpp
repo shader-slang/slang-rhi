@@ -115,7 +115,7 @@ ComPtr<IResourceView> createTexView(
     return texView;
 }
 
-template <typename T>
+template<typename T>
 ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialData)
 {
     IBufferResource::Desc bufferDesc = {};

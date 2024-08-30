@@ -316,7 +316,7 @@ struct ResolveResourceSimple : BaseResolveResourceTest
     }
 };
 
-template <typename T>
+template<typename T>
 void testResolveResource(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);

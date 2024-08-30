@@ -23,7 +23,7 @@
 
 namespace rhi {
 
-template <class T, std::size_t ChunkSize = 1024>
+template<class T, std::size_t ChunkSize = 1024>
 class stable_vector
 {
 public:
@@ -38,7 +38,7 @@ public:
     static constexpr const std::size_t chunk_size = ChunkSize;
 
 private:
-    template <std::size_t N>
+    template<std::size_t N>
     struct is_pow2
     {
         static constexpr bool value = (N & (N - 1)) == 0;
@@ -49,7 +49,7 @@ private:
     using __self = stable_vector<T, ChunkSize>;
     using __const_self = const stable_vector<T, ChunkSize>;
 
-    template <class Container>
+    template<class Container>
     struct iterator_base
     {
         iterator_base(Container* c = nullptr, size_type i = 0)
@@ -133,7 +133,7 @@ public:
     explicit stable_vector(size_type count, const T& value);
     explicit stable_vector(size_type count);
 
-    template <
+    template<
         class InputIt,
         class = std::enable_if_t<std::is_convertible<
             typename std::iterator_traits<InputIt>::iterator_category,
@@ -185,7 +185,7 @@ public:
     void push_back(const T& t);
     void push_back(T&& t);
 
-    template <class... Args>
+    template<class... Args>
     void emplace_back(Args&&... args);
 
     reference operator[](size_type i);
@@ -202,7 +202,7 @@ private:
     storage_type m_chunks;
 };
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 stable_vector<T, ChunkSize>::stable_vector(size_type count, const T& value)
 {
     for (size_type i = 0; i < count; ++i)
@@ -211,7 +211,7 @@ stable_vector<T, ChunkSize>::stable_vector(size_type count, const T& value)
     }
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 stable_vector<T, ChunkSize>::stable_vector(size_type count)
 {
     for (size_type i = 0; i < count; ++i)
@@ -220,8 +220,8 @@ stable_vector<T, ChunkSize>::stable_vector(size_type count)
     }
 }
 
-template <class T, std::size_t ChunkSize>
-template <class InputIt, class>
+template<class T, std::size_t ChunkSize>
+template<class InputIt, class>
 stable_vector<T, ChunkSize>::stable_vector(InputIt first, InputIt last)
 {
     for (; first != last; ++first)
@@ -230,7 +230,7 @@ stable_vector<T, ChunkSize>::stable_vector(InputIt first, InputIt last)
     }
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 stable_vector<T, ChunkSize>::stable_vector(const stable_vector& other)
 {
     for (const auto& chunk : other.m_chunks)
@@ -239,13 +239,13 @@ stable_vector<T, ChunkSize>::stable_vector(const stable_vector& other)
     }
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 stable_vector<T, ChunkSize>::stable_vector(stable_vector&& other) noexcept
     : m_chunks(std::move(other.m_chunks))
 {
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 stable_vector<T, ChunkSize>::stable_vector(std::initializer_list<T> ilist)
 {
     for (const auto& t : ilist)
@@ -254,20 +254,20 @@ stable_vector<T, ChunkSize>::stable_vector(std::initializer_list<T> ilist)
     }
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 stable_vector<T, ChunkSize>& stable_vector<T, ChunkSize>::operator=(stable_vector v)
 {
     swap(v);
     return *this;
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 void stable_vector<T, ChunkSize>::add_chunk()
 {
     m_chunks.emplace_back(std::make_unique<chunk_type>());
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 typename stable_vector<T, ChunkSize>::chunk_type& stable_vector<T, ChunkSize>::last_chunk()
 {
     if (likely_false(m_chunks.empty() || m_chunks.back()->size() == ChunkSize))
@@ -278,7 +278,7 @@ typename stable_vector<T, ChunkSize>::chunk_type& stable_vector<T, ChunkSize>::l
     return *m_chunks.back();
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 void stable_vector<T, ChunkSize>::reserve(size_type new_capacity)
 {
     const std::size_t initial_capacity = capacity();
@@ -288,32 +288,32 @@ void stable_vector<T, ChunkSize>::reserve(size_type new_capacity)
     }
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 void stable_vector<T, ChunkSize>::push_back(const T& t)
 {
     last_chunk().push_back(t);
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 void stable_vector<T, ChunkSize>::push_back(T&& t)
 {
     last_chunk().push_back(std::move(t));
 }
 
-template <class T, std::size_t ChunkSize>
-template <class... Args>
+template<class T, std::size_t ChunkSize>
+template<class... Args>
 void stable_vector<T, ChunkSize>::emplace_back(Args&&... args)
 {
     last_chunk().emplace_back(std::forward<Args>(args)...);
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 typename stable_vector<T, ChunkSize>::reference stable_vector<T, ChunkSize>::operator[](size_type i)
 {
     return (*m_chunks[i / ChunkSize])[i % ChunkSize];
 }
 
-template <class T, std::size_t ChunkSize>
+template<class T, std::size_t ChunkSize>
 typename stable_vector<T, ChunkSize>::const_reference stable_vector<T, ChunkSize>::operator[](size_type i) const
 {
     return const_cast<__self&>(*this)[i];

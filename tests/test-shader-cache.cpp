@@ -959,7 +959,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
     }
 };
 
-template <typename T>
+template<typename T>
 void runTest(GpuTestContext* ctx, DeviceType deviceType)
 {
     std::string tempDirectory = getCaseTempDirectory();

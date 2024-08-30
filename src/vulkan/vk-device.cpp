@@ -131,7 +131,7 @@ Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
     return SLANG_OK;
 }
 
-template <typename T>
+template<typename T>
 static bool _hasAnySetBits(const T& val, size_t offset)
 {
     const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&val);

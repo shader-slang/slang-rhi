@@ -494,7 +494,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
     }
 };
 
-template <typename T>
+template<typename T>
 void testDraw(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);

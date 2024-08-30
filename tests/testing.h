@@ -102,7 +102,7 @@ void compareComputeResultFuzzy(
     size_t expectedBufferSize
 );
 
-template <typename T, size_t Count>
+template<typename T, size_t Count>
 void compareComputeResult(IDevice* device, IBufferResource* buffer, std::array<T, Count> expectedResult)
 {
     if constexpr (std::is_same<T, float>::value)
@@ -132,7 +132,7 @@ void initializeRenderDoc();
 void renderDocBeginFrame();
 void renderDocEndFrame();
 
-template <typename T, typename... Args>
+template<typename T, typename... Args>
 auto makeArray(Args... args)
 {
     return std::array<T, sizeof...(Args)>{static_cast<T>(args)...};

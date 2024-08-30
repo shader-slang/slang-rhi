@@ -45,7 +45,7 @@ struct SetCurrentFuncRAII
 /// Returns the public API function name from a `SLANG_FUNC_SIG` string.
 std::string _gfxGetFuncName(const char* input);
 
-template <typename... TArgs>
+template<typename... TArgs>
 char* _gfxDiagnoseFormat(
     char* buffer,                   // Initial buffer to output formatted string.
     size_t shortBufferSize,         // Size of the initial buffer.
@@ -66,7 +66,7 @@ char* _gfxDiagnoseFormat(
     return buffer;
 }
 
-template <typename... TArgs>
+template<typename... TArgs>
 void _gfxDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 {
     char shortBuffer[256];

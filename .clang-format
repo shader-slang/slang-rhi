@@ -1,5 +1,6 @@
 BasedOnStyle: Microsoft
 
+SpaceAfterTemplateKeyword: false
 DerivePointerAlignment: false
 PointerAlignment: Left
 FixNamespaceComments: true

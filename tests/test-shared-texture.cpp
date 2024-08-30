@@ -98,7 +98,7 @@ static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITextureResou
     return texView;
 }
 
-template <typename T>
+template<typename T>
 ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialData)
 {
     IBufferResource::Desc bufferDesc = {};
@@ -129,7 +129,7 @@ static ComPtr<IResourceView> createOutBufferView(IDevice* device, ComPtr<IBuffer
     return bufferView;
 }
 
-template <DeviceType DstDeviceType>
+template<DeviceType DstDeviceType>
 void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> srcDevice = createTestingDevice(ctx, deviceType);

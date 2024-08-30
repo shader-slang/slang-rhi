@@ -7,7 +7,7 @@
 
 namespace rhi {
 
-template <typename TDevice, typename TCommandBuffer>
+template<typename TDevice, typename TCommandBuffer>
 class SimpleTransientResourceHeap : public TransientResourceHeapBase
 {
 public:

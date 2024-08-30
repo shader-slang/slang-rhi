@@ -439,7 +439,7 @@ struct RayTracingTestB : BaseRayTracingTest
     }
 };
 
-template <typename T>
+template<typename T>
 void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);

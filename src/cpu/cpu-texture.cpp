@@ -7,7 +7,7 @@ static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(ITextureResource::Type b
     return &kCPUTextureBaseShapeInfos[(int)baseShape];
 }
 
-template <int N>
+template<int N>
 void _unpackFloatTexel(void const* texelData, void* outData, size_t outSize)
 {
     auto input = (float const*)texelData;
@@ -19,7 +19,7 @@ void _unpackFloatTexel(void const* texelData, void* outData, size_t outSize)
     memcpy(outData, temp, outSize);
 }
 
-template <int N>
+template<int N>
 void _unpackFloat16Texel(void const* texelData, void* outData, size_t outSize)
 {
     auto input = (int16_t const*)texelData;
@@ -36,7 +36,7 @@ static inline float _unpackUnorm8Value(uint8_t value)
     return value / 255.0f;
 }
 
-template <int N>
+template<int N>
 void _unpackUnorm8Texel(void const* texelData, void* outData, size_t outSize)
 {
     auto input = (uint8_t const*)texelData;
@@ -61,7 +61,7 @@ void _unpackUnormBGRA8Texel(void const* texelData, void* outData, size_t outSize
     memcpy(outData, temp, outSize);
 }
 
-template <int N>
+template<int N>
 void _unpackUInt16Texel(void const* texelData, void* outData, size_t outSize)
 {
     auto input = (uint16_t const*)texelData;
@@ -73,7 +73,7 @@ void _unpackUInt16Texel(void const* texelData, void* outData, size_t outSize)
     memcpy(outData, temp, outSize);
 }
 
-template <int N>
+template<int N>
 void _unpackUInt32Texel(void const* texelData, void* outData, size_t outSize)
 {
     auto input = (uint32_t const*)texelData;

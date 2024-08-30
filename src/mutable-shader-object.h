@@ -13,7 +13,7 @@ namespace rhi {
 
 class ShaderObjectLayoutBase;
 
-template <typename T>
+template<typename T>
 class VersionedObjectPool
 {
 public:
@@ -74,7 +74,7 @@ public:
     }
 };
 
-template <typename TShaderObject, typename TShaderObjectLayoutImpl>
+template<typename TShaderObject, typename TShaderObjectLayoutImpl>
 class MutableShaderObject : public ShaderObjectBaseImpl<TShaderObject, TShaderObjectLayoutImpl, MutableShaderObjectData>
 {
     typedef ShaderObjectBaseImpl<TShaderObject, TShaderObjectLayoutImpl, MutableShaderObjectData> Super;

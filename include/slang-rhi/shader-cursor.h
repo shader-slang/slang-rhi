@@ -91,7 +91,7 @@ struct ShaderCursor
 
     SlangResult setData(void const* data, Size size) const { return m_baseObject->setData(m_offset, data, size); }
 
-    template <typename T>
+    template<typename T>
     SlangResult setData(T const& data) const
     {
         return setData(&data, sizeof(data));

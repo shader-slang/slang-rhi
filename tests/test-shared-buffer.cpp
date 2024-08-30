@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-template <DeviceType DstDeviceType>
+template<DeviceType DstDeviceType>
 void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> srcDevice = createTestingDevice(ctx, deviceType);

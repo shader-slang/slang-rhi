@@ -26,7 +26,7 @@ struct ValidationTextureFormatBase : RefObject
     ) = 0;
 };
 
-template <typename T>
+template<typename T>
 struct ValidationTextureFormat : ValidationTextureFormatBase
 {
     int componentCount;
@@ -83,7 +83,7 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
     }
 };
 
-template <typename T>
+template<typename T>
 struct PackedValidationTextureFormat : ValidationTextureFormatBase
 {
     int rBits;

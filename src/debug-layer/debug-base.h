@@ -20,14 +20,14 @@ public:
     }
 };
 
-template <typename TInterface>
+template<typename TInterface>
 class DebugObject : public TInterface, public DebugObjectBase
 {
 public:
     Slang::ComPtr<TInterface> baseObject;
 };
 
-template <typename TInterface>
+template<typename TInterface>
 class UnownedDebugObject : public TInterface, public DebugObjectBase
 {
 public:

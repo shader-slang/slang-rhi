@@ -102,7 +102,7 @@ bool isGfxDebugLayerEnabled();
 // we can no longer destruct `res` if the destructor needs `device`. Therefore we need to be careful
 // when using `BreakableReference`, and make sure we only call `breakStrongReference` only when it is known
 // that there is a cyclic reference. Luckily for all scenarios so far this is statically known.
-template <typename T>
+template<typename T>
 class BreakableReference
 {
 private:
@@ -148,7 +148,7 @@ public:
 };
 
 // Helpers for returning an object implementation as COM pointer.
-template <typename TInterface, typename TImpl>
+template<typename TInterface, typename TImpl>
 void returnComPtr(TInterface** outInterface, TImpl* rawPtr)
 {
     static_assert(!std::is_base_of<RefObject, TInterface>::value, "TInterface must be an interface type.");
@@ -156,7 +156,7 @@ void returnComPtr(TInterface** outInterface, TImpl* rawPtr)
     *outInterface = rawPtr;
 }
 
-template <typename TInterface, typename TImpl>
+template<typename TInterface, typename TImpl>
 void returnComPtr(TInterface** outInterface, const RefPtr<TImpl>& refPtr)
 {
     static_assert(!std::is_base_of<RefObject, TInterface>::value, "TInterface must be an interface type.");
@@ -164,7 +164,7 @@ void returnComPtr(TInterface** outInterface, const RefPtr<TImpl>& refPtr)
     *outInterface = refPtr.Ptr();
 }
 
-template <typename TInterface, typename TImpl>
+template<typename TInterface, typename TImpl>
 void returnComPtr(TInterface** outInterface, Slang::ComPtr<TImpl>& comPtr)
 {
     static_assert(!std::is_base_of<RefObject, TInterface>::value, "TInterface must be an interface type.");
@@ -172,7 +172,7 @@ void returnComPtr(TInterface** outInterface, Slang::ComPtr<TImpl>& comPtr)
 }
 
 // Helpers for returning an object implementation as RefPtr.
-template <typename TDest, typename TImpl>
+template<typename TDest, typename TImpl>
 void returnRefPtr(TDest** outPtr, RefPtr<TImpl>& refPtr)
 {
     static_assert(std::is_base_of<RefObject, TDest>::value, "TDest must be a non-interface type.");
@@ -181,7 +181,7 @@ void returnRefPtr(TDest** outPtr, RefPtr<TImpl>& refPtr)
     refPtr->addReference();
 }
 
-template <typename TDest, typename TImpl>
+template<typename TDest, typename TImpl>
 void returnRefPtrMove(TDest** outPtr, RefPtr<TImpl>& refPtr)
 {
     static_assert(std::is_base_of<RefObject, TDest>::value, "TDest must be a non-interface type.");
@@ -543,7 +543,7 @@ public:
     }
 };
 
-template <typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
+template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
 class ShaderObjectBaseImpl : public ShaderObjectBase
 {
 protected:
@@ -998,7 +998,7 @@ public:
     // pipeline cannot be used directly and must be specialized first.
     bool isSpecializable = false;
     RefPtr<ShaderProgramBase> m_program;
-    template <typename TProgram>
+    template<typename TProgram>
     TProgram* getProgram()
     {
         return static_cast<TProgram*>(m_program.Ptr());
@@ -1022,7 +1022,7 @@ struct ComponentKey
         for (auto& arg : specializationArgs)
             hash_combine(hash, arg);
     }
-    template <typename KeyType>
+    template<typename KeyType>
     bool operator==(const KeyType& other) const
     {
         if (typeName != other.typeName)
@@ -1376,7 +1376,7 @@ inline IDebugCallback* getDebugCallback()
 // Implementations that have to come after RendererBase
 
 //--------------------------------------------------------------------------------
-template <typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
+template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
 void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObjectData>::
     setSpecializationArgsForContainerElement(ExtendedShaderObjectTypeList& specializationArgs)
 {
@@ -1408,7 +1408,7 @@ void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObj
 }
 
 //--------------------------------------------------------------------------------
-template <typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
+template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
 Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObjectData>::
     getExtendedShaderTypeListFromSpecializationArgs(
         ExtendedShaderObjectTypeList& list,
@@ -1436,7 +1436,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
 }
 
 //--------------------------------------------------------------------------------
-template <typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
+template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
 Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObjectData>::collectSpecializationArgs(
     ExtendedShaderObjectTypeList& args
 )
