@@ -26,7 +26,7 @@ public:
     using const_iterator = const value_type*;
 
     /// Default constructor.
-    static_vector() noexcept = default;
+    static_vector() = default;
 
     /// Size constructor.
     static_vector(size_type size, const value_type& value)
