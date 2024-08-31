@@ -2433,36 +2433,36 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipeline** outPipeline)
 {
-    GraphicsPipelineStateDesc desc = inDesc;
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    pipelineStateImpl->establishStrongDeviceReference();
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
-    returnComPtr(outState, pipelineStateImpl);
+    RenderPipelineDesc desc = inDesc;
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    pipelineImpl->establishStrongDeviceReference();
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    returnComPtr(outPipeline, pipelineImpl);
 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& inDesc, IPipeline** outPipeline)
 {
-    ComputePipelineStateDesc desc = inDesc;
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
-    pipelineStateImpl->establishStrongDeviceReference();
-    returnComPtr(outState, pipelineStateImpl);
+    ComputePipelineDesc desc = inDesc;
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    pipelineImpl->establishStrongDeviceReference();
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<RayTracingPipelineStateImpl> pipelineStateImpl = new RayTracingPipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
-    pipelineStateImpl->establishStrongDeviceReference();
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<RayTracingPipelineImpl> pipelineImpl = new RayTracingPipelineImpl(this);
+    pipelineImpl->init(desc);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    pipelineImpl->establishStrongDeviceReference();
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 

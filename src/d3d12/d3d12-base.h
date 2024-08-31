@@ -51,7 +51,7 @@ class FramebufferLayoutImpl;
 class FramebufferImpl;
 class QueryPoolImpl;
 class PlainBufferProxyQueryPoolImpl;
-class PipelineStateImpl;
+class PipelineImpl;
 class RenderPassLayoutImpl;
 class ResourceViewInternalImpl;
 class ResourceViewImpl;
@@ -70,7 +70,7 @@ class InputLayoutImpl;
 
 #if SLANG_RHI_DXR
 class RayTracingCommandEncoderImpl;
-class RayTracingPipelineStateImpl;
+class RayTracingPipelineImpl;
 #endif
 
 } // namespace rhi::d3d12

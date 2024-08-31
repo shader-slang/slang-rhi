@@ -29,7 +29,7 @@ struct SwapchainResizeTest
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<gfx::IFramebufferLayout> framebufferLayout;
-    ComPtr<IPipelineState> pipelineState;
+    ComPtr<IPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     List<ComPtr<IFramebuffer>> framebuffers;
 
@@ -148,13 +148,13 @@ struct SwapchainResizeTest
         framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         SLANG_CHECK_ABORT(framebufferLayout != nullptr);
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;
@@ -175,7 +175,7 @@ struct SwapchainResizeTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffers[framebufferIndex]);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         gfx::Viewport viewport = {};
         viewport.maxZ = 1.0f;

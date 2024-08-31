@@ -102,7 +102,7 @@ public:
     ComPtr<IDevice> device;
 
     ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipelineState> pipelineState;
+    ComPtr<IPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
@@ -164,13 +164,13 @@ public:
         ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;
@@ -247,7 +247,7 @@ struct DrawInstancedTest : BaseDrawTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -296,7 +296,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -371,7 +371,7 @@ struct DrawIndirectTest : BaseDrawTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -445,7 +445,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;

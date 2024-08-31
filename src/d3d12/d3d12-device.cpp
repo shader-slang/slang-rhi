@@ -1936,19 +1936,19 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
@@ -2116,16 +2116,16 @@ Result DeviceImpl::createAccelerationStructure(
 #endif
 }
 
-Result DeviceImpl::createRayTracingPipelineState(const RayTracingPipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& inDesc, IPipeline** outPipeline)
 {
     if (!m_device5)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    RefPtr<RayTracingPipelineStateImpl> pipelineStateImpl = new RayTracingPipelineStateImpl(this);
-    pipelineStateImpl->init(inDesc);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<RayTracingPipelineImpl> pipelineImpl = new RayTracingPipelineImpl(this);
+    pipelineImpl->init(inDesc);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 

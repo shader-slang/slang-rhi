@@ -65,11 +65,11 @@ public:
         ISlangBlob** outDiagnosticBlob
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState) override;
+    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState) override;
+    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState) override;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
 
@@ -122,7 +122,7 @@ public:
 
     // A list to hold objects that may have a strong back reference to the device
     // instance. Because of the pipeline cache in `RendererBase`, there could be a reference
-    // cycle among `DeviceImpl`->`PipelineStateImpl`->`ShaderProgramImpl`->`DeviceImpl`.
+    // cycle among `DeviceImpl`->`PipelineImpl`->`ShaderProgramImpl`->`DeviceImpl`.
     // Depending on whether a `PipelineState` objects gets stored in pipeline cache, there
     // may or may not be such a reference cycle.
     // We need to hold strong references to any objects that may become part of the reference

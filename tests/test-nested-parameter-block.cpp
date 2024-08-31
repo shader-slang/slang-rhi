@@ -45,10 +45,10 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         loadComputeProgram(device, shaderProgram, "test-nested-parameter-block", "computeMain", slangReflection)
     );
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     ComPtr<IShaderObject> shaderObject;
     REQUIRE_CALL(device->createMutableRootShaderObject(shaderProgram, shaderObject.writeRef()));
@@ -122,7 +122,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        encoder->bindPipelineWithRootObject(pipelineState, shaderObject);
+        encoder->bindPipelineWithRootObject(pipeline, shaderObject);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();

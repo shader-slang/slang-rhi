@@ -17,10 +17,10 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
     );
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     const int numberCount = SLANG_COUNT_OF(initialData);
@@ -69,7 +69,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         {
             auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipelineState, rootObject);
+            encoder->bindPipelineWithRootObject(pipeline, rootObject);
             encoder->dispatchCompute(1, 1, 1);
             encoder->endEncoding();
         }
@@ -84,7 +84,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
         {
             auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipelineState, rootObject);
+            encoder->bindPipelineWithRootObject(pipeline, rootObject);
             encoder->dispatchCompute(1, 1, 1);
             encoder->endEncoding();
         }

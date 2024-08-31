@@ -37,10 +37,10 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler-array", "computeMain", slangReflection));
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     std::vector<ComPtr<ISampler>> samplers;
     std::vector<ComPtr<IResourceView>> srvs;
@@ -135,7 +135,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         {
             auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipelineState, rootObject);
+            encoder->bindPipelineWithRootObject(pipeline, rootObject);
             encoder->dispatchCompute(1, 1, 1);
             encoder->endEncoding();
         }

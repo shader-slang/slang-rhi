@@ -43,9 +43,9 @@ void GraphicsSubmitter::setRootConstants(
     );
 }
 
-void GraphicsSubmitter::setPipelineState(PipelineStateBase* pipeline)
+void GraphicsSubmitter::setPipeline(PipelineBase* pipeline)
 {
-    auto pipelineImpl = static_cast<PipelineStateImpl*>(pipeline);
+    auto pipelineImpl = static_cast<PipelineImpl*>(pipeline);
     m_commandList->SetPipelineState(pipelineImpl->m_pipelineState.get());
 }
 
@@ -89,9 +89,9 @@ void ComputeSubmitter::setRootConstants(
     );
 }
 
-void ComputeSubmitter::setPipelineState(PipelineStateBase* pipeline)
+void ComputeSubmitter::setPipeline(PipelineBase* pipeline)
 {
-    auto pipelineImpl = static_cast<PipelineStateImpl*>(pipeline);
+    auto pipelineImpl = static_cast<PipelineImpl*>(pipeline);
     m_commandList->SetPipelineState(pipelineImpl->m_pipelineState.get());
 }
 

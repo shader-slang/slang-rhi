@@ -15,7 +15,7 @@ public:
     DeviceImpl* m_device;
 
     virtual RefPtr<Buffer> createDeviceBuffer(
-        PipelineStateBase* pipeline,
+        PipelineBase* pipeline,
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder
     ) override;

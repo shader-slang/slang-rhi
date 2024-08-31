@@ -1289,7 +1289,7 @@ public:
     };
 };
 
-struct GraphicsPipelineStateDesc
+struct RenderPipelineDesc
 {
     IShaderProgram* program = nullptr;
 
@@ -1301,7 +1301,7 @@ struct GraphicsPipelineStateDesc
     BlendDesc blend;
 };
 
-struct ComputePipelineStateDesc
+struct ComputePipelineDesc
 {
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
@@ -1325,7 +1325,7 @@ struct HitGroupDesc
     const char* intersectionEntryPoint = nullptr;
 };
 
-struct RayTracingPipelineStateDesc
+struct RayTracingPipelineDesc
 {
     IShaderProgram* program = nullptr;
     GfxCount hitGroupCount = 0;
@@ -1371,7 +1371,7 @@ public:
     };
 };
 
-class IPipelineState : public ISlangUnknown
+class IPipeline : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x2ad83bfc, 0x581d, 0x4b88, {0x81, 0x3c, 0x0c, 0x0e, 0xaf, 0x04, 0x0a, 0x00});
 
@@ -1651,9 +1651,8 @@ public:
     // sub-shader-objects bound to it. The user must be responsible for ensuring that any
     // resources or shader objects that is set into `outRootShaderObject` stays alive during
     // the execution of the command buffer.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipeline(IPipelineState* state, IShaderObject** outRootShaderObject) = 0;
-    inline IShaderObject* bindPipeline(IPipelineState* state)
+    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) = 0;
+    inline IShaderObject* bindPipeline(IPipeline* state)
     {
         IShaderObject* rootObject = nullptr;
         SLANG_RETURN_NULL_ON_FAIL(bindPipeline(state, &rootObject));
@@ -1662,7 +1661,7 @@ public:
 
     // Sets the current pipeline state along with a pre-created mutable root shader object.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) = 0;
+    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setViewports(GfxCount count, const Viewport* viewports) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL setScissorRects(GfxCount count, const ScissorRect* scissors) = 0;
@@ -1732,9 +1731,8 @@ public:
     // sub-shader-objects bound to it. The user must be responsible for ensuring that any
     // resources or shader objects that is set into `outRooShaderObject` stays alive during
     // the execution of the command buffer.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipeline(IPipelineState* state, IShaderObject** outRootShaderObject) = 0;
-    inline IShaderObject* bindPipeline(IPipelineState* state)
+    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) = 0;
+    inline IShaderObject* bindPipeline(IPipeline* state)
     {
         IShaderObject* rootObject = nullptr;
         SLANG_RETURN_NULL_ON_FAIL(bindPipeline(state, &rootObject));
@@ -1742,7 +1740,7 @@ public:
     }
     // Sets the current pipeline state along with a pre-created mutable root shader object.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) = 0;
+    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* cmdBuffer, Offset offset) = 0;
 };
@@ -1788,10 +1786,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipelineState* state, IShaderObject** outRootObject) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) = 0;
     // Sets the current pipeline state along with a pre-created mutable root shader object.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject) = 0;
+    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
 
     /// Issues a dispatch command to start ray tracing workload with a ray tracing pipeline.
     /// `rayGenShaderIndex` specifies the index into the shader table that identifies the ray generation shader.
@@ -2449,27 +2447,27 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState) = 0;
+    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) = 0;
 
-    inline ComPtr<IPipelineState> createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc)
+    inline ComPtr<IPipeline> createRenderPipeline(const RenderPipelineDesc& desc)
     {
-        ComPtr<IPipelineState> state;
-        SLANG_RETURN_NULL_ON_FAIL(createGraphicsPipelineState(desc, state.writeRef()));
+        ComPtr<IPipeline> state;
+        SLANG_RETURN_NULL_ON_FAIL(createRenderPipeline(desc, state.writeRef()));
         return state;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState) = 0;
+    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) = 0;
 
-    inline ComPtr<IPipelineState> createComputePipelineState(const ComputePipelineStateDesc& desc)
+    inline ComPtr<IPipeline> createComputePipeline(const ComputePipelineDesc& desc)
     {
-        ComPtr<IPipelineState> state;
-        SLANG_RETURN_NULL_ON_FAIL(createComputePipelineState(desc, state.writeRef()));
+        ComPtr<IPipeline> state;
+        SLANG_RETURN_NULL_ON_FAIL(createComputePipeline(desc, state.writeRef()));
         return state;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState) = 0;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) = 0;
 
     /// Read back texture resource and stores the result in `outBlob`.
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTexture(
@@ -2537,19 +2535,19 @@ class IPipelineCreationAPIDispatcher : public ISlangUnknown
     SLANG_COM_INTERFACE(0x8d7aa89d, 0x07f1, 0x4e21, {0xbc, 0xd2, 0x9a, 0x71, 0xc7, 0x95, 0xba, 0x91});
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipelineState(
+    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipeline(
         IDevice* device,
         slang::IComponentType* program,
         void* pipelineDesc,
         void** outPipelineState
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createGraphicsPipelineState(
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline(
         IDevice* device,
         slang::IComponentType* program,
         void* pipelineDesc,
         void** outPipelineState
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMeshPipelineState(
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMeshPipeline(
         IDevice* device,
         slang::IComponentType* program,
         void* pipelineDesc,

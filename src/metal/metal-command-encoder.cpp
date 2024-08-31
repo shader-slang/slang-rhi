@@ -24,9 +24,9 @@ void PipelineCommandEncoder::endEncodingImpl()
     m_commandBuffer->endMetalCommandEncoder();
 }
 
-Result PipelineCommandEncoder::setPipelineStateImpl(IPipelineState* state, IShaderObject** outRootObject)
+Result PipelineCommandEncoder::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineStateImpl*>(state);
+    m_currentPipeline = static_cast<PipelineImpl*>(state);
     // m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
@@ -275,12 +275,12 @@ void RenderCommandEncoder::endEncoding()
     PipelineCommandEncoder::endEncodingImpl();
 }
 
-Result RenderCommandEncoder::bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject)
+Result RenderCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineStateImpl(pipelineState, outRootObject);
+    return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result RenderCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result RenderCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
@@ -373,8 +373,8 @@ Result RenderCommandEncoder::setSamplePositions(
 
 Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 {
-    auto pipeline = static_cast<PipelineStateImpl*>(m_currentPipeline.Ptr());
-    pipeline->ensureAPIPipelineStateCreated();
+    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    pipeline->ensureAPIPipelineCreated();
 
     encoder = m_commandBuffer->getMetalRenderCommandEncoder(m_renderPassDesc.get());
     encoder->setRenderPipelineState(pipeline->m_renderPipelineState.get());
@@ -500,12 +500,12 @@ void ComputeCommandEncoder::endEncoding()
     ResourceCommandEncoder::endEncoding();
 }
 
-Result ComputeCommandEncoder::bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject)
+Result ComputeCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineStateImpl(pipelineState, outRootObject);
+    return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result ComputeCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result ComputeCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
@@ -519,18 +519,18 @@ Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
     auto program = static_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
     m_commandBuffer->m_rootObject.bindAsRoot(&bindingContext, program->m_rootObjectLayout);
 
-    auto pipeline = static_cast<PipelineStateImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     RootShaderObjectImpl* rootObjectImpl = &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineStateBase> newPipeline;
+    RefPtr<PipelineBase> newPipeline;
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline)
     );
-    PipelineStateImpl* newPipelineImpl = static_cast<PipelineStateImpl*>(newPipeline.Ptr());
+    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
 
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineStateCreated());
+    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
     m_currentPipeline = newPipelineImpl;
 
-    m_currentPipeline->ensureAPIPipelineStateCreated();
+    m_currentPipeline->ensureAPIPipelineCreated();
     encoder->setComputePipelineState(m_currentPipeline->m_computePipelineState.get());
 
     encoder->dispatchThreadgroups(MTL::Size(x, y, z), m_currentPipeline->m_threadGroupSize);
@@ -591,12 +591,12 @@ void RayTracingCommandEncoder::serializeAccelerationStructure(DeviceAddress dest
 
 void RayTracingCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) {}
 
-Result RayTracingCommandEncoder::bindPipeline(IPipelineState* pipeline, IShaderObject** outRootObject)
+Result RayTracingCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result RayTracingCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }

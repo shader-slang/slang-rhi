@@ -22,7 +22,7 @@ struct GUID
     static const Guid IID_ISlangUnknown;
     static const Guid IID_IShaderProgram;
     static const Guid IID_ITransientResourceHeap;
-    static const Guid IID_IPipelineState;
+    static const Guid IID_IPipeline;
     static const Guid IID_IResourceView;
     static const Guid IID_IFramebuffer;
     static const Guid IID_IFramebufferLayout;
@@ -889,7 +889,7 @@ struct OwnedHitGroupDesc
     }
 };
 
-struct OwnedRayTracingPipelineStateDesc
+struct OwnedRayTracingPipelineDesc
 {
     RefPtr<ShaderProgramBase> program;
     std::vector<OwnedHitGroupDesc> hitGroups;
@@ -899,14 +899,14 @@ struct OwnedRayTracingPipelineStateDesc
     Size maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags::Enum flags = RayTracingPipelineFlags::None;
 
-    RayTracingPipelineStateDesc get()
+    RayTracingPipelineDesc get()
     {
         // TODO horrible hack to update the c-strings after this struct is copied.
         for (int32_t i = 0; i < hitGroupDescs.size(); i++)
         {
             hitGroupDescs[i] = hitGroups[i].get();
         }
-        RayTracingPipelineStateDesc desc;
+        RayTracingPipelineDesc desc;
         desc.program = program.Ptr();
         desc.hitGroupCount = (int32_t)hitGroupDescs.size();
         desc.hitGroups = hitGroupDescs.data();
@@ -917,7 +917,7 @@ struct OwnedRayTracingPipelineStateDesc
         return desc;
     }
 
-    void set(const RayTracingPipelineStateDesc& inDesc)
+    void set(const RayTracingPipelineDesc& inDesc)
     {
         program = static_cast<ShaderProgramBase*>(inDesc.program);
         hitGroups.resize(inDesc.hitGroupCount);
@@ -936,18 +936,18 @@ struct OwnedRayTracingPipelineStateDesc
     }
 };
 
-class PipelineStateBase : public IPipelineState, public ComObject
+class PipelineBase : public IPipeline, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IPipelineState* getInterface(const Guid& guid);
+    IPipeline* getInterface(const Guid& guid);
 
     struct PipelineStateDesc
     {
         PipelineType type;
-        GraphicsPipelineStateDesc graphics;
-        ComputePipelineStateDesc compute;
-        OwnedRayTracingPipelineStateDesc rayTracing;
+        RenderPipelineDesc graphics;
+        ComputePipelineDesc compute;
+        OwnedRayTracingPipelineDesc rayTracing;
         ShaderProgramBase* getProgram()
         {
             switch (type)
@@ -970,7 +970,7 @@ public:
 
     // The pipeline state from which this pipeline state is specialized.
     // If null, this pipeline is either an unspecialized pipeline.
-    RefPtr<PipelineStateBase> unspecializedPipelineState = nullptr;
+    RefPtr<PipelineBase> unspecializedPipeline = nullptr;
 
     // Indicates whether this is a specializable pipeline. A specializable
     // pipeline cannot be used directly and must be specialized first.
@@ -983,7 +983,7 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
-    virtual Result ensureAPIPipelineStateCreated() { return SLANG_OK; };
+    virtual Result ensureAPIPipelineCreated() { return SLANG_OK; };
 
 protected:
     void initializeBase(const PipelineStateDesc& inDesc);
@@ -1018,7 +1018,7 @@ struct ComponentKey
 
 struct PipelineKey
 {
-    PipelineStateBase* pipeline;
+    PipelineBase* pipeline;
     short_vector<ShaderComponentID> specializationArgs;
     size_t hash;
     void updateHash()
@@ -1050,14 +1050,14 @@ public:
     ShaderComponentID getComponentId(std::string_view name);
     ShaderComponentID getComponentId(ComponentKey key);
 
-    RefPtr<PipelineStateBase> getSpecializedPipelineState(PipelineKey programKey)
+    RefPtr<PipelineBase> getSpecializedPipeline(PipelineKey programKey)
     {
         auto it = specializedPipelines.find(programKey);
         if (it != specializedPipelines.end())
             return it->second;
         return nullptr;
     }
-    void addSpecializedPipeline(PipelineKey key, RefPtr<PipelineStateBase> specializedPipeline);
+    void addSpecializedPipeline(PipelineKey key, RefPtr<PipelineBase> specializedPipeline);
     void free()
     {
         specializedPipelines = decltype(specializedPipelines)();
@@ -1075,7 +1075,7 @@ protected:
     };
 
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, RefPtr<PipelineStateBase>, PipelineKeyHasher> specializedPipelines;
+    std::unordered_map<PipelineKey, RefPtr<PipelineBase>, PipelineKeyHasher> specializedPipelines;
 };
 
 class TransientResourceHeapBase : public ITransientResourceHeap, public ComObject
@@ -1116,7 +1116,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::map<PipelineStateBase*, RefPtr<Buffer>> m_deviceBuffers;
+    std::map<PipelineBase*, RefPtr<Buffer>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
@@ -1127,13 +1127,13 @@ public:
     }
 
     virtual RefPtr<Buffer> createDeviceBuffer(
-        PipelineStateBase* pipeline,
+        PipelineBase* pipeline,
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder
     ) = 0;
 
     Buffer* getOrCreateBuffer(
-        PipelineStateBase* pipeline,
+        PipelineBase* pipeline,
         TransientResourceHeapBase* transientHeap,
         IResourceCommandEncoder* encoder
     )
@@ -1246,7 +1246,7 @@ public:
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState) override;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -1294,9 +1294,9 @@ public:
     // The newly specialized pipeline is held alive by the pipeline cache so users of `outNewPipeline` do not
     // need to maintain its lifespan.
     Result maybeSpecializePipeline(
-        PipelineStateBase* currentPipeline,
+        PipelineBase* currentPipeline,
         ShaderObjectBase* rootObject,
-        RefPtr<PipelineStateBase>& outNewPipeline
+        RefPtr<PipelineBase>& outNewPipeline
     );
 
     virtual Result createShaderObjectLayout(

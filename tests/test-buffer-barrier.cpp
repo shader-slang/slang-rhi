@@ -7,8 +7,8 @@ struct Shader
 {
     ComPtr<IShaderProgram> program;
     slang::ProgramLayout* reflection = nullptr;
-    ComputePipelineStateDesc pipelineDesc = {};
-    ComPtr<IPipelineState> pipelineState;
+    ComputePipelineDesc pipelineDesc = {};
+    ComPtr<IPipeline> pipeline;
 };
 
 struct Buffer
@@ -61,8 +61,8 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(loadComputeProgram(device, programB.program, "test-buffer-barrier", "computeB", programB.reflection));
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
-    REQUIRE_CALL(device->createComputePipelineState(programA.pipelineDesc, programA.pipelineState.writeRef()));
-    REQUIRE_CALL(device->createComputePipelineState(programB.pipelineDesc, programB.pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));
+    REQUIRE_CALL(device->createComputePipeline(programB.pipelineDesc, programB.pipeline.writeRef()));
 
     float initialData[] = {1.0f, 2.0f, 3.0f, 4.0f};
     Buffer inputBuffer;
@@ -85,7 +85,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
         auto resourceEncoder = commandBuffer->encodeResourceCommands();
 
         // Write inputBuffer data to intermediateBuffer
-        auto rootObjectA = encoder->bindPipeline(programA.pipelineState);
+        auto rootObjectA = encoder->bindPipeline(programA.pipeline);
         ShaderCursor entryPointCursorA(rootObjectA->getEntryPoint(0));
         entryPointCursorA.getPath("inBuffer").setResource(inputBuffer.view);
         entryPointCursorA.getPath("outBuffer").setResource(intermediateBuffer.view);
@@ -98,7 +98,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
         resourceEncoder->endEncoding();
 
         // Write intermediateBuffer to outputBuffer
-        auto rootObjectB = encoder->bindPipeline(programB.pipelineState);
+        auto rootObjectB = encoder->bindPipeline(programB.pipeline);
         ShaderCursor entryPointCursorB(rootObjectB->getEntryPoint(0));
         entryPointCursorB.getPath("inBuffer").setResource(intermediateBuffer.view);
         entryPointCursorB.getPath("outBuffer").setResource(outputBuffer.view);

@@ -2,17 +2,17 @@
 
 namespace rhi::d3d11 {
 
-void GraphicsPipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
+void GraphicsPipelineImpl::init(const RenderPipelineDesc& inDesc)
 {
-    PipelineStateBase::PipelineStateDesc pipelineDesc;
+    PipelineBase::PipelineStateDesc pipelineDesc;
     pipelineDesc.graphics = inDesc;
     pipelineDesc.type = PipelineType::Graphics;
     initializeBase(pipelineDesc);
 }
 
-void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
+void ComputePipelineImpl::init(const ComputePipelineDesc& inDesc)
 {
-    PipelineStateBase::PipelineStateDesc pipelineDesc;
+    PipelineBase::PipelineStateDesc pipelineDesc;
     pipelineDesc.compute = inDesc;
     pipelineDesc.type = PipelineType::Compute;
     initializeBase(pipelineDesc);

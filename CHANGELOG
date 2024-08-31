@@ -1,3 +1,10 @@
+- rename IPipelineState -> IPipeline
+- rename IDevice::createRayTracingPipelineState -> IDevice::createRayTracingPipeline
+- rename IDevice::createComputePipelineState -> IDevice::createComputePipeline
+- rename IDevice::createGraphicsPipelineState -> IDevice::createRenderPipeline
+- rename RayTracingPipelineStateDesc -> RayTracingPipelineDesc
+- rename ComputePipelineStateDesc -> ComputePipelineDesc
+- rename GraphicsPipelineStateDesc -> RenderPipelineDesc
 - remove SampleDesc and instead add sampleCount and sampleQuality to TextureDesc
 - rename ISamplerState -> ISampler
 - rename ISamplerState::Desc -> SamlerDesc

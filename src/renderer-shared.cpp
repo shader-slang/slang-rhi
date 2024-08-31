@@ -15,7 +15,7 @@ namespace rhi {
 const Guid GUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
 const Guid GUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
 const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
-const Guid GUID::IID_IPipelineState = IPipelineState::getTypeGuid();
+const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
 const Guid GUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
@@ -236,21 +236,21 @@ IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IPipelineState* PipelineStateBase::getInterface(const Guid& guid)
+IPipeline* PipelineBase::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipelineState)
-        return static_cast<IPipelineState*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline)
+        return static_cast<IPipeline*>(this);
     return nullptr;
 }
 
-Result PipelineStateBase::getNativeHandle(InteropHandle* outHandle)
+Result PipelineBase::getNativeHandle(InteropHandle* outHandle)
 {
     outHandle->api = InteropHandleAPI::Unknown;
     outHandle->handleValue = 0;
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void PipelineStateBase::initializeBase(const PipelineStateDesc& inDesc)
+void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
 {
     desc = inDesc;
 
@@ -602,10 +602,10 @@ Result RendererBase::createShaderTable(const IShaderTable::Desc& desc, IShaderTa
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result RendererBase::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
-    SLANG_UNUSED(outState);
+    SLANG_UNUSED(outPipeline);
     return SLANG_E_NOT_AVAILABLE;
 }
 
@@ -758,7 +758,7 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
-void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<PipelineStateBase> specializedPipeline)
+void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<PipelineBase> specializedPipeline)
 {
     specializedPipelines[key] = specializedPipeline;
 }
@@ -1018,16 +1018,16 @@ bool ShaderProgramBase::isMeshShaderProgram() const
 }
 
 Result RendererBase::maybeSpecializePipeline(
-    PipelineStateBase* currentPipeline,
+    PipelineBase* currentPipeline,
     ShaderObjectBase* rootObject,
-    RefPtr<PipelineStateBase>& outNewPipeline
+    RefPtr<PipelineBase>& outNewPipeline
 )
 {
-    outNewPipeline = static_cast<PipelineStateBase*>(currentPipeline);
+    outNewPipeline = static_cast<PipelineBase*>(currentPipeline);
 
     auto pipelineType = currentPipeline->desc.type;
-    if (currentPipeline->unspecializedPipelineState)
-        currentPipeline = currentPipeline->unspecializedPipelineState;
+    if (currentPipeline->unspecializedPipeline)
+        currentPipeline = currentPipeline->unspecializedPipeline;
     // If the currently bound pipeline is specializable, we need to specialize it based on bound shader objects.
     if (currentPipeline->isSpecializable)
     {
@@ -1043,9 +1043,9 @@ Result RendererBase::maybeSpecializePipeline(
         }
         pipelineKey.updateHash();
 
-        RefPtr<PipelineStateBase> specializedPipelineState = shaderCache.getSpecializedPipelineState(pipelineKey);
+        RefPtr<PipelineBase> specializedPipeline = shaderCache.getSpecializedPipeline(pipelineKey);
         // Try to find specialized pipeline from shader cache.
-        if (!specializedPipelineState)
+        if (!specializedPipeline)
         {
             auto unspecializedProgram = static_cast<ShaderProgramBase*>(
                 pipelineType == PipelineType::Compute ? currentPipeline->desc.compute.program
@@ -1086,41 +1086,40 @@ Result RendererBase::maybeSpecializePipeline(
             SLANG_RETURN_ON_FAIL(createProgram(specializedProgramDesc, specializedProgram.writeRef()));
 
             // Create specialized pipeline state.
-            ComPtr<IPipelineState> specializedPipelineComPtr;
+            ComPtr<IPipeline> specializedPipelineComPtr;
             switch (pipelineType)
             {
             case PipelineType::Compute:
             {
                 auto pipelineDesc = currentPipeline->desc.compute;
                 pipelineDesc.program = specializedProgram;
-                SLANG_RETURN_ON_FAIL(createComputePipelineState(pipelineDesc, specializedPipelineComPtr.writeRef()));
+                SLANG_RETURN_ON_FAIL(createComputePipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             case PipelineType::Graphics:
             {
                 auto pipelineDesc = currentPipeline->desc.graphics;
                 pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(createGraphicsPipelineState(pipelineDesc, specializedPipelineComPtr.writeRef()));
+                SLANG_RETURN_ON_FAIL(createRenderPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             case PipelineType::RayTracing:
             {
                 auto pipelineDesc = currentPipeline->desc.rayTracing;
                 pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(
-                    createRayTracingPipelineState(pipelineDesc.get(), specializedPipelineComPtr.writeRef())
+                SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc.get(), specializedPipelineComPtr.writeRef())
                 );
                 break;
             }
             default:
                 break;
             }
-            specializedPipelineState = static_cast<PipelineStateBase*>(specializedPipelineComPtr.get());
-            specializedPipelineState->unspecializedPipelineState = currentPipeline;
-            shaderCache.addSpecializedPipeline(pipelineKey, specializedPipelineState);
+            specializedPipeline = static_cast<PipelineBase*>(specializedPipelineComPtr.get());
+            specializedPipeline->unspecializedPipeline = currentPipeline;
+            shaderCache.addSpecializedPipeline(pipelineKey, specializedPipeline);
         }
-        auto specializedPipelineStateBase = static_cast<PipelineStateBase*>(specializedPipelineState.Ptr());
-        outNewPipeline = specializedPipelineStateBase;
+        auto specializedPipelineBase = static_cast<PipelineBase*>(specializedPipeline.Ptr());
+        outNewPipeline = specializedPipelineBase;
     }
     return SLANG_OK;
 }

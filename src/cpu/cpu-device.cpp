@@ -167,11 +167,11 @@ DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<PipelineStateImpl> state = new PipelineStateImpl();
+    RefPtr<PipelineImpl> state = new PipelineImpl();
     state->init(desc);
-    returnComPtr(outState, state);
+    returnComPtr(outPipeline, state);
     return Result();
 }
 
@@ -215,9 +215,9 @@ void DeviceImpl::unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten
     SLANG_UNUSED(sizeWritten);
 }
 
-void DeviceImpl::setPipelineState(IPipelineState* state)
+void DeviceImpl::setPipeline(IPipeline* state)
 {
-    m_currentPipeline = static_cast<PipelineStateImpl*>(state);
+    m_currentPipeline = static_cast<PipelineImpl*>(state);
 }
 
 void DeviceImpl::bindRootShaderObject(IShaderObject* object)
@@ -231,9 +231,9 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     int targetIndex = 0;
 
     // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineStateBase> newPipeline;
+    RefPtr<PipelineBase> newPipeline;
     maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
-    m_currentPipeline = static_cast<PipelineStateImpl*>(newPipeline.Ptr());
+    m_currentPipeline = static_cast<PipelineImpl*>(newPipeline.Ptr());
 
     auto program = m_currentPipeline->getProgram();
     auto entryPointLayout = m_currentRootObject->getLayout()->getEntryPoint(entryPointIndex);

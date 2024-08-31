@@ -56,7 +56,7 @@ class DebugCommandQueue;
 class DebugFramebuffer;
 class DebugFramebufferLayout;
 class DebugInputLayout;
-class DebugPipelineState;
+class DebugPipeline;
 class DebugRenderPassLayout;
 class DebugShaderProgram;
 class DebugTransientResourceHeap;

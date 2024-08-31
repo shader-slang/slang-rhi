@@ -15,7 +15,7 @@ public:
     VkCommandBuffer m_vkPreCommandBuffer = VK_NULL_HANDLE;
     VkPipeline m_boundPipelines[3] = {};
     DeviceImpl* m_device = nullptr;
-    RefPtr<PipelineStateImpl> m_currentPipeline;
+    RefPtr<PipelineImpl> m_currentPipeline;
 
     VulkanApi* m_api;
 
@@ -38,9 +38,9 @@ public:
 
     Result bindRootShaderObjectImpl(RootShaderObjectImpl* rootShaderObject, VkPipelineBindPoint bindPoint);
 
-    Result setPipelineStateImpl(IPipelineState* state, IShaderObject** outRootObject);
+    Result setPipelineImpl(IPipeline* state, IShaderObject** outRootObject);
 
-    Result setPipelineStateWithRootObjectImpl(IPipelineState* state, IShaderObject* rootObject);
+    Result setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject);
 
     Result bindRenderState(VkPipelineBindPoint pipelineBindPoint);
 };
@@ -165,11 +165,10 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject) override;
+    bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setViewports(GfxCount count, const Viewport* viewports) override;
 
@@ -237,11 +236,10 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject) override;
+    bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override;
 
@@ -302,11 +300,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipeline(IPipelineState* pipeline, IShaderObject** outRootObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject) override;
+    bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     dispatchRays(GfxIndex raygenShaderIndex, IShaderTable* shaderTable, GfxCount width, GfxCount height, GfxCount depth)

@@ -8,7 +8,7 @@
 namespace rhi::vk {
 
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
-    PipelineStateBase* pipeline,
+    PipelineBase* pipeline,
     TransientResourceHeapBase* transientHeap,
     IResourceCommandEncoder* encoder
 )
@@ -24,7 +24,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
         (uint32_t)VulkanUtil::calcAligned(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
-    auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
+    auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;

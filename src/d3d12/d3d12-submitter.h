@@ -17,7 +17,7 @@ struct Submitter
         Index countOf32BitValues,
         void const* srcData
     ) = 0;
-    virtual void setPipelineState(PipelineStateBase* pipelineState) = 0;
+    virtual void setPipeline(PipelineBase* pipeline) = 0;
 };
 
 struct GraphicsSubmitter : public Submitter
@@ -33,7 +33,7 @@ struct GraphicsSubmitter : public Submitter
         Index countOf32BitValues,
         void const* srcData
     ) override;
-    virtual void setPipelineState(PipelineStateBase* pipeline) override;
+    virtual void setPipeline(PipelineBase* pipeline) override;
 
     GraphicsSubmitter(ID3D12GraphicsCommandList* commandList)
         : m_commandList(commandList)
@@ -56,7 +56,7 @@ struct ComputeSubmitter : public Submitter
         Index countOf32BitValues,
         void const* srcData
     ) override;
-    virtual void setPipelineState(PipelineStateBase* pipeline) override;
+    virtual void setPipeline(PipelineBase* pipeline) override;
     ComputeSubmitter(ID3D12GraphicsCommandList* commandList)
         : m_commandList(commandList)
     {

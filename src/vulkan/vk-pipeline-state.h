@@ -7,28 +7,28 @@
 
 namespace rhi::vk {
 
-class PipelineStateImpl : public PipelineStateBase
+class PipelineImpl : public PipelineBase
 {
 public:
-    PipelineStateImpl(DeviceImpl* device);
-    ~PipelineStateImpl();
+    PipelineImpl(DeviceImpl* device);
+    ~PipelineImpl();
 
     // Turns `m_device` into a strong reference.
     // This method should be called before returning the pipeline state object to
-    // external users (i.e. via an `IPipelineState` pointer).
+    // external users (i.e. via an `IPipeline` pointer).
     void establishStrongDeviceReference();
 
     virtual void comFree() override;
 
-    void init(const GraphicsPipelineStateDesc& inDesc);
-    void init(const ComputePipelineStateDesc& inDesc);
-    void init(const RayTracingPipelineStateDesc& inDesc);
+    void init(const RenderPipelineDesc& inDesc);
+    void init(const ComputePipelineDesc& inDesc);
+    void init(const RayTracingPipelineDesc& inDesc);
 
-    Result createVKGraphicsPipelineState();
+    Result createVKGraphicsPipeline();
 
-    Result createVKComputePipelineState();
+    Result createVKComputePipeline();
 
-    virtual Result ensureAPIPipelineStateCreated() override;
+    virtual Result ensureAPIPipelineCreated() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 
@@ -37,19 +37,19 @@ public:
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 };
 
-class RayTracingPipelineStateImpl : public PipelineStateImpl
+class RayTracingPipelineImpl : public PipelineImpl
 {
 public:
     std::map<std::string, Index> shaderGroupNameToIndex;
     Int shaderGroupCount;
 
-    RayTracingPipelineStateImpl(DeviceImpl* device);
+    RayTracingPipelineImpl(DeviceImpl* device);
 
     uint32_t findEntryPointIndexByName(const std::map<std::string, Index>& entryPointNameToIndex, const char* name);
 
-    Result createVKRayTracingPipelineState();
+    Result createVKRayTracingPipeline();
 
-    virtual Result ensureAPIPipelineStateCreated() override;
+    virtual Result ensureAPIPipelineCreated() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };

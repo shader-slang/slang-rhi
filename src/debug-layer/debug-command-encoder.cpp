@@ -18,7 +18,7 @@ void DebugComputeCommandEncoder::endEncoding()
     baseObject->endEncoding();
 }
 
-Result DebugComputeCommandEncoder::bindPipeline(IPipelineState* state, IShaderObject** outRootShaderObject)
+Result DebugComputeCommandEncoder::bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject)
 {
     SLANG_RHI_API_FUNC;
 
@@ -31,7 +31,7 @@ Result DebugComputeCommandEncoder::bindPipeline(IPipelineState* state, IShaderOb
     return result;
 }
 
-Result DebugComputeCommandEncoder::bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject)
+Result DebugComputeCommandEncoder::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
@@ -56,7 +56,7 @@ void DebugRenderCommandEncoder::endEncoding()
     baseObject->endEncoding();
 }
 
-Result DebugRenderCommandEncoder::bindPipeline(IPipelineState* state, IShaderObject** outRootShaderObject)
+Result DebugRenderCommandEncoder::bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject)
 {
     SLANG_RHI_API_FUNC;
 
@@ -69,7 +69,7 @@ Result DebugRenderCommandEncoder::bindPipeline(IPipelineState* state, IShaderObj
     return result;
 }
 
-Result DebugRenderCommandEncoder::bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject)
+Result DebugRenderCommandEncoder::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
@@ -496,7 +496,7 @@ void DebugRayTracingCommandEncoder::deserializeAccelerationStructure(IAccelerati
     baseObject->deserializeAccelerationStructure(getInnerObj(dest), source);
 }
 
-Result DebugRayTracingCommandEncoder::bindPipeline(IPipelineState* state, IShaderObject** outRootObject)
+Result DebugRayTracingCommandEncoder::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     SLANG_RHI_API_FUNC;
     auto innerPipeline = getInnerObj(state);
@@ -508,7 +508,7 @@ Result DebugRayTracingCommandEncoder::bindPipeline(IPipelineState* state, IShade
     return result;
 }
 
-Result DebugRayTracingCommandEncoder::bindPipelineWithRootObject(IPipelineState* state, IShaderObject* rootObject)
+Result DebugRayTracingCommandEncoder::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));

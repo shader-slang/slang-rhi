@@ -493,49 +493,49 @@ Result DebugDevice::createProgram2(
     return result;
 }
 
-Result DebugDevice::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState)
+Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    GraphicsPipelineStateDesc innerDesc = desc;
+    RenderPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
     innerDesc.inputLayout = getInnerObj(desc.inputLayout);
     innerDesc.framebufferLayout = getInnerObj(desc.framebufferLayout);
-    RefPtr<DebugPipelineState> outObject = new DebugPipelineState();
-    auto result = baseObject->createGraphicsPipelineState(innerDesc, outObject->baseObject.writeRef());
+    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    auto result = baseObject->createRenderPipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outState, outObject);
+    returnComPtr(outPipeline, outObject);
     return result;
 }
 
-Result DebugDevice::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    ComputePipelineStateDesc innerDesc = desc;
+    ComputePipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
 
-    RefPtr<DebugPipelineState> outObject = new DebugPipelineState();
-    auto result = baseObject->createComputePipelineState(innerDesc, outObject->baseObject.writeRef());
+    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    auto result = baseObject->createComputePipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outState, outObject);
+    returnComPtr(outPipeline, outObject);
     return result;
 }
 
-Result DebugDevice::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    RayTracingPipelineStateDesc innerDesc = desc;
+    RayTracingPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
 
-    RefPtr<DebugPipelineState> outObject = new DebugPipelineState();
-    auto result = baseObject->createRayTracingPipelineState(innerDesc, outObject->baseObject.writeRef());
+    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    auto result = baseObject->createRayTracingPipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outState, outObject);
+    returnComPtr(outPipeline, outObject);
     return result;
 }
 

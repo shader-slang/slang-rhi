@@ -4,13 +4,13 @@
 
 namespace rhi::debug {
 
-class DebugPipelineState : public DebugObject<IPipelineState>
+class DebugPipeline : public DebugObject<IPipeline>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    IPipelineState* getInterface(const Guid& guid);
+    IPipeline* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 

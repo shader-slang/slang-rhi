@@ -13,18 +13,18 @@
 
 namespace rhi::vk {
 
-PipelineStateImpl::PipelineStateImpl(DeviceImpl* device)
+PipelineImpl::PipelineImpl(DeviceImpl* device)
 {
     // Only weakly reference `device` at start.
     // We make it a strong reference only when the pipeline state is exposed to the user.
-    // Note that `PipelineState`s may also be created via implicit specialization that
+    // Note that `Pipeline`s may also be created via implicit specialization that
     // happens behind the scenes, and the user will not have access to those specialized
     // pipeline states. Only those pipeline states that are returned to the user needs to
     // hold a strong reference to `device`.
     m_device.setWeakReference(device);
 }
 
-PipelineStateImpl::~PipelineStateImpl()
+PipelineImpl::~PipelineImpl()
 {
     if (m_pipeline != VK_NULL_HANDLE)
     {
@@ -32,17 +32,17 @@ PipelineStateImpl::~PipelineStateImpl()
     }
 }
 
-void PipelineStateImpl::establishStrongDeviceReference()
+void PipelineImpl::establishStrongDeviceReference()
 {
     m_device.establishStrongReference();
 }
 
-void PipelineStateImpl::comFree()
+void PipelineImpl::comFree()
 {
     m_device.breakStrongReference();
 }
 
-void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
+void PipelineImpl::init(const RenderPipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Graphics;
@@ -50,7 +50,7 @@ void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
+void PipelineImpl::init(const ComputePipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Compute;
@@ -58,7 +58,7 @@ void PipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc)
+void PipelineImpl::init(const RayTracingPipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::RayTracing;
@@ -66,7 +66,7 @@ void PipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-Result PipelineStateImpl::createVKGraphicsPipelineState()
+Result PipelineImpl::createVKGraphicsPipeline()
 {
     VkPipelineCache pipelineCache = VK_NULL_HANDLE;
 
@@ -263,12 +263,10 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
-            m_device,
-            programImpl->linkedProgram.get(),
-            &pipelineInfo,
-            (void**)&m_pipeline
-        ));
+        SLANG_RETURN_ON_FAIL(
+            m_device->m_pipelineCreationAPIDispatcher
+                ->createRenderPipeline(m_device, programImpl->linkedProgram.get(), &pipelineInfo, (void**)&m_pipeline)
+        );
     }
     else
     {
@@ -281,7 +279,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::createVKComputePipelineState()
+Result PipelineImpl::createVKComputePipeline()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
@@ -295,7 +293,7 @@ Result PipelineStateImpl::createVKComputePipelineState()
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
+        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipeline(
             m_device,
             programImpl->linkedProgram.get(),
             &computePipelineInfo,
@@ -317,7 +315,7 @@ Result PipelineStateImpl::createVKComputePipelineState()
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::ensureAPIPipelineStateCreated()
+Result PipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_pipeline)
         return SLANG_OK;
@@ -325,28 +323,28 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
     switch (desc.type)
     {
     case PipelineType::Compute:
-        return createVKComputePipelineState();
+        return createVKComputePipeline();
     case PipelineType::Graphics:
-        return createVKGraphicsPipelineState();
+        return createVKGraphicsPipeline();
     default:
         SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
         return SLANG_FAIL;
     }
 }
-SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(InteropHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
     outHandle->api = InteropHandleAPI::Vulkan;
     outHandle->handleValue = 0;
     memcpy(&outHandle->handleValue, &m_pipeline, sizeof(m_pipeline));
     return SLANG_OK;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
-    : PipelineStateImpl(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
+    : PipelineImpl(device)
 {
 }
-uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
+uint32_t RayTracingPipelineImpl::findEntryPointIndexByName(
     const std::map<std::string, Index>& entryPointNameToIndex,
     const char* name
 )
@@ -360,7 +358,7 @@ uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
     // TODO: Error reporting?
     return VK_SHADER_UNUSED_KHR;
 }
-Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
+Result RayTracingPipelineImpl::createVKRayTracingPipeline()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
@@ -475,7 +473,7 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
     }
     return SLANG_OK;
 }
-Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
+Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_pipeline)
         return SLANG_OK;
@@ -483,15 +481,15 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     switch (desc.type)
     {
     case PipelineType::RayTracing:
-        return createVKRayTracingPipelineState();
+        return createVKRayTracingPipeline();
     default:
         SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
         return SLANG_FAIL;
     }
 }
-Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(InteropHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
     outHandle->api = InteropHandleAPI::Vulkan;
     outHandle->handleValue = 0;
     memcpy(&outHandle->handleValue, &m_pipeline, sizeof(m_pipeline));

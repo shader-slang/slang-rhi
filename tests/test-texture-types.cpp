@@ -174,10 +174,10 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-texture-types", entryPoint, slangReflection));
 
-        ComputePipelineStateDesc pipelineDesc = {};
+        ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        ComPtr<IPipelineState> pipelineState;
-        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        ComPtr<IPipeline> pipeline;
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
         // We have done all the set up work, now it is time to start recording a command buffer for
         // GPU execution.
@@ -188,7 +188,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             auto commandBuffer = transientHeap->createCommandBuffer();
             auto encoder = commandBuffer->encodeComputeCommands();
 
-            auto rootObject = encoder->bindPipeline(pipelineState);
+            auto rootObject = encoder->bindPipeline(pipeline);
 
             ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
@@ -340,7 +340,7 @@ struct RenderTargetTests : BaseTextureViewTest
     int sampleCount = 1;
 
     ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipelineState> pipelineState;
+    ComPtr<IPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
@@ -425,13 +425,13 @@ struct RenderTargetTests : BaseTextureViewTest
         ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;
@@ -471,7 +471,7 @@ struct RenderTargetTests : BaseTextureViewTest
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = renderEncoder->bindPipeline(pipelineState);
+        auto rootObject = renderEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = (float)textureInfo->extents.depth;

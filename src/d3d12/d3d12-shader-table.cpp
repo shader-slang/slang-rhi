@@ -8,7 +8,7 @@
 namespace rhi::d3d12 {
 
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
-    PipelineStateBase* pipeline,
+    PipelineBase* pipeline,
     TransientResourceHeapBase* transientHeap,
     IResourceCommandEncoder* encoder
 )
@@ -25,7 +25,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     )D3DUtil::calcAligned(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     uint32_t tableSize = m_callableTableOffset + callableTableSize;
 
-    auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
+    auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;

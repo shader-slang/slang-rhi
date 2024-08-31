@@ -15,7 +15,7 @@ public:
 
     ICommandQueue* getInterface(const Guid& guid);
 
-    RefPtr<ComputePipelineStateImpl> currentPipeline;
+    RefPtr<ComputePipelineImpl> currentPipeline;
     RefPtr<RootShaderObjectImpl> currentRootObject;
     RefPtr<DeviceImpl> renderer;
     CUstream stream;
@@ -37,7 +37,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 
-    void setPipelineState(IPipelineState* state);
+    void setPipeline(IPipeline* state);
 
     Result bindRootShaderObject(IShaderObject* object);
 

@@ -4,12 +4,12 @@
 
 namespace rhi::d3d11 {
 
-class PipelineStateImpl : public PipelineStateBase
+class PipelineImpl : public PipelineBase
 {
 public:
 };
 
-class GraphicsPipelineStateImpl : public PipelineStateImpl
+class GraphicsPipelineImpl : public PipelineImpl
 {
 public:
     UINT m_rtvCount;
@@ -22,13 +22,13 @@ public:
     float m_blendColor[4];
     UINT m_sampleMask;
 
-    void init(const GraphicsPipelineStateDesc& inDesc);
+    void init(const RenderPipelineDesc& inDesc);
 };
 
-class ComputePipelineStateImpl : public PipelineStateImpl
+class ComputePipelineImpl : public PipelineImpl
 {
 public:
-    void init(const ComputePipelineStateDesc& inDesc);
+    void init(const ComputePipelineDesc& inDesc);
 };
 
 } // namespace rhi::d3d11

@@ -121,7 +121,7 @@ struct ShaderCacheTest
     std::filesystem::path tempDirectory;
 
     ComPtr<IDevice> device;
-    ComPtr<IPipelineState> pipelineState;
+    ComPtr<IPipeline> pipeline;
     ComPtr<IBuffer> buffer;
     ComPtr<IResourceView> bufferView;
 
@@ -243,7 +243,7 @@ struct ShaderCacheTest
     {
         buffer = nullptr;
         bufferView = nullptr;
-        pipelineState = nullptr;
+        pipeline = nullptr;
     }
 
     void createComputePipeline(const char* moduleName, const char* entryPointName)
@@ -252,9 +252,9 @@ struct ShaderCacheTest
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, moduleName, entryPointName, slangReflection));
 
-        ComputePipelineStateDesc pipelineDesc = {};
+        ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void createComputePipeline(std::string shaderSource)
@@ -262,9 +262,9 @@ struct ShaderCacheTest
         ComPtr<IShaderProgram> shaderProgram;
         REQUIRE_CALL(loadComputeProgramFromSource(device, shaderProgram, shaderSource));
 
-        ComputePipelineStateDesc pipelineDesc = {};
+        ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void dispatchComputePipeline()
@@ -280,7 +280,7 @@ struct ShaderCacheTest
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         // Bind buffer view to the entry point.
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
@@ -560,9 +560,9 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
             slangReflection
         ));
 
-        ComputePipelineStateDesc pipelineDesc = {};
+        ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void dispatchComputePipeline(const char* transformerTypeName)
@@ -578,7 +578,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
@@ -800,7 +800,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         framebuffer = nullptr;
         vertexBuffer = nullptr;
         colorBuffer = nullptr;
-        pipelineState = nullptr;
+        pipeline = nullptr;
     }
 
     void createGraphicsPipeline()
@@ -816,13 +816,13 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             slangReflection
         ));
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void dispatchGraphicsPipeline()
@@ -837,7 +837,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -924,13 +924,13 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
 
         ComPtr<IShaderProgram> shaderProgram = device->createProgram(programDesc);
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void runGraphicsPipeline()

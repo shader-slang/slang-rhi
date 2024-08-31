@@ -4,31 +4,31 @@
 
 namespace rhi::d3d12 {
 
-class PipelineStateImpl : public PipelineStateBase
+class PipelineImpl : public PipelineBase
 {
 public:
-    PipelineStateImpl(DeviceImpl* device)
+    PipelineImpl(DeviceImpl* device)
         : m_device(device)
     {
     }
     DeviceImpl* m_device;
     ComPtr<ID3D12PipelineState> m_pipelineState;
-    void init(const GraphicsPipelineStateDesc& inDesc);
-    void init(const ComputePipelineStateDesc& inDesc);
+    void init(const RenderPipelineDesc& inDesc);
+    void init(const ComputePipelineDesc& inDesc);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
-    virtual Result ensureAPIPipelineStateCreated() override;
+    virtual Result ensureAPIPipelineCreated() override;
 };
 
 #if SLANG_RHI_DXR
-class RayTracingPipelineStateImpl : public PipelineStateBase
+class RayTracingPipelineImpl : public PipelineBase
 {
 public:
     ComPtr<ID3D12StateObject> m_stateObject;
     DeviceImpl* m_device;
-    RayTracingPipelineStateImpl(DeviceImpl* device);
-    void init(const RayTracingPipelineStateDesc& inDesc);
+    RayTracingPipelineImpl(DeviceImpl* device);
+    void init(const RayTracingPipelineDesc& inDesc);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
-    virtual Result ensureAPIPipelineStateCreated() override;
+    virtual Result ensureAPIPipelineCreated() override;
 };
 #endif
 

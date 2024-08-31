@@ -20,7 +20,7 @@
 
 namespace rhi::d3d12 {
 
-void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
+void PipelineImpl::init(const RenderPipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Graphics;
@@ -28,7 +28,7 @@ void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
+void PipelineImpl::init(const ComputePipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Compute;
@@ -36,15 +36,15 @@ void PipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-Result PipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result PipelineImpl::getNativeHandle(InteropHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
     outHandle->api = InteropHandleAPI::D3D12;
     outHandle->handleValue = reinterpret_cast<uint64_t>(m_pipelineState.get());
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::ensureAPIPipelineStateCreated()
+Result PipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_pipelineState)
         return SLANG_OK;
@@ -194,7 +194,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             fillCommonGraphicsState(meshDesc);
             if (m_device->m_pipelineCreationAPIDispatcher)
             {
-                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createMeshPipelineState(
+                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createMeshPipeline(
                     m_device,
                     programImpl->linkedProgram.get(),
                     &meshDesc,
@@ -255,7 +255,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
             if (m_device->m_pipelineCreationAPIDispatcher)
             {
-                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
+                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createRenderPipeline(
                     m_device,
                     programImpl->linkedProgram.get(),
                     &graphicsDesc,
@@ -322,7 +322,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             {
                 if (m_device->m_pipelineCreationAPIDispatcher)
                 {
-                    SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
+                    SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipeline(
                         m_device,
                         programImpl->linkedProgram.get(),
                         &computeDesc,
@@ -345,12 +345,12 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
 #if SLANG_RHI_DXR
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
     : m_device(device)
 {
 }
 
-void RayTracingPipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc)
+void RayTracingPipelineImpl::init(const RayTracingPipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::RayTracing;
@@ -358,15 +358,15 @@ void RayTracingPipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc
     initializeBase(pipelineDesc);
 }
 
-Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(InteropHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
     outHandle->api = InteropHandleAPI::D3D12;
     outHandle->handleValue = reinterpret_cast<uint64_t>(m_stateObject.get());
     return SLANG_OK;
 }
 
-Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
+Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_stateObject)
         return SLANG_OK;

@@ -7,7 +7,7 @@
 
 namespace rhi::metal {
 
-class PipelineStateImpl : public PipelineStateBase
+class PipelineImpl : public PipelineBase
 {
 public:
     DeviceImpl* m_device;
@@ -17,30 +17,30 @@ public:
     MTL::Size m_threadGroupSize;
     NS::UInteger m_vertexBufferOffset;
 
-    PipelineStateImpl(DeviceImpl* device);
-    ~PipelineStateImpl();
+    PipelineImpl(DeviceImpl* device);
+    ~PipelineImpl();
 
-    void init(const GraphicsPipelineStateDesc& desc);
-    void init(const ComputePipelineStateDesc& desc);
-    void init(const RayTracingPipelineStateDesc& desc);
+    void init(const RenderPipelineDesc& desc);
+    void init(const ComputePipelineDesc& desc);
+    void init(const RayTracingPipelineDesc& desc);
 
     Result createMetalComputePipelineState();
     Result createMetalRenderPipelineState();
 
-    virtual Result ensureAPIPipelineStateCreated() override;
+    virtual Result ensureAPIPipelineCreated() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };
 
-class RayTracingPipelineStateImpl : public PipelineStateImpl
+class RayTracingPipelineImpl : public PipelineImpl
 {
 public:
     std::map<std::string, Index> shaderGroupNameToIndex;
     Int shaderGroupCount;
 
-    RayTracingPipelineStateImpl(DeviceImpl* device);
+    RayTracingPipelineImpl(DeviceImpl* device);
 
-    virtual Result ensureAPIPipelineStateCreated() override;
+    virtual Result ensureAPIPipelineCreated() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
 };

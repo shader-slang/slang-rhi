@@ -47,7 +47,7 @@ struct BaseRayTracingTest
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ICommandQueue> queue;
 
-    ComPtr<IPipelineState> renderPipelineState;
+    ComPtr<IPipeline> raytracingPipeline;
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IBuffer> indexBuffer;
     ComPtr<IBuffer> transformBuffer;
@@ -317,7 +317,7 @@ struct BaseRayTracingTest
 
         ComPtr<IShaderProgram> rayTracingProgram;
         REQUIRE_CALL(loadShaderProgram(device, rayTracingProgram.writeRef()));
-        RayTracingPipelineStateDesc rtpDesc = {};
+        RayTracingPipelineDesc rtpDesc = {};
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = 2;
         HitGroupDesc hitGroups[2];
@@ -328,8 +328,8 @@ struct BaseRayTracingTest
         rtpDesc.hitGroups = hitGroups;
         rtpDesc.maxRayPayloadSize = 64;
         rtpDesc.maxRecursion = 2;
-        REQUIRE_CALL(device->createRayTracingPipelineState(rtpDesc, renderPipelineState.writeRef()));
-        REQUIRE(renderPipelineState != nullptr);
+        REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
+        REQUIRE(raytracingPipeline != nullptr);
 
         const char* raygenNames[] = {"rayGenShaderA", "rayGenShaderB"};
         const char* missNames[] = {"missShaderA", "missShaderB"};
@@ -377,7 +377,7 @@ struct RayTracingTestA : BaseRayTracingTest
         ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
         IShaderObject* rootObject = nullptr;
-        renderEncoder->bindPipeline(renderPipelineState, &rootObject);
+        renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setResource(resultTextureUAV);
         cursor["sceneBVH"].setResource(TLAS);
@@ -405,7 +405,7 @@ struct RayTracingTestB : BaseRayTracingTest
         ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
         IShaderObject* rootObject = nullptr;
-        renderEncoder->bindPipeline(renderPipelineState, &rootObject);
+        renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setResource(resultTextureUAV);
         cursor["sceneBVH"].setResource(TLAS);

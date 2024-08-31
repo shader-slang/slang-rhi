@@ -1012,12 +1012,12 @@ DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<ComputePipelineStateImpl> state = new ComputePipelineStateImpl();
+    RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
     state->shaderProgram = static_cast<ShaderProgramImpl*>(desc.program);
     state->init(desc);
-    returnComPtr(outState, state);
+    returnComPtr(outPipeline, state);
     return Result();
 }
 
@@ -1103,10 +1103,10 @@ DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState)
+DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
-    SLANG_UNUSED(outState);
+    SLANG_UNUSED(outPipeline);
     return SLANG_E_NOT_AVAILABLE;
 }
 

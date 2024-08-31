@@ -38,10 +38,10 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-root-shader-parameter", "computeMain", slangReflection)
     );
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     std::vector<ComPtr<IBuffer>> buffers;
     std::vector<ComPtr<IResourceView>> srvs, uavs;
@@ -115,7 +115,7 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         {
             auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipelineState, rootObject);
+            encoder->bindPipelineWithRootObject(pipeline, rootObject);
             encoder->dispatchCompute(1, 1, 1);
             encoder->endEncoding();
         }

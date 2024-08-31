@@ -48,7 +48,7 @@ public:
     // Immediate commands to be implemented by each target.
     virtual Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject) = 0;
     virtual void bindRootShaderObject(IShaderObject* rootObject) = 0;
-    virtual void setPipelineState(IPipelineState* state) = 0;
+    virtual void setPipeline(IPipeline* state) = 0;
     virtual void setFramebuffer(IFramebuffer* frameBuffer) = 0;
     virtual void clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil) = 0;
     virtual void setViewports(GfxCount count, const Viewport* viewports) = 0;
@@ -224,10 +224,10 @@ public:
         return SLANG_E_NOT_AVAILABLE;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState) override
+    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override
     {
         SLANG_UNUSED(desc);
-        SLANG_UNUSED(outState);
+        SLANG_UNUSED(outPipeline);
         return SLANG_E_NOT_AVAILABLE;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL
