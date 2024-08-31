@@ -4,7 +4,7 @@
 #include "d3d12-fence.h"
 #include "d3d12-framebuffer.h"
 #include "d3d12-helper-functions.h"
-#include "d3d12-pipeline-state.h"
+#include "d3d12-pipeline.h"
 #include "d3d12-query.h"
 #include "d3d12-render-pass.h"
 #include "d3d12-resource-views.h"

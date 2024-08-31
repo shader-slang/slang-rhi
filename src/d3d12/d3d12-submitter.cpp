@@ -1,5 +1,5 @@
 #include "d3d12-submitter.h"
-#include "d3d12-pipeline-state.h"
+#include "d3d12-pipeline.h"
 
 namespace rhi::d3d12 {
 

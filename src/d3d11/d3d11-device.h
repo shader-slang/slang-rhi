@@ -1,7 +1,7 @@
 #pragma once
 
 #include "d3d11-framebuffer.h"
-#include "d3d11-pipeline-state.h"
+#include "d3d11-pipeline.h"
 
 namespace rhi::d3d11 {
 

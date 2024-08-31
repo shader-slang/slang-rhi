@@ -1,7 +1,7 @@
 #include "cuda-device.h"
 #include "cuda-buffer.h"
 #include "cuda-command-queue.h"
-#include "cuda-pipeline-state.h"
+#include "cuda-pipeline.h"
 #include "cuda-query.h"
 #include "cuda-resource-views.h"
 #include "cuda-shader-object-layout.h"

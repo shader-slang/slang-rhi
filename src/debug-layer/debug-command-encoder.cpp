@@ -2,7 +2,7 @@
 #include "debug-buffer.h"
 #include "debug-command-buffer.h"
 #include "debug-helper-functions.h"
-#include "debug-pipeline-state.h"
+#include "debug-pipeline.h"
 #include "debug-query.h"
 #include "debug-resource-views.h"
 #include "debug-texture.h"

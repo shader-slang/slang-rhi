@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-pipeline-state.h"
+#include "vk-pipeline.h"
 
 #include <vector>
 

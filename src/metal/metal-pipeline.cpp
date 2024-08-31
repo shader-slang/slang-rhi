@@ -1,4 +1,4 @@
-#include "metal-pipeline-state.h"
+#include "metal-pipeline.h"
 #include "metal-device.h"
 #include "metal-shader-object-layout.h"
 #include "metal-shader-program.h"

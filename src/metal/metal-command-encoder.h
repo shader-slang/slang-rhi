@@ -1,7 +1,7 @@
 #pragma once
 
 #include "metal-base.h"
-#include "metal-pipeline-state.h"
+#include "metal-pipeline.h"
 #include "metal-render-pass.h"
 
 #include "core/short_vector.h"

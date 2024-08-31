@@ -4,7 +4,7 @@
 #include "debug-fence.h"
 #include "debug-framebuffer.h"
 #include "debug-helper-functions.h"
-#include "debug-pipeline-state.h"
+#include "debug-pipeline.h"
 #include "debug-query.h"
 #include "debug-render-pass.h"
 #include "debug-resource-views.h"

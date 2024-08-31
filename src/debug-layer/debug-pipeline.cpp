@@ -1,4 +1,4 @@
-#include "debug-pipeline-state.h"
+#include "debug-pipeline.h"
 #include "debug-helper-functions.h"
 
 namespace rhi::debug {

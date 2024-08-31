@@ -2,7 +2,7 @@
 #include "d3d12-command-buffer.h"
 #include "d3d12-device.h"
 #include "d3d12-helper-functions.h"
-#include "d3d12-pipeline-state.h"
+#include "d3d12-pipeline.h"
 #include "d3d12-query.h"
 #include "d3d12-shader-object.h"
 #include "d3d12-shader-program.h"

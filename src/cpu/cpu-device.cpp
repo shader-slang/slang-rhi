@@ -1,7 +1,7 @@
 #include "cpu-device.h"
 
 #include "cpu-buffer.h"
-#include "cpu-pipeline-state.h"
+#include "cpu-pipeline.h"
 #include "cpu-query.h"
 #include "cpu-resource-views.h"
 #include "cpu-shader-object.h"

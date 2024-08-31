@@ -3,7 +3,7 @@
 #include "cuda-base.h"
 #include "cuda-device.h"
 #include "cuda-helper-functions.h"
-#include "cuda-pipeline-state.h"
+#include "cuda-pipeline.h"
 #include "cuda-shader-object.h"
 
 namespace rhi::cuda {

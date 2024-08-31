@@ -1,4 +1,4 @@
-#include "cuda-pipeline-state.h"
+#include "cuda-pipeline.h"
 
 namespace rhi::cuda {
 

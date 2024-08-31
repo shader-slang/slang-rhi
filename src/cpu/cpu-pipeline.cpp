@@ -1,4 +1,4 @@
-#include "cpu-pipeline-state.h"
+#include "cpu-pipeline.h"
 
 #include "cpu-shader-program.h"
 

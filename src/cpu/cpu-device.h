@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cpu-base.h"
-#include "cpu-pipeline-state.h"
+#include "cpu-pipeline.h"
 #include "cpu-shader-object.h"
 
 namespace rhi::cpu {
