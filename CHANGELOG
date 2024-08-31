@@ -1,3 +1,4 @@
+- remove IResource::setDebugName/getDebugName, add label to BufferDesc and TextureDesc instead
 - rename IPipelineState -> IPipeline
 - rename IDevice::createRayTracingPipelineState -> IDevice::createRayTracingPipeline
 - rename IDevice::createComputePipelineState -> IDevice::createComputePipeline

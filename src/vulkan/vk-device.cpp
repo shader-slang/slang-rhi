@@ -1592,6 +1592,16 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
 
+    if (desc.label && m_api.vkDebugMarkerSetObjectNameEXT)
+    {
+        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
+        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameDesc.object = (uint64_t)texture->m_image;
+        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
+        nameDesc.pObjectName = desc.label;
+        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
+    }
+
     VKBufferHandleRAII uploadBuffer;
     if (initData)
     {
@@ -1915,6 +1925,16 @@ Result DeviceImpl::createBufferImpl(
     else
     {
         SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
+    }
+
+    if (desc.label && m_api.vkDebugMarkerSetObjectNameEXT)
+    {
+        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
+        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameDesc.object = (uint64_t)buffer->m_buffer.m_buffer;
+        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT;
+        nameDesc.pObjectName = desc.label;
+        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
     }
 
     if (initData)

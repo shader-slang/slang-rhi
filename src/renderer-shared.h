@@ -204,7 +204,6 @@ class Resource : public ComObject
 {
 protected:
     InteropHandle sharedHandle = {};
-    std::string m_debugName;
 };
 
 class Buffer : public IBuffer, public Resource
@@ -225,13 +224,6 @@ public:
     virtual SLANG_NO_THROW BufferDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugName(const char* name) override
-    {
-        m_debugName = name;
-        return SLANG_OK;
-    }
-    virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override { return m_debugName.data(); }
 
 protected:
     BufferDesc m_desc;
@@ -255,13 +247,6 @@ public:
     virtual SLANG_NO_THROW TextureDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) SLANG_OVERRIDE;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugName(const char* name) override
-    {
-        m_debugName = name;
-        return SLANG_OK;
-    }
-    virtual SLANG_NO_THROW const char* SLANG_MCALL getDebugName() override { return m_debugName.data(); }
 
 protected:
     TextureDesc m_desc;

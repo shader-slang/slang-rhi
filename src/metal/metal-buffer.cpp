@@ -39,11 +39,4 @@ Result BufferImpl::unmap(MemoryRange* writtenRange)
     return SLANG_OK;
 }
 
-Result BufferImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    m_buffer->addDebugMarker(MetalUtil::createString(name).get(), NS::Range(0, m_desc.size));
-    return SLANG_OK;
-}
-
 } // namespace rhi::metal

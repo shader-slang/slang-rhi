@@ -27,18 +27,6 @@ Result DebugBuffer::getSharedHandle(InteropHandle* outHandle)
     return baseObject->getSharedHandle(outHandle);
 }
 
-Result DebugBuffer::setDebugName(const char* name)
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->setDebugName(name);
-}
-
-const char* DebugBuffer::getDebugName()
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->getDebugName();
-}
-
 Result DebugBuffer::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_RHI_API_FUNC;

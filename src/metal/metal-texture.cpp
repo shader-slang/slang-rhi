@@ -23,11 +23,4 @@ Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result TextureImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    m_texture->setLabel(MetalUtil::createString(name).get());
-    return SLANG_OK;
-}
-
 } // namespace rhi::metal

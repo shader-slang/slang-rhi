@@ -1057,7 +1057,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 .initCommitted(m_device, heapProps, flags, resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, clearValuePtr)
         );
 
-        texture->m_resource.setDebugName(L"Texture");
+        if (srcDesc.label)
+        {
+            texture->m_resource.setDebugName(srcDesc.label);
+        }
     }
 
     // Calculate the layout
@@ -1264,6 +1267,11 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
         descIn.isShared,
         descIn.memoryType
     ));
+
+    if (srcDesc.label)
+    {
+        buffer->m_resource.setDebugName(srcDesc.label);
+    }
 
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;

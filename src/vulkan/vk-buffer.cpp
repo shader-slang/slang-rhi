@@ -181,20 +181,4 @@ Result BufferImpl::unmap(MemoryRange* writtenRange)
     return SLANG_OK;
 }
 
-Result BufferImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    auto api = m_buffer.m_api;
-    if (api->vkDebugMarkerSetObjectNameEXT)
-    {
-        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
-        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-        nameDesc.object = (uint64_t)m_buffer.m_buffer;
-        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT;
-        nameDesc.pObjectName = name;
-        api->vkDebugMarkerSetObjectNameEXT(api->m_device, &nameDesc);
-    }
-    return SLANG_OK;
-}
-
 } // namespace rhi::vk

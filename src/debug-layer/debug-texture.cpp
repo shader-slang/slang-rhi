@@ -21,14 +21,4 @@ Result DebugTexture::getSharedHandle(InteropHandle* outHandle)
     return baseObject->getSharedHandle(outHandle);
 }
 
-Result DebugTexture::setDebugName(const char* name)
-{
-    return baseObject->setDebugName(name);
-}
-
-const char* DebugTexture::getDebugName()
-{
-    return baseObject->getDebugName();
-}
-
 } // namespace rhi::debug

@@ -77,20 +77,5 @@ Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
     outHandle->api = InteropHandleAPI::Vulkan;
     return SLANG_OK;
 }
-Result TextureImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    auto& api = m_device->m_api;
-    if (api.vkDebugMarkerSetObjectNameEXT)
-    {
-        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
-        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-        nameDesc.object = (uint64_t)m_image;
-        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
-        nameDesc.pObjectName = name;
-        api.vkDebugMarkerSetObjectNameEXT(api.m_device, &nameDesc);
-    }
-    return SLANG_OK;
-}
 
 } // namespace rhi::vk

@@ -21,8 +21,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugName(const char* name) override;
 };
 
 } // namespace rhi::metal

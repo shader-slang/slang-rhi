@@ -47,11 +47,4 @@ Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
 #endif
 }
 
-Result TextureImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    m_resource.setDebugName(name);
-    return SLANG_OK;
-}
-
 } // namespace rhi::d3d12

@@ -443,6 +443,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     textureImpl->m_textureType = textureDesc->textureType();
     textureImpl->m_pixelFormat = textureDesc->pixelFormat();
 
+    textureImpl->m_texture->setLabel(MetalUtil::createString(desc.label).get());
+
     // TODO: handle initData
     if (initData)
     {
@@ -528,6 +530,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     {
         return SLANG_FAIL;
     }
+
+    buffer->m_buffer->addDebugMarker(MetalUtil::createString(desc.label).get(), NS::Range(0, desc.size));
 
     if (initData)
     {
