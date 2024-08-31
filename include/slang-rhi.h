@@ -2247,9 +2247,9 @@ public:
         const SubresourceData* initData = nullptr
     )
     {
-        ComPtr<ITexture> resource;
-        SLANG_RETURN_NULL_ON_FAIL(createTexture(desc, initData, resource.writeRef()));
-        return resource;
+        ComPtr<ITexture> texture;
+        SLANG_RETURN_NULL_ON_FAIL(createTexture(desc, initData, texture.writeRef()));
+        return texture;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -2268,9 +2268,9 @@ public:
 
     inline SLANG_NO_THROW ComPtr<IBuffer> createBuffer(const BufferDesc& desc, const void* initData = nullptr)
     {
-        ComPtr<IBuffer> resource;
-        SLANG_RETURN_NULL_ON_FAIL(createBuffer(desc, initData, resource.writeRef()));
-        return resource;
+        ComPtr<IBuffer> buffer;
+        SLANG_RETURN_NULL_ON_FAIL(createBuffer(desc, initData, buffer.writeRef()));
+        return buffer;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -2451,9 +2451,9 @@ public:
 
     inline ComPtr<IPipeline> createRenderPipeline(const RenderPipelineDesc& desc)
     {
-        ComPtr<IPipeline> state;
-        SLANG_RETURN_NULL_ON_FAIL(createRenderPipeline(desc, state.writeRef()));
-        return state;
+        ComPtr<IPipeline> pipeline;
+        SLANG_RETURN_NULL_ON_FAIL(createRenderPipeline(desc, pipeline.writeRef()));
+        return pipeline;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -2461,9 +2461,9 @@ public:
 
     inline ComPtr<IPipeline> createComputePipeline(const ComputePipelineDesc& desc)
     {
-        ComPtr<IPipeline> state;
-        SLANG_RETURN_NULL_ON_FAIL(createComputePipeline(desc, state.writeRef()));
-        return state;
+        ComPtr<IPipeline> pipeline;
+        SLANG_RETURN_NULL_ON_FAIL(createComputePipeline(desc, pipeline.writeRef()));
+        return pipeline;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
