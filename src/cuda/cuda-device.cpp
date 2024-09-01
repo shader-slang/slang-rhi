@@ -127,10 +127,12 @@ Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].handleValue = (uint64_t)m_device;
-    outHandles->handles[0].api = InteropHandleAPI::CUDA;
+    outHandles->handles[0].type = NativeHandleType::CUdevice;
+    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[1] = {};
+    outHandles->handles[2] = {};
     return SLANG_OK;
 }
 
@@ -739,9 +741,9 @@ DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
+DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    if (handle.handleValue == 0)
+    if (!handle)
     {
         *outBuffer = nullptr;
         return SLANG_OK;
@@ -756,18 +758,18 @@ DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const BufferDesc&
     // memory association, we first need to fill in a descriptor struct.
     CUDA_EXTERNAL_MEMORY_HANDLE_DESC externalMemoryHandleDesc;
     memset(&externalMemoryHandleDesc, 0, sizeof(externalMemoryHandleDesc));
-    switch (handle.api)
+    switch (handle.type)
     {
-    case InteropHandleAPI::D3D12:
+    case NativeHandleType::D3D12Resource:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE;
         break;
-    case InteropHandleAPI::Vulkan:
+    case NativeHandleType::Win32:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32;
         break;
     default:
         return SLANG_FAIL;
     }
-    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.handleValue;
+    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.value;
     externalMemoryHandleDesc.size = desc.size;
     externalMemoryHandleDesc.flags = CUDA_EXTERNAL_MEMORY_DEDICATED;
 
@@ -800,13 +802,13 @@ DeviceImpl::createBufferFromSharedHandle(InteropHandle handle, const BufferDesc&
 }
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
-    InteropHandle handle,
+    NativeHandle handle,
     const TextureDesc& desc,
     const size_t size,
     ITexture** outTexture
 )
 {
-    if (handle.handleValue == 0)
+    if (!handle)
     {
         *outTexture = nullptr;
         return SLANG_OK;
@@ -821,18 +823,18 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
     // memory association, we first need to fill in a descriptor struct.
     CUDA_EXTERNAL_MEMORY_HANDLE_DESC externalMemoryHandleDesc;
     memset(&externalMemoryHandleDesc, 0, sizeof(externalMemoryHandleDesc));
-    switch (handle.api)
+    switch (handle.type)
     {
-    case InteropHandleAPI::D3D12:
+    case NativeHandleType::D3D12Resource:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE;
         break;
-    case InteropHandleAPI::Vulkan:
+    case NativeHandleType::Win32:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32;
         break;
     default:
         return SLANG_FAIL;
     }
-    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.handleValue;
+    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.value;
     externalMemoryHandleDesc.size = size;
     externalMemoryHandleDesc.flags = CUDA_EXTERNAL_MEMORY_DEDICATED;
 

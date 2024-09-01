@@ -40,10 +40,10 @@ Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
     return m_samplerState ? SLANG_OK : SLANG_FAIL;
 }
 
-Result SamplerImpl::getNativeHandle(InteropHandle* outHandle)
+Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Metal;
-    outHandle->handleValue = reinterpret_cast<intptr_t>(m_samplerState.get());
+    outHandle->type = NativeHandleType::MTLSamplerState;
+    outHandle->value = (uint64_t)(m_samplerState.get());
     return SLANG_OK;
 }
 

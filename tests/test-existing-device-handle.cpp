@@ -6,7 +6,7 @@ using namespace rhi::testing;
 void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> existingDevice = createTestingDevice(ctx, deviceType);
-    IDevice::InteropHandles handles;
+    IDevice::NativeHandles handles;
     CHECK_CALL(existingDevice->getNativeDeviceHandles(&handles));
 
     ComPtr<IDevice> device;

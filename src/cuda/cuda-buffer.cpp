@@ -21,10 +21,10 @@ DeviceAddress BufferImpl::getDeviceAddress()
     return (DeviceAddress)m_cudaMemory;
 }
 
-Result BufferImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = getBindlessHandle();
-    outHandle->api = InteropHandleAPI::CUDA;
+    outHandle->type = NativeHandleType::CUdeviceptr;
+    outHandle->value = getBindlessHandle();
     return SLANG_OK;
 }
 

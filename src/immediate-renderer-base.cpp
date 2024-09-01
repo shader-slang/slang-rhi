@@ -513,7 +513,11 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL close() override {}
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override { return SLANG_FAIL; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override
+    {
+        *outHandle = {};
+        return SLANG_E_NOT_AVAILABLE;
+    }
 
     void execute()
     {
@@ -671,7 +675,7 @@ public:
         return SLANG_FAIL;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override
     {
         return getRenderer()->m_queue->getNativeHandle(outHandle);
     }

@@ -90,10 +90,17 @@ Result FenceImpl::setCurrentValue(uint64_t value)
     return SLANG_OK;
 }
 
-Result FenceImpl::getSharedHandle(InteropHandle* outHandle)
+Result FenceImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::VkSemaphore;
+    outHandle->value = (uint64_t)m_semaphore;
+    return SLANG_OK;
+}
+
+Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 {
     // Check if a shared handle already exists.
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
         *outHandle = sharedHandle;
         return SLANG_OK;
@@ -108,8 +115,9 @@ Result FenceImpl::getSharedHandle(InteropHandle* outHandle)
     SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkGetSemaphoreWin32HandleKHR(
         m_device->m_api.m_device,
         &handleInfo,
-        (HANDLE*)&sharedHandle.handleValue
+        (HANDLE*)&sharedHandle.value
     ));
+    sharedHandle.type = NativeHandleType::Win32;
 #else
     VkSemaphoreGetFdInfoKHR fdInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
     fdInfo.pNext = nullptr;
@@ -117,19 +125,12 @@ Result FenceImpl::getSharedHandle(InteropHandle* outHandle)
     fdInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
 
     SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkGetSemaphoreFdKHR(m_device->m_api.m_device, &fdInfo, (int*)&sharedHandle.handleValue)
+        m_device->m_api.vkGetSemaphoreFdKHR(m_device->m_api.m_device, &fdInfo, (int*)&sharedHandle.value)
     );
+    sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
-
-    sharedHandle.api = InteropHandleAPI::Vulkan;
     *outHandle = sharedHandle;
     return SLANG_OK;
-}
-
-Result FenceImpl::getNativeHandle(InteropHandle* outNativeHandle)
-{
-    outNativeHandle->handleValue = 0;
-    return SLANG_FAIL;
 }
 
 } // namespace rhi::vk

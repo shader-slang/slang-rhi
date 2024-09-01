@@ -13,7 +13,7 @@ class DeviceImpl : public RendererBase
 {
 public:
     // Renderer    implementation
-    Result initVulkanInstanceAndDevice(const InteropHandle* handles, bool useValidationLayer);
+    Result initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer);
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
@@ -40,7 +40,7 @@ public:
         IBuffer** outBuffer
     );
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -110,7 +110,7 @@ public:
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
 
     ~DeviceImpl();
 

@@ -36,11 +36,11 @@ void PipelineImpl::init(const ComputePipelineDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-Result PipelineImpl::getNativeHandle(InteropHandle* outHandle)
+Result PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
-    outHandle->api = InteropHandleAPI::D3D12;
-    outHandle->handleValue = reinterpret_cast<uint64_t>(m_pipelineState.get());
+    outHandle->type = NativeHandleType::D3D12PipelineState;
+    outHandle->value = (uint64_t)(m_pipelineState.get());
     return SLANG_OK;
 }
 
@@ -358,11 +358,11 @@ void RayTracingPipelineImpl::init(const RayTracingPipelineDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-Result RayTracingPipelineImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
-    outHandle->api = InteropHandleAPI::D3D12;
-    outHandle->handleValue = reinterpret_cast<uint64_t>(m_stateObject.get());
+    outHandle->type = NativeHandleType::D3D12StateObject;
+    outHandle->value = (uint64_t)(m_stateObject.get());
     return SLANG_OK;
 }
 

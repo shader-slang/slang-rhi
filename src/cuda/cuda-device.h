@@ -25,7 +25,7 @@ private:
     std::string m_adapterName;
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
 
@@ -38,10 +38,10 @@ public:
     createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
+    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
-        InteropHandle handle,
+        NativeHandle handle,
         const TextureDesc& desc,
         const size_t size,
         ITexture** outTexture

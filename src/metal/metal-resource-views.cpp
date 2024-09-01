@@ -4,20 +4,18 @@ namespace rhi::metal {
 
 TextureViewImpl::~TextureViewImpl() {}
 
-Result TextureViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Metal;
-    outHandle->handleValue = reinterpret_cast<uintptr_t>(m_textureView.get());
+    outHandle->type = NativeHandleType::MTLTexture;
+    outHandle->value = (uint64_t)m_textureView.get();
     return SLANG_OK;
 }
 
 BufferViewImpl::~BufferViewImpl() {}
 
-Result BufferViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result BufferViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Metal;
-    outHandle->handleValue = reinterpret_cast<uintptr_t>(m_buffer->m_buffer.get());
-    return SLANG_OK;
+    return m_buffer->getNativeHandle(outHandle);
 }
 
 TexelBufferViewImpl::TexelBufferViewImpl(DeviceImpl* device)
@@ -27,9 +25,9 @@ TexelBufferViewImpl::TexelBufferViewImpl(DeviceImpl* device)
 
 TexelBufferViewImpl::~TexelBufferViewImpl() {}
 
-Result TexelBufferViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TexelBufferViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
@@ -37,9 +35,9 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return 0;
 }
 
-Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
+Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 AccelerationStructureImpl::~AccelerationStructureImpl() {}

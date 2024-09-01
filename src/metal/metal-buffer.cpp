@@ -16,15 +16,16 @@ DeviceAddress BufferImpl::getDeviceAddress()
     return m_buffer->gpuAddress();
 }
 
-Result BufferImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Metal;
-    outHandle->handleValue = reinterpret_cast<intptr_t>(m_buffer.get());
+    outHandle->type = NativeHandleType::MTLBuffer;
+    outHandle->value = (uint64_t)m_buffer.get();
     return SLANG_OK;
 }
 
-Result BufferImpl::getSharedHandle(InteropHandle* outHandle)
+Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
+    *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
 }
 

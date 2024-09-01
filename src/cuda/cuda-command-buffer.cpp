@@ -43,9 +43,10 @@ SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeRayTracingCommands(IRay
     *outEncoder = nullptr;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_FAIL;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 } // namespace rhi::cuda

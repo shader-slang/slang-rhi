@@ -57,12 +57,12 @@ DeviceImpl::~DeviceImpl()
 
     if (m_device != VK_NULL_HANDLE)
     {
-        if (m_desc.existingDeviceHandles.handles[2].handleValue == 0)
+        if (!m_desc.existingDeviceHandles.handles[2])
             m_api.vkDestroyDevice(m_device, nullptr);
         m_device = VK_NULL_HANDLE;
         if (m_debugReportCallback != VK_NULL_HANDLE)
             m_api.vkDestroyDebugReportCallbackEXT(m_api.m_instance, m_debugReportCallback, nullptr);
-        if (m_api.m_instance != VK_NULL_HANDLE && m_desc.existingDeviceHandles.handles[0].handleValue == 0)
+        if (m_api.m_instance != VK_NULL_HANDLE && !m_desc.existingDeviceHandles.handles[0])
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
 }
@@ -120,14 +120,14 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
         ->handleDebugMessage(flags, objType, srcObject, location, msgCode, pLayerPrefix, pMsg);
 }
 
-Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].handleValue = (uint64_t)m_api.m_instance;
-    outHandles->handles[0].api = InteropHandleAPI::Vulkan;
-    outHandles->handles[1].handleValue = (uint64_t)m_api.m_physicalDevice;
-    outHandles->handles[1].api = InteropHandleAPI::Vulkan;
-    outHandles->handles[2].handleValue = (uint64_t)m_api.m_device;
-    outHandles->handles[2].api = InteropHandleAPI::Vulkan;
+    outHandles->handles[0].type = NativeHandleType::VkInstance;
+    outHandles->handles[0].value = (uint64_t)m_api.m_instance;
+    outHandles->handles[1].type = NativeHandleType::VkPhysicalDevice;
+    outHandles->handles[1].value = (uint64_t)m_api.m_physicalDevice;
+    outHandles->handles[2].type = NativeHandleType::VkDevice;
+    outHandles->handles[2].value = (uint64_t)m_api.m_device;
     return SLANG_OK;
 }
 
@@ -141,7 +141,7 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, bool useValidationLayer)
+Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer)
 {
     m_features.clear();
 
@@ -164,7 +164,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
 
     VkInstance instance = VK_NULL_HANDLE;
-    if (handles[0].handleValue == 0)
+    if (!handles[0])
     {
         VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
         applicationInfo.pApplicationName = "slang-rhi";
@@ -283,7 +283,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
     else
     {
-        instance = (VkInstance)handles[0].handleValue;
+        if (handles[0].type != NativeHandleType::VkInstance)
+        {
+            return SLANG_FAIL;
+        }
+        instance = (VkInstance)handles[0].value;
     }
     if (!instance)
         return SLANG_FAIL;
@@ -304,7 +308,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    if (handles[1].handleValue == 0)
+    if (!handles[1])
     {
         uint32_t numPhysicalDevices = 0;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
@@ -340,7 +344,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
     else
     {
-        physicalDevice = (VkPhysicalDevice)handles[1].handleValue;
+        if (handles[1].type != NativeHandleType::VkPhysicalDevice)
+        {
+            return SLANG_FAIL;
+        }
+        physicalDevice = (VkPhysicalDevice)handles[1].value;
     }
 
     SLANG_RETURN_ON_FAIL(m_api.initPhysicalDevice(physicalDevice));
@@ -941,7 +949,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
 #endif
 
-    if (handles[2].handleValue == 0)
+    if (!handles[2])
     {
         float queuePriority = 0.0f;
         VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -959,7 +967,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
     else
     {
-        m_device = (VkDevice)handles[2].handleValue;
+        if (handles[2].type != NativeHandleType::VkDevice)
+        {
+            return SLANG_FAIL;
+        }
+        m_device = (VkDevice)handles[2].value;
     }
 
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
@@ -1981,13 +1993,13 @@ Result DeviceImpl::createBufferImpl(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc, this));
 
-    if (handle.api == InteropHandleAPI::Vulkan)
+    if (handle.type == NativeHandleType::VkBuffer)
     {
-        buffer->m_buffer.m_buffer = (VkBuffer)handle.handleValue;
+        buffer->m_buffer.m_buffer = (VkBuffer)handle.value;
     }
     else
     {

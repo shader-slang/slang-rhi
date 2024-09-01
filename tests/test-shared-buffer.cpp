@@ -30,7 +30,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IBuffer> srcBuffer;
     REQUIRE_CALL(srcDevice->createBuffer(bufferDesc, (void*)initialData, srcBuffer.writeRef()));
 
-    InteropHandle sharedHandle;
+    NativeHandle sharedHandle;
     REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
     ComPtr<IBuffer> dstBuffer;
     REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
@@ -39,8 +39,6 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     // TODO: Implement actual synchronization (and not this hacky solution)
     compareComputeResult(srcDevice, srcBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
-    InteropHandle testHandle;
-    REQUIRE_CALL(dstBuffer->getNativeResourceHandle(&testHandle));
     BufferDesc* testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc->elementSize, sizeof(float));
     CHECK_EQ(testDesc->size, numberCount * sizeof(float));

@@ -520,23 +520,57 @@ enum class MemoryType
     ReadBack,
 };
 
-enum class InteropHandleAPI
+enum class NativeHandleType
 {
-    Unknown,
-    D3D12,                    // A D3D12 object pointer.
-    Vulkan,                   // A general Vulkan object handle.
-    CUDA,                     // A general CUDA object handle.
-    Win32,                    // A general Win32 HANDLE.
-    FileDescriptor,           // A file descriptor.
-    DeviceAddress,            // A device address.
-    D3D12CpuDescriptorHandle, // A D3D12_CPU_DESCRIPTOR_HANDLE value.
-    Metal,                    // A general Metal object handle.
+    Unknown = 0x00000000,
+
+    Win32 = 0x00000001,
+    FileDescriptor = 0x00000002,
+
+    D3D12Device = 0x00020001,
+    D3D12CommandQueue = 0x00020002,
+    D3D12GraphicsCommandList = 0x00020003,
+    D3D12Resource = 0x00020004,
+    D3D12PipelineState = 0x00020005,
+    D3D12StateObject = 0x00020006,
+    D3D12CpuDescriptorHandle = 0x00020007,
+    D3D12Fence = 0x00020008,
+    D3D12DeviceAddress = 0x00020009,
+
+    VkDevice = 0x00030001,
+    VkPhysicalDevice = 0x00030002,
+    VkInstance = 0x00030003,
+    VkQueue = 0x00030004,
+    VkCommandBuffer = 0x00030005,
+    VkBuffer = 0x00030006,
+    VkImage = 0x00030007,
+    VkImageView = 0x00030008,
+    VkAccelerationStructureKHR = 0x00030009,
+    VkSampler = 0x0003000a,
+    VkPipeline = 0x0003000b,
+    VkSemaphore = 0x0003000c,
+
+    MTLDevice = 0x00040001,
+    MTLCommandQueue = 0x00040002,
+    MTLCommandBuffer = 0x00040003,
+    MTLTexture = 0x00040004,
+    MTLBuffer = 0x00040005,
+    MTLComputePipelineState = 0x00040006,
+    MTLRenderPipelineState = 0x00040007,
+    MTLSharedEvent = 0x00040008,
+    MTLSamplerState = 0x00040009,
+
+    CUdevice = 0x00050001,
+    CUdeviceptr = 0x00050002,
+    CUtexObject = 0x00050003,
 };
 
-struct InteropHandle
+struct NativeHandle
 {
-    InteropHandleAPI api = InteropHandleAPI::Unknown;
-    uint64_t handleValue = 0;
+    NativeHandleType type = NativeHandleType::Unknown;
+    uint64_t value = 0;
+
+    operator bool() const { return type != NativeHandleType::Unknown; }
 };
 
 // Declare opaque type
@@ -559,8 +593,8 @@ class IResource : public ISlangUnknown
     SLANG_COM_INTERFACE(0xa8dd4704, 0xf000, 0x4278, {0x83, 0x4d, 0x29, 0x4c, 0xef, 0xfe, 0x95, 0x93});
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
 };
 
 struct MemoryRange
@@ -584,7 +618,6 @@ struct BufferDesc
     ResourceState defaultState = ResourceState::Undefined;
     ResourceStateSet allowedStates = ResourceStateSet();
 
-    InteropHandle existingHandle = {};
     bool isShared = false;
 
     /// The name of the buffer for debugging purposes.
@@ -732,7 +765,6 @@ struct TextureDesc
     ResourceState defaultState = ResourceState::Undefined;
     ResourceStateSet allowedStates = ResourceStateSet();
     MemoryType memoryType = MemoryType::DeviceLocal;
-    InteropHandle existingHandle = {};
     bool isShared = false;
 
     Extents size;
@@ -821,7 +853,7 @@ public:
     /// Returns a native API handle representing this sampler state object.
     /// When using D3D12, this will be a D3D12_CPU_DESCRIPTOR_HANDLE.
     /// When using Vulkan, this will be a VkSampler.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
 class IResourceView : public ISlangUnknown
@@ -864,7 +896,7 @@ public:
     /// on the type of the resource view.
     /// When using Vulkan, this will be a VkImageView, VkBufferView, VkAccelerationStructure or a VkBuffer
     /// depending on the type of the resource view.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
 class IAccelerationStructure : public IResourceView
@@ -1044,8 +1076,8 @@ public:
     /// Signals the fence from the host with the specified value.
     virtual SLANG_NO_THROW Result SLANG_MCALL setCurrentValue(uint64_t value) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(InteropHandle* outHandle) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outNativeHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
 };
 
 struct ShaderOffset
@@ -1379,7 +1411,7 @@ class IPipeline : public ISlangUnknown
     SLANG_COM_INTERFACE(0x2ad83bfc, 0x581d, 0x4b88, {0x81, 0x3c, 0x0c, 0x0e, 0xaf, 0x04, 0x0a, 0x00});
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
 struct ScissorRect
@@ -1853,7 +1885,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL close() = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
 class ICommandBufferD3D12 : public ICommandBuffer
@@ -1879,9 +1911,6 @@ public:
         QueueType type;
     };
 
-    // For D3D12, this is the pointer to the queue. For Vulkan, this is the queue itself.
-    typedef uint64_t NativeHandle;
-
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeCommandBuffers(
@@ -1899,7 +1928,7 @@ public:
         executeCommandBuffers(1, &commandBuffer, fenceToSignal, newFenceValue);
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() = 0;
 
@@ -2163,9 +2192,9 @@ public:
         SlangLineDirectiveMode lineDirectiveMode = SLANG_LINE_DIRECTIVE_MODE_DEFAULT;
     };
 
-    struct InteropHandles
+    struct NativeHandles
     {
-        InteropHandle handles[3] = {};
+        NativeHandle handles[3] = {};
     };
 
     struct Desc
@@ -2173,10 +2202,10 @@ public:
         // The underlying API/Platform of the device.
         DeviceType deviceType = DeviceType::Default;
         // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
-        // InteropHandle for the ID3D12Device. For Vulkan, the first InteropHandle is the VkInstance, the second is the
+        // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
         // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this only contains a single value for the
         // CUDADevice.
-        InteropHandles existingDeviceHandles;
+        NativeHandles existingDeviceHandles;
         // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
         const AdapterLUID* adapterLUID = nullptr;
         // Number of required features.
@@ -2197,7 +2226,7 @@ public:
         void** extendedDescs = nullptr;
     };
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) = 0;
 
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
 
@@ -2256,10 +2285,10 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(InteropHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) = 0;
+    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
-        InteropHandle handle,
+        NativeHandle handle,
         const TextureDesc& srcDesc,
         const Size size,
         ITexture** outTexture
@@ -2277,10 +2306,10 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) = 0;
 

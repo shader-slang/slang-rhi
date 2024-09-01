@@ -15,7 +15,7 @@ public:
     ComPtr<ID3D12PipelineState> m_pipelineState;
     void init(const RenderPipelineDesc& inDesc);
     void init(const ComputePipelineDesc& inDesc);
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual Result ensureAPIPipelineCreated() override;
 };
 
@@ -27,7 +27,7 @@ public:
     DeviceImpl* m_device;
     RayTracingPipelineImpl(DeviceImpl* device);
     void init(const RayTracingPipelineDesc& inDesc);
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual Result ensureAPIPipelineCreated() override;
 };
 #endif

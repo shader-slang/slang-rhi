@@ -1,3 +1,5 @@
+- refactor NativeHandle to hold the actual type of the handle instead of just a category
+- rename InteropHandle -> NativeHandle
 - remove IResource::setDebugName/getDebugName, add label to BufferDesc and TextureDesc instead
 - rename IPipelineState -> IPipeline
 - rename IDevice::createRayTracingPipelineState -> IDevice::createRayTracingPipeline

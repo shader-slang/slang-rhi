@@ -49,7 +49,7 @@ public:
     RefPtr<Resource> m_resource;
     // null, unless this is a structuredbuffer with a separate counter buffer
     RefPtr<Resource> m_counterResource;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 #if SLANG_RHI_DXR
@@ -64,7 +64,7 @@ public:
 
 public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 #endif // SLANG_RHI_DXR

@@ -33,7 +33,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override;
 

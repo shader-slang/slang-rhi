@@ -15,13 +15,13 @@ DeviceAddress DebugBuffer::getDeviceAddress()
     return baseObject->getDeviceAddress();
 }
 
-Result DebugBuffer::getNativeResourceHandle(InteropHandle* outHandle)
+Result DebugBuffer::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getNativeResourceHandle(outHandle);
+    return baseObject->getNativeHandle(outHandle);
 }
 
-Result DebugBuffer::getSharedHandle(InteropHandle* outHandle)
+Result DebugBuffer::getSharedHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getSharedHandle(outHandle);

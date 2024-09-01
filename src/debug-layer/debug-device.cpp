@@ -37,7 +37,7 @@ Result DebugDevice::queryInterface(SlangUUID const& uuid, void** outObject) noex
     return baseObject->queryInterface(uuid, outObject);
 }
 
-Result DebugDevice::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DebugDevice::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     return baseObject->getNativeDeviceHandles(outHandles);
 }
@@ -103,7 +103,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
 }
 
 Result DebugDevice::createTextureFromNativeHandle(
-    InteropHandle handle,
+    NativeHandle handle,
     const TextureDesc& srcDesc,
     ITexture** outTexture
 )
@@ -119,7 +119,7 @@ Result DebugDevice::createTextureFromNativeHandle(
 }
 
 Result DebugDevice::createTextureFromSharedHandle(
-    InteropHandle handle,
+    NativeHandle handle,
     const TextureDesc& srcDesc,
     const size_t size,
     ITexture** outTexture
@@ -147,7 +147,7 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
     return result;
 }
 
-Result DebugDevice::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
@@ -159,7 +159,7 @@ Result DebugDevice::createBufferFromNativeHandle(InteropHandle handle, const Buf
     return result;
 }
 
-Result DebugDevice::createBufferFromSharedHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 

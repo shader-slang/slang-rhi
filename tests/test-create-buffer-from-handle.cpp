@@ -39,8 +39,8 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IBuffer> originalNumbersBuffer;
     REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, originalNumbersBuffer.writeRef()));
 
-    InteropHandle handle;
-    originalNumbersBuffer->getNativeResourceHandle(&handle);
+    NativeHandle handle;
+    originalNumbersBuffer->getNativeHandle(&handle);
     ComPtr<IBuffer> numbersBuffer;
     REQUIRE_CALL(device->createBufferFromNativeHandle(handle, bufferDesc, numbersBuffer.writeRef()));
     compareComputeResult(device, numbersBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));

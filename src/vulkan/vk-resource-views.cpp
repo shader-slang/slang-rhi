@@ -7,10 +7,10 @@ TextureViewImpl::~TextureViewImpl()
     m_device->m_api.vkDestroyImageView(m_device->m_api.m_device, m_view, nullptr);
 }
 
-Result TextureViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = (uint64_t)(m_view);
+    outHandle->type = NativeHandleType::VkImageView;
+    outHandle->value = (uint64_t)m_view;
     return SLANG_OK;
 }
 
@@ -24,10 +24,10 @@ TexelBufferViewImpl::~TexelBufferViewImpl()
     m_device->m_api.vkDestroyBufferView(m_device->m_api.m_device, m_view, nullptr);
 }
 
-Result TexelBufferViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result TexelBufferViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = (uint64_t)(m_view);
+    outHandle->type = NativeHandleType::VkImageView;
+    outHandle->value = (uint64_t)m_view;
     return SLANG_OK;
 }
 
@@ -36,9 +36,9 @@ PlainBufferViewImpl::PlainBufferViewImpl(DeviceImpl* device)
 {
 }
 
-Result PlainBufferViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result PlainBufferViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return m_buffer->getNativeResourceHandle(outHandle);
+    return m_buffer->getNativeHandle(outHandle);
 }
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
@@ -46,10 +46,10 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return m_buffer->getDeviceAddress() + m_offset;
 }
 
-Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
+Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = (uint64_t)(m_vkHandle);
+    outHandle->type = NativeHandleType::VkAccelerationStructureKHR;
+    outHandle->value = (uint64_t)m_vkHandle;
     return SLANG_OK;
 }
 

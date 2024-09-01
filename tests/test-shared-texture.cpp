@@ -164,7 +164,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
         // dstDevice. Read back the texture and check that its contents are correct.
         auto srcTexture = createTexture(srcDevice, size, Format::R32G32B32A32_FLOAT, &subData);
 
-        InteropHandle sharedHandle;
+        NativeHandle sharedHandle;
         REQUIRE_CALL(srcTexture->getSharedHandle(&sharedHandle));
         ComPtr<ITexture> dstTexture;
         size_t sizeInBytes = 0;

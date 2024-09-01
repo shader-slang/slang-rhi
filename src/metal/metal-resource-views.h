@@ -38,7 +38,7 @@ public:
     RefPtr<TextureImpl> m_texture;
     NS::SharedPtr<MTL::Texture> m_textureView;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 class BufferViewImpl : public ResourceViewImpl
@@ -53,7 +53,7 @@ public:
     Offset m_offset;
     Size m_size;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 class TexelBufferViewImpl : public ResourceViewImpl
@@ -62,7 +62,7 @@ public:
     TexelBufferViewImpl(DeviceImpl* device);
     ~TexelBufferViewImpl();
     RefPtr<BufferImpl> m_buffer;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 class AccelerationStructureImpl : public AccelerationStructureBase
@@ -73,7 +73,7 @@ public:
 
 public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     ~AccelerationStructureImpl();
 };
 

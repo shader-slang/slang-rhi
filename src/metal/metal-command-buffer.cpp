@@ -70,10 +70,10 @@ void CommandBufferImpl::close()
     // m_commandBuffer->commit();
 }
 
-Result CommandBufferImpl::getNativeHandle(InteropHandle* outHandle)
+Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Metal;
-    outHandle->handleValue = reinterpret_cast<intptr_t>(m_commandBuffer.get());
+    outHandle->type = NativeHandleType::MTLCommandBuffer;
+    outHandle->value = (uint64_t)m_commandBuffer.get();
     return SLANG_OK;
 }
 

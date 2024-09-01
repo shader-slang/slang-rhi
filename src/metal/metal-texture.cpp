@@ -11,15 +11,16 @@ TextureImpl::TextureImpl(const TextureDesc& desc, DeviceImpl* device)
 
 TextureImpl::~TextureImpl() {}
 
-Result TextureImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Metal;
-    outHandle->handleValue = reinterpret_cast<intptr_t>(m_texture.get());
+    outHandle->type = NativeHandleType::MTLTexture;
+    outHandle->value = (uint64_t)m_texture.get();
     return SLANG_OK;
 }
 
-Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
+Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
+    *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
 }
 

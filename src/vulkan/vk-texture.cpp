@@ -16,25 +16,25 @@ TextureImpl::~TextureImpl()
         vkAPI.vkFreeMemory(vkAPI.m_device, m_imageMemory, nullptr);
         vkAPI.vkDestroyImage(vkAPI.m_device, m_image, nullptr);
     }
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        CloseHandle((HANDLE)sharedHandle.handleValue);
+        CloseHandle((HANDLE)sharedHandle.value);
 #endif
     }
 }
 
-Result TextureImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = (uint64_t)m_image;
-    outHandle->api = InteropHandleAPI::Vulkan;
+    outHandle->type = NativeHandleType::VkImage;
+    outHandle->value = (uint64_t)m_image;
     return SLANG_OK;
 }
 
-Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
+Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
     // Check if a shared handle already exists for this resource.
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
         *outHandle = sharedHandle;
         return SLANG_OK;
@@ -55,9 +55,8 @@ Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(
-        vkCreateSharedHandle(m_device->m_device, &info, (HANDLE*)&outHandle->handleValue) != VK_SUCCESS
-    );
+    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (HANDLE*)&sharedHandle.value) != VK_SUCCESS);
+    sharedHandle.type = NativeHandleType::Win32;
 #else
     VkMemoryGetFdInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -72,9 +71,10 @@ Result TextureImpl::getSharedHandle(InteropHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (int*)&outHandle->handleValue) != VK_SUCCESS);
+    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (int*)&sharedHandle.value) != VK_SUCCESS);
+    sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
-    outHandle->api = InteropHandleAPI::Vulkan;
+    *outHandle = sharedHandle;
     return SLANG_OK;
 }
 

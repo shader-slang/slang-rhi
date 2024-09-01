@@ -28,10 +28,12 @@ namespace rhi::metal {
 
 DeviceImpl::~DeviceImpl() {}
 
-Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].api = InteropHandleAPI::Metal;
-    outHandles->handles[0].handleValue = reinterpret_cast<intptr_t>(m_device.get());
+    outHandles->handles[0].type = NativeHandleType::MTLDevice;
+    outHandles->handles[0].value = (uint64_t)m_device.get();
+    outHandles->handles[1] = {};
+    outHandles->handles[2] = {};
     return SLANG_OK;
 }
 
@@ -554,7 +556,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 

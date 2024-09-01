@@ -331,12 +331,11 @@ Result PipelineImpl::ensureAPIPipelineCreated()
         return SLANG_FAIL;
     }
 }
-SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = 0;
-    memcpy(&outHandle->handleValue, &m_pipeline, sizeof(m_pipeline));
+    outHandle->type = NativeHandleType::VkPipeline;
+    outHandle->value = (uint64_t)m_pipeline;
     return SLANG_OK;
 }
 
@@ -487,12 +486,11 @@ Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
         return SLANG_FAIL;
     }
 }
-Result RayTracingPipelineImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = 0;
-    memcpy(&outHandle->handleValue, &m_pipeline, sizeof(m_pipeline));
+    outHandle->type = NativeHandleType::VkPipeline;
+    outHandle->value = (uint64_t)m_pipeline;
     return SLANG_OK;
 }
 

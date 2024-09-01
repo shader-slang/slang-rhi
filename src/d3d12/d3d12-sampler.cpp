@@ -7,10 +7,10 @@ SamplerImpl::~SamplerImpl()
     m_allocator->free(m_descriptor);
 }
 
-Result SamplerImpl::getNativeHandle(InteropHandle* outHandle)
+Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::D3D12CpuDescriptorHandle;
-    outHandle->handleValue = m_descriptor.cpuHandle.ptr;
+    outHandle->type = NativeHandleType::D3D12CpuDescriptorHandle;
+    outHandle->value = m_descriptor.cpuHandle.ptr;
     return SLANG_OK;
 }
 

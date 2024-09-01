@@ -57,9 +57,10 @@ CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fence
     return SLANG_FAIL;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandQueueImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_FAIL;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 void CommandQueueImpl::setPipeline(IPipeline* state)

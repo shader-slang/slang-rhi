@@ -12,7 +12,7 @@ public:
     RefPtr<DeviceImpl> m_device;
     SamplerImpl(DeviceImpl* device);
     ~SamplerImpl();
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::vk

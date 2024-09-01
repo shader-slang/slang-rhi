@@ -29,16 +29,17 @@ Result FenceImpl::setCurrentValue(uint64_t value)
     return SLANG_OK;
 }
 
-Result FenceImpl::getSharedHandle(InteropHandle* outHandle)
+Result FenceImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_E_NOT_AVAILABLE;
+    outHandle->type = NativeHandleType::MTLSharedEvent;
+    outHandle->value = (uint64_t)m_event.get();
+    return SLANG_OK;
 }
 
-Result FenceImpl::getNativeHandle(InteropHandle* outNativeHandle)
+Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 {
-    outNativeHandle->api = InteropHandleAPI::Metal;
-    outNativeHandle->handleValue = reinterpret_cast<intptr_t>(m_event.get());
-    return SLANG_OK;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 } // namespace rhi::metal

@@ -152,10 +152,10 @@ void CommandBufferImpl::close()
     vkAPI.vkEndCommandBuffer(m_commandBuffer);
 }
 
-Result CommandBufferImpl::getNativeHandle(InteropHandle* outHandle)
+Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = (uint64_t)m_commandBuffer;
+    outHandle->type = NativeHandleType::VkCommandBuffer;
+    outHandle->value = (uint64_t)m_commandBuffer;
     return SLANG_OK;
 }
 

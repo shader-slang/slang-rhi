@@ -9,13 +9,13 @@ TextureDesc* DebugTexture::getDesc()
     return baseObject->getDesc();
 }
 
-Result DebugTexture::getNativeResourceHandle(InteropHandle* outHandle)
+Result DebugTexture::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getNativeResourceHandle(outHandle);
+    return baseObject->getNativeHandle(outHandle);
 }
 
-Result DebugTexture::getSharedHandle(InteropHandle* outHandle)
+Result DebugTexture::getSharedHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getSharedHandle(outHandle);

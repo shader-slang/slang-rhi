@@ -72,7 +72,7 @@ Result DebugCommandQueue::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence
     return baseObject->waitForFenceValuesOnDevice(fenceCount, innerFences.data(), waitValues);
 }
 
-Result DebugCommandQueue::getNativeHandle(InteropHandle* outHandle)
+Result DebugCommandQueue::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getNativeHandle(outHandle);

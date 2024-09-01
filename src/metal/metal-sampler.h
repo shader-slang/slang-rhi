@@ -15,7 +15,7 @@ public:
 
     Result init(DeviceImpl* device, const SamplerDesc& desc);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::metal

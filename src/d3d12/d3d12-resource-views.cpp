@@ -164,10 +164,10 @@ Result ResourceViewInternalImpl::getBufferDescriptorForBinding(
     return SLANG_OK;
 }
 
-Result ResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result ResourceViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::D3D12CpuDescriptorHandle;
-    outHandle->handleValue = m_descriptor.cpuHandle.ptr;
+    outHandle->type = NativeHandleType::D3D12CpuDescriptorHandle;
+    outHandle->value = m_descriptor.cpuHandle.ptr;
     return SLANG_OK;
 }
 
@@ -178,10 +178,10 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return m_buffer->getDeviceAddress() + m_offset;
 }
 
-Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
+Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::DeviceAddress;
-    outHandle->handleValue = getDeviceAddress();
+    outHandle->type = NativeHandleType::D3D12DeviceAddress;
+    outHandle->value = getDeviceAddress();
     return SLANG_OK;
 }
 

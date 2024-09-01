@@ -275,10 +275,12 @@ Result DeviceImpl::captureTextureToSurface(
     }
 }
 
-Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].handleValue = (uint64_t)m_device;
-    outHandles->handles[0].api = InteropHandleAPI::D3D12;
+    outHandles->handles[0].type = NativeHandleType::D3D12Device;
+    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[1] = {};
+    outHandles->handles[2] = {};
     return SLANG_OK;
 }
 
@@ -536,7 +538,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         return SLANG_FAIL;
     }
 
-    if (desc.existingDeviceHandles.handles[0].handleValue == 0)
+    if (!desc.existingDeviceHandles.handles[0])
     {
         FlagCombiner combiner;
         // TODO: we should probably provide a command-line option
@@ -579,8 +581,12 @@ Result DeviceImpl::initialize(const Desc& desc)
     }
     else
     {
+        if (desc.existingDeviceHandles.handles[0].type != NativeHandleType::D3D12Device)
+        {
+            return SLANG_FAIL;
+        }
         // Store the existing device handle in desc in m_deviceInfo
-        m_deviceInfo.m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].handleValue;
+        m_deviceInfo.m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].value;
     }
 
     // Set the device
@@ -1225,17 +1231,13 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureFromNativeHandle(
-    InteropHandle handle,
-    const TextureDesc& srcDesc,
-    ITexture** outTexture
-)
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
 {
     RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
 
-    if (handle.api == InteropHandleAPI::D3D12)
+    if (handle.type == NativeHandleType::D3D12Resource)
     {
-        texture->m_resource.setResource((ID3D12Resource*)handle.handleValue);
+        texture->m_resource.setResource((ID3D12Resource*)handle.value);
     }
     else
     {
@@ -1277,13 +1279,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(InteropHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
-    if (handle.api == InteropHandleAPI::D3D12)
+    if (handle.type == NativeHandleType::D3D12Resource)
     {
-        buffer->m_resource.setResource((ID3D12Resource*)handle.handleValue);
+        buffer->m_resource.setResource((ID3D12Resource*)handle.value);
     }
     else
     {

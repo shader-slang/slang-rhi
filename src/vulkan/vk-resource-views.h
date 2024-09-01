@@ -39,7 +39,7 @@ public:
     VkImageView m_view;
     VkImageLayout m_layout;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 class TexelBufferViewImpl : public ResourceViewImpl
@@ -49,7 +49,7 @@ public:
     ~TexelBufferViewImpl();
     RefPtr<BufferImpl> m_buffer;
     VkBufferView m_view;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 class PlainBufferViewImpl : public ResourceViewImpl
@@ -60,7 +60,7 @@ public:
     VkDeviceSize offset;
     VkDeviceSize size;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 class AccelerationStructureImpl : public AccelerationStructureBase
@@ -74,7 +74,7 @@ public:
 
 public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     ~AccelerationStructureImpl();
 };
 

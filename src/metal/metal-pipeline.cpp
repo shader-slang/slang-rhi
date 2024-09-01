@@ -213,20 +213,20 @@ Result PipelineImpl::ensureAPIPipelineCreated()
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     switch (desc.type)
     {
     case PipelineType::Compute:
-        outHandle->api = InteropHandleAPI::Metal;
-        outHandle->handleValue = reinterpret_cast<intptr_t>(m_computePipelineState.get());
+        outHandle->type = NativeHandleType::MTLComputePipelineState;
+        outHandle->value = (uint64_t)m_computePipelineState.get();
         return SLANG_OK;
     case PipelineType::Graphics:
-        outHandle->api = InteropHandleAPI::Metal;
-        outHandle->handleValue = reinterpret_cast<intptr_t>(m_renderPipelineState.get());
+        outHandle->type = NativeHandleType::MTLRenderPipelineState;
+        outHandle->value = (uint64_t)m_renderPipelineState.get();
         return SLANG_OK;
     }
-    return SLANG_FAIL;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
@@ -239,7 +239,7 @@ Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingPipelineImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
