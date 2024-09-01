@@ -1,4 +1,4 @@
-#include "debug-sampler-state.h"
+#include "debug-sampler.h"
 #include "debug-helper-functions.h"
 
 namespace rhi::debug {

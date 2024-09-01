@@ -10,7 +10,7 @@
 #include "debug-query.h"
 #include "debug-render-pass.h"
 #include "debug-resource-views.h"
-#include "debug-sampler-state.h"
+#include "debug-sampler.h"
 #include "debug-shader-object.h"
 #include "debug-shader-program.h"
 #include "debug-shader-table.h"
