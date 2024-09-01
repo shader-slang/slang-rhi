@@ -219,6 +219,7 @@ public:
     Buffer(const BufferDesc& desc)
         : m_desc(desc)
     {
+        m_descHolder.holdString(m_desc.label);
     }
 
     virtual SLANG_NO_THROW BufferDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
@@ -227,6 +228,7 @@ public:
 
 protected:
     BufferDesc m_desc;
+    StructHolder m_descHolder;
 };
 
 class Texture : public ITexture, public Resource
@@ -242,6 +244,7 @@ public:
     Texture(const TextureDesc& desc)
         : m_desc(desc)
     {
+        m_descHolder.holdString(m_desc.label);
     }
 
     virtual SLANG_NO_THROW TextureDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
@@ -250,6 +253,7 @@ public:
 
 protected:
     TextureDesc m_desc;
+    StructHolder m_descHolder;
 };
 
 class ResourceViewInternalBase : public ComObject

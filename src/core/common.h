@@ -17,6 +17,7 @@
 #include "smart-pointer.h"
 #include "span.h"
 #include "string.h"
+#include "struct-holder.h"
 
 namespace rhi {
 
