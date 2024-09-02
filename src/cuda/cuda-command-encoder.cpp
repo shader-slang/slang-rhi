@@ -165,10 +165,10 @@ void ComputeCommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+ComputeCommandEncoderImpl::bindPipeline(IComputePipeline* pipeline, IShaderObject** outRootObject)
 {
-    m_writer->setPipeline(state);
-    PipelineBase* pipelineImpl = static_cast<PipelineBase*>(state);
+    m_writer->setComputePipeline(pipeline);
+    ComputePipelineBase* pipelineImpl = static_cast<ComputePipelineBase*>(pipeline);
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );
@@ -177,10 +177,10 @@ ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRoo
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+ComputeCommandEncoderImpl::bindPipelineWithRootObject(IComputePipeline* pipeline, IShaderObject* rootObject)
 {
-    m_writer->setPipeline(state);
-    PipelineBase* pipelineImpl = static_cast<PipelineBase*>(state);
+    m_writer->setComputePipeline(pipeline);
+    ComputePipelineBase* pipelineImpl = static_cast<ComputePipelineBase*>(pipeline);
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );

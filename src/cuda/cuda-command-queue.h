@@ -37,7 +37,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
-    void setPipeline(IPipeline* state);
+    void setComputePipeline(IComputePipeline* pipeline);
 
     Result bindRootShaderObject(IShaderObject* object);
 

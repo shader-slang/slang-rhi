@@ -63,9 +63,9 @@ SLANG_NO_THROW Result SLANG_MCALL CommandQueueImpl::getNativeHandle(NativeHandle
     return SLANG_E_NOT_AVAILABLE;
 }
 
-void CommandQueueImpl::setPipeline(IPipeline* state)
+void CommandQueueImpl::setComputePipeline(IComputePipeline* pipeline)
 {
-    currentPipeline = dynamic_cast<ComputePipelineImpl*>(state);
+    currentPipeline = dynamic_cast<ComputePipelineImpl*>(pipeline);
 }
 
 Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
@@ -78,13 +78,9 @@ Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
 
 void CommandQueueImpl::dispatchCompute(int x, int y, int z)
 {
-    // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineBase> newPipeline;
-    renderer->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
-    currentPipeline = static_cast<ComputePipelineImpl*>(newPipeline.Ptr());
-
     // Find out thread group size from program reflection.
-    auto& kernelName = currentPipeline->shaderProgram->kernelName;
+    auto program = static_cast<ShaderProgramImpl*>(currentPipeline->getProgram<ShaderProgramImpl>());
+    auto& kernelName = program->kernelName;
     auto programLayout = static_cast<RootShaderObjectLayoutImpl*>(currentRootObject->getLayout());
     int kernelId = programLayout->getKernelIndex(kernelName);
     SLANG_RHI_ASSERT(kernelId != -1);
@@ -98,7 +94,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
         cuModuleGetGlobal(
             &globalParamsSymbol,
             &globalParamsSymbolSize,
-            currentPipeline->shaderProgram->cudaModule,
+            program->cudaModule,
             "SLANG_globalParams"
         );
 
@@ -124,7 +120,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     // set up, we can launch the kernel and see what happens.
     //
     auto cudaLaunchResult = cuLaunchKernel(
-        currentPipeline->shaderProgram->cudaKernel,
+        program->cudaKernel,
         x,
         y,
         z,
@@ -169,8 +165,8 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
     {
         switch (cmd.name)
         {
-        case CommandName::SetPipeline:
-            setPipeline(commandBuffer->getObject<PipelineBase>(cmd.operands[0]));
+        case CommandName::SetComputePipeline:
+            setComputePipeline(commandBuffer->getObject<ComputePipelineBase>(cmd.operands[0]));
             break;
         case CommandName::BindRootShaderObject:
             bindRootShaderObject(commandBuffer->getObject<ShaderObjectBase>(cmd.operands[0]));

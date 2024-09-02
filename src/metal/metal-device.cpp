@@ -759,7 +759,7 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     AUTORELEASEPOOL
 
@@ -769,7 +769,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipelin
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     AUTORELEASEPOOL
 
@@ -780,7 +780,7 @@ Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipel
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
+Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     AUTORELEASEPOOL
 

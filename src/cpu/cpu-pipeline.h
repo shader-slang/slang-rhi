@@ -4,12 +4,12 @@
 
 namespace rhi::cpu {
 
-class PipelineImpl : public PipelineBase
+class ComputePipelineImpl : public ComputePipelineBase
 {
 public:
     ShaderProgramImpl* getProgram();
 
-    void init(const ComputePipelineDesc& inDesc);
+    Result init(const ComputePipelineDesc& desc);
 };
 
 } // namespace rhi::cpu

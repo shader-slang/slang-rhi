@@ -1014,13 +1014,12 @@ DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
+DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
-    RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
-    state->shaderProgram = static_cast<ShaderProgramImpl*>(desc.program);
-    state->init(desc);
-    returnComPtr(outPipeline, state);
-    return Result();
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    SLANG_RETURN_ON_FAIL(pipeline->init(desc));
+    returnComPtr(outPipeline, pipeline);
+    return SLANG_OK;
 }
 
 void* DeviceImpl::map(IBuffer* buffer)
@@ -1105,7 +1104,7 @@ DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
+DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outPipeline);

@@ -5,16 +5,10 @@
 
 namespace rhi::cuda {
 
-class PipelineImpl : public PipelineBase
+class ComputePipelineImpl : public ComputePipelineBase
 {
 public:
-};
-
-class ComputePipelineImpl : public PipelineImpl
-{
-public:
-    RefPtr<ShaderProgramImpl> shaderProgram;
-    void init(const ComputePipelineDesc& inDesc);
+    Result init(const ComputePipelineDesc& desc);
 };
 
 } // namespace rhi::cuda

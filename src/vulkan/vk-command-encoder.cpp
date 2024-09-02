@@ -156,9 +156,9 @@ Result PipelineCommandEncoder::bindRootShaderObjectImpl(
     return SLANG_OK;
 }
 
-Result PipelineCommandEncoder::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
+Result PipelineCommandEncoder::setPipelineImpl(PipelineBase* pipeline, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
+    m_currentPipeline = pipeline;
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_renderer,
@@ -168,14 +168,14 @@ Result PipelineCommandEncoder::setPipelineImpl(IPipeline* state, IShaderObject**
     return SLANG_OK;
 }
 
-Result PipelineCommandEncoder::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
+Result PipelineCommandEncoder::setPipelineWithRootObjectImpl(PipelineBase* pipeline, IShaderObject* rootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
+    m_currentPipeline = pipeline;
     m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
 
-Result PipelineCommandEncoder::bindRenderState(VkPipelineBindPoint pipelineBindPoint)
+Result PipelineCommandEncoder::bindRenderState(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
 {
     auto& api = *m_api;
 
@@ -184,20 +184,13 @@ Result PipelineCommandEncoder::bindRenderState(VkPipelineBindPoint pipelineBindP
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
                                                ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
                                                : &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineBase> newPipeline;
-    SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
-
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
-    m_currentPipeline = newPipelineImpl;
-
     bindRootShaderObjectImpl(rootObjectImpl, pipelineBindPoint);
 
     auto pipelineBindPointId = getBindPointIndex(pipelineBindPoint);
-    if (m_boundPipelines[pipelineBindPointId] != newPipelineImpl->m_pipeline)
+    if (m_boundPipelines[pipelineBindPointId] != pipeline)
     {
-        api.vkCmdBindPipeline(m_vkCommandBuffer, pipelineBindPoint, newPipelineImpl->m_pipeline);
-        m_boundPipelines[pipelineBindPointId] = newPipelineImpl->m_pipeline;
+        api.vkCmdBindPipeline(m_vkCommandBuffer, pipelineBindPoint, pipeline);
+        m_boundPipelines[pipelineBindPointId] = pipeline;
     }
 
     return SLANG_OK;
@@ -980,14 +973,14 @@ void RenderCommandEncoder::endEncoding()
     endEncodingImpl();
 }
 
-Result RenderCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result RenderCommandEncoder::bindPipeline(IRenderPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineImpl(pipeline, outRootObject);
+    return setPipelineImpl(static_cast<RenderPipelineBase*>(pipeline), outRootObject);
 }
 
-Result RenderCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result RenderCommandEncoder::bindPipelineWithRootObject(IRenderPipeline* pipeline, IShaderObject* rootObject)
 {
-    return setPipelineWithRootObjectImpl(pipeline, rootObject);
+    return setPipelineWithRootObjectImpl(static_cast<RenderPipelineBase*>(pipeline), rootObject);
 }
 
 void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewports)
@@ -1100,12 +1093,12 @@ void RenderCommandEncoder::setIndexBuffer(IBuffer* buffer, Format indexFormat, O
 
 Result RenderCommandEncoder::prepareDraw()
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = static_cast<RenderPipelineImpl*>(m_currentPipeline.Ptr());
     if (!pipeline)
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_GRAPHICS));
+    SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->m_pipeline));
     return SLANG_OK;
 }
 
@@ -1247,26 +1240,24 @@ void ComputeCommandEncoder::endEncoding()
     endEncodingImpl();
 }
 
-Result ComputeCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result ComputeCommandEncoder::bindPipeline(IComputePipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineImpl(pipeline, outRootObject);
+    return setPipelineImpl(static_cast<ComputePipelineBase*>(pipeline), outRootObject);
 }
 
-Result ComputeCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result ComputeCommandEncoder::bindPipelineWithRootObject(IComputePipeline* pipeline, IShaderObject* rootObject)
 {
-    return setPipelineWithRootObjectImpl(pipeline, rootObject);
+    return setPipelineWithRootObjectImpl(static_cast<ComputePipelineBase*>(pipeline), rootObject);
 }
 
 Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = static_cast<ComputePipelineImpl*>(m_currentPipeline.Ptr());
     if (!pipeline)
     {
         return SLANG_FAIL;
     }
-
-    // Also create descriptor sets based on the given pipeline layout
-    SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_COMPUTE));
+    SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->m_pipeline));
     m_api->vkCmdDispatch(m_vkCommandBuffer, x, y, z);
     return SLANG_OK;
 }
@@ -1482,14 +1473,14 @@ void RayTracingCommandEncoder::deserializeAccelerationStructure(IAccelerationStr
     );
 }
 
-Result RayTracingCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result RayTracingCommandEncoder::bindPipeline(IRayTracingPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineImpl(pipeline, outRootObject);
+    return setPipelineImpl(static_cast<RayTracingPipelineBase*>(pipeline), outRootObject);
 }
 
-Result RayTracingCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result RayTracingCommandEncoder::bindPipelineWithRootObject(IRayTracingPipeline* pipeline, IShaderObject* rootObject)
 {
-    return setPipelineWithRootObjectImpl(pipeline, rootObject);
+    return setPipelineWithRootObjectImpl(static_cast<RayTracingPipelineBase*>(pipeline), rootObject);
 }
 
 Result RayTracingCommandEncoder::dispatchRays(
@@ -1500,11 +1491,15 @@ Result RayTracingCommandEncoder::dispatchRays(
     GfxCount depth
 )
 {
+    auto pipeline = static_cast<RayTracingPipelineImpl*>(m_currentPipeline.Ptr());
+    if (!pipeline)
+    {
+        return SLANG_FAIL;
+    }
+    SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->m_pipeline));
+
     auto vkApi = m_commandBuffer->m_renderer->m_api;
     auto vkCommandBuffer = m_commandBuffer->m_commandBuffer;
-
-    SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR));
-
     auto rtProps = vkApi.m_rtProperties;
     auto shaderTableImpl = (ShaderTableImpl*)shaderTable;
     auto alignedHandleSize = VulkanUtil::calcAligned(rtProps.shaderGroupHandleSize, rtProps.shaderGroupHandleAlignment);

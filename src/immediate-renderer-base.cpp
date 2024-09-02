@@ -280,12 +280,13 @@ public:
             m_writer->clearFrame(clearMask, clearDepth, clearStencil);
         }
 
-        virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
+        virtual SLANG_NO_THROW Result SLANG_MCALL
+        bindPipeline(IRenderPipeline* pipeline, IShaderObject** outRootObject) override
         {
-            m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
+            m_writer->setRenderPipeline(pipeline);
+            auto pipelineImpl = static_cast<RenderPipelineBase*>(pipeline);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
-                stateImpl->m_program,
+                pipelineImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
             *outRootObject = m_commandBuffer->m_rootShaderObject.Ptr();
@@ -293,12 +294,12 @@ public:
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
+        bindPipelineWithRootObject(IRenderPipeline* pipeline, IShaderObject* rootObject) override
         {
-            m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
+            m_writer->setRenderPipeline(pipeline);
+            auto pipelineImpl = static_cast<RenderPipelineBase*>(pipeline);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
-                stateImpl->m_program,
+                pipelineImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
             m_commandBuffer->m_rootShaderObject->copyFrom(rootObject, m_commandBuffer->m_transientHeap);
@@ -461,12 +462,13 @@ public:
     public:
         virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
 
-        virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
+        virtual SLANG_NO_THROW Result SLANG_MCALL
+        bindPipeline(IComputePipeline* pipeline, IShaderObject** outRootObject) override
         {
-            m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
+            m_writer->setComputePipeline(pipeline);
+            auto pipelineImpl = static_cast<ComputePipelineBase*>(pipeline);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
-                stateImpl->m_program,
+                pipelineImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
             *outRootObject = m_commandBuffer->m_rootShaderObject.Ptr();
@@ -474,12 +476,12 @@ public:
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL
-        bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
+        bindPipelineWithRootObject(IComputePipeline* pipeline, IShaderObject* rootObject) override
         {
-            m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
+            m_writer->setComputePipeline(pipeline);
+            auto pipelineImpl = static_cast<ComputePipelineBase*>(pipeline);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
-                stateImpl->m_program,
+                pipelineImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
             m_commandBuffer->m_rootShaderObject->copyFrom(rootObject, m_commandBuffer->m_transientHeap);
@@ -526,8 +528,11 @@ public:
             auto name = cmd.name;
             switch (name)
             {
-            case CommandName::SetPipeline:
-                m_renderer->setPipeline(m_writer.getObject<PipelineBase>(cmd.operands[0]));
+            case CommandName::SetRenderPipeline:
+                m_renderer->setRenderPipeline(m_writer.getObject<RenderPipelineBase>(cmd.operands[0]));
+                break;
+            case CommandName::SetComputePipeline:
+                m_renderer->setComputePipeline(m_writer.getObject<ComputePipelineBase>(cmd.operands[0]));
                 break;
             case CommandName::BindRootShaderObject:
                 m_renderer->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));

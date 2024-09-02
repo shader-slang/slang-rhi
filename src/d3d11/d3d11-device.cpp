@@ -1149,7 +1149,7 @@ void DeviceImpl::setVertexBuffers(
 {
     static const int kMaxVertexBuffers = 16;
     SLANG_RHI_ASSERT(slotCount <= kMaxVertexBuffers);
-    SLANG_RHI_ASSERT(m_currentPipeline); // The pipeline state should be created before setting vertex buffers.
+    SLANG_RHI_ASSERT(m_currentRenderPipeline); // The pipeline state should be created before setting vertex buffers.
 
     UINT vertexStrides[kMaxVertexBuffers];
     UINT vertexOffsets[kMaxVertexBuffers];
@@ -1159,7 +1159,7 @@ void DeviceImpl::setVertexBuffers(
 
     for (GfxIndex ii = 0; ii < slotCount; ++ii)
     {
-        auto inputLayout = (InputLayoutImpl*)m_currentPipeline->inputLayout.Ptr();
+        auto inputLayout = (InputLayoutImpl*)m_currentRenderPipeline->m_inputLayout.Ptr();
         vertexStrides[ii] = inputLayout->m_vertexStreamStrides[startSlot + ii];
         vertexOffsets[ii] = (UINT)offsetsIn[ii];
         dxBuffers[ii] = buffers[ii]->m_buffer;
@@ -1217,76 +1217,64 @@ void DeviceImpl::setScissorRects(GfxCount count, ScissorRect const* rects)
     m_immediateContext->RSSetScissorRects(UINT(count), dxRects);
 }
 
-void DeviceImpl::setPipeline(IPipeline* state)
+void DeviceImpl::setRenderPipeline(IRenderPipeline* pipeline)
 {
-    auto pipelineType = static_cast<PipelineBase*>(state)->desc.type;
+    auto pipelineImpl = static_cast<RenderPipelineImpl*>(pipeline);
+    auto programImpl = static_cast<ShaderProgramImpl*>(pipelineImpl->m_program.Ptr());
 
-    switch (pipelineType)
-    {
-    default:
-        break;
+    // TODO: We could conceivably do some lightweight state
+    // differencing here (e.g., check if `programImpl` is the
+    // same as the program that is currently bound).
+    //
+    // It isn't clear how much that would pay off given that
+    // the D3D11 runtime seems to do its own state diffing.
 
-    case PipelineType::Graphics:
-    {
-        auto stateImpl = (GraphicsPipelineImpl*)state;
-        auto programImpl = static_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
+    // IA
 
-        // TODO: We could conceivably do some lightweight state
-        // differencing here (e.g., check if `programImpl` is the
-        // same as the program that is currently bound).
-        //
-        // It isn't clear how much that would pay off given that
-        // the D3D11 runtime seems to do its own state diffing.
+    m_immediateContext->IASetInputLayout(pipelineImpl->m_inputLayout->m_layout);
 
-        // IA
+    // VS
 
-        m_immediateContext->IASetInputLayout(stateImpl->m_inputLayout->m_layout);
+    // TODO(tfoley): Why the conditional here? If somebody is trying to disable the VS or PS, shouldn't we respect
+    // that?
+    if (programImpl->m_vertexShader)
+        m_immediateContext->VSSetShader(programImpl->m_vertexShader, nullptr, 0);
 
-        // VS
+    // HS
 
-        // TODO(tfoley): Why the conditional here? If somebody is trying to disable the VS or PS, shouldn't we respect
-        // that?
-        if (programImpl->m_vertexShader)
-            m_immediateContext->VSSetShader(programImpl->m_vertexShader, nullptr, 0);
+    // DS
 
-        // HS
+    // GS
 
-        // DS
+    // RS
 
-        // GS
+    m_immediateContext->RSSetState(pipelineImpl->m_rasterizerState);
 
-        // RS
+    // PS
+    if (programImpl->m_pixelShader)
+        m_immediateContext->PSSetShader(programImpl->m_pixelShader, nullptr, 0);
 
-        m_immediateContext->RSSetState(stateImpl->m_rasterizerState);
+    // OM
 
-        // PS
-        if (programImpl->m_pixelShader)
-            m_immediateContext->PSSetShader(programImpl->m_pixelShader, nullptr, 0);
+    m_immediateContext
+        ->OMSetBlendState(pipelineImpl->m_blendState, pipelineImpl->m_blendColor, pipelineImpl->m_sampleMask);
 
-        // OM
+    m_currentRenderPipeline = pipelineImpl;
+    m_currentComputePipeline = nullptr;
 
-        m_immediateContext->OMSetBlendState(stateImpl->m_blendState, stateImpl->m_blendColor, stateImpl->m_sampleMask);
+    m_depthStencilStateDirty = true;
+}
 
-        m_currentPipeline = stateImpl;
+void DeviceImpl::setComputePipeline(IComputePipeline* pipeline)
+{
+    auto pipelineImpl = static_cast<ComputePipelineImpl*>(pipeline);
+    auto programImpl = static_cast<ShaderProgramImpl*>(pipelineImpl->m_program.Ptr());
 
-        m_depthStencilStateDirty = true;
-    }
-    break;
+    // CS
 
-    case PipelineType::Compute:
-    {
-        auto stateImpl = (ComputePipelineImpl*)state;
-        auto programImpl = static_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
-
-        // CS
-
-        m_immediateContext->CSSetShader(programImpl->m_computeShader, nullptr, 0);
-        m_currentPipeline = stateImpl;
-    }
-    break;
-    }
-
-    /// ...
+    m_immediateContext->CSSetShader(programImpl->m_computeShader, nullptr, 0);
+    m_currentComputePipeline = pipelineImpl;
+    m_currentRenderPipeline = nullptr;
 }
 
 void DeviceImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
@@ -1476,10 +1464,6 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
 void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
 {
     RootShaderObjectImpl* rootShaderObjectImpl = static_cast<RootShaderObjectImpl*>(shaderObject);
-    RefPtr<PipelineBase> specializedPipeline;
-    maybeSpecializePipeline(m_currentPipeline, rootShaderObjectImpl, specializedPipeline);
-    PipelineImpl* specializedPipelineImpl = static_cast<PipelineImpl*>(specializedPipeline.Ptr());
-    setPipeline(specializedPipelineImpl);
 
     // In order to bind the root object we must compute its specialized layout.
     //
@@ -1496,9 +1480,7 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
     // D3D11 calls. We deal with that distinction here by instantiating an
     // appropriate subtype of `BindingContext` based on the pipeline type.
     //
-    switch (m_currentPipeline->desc.type)
-    {
-    case PipelineType::Compute:
+    if (m_currentComputePipeline)
     {
         ComputeBindingContext context(this, m_immediateContext);
         rootShaderObjectImpl->bindAsRoot(&context, specializedRootLayoutImpl);
@@ -1509,8 +1491,8 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
         //
         m_immediateContext->CSSetUnorderedAccessViews(0, context.uavCount, context.uavs, nullptr);
     }
-    break;
-    default:
+
+    if (m_currentRenderPipeline)
     {
         GraphicsBindingContext context(this, m_immediateContext);
         rootShaderObjectImpl->bindAsRoot(&context, specializedRootLayoutImpl);
@@ -1565,14 +1547,10 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
             nullptr
         );
     }
-    break;
-    }
 }
 
-Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipeline** outPipeline)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
-    RenderPipelineDesc desc = inDesc;
-
     auto programImpl = (ShaderProgramImpl*)desc.program;
 
     ComPtr<ID3D11DepthStencilState> depthStencilState;
@@ -1676,7 +1654,8 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
     }
 
-    RefPtr<GraphicsPipelineImpl> pipeline = new GraphicsPipelineImpl();
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    SLANG_RETURN_ON_FAIL(pipeline->init(desc));
     pipeline->m_depthStencilState = depthStencilState;
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
@@ -1687,18 +1666,15 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
     pipeline->m_blendColor[2] = 0;
     pipeline->m_blendColor[3] = 0;
     pipeline->m_sampleMask = 0xFFFFFFFF;
-    pipeline->init(desc);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& inDesc, IPipeline** outPipeline)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
-    ComputePipelineDesc desc = inDesc;
-
-    RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
-    state->init(desc);
-    returnComPtr(outPipeline, state);
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    SLANG_RETURN_ON_FAIL(pipeline->init(desc));
+    returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
 
@@ -1724,7 +1700,7 @@ void DeviceImpl::_flushGraphicsState()
     if (m_depthStencilStateDirty)
     {
         m_depthStencilStateDirty = false;
-        auto pipeline = static_cast<GraphicsPipelineImpl*>(m_currentPipeline.Ptr());
+        auto pipeline = static_cast<RenderPipelineImpl*>(m_currentRenderPipeline.Ptr());
         m_immediateContext->OMSetDepthStencilState(pipeline->m_depthStencilState, m_stencilRef);
     }
 }

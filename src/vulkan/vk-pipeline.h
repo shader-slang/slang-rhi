@@ -7,51 +7,43 @@
 
 namespace rhi::vk {
 
-class PipelineImpl : public PipelineBase
+class RenderPipelineImpl : public RenderPipelineBase
 {
 public:
-    PipelineImpl(DeviceImpl* device);
-    ~PipelineImpl();
-
-    // Turns `m_device` into a strong reference.
-    // This method should be called before returning the pipeline state object to
-    // external users (i.e. via an `IPipeline` pointer).
-    void establishStrongDeviceReference();
-
-    virtual void comFree() override;
-
-    void init(const RenderPipelineDesc& inDesc);
-    void init(const ComputePipelineDesc& inDesc);
-    void init(const RayTracingPipelineDesc& inDesc);
-
-    Result createVKGraphicsPipeline();
-
-    Result createVKComputePipeline();
-
-    virtual Result ensureAPIPipelineCreated() override;
-
+    RenderPipelineImpl(DeviceImpl* device);
+    virtual ~RenderPipelineImpl() override;
+    Result init(const RenderPipelineDesc& desc);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
-    BreakableReference<DeviceImpl> m_device;
-
+    RefPtr<DeviceImpl> m_device;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 };
 
-class RayTracingPipelineImpl : public PipelineImpl
+class ComputePipelineImpl : public ComputePipelineBase
 {
 public:
-    std::map<std::string, Index> shaderGroupNameToIndex;
-    Int shaderGroupCount;
-
-    RayTracingPipelineImpl(DeviceImpl* device);
-
-    uint32_t findEntryPointIndexByName(const std::map<std::string, Index>& entryPointNameToIndex, const char* name);
-
-    Result createVKRayTracingPipeline();
-
-    virtual Result ensureAPIPipelineCreated() override;
-
+    ComputePipelineImpl(DeviceImpl* device);
+    virtual ~ComputePipelineImpl() override;
+    Result init(const ComputePipelineDesc& desc);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    RefPtr<DeviceImpl> m_device;
+    VkPipeline m_pipeline = VK_NULL_HANDLE;
+};
+
+class RayTracingPipelineImpl : public RayTracingPipelineBase
+{
+public:
+    RayTracingPipelineImpl(DeviceImpl* device);
+    virtual ~RayTracingPipelineImpl() override;
+    Result init(const RayTracingPipelineDesc& desc);
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    RefPtr<DeviceImpl> m_device;
+    VkPipeline m_pipeline = VK_NULL_HANDLE;
+
+    std::map<std::string, Index> m_shaderGroupNameToIndex;
+    Int m_shaderGroupCount;
 };
 
 } // namespace rhi::vk

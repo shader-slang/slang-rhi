@@ -4,17 +4,15 @@
 
 namespace rhi::cpu {
 
-ShaderProgramImpl* PipelineImpl::getProgram()
+ShaderProgramImpl* ComputePipelineImpl::getProgram()
 {
     return static_cast<ShaderProgramImpl*>(m_program.Ptr());
 }
 
-void PipelineImpl::init(const ComputePipelineDesc& inDesc)
+Result ComputePipelineImpl::init(const ComputePipelineDesc& desc)
 {
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::Compute;
-    pipelineDesc.compute = inDesc;
-    initializeBase(pipelineDesc);
+    SLANG_RETURN_ON_FAIL(ComputePipelineBase::init(desc));
+    ComputePipelineBase::init(desc);
 }
 
 } // namespace rhi::cpu

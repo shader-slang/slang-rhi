@@ -45,7 +45,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     stagingBuffer->map(nullptr, &stagingPtr);
 
     std::vector<uint8_t> handles;
-    auto handleCount = pipelineImpl->shaderGroupCount;
+    auto handleCount = pipelineImpl->m_shaderGroupCount;
     auto totalHandleSize = handleSize * handleCount;
     handles.resize(totalHandleSize);
     auto result = vkApi.vkGetRayTracingShaderGroupHandlesKHR(
@@ -68,8 +68,8 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * rtProps.shaderGroupBaseAlignment;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipelineImpl->shaderGroupNameToIndex.end())
+        auto it = pipelineImpl->m_shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->m_shaderGroupNameToIndex.end())
             continue;
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
@@ -82,8 +82,8 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * handleSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipelineImpl->shaderGroupNameToIndex.end())
+        auto it = pipelineImpl->m_shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->m_shaderGroupNameToIndex.end())
             continue;
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
@@ -95,8 +95,8 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * handleSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipelineImpl->shaderGroupNameToIndex.end())
+        auto it = pipelineImpl->m_shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->m_shaderGroupNameToIndex.end())
             continue;
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
@@ -108,8 +108,8 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     {
         auto dstHandlePtr = subTablePtr + i * handleSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipelineImpl->shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipelineImpl->shaderGroupNameToIndex.end())
+        auto it = pipelineImpl->m_shaderGroupNameToIndex.find(shaderGroupName);
+        if (it == pipelineImpl->m_shaderGroupNameToIndex.end())
             continue;
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;

@@ -4,31 +4,38 @@
 
 namespace rhi::d3d12 {
 
-class PipelineImpl : public PipelineBase
+class RenderPipelineImpl : public RenderPipelineBase
 {
 public:
-    PipelineImpl(DeviceImpl* device)
-        : m_device(device)
-    {
-    }
-    DeviceImpl* m_device;
-    ComPtr<ID3D12PipelineState> m_pipelineState;
-    void init(const RenderPipelineDesc& inDesc);
-    void init(const ComputePipelineDesc& inDesc);
+    RenderPipelineImpl(DeviceImpl* device);
+    Result init(const RenderPipelineDesc& inDesc);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual Result ensureAPIPipelineCreated() override;
+
+    RefPtr<DeviceImpl> m_device;
+    ComPtr<ID3D12PipelineState> m_pipelineState;
+};
+
+class ComputePipelineImpl : public ComputePipelineBase
+{
+public:
+    ComputePipelineImpl(DeviceImpl* device);
+    Result init(const ComputePipelineDesc& desc);
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    RefPtr<DeviceImpl> m_device;
+    ComPtr<ID3D12PipelineState> m_pipelineState;
 };
 
 #if SLANG_RHI_DXR
-class RayTracingPipelineImpl : public PipelineBase
+class RayTracingPipelineImpl : public RayTracingPipelineBase
 {
 public:
-    ComPtr<ID3D12StateObject> m_stateObject;
-    DeviceImpl* m_device;
     RayTracingPipelineImpl(DeviceImpl* device);
-    void init(const RayTracingPipelineDesc& inDesc);
+    Result init(const RayTracingPipelineDesc& inDesc);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual Result ensureAPIPipelineCreated() override;
+
+    RefPtr<DeviceImpl> m_device;
+    ComPtr<ID3D12StateObject> m_stateObject;
 };
 #endif
 

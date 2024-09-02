@@ -57,9 +57,9 @@ public:
         ISlangBlob** outDiagnosticBlob
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
+    createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
 
     virtual void* map(IBuffer* buffer, MapFlavor flavor) override;
     virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
@@ -79,7 +79,8 @@ public:
     virtual void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset) override;
     virtual void setViewports(GfxCount count, Viewport const* viewports) override;
     virtual void setScissorRects(GfxCount count, ScissorRect const* rects) override;
-    virtual void setPipeline(IPipeline* state) override;
+    virtual void setRenderPipeline(IRenderPipeline* pipeline) override;
+    virtual void setComputePipeline(IComputePipeline* pipeline) override;
     virtual void draw(GfxCount vertexCount, GfxIndex startVertex) override;
     virtual void drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex) override;
     virtual void drawInstanced(
@@ -118,7 +119,8 @@ public:
     ComPtr<IDXGIFactory> m_dxgiFactory;
     RefPtr<FramebufferImpl> m_currentFramebuffer;
 
-    RefPtr<PipelineImpl> m_currentPipeline;
+    RefPtr<RenderPipelineImpl> m_currentRenderPipeline;
+    RefPtr<ComputePipelineImpl> m_currentComputePipeline;
 
     ComPtr<ID3D11Query> m_disjointQuery;
 

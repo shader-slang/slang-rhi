@@ -2,20 +2,14 @@
 
 namespace rhi::d3d11 {
 
-void GraphicsPipelineImpl::init(const RenderPipelineDesc& inDesc)
+Result RenderPipelineImpl::init(const RenderPipelineDesc& desc)
 {
-    PipelineBase::PipelineStateDesc pipelineDesc;
-    pipelineDesc.graphics = inDesc;
-    pipelineDesc.type = PipelineType::Graphics;
-    initializeBase(pipelineDesc);
+    return RenderPipelineBase::init(desc);
 }
 
-void ComputePipelineImpl::init(const ComputePipelineDesc& inDesc)
+Result ComputePipelineImpl::init(const ComputePipelineDesc& desc)
 {
-    PipelineBase::PipelineStateDesc pipelineDesc;
-    pipelineDesc.compute = inDesc;
-    pipelineDesc.type = PipelineType::Compute;
-    initializeBase(pipelineDesc);
+    return ComputePipelineBase::init(desc);
 }
 
 } // namespace rhi::d3d11

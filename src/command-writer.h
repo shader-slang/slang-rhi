@@ -12,7 +12,8 @@ namespace rhi {
 
 enum class CommandName
 {
-    SetPipeline,
+    SetRenderPipeline,
+    SetComputePipeline,
     BindRootShaderObject,
     SetFramebuffer,
     ClearFrame,
@@ -123,10 +124,16 @@ public:
         return reinterpret_cast<T*>(m_data.data() + offset);
     }
 
-    void setPipeline(IPipeline* state)
+    void setRenderPipeline(IRenderPipeline* pipeline)
     {
-        auto offset = encodeObject(static_cast<PipelineBase*>(state));
-        m_commands.push_back(Command(CommandName::SetPipeline, (uint32_t)offset));
+        auto offset = encodeObject(static_cast<RenderPipelineBase*>(pipeline));
+        m_commands.push_back(Command(CommandName::SetRenderPipeline, (uint32_t)offset));
+    }
+
+    void setComputePipeline(IComputePipeline* pipeline)
+    {
+        auto offset = encodeObject(static_cast<ComputePipelineBase*>(pipeline));
+        m_commands.push_back(Command(CommandName::SetComputePipeline, (uint32_t)offset));
     }
 
     void bindRootShaderObject(IShaderObject* object)

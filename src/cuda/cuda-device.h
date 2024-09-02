@@ -76,7 +76,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
 
     void* map(IBuffer* buffer);
 
@@ -111,7 +111,7 @@ public:
     createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
+    createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)

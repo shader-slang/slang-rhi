@@ -2,12 +2,9 @@
 
 namespace rhi::cuda {
 
-void ComputePipelineImpl::init(const ComputePipelineDesc& inDesc)
+Result ComputePipelineImpl::init(const ComputePipelineDesc& desc)
 {
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::Compute;
-    pipelineDesc.compute = inDesc;
-    initializeBase(pipelineDesc);
+    return ComputePipelineBase::init(desc);
 }
 
 } // namespace rhi::cuda

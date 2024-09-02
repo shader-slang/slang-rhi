@@ -16,6 +16,9 @@ const Guid GUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
 const Guid GUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
 const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
 const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
+const Guid GUID::IID_IRenderPipeline = IRenderPipeline::getTypeGuid();
+const Guid GUID::IID_IComputePipeline = IComputePipeline::getTypeGuid();
+const Guid GUID::IID_IRayTracingPipeline = IRayTracingPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
 const Guid GUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
@@ -230,43 +233,73 @@ IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IPipeline* PipelineBase::getInterface(const Guid& guid)
+Result PipelineBase::init(ShaderProgramBase* program)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline)
-        return static_cast<IPipeline*>(this);
+    if (program->isSpecializable())
+    {
+        return SLANG_FAIL;
+    }
+    m_program = program;
+    return SLANG_OK;
+}
+
+IRenderPipeline* RenderPipelineBase::getInterface(const Guid& guid)
+{
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IRenderPipeline)
+        return static_cast<IRenderPipeline*>(this);
     return nullptr;
 }
 
-Result PipelineBase::getNativeHandle(NativeHandle* outHandle)
+Result RenderPipelineBase::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
+Result RenderPipelineBase::init(const RenderPipelineDesc& desc)
 {
-    desc = inDesc;
+    SLANG_RETURN_ON_FAIL(PipelineBase::init(static_cast<ShaderProgramBase*>(desc.program)));
+    m_inputLayout = static_cast<InputLayoutBase*>(desc.inputLayout);
+    m_framebufferLayout = static_cast<FramebufferLayoutBase*>(desc.framebufferLayout);
+    return SLANG_OK;
+}
 
-    auto program = desc.getProgram();
-    m_program = program;
-    isSpecializable = false;
-    if (program->slangGlobalScope && program->slangGlobalScope->getSpecializationParamCount() != 0)
-        isSpecializable = true;
-    for (auto& entryPoint : program->slangEntryPoints)
-    {
-        if (entryPoint->getSpecializationParamCount() != 0)
-        {
-            isSpecializable = true;
-            break;
-        }
-    }
-    // Hold a strong reference to inputLayout and framebufferLayout objects to prevent it from
-    // destruction.
-    if (inDesc.type == PipelineType::Graphics)
-    {
-        inputLayout = static_cast<InputLayoutBase*>(inDesc.graphics.inputLayout);
-        framebufferLayout = static_cast<FramebufferLayoutBase*>(inDesc.graphics.framebufferLayout);
-    }
+IComputePipeline* ComputePipelineBase::getInterface(const Guid& guid)
+{
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IComputePipeline)
+        return static_cast<IComputePipeline*>(this);
+    return nullptr;
+}
+
+Result ComputePipelineBase::getNativeHandle(NativeHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result ComputePipelineBase::init(const ComputePipelineDesc& desc)
+{
+    SLANG_RETURN_ON_FAIL(PipelineBase::init(static_cast<ShaderProgramBase*>(desc.program)));
+    return SLANG_OK;
+}
+
+IRayTracingPipeline* RayTracingPipelineBase::getInterface(const Guid& guid)
+{
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IRayTracingPipeline)
+        return static_cast<IRayTracingPipeline*>(this);
+    return nullptr;
+}
+
+Result RayTracingPipelineBase::getNativeHandle(NativeHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result RayTracingPipelineBase::init(const RayTracingPipelineDesc& desc)
+{
+    SLANG_RETURN_ON_FAIL(PipelineBase::init(static_cast<ShaderProgramBase*>(desc.program)));
+    return SLANG_OK;
 }
 
 Result RendererBase::getEntryPointCodeFromShaderCache(
@@ -595,7 +628,7 @@ Result RendererBase::createShaderTable(const IShaderTable::Desc& desc, IShaderTa
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
+Result RendererBase::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outPipeline);
@@ -1008,113 +1041,6 @@ bool ShaderProgramBase::isMeshShaderProgram() const
                 return true;
     }
     return false;
-}
-
-Result RendererBase::maybeSpecializePipeline(
-    PipelineBase* currentPipeline,
-    ShaderObjectBase* rootObject,
-    RefPtr<PipelineBase>& outNewPipeline
-)
-{
-    outNewPipeline = static_cast<PipelineBase*>(currentPipeline);
-
-    auto pipelineType = currentPipeline->desc.type;
-    if (currentPipeline->unspecializedPipeline)
-        currentPipeline = currentPipeline->unspecializedPipeline;
-    // If the currently bound pipeline is specializable, we need to specialize it based on bound shader objects.
-    if (currentPipeline->isSpecializable)
-    {
-        specializationArgs.clear();
-        SLANG_RETURN_ON_FAIL(rootObject->collectSpecializationArgs(specializationArgs));
-
-        // Construct a shader cache key that represents the specialized shader kernels.
-        PipelineKey pipelineKey;
-        pipelineKey.pipeline = currentPipeline;
-        for (const auto& componentID : specializationArgs.componentIDs)
-        {
-            pipelineKey.specializationArgs.push_back(componentID);
-        }
-        pipelineKey.updateHash();
-
-        RefPtr<PipelineBase> specializedPipeline = shaderCache.getSpecializedPipeline(pipelineKey);
-        // Try to find specialized pipeline from shader cache.
-        if (!specializedPipeline)
-        {
-            auto unspecializedProgram = static_cast<ShaderProgramBase*>(
-                pipelineType == PipelineType::Compute ? currentPipeline->desc.compute.program
-                                                      : currentPipeline->desc.graphics.program
-            );
-            auto unspecializedProgramLayout = unspecializedProgram->linkedProgram->getLayout();
-
-            ComPtr<slang::IComponentType> specializedComponentType;
-            ComPtr<slang::IBlob> diagnosticBlob;
-            auto compileRs = unspecializedProgram->linkedProgram->specialize(
-                specializationArgs.components.data(),
-                specializationArgs.getCount(),
-                specializedComponentType.writeRef(),
-                diagnosticBlob.writeRef()
-            );
-            if (diagnosticBlob)
-            {
-                getDebugCallback()->handleMessage(
-                    compileRs == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
-                    DebugMessageSource::Slang,
-                    (char*)diagnosticBlob->getBufferPointer()
-                );
-            }
-            SLANG_RETURN_ON_FAIL(compileRs);
-
-            // Now create the specialized shader program using compiled binaries.
-            ComPtr<IShaderProgram> specializedProgram;
-            IShaderProgram::Desc specializedProgramDesc = unspecializedProgram->desc;
-            specializedProgramDesc.slangGlobalScope = specializedComponentType;
-
-            if (specializedProgramDesc.linkingStyle == IShaderProgram::LinkingStyle::SingleProgram)
-            {
-                // When linking style is GraphicsCompute, the specialized global scope already contains
-                // entry-points, so we do not need to supply them again when creating the specialized
-                // pipeline.
-                specializedProgramDesc.entryPointCount = 0;
-            }
-            SLANG_RETURN_ON_FAIL(createProgram(specializedProgramDesc, specializedProgram.writeRef()));
-
-            // Create specialized pipeline state.
-            ComPtr<IPipeline> specializedPipelineComPtr;
-            switch (pipelineType)
-            {
-            case PipelineType::Compute:
-            {
-                auto pipelineDesc = currentPipeline->desc.compute;
-                pipelineDesc.program = specializedProgram;
-                SLANG_RETURN_ON_FAIL(createComputePipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
-                break;
-            }
-            case PipelineType::Graphics:
-            {
-                auto pipelineDesc = currentPipeline->desc.graphics;
-                pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(createRenderPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
-                break;
-            }
-            case PipelineType::RayTracing:
-            {
-                auto pipelineDesc = currentPipeline->desc.rayTracing;
-                pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc.get(), specializedPipelineComPtr.writeRef())
-                );
-                break;
-            }
-            default:
-                break;
-            }
-            specializedPipeline = static_cast<PipelineBase*>(specializedPipelineComPtr.get());
-            specializedPipeline->unspecializedPipeline = currentPipeline;
-            shaderCache.addSpecializedPipeline(pipelineKey, specializedPipeline);
-        }
-        auto specializedPipelineBase = static_cast<PipelineBase*>(specializedPipeline.Ptr());
-        outNewPipeline = specializedPipelineBase;
-    }
-    return SLANG_OK;
 }
 
 IDebugCallback*& _getDebugCallback()

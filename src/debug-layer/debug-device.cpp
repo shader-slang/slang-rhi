@@ -493,7 +493,7 @@ Result DebugDevice::createProgram2(
     return result;
 }
 
-Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
+Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
@@ -501,7 +501,7 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IPipeli
     innerDesc.program = getInnerObj(desc.program);
     innerDesc.inputLayout = getInnerObj(desc.inputLayout);
     innerDesc.framebufferLayout = getInnerObj(desc.framebufferLayout);
-    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    RefPtr<DebugRenderPipeline> outObject = new DebugRenderPipeline();
     auto result = baseObject->createRenderPipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
@@ -509,14 +509,13 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IPipeli
     return result;
 }
 
-Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
+Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
     ComputePipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
-
-    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    RefPtr<DebugComputePipeline> outObject = new DebugComputePipeline();
     auto result = baseObject->createComputePipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
@@ -524,14 +523,13 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IPipe
     return result;
 }
 
-Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
+Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
     RayTracingPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
-
-    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    RefPtr<DebugRayTracingPipeline> outObject = new DebugRayTracingPipeline();
     auto result = baseObject->createRayTracingPipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;

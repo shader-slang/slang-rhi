@@ -131,10 +131,11 @@ public:
 
     void init(CommandBufferImpl* cmdBuffer);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    bindPipeline(IComputePipeline* pipeline, IShaderObject** outRootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override;
+    bindPipelineWithRootObject(IComputePipeline* pipeline, IShaderObject* rootObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override;
 

@@ -4,13 +4,33 @@
 
 namespace rhi::debug {
 
-class DebugPipeline : public DebugObject<IPipeline>
+class DebugRenderPipeline : public DebugObject<IRenderPipeline>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
 public:
-    IPipeline* getInterface(const Guid& guid);
+    IRenderPipeline* getInterface(const Guid& guid);
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
+
+class DebugComputePipeline : public DebugObject<IComputePipeline>
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL;
+
+public:
+    IComputePipeline* getInterface(const Guid& guid);
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
+
+class DebugRayTracingPipeline : public DebugObject<IRayTracingPipeline>
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL;
+
+public:
+    IRayTracingPipeline* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

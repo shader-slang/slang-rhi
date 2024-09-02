@@ -1414,6 +1414,27 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
+class IRenderPipeline : public IPipeline
+{
+    SLANG_COM_INTERFACE(0x93d0c872, 0x4268, 0x428f, {0xbc, 0x1f, 0x3f, 0xf9, 0x4a, 0x24, 0x72, 0x17});
+
+public:
+};
+
+class IComputePipeline : public IPipeline
+{
+    SLANG_COM_INTERFACE(0xc07449ec, 0x3b82, 0x42b0, {0xb9, 0xdc, 0x98, 0x08, 0x70, 0xe4, 0x1b, 0xf2});
+
+public:
+};
+
+class IRayTracingPipeline : public IPipeline
+{
+    SLANG_COM_INTERFACE(0xe6078d78, 0x3bd3, 0x40e8, {0x90, 0x42, 0x3b, 0x5e, 0x0c, 0x45, 0xde, 0x1f});
+
+public:
+};
+
 struct ScissorRect
 {
     int32_t minX;
@@ -1681,22 +1702,23 @@ class IRenderCommandEncoder : public IResourceCommandEncoder
     SLANG_COM_INTERFACE(0xa2be110e, 0xaed7, 0x43b6, {0x90, 0x01, 0x77, 0x79, 0x1f, 0xea, 0x1d, 0x40});
 
 public:
-    // Sets the current pipeline state. This method returns a transient shader object for
+    // Sets the current pipeline. This method returns a transient shader object for
     // writing shader parameters. This shader object will not retain any resources or
     // sub-shader-objects bound to it. The user must be responsible for ensuring that any
     // resources or shader objects that is set into `outRootShaderObject` stays alive during
     // the execution of the command buffer.
-    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) = 0;
-    inline IShaderObject* bindPipeline(IPipeline* state)
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    bindPipeline(IRenderPipeline* pipeline, IShaderObject** outRootShaderObject) = 0;
+    inline IShaderObject* bindPipeline(IRenderPipeline* pipeline)
     {
         IShaderObject* rootObject = nullptr;
-        SLANG_RETURN_NULL_ON_FAIL(bindPipeline(state, &rootObject));
+        SLANG_RETURN_NULL_ON_FAIL(bindPipeline(pipeline, &rootObject));
         return rootObject;
     }
 
-    // Sets the current pipeline state along with a pre-created mutable root shader object.
+    // Sets the current pipeline along with a pre-created mutable root shader object.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
+    bindPipelineWithRootObject(IRenderPipeline* pipeline, IShaderObject* rootObject) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setViewports(GfxCount count, const Viewport* viewports) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL setScissorRects(GfxCount count, const ScissorRect* scissors) = 0;
@@ -1761,21 +1783,22 @@ class IComputeCommandEncoder : public IResourceCommandEncoder
     SLANG_COM_INTERFACE(0x46261132, 0xa7f6, 0x439b, {0x82, 0x6b, 0x1e, 0xaf, 0xf2, 0xae, 0xae, 0xa6});
 
 public:
-    // Sets the current pipeline state. This method returns a transient shader object for
+    // Sets the current pipeline. This method returns a transient shader object for
     // writing shader parameters. This shader object will not retain any resources or
     // sub-shader-objects bound to it. The user must be responsible for ensuring that any
     // resources or shader objects that is set into `outRooShaderObject` stays alive during
     // the execution of the command buffer.
-    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) = 0;
-    inline IShaderObject* bindPipeline(IPipeline* state)
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    bindPipeline(IComputePipeline* pipeline, IShaderObject** outRootShaderObject) = 0;
+    inline IShaderObject* bindPipeline(IComputePipeline* pipeline)
     {
         IShaderObject* rootObject = nullptr;
-        SLANG_RETURN_NULL_ON_FAIL(bindPipeline(state, &rootObject));
+        SLANG_RETURN_NULL_ON_FAIL(bindPipeline(pipeline, &rootObject));
         return rootObject;
     }
-    // Sets the current pipeline state along with a pre-created mutable root shader object.
+    // Sets the current pipeline along with a pre-created mutable root shader object.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
+    bindPipelineWithRootObject(IComputePipeline* pipeline, IShaderObject* rootObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* cmdBuffer, Offset offset) = 0;
 };
@@ -1821,10 +1844,11 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) = 0;
-    // Sets the current pipeline state along with a pre-created mutable root shader object.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
+    bindPipeline(IRayTracingPipeline* pipeline, IShaderObject** outRootObject) = 0;
+    // Sets the current pipeline along with a pre-created mutable root shader object.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    bindPipelineWithRootObject(IRayTracingPipeline* pipeline, IShaderObject* rootObject) = 0;
 
     /// Issues a dispatch command to start ray tracing workload with a ray tracing pipeline.
     /// `rayGenShaderIndex` specifies the index into the shader table that identifies the ray generation shader.
@@ -2479,27 +2503,34 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) = 0;
+    createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) = 0;
 
-    inline ComPtr<IPipeline> createRenderPipeline(const RenderPipelineDesc& desc)
+    inline ComPtr<IRenderPipeline> createRenderPipeline(const RenderPipelineDesc& desc)
     {
-        ComPtr<IPipeline> pipeline;
+        ComPtr<IRenderPipeline> pipeline;
         SLANG_RETURN_NULL_ON_FAIL(createRenderPipeline(desc, pipeline.writeRef()));
         return pipeline;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) = 0;
+    createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) = 0;
 
-    inline ComPtr<IPipeline> createComputePipeline(const ComputePipelineDesc& desc)
+    inline ComPtr<IComputePipeline> createComputePipeline(const ComputePipelineDesc& desc)
     {
-        ComPtr<IPipeline> pipeline;
+        ComPtr<IComputePipeline> pipeline;
         SLANG_RETURN_NULL_ON_FAIL(createComputePipeline(desc, pipeline.writeRef()));
         return pipeline;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) = 0;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) = 0;
+
+    inline ComPtr<IRayTracingPipeline> createRayTracingPipeline(const RayTracingPipelineDesc& desc)
+    {
+        ComPtr<IRayTracingPipeline> pipeline;
+        SLANG_RETURN_NULL_ON_FAIL(createRayTracingPipeline(desc, pipeline.writeRef()));
+        return pipeline;
+    }
 
     /// Read back texture resource and stores the result in `outBlob`.
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTexture(

@@ -167,12 +167,12 @@ DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
+DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
-    RefPtr<PipelineImpl> state = new PipelineImpl();
-    state->init(desc);
-    returnComPtr(outPipeline, state);
-    return Result();
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    SLANG_RETURN_ON_FAIL(pipeline->init(desc));
+    returnComPtr(outPipeline, pipeline);
+    return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
@@ -215,9 +215,14 @@ void DeviceImpl::unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten
     SLANG_UNUSED(sizeWritten);
 }
 
-void DeviceImpl::setPipeline(IPipeline* state)
+void DeviceImpl::setRenderPipeline(IRenderPipeline* pipeline)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
+    SLANG_UNUSED(pipeline);
+}
+
+void DeviceImpl::setComputePipeline(IComputePipeline* pipeline)
+{
+    m_currentPipeline = static_cast<ComputePipelineImpl*>(pipeline);
 }
 
 void DeviceImpl::bindRootShaderObject(IShaderObject* object)
@@ -229,11 +234,6 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
 {
     int entryPointIndex = 0;
     int targetIndex = 0;
-
-    // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineBase> newPipeline;
-    maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
-    m_currentPipeline = static_cast<PipelineImpl*>(newPipeline.Ptr());
 
     auto program = m_currentPipeline->getProgram();
     auto entryPointLayout = m_currentRootObject->getLayout()->getEntryPoint(entryPointIndex);

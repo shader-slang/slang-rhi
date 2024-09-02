@@ -1946,18 +1946,18 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
+    RefPtr<RenderPipelineImpl> pipelineImpl = new RenderPipelineImpl(this);
+    SLANG_RETURN_ON_FAIL(pipelineImpl->init(desc));
     returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
+    RefPtr<ComputePipelineImpl> pipelineImpl = new ComputePipelineImpl(this);
+    SLANG_RETURN_ON_FAIL(pipelineImpl->init(desc));
     returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
@@ -2126,7 +2126,7 @@ Result DeviceImpl::createAccelerationStructure(
 #endif
 }
 
-Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& inDesc, IPipeline** outPipeline)
+Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     if (!m_device5)
     {
@@ -2134,7 +2134,7 @@ Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& inDesc
     }
 
     RefPtr<RayTracingPipelineImpl> pipelineImpl = new RayTracingPipelineImpl(this);
-    pipelineImpl->init(inDesc);
+    SLANG_RETURN_ON_FAIL(pipelineImpl->init(desc));
     returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }

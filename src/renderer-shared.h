@@ -23,6 +23,9 @@ struct GUID
     static const Guid IID_IShaderProgram;
     static const Guid IID_ITransientResourceHeap;
     static const Guid IID_IPipeline;
+    static const Guid IID_IRenderPipeline;
+    static const Guid IID_IComputePipeline;
+    static const Guid IID_IRayTracingPipeline;
     static const Guid IID_IResourceView;
     static const Guid IID_IFramebuffer;
     static const Guid IID_IFramebufferLayout;
@@ -843,15 +846,6 @@ public:
     IQueryPool::Desc m_desc;
 };
 
-enum class PipelineType
-{
-    Unknown,
-    Graphics,
-    Compute,
-    RayTracing,
-    CountOf,
-};
-
 struct OwnedHitGroupDesc
 {
     std::string hitGroupName;
@@ -925,57 +919,58 @@ struct OwnedRayTracingPipelineDesc
     }
 };
 
-class PipelineBase : public IPipeline, public ComObject
+class PipelineBase : public ComObject
 {
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IPipeline* getInterface(const Guid& guid);
-
-    struct PipelineStateDesc
-    {
-        PipelineType type;
-        RenderPipelineDesc graphics;
-        ComputePipelineDesc compute;
-        OwnedRayTracingPipelineDesc rayTracing;
-        ShaderProgramBase* getProgram()
-        {
-            switch (type)
-            {
-            case PipelineType::Compute:
-                return static_cast<ShaderProgramBase*>(compute.program);
-            case PipelineType::Graphics:
-                return static_cast<ShaderProgramBase*>(graphics.program);
-            case PipelineType::RayTracing:
-                return static_cast<ShaderProgramBase*>(rayTracing.program);
-            }
-            return nullptr;
-        }
-    } desc;
-
-    // We need to hold inputLayout and framebufferLayout objects alive, since we may use it to
-    // create specialized pipeline states later.
-    RefPtr<InputLayoutBase> inputLayout;
-    RefPtr<FramebufferLayoutBase> framebufferLayout;
-
-    // The pipeline state from which this pipeline state is specialized.
-    // If null, this pipeline is either an unspecialized pipeline.
-    RefPtr<PipelineBase> unspecializedPipeline = nullptr;
-
-    // Indicates whether this is a specializable pipeline. A specializable
-    // pipeline cannot be used directly and must be specialized first.
-    bool isSpecializable = false;
     RefPtr<ShaderProgramBase> m_program;
+
     template<typename TProgram>
     TProgram* getProgram()
     {
         return static_cast<TProgram*>(m_program.Ptr());
     }
 
+protected:
+    Result init(ShaderProgramBase* program);
+};
+
+class RenderPipelineBase : public IRenderPipeline, public PipelineBase
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IRenderPipeline* getInterface(const Guid& guid);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual Result ensureAPIPipelineCreated() { return SLANG_OK; };
+
+    RefPtr<InputLayoutBase> m_inputLayout;
+    RefPtr<FramebufferLayoutBase> m_framebufferLayout;
 
 protected:
-    void initializeBase(const PipelineStateDesc& inDesc);
+    Result init(const RenderPipelineDesc& desc);
+};
+
+class ComputePipelineBase : public IComputePipeline, public PipelineBase
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IComputePipeline* getInterface(const Guid& guid);
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+protected:
+    Result init(const ComputePipelineDesc& desc);
+};
+
+class RayTracingPipelineBase : public IRayTracingPipeline, public PipelineBase
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IRayTracingPipeline* getInterface(const Guid& guid);
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+protected:
+    Result init(const RayTracingPipelineDesc& desc);
 };
 
 struct ComponentKey
@@ -1235,7 +1230,7 @@ public:
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -1279,14 +1274,6 @@ public:
 
 public:
     ExtendedShaderObjectTypeList specializationArgs;
-    // Given current pipeline and root shader object binding, generate and bind a specialized pipeline if necessary.
-    // The newly specialized pipeline is held alive by the pipeline cache so users of `outNewPipeline` do not
-    // need to maintain its lifespan.
-    Result maybeSpecializePipeline(
-        PipelineBase* currentPipeline,
-        ShaderObjectBase* rootObject,
-        RefPtr<PipelineBase>& outNewPipeline
-    );
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
