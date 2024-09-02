@@ -136,3 +136,11 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
+
+#define SKIP(msg)                                                                                                      \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        MESSAGE("Skipping (" msg ")");                                                                                 \
+        return;                                                                                                        \
+    }                                                                                                                  \
+    while (0)

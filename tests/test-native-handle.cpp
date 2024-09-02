@@ -10,9 +10,8 @@ using namespace rhi::testing;
 void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
-        return;
+        SKIP("not supported with swiftshader");
 
     const int numberCount = 1;
     BufferDesc bufferDesc = {};
@@ -55,9 +54,8 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
-        return;
+        SKIP("not supported with swiftshader");
 
     TextureDesc desc = {};
     desc.type = TextureType::Texture2D;
@@ -95,9 +93,8 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
-        return;
+        SKIP("not supported with swiftshader");
 
     ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
     auto queue = device->createCommandQueue(queueDesc);
@@ -125,9 +122,8 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
 void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    // TODO_TESTING better way to skip test
     if (isSwiftShaderDevice(device))
-        return;
+        SKIP("not supported with swiftshader");
 
     // We need to create a transient heap in order to create a command buffer.
     ComPtr<ITransientResourceHeap> transientHeap;
