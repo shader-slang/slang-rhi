@@ -176,7 +176,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        ComPtr<IPipeline> pipeline;
+        ComPtr<IComputePipeline> pipeline;
         REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
         // We have done all the set up work, now it is time to start recording a command buffer for
@@ -340,7 +340,7 @@ struct RenderTargetTests : BaseTextureViewTest
     int sampleCount = 1;
 
     ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IRenderPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 

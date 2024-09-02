@@ -59,7 +59,7 @@ struct BaseResolveResourceTest
     ComPtr<ITexture> dstTexture;
 
     ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IRenderPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 

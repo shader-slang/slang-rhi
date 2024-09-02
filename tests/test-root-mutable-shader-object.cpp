@@ -19,7 +19,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};

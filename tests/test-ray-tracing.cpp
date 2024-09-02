@@ -47,7 +47,7 @@ struct BaseRayTracingTest
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ICommandQueue> queue;
 
-    ComPtr<IPipeline> raytracingPipeline;
+    ComPtr<IRayTracingPipeline> raytracingPipeline;
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IBuffer> indexBuffer;
     ComPtr<IBuffer> transformBuffer;

@@ -29,7 +29,7 @@ struct SwapchainResizeTest
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<gfx::IFramebufferLayout> framebufferLayout;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IRenderPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     List<ComPtr<IFramebuffer>> framebuffers;
 

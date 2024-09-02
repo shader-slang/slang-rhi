@@ -8,7 +8,7 @@ struct Shader
     ComPtr<IShaderProgram> program;
     slang::ProgramLayout* reflection = nullptr;
     ComputePipelineDesc pipelineDesc = {};
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
 };
 
 struct Buffer
@@ -82,7 +82,6 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
-        auto resourceEncoder = commandBuffer->encodeResourceCommands();
 
         // Write inputBuffer data to intermediateBuffer
         auto rootObjectA = encoder->bindPipeline(programA.pipeline);
@@ -94,8 +93,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
         // Insert barrier to ensure writes to intermediateBuffer are complete before the next shader starts executing
         auto bufferPtr = intermediateBuffer.buffer.get();
-        resourceEncoder->bufferBarrier(1, &bufferPtr, ResourceState::UnorderedAccess, ResourceState::ShaderResource);
-        resourceEncoder->endEncoding();
+        encoder->bufferBarrier(1, &bufferPtr, ResourceState::UnorderedAccess, ResourceState::ShaderResource);
 
         // Write intermediateBuffer to outputBuffer
         auto rootObjectB = encoder->bindPipeline(programB.pipeline);

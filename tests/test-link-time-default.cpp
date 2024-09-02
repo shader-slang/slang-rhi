@@ -121,7 +121,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     // Create pipeline with a specialization override module linked in, so we should
@@ -131,7 +131,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc1 = {};
     pipelineDesc1.program = shaderProgram1.get();
-    ComPtr<IPipeline> pipeline1;
+    ComPtr<IComputePipeline> pipeline1;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc1, pipeline1.writeRef()));
 
     const int numberCount = 4;

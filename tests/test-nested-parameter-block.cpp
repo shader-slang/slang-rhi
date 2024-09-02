@@ -47,7 +47,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     ComPtr<IShaderObject> shaderObject;

@@ -92,7 +92,7 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;

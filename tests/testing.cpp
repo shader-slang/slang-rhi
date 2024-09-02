@@ -114,9 +114,9 @@ Result loadComputeProgram(
     IShaderProgram::Desc programDesc = {};
     programDesc.slangGlobalScope = composedProgram.get();
 
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
+    result = device->createProgram(programDesc, outShaderProgram.writeRef(), diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    SLANG_RETURN_ON_FAIL(result);
     return SLANG_OK;
 }
 

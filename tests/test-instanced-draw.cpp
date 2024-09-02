@@ -102,7 +102,7 @@ public:
     ComPtr<IDevice> device;
 
     ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IRenderPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
