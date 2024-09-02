@@ -13,12 +13,12 @@ class PipelineCommandEncoder : public ComObject
 public:
     CommandBufferImpl* m_commandBuffer;
     MTL::CommandBuffer* m_metalCommandBuffer;
-    RefPtr<PipelineImpl> m_currentPipeline;
+    RefPtr<PipelineBase> m_currentPipeline;
 
     void init(CommandBufferImpl* commandBuffer);
     void endEncodingImpl();
 
-    Result setPipelineImpl(IPipeline* pipeline, IShaderObject** outRootObject);
+    Result setPipelineImpl(PipelineBase* pipeline, IShaderObject** outRootObject);
 };
 
 class ResourceCommandEncoder : public IResourceCommandEncoder, public PipelineCommandEncoder

@@ -763,8 +763,8 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IRenderP
 {
     AUTORELEASEPOOL
 
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
+    RefPtr<RenderPipelineImpl> pipelineImpl = new RenderPipelineImpl(this);
+    SLANG_RETURN_ON_FAIL(pipelineImpl->init(desc));
     returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
@@ -773,9 +773,8 @@ Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, ICompu
 {
     AUTORELEASEPOOL
 
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    RefPtr<ComputePipelineImpl> pipelineImpl = new ComputePipelineImpl(this);
+    SLANG_RETURN_ON_FAIL(pipelineImpl->init(desc));
     returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }

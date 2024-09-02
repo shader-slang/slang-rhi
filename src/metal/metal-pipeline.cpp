@@ -7,42 +7,25 @@
 
 namespace rhi::metal {
 
-PipelineImpl::PipelineImpl(DeviceImpl* device)
+RenderPipelineImpl::RenderPipelineImpl(DeviceImpl* device)
     : m_device(device)
 {
 }
 
-PipelineImpl::~PipelineImpl() {}
+RenderPipelineImpl::~RenderPipelineImpl() {}
 
-void PipelineImpl::init(const RenderPipelineDesc& desc)
+Result RenderPipelineImpl::init(const RenderPipelineDesc& desc)
 {
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::Graphics;
-    pipelineDesc.graphics = desc;
-    initializeBase(pipelineDesc);
-}
+    SLANG_RETURN_ON_FAIL(RenderPipelineBase::init(desc));
 
-void PipelineImpl::init(const ComputePipelineDesc& desc)
-{
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::Compute;
-    pipelineDesc.compute = desc;
-    initializeBase(pipelineDesc);
-}
+    m_rasterizerDesc = desc.rasterizer;
+    m_depthStencilDesc = desc.depthStencil;
 
-void PipelineImpl::init(const RayTracingPipelineDesc& desc)
-{
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::RayTracing;
-    pipelineDesc.rayTracing.set(desc);
-    initializeBase(pipelineDesc);
-}
-
-Result PipelineImpl::createMetalRenderPipelineState()
-{
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (!programImpl)
-        return SLANG_FAIL;
+    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.get());
+    if (programImpl->m_modules.empty())
+    {
+        SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
+    }
 
     NS::SharedPtr<MTL::RenderPipelineDescriptor> pd = NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
 
@@ -70,15 +53,15 @@ Result PipelineImpl::createMetalRenderPipelineState()
     // They need to be in a range not used by any buffers in the root object layout.
     // The +1 is to account for a potential constant buffer at index 0.
     m_vertexBufferOffset = programImpl->m_rootObjectLayout->getBufferCount() + 1;
-    auto inputLayoutImpl = static_cast<InputLayoutImpl*>(desc.graphics.inputLayout);
+    auto inputLayoutImpl = static_cast<InputLayoutImpl*>(desc.inputLayout);
     NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor =
         inputLayoutImpl->createVertexDescriptor(m_vertexBufferOffset);
     pd->setVertexDescriptor(vertexDescriptor.get());
-    pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveType));
+    pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.primitiveType));
 
     // Set rasterization state
-    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-    const auto& blend = desc.graphics.blend;
+    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout);
+    const auto& blend = desc.blend;
     GfxCount sampleCount = 1;
 
     pd->setAlphaToCoverageEnabled(blend.alphaToCoverageEnable);
@@ -147,7 +130,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
         return stencilDesc;
     };
 
-    const auto& depthStencil = desc.graphics.depthStencil;
+    const auto& depthStencil = desc.depthStencil;
     NS::SharedPtr<MTL::DepthStencilDescriptor> depthStencilDesc =
         NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
     m_depthStencilState = NS::TransferPtr(m_device->m_device->newDepthStencilState(depthStencilDesc.get()));
@@ -173,11 +156,29 @@ Result PipelineImpl::createMetalRenderPipelineState()
     return SLANG_OK;
 }
 
-Result PipelineImpl::createMetalComputePipelineState()
+Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (!programImpl)
-        return SLANG_FAIL;
+    outHandle->type = NativeHandleType::MTLRenderPipelineState;
+    outHandle->value = (uint64_t)m_renderPipelineState.get();
+    return SLANG_OK;
+}
+
+ComputePipelineImpl::ComputePipelineImpl(DeviceImpl* device)
+    : m_device(device)
+{
+}
+
+ComputePipelineImpl::~ComputePipelineImpl() {}
+
+Result ComputePipelineImpl::init(const ComputePipelineDesc& desc)
+{
+    SLANG_RETURN_ON_FAIL(ComputePipelineBase::init(desc));
+
+    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.get());
+    if (programImpl->m_modules.empty())
+    {
+        SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
+    }
 
     const ShaderProgramImpl::Module& module = programImpl->m_modules[0];
     auto functionName = MetalUtil::createString(module.entryPointName.data());
@@ -196,52 +197,11 @@ Result PipelineImpl::createMetalComputePipelineState()
     return m_computePipelineState ? SLANG_OK : SLANG_FAIL;
 }
 
-Result PipelineImpl::ensureAPIPipelineCreated()
+Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    AUTORELEASEPOOL
-
-    switch (desc.type)
-    {
-    case PipelineType::Compute:
-        return m_computePipelineState ? SLANG_OK : createMetalComputePipelineState();
-    case PipelineType::Graphics:
-        return m_renderPipelineState ? SLANG_OK : createMetalRenderPipelineState();
-    default:
-        SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
-        return SLANG_FAIL;
-    }
+    outHandle->type = NativeHandleType::MTLComputePipelineState;
+    outHandle->value = (uint64_t)m_computePipelineState.get();
     return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    switch (desc.type)
-    {
-    case PipelineType::Compute:
-        outHandle->type = NativeHandleType::MTLComputePipelineState;
-        outHandle->value = (uint64_t)m_computePipelineState.get();
-        return SLANG_OK;
-    case PipelineType::Graphics:
-        outHandle->type = NativeHandleType::MTLRenderPipelineState;
-        outHandle->value = (uint64_t)m_renderPipelineState.get();
-        return SLANG_OK;
-    }
-    return SLANG_E_NOT_AVAILABLE;
-}
-
-RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
-    : PipelineImpl(device)
-{
-}
-
-Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
-{
-    return SLANG_E_NOT_IMPLEMENTED;
-}
-
-Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    return SLANG_E_NOT_IMPLEMENTED;
 }
 
 } // namespace rhi::metal

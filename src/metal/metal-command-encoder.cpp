@@ -24,9 +24,9 @@ void PipelineCommandEncoder::endEncodingImpl()
     m_commandBuffer->endMetalCommandEncoder();
 }
 
-Result PipelineCommandEncoder::setPipelineImpl(IPipeline* pipeline, IShaderObject** outRootObject)
+Result PipelineCommandEncoder::setPipelineImpl(PipelineBase* pipeline, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(pipeline);
+    m_currentPipeline = pipeline;
     // m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
@@ -277,7 +277,7 @@ void RenderCommandEncoder::endEncoding()
 
 Result RenderCommandEncoder::bindPipeline(IRenderPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineImpl(pipeline, outRootObject);
+    return setPipelineImpl(static_cast<RenderPipelineImpl*>(pipeline), outRootObject);
 }
 
 Result RenderCommandEncoder::bindPipelineWithRootObject(IRenderPipeline* pipeline, IShaderObject* rootObject)
@@ -373,8 +373,7 @@ Result RenderCommandEncoder::setSamplePositions(
 
 Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
-    pipeline->ensureAPIPipelineCreated();
+    auto pipeline = static_cast<RenderPipelineImpl*>(m_currentPipeline.get());
 
     encoder = m_commandBuffer->getMetalRenderCommandEncoder(m_renderPassDesc.get());
     encoder->setRenderPipelineState(pipeline->m_renderPipelineState.get());
@@ -386,25 +385,21 @@ Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 
     for (Index i = 0; i < m_vertexBuffers.size(); ++i)
     {
-        encoder->setVertexBuffer(
-            m_vertexBuffers[i],
-            m_vertexBufferOffsets[i],
-            m_currentPipeline->m_vertexBufferOffset + i
-        );
+        encoder->setVertexBuffer(m_vertexBuffers[i], m_vertexBufferOffsets[i], pipeline->m_vertexBufferOffset + i);
     }
 
     encoder->setViewports(m_viewports.data(), m_viewports.size());
     encoder->setScissorRects(m_scissorRects.data(), m_scissorRects.size());
 
-    const RasterizerDesc& rasterDesc = pipeline->desc.graphics.rasterizer;
-    const DepthStencilDesc& depthStencilDesc = pipeline->desc.graphics.depthStencil;
-    encoder->setFrontFacingWinding(MetalUtil::translateWinding(rasterDesc.frontFace));
-    encoder->setCullMode(MetalUtil::translateCullMode(rasterDesc.cullMode));
+    const RasterizerDesc& rasterizerDesc = pipeline->m_rasterizerDesc;
+    const DepthStencilDesc& depthStencilDesc = pipeline->m_depthStencilDesc;
+    encoder->setFrontFacingWinding(MetalUtil::translateWinding(rasterizerDesc.frontFace));
+    encoder->setCullMode(MetalUtil::translateCullMode(rasterizerDesc.cullMode));
     encoder->setDepthClipMode(
-        rasterDesc.depthClipEnable ? MTL::DepthClipModeClip : MTL::DepthClipModeClamp
+        rasterizerDesc.depthClipEnable ? MTL::DepthClipModeClip : MTL::DepthClipModeClamp
     ); // TODO correct?
-    encoder->setDepthBias(rasterDesc.depthBias, rasterDesc.slopeScaledDepthBias, rasterDesc.depthBiasClamp);
-    encoder->setTriangleFillMode(MetalUtil::translateTriangleFillMode(rasterDesc.fillMode));
+    encoder->setDepthBias(rasterizerDesc.depthBias, rasterizerDesc.slopeScaledDepthBias, rasterizerDesc.depthBiasClamp);
+    encoder->setTriangleFillMode(MetalUtil::translateTriangleFillMode(rasterizerDesc.fillMode));
     // encoder->setBlendColor(); // not supported by rhi
     if (m_framebuffer->m_depthStencilView)
     {
@@ -502,7 +497,7 @@ void ComputeCommandEncoder::endEncoding()
 
 Result ComputeCommandEncoder::bindPipeline(IComputePipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineImpl(pipeline, outRootObject);
+    return setPipelineImpl(static_cast<ComputePipelineImpl*>(pipeline), outRootObject);
 }
 
 Result ComputeCommandEncoder::bindPipelineWithRootObject(IComputePipeline* pipeline, IShaderObject* rootObject)
@@ -519,21 +514,9 @@ Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
     auto program = static_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
     m_commandBuffer->m_rootObject.bindAsRoot(&bindingContext, program->m_rootObjectLayout);
 
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
-    RootShaderObjectImpl* rootObjectImpl = &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineBase> newPipeline;
-    SLANG_RETURN_ON_FAIL(
-        m_commandBuffer->m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline)
-    );
-    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
-
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
-    m_currentPipeline = newPipelineImpl;
-
-    m_currentPipeline->ensureAPIPipelineCreated();
-    encoder->setComputePipelineState(m_currentPipeline->m_computePipelineState.get());
-
-    encoder->dispatchThreadgroups(MTL::Size(x, y, z), m_currentPipeline->m_threadGroupSize);
+    auto pipeline = static_cast<ComputePipelineImpl*>(m_currentPipeline.get());
+    encoder->setComputePipelineState(pipeline->m_computePipelineState.get());
+    encoder->dispatchThreadgroups(MTL::Size(x, y, z), pipeline->m_threadGroupSize);
 
     return SLANG_OK;
 }
