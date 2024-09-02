@@ -15,7 +15,7 @@ public:
         if (str)
         {
             char* newStr = (char*)allocate(std::strlen(str) + 1);
-            std::strcpy(newStr, str);
+            std::memcpy(newStr, str, std::strlen(str) + 1);
             str = newStr;
         }
     }
