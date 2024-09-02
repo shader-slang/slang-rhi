@@ -452,18 +452,20 @@ inline const char* deviceTypeToString(DeviceType deviceType)
 {
     switch (deviceType)
     {
+    case DeviceType::D3D11:
+        return "d3d11";
     case DeviceType::D3D12:
-        return "D3D12";
+        return "d3d12";
     case DeviceType::Vulkan:
-        return "Vulkan";
+        return "vulkan";
     case DeviceType::Metal:
-        return "Metal";
+        return "metal";
     case DeviceType::CPU:
-        return "CPU";
+        return "cpu";
     case DeviceType::CUDA:
-        return "CUDA";
+        return "cuda";
     default:
-        return "Unknown";
+        return "unknown";
     }
 }
 
