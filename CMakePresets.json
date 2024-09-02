@@ -1,67 +1,67 @@
 {
     "version": 6,
     "cmakeMinimumRequired": {
-      "major": 3,
-      "minor": 20,
-      "patch": 0
+        "major": 3,
+        "minor": 20,
+        "patch": 0
     },
     "configurePresets": [
-      {
-        "name": "default",
-        "description": "Default build using Ninja Multi-Config generator",
-        "generator": "Ninja Multi-Config",
-        "binaryDir": "${sourceDir}/build"
-      },
-      {
-        "name": "msvc-base",
-        "hidden": true,
-        "inherits": "default",
-        "description": "Options specific for MSVC",
-        "cacheVariables": {
-          "CMAKE_C_FLAGS_INIT": "-D_ITERATOR_DEBUG_LEVEL=0 /MP",
-          "CMAKE_CXX_FLAGS_INIT": "-D_ITERATOR_DEBUG_LEVEL=0 /MP"
-        }
-      },
-      {
-        "name": "msvc",
-        "inherits": "msvc-base",
-        "description": "Ninja Multi-Config generator with MSVC",
-        "generator": "Ninja Multi-Config",
-        "cacheVariables": {
-          "CMAKE_C_COMPILER": "cl.exe",
-          "CMAKE_CXX_COMPILER": "cl.exe"
+        {
+            "name": "default",
+            "description": "Default build using Ninja Multi-Config generator",
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/build"
         },
-        "vendor": {
-          "microsoft.com/VisualStudioSettings/CMake/1.0": {
-              "hostOS": [
-                  "Windows"
-              ]
-          }
+        {
+            "name": "msvc-base",
+            "hidden": true,
+            "inherits": "default",
+            "description": "Options specific for MSVC",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "-D_ITERATOR_DEBUG_LEVEL=0 /MP",
+                "CMAKE_CXX_FLAGS_INIT": "-D_ITERATOR_DEBUG_LEVEL=0 /MP"
+            }
+        },
+        {
+            "name": "msvc",
+            "inherits": "msvc-base",
+            "description": "Ninja Multi-Config generator with MSVC",
+            "generator": "Ninja Multi-Config",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                    "hostOS": [
+                        "Windows"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "vs2019",
+            "inherits": "msvc-base",
+            "description": "Visual Studio 2019 project",
+            "generator": "Visual Studio 16 2019"
+        },
+        {
+            "name": "vs2022",
+            "inherits": "msvc-base",
+            "description": "Visual Studio 2022 project",
+            "generator": "Visual Studio 17 2022"
         }
-      },
-      {
-        "name": "vs2019",
-        "inherits": "msvc-base",
-        "description": "Visual Studio 2019 project",
-        "generator": "Visual Studio 16 2019"
-      },
-      {
-        "name": "vs2022",
-        "inherits": "msvc-base",
-        "description": "Visual Studio 2022 project",
-        "generator": "Visual Studio 17 2022"
-      }
     ],
     "buildPresets": [
-      {
-        "name": "msvc-debug",
-        "configurePreset": "msvc",
-        "configuration": "Debug"
-      },
-      {
-        "name": "msvc-release",
-        "configurePreset": "default",
-        "configuration": "Release"
-      }
+        {
+            "name": "msvc-debug",
+            "configurePreset": "msvc",
+            "configuration": "Debug"
+        },
+        {
+            "name": "msvc-release",
+            "configurePreset": "default",
+            "configuration": "Release"
+        }
     ]
-  }
+}

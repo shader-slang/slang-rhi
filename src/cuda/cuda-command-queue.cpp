@@ -91,12 +91,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     {
         CUdeviceptr globalParamsSymbol = 0;
         size_t globalParamsSymbolSize = 0;
-        cuModuleGetGlobal(
-            &globalParamsSymbol,
-            &globalParamsSymbolSize,
-            program->cudaModule,
-            "SLANG_globalParams"
-        );
+        cuModuleGetGlobal(&globalParamsSymbol, &globalParamsSymbolSize, program->cudaModule, "SLANG_globalParams");
 
         CUdeviceptr globalParamsCUDAData = (CUdeviceptr)currentRootObject->getBuffer();
         cuMemcpyAsync((CUdeviceptr)globalParamsSymbol, (CUdeviceptr)globalParamsCUDAData, globalParamsSymbolSize, 0);
