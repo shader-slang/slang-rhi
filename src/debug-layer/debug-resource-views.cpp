@@ -10,11 +10,11 @@ IResourceView::Desc* DebugResourceView::getViewDesc()
     return baseObject->getViewDesc();
 }
 
-Result DebugResourceView::getNativeHandle(InteropHandle* outNativeHandle)
+Result DebugResourceView::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->getNativeHandle(outNativeHandle);
+    return baseObject->getNativeHandle(outHandle);
 }
 
 DeviceAddress DebugAccelerationStructure::getDeviceAddress()
@@ -24,11 +24,11 @@ DeviceAddress DebugAccelerationStructure::getDeviceAddress()
     return baseObject->getDeviceAddress();
 }
 
-Result DebugAccelerationStructure::getNativeHandle(InteropHandle* outNativeHandle)
+Result DebugAccelerationStructure::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->getNativeHandle(outNativeHandle);
+    return baseObject->getNativeHandle(outHandle);
 }
 
 IResourceView::Desc* DebugAccelerationStructure::getViewDesc()

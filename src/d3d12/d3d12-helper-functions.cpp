@@ -61,20 +61,18 @@ D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states)
     return (D3D12_RESOURCE_FLAGS)dstFlags;
 }
 
-D3D12_RESOURCE_DIMENSION calcResourceDimension(IResource::Type type)
+D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type)
 {
     switch (type)
     {
-    case IResource::Type::Buffer:
-        return D3D12_RESOURCE_DIMENSION_BUFFER;
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-    case IResource::Type::TextureCube:
-    case IResource::Type::Texture2D:
+    case TextureType::TextureCube:
+    case TextureType::Texture2D:
     {
         return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     }
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
     default:
         return D3D12_RESOURCE_DIMENSION_UNKNOWN;
@@ -207,8 +205,7 @@ uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
 }
 
 void initSrvDesc(
-    IResource::Type resourceType,
-    const ITextureResource::Desc& textureDesc,
+    const TextureDesc& textureDesc,
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
@@ -234,7 +231,7 @@ void initSrvDesc(
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
             descOut.ViewDimension =
-                textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
+                textureDesc.sampleCount > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
             descOut.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
             descOut.Texture2D.ResourceMinLODClamp = 0.0f;
             descOut.Texture2D.MipLevels = subresourceRange.mipLevelCount == 0
@@ -253,7 +250,7 @@ void initSrvDesc(
             SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
         }
     }
-    else if (resourceType == IResource::Type::TextureCube)
+    else if (textureDesc.type == TextureType::TextureCube)
     {
         if (textureDesc.arraySize > 1)
         {
@@ -300,8 +297,8 @@ void initSrvDesc(
                                                    : subresourceRange.mipLevelCount;
             break;
         case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-            descOut.ViewDimension = textureDesc.sampleDesc.numSamples > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY
-                                                                          : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            descOut.ViewDimension =
+                textureDesc.sampleCount > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
             if (descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DARRAY)
             {
                 descOut.Texture2DArray.ArraySize =
@@ -336,7 +333,7 @@ void initSrvDesc(
     }
 }
 
-Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc)
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc)
 {
     const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
@@ -360,8 +357,8 @@ Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITexture
     resourceDesc.DepthOrArraySize = (srcDesc.size.depth > 1) ? srcDesc.size.depth : arraySize;
 
     resourceDesc.MipLevels = numMipMaps;
-    resourceDesc.SampleDesc.Count = srcDesc.sampleDesc.numSamples;
-    resourceDesc.SampleDesc.Quality = srcDesc.sampleDesc.quality;
+    resourceDesc.SampleDesc.Count = srcDesc.sampleCount;
+    resourceDesc.SampleDesc.Quality = srcDesc.sampleQuality;
 
     resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
     resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -379,7 +376,7 @@ Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITexture
     return SLANG_OK;
 }
 
-void initBufferResourceDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
+void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
 {
     out = {};
 
@@ -400,13 +397,13 @@ Result uploadBufferDataImpl(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
     TransientResourceHeapImpl* transientHeap,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset offset,
     Size size,
     void* data
 )
 {
-    IBufferResource* uploadResource;
+    IBuffer* uploadResource;
     Offset uploadResourceOffset = 0;
     if (buffer->getDesc()->memoryType != MemoryType::Upload)
     {
@@ -420,7 +417,7 @@ Result uploadBufferDataImpl(
     }
     D3D12Resource& uploadResourceRef = (buffer->getDesc()->memoryType == MemoryType::Upload)
                                            ? buffer->m_resource
-                                           : static_cast<BufferResourceImpl*>(uploadResource)->m_resource;
+                                           : static_cast<BufferImpl*>(uploadResource)->m_resource;
 
     D3D12_RANGE readRange = {};
     readRange.Begin = 0;
@@ -590,24 +587,21 @@ void translatePostBuildInfoDescs(
         case QueryType::AccelerationStructureCompactedSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                    ->m_bufferResource->getDeviceAddress() +
+                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureCurrentSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                    ->m_bufferResource->getDeviceAddress() +
+                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureSerializedSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)
-                    ->m_bufferResource->getDeviceAddress() +
+                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;

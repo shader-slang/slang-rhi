@@ -3,16 +3,16 @@
 
 namespace rhi::debug {
 
-Result DebugFence::getSharedHandle(InteropHandle* outHandle)
+Result DebugFence::getNativeHandle(NativeHandle* outHandle)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->getNativeHandle(outHandle);
+}
+
+Result DebugFence::getSharedHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getSharedHandle(outHandle);
-}
-
-Result DebugFence::getNativeHandle(InteropHandle* outNativeHandle)
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->getNativeHandle(outNativeHandle);
 }
 
 Result DebugFence::getCurrentValue(uint64_t* outValue)

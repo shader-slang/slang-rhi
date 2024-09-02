@@ -5,14 +5,14 @@
 
 namespace rhi::cuda {
 
-class TextureResourceImpl : public TextureResource
+class TextureImpl : public Texture
 {
 public:
-    TextureResourceImpl(const TextureResource::Desc& desc)
-        : TextureResource(desc)
+    TextureImpl(const TextureDesc& desc)
+        : Texture(desc)
     {
     }
-    ~TextureResourceImpl();
+    ~TextureImpl();
 
     uint64_t getBindlessHandle();
 
@@ -30,7 +30,7 @@ public:
 
     RefPtr<CUDAContext> m_cudaContext;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::cuda

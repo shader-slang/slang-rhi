@@ -39,10 +39,10 @@ void CommandQueueImpl::waitOnHost()
     vkAPI.vkQueueWaitIdle(m_queue);
 }
 
-Result CommandQueueImpl::getNativeHandle(InteropHandle* outHandle)
+Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = (uint64_t)m_queue;
+    outHandle->type = NativeHandleType::VkQueue;
+    outHandle->value = (uint64_t)m_queue;
     return SLANG_OK;
 }
 

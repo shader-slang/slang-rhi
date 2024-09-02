@@ -19,8 +19,8 @@ void SwapchainImpl::createSwapchainBufferImages()
     // always render to buffer 0.
     ComPtr<ID3D11Resource> d3dResource;
     m_swapChain->GetBuffer(0, IID_PPV_ARGS(d3dResource.writeRef()));
-    ITextureResource::Desc imageDesc = {};
-    imageDesc.type = IResource::Type::Texture2D;
+    TextureDesc imageDesc = {};
+    imageDesc.type = TextureType::Texture2D;
     imageDesc.arraySize = 0;
     imageDesc.numMipLevels = 1;
     imageDesc.size.width = m_desc.width;
@@ -30,7 +30,7 @@ void SwapchainImpl::createSwapchainBufferImages()
     imageDesc.defaultState = ResourceState::Present;
     imageDesc.allowedStates =
         ResourceStateSet(ResourceState::Present, ResourceState::CopyDestination, ResourceState::RenderTarget);
-    RefPtr<TextureResourceImpl> image = new TextureResourceImpl(imageDesc);
+    RefPtr<TextureImpl> image = new TextureImpl(imageDesc);
     image->m_resource = d3dResource;
     for (GfxIndex i = 0; i < m_desc.imageCount; i++)
     {

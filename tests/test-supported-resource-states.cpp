@@ -15,8 +15,8 @@ struct SupportedResourceStatesTest
     ResourceStateSet textureAllowedStates;
     ResourceStateSet bufferAllowedStates;
 
-    ComPtr<ITextureResource> texture;
-    ComPtr<IBufferResource> buffer;
+    ComPtr<ITexture> texture;
+    ComPtr<IBuffer> buffer;
 
     SupportedResourceStatesTest(IDevice* device)
         : device(device)
@@ -138,13 +138,13 @@ struct SupportedResourceStatesTest
             );
 
             ResourceState currentState = ResourceState::CopySource;
-            ITextureResource::Extents extent;
+            Extents extent;
             extent.width = 4;
             extent.height = 4;
             extent.depth = 1;
 
-            ITextureResource::Desc texDesc = {};
-            texDesc.type = IResource::Type::Texture2D;
+            TextureDesc texDesc = {};
+            texDesc.type = TextureType::Texture2D;
             texDesc.numMipLevels = 1;
             texDesc.arraySize = 1;
             texDesc.size = extent;
@@ -153,17 +153,17 @@ struct SupportedResourceStatesTest
             texDesc.memoryType = MemoryType::DeviceLocal;
             texDesc.format = format;
 
-            REQUIRE_CALL(device->createTextureResource(texDesc, nullptr, texture.writeRef()));
+            REQUIRE_CALL(device->createTexture(texDesc, nullptr, texture.writeRef()));
 
-            IBufferResource::Desc bufferDesc = {};
-            bufferDesc.sizeInBytes = 256;
+            BufferDesc bufferDesc = {};
+            bufferDesc.size = 256;
             bufferDesc.format = Format::Unknown;
             bufferDesc.elementSize = sizeof(float);
             bufferDesc.allowedStates = formatSupportedStates & bufferAllowedStates;
             bufferDesc.defaultState = currentState;
             bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-            REQUIRE_CALL(device->createBufferResource(bufferDesc, nullptr, buffer.writeRef()));
+            REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
 
             transitionResourceStates(device);
         }

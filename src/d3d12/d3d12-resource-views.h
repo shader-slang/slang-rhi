@@ -33,8 +33,8 @@ public:
 };
 
 Result createD3D12BufferDescriptor(
-    BufferResourceImpl* buffer,
-    BufferResourceImpl* counterBuffer,
+    BufferImpl* buffer,
+    BufferImpl* counterBuffer,
     IResourceView::Desc const& desc,
     uint32_t bufferStride,
     DeviceImpl* device,
@@ -45,10 +45,11 @@ Result createD3D12BufferDescriptor(
 class ResourceViewImpl : public ResourceViewBase, public ResourceViewInternalImpl
 {
 public:
+    bool m_isBufferView;
     RefPtr<Resource> m_resource;
     // null, unless this is a structuredbuffer with a separate counter buffer
     RefPtr<Resource> m_counterResource;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 #if SLANG_RHI_DXR
@@ -56,14 +57,14 @@ public:
 class AccelerationStructureImpl : public AccelerationStructureBase, public ResourceViewInternalImpl
 {
 public:
-    RefPtr<BufferResourceImpl> m_buffer;
+    RefPtr<BufferImpl> m_buffer;
     uint64_t m_offset;
     uint64_t m_size;
     ComPtr<ID3D12Device5> m_device5;
 
 public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 #endif // SLANG_RHI_DXR

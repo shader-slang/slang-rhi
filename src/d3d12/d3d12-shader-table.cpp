@@ -1,14 +1,14 @@
 #include "d3d12-shader-table.h"
 #include "d3d12-device.h"
-#include "d3d12-pipeline-state.h"
+#include "d3d12-pipeline.h"
 #include "d3d12-transient-heap.h"
 
 #include "core/string.h"
 
 namespace rhi::d3d12 {
 
-RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
-    PipelineStateBase* pipeline,
+RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
+    PipelineBase* pipeline,
     TransientResourceHeapBase* transientHeap,
     IResourceCommandEncoder* encoder
 )
@@ -25,22 +25,21 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     )D3DUtil::calcAligned(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     uint32_t tableSize = m_callableTableOffset + callableTableSize;
 
-    auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
-    ComPtr<IBufferResource> bufferResource;
-    IBufferResource::Desc bufferDesc = {};
+    auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
+    ComPtr<IBuffer> buffer;
+    BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.allowedStates.add(ResourceState::NonPixelShaderResource);
-    bufferDesc.type = IResource::Type::Buffer;
-    bufferDesc.sizeInBytes = tableSize;
-    m_device->createBufferResource(bufferDesc, nullptr, bufferResource.writeRef());
+    bufferDesc.size = tableSize;
+    m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef());
 
     ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
     pipelineImpl->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
 
     TransientResourceHeapImpl* transientHeapImpl = static_cast<TransientResourceHeapImpl*>(transientHeap);
 
-    IBufferResource* stagingBuffer = nullptr;
+    IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
     transientHeapImpl->allocateStagingBuffer(tableSize, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
 
@@ -98,14 +97,9 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     }
 
     stagingBuffer->unmap(nullptr);
-    encoder->copyBuffer(bufferResource, 0, stagingBuffer, stagingBufferOffset, tableSize);
-    encoder->bufferBarrier(
-        1,
-        bufferResource.readRef(),
-        ResourceState::CopyDestination,
-        ResourceState::NonPixelShaderResource
-    );
-    RefPtr<BufferResource> resultPtr = static_cast<BufferResource*>(bufferResource.get());
+    encoder->copyBuffer(buffer, 0, stagingBuffer, stagingBufferOffset, tableSize);
+    encoder->bufferBarrier(1, buffer.readRef(), ResourceState::CopyDestination, ResourceState::NonPixelShaderResource);
+    RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);
 }
 

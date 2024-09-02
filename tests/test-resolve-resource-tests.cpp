@@ -40,14 +40,13 @@ const int kWidth = 256;
 const int kHeight = 256;
 Format format = Format::R32G32B32A32_FLOAT;
 
-static ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
+static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
-    IBufferResource::Desc vertexBufferDesc;
-    vertexBufferDesc.type = IResource::Type::Buffer;
-    vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+    BufferDesc vertexBufferDesc;
+    vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
     vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
-    ComPtr<IBufferResource> vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+    ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
     REQUIRE(vertexBuffer != nullptr);
     return vertexBuffer;
 }
@@ -56,22 +55,22 @@ struct BaseResolveResourceTest
 {
     IDevice* device;
 
-    ComPtr<ITextureResource> msaaTexture;
-    ComPtr<ITextureResource> dstTexture;
+    ComPtr<ITexture> msaaTexture;
+    ComPtr<ITexture> dstTexture;
 
     ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipelineState> pipelineState;
+    ComPtr<IPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     ComPtr<IFramebuffer> framebuffer;
 
-    ComPtr<IBufferResource> vertexBuffer;
+    ComPtr<IBuffer> vertexBuffer;
 
     struct TextureInfo
     {
-        ITextureResource::Extents extent;
+        Extents extent;
         int numMipLevels;
         int arraySize;
-        ITextureResource::SubresourceData const* initData;
+        SubresourceData const* initData;
     };
 
     void init(IDevice* device) { this->device = device; }
@@ -88,20 +87,20 @@ struct BaseResolveResourceTest
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
         };
 
-        ITextureResource::Desc msaaTexDesc = {};
-        msaaTexDesc.type = IResource::Type::Texture2D;
+        TextureDesc msaaTexDesc = {};
+        msaaTexDesc.type = TextureType::Texture2D;
         msaaTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         msaaTexDesc.arraySize = dstTextureInfo.arraySize;
         msaaTexDesc.size = dstTextureInfo.extent;
         msaaTexDesc.defaultState = ResourceState::RenderTarget;
         msaaTexDesc.allowedStates = ResourceStateSet(ResourceState::RenderTarget, ResourceState::ResolveSource);
         msaaTexDesc.format = format;
-        msaaTexDesc.sampleDesc.numSamples = 4;
+        msaaTexDesc.sampleCount = 4;
 
-        REQUIRE_CALL(device->createTextureResource(msaaTexDesc, msaaTextureInfo.initData, msaaTexture.writeRef()));
+        REQUIRE_CALL(device->createTexture(msaaTexDesc, msaaTextureInfo.initData, msaaTexture.writeRef()));
 
-        ITextureResource::Desc dstTexDesc = {};
-        dstTexDesc.type = IResource::Type::Texture2D;
+        TextureDesc dstTexDesc = {};
+        dstTexDesc.type = TextureType::Texture2D;
         dstTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         dstTexDesc.arraySize = dstTextureInfo.arraySize;
         dstTexDesc.size = dstTextureInfo.extent;
@@ -109,7 +108,7 @@ struct BaseResolveResourceTest
         dstTexDesc.allowedStates = ResourceStateSet(ResourceState::ResolveDestination, ResourceState::CopySource);
         dstTexDesc.format = format;
 
-        REQUIRE_CALL(device->createTextureResource(dstTexDesc, dstTextureInfo.initData, dstTexture.writeRef()));
+        REQUIRE_CALL(device->createTexture(dstTexDesc, dstTextureInfo.initData, dstTexture.writeRef()));
 
         IInputLayout::Desc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -146,13 +145,13 @@ struct BaseResolveResourceTest
         ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;
@@ -168,7 +167,7 @@ struct BaseResolveResourceTest
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
         colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         auto rtv = device->createTextureView(msaaTexture, colorBufferViewDesc);
 
@@ -180,11 +179,7 @@ struct BaseResolveResourceTest
         REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
     }
 
-    void submitGPUWork(
-        SubresourceRange msaaSubresource,
-        SubresourceRange dstSubresource,
-        ITextureResource::Extents extent
-    )
+    void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
     {
         ComPtr<ITransientResourceHeap> transientHeap;
         ITransientResourceHeap::Desc transientHeapDesc = {};
@@ -196,7 +191,7 @@ struct BaseResolveResourceTest
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = renderEncoder->bindPipeline(pipelineState);
+        auto rootObject = renderEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -245,13 +240,9 @@ struct BaseResolveResourceTest
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTextureResource(
-            dstTexture,
-            ResourceState::CopySource,
-            resultBlob.writeRef(),
-            &rowPitch,
-            &pixelSize
-        ));
+        REQUIRE_CALL(
+            device->readTexture(dstTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
+        );
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -280,7 +271,7 @@ struct ResolveResourceSimple : BaseResolveResourceTest
 {
     void run()
     {
-        ITextureResource::Extents extent = {};
+        Extents extent = {};
         extent.width = kWidth;
         extent.height = kHeight;
         extent.depth = 1;

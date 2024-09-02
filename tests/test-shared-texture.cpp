@@ -5,11 +5,11 @@ using namespace rhi::testing;
 
 static void setUpAndRunShader(
     IDevice* device,
-    ComPtr<ITextureResource> tex,
+    ComPtr<ITexture> tex,
     ComPtr<IResourceView> texView,
     ComPtr<IResourceView> bufferView,
     const char* entryPoint,
-    ComPtr<ISamplerState> sampler = nullptr
+    ComPtr<ISampler> sampler = nullptr
 )
 {
     ComPtr<ITransientResourceHeap> transientHeap;
@@ -21,10 +21,10 @@ static void setUpAndRunShader(
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "trivial-copy", entryPoint, slangReflection));
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
@@ -35,7 +35,7 @@ static void setUpAndRunShader(
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
@@ -60,15 +60,10 @@ static void setUpAndRunShader(
     }
 }
 
-static ComPtr<ITextureResource> createTexture(
-    IDevice* device,
-    ITextureResource::Extents extents,
-    Format format,
-    ITextureResource::SubresourceData* initialData
-)
+static ComPtr<ITexture> createTexture(IDevice* device, Extents extents, Format format, SubresourceData* initialData)
 {
-    ITextureResource::Desc texDesc = {};
-    texDesc.type = IResource::Type::Texture2D;
+    TextureDesc texDesc = {};
+    texDesc.type = TextureType::Texture2D;
     texDesc.numMipLevels = 1;
     texDesc.arraySize = 1;
     texDesc.size = extents;
@@ -82,12 +77,12 @@ static ComPtr<ITextureResource> createTexture(
     texDesc.format = format;
     texDesc.isShared = true;
 
-    ComPtr<ITextureResource> inTex;
-    REQUIRE_CALL(device->createTextureResource(texDesc, initialData, inTex.writeRef()));
+    ComPtr<ITexture> inTex;
+    REQUIRE_CALL(device->createTexture(texDesc, initialData, inTex.writeRef()));
     return inTex;
 }
 
-static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITextureResource> inTexture)
+static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITexture> inTexture)
 {
     ComPtr<IResourceView> texView;
     IResourceView::Desc texViewDesc = {};
@@ -99,10 +94,10 @@ static ComPtr<IResourceView> createTexView(IDevice* device, ComPtr<ITextureResou
 }
 
 template<typename T>
-ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialData)
+ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
 {
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = size * sizeof(T);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = size * sizeof(T);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(T);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -114,12 +109,12 @@ ComPtr<IBufferResource> createBuffer(IDevice* device, int size, void* initialDat
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> outBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, initialData, outBuffer.writeRef()));
+    ComPtr<IBuffer> outBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, initialData, outBuffer.writeRef()));
     return outBuffer;
 }
 
-static ComPtr<IResourceView> createOutBufferView(IDevice* device, ComPtr<IBufferResource> outBuffer)
+static ComPtr<IResourceView> createOutBufferView(IDevice* device, ComPtr<IBuffer> outBuffer)
 {
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
@@ -135,8 +130,8 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IDevice> srcDevice = createTestingDevice(ctx, deviceType);
     ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DstDeviceType);
 
-    ISamplerState::Desc samplerDesc;
-    auto sampler = dstDevice->createSamplerState(samplerDesc);
+    SamplerDesc samplerDesc;
+    auto sampler = dstDevice->createSampler(samplerDesc);
 
     float initFloatData[16] = {0.0f};
     auto floatResults = createBuffer<float>(dstDevice, 16, initFloatData);
@@ -150,12 +145,12 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     auto intResults = createBuffer<uint32_t>(dstDevice, 16, initIntData);
     auto intBufferView = createOutBufferView(dstDevice, intResults);
 
-    ITextureResource::Extents size = {};
+    Extents size = {};
     size.width = 2;
     size.height = 2;
     size.depth = 1;
 
-    ITextureResource::Extents bcSize = {};
+    Extents bcSize = {};
     bcSize.width = 4;
     bcSize.height = 4;
     bcSize.depth = 1;
@@ -163,15 +158,15 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     {
         float texData[] =
             {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
-        ITextureResource::SubresourceData subData = {(void*)texData, 32, 0};
+        SubresourceData subData = {(void*)texData, 32, 0};
 
         // Create a shareable texture using srcDevice, get its handle, then create a texture using the handle using
         // dstDevice. Read back the texture and check that its contents are correct.
         auto srcTexture = createTexture(srcDevice, size, Format::R32G32B32A32_FLOAT, &subData);
 
-        InteropHandle sharedHandle;
+        NativeHandle sharedHandle;
         REQUIRE_CALL(srcTexture->getSharedHandle(&sharedHandle));
-        ComPtr<ITextureResource> dstTexture;
+        ComPtr<ITexture> dstTexture;
         size_t sizeInBytes = 0;
         size_t alignment = 0;
         REQUIRE_CALL(srcDevice->getTextureAllocationInfo(*(srcTexture->getDesc()), &sizeInBytes, &alignment));

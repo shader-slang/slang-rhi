@@ -44,7 +44,7 @@ public:
 
 public:
     QueryType m_queryType;
-    RefPtr<BufferResourceImpl> m_bufferResource;
+    RefPtr<BufferImpl> m_buffer;
     RefPtr<DeviceImpl> m_device;
     std::vector<uint8_t> m_result;
     bool m_resultDirty = true;

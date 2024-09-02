@@ -114,7 +114,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     m_renderer = renderer;
     uint32_t layerCount = 0;
 
-    auto dsv = desc.depthStencilView ? static_cast<TextureResourceViewImpl*>(desc.depthStencilView) : nullptr;
+    auto dsv = desc.depthStencilView ? static_cast<TextureViewImpl*>(desc.depthStencilView) : nullptr;
     // Get frame dimensions from attachments.
     if (dsv)
     {
@@ -129,14 +129,14 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     {
         // If we don't have a depth attachment, then we must have at least
         // one color attachment. Get frame dimension from there.
-        auto viewImpl = static_cast<TextureResourceViewImpl*>(desc.renderTargetViews[0]);
+        auto viewImpl = static_cast<TextureViewImpl*>(desc.renderTargetViews[0]);
         auto resourceDesc = viewImpl->m_texture->getDesc();
         auto viewDesc = viewImpl->getViewDesc();
         auto size = resourceDesc->size;
         m_width = getMipLevelSize(viewDesc->subresourceRange.mipLevel, size.width);
         m_height = getMipLevelSize(viewDesc->subresourceRange.mipLevel, size.height);
         layerCount =
-            (resourceDesc->type == IResource::Type::Texture3D) ? size.depth : viewDesc->subresourceRange.layerCount;
+            (resourceDesc->type == TextureType::Texture3D) ? size.depth : viewDesc->subresourceRange.layerCount;
     }
     else
     {
@@ -157,7 +157,7 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     renderTargetViews.resize(desc.renderTargetCount);
     for (GfxIndex i = 0; i < desc.renderTargetCount; ++i)
     {
-        auto resourceView = static_cast<TextureResourceViewImpl*>(desc.renderTargetViews[i]);
+        auto resourceView = static_cast<TextureViewImpl*>(desc.renderTargetViews[i]);
         renderTargetViews[i] = resourceView;
         imageViews[i] = resourceView->m_view;
         if (resourceView->m_texture->getDesc()->optimalClearValue)

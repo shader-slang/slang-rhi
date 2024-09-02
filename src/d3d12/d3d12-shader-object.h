@@ -105,10 +105,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setResource(ShaderOffset const& offset, IResourceView* resourceView) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler) override;
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override;
 
 protected:
     Result init(
@@ -122,7 +122,7 @@ protected:
     /// `offset`
     Result _writeOrdinaryData(
         PipelineCommandEncoder* encoder,
-        BufferResourceImpl* buffer,
+        BufferImpl* buffer,
         Offset offset,
         Size destSize,
         ShaderObjectLayoutImpl* specializedLayout
@@ -204,7 +204,7 @@ public:
     /// and existential-type sub-objects.
     ///
     /// Allocated from transient heap on demand with `_createOrdinaryDataBufferIfNeeded()`
-    IBufferResource* m_constantBufferWeakPtr = nullptr;
+    IBuffer* m_constantBufferWeakPtr = nullptr;
     Offset m_constantBufferOffset = 0;
     Size m_constantBufferSize = 0;
 

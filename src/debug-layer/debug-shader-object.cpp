@@ -1,7 +1,7 @@
 #include "debug-shader-object.h"
 #include "debug-helper-functions.h"
 #include "debug-resource-views.h"
-#include "debug-sampler-state.h"
+#include "debug-sampler.h"
 
 namespace rhi::debug {
 
@@ -115,7 +115,7 @@ Result DebugShaderObject::setResource(ShaderOffset const& offset, IResourceView*
     return baseObject->setResource(offset, getInnerObj(resourceView));
 }
 
-Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     SLANG_RHI_API_FUNC;
     auto samplerImpl = getDebugObj(sampler);
@@ -127,7 +127,7 @@ Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISamplerState* 
 Result DebugShaderObject::setCombinedTextureSampler(
     ShaderOffset const& offset,
     IResourceView* textureView,
-    ISamplerState* sampler
+    ISampler* sampler
 )
 {
     SLANG_RHI_API_FUNC;
@@ -173,7 +173,7 @@ size_t DebugShaderObject::getSize()
     return baseObject->getSize();
 }
 
-Result DebugShaderObject::setConstantBufferOverride(IBufferResource* constantBuffer)
+Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->setConstantBufferOverride(getInnerObj(constantBuffer));

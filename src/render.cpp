@@ -393,8 +393,6 @@ extern "C"
     {
         switch (type)
         {
-        case DeviceType::Unknown:
-            return "Unknown";
         case DeviceType::Default:
             return "Default";
         case DeviceType::D3D11:

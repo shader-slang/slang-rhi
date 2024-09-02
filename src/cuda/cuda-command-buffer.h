@@ -31,7 +31,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL close() override {}
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::cuda

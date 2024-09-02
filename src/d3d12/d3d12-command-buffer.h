@@ -23,7 +23,7 @@ public:
     ICommandBufferD3D12* getInterface(const Guid& guid);
     virtual void comFree() override { m_transientHeap.breakStrongReference(); }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* handle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* handle) override;
 
 public:
     ComPtr<ID3D12GraphicsCommandList> m_cmdList;

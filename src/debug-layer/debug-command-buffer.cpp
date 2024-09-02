@@ -125,7 +125,7 @@ void DebugCommandBuffer::close()
     baseObject->close();
 }
 
-Result DebugCommandBuffer::getNativeHandle(InteropHandle* outHandle)
+Result DebugCommandBuffer::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getNativeHandle(outHandle);

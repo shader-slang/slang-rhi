@@ -14,11 +14,11 @@
 
 namespace rhi::cpu {
 
-class BufferResourceImpl;
-class TextureResourceImpl;
+class BufferImpl;
+class TextureImpl;
 class ResourceViewImpl;
-class BufferResourceViewImpl;
-class TextureResourceViewImpl;
+class BufferViewImpl;
+class TextureViewImpl;
 class ShaderObjectLayoutImpl;
 class EntryPointLayoutImpl;
 class RootShaderObjectLayoutImpl;
@@ -27,7 +27,7 @@ class MutableShaderObjectImpl;
 class EntryPointShaderObjectImpl;
 class RootShaderObjectImpl;
 class ShaderProgramImpl;
-class PipelineStateImpl;
+class PipelineImpl;
 class QueryPoolImpl;
 class DeviceImpl;
 

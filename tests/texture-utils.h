@@ -164,7 +164,7 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
 struct ValidationTextureData : RefObject
 {
     const void* textureData;
-    ITextureResource::Extents extents;
+    Extents extents;
     Strides strides;
 
     void* getBlockAt(GfxIndex x, GfxIndex y, GfxIndex z)
@@ -184,14 +184,14 @@ struct ValidationTextureData : RefObject
 struct TextureInfo : RefObject
 {
     Format format;
-    ITextureResource::Type textureType;
+    TextureType textureType;
 
-    ITextureResource::Extents extents;
+    Extents extents;
     GfxCount mipLevelCount;
     GfxCount arrayLayerCount;
 
     std::vector<RefPtr<ValidationTextureData>> subresourceObjects;
-    std::vector<ITextureResource::SubresourceData> subresourceDatas;
+    std::vector<SubresourceData> subresourceDatas;
 };
 
 TextureAspect getTextureAspect(Format format);

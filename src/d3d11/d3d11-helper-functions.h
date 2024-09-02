@@ -260,12 +260,7 @@ D3D11_BLEND_OP translateBlendOp(BlendOp op);
 D3D11_BLEND translateBlendFactor(BlendFactor factor);
 D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT mask);
 
-void initSrvDesc(
-    IResource::Type resourceType,
-    const ITextureResource::Desc& textureDesc,
-    DXGI_FORMAT pixelFormat,
-    D3D11_SHADER_RESOURCE_VIEW_DESC& descOut
-);
+void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_SHADER_RESOURCE_VIEW_DESC& descOut);
 
 } // namespace rhi::d3d11
 

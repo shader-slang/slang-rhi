@@ -21,14 +21,14 @@ void SwapchainImpl::createImages()
     m_images.resize(m_desc.imageCount);
     for (GfxCount i = 0; i < m_desc.imageCount; ++i)
     {
-        ITextureResource::Desc imageDesc = {};
+        TextureDesc imageDesc = {};
         imageDesc.allowedStates = ResourceStateSet(
             ResourceState::Present,
             ResourceState::RenderTarget,
             ResourceState::CopyDestination,
             ResourceState::CopySource
         );
-        imageDesc.type = IResource::Type::Texture2D;
+        imageDesc.type = TextureType::Texture2D;
         imageDesc.arraySize = 0;
         imageDesc.format = m_desc.format;
         imageDesc.size.width = m_desc.width;
@@ -36,7 +36,7 @@ void SwapchainImpl::createImages()
         imageDesc.size.depth = 1;
         imageDesc.numMipLevels = 1;
         imageDesc.defaultState = ResourceState::Present;
-        m_device->createTextureResource(imageDesc, nullptr, (ITextureResource**)m_images[i].writeRef());
+        m_device->createTexture(imageDesc, nullptr, (ITexture**)m_images[i].writeRef());
     }
 }
 
@@ -72,11 +72,11 @@ Result SwapchainImpl::init(DeviceImpl* device, const ISwapchain::Desc& desc, Win
     return SLANG_OK;
 }
 
-Result SwapchainImpl::getImage(GfxIndex index, ITextureResource** outResource)
+Result SwapchainImpl::getImage(GfxIndex index, ITexture** outTexture)
 {
     if (index < 0 || index >= m_desc.imageCount)
         return SLANG_FAIL;
-    returnComPtr(outResource, m_images[index]);
+    returnComPtr(outTexture, m_images[index]);
     return SLANG_OK;
 }
 

@@ -50,18 +50,18 @@ void PipelineCommandEncoder::endEncodingImpl()
 void PipelineCommandEncoder::_uploadBufferData(
     VkCommandBuffer commandBuffer,
     TransientResourceHeapImpl* transientHeap,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset offset,
     Size size,
     void* data
 )
 {
     auto& api = buffer->m_renderer->m_api;
-    IBufferResource* stagingBuffer = nullptr;
+    IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
     transientHeap->allocateStagingBuffer(size, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
 
-    BufferResourceImpl* stagingBufferImpl = static_cast<BufferResourceImpl*>(stagingBuffer);
+    BufferImpl* stagingBufferImpl = static_cast<BufferImpl*>(stagingBuffer);
 
     void* mappedData = nullptr;
     SLANG_VK_CHECK(api.vkMapMemory(
@@ -83,13 +83,13 @@ void PipelineCommandEncoder::_uploadBufferData(
     api.vkCmdCopyBuffer(commandBuffer, stagingBufferImpl->m_buffer.m_buffer, buffer->m_buffer.m_buffer, 1, &copyInfo);
 }
 
-void PipelineCommandEncoder::uploadBufferDataImpl(IBufferResource* buffer, Offset offset, Size size, void* data)
+void PipelineCommandEncoder::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     m_vkPreCommandBuffer = m_commandBuffer->getPreCommandBuffer();
     _uploadBufferData(
         m_vkPreCommandBuffer,
         m_commandBuffer->m_transientHeap.get(),
-        static_cast<BufferResourceImpl*>(buffer),
+        static_cast<BufferImpl*>(buffer),
         offset,
         size,
         data
@@ -156,9 +156,9 @@ Result PipelineCommandEncoder::bindRootShaderObjectImpl(
     return SLANG_OK;
 }
 
-Result PipelineCommandEncoder::setPipelineStateImpl(IPipelineState* state, IShaderObject** outRootObject)
+Result PipelineCommandEncoder::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineStateImpl*>(state);
+    m_currentPipeline = static_cast<PipelineImpl*>(state);
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_renderer,
@@ -168,9 +168,9 @@ Result PipelineCommandEncoder::setPipelineStateImpl(IPipelineState* state, IShad
     return SLANG_OK;
 }
 
-Result PipelineCommandEncoder::setPipelineStateWithRootObjectImpl(IPipelineState* state, IShaderObject* rootObject)
+Result PipelineCommandEncoder::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
 {
-    m_currentPipeline = static_cast<PipelineStateImpl*>(state);
+    m_currentPipeline = static_cast<PipelineImpl*>(state);
     m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
@@ -184,11 +184,11 @@ Result PipelineCommandEncoder::bindRenderState(VkPipelineBindPoint pipelineBindP
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
                                                ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
                                                : &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineStateBase> newPipeline;
+    RefPtr<PipelineBase> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineStateImpl* newPipelineImpl = static_cast<PipelineStateImpl*>(newPipeline.Ptr());
+    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
 
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineStateCreated());
+    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
     m_currentPipeline = newPipelineImpl;
 
     bindRootShaderObjectImpl(rootObjectImpl, pipelineBindPoint);
@@ -203,18 +203,12 @@ Result PipelineCommandEncoder::bindRenderState(VkPipelineBindPoint pipelineBindP
     return SLANG_OK;
 }
 
-void ResourceCommandEncoder::copyBuffer(
-    IBufferResource* dst,
-    Offset dstOffset,
-    IBufferResource* src,
-    Offset srcOffset,
-    Size size
-)
+void ResourceCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     auto& vkAPI = m_commandBuffer->m_renderer->m_api;
 
-    auto dstBuffer = static_cast<BufferResourceImpl*>(dst);
-    auto srcBuffer = static_cast<BufferResourceImpl*>(src);
+    auto dstBuffer = static_cast<BufferImpl*>(dst);
+    auto srcBuffer = static_cast<BufferImpl*>(src);
 
     VkBufferCopy copyRegion;
     copyRegion.dstOffset = dstOffset;
@@ -234,12 +228,12 @@ void ResourceCommandEncoder::copyBuffer(
     );
 }
 
-void ResourceCommandEncoder::uploadBufferData(IBufferResource* buffer, Offset offset, Size size, void* data)
+void ResourceCommandEncoder::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     PipelineCommandEncoder::_uploadBufferData(
         m_commandBuffer->m_commandBuffer,
         m_commandBuffer->m_transientHeap.get(),
-        static_cast<BufferResourceImpl*>(buffer),
+        static_cast<BufferImpl*>(buffer),
         offset,
         size,
         data
@@ -248,7 +242,7 @@ void ResourceCommandEncoder::uploadBufferData(IBufferResource* buffer, Offset of
 
 void ResourceCommandEncoder::textureBarrier(
     GfxCount count,
-    ITextureResource* const* textures,
+    ITexture* const* textures,
     ResourceState src,
     ResourceState dst
 )
@@ -257,7 +251,7 @@ void ResourceCommandEncoder::textureBarrier(
 
     for (GfxIndex i = 0; i < count; i++)
     {
-        auto image = static_cast<TextureResourceImpl*>(textures[i]);
+        auto image = static_cast<TextureImpl*>(textures[i]);
         auto desc = image->getDesc();
 
         VkImageMemoryBarrier barrier = {};
@@ -296,7 +290,7 @@ void ResourceCommandEncoder::textureBarrier(
 // TODO: Change size_t to Count?
 void ResourceCommandEncoder::bufferBarrier(
     GfxCount count,
-    IBufferResource* const* buffers,
+    IBuffer* const* buffers,
     ResourceState src,
     ResourceState dst
 )
@@ -306,7 +300,7 @@ void ResourceCommandEncoder::bufferBarrier(
 
     for (GfxIndex i = 0; i < count; i++)
     {
-        auto bufferImpl = static_cast<BufferResourceImpl*>(buffers[i]);
+        auto bufferImpl = static_cast<BufferImpl*>(buffers[i]);
 
         VkBufferMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -314,7 +308,7 @@ void ResourceCommandEncoder::bufferBarrier(
         barrier.dstAccessMask = calcAccessFlags(dst);
         barrier.buffer = bufferImpl->m_buffer.m_buffer;
         barrier.offset = 0;
-        barrier.size = bufferImpl->getDesc()->sizeInBytes;
+        barrier.size = bufferImpl->getDesc()->size;
 
         barriers.push_back(barrier);
     }
@@ -365,21 +359,21 @@ void ResourceCommandEncoder::writeTimestamp(IQueryPool* queryPool, GfxIndex inde
 }
 
 void ResourceCommandEncoder::copyTexture(
-    ITextureResource* dst,
+    ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITextureResource::Offset3D dstOffset,
-    ITextureResource* src,
+    Offset3D dstOffset,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
-    auto srcImage = static_cast<TextureResourceImpl*>(src);
+    auto srcImage = static_cast<TextureImpl*>(src);
     auto srcDesc = srcImage->getDesc();
     auto srcImageLayout = VulkanUtil::getImageLayoutFromState(srcState);
-    auto dstImage = static_cast<TextureResourceImpl*>(dst);
+    auto dstImage = static_cast<TextureImpl*>(dst);
     auto dstDesc = dstImage->getDesc();
     auto dstImageLayout = VulkanUtil::getImageLayoutFromState(dstState);
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0)
@@ -424,19 +418,19 @@ void ResourceCommandEncoder::copyTexture(
 }
 
 void ResourceCommandEncoder::uploadTextureData(
-    ITextureResource* dst,
+    ITexture* dst,
     SubresourceRange subResourceRange,
-    ITextureResource::Offset3D offset,
-    ITextureResource::Extents extend,
-    ITextureResource::SubresourceData* subResourceData,
+    Offset3D offset,
+    Extents extend,
+    SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
     // VALIDATION: dst must be in TransferDst state.
 
     auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    auto dstImpl = static_cast<TextureResourceImpl*>(dst);
-    std::vector<TextureResource::Extents> mipSizes;
+    auto dstImpl = static_cast<TextureImpl*>(dst);
+    std::vector<Extents> mipSizes;
 
     VkCommandBuffer commandBuffer = m_commandBuffer->m_commandBuffer;
     auto& desc = *dstImpl->getDesc();
@@ -445,7 +439,7 @@ void ResourceCommandEncoder::uploadTextureData(
     // Calculate how large an array entry is
     for (GfxIndex j = subResourceRange.mipLevel; j < subResourceRange.mipLevel + subResourceRange.mipLevelCount; ++j)
     {
-        const TextureResource::Extents mipSize = calcMipSize(desc.size, j);
+        const Extents mipSize = calcMipSize(desc.size, j);
 
         auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
         auto numRows = calcNumRows(desc.format, mipSize.height);
@@ -458,7 +452,7 @@ void ResourceCommandEncoder::uploadTextureData(
     // Calculate the total size taking into account the array
     bufferSize *= subResourceRange.layerCount;
 
-    IBufferResource* uploadBuffer = nullptr;
+    IBuffer* uploadBuffer = nullptr;
     Offset uploadBufferOffset = 0;
     m_commandBuffer->m_transientHeap
         ->allocateStagingBuffer(bufferSize, uploadBuffer, uploadBufferOffset, MemoryType::Upload);
@@ -549,7 +543,7 @@ void ResourceCommandEncoder::uploadTextureData(
                 // Do the copy (do all depths in a single go)
                 vkApi.vkCmdCopyBufferToImage(
                     commandBuffer,
-                    static_cast<BufferResourceImpl*>(uploadBuffer)->m_buffer.m_buffer,
+                    static_cast<BufferImpl*>(uploadBuffer)->m_buffer.m_buffer,
                     dstImpl->m_image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     1,
@@ -563,7 +557,7 @@ void ResourceCommandEncoder::uploadTextureData(
     }
 }
 
-void ResourceCommandEncoder::_clearColorImage(TextureResourceViewImpl* viewImpl, ClearValue* clearValue)
+void ResourceCommandEncoder::_clearColorImage(TextureViewImpl* viewImpl, ClearValue* clearValue)
 {
     auto& api = m_commandBuffer->m_renderer->m_api;
     auto layout = viewImpl->m_layout;
@@ -613,7 +607,7 @@ void ResourceCommandEncoder::_clearColorImage(TextureResourceViewImpl* viewImpl,
 }
 
 void ResourceCommandEncoder::_clearDepthImage(
-    TextureResourceViewImpl* viewImpl,
+    TextureViewImpl* viewImpl,
     ClearValue* clearValue,
     ClearResourceViewFlags::Enum flags
 )
@@ -703,13 +697,13 @@ void ResourceCommandEncoder::clearResourceView(
     {
     case IResourceView::Type::RenderTarget:
     {
-        auto viewImpl = static_cast<TextureResourceViewImpl*>(view);
+        auto viewImpl = static_cast<TextureViewImpl*>(view);
         _clearColorImage(viewImpl, clearValue);
     }
     break;
     case IResourceView::Type::DepthStencil:
     {
-        auto viewImpl = static_cast<TextureResourceViewImpl*>(view);
+        auto viewImpl = static_cast<TextureViewImpl*>(view);
         _clearDepthImage(viewImpl, clearValue, flags);
     }
     break;
@@ -720,7 +714,7 @@ void ResourceCommandEncoder::clearResourceView(
         {
         case ResourceViewImpl::ViewType::Texture:
         {
-            auto viewImpl = static_cast<TextureResourceViewImpl*>(viewImplBase);
+            auto viewImpl = static_cast<TextureViewImpl*>(viewImplBase);
             if ((flags & ClearResourceViewFlags::ClearDepth) || (flags & ClearResourceViewFlags::ClearStencil))
             {
                 _clearDepthImage(viewImpl, clearValue, flags);
@@ -738,11 +732,11 @@ void ResourceCommandEncoder::clearResourceView(
                 clearValue->color.uintValues[2] == clearValue->color.uintValues[0] &&
                 clearValue->color.uintValues[3] == clearValue->color.uintValues[0]
             );
-            auto viewImpl = static_cast<PlainBufferResourceViewImpl*>(viewImplBase);
+            auto viewImpl = static_cast<PlainBufferViewImpl*>(viewImplBase);
             uint64_t clearStart = viewImpl->m_desc.bufferRange.offset;
             uint64_t clearSize = viewImpl->m_desc.bufferRange.size;
             if (clearSize == 0)
-                clearSize = viewImpl->m_buffer->getDesc()->sizeInBytes - clearStart;
+                clearSize = viewImpl->m_buffer->getDesc()->size - clearStart;
             api.vkCmdFillBuffer(
                 m_commandBuffer->m_commandBuffer,
                 viewImpl->m_buffer->m_buffer.m_buffer,
@@ -759,10 +753,10 @@ void ResourceCommandEncoder::clearResourceView(
                 clearValue->color.uintValues[2] == clearValue->color.uintValues[0] &&
                 clearValue->color.uintValues[3] == clearValue->color.uintValues[0]
             );
-            auto viewImpl = static_cast<TexelBufferResourceViewImpl*>(viewImplBase);
+            auto viewImpl = static_cast<TexelBufferViewImpl*>(viewImplBase);
             _clearBuffer(
                 viewImpl->m_buffer->m_buffer.m_buffer,
-                viewImpl->m_buffer->getDesc()->sizeInBytes,
+                viewImpl->m_buffer->getDesc()->size,
                 viewImpl->m_desc,
                 clearValue->color.uintValues[0]
             );
@@ -775,17 +769,17 @@ void ResourceCommandEncoder::clearResourceView(
 }
 
 void ResourceCommandEncoder::resolveResource(
-    ITextureResource* source,
+    ITexture* source,
     ResourceState sourceState,
     SubresourceRange sourceRange,
-    ITextureResource* dest,
+    ITexture* dest,
     ResourceState destState,
     SubresourceRange destRange
 )
 {
-    auto srcTexture = static_cast<TextureResourceImpl*>(source);
+    auto srcTexture = static_cast<TextureImpl*>(source);
     auto srcExtent = srcTexture->getDesc()->size;
-    auto dstTexture = static_cast<TextureResourceImpl*>(dest);
+    auto dstTexture = static_cast<TextureImpl*>(dest);
 
     auto srcImage = srcTexture->m_image;
     auto dstImage = dstTexture->m_image;
@@ -829,13 +823,13 @@ void ResourceCommandEncoder::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     Offset offset
 )
 {
     auto& vkApi = m_commandBuffer->m_renderer->m_api;
     auto poolImpl = static_cast<QueryPoolImpl*>(queryPool);
-    auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    auto bufferImpl = static_cast<BufferImpl*>(buffer);
     vkApi.vkCmdCopyQueryPoolResults(
         m_commandBuffer->m_commandBuffer,
         poolImpl->m_pool,
@@ -849,22 +843,22 @@ void ResourceCommandEncoder::resolveQuery(
 }
 
 void ResourceCommandEncoder::copyTextureToBuffer(
-    IBufferResource* dst,
+    IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,
-    ITextureResource* src,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
-    auto image = static_cast<TextureResourceImpl*>(src);
+    auto image = static_cast<TextureImpl*>(src);
     auto desc = image->getDesc();
-    auto buffer = static_cast<BufferResourceImpl*>(dst);
+    auto buffer = static_cast<BufferImpl*>(dst);
     auto srcImageLayout = VulkanUtil::getImageLayoutFromState(srcState);
 
     VkBufferImageCopy region = {};
@@ -890,14 +884,14 @@ void ResourceCommandEncoder::copyTextureToBuffer(
 }
 
 void ResourceCommandEncoder::textureSubresourceBarrier(
-    ITextureResource* texture,
+    ITexture* texture,
     SubresourceRange subresourceRange,
     ResourceState src,
     ResourceState dst
 )
 {
     short_vector<VkImageMemoryBarrier> barriers;
-    auto image = static_cast<TextureResourceImpl*>(texture);
+    auto image = static_cast<TextureImpl*>(texture);
     auto desc = image->getDesc();
 
     VkImageMemoryBarrier barrier = {};
@@ -986,14 +980,14 @@ void RenderCommandEncoder::endEncoding()
     endEncodingImpl();
 }
 
-Result RenderCommandEncoder::bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject)
+Result RenderCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineStateImpl(pipelineState, outRootObject);
+    return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result RenderCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result RenderCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
-    return setPipelineStateWithRootObjectImpl(pipelineState, rootObject);
+    return setPipelineWithRootObjectImpl(pipeline, rootObject);
 }
 
 void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewports)
@@ -1066,14 +1060,14 @@ void RenderCommandEncoder::setPrimitiveTopology(PrimitiveTopology topology)
 void RenderCommandEncoder::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
-    IBufferResource* const* buffers,
+    IBuffer* const* buffers,
     const Offset* offsets
 )
 {
     for (GfxIndex i = 0; i < GfxIndex(slotCount); i++)
     {
         GfxIndex slotIndex = startSlot + i;
-        BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(buffers[i]);
+        BufferImpl* buffer = static_cast<BufferImpl*>(buffers[i]);
         if (buffer)
         {
             VkBuffer vertexBuffers[] = {buffer->m_buffer.m_buffer};
@@ -1084,7 +1078,7 @@ void RenderCommandEncoder::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoder::setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset)
+void RenderCommandEncoder::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
 {
     VkIndexType indexType = VK_INDEX_TYPE_UINT16;
     switch (indexFormat)
@@ -1099,14 +1093,14 @@ void RenderCommandEncoder::setIndexBuffer(IBufferResource* buffer, Format indexF
         SLANG_RHI_ASSERT_FAILURE("Unsupported index format");
     }
 
-    BufferResourceImpl* bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
 
     m_api->vkCmdBindIndexBuffer(m_vkCommandBuffer, bufferImpl->m_buffer.m_buffer, (VkDeviceSize)offset, indexType);
 }
 
 Result RenderCommandEncoder::prepareDraw()
 {
-    auto pipeline = static_cast<PipelineStateImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     if (!pipeline)
     {
         return SLANG_FAIL;
@@ -1139,9 +1133,9 @@ void RenderCommandEncoder::setStencilReference(uint32_t referenceValue)
 
 Result RenderCommandEncoder::drawIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
@@ -1151,7 +1145,7 @@ Result RenderCommandEncoder::drawIndirect(
 
     SLANG_RETURN_ON_FAIL(prepareDraw());
     auto& api = *m_api;
-    auto argBufferImpl = static_cast<BufferResourceImpl*>(argBuffer);
+    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
     api.vkCmdDrawIndirect(
         m_vkCommandBuffer,
         argBufferImpl->m_buffer.m_buffer,
@@ -1164,9 +1158,9 @@ Result RenderCommandEncoder::drawIndirect(
 
 Result RenderCommandEncoder::drawIndexedIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
@@ -1177,7 +1171,7 @@ Result RenderCommandEncoder::drawIndexedIndirect(
     SLANG_RETURN_ON_FAIL(prepareDraw());
 
     auto& api = *m_api;
-    auto argBufferImpl = static_cast<BufferResourceImpl*>(argBuffer);
+    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
     api.vkCmdDrawIndexedIndirect(
         m_vkCommandBuffer,
         argBufferImpl->m_buffer.m_buffer,
@@ -1253,19 +1247,19 @@ void ComputeCommandEncoder::endEncoding()
     endEncodingImpl();
 }
 
-Result ComputeCommandEncoder::bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject)
+Result ComputeCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineStateImpl(pipelineState, outRootObject);
+    return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result ComputeCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result ComputeCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
-    return setPipelineStateWithRootObjectImpl(pipelineState, rootObject);
+    return setPipelineWithRootObjectImpl(pipeline, rootObject);
 }
 
 Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
 {
-    auto pipeline = static_cast<PipelineStateImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     if (!pipeline)
     {
         return SLANG_FAIL;
@@ -1277,7 +1271,7 @@ Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoder::dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset)
+Result ComputeCommandEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }
@@ -1488,14 +1482,14 @@ void RayTracingCommandEncoder::deserializeAccelerationStructure(IAccelerationStr
     );
 }
 
-Result RayTracingCommandEncoder::bindPipeline(IPipelineState* pipeline, IShaderObject** outRootObject)
+Result RayTracingCommandEncoder::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineStateImpl(pipeline, outRootObject);
+    return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result RayTracingCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result RayTracingCommandEncoder::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
-    return setPipelineStateWithRootObjectImpl(pipelineState, rootObject);
+    return setPipelineWithRootObjectImpl(pipeline, rootObject);
 }
 
 Result RayTracingCommandEncoder::dispatchRays(

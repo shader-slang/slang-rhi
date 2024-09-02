@@ -2,7 +2,7 @@
 
 namespace rhi::cpu {
 
-BufferResourceImpl::~BufferResourceImpl()
+BufferImpl::~BufferImpl()
 {
     if (m_data)
     {
@@ -10,26 +10,26 @@ BufferResourceImpl::~BufferResourceImpl()
     }
 }
 
-Result BufferResourceImpl::init()
+Result BufferImpl::init()
 {
-    m_data = malloc(m_desc.sizeInBytes);
+    m_data = malloc(m_desc.size);
     if (!m_data)
         return SLANG_E_OUT_OF_MEMORY;
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::setData(size_t offset, size_t size, void const* data)
+Result BufferImpl::setData(size_t offset, size_t size, void const* data)
 {
     memcpy((char*)m_data + offset, data, size);
     return SLANG_OK;
 }
 
-SLANG_NO_THROW DeviceAddress SLANG_MCALL BufferResourceImpl::getDeviceAddress()
+SLANG_NO_THROW DeviceAddress SLANG_MCALL BufferImpl::getDeviceAddress()
 {
     return (DeviceAddress)m_data;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+SLANG_NO_THROW Result SLANG_MCALL BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     if (outPointer)
@@ -37,7 +37,7 @@ SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::map(MemoryRange* rangeToRe
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL BufferResourceImpl::unmap(MemoryRange* writtenRange)
+SLANG_NO_THROW Result SLANG_MCALL BufferImpl::unmap(MemoryRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     return SLANG_OK;

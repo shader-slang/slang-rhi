@@ -1,4 +1,4 @@
-#include "metal-pipeline-state.h"
+#include "metal-pipeline.h"
 #include "metal-device.h"
 #include "metal-shader-object-layout.h"
 #include "metal-shader-program.h"
@@ -7,14 +7,14 @@
 
 namespace rhi::metal {
 
-PipelineStateImpl::PipelineStateImpl(DeviceImpl* device)
+PipelineImpl::PipelineImpl(DeviceImpl* device)
     : m_device(device)
 {
 }
 
-PipelineStateImpl::~PipelineStateImpl() {}
+PipelineImpl::~PipelineImpl() {}
 
-void PipelineStateImpl::init(const GraphicsPipelineStateDesc& desc)
+void PipelineImpl::init(const RenderPipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Graphics;
@@ -22,7 +22,7 @@ void PipelineStateImpl::init(const GraphicsPipelineStateDesc& desc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const ComputePipelineStateDesc& desc)
+void PipelineImpl::init(const ComputePipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Compute;
@@ -30,7 +30,7 @@ void PipelineStateImpl::init(const ComputePipelineStateDesc& desc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const RayTracingPipelineStateDesc& desc)
+void PipelineImpl::init(const RayTracingPipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::RayTracing;
@@ -38,7 +38,7 @@ void PipelineStateImpl::init(const RayTracingPipelineStateDesc& desc)
     initializeBase(pipelineDesc);
 }
 
-Result PipelineStateImpl::createMetalRenderPipelineState()
+Result PipelineImpl::createMetalRenderPipelineState()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (!programImpl)
@@ -173,7 +173,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::createMetalComputePipelineState()
+Result PipelineImpl::createMetalComputePipelineState()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (!programImpl)
@@ -196,7 +196,7 @@ Result PipelineStateImpl::createMetalComputePipelineState()
     return m_computePipelineState ? SLANG_OK : SLANG_FAIL;
 }
 
-Result PipelineStateImpl::ensureAPIPipelineStateCreated()
+Result PipelineImpl::ensureAPIPipelineCreated()
 {
     AUTORELEASEPOOL
 
@@ -213,33 +213,33 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     switch (desc.type)
     {
     case PipelineType::Compute:
-        outHandle->api = InteropHandleAPI::Metal;
-        outHandle->handleValue = reinterpret_cast<intptr_t>(m_computePipelineState.get());
+        outHandle->type = NativeHandleType::MTLComputePipelineState;
+        outHandle->value = (uint64_t)m_computePipelineState.get();
         return SLANG_OK;
     case PipelineType::Graphics:
-        outHandle->api = InteropHandleAPI::Metal;
-        outHandle->handleValue = reinterpret_cast<intptr_t>(m_renderPipelineState.get());
+        outHandle->type = NativeHandleType::MTLRenderPipelineState;
+        outHandle->value = (uint64_t)m_renderPipelineState.get();
         return SLANG_OK;
     }
-    return SLANG_FAIL;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
-    : PipelineStateImpl(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
+    : PipelineImpl(device)
 {
 }
 
-Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
+Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }

@@ -25,31 +25,31 @@ private:
     Kind m_kind;
 };
 
-class BufferResourceViewImpl : public ResourceViewImpl
+class BufferViewImpl : public ResourceViewImpl
 {
 public:
-    BufferResourceViewImpl(Desc const& desc, BufferResourceImpl* buffer)
+    BufferViewImpl(Desc const& desc, BufferImpl* buffer)
         : ResourceViewImpl(Kind::Buffer, desc)
         , m_buffer(buffer)
     {
     }
 
-    BufferResourceImpl* getBuffer() const;
+    BufferImpl* getBuffer() const;
 
 private:
-    RefPtr<BufferResourceImpl> m_buffer;
+    RefPtr<BufferImpl> m_buffer;
 };
 
-class TextureResourceViewImpl : public ResourceViewImpl, public slang_prelude::IRWTexture
+class TextureViewImpl : public ResourceViewImpl, public slang_prelude::IRWTexture
 {
 public:
-    TextureResourceViewImpl(Desc const& desc, TextureResourceImpl* texture)
+    TextureViewImpl(Desc const& desc, TextureImpl* texture)
         : ResourceViewImpl(Kind::Texture, desc)
         , m_texture(texture)
     {
     }
 
-    TextureResourceImpl* getTexture() const;
+    TextureImpl* getTexture() const;
 
     //
     // ITexture interface
@@ -77,7 +77,7 @@ public:
     void* refAt(const uint32_t* texelCoords) SLANG_OVERRIDE;
 
 private:
-    RefPtr<TextureResourceImpl> m_texture;
+    RefPtr<TextureImpl> m_texture;
 
     void* _getTexelPtr(int32_t const* texelCoords);
 };

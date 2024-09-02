@@ -65,7 +65,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -74,7 +74,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset cons
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerStateImpl*>(sampler);
+    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerImpl*>(sampler);
     return SLANG_OK;
 }
 
@@ -242,15 +242,14 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // simply re-use that buffer rather than re-create it.
     if (!m_ordinaryDataBuffer)
     {
-        ComPtr<IBufferResource> bufferResourcePtr;
-        IBufferResource::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
-        bufferDesc.sizeInBytes = specializedOrdinaryDataSize;
+        ComPtr<IBuffer> buffer;
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = specializedOrdinaryDataSize;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
-        m_ordinaryDataBuffer = static_cast<BufferResourceImpl*>(bufferResourcePtr.get());
+        SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        m_ordinaryDataBuffer = static_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isConstantBufferDirty)

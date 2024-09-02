@@ -29,8 +29,8 @@ class FramebufferImpl : public FramebufferBase
 public:
     BreakableReference<DeviceImpl> m_device;
     RefPtr<FramebufferLayoutImpl> m_layout;
-    short_vector<RefPtr<TextureResourceViewImpl>> m_renderTargetViews;
-    RefPtr<TextureResourceViewImpl> m_depthStencilView;
+    short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
+    RefPtr<TextureViewImpl> m_depthStencilView;
     uint32_t m_width;
     uint32_t m_height;
     uint32_t m_sampleCount;

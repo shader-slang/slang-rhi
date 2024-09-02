@@ -109,9 +109,9 @@ struct ShaderCursor
         return m_baseObject->setResource(m_offset, resourceView);
     }
 
-    SlangResult setSampler(ISamplerState* sampler) const { return m_baseObject->setSampler(m_offset, sampler); }
+    SlangResult setSampler(ISampler* sampler) const { return m_baseObject->setSampler(m_offset, sampler); }
 
-    SlangResult setCombinedTextureSampler(IResourceView* textureView, ISamplerState* sampler) const
+    SlangResult setCombinedTextureSampler(IResourceView* textureView, ISampler* sampler) const
     {
         return m_baseObject->setCombinedTextureSampler(m_offset, textureView, sampler);
     }

@@ -57,14 +57,15 @@ CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fence
     return SLANG_FAIL;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandQueueImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_FAIL;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-void CommandQueueImpl::setPipelineState(IPipelineState* state)
+void CommandQueueImpl::setPipeline(IPipeline* state)
 {
-    currentPipeline = dynamic_cast<ComputePipelineStateImpl*>(state);
+    currentPipeline = dynamic_cast<ComputePipelineImpl*>(state);
 }
 
 Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
@@ -78,9 +79,9 @@ Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
 void CommandQueueImpl::dispatchCompute(int x, int y, int z)
 {
     // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineStateBase> newPipeline;
+    RefPtr<PipelineBase> newPipeline;
     renderer->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
-    currentPipeline = static_cast<ComputePipelineStateImpl*>(newPipeline.Ptr());
+    currentPipeline = static_cast<ComputePipelineImpl*>(newPipeline.Ptr());
 
     // Find out thread group size from program reflection.
     auto& kernelName = currentPipeline->shaderProgram->kernelName;
@@ -139,16 +140,10 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     SLANG_RHI_ASSERT(cudaLaunchResult == CUDA_SUCCESS);
 }
 
-void CommandQueueImpl::copyBuffer(
-    IBufferResource* dst,
-    size_t dstOffset,
-    IBufferResource* src,
-    size_t srcOffset,
-    size_t size
-)
+void CommandQueueImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size)
 {
-    auto dstImpl = static_cast<BufferResourceImpl*>(dst);
-    auto srcImpl = static_cast<BufferResourceImpl*>(src);
+    auto dstImpl = static_cast<BufferImpl*>(dst);
+    auto srcImpl = static_cast<BufferImpl*>(src);
     cuMemcpy(
         (CUdeviceptr)((uint8_t*)dstImpl->m_cudaMemory + dstOffset),
         (CUdeviceptr)((uint8_t*)srcImpl->m_cudaMemory + srcOffset),
@@ -156,9 +151,9 @@ void CommandQueueImpl::copyBuffer(
     );
 }
 
-void CommandQueueImpl::uploadBufferData(IBufferResource* dst, size_t offset, size_t size, void* data)
+void CommandQueueImpl::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
 {
-    auto dstImpl = static_cast<BufferResourceImpl*>(dst);
+    auto dstImpl = static_cast<BufferImpl*>(dst);
     cuMemcpy((CUdeviceptr)((uint8_t*)dstImpl->m_cudaMemory + offset), (CUdeviceptr)data, size);
 }
 
@@ -174,8 +169,8 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
     {
         switch (cmd.name)
         {
-        case CommandName::SetPipelineState:
-            setPipelineState(commandBuffer->getObject<PipelineStateBase>(cmd.operands[0]));
+        case CommandName::SetPipeline:
+            setPipeline(commandBuffer->getObject<PipelineBase>(cmd.operands[0]));
             break;
         case CommandName::BindRootShaderObject:
             bindRootShaderObject(commandBuffer->getObject<ShaderObjectBase>(cmd.operands[0]));
@@ -185,16 +180,16 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
             break;
         case CommandName::CopyBuffer:
             copyBuffer(
-                commandBuffer->getObject<BufferResource>(cmd.operands[0]),
+                commandBuffer->getObject<Buffer>(cmd.operands[0]),
                 cmd.operands[1],
-                commandBuffer->getObject<BufferResource>(cmd.operands[2]),
+                commandBuffer->getObject<Buffer>(cmd.operands[2]),
                 cmd.operands[3],
                 cmd.operands[4]
             );
             break;
         case CommandName::UploadBufferData:
             uploadBufferData(
-                commandBuffer->getObject<BufferResource>(cmd.operands[0]),
+                commandBuffer->getObject<Buffer>(cmd.operands[0]),
                 cmd.operands[1],
                 cmd.operands[2],
                 commandBuffer->getData<uint8_t>(cmd.operands[3])

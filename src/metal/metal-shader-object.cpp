@@ -60,29 +60,27 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
     case slang::BindingType::Texture:
     case slang::BindingType::MutableTexture:
         SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Texture);
-        m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] =
-            static_cast<TextureResourceViewImpl*>(resourceView);
+        m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<TextureViewImpl*>(resourceView);
         break;
     case slang::BindingType::RawBuffer:
     case slang::BindingType::ConstantBuffer:
     case slang::BindingType::MutableRawBuffer:
         SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Buffer);
-        m_buffers[bindingRange.baseIndex + offset.bindingArrayIndex] =
-            static_cast<BufferResourceViewImpl*>(resourceView);
+        m_buffers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<BufferViewImpl*>(resourceView);
         break;
     case slang::BindingType::TypedBuffer:
     case slang::BindingType::MutableTypedBuffer:
         SLANG_RHI_ASSERT_FAILURE("Not implemented");
         // SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::TexelBuffer);
         // m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] =
-        // static_cast<TextureResourceViewImpl*>(resourceView);
+        // static_cast<TextureViewImpl*>(resourceView);
         break;
     }
     m_isArgumentBufferDirty = true;
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -91,7 +89,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset cons
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerStateImpl*>(sampler);
+    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerImpl*>(sampler);
     m_isArgumentBufferDirty = true;
     return SLANG_OK;
 }
@@ -255,15 +253,14 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* de
     // simply re-use that buffer rather than re-create it.
     if (!m_ordinaryDataBuffer)
     {
-        ComPtr<IBufferResource> bufferResourcePtr;
-        IBufferResource::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
-        bufferDesc.sizeInBytes = ordinaryDataSize;
+        ComPtr<IBuffer> buffer;
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = ordinaryDataSize;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
-        m_ordinaryDataBuffer = static_cast<BufferResourceImpl*>(bufferResourcePtr.get());
+        SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        m_ordinaryDataBuffer = static_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isConstantBufferDirty)
@@ -342,7 +339,7 @@ void ShaderObjectImpl::writeOrdinaryDataIntoArgumentBuffer(
     }
 }
 
-BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout)
+BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout)
 {
     auto typeLayout = layout->getParameterBlockTypeLayout();
     auto defaultTypeLayout = m_layout->getElementTypeLayout();
@@ -351,15 +348,14 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* 
     // simply re-use that buffer rather than re-create it.
     if (!m_argumentBuffer)
     {
-        ComPtr<IBufferResource> bufferResourcePtr;
-        IBufferResource::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
-        bufferDesc.sizeInBytes = typeLayout->getSize();
+        ComPtr<IBuffer> buffer;
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = typeLayout->getSize();
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_NULL_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, bufferResourcePtr.writeRef()));
-        m_argumentBuffer = static_cast<BufferResourceImpl*>(bufferResourcePtr.get());
+        SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        m_argumentBuffer = static_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isArgumentBufferDirty)
@@ -416,7 +412,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* 
                 case slang::BindingType::MutableRawBuffer:
                 {
                     auto bufferViewImpl =
-                        static_cast<BufferResourceViewImpl*>(m_buffers[resourceIndex + bufferBindingIndexOffset].get());
+                        static_cast<BufferViewImpl*>(m_buffers[resourceIndex + bufferBindingIndexOffset].get());
 
                     if (bufferViewImpl)
                     {
@@ -429,7 +425,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* 
                 case slang::BindingType::Texture:
                 case slang::BindingType::MutableTexture:
                 {
-                    auto textureViewImpl = static_cast<TextureResourceViewImpl*>(m_textures[resourceIndex].get());
+                    auto textureViewImpl = static_cast<TextureViewImpl*>(m_textures[resourceIndex].get());
                     if (textureViewImpl)
                     {
                         auto resourceId = textureViewImpl->m_textureView->gpuResourceID();
@@ -439,7 +435,7 @@ BufferResourceImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* 
                 }
                 case slang::BindingType::Sampler:
                 {
-                    auto samplerStateImpl = static_cast<SamplerStateImpl*>(m_samplers[resourceIndex].get());
+                    auto samplerStateImpl = static_cast<SamplerImpl*>(m_samplers[resourceIndex].get());
                     auto resourceId = samplerStateImpl->m_samplerState->gpuResourceID();
                     memcpy(argumentPtr, &resourceId, sizeof(resourceId));
                     break;

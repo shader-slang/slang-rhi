@@ -3,7 +3,7 @@
 
 namespace rhi::cuda {
 
-TextureResourceImpl::~TextureResourceImpl()
+TextureImpl::~TextureImpl()
 {
     if (m_cudaSurfObj)
     {
@@ -23,15 +23,15 @@ TextureResourceImpl::~TextureResourceImpl()
     }
 }
 
-uint64_t TextureResourceImpl::getBindlessHandle()
+uint64_t TextureImpl::getBindlessHandle()
 {
     return (uint64_t)m_cudaTexObj;
 }
 
-Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = getBindlessHandle();
-    outHandle->api = InteropHandleAPI::CUDA;
+    outHandle->type = NativeHandleType::CUtexObject;
+    outHandle->value = getBindlessHandle();
     return SLANG_OK;
 }
 

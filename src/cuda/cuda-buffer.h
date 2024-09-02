@@ -5,15 +5,15 @@
 
 namespace rhi::cuda {
 
-class BufferResourceImpl : public BufferResource
+class BufferImpl : public Buffer
 {
 public:
-    BufferResourceImpl(const Desc& _desc)
-        : BufferResource(_desc)
+    BufferImpl(const BufferDesc& _desc)
+        : Buffer(_desc)
     {
     }
 
-    ~BufferResourceImpl();
+    ~BufferImpl();
 
     uint64_t getBindlessHandle();
 
@@ -23,7 +23,7 @@ public:
     RefPtr<CUDAContext> m_cudaContext;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeResourceHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) override;
 };

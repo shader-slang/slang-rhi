@@ -3,38 +3,22 @@
 
 namespace rhi::debug {
 
-IResource::Type DebugTextureResource::getType()
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->getType();
-}
-
-ITextureResource::Desc* DebugTextureResource::getDesc()
+TextureDesc* DebugTexture::getDesc()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDesc();
 }
 
-Result DebugTextureResource::getNativeResourceHandle(InteropHandle* outHandle)
+Result DebugTexture::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getNativeResourceHandle(outHandle);
+    return baseObject->getNativeHandle(outHandle);
 }
 
-Result DebugTextureResource::getSharedHandle(InteropHandle* outHandle)
+Result DebugTexture::getSharedHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getSharedHandle(outHandle);
-}
-
-Result DebugTextureResource::setDebugName(const char* name)
-{
-    return baseObject->setDebugName(name);
-}
-
-const char* DebugTextureResource::getDebugName()
-{
-    return baseObject->getDebugName();
 }
 
 } // namespace rhi::debug

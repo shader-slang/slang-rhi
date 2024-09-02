@@ -14,10 +14,10 @@ ICommandBufferD3D12* CommandBufferImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-Result CommandBufferImpl::getNativeHandle(InteropHandle* handle)
+Result CommandBufferImpl::getNativeHandle(NativeHandle* handle)
 {
-    handle->api = InteropHandleAPI::D3D12;
-    handle->handleValue = (uint64_t)m_cmdList.get();
+    handle->type = NativeHandleType::D3D12GraphicsCommandList;
+    handle->value = (uint64_t)m_cmdList.get();
     return SLANG_OK;
 }
 

@@ -4,11 +4,11 @@
 #include "debug-fence.h"
 #include "debug-framebuffer.h"
 #include "debug-helper-functions.h"
-#include "debug-pipeline-state.h"
+#include "debug-pipeline.h"
 #include "debug-query.h"
 #include "debug-render-pass.h"
 #include "debug-resource-views.h"
-#include "debug-sampler-state.h"
+#include "debug-sampler.h"
 #include "debug-shader-object.h"
 #include "debug-shader-program.h"
 #include "debug-shader-table.h"
@@ -37,7 +37,7 @@ Result DebugDevice::queryInterface(SlangUUID const& uuid, void** outObject) noex
     return baseObject->queryInterface(uuid, outObject);
 }
 
-Result DebugDevice::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DebugDevice::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     return baseObject->getNativeDeviceHandles(outHandles);
 }
@@ -90,120 +90,100 @@ Result DebugDevice::createTransientResourceHeap(
     return result;
 }
 
-Result DebugDevice::createTextureResource(
-    const ITextureResource::Desc& desc,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugTextureResource> outObject = new DebugTextureResource();
-    auto result = baseObject->createTextureResource(desc, initData, outObject->baseObject.writeRef());
+    RefPtr<DebugTexture> outObject = new DebugTexture();
+    auto result = baseObject->createTexture(desc, initData, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outTexture, outObject);
     return result;
 }
 
 Result DebugDevice::createTextureFromNativeHandle(
-    InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
-    ITextureResource** outResource
+    NativeHandle handle,
+    const TextureDesc& srcDesc,
+    ITexture** outTexture
 )
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugTextureResource> outObject = new DebugTextureResource();
+    RefPtr<DebugTexture> outObject = new DebugTexture();
     auto result = baseObject->createTextureFromNativeHandle(handle, srcDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outTexture, outObject);
     return result;
 }
 
 Result DebugDevice::createTextureFromSharedHandle(
-    InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
+    NativeHandle handle,
+    const TextureDesc& srcDesc,
     const size_t size,
-    ITextureResource** outResource
+    ITexture** outTexture
 )
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugTextureResource> outObject = new DebugTextureResource();
+    RefPtr<DebugTexture> outObject = new DebugTexture();
     auto result = baseObject->createTextureFromSharedHandle(handle, srcDesc, size, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outTexture, outObject);
     return result;
 }
 
-Result DebugDevice::createBufferResource(
-    const IBufferResource::Desc& desc,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
-    auto result = baseObject->createBufferResource(desc, initData, outObject->baseObject.writeRef());
+    RefPtr<DebugBuffer> outObject = new DebugBuffer();
+    auto result = baseObject->createBuffer(desc, initData, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outBuffer, outObject);
     return result;
 }
 
-Result DebugDevice::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
+    RefPtr<DebugBuffer> outObject = new DebugBuffer();
     auto result = baseObject->createBufferFromNativeHandle(handle, srcDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outBuffer, outObject);
     return result;
 }
 
-Result DebugDevice::createBufferFromSharedHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBufferResource> outObject = new DebugBufferResource();
+    RefPtr<DebugBuffer> outObject = new DebugBuffer();
     auto result = baseObject->createBufferFromSharedHandle(handle, srcDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outResource, outObject);
+    returnComPtr(outBuffer, outObject);
     return result;
 }
 
-Result DebugDevice::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+Result DebugDevice::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugSamplerState> outObject = new DebugSamplerState();
-    auto result = baseObject->createSamplerState(desc, outObject->baseObject.writeRef());
+    RefPtr<DebugSampler> outObject = new DebugSampler();
+    auto result = baseObject->createSampler(desc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outSampler, outObject);
     return result;
 }
 
-Result DebugDevice::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DebugDevice::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
     SLANG_RHI_API_FUNC;
 
@@ -216,8 +196,8 @@ Result DebugDevice::createTextureView(
 }
 
 Result DebugDevice::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
@@ -513,54 +493,54 @@ Result DebugDevice::createProgram2(
     return result;
 }
 
-Result DebugDevice::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState)
+Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    GraphicsPipelineStateDesc innerDesc = desc;
+    RenderPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
     innerDesc.inputLayout = getInnerObj(desc.inputLayout);
     innerDesc.framebufferLayout = getInnerObj(desc.framebufferLayout);
-    RefPtr<DebugPipelineState> outObject = new DebugPipelineState();
-    auto result = baseObject->createGraphicsPipelineState(innerDesc, outObject->baseObject.writeRef());
+    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    auto result = baseObject->createRenderPipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outState, outObject);
+    returnComPtr(outPipeline, outObject);
     return result;
 }
 
-Result DebugDevice::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    ComputePipelineStateDesc innerDesc = desc;
+    ComputePipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
 
-    RefPtr<DebugPipelineState> outObject = new DebugPipelineState();
-    auto result = baseObject->createComputePipelineState(innerDesc, outObject->baseObject.writeRef());
+    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    auto result = baseObject->createComputePipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outState, outObject);
+    returnComPtr(outPipeline, outObject);
     return result;
 }
 
-Result DebugDevice::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    RayTracingPipelineStateDesc innerDesc = desc;
+    RayTracingPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
 
-    RefPtr<DebugPipelineState> outObject = new DebugPipelineState();
-    auto result = baseObject->createRayTracingPipelineState(innerDesc, outObject->baseObject.writeRef());
+    RefPtr<DebugPipeline> outObject = new DebugPipeline();
+    auto result = baseObject->createRayTracingPipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outState, outObject);
+    returnComPtr(outPipeline, outObject);
     return result;
 }
 
-Result DebugDevice::readTextureResource(
-    ITextureResource* resource,
+Result DebugDevice::readTexture(
+    ITexture* resource,
     ResourceState state,
     ISlangBlob** outBlob,
     size_t* outRowPitch,
@@ -568,13 +548,13 @@ Result DebugDevice::readTextureResource(
 )
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->readTextureResource(getInnerObj(resource), state, outBlob, outRowPitch, outPixelSize);
+    return baseObject->readTexture(getInnerObj(resource), state, outBlob, outRowPitch, outPixelSize);
 }
 
-Result DebugDevice::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->readBufferResource(getInnerObj(buffer), offset, size, outBlob);
+    return baseObject->readBuffer(getInnerObj(buffer), offset, size, outBlob);
 }
 
 const DeviceInfo& DebugDevice::getDeviceInfo() const
@@ -619,7 +599,7 @@ Result DebugDevice::waitForFences(
     return baseObject->waitForFences(fenceCount, innerFences.data(), values, waitForAll, timeout);
 }
 
-Result DebugDevice::getTextureAllocationInfo(const ITextureResource::Desc& desc, size_t* outSize, size_t* outAlignment)
+Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getTextureAllocationInfo(desc, outSize, outAlignment);

@@ -14,8 +14,8 @@ ResourceViewInternalImpl::~ResourceViewInternalImpl()
 }
 
 Result createD3D12BufferDescriptor(
-    BufferResourceImpl* buffer,
-    BufferResourceImpl* counterBuffer,
+    BufferImpl* buffer,
+    BufferImpl* counterBuffer,
     IResourceView::Desc const& desc,
     uint32_t bufferStride,
     DeviceImpl* device,
@@ -24,12 +24,12 @@ Result createD3D12BufferDescriptor(
 )
 {
 
-    auto resourceImpl = (BufferResourceImpl*)buffer;
+    auto resourceImpl = (BufferImpl*)buffer;
     auto resourceDesc = *resourceImpl->getDesc();
-    const auto counterResourceImpl = static_cast<BufferResourceImpl*>(counterBuffer);
+    const auto counterResourceImpl = static_cast<BufferImpl*>(counterBuffer);
 
     uint64_t offset = desc.bufferRange.offset;
-    uint64_t size = desc.bufferRange.size == 0 ? buffer->getDesc()->sizeInBytes - offset : desc.bufferRange.size;
+    uint64_t size = desc.bufferRange.size == 0 ? buffer->getDesc()->size - offset : desc.bufferRange.size;
 
     switch (desc.type)
     {
@@ -148,11 +148,11 @@ Result ResourceViewInternalImpl::getBufferDescriptorForBinding(
 
     // We need to create and cache a d3d12 descriptor for the resource view that encodes
     // the given buffer stride.
-    auto bufferResImpl = static_cast<BufferResourceImpl*>(view->m_resource.get());
+    auto bufferResImpl = static_cast<BufferImpl*>(view->m_resource.get());
     auto desc = view->m_desc;
     SLANG_RETURN_ON_FAIL(createD3D12BufferDescriptor(
         bufferResImpl,
-        static_cast<BufferResourceImpl*>(view->m_counterResource.get()),
+        static_cast<BufferImpl*>(view->m_counterResource.get()),
         desc,
         bufferStride,
         device,
@@ -164,10 +164,10 @@ Result ResourceViewInternalImpl::getBufferDescriptorForBinding(
     return SLANG_OK;
 }
 
-Result ResourceViewImpl::getNativeHandle(InteropHandle* outHandle)
+Result ResourceViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::D3D12CpuDescriptorHandle;
-    outHandle->handleValue = m_descriptor.cpuHandle.ptr;
+    outHandle->type = NativeHandleType::D3D12CpuDescriptorHandle;
+    outHandle->value = m_descriptor.cpuHandle.ptr;
     return SLANG_OK;
 }
 
@@ -178,10 +178,10 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return m_buffer->getDeviceAddress() + m_offset;
 }
 
-Result AccelerationStructureImpl::getNativeHandle(InteropHandle* outHandle)
+Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::DeviceAddress;
-    outHandle->handleValue = getDeviceAddress();
+    outHandle->type = NativeHandleType::D3D12DeviceAddress;
+    outHandle->value = getDeviceAddress();
     return SLANG_OK;
 }
 

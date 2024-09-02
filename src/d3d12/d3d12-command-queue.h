@@ -11,7 +11,7 @@ public:
     ICommandQueue* getInterface(const Guid& guid);
     void breakStrongReferenceToDevice() { m_renderer.breakStrongReference(); }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* handle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
     BreakableReference<DeviceImpl> m_renderer;

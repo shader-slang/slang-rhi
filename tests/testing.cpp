@@ -231,7 +231,7 @@ Result loadGraphicsProgram(
 
 void compareComputeResult(
     IDevice* device,
-    ITextureResource* texture,
+    ITexture* texture,
     ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
@@ -242,7 +242,7 @@ void compareComputeResult(
     ComPtr<ISlangBlob> resultBlob;
     size_t rowPitch = 0;
     size_t pixelSize = 0;
-    REQUIRE_CALL(device->readTextureResource(texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
+    REQUIRE_CALL(device->readTexture(texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
     // Compare results.
     for (size_t row = 0; row < rowCount; row++)
     {
@@ -258,7 +258,7 @@ void compareComputeResult(
 
 void compareComputeResult(
     IDevice* device,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     size_t offset,
     const void* expectedResult,
     size_t expectedBufferSize
@@ -266,7 +266,7 @@ void compareComputeResult(
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
-    REQUIRE_CALL(device->readBufferResource(buffer, offset, expectedBufferSize, resultBlob.writeRef()));
+    REQUIRE_CALL(device->readBuffer(buffer, offset, expectedBufferSize, resultBlob.writeRef()));
     CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
     // Compare results.
     CHECK(memcmp(resultBlob->getBufferPointer(), (uint8_t*)expectedResult, expectedBufferSize) == 0);
@@ -280,16 +280,11 @@ void compareComputeResultFuzzy(const float* result, float* expectedResult, size_
     }
 }
 
-void compareComputeResultFuzzy(
-    IDevice* device,
-    IBufferResource* buffer,
-    float* expectedResult,
-    size_t expectedBufferSize
-)
+void compareComputeResultFuzzy(IDevice* device, IBuffer* buffer, float* expectedResult, size_t expectedBufferSize)
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
-    REQUIRE_CALL(device->readBufferResource(buffer, 0, expectedBufferSize, resultBlob.writeRef()));
+    REQUIRE_CALL(device->readBuffer(buffer, 0, expectedBufferSize, resultBlob.writeRef()));
     CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
     // Compare results with a tolerance of 0.01.
     auto result = (float*)resultBlob->getBufferPointer();

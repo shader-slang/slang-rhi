@@ -3,11 +3,11 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
+static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 {
-    ComPtr<IBufferResource> buffer;
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = sizeof(uint32_t);
+    ComPtr<IBuffer> buffer;
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(uint32_t);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -19,8 +19,8 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)&content, buffer.writeRef()));
 
     return buffer;
 }
@@ -37,16 +37,16 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler-array", "computeMain", slangReflection));
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
-    std::vector<ComPtr<ISamplerState>> samplers;
+    std::vector<ComPtr<ISampler>> samplers;
     std::vector<ComPtr<IResourceView>> srvs;
     ComPtr<IResourceView> uav;
-    ComPtr<ITextureResource> texture;
-    ComPtr<IBufferResource> buffer = createBuffer(device, 0);
+    ComPtr<ITexture> texture;
+    ComPtr<IBuffer> buffer = createBuffer(device, 0);
 
     {
         IResourceView::Desc viewDesc = {};
@@ -55,8 +55,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, uav.writeRef()));
     }
     {
-        ITextureResource::Desc textureDesc = {};
-        textureDesc.type = IResource::Type::Texture2D;
+        TextureDesc textureDesc = {};
+        textureDesc.type = TextureType::Texture2D;
         textureDesc.format = Format::R8G8B8A8_UNORM;
         textureDesc.size.width = 2;
         textureDesc.size.height = 2;
@@ -66,8 +66,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.defaultState = ResourceState::ShaderResource;
         textureDesc.allowedStates.add(ResourceState::CopyDestination);
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
-        ITextureResource::SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
-        REQUIRE_CALL(device->createTextureResource(textureDesc, subResourceData, texture.writeRef()));
+        SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
+        REQUIRE_CALL(device->createTexture(textureDesc, subResourceData, texture.writeRef()));
     }
     for (uint32_t i = 0; i < 32; i++)
     {
@@ -83,9 +83,9 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     for (uint32_t i = 0; i < 32; i++)
     {
-        ISamplerState::Desc desc = {};
-        ComPtr<ISamplerState> sampler;
-        REQUIRE_CALL(device->createSamplerState(desc, sampler.writeRef()));
+        SamplerDesc desc = {};
+        ComPtr<ISampler> sampler;
+        REQUIRE_CALL(device->createSampler(desc, sampler.writeRef()));
         samplers.push_back(sampler);
     }
 
@@ -135,7 +135,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         {
             auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipelineState, rootObject);
+            encoder->bindPipelineWithRootObject(pipeline, rootObject);
             encoder->dispatchCompute(1, 1, 1);
             encoder->endEncoding();
         }

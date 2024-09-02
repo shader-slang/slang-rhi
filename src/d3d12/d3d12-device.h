@@ -110,40 +110,24 @@ public:
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment) override;
+    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureResource(
-        const ITextureResource::Desc& desc,
-        const ITextureResource::SubresourceData* initData,
-        ITextureResource** outResource
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
-        InteropHandle handle,
-        const ITextureResource::Desc& srcDesc,
-        ITextureResource** outResource
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferResource(
-        const IBufferResource::Desc& desc,
-        const void* initData,
-        IBufferResource** outResource
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& srcDesc,
-        IBufferResource** outResource
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
-
+    createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBufferResource* buffer,
-        IBufferResource* counterBuffer,
-        IResourceView::Desc const& desc,
-        IResourceView** outView
-    ) override;
+    createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFrameBuffer) override;
@@ -172,9 +156,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createProgram(const IShaderProgram::Desc& desc, IShaderProgram** outProgram, ISlangBlob** outDiagnostics) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState) override;
+    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState) override;
+    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outState) override;
@@ -185,20 +169,16 @@ public:
     waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
         override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
-        ITextureResource* resource,
-        ResourceState state,
-        ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* resource, ResourceState state, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBufferResource(IBufferResource* resource, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* resource, Offset offset, Size size, ISlangBlob** outBlob) override;
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
 
     ~DeviceImpl();
 
@@ -211,7 +191,7 @@ public:
         IAccelerationStructure** outView
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState) override;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
 
 public:
     static void* loadProc(SharedLibraryHandle module, char const* name);
@@ -237,7 +217,7 @@ public:
     );
 
     Result captureTextureToSurface(
-        TextureResourceImpl* resource,
+        TextureImpl* resource,
         ResourceState state,
         ISlangBlob** blob,
         Size* outRowPitch,

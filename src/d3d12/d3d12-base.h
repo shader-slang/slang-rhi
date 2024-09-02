@@ -38,8 +38,8 @@ struct ID3D12GraphicsCommandList1
 namespace rhi::d3d12 {
 
 class DeviceImpl;
-class BufferResourceImpl;
-class TextureResourceImpl;
+class BufferImpl;
+class TextureImpl;
 class CommandBufferImpl;
 class PipelineCommandEncoder;
 class ResourceCommandEncoderImpl;
@@ -51,12 +51,12 @@ class FramebufferLayoutImpl;
 class FramebufferImpl;
 class QueryPoolImpl;
 class PlainBufferProxyQueryPoolImpl;
-class PipelineStateImpl;
+class PipelineImpl;
 class RenderPassLayoutImpl;
 class ResourceViewInternalImpl;
 class ResourceViewImpl;
 class AccelerationStructureImpl;
-class SamplerStateImpl;
+class SamplerImpl;
 class ShaderObjectImpl;
 class RootShaderObjectImpl;
 class MutableRootShaderObjectImpl;
@@ -70,7 +70,7 @@ class InputLayoutImpl;
 
 #if SLANG_RHI_DXR
 class RayTracingCommandEncoderImpl;
-class RayTracingPipelineStateImpl;
+class RayTracingPipelineImpl;
 #endif
 
 } // namespace rhi::d3d12

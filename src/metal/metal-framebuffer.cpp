@@ -29,22 +29,22 @@ Result FramebufferImpl::init(DeviceImpl* device, const IFramebuffer::Desc& desc)
     m_renderTargetViews.resize(desc.renderTargetCount);
     for (Index i = 0; i < desc.renderTargetCount; ++i)
     {
-        m_renderTargetViews[i] = static_cast<TextureResourceViewImpl*>(desc.renderTargetViews[i]);
+        m_renderTargetViews[i] = static_cast<TextureViewImpl*>(desc.renderTargetViews[i]);
     }
-    m_depthStencilView = static_cast<TextureResourceViewImpl*>(desc.depthStencilView);
+    m_depthStencilView = static_cast<TextureViewImpl*>(desc.depthStencilView);
 
     // Determine framebuffer dimensions & sample count;
     m_width = 1;
     m_height = 1;
     m_sampleCount = 1;
 
-    auto visitView = [this](TextureResourceViewImpl* view)
+    auto visitView = [this](TextureViewImpl* view)
     {
-        const ITextureResource::Desc* textureDesc = view->m_texture->getDesc();
+        const TextureDesc* textureDesc = view->m_texture->getDesc();
         const IResourceView::Desc* viewDesc = view->getViewDesc();
         m_width = std::max(1u, uint32_t(textureDesc->size.width >> viewDesc->subresourceRange.mipLevel));
         m_height = std::max(1u, uint32_t(textureDesc->size.height >> viewDesc->subresourceRange.mipLevel));
-        m_sampleCount = std::max(m_sampleCount, uint32_t(textureDesc->sampleDesc.numSamples));
+        m_sampleCount = std::max(m_sampleCount, uint32_t(textureDesc->sampleCount));
         return SLANG_OK;
     };
 

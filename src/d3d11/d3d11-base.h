@@ -45,9 +45,9 @@ namespace rhi::d3d11 {
 
 class DeviceImpl;
 class ShaderProgramImpl;
-class BufferResourceImpl;
-class TextureResourceImpl;
-class SamplerStateImpl;
+class BufferImpl;
+class TextureImpl;
+class SamplerImpl;
 class ResourceViewImpl;
 class ShaderResourceViewImpl;
 class UnorderedAccessViewImpl;
@@ -58,9 +58,9 @@ class FramebufferImpl;
 class SwapchainImpl;
 class InputLayoutImpl;
 class QueryPoolImpl;
-class PipelineStateImpl;
-class GraphicsPipelineStateImpl;
-class ComputePipelineStateImpl;
+class PipelineImpl;
+class GraphicsPipelineImpl;
+class ComputePipelineImpl;
 class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
 class ShaderObjectImpl;

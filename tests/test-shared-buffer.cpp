@@ -13,8 +13,8 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     // dstDevice. Read back the buffer and check that its contents are correct.
     const int numberCount = 4;
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -27,23 +27,21 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.isShared = true;
 
-    ComPtr<IBufferResource> srcBuffer;
-    REQUIRE_CALL(srcDevice->createBufferResource(bufferDesc, (void*)initialData, srcBuffer.writeRef()));
+    ComPtr<IBuffer> srcBuffer;
+    REQUIRE_CALL(srcDevice->createBuffer(bufferDesc, (void*)initialData, srcBuffer.writeRef()));
 
-    InteropHandle sharedHandle;
+    NativeHandle sharedHandle;
     REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
-    ComPtr<IBufferResource> dstBuffer;
+    ComPtr<IBuffer> dstBuffer;
     REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
     // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
     // dstDevice
     // TODO: Implement actual synchronization (and not this hacky solution)
     compareComputeResult(srcDevice, srcBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
-    InteropHandle testHandle;
-    REQUIRE_CALL(dstBuffer->getNativeResourceHandle(&testHandle));
-    IBufferResource::Desc* testDesc = dstBuffer->getDesc();
+    BufferDesc* testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc->elementSize, sizeof(float));
-    CHECK_EQ(testDesc->sizeInBytes, numberCount * sizeof(float));
+    CHECK_EQ(testDesc->size, numberCount * sizeof(float));
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
     // Check that dstBuffer can be successfully used in a compute dispatch using dstDevice.
@@ -56,10 +54,10 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(dstDevice, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(dstDevice->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(dstDevice->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
@@ -74,7 +72,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         ShaderCursor rootCursor(rootObject);
         // Bind buffer view to the entry point.

@@ -1,7 +1,7 @@
 #include "cpu-device.h"
 
 #include "cpu-buffer.h"
-#include "cpu-pipeline-state.h"
+#include "cpu-pipeline.h"
 #include "cpu-query.h"
 #include "cpu-resource-views.h"
 #include "cpu-shader-object.h"
@@ -49,57 +49,51 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& desc,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureResource::Desc srcDesc = fixupTextureDesc(desc);
+    TextureDesc srcDesc = fixupTextureDesc(desc);
 
-    RefPtr<TextureResourceImpl> texture = new TextureResourceImpl(srcDesc);
+    RefPtr<TextureImpl> texture = new TextureImpl(srcDesc);
 
     SLANG_RETURN_ON_FAIL(texture->init(initData));
 
-    returnComPtr(outResource, texture);
-    return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
-{
-    auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferResourceImpl> resource = new BufferResourceImpl(desc);
-    SLANG_RETURN_ON_FAIL(resource->init());
-    if (initData)
-    {
-        SLANG_RETURN_ON_FAIL(resource->setData(0, desc.sizeInBytes, initData));
-    }
-    returnComPtr(outResource, resource);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTextureView(ITextureResource* inTexture, IResourceView::Desc const& desc, IResourceView** outView)
+DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    auto texture = static_cast<TextureResourceImpl*>(inTexture);
-    RefPtr<TextureResourceViewImpl> view = new TextureResourceViewImpl(desc, texture);
+    auto desc = fixupBufferDesc(descIn);
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    SLANG_RETURN_ON_FAIL(buffer->init());
+    if (initData)
+    {
+        SLANG_RETURN_ON_FAIL(buffer->setData(0, desc.size, initData));
+    }
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createTextureView(ITexture* inTexture, IResourceView::Desc const& desc, IResourceView** outView)
+{
+    auto texture = static_cast<TextureImpl*>(inTexture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc, texture);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferView(
-    IBufferResource* inBuffer,
-    IBufferResource* counterBuffer,
+    IBuffer* inBuffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
-    auto buffer = static_cast<BufferResourceImpl*>(inBuffer);
-    RefPtr<BufferResourceViewImpl> view = new BufferResourceViewImpl(desc, buffer);
+    auto buffer = static_cast<BufferImpl*>(inBuffer);
+    RefPtr<BufferViewImpl> view = new BufferViewImpl(desc, buffer);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
@@ -173,11 +167,11 @@ DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<PipelineStateImpl> state = new PipelineStateImpl();
+    RefPtr<PipelineImpl> state = new PipelineImpl();
     state->init(desc);
-    returnComPtr(outState, state);
+    returnComPtr(outPipeline, state);
     return Result();
 }
 
@@ -200,31 +194,30 @@ SLANG_NO_THROW const DeviceInfo& SLANG_MCALL DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
     *outSampler = nullptr;
     return SLANG_OK;
 }
 
-void* DeviceImpl::map(IBufferResource* buffer, MapFlavor flavor)
+void* DeviceImpl::map(IBuffer* buffer, MapFlavor flavor)
 {
     SLANG_UNUSED(flavor);
-    auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    auto bufferImpl = static_cast<BufferImpl*>(buffer);
     return bufferImpl->m_data;
 }
 
-void DeviceImpl::unmap(IBufferResource* buffer, size_t offsetWritten, size_t sizeWritten)
+void DeviceImpl::unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten)
 {
     SLANG_UNUSED(buffer);
     SLANG_UNUSED(offsetWritten);
     SLANG_UNUSED(sizeWritten);
 }
 
-void DeviceImpl::setPipelineState(IPipelineState* state)
+void DeviceImpl::setPipeline(IPipeline* state)
 {
-    m_currentPipeline = static_cast<PipelineStateImpl*>(state);
+    m_currentPipeline = static_cast<PipelineImpl*>(state);
 }
 
 void DeviceImpl::bindRootShaderObject(IShaderObject* object)
@@ -238,9 +231,9 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     int targetIndex = 0;
 
     // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineStateBase> newPipeline;
+    RefPtr<PipelineBase> newPipeline;
     maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
-    m_currentPipeline = static_cast<PipelineStateImpl*>(newPipeline.Ptr());
+    m_currentPipeline = static_cast<PipelineImpl*>(newPipeline.Ptr());
 
     auto program = m_currentPipeline->getProgram();
     auto entryPointLayout = m_currentRootObject->getLayout()->getEntryPoint(entryPointIndex);
@@ -279,10 +272,10 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     func(&varyingInput, entryPointParamsData, globalParamsData);
 }
 
-void DeviceImpl::copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size)
+void DeviceImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size)
 {
-    auto dstImpl = static_cast<BufferResourceImpl*>(dst);
-    auto srcImpl = static_cast<BufferResourceImpl*>(src);
+    auto dstImpl = static_cast<BufferImpl*>(dst);
+    auto srcImpl = static_cast<BufferImpl*>(src);
     memcpy((uint8_t*)dstImpl->m_data + dstOffset, (uint8_t*)srcImpl->m_data + srcOffset, size);
 }
 

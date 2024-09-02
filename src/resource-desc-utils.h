@@ -12,9 +12,9 @@ inline int calcMipSize(int size, int level)
     return size > 0 ? size : 1;
 }
 
-inline ITextureResource::Extents calcMipSize(ITextureResource::Extents size, int mipLevel)
+inline Extents calcMipSize(Extents size, int mipLevel)
 {
-    ITextureResource::Extents rs;
+    Extents rs;
     rs.width = calcMipSize(size.width, mipLevel);
     rs.height = calcMipSize(size.height, mipLevel);
     rs.depth = calcMipSize(size.depth, mipLevel);
@@ -24,20 +24,20 @@ inline ITextureResource::Extents calcMipSize(ITextureResource::Extents size, int
 /// Calculate the effective array size - in essence the amount if mip map sets needed.
 /// In practice takes into account if the arraySize is 0 (it's not an array, but it will still have
 /// at least one mip set) and if the type is a cubemap (multiplies the amount of mip sets by 6)
-inline int calcEffectiveArraySize(const ITextureResource::Desc& desc)
+inline int calcEffectiveArraySize(const TextureDesc& desc)
 {
     const int arrSize = (desc.arraySize > 0) ? desc.arraySize : 1;
 
     switch (desc.type)
     {
-    case IResource::Type::Texture1D: // fallthru
-    case IResource::Type::Texture2D:
+    case TextureType::Texture1D: // fallthru
+    case TextureType::Texture2D:
     {
         return arrSize;
     }
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         return arrSize * 6;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         return 1;
     default:
         return 0;
@@ -45,16 +45,16 @@ inline int calcEffectiveArraySize(const ITextureResource::Desc& desc)
 }
 
 /// Given the type works out the maximum dimension size
-inline int calcMaxDimension(ITextureResource::Extents size, IResource::Type type)
+inline int calcMaxDimension(Extents size, TextureType type)
 {
     switch (type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         return size.width;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         return std::max(std::max(size.width, size.height), size.depth);
-    case IResource::Type::TextureCube: // fallthru
-    case IResource::Type::Texture2D:
+    case TextureType::TextureCube: // fallthru
+    case TextureType::Texture2D:
     {
         return std::max(size.width, size.height);
     }
@@ -64,27 +64,27 @@ inline int calcMaxDimension(ITextureResource::Extents size, IResource::Type type
 }
 
 /// Given the type, calculates the number of mip maps. 0 on error
-inline int calcNumMipLevels(IResource::Type type, ITextureResource::Extents size)
+inline int calcNumMipLevels(TextureType type, Extents size)
 {
     const int maxDimensionSize = calcMaxDimension(size, type);
     return (maxDimensionSize > 0) ? (math::log2Floor(maxDimensionSize) + 1) : 0;
 }
 
 /// Calculate the total number of sub resources. 0 on error.
-inline int calcNumSubResources(const ITextureResource::Desc& desc)
+inline int calcNumSubResources(const TextureDesc& desc)
 {
     const int numMipMaps = (desc.numMipLevels > 0) ? desc.numMipLevels : calcNumMipLevels(desc.type, desc.size);
     const int arrSize = (desc.arraySize > 0) ? desc.arraySize : 1;
 
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
-    case IResource::Type::Texture2D:
-    case IResource::Type::Texture3D:
+    case TextureType::Texture1D:
+    case TextureType::Texture2D:
+    case TextureType::Texture3D:
     {
         return numMipMaps * arrSize;
     }
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
     {
         // There are 6 faces to a cubemap
         return numMipMaps * arrSize * 6;
@@ -94,8 +94,8 @@ inline int calcNumSubResources(const ITextureResource::Desc& desc)
     }
 }
 
-IBufferResource::Desc fixupBufferDesc(const IBufferResource::Desc& desc);
-ITextureResource::Desc fixupTextureDesc(const ITextureResource::Desc& desc);
+BufferDesc fixupBufferDesc(const BufferDesc& desc);
+TextureDesc fixupTextureDesc(const TextureDesc& desc);
 
 Format srgbToLinearFormat(Format format);
 

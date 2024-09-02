@@ -5,14 +5,14 @@
 
 namespace rhi::vk {
 
-class SamplerStateImpl : public SamplerStateBase
+class SamplerImpl : public SamplerBase
 {
 public:
     VkSampler m_sampler;
     RefPtr<DeviceImpl> m_device;
-    SamplerStateImpl(DeviceImpl* device);
-    ~SamplerStateImpl();
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    SamplerImpl(DeviceImpl* device);
+    ~SamplerImpl();
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::vk

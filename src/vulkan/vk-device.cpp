@@ -57,12 +57,12 @@ DeviceImpl::~DeviceImpl()
 
     if (m_device != VK_NULL_HANDLE)
     {
-        if (m_desc.existingDeviceHandles.handles[2].handleValue == 0)
+        if (!m_desc.existingDeviceHandles.handles[2])
             m_api.vkDestroyDevice(m_device, nullptr);
         m_device = VK_NULL_HANDLE;
         if (m_debugReportCallback != VK_NULL_HANDLE)
             m_api.vkDestroyDebugReportCallbackEXT(m_api.m_instance, m_debugReportCallback, nullptr);
-        if (m_api.m_instance != VK_NULL_HANDLE && m_desc.existingDeviceHandles.handles[0].handleValue == 0)
+        if (m_api.m_instance != VK_NULL_HANDLE && !m_desc.existingDeviceHandles.handles[0])
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
 }
@@ -120,14 +120,14 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
         ->handleDebugMessage(flags, objType, srcObject, location, msgCode, pLayerPrefix, pMsg);
 }
 
-Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].handleValue = (uint64_t)m_api.m_instance;
-    outHandles->handles[0].api = InteropHandleAPI::Vulkan;
-    outHandles->handles[1].handleValue = (uint64_t)m_api.m_physicalDevice;
-    outHandles->handles[1].api = InteropHandleAPI::Vulkan;
-    outHandles->handles[2].handleValue = (uint64_t)m_api.m_device;
-    outHandles->handles[2].api = InteropHandleAPI::Vulkan;
+    outHandles->handles[0].type = NativeHandleType::VkInstance;
+    outHandles->handles[0].value = (uint64_t)m_api.m_instance;
+    outHandles->handles[1].type = NativeHandleType::VkPhysicalDevice;
+    outHandles->handles[1].value = (uint64_t)m_api.m_physicalDevice;
+    outHandles->handles[2].type = NativeHandleType::VkDevice;
+    outHandles->handles[2].value = (uint64_t)m_api.m_device;
     return SLANG_OK;
 }
 
@@ -141,7 +141,7 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, bool useValidationLayer)
+Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer)
 {
     m_features.clear();
 
@@ -164,7 +164,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
 
     VkInstance instance = VK_NULL_HANDLE;
-    if (handles[0].handleValue == 0)
+    if (!handles[0])
     {
         VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
         applicationInfo.pApplicationName = "slang-rhi";
@@ -283,7 +283,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
     else
     {
-        instance = (VkInstance)handles[0].handleValue;
+        if (handles[0].type != NativeHandleType::VkInstance)
+        {
+            return SLANG_FAIL;
+        }
+        instance = (VkInstance)handles[0].value;
     }
     if (!instance)
         return SLANG_FAIL;
@@ -304,7 +308,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    if (handles[1].handleValue == 0)
+    if (!handles[1])
     {
         uint32_t numPhysicalDevices = 0;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
@@ -340,7 +344,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
     else
     {
-        physicalDevice = (VkPhysicalDevice)handles[1].handleValue;
+        if (handles[1].type != NativeHandleType::VkPhysicalDevice)
+        {
+            return SLANG_FAIL;
+        }
+        physicalDevice = (VkPhysicalDevice)handles[1].value;
     }
 
     SLANG_RETURN_ON_FAIL(m_api.initPhysicalDevice(physicalDevice));
@@ -941,7 +949,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
 #endif
 
-    if (handles[2].handleValue == 0)
+    if (!handles[2])
     {
         float queuePriority = 0.0f;
         VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -959,7 +967,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const InteropHandle* handles, boo
     }
     else
     {
-        m_device = (VkDevice)handles[2].handleValue;
+        if (handles[2].type != NativeHandleType::VkDevice)
+        {
+            return SLANG_FAIL;
+        }
+        m_device = (VkDevice)handles[2].value;
     }
 
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
@@ -1128,15 +1140,15 @@ Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffe
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTextureResource(
-    ITextureResource* texture,
+Result DeviceImpl::readTexture(
+    ITexture* texture,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
     Size* outPixelSize
 )
 {
-    auto textureImpl = static_cast<TextureResourceImpl*>(texture);
+    auto textureImpl = static_cast<TextureImpl*>(texture);
 
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
@@ -1146,7 +1158,7 @@ Result DeviceImpl::readTextureResource(
     Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
 
-    std::vector<TextureResource::Extents> mipSizes;
+    std::vector<Extents> mipSizes;
 
     const int numMipMaps = desc->numMipLevels;
     auto arraySize = calcEffectiveArraySize(*desc);
@@ -1156,7 +1168,7 @@ Result DeviceImpl::readTextureResource(
     // Calculate how large an array entry is
     for (int j = 0; j < numMipMaps; ++j)
     {
-        const TextureResource::Extents mipSize = calcMipSize(desc->size, j);
+        const Extents mipSize = calcMipSize(desc->size, j);
 
         auto rowSizeInBytes = calcRowSize(desc->format, mipSize.width);
         auto numRows = calcNumRows(desc->format, mipSize.height);
@@ -1227,9 +1239,9 @@ Result DeviceImpl::readTextureResource(
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBufferResource(IBufferResource* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
-    BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(inBuffer);
+    BufferImpl* buffer = static_cast<BufferImpl*>(inBuffer);
 
     // create staging buffer
     VKBufferHandleRAII staging;
@@ -1301,7 +1313,7 @@ Result DeviceImpl::createAccelerationStructure(
     RefPtr<AccelerationStructureImpl> resultAS = new AccelerationStructureImpl();
     resultAS->m_offset = desc.offset;
     resultAS->m_size = desc.size;
-    resultAS->m_buffer = static_cast<BufferResourceImpl*>(desc.buffer);
+    resultAS->m_buffer = static_cast<BufferImpl*>(desc.buffer);
     resultAS->m_device = this;
     resultAS->m_desc.type = IResourceView::Type::AccelerationStructure;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
@@ -1336,7 +1348,7 @@ void DeviceImpl::_transitionImageLayout(
     VkCommandBuffer commandBuffer,
     VkImage image,
     VkFormat format,
-    const TextureResource::Desc& desc,
+    const TextureDesc& desc,
     VkImageLayout oldLayout,
     VkImageLayout newLayout
 )
@@ -1380,7 +1392,7 @@ uint32_t DeviceImpl::getQueueFamilyIndex(ICommandQueue::QueueType queueType)
 void DeviceImpl::_transitionImageLayout(
     VkImage image,
     VkFormat format,
-    const TextureResource::Desc& desc,
+    const TextureDesc& desc,
     VkImageLayout oldLayout,
     VkImageLayout newLayout
 )
@@ -1389,9 +1401,9 @@ void DeviceImpl::_transitionImageLayout(
     _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
 {
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -1404,26 +1416,26 @@ Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         break;
     }
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
         SLANG_RHI_ASSERT(desc.arraySize <= 1);
@@ -1449,7 +1461,7 @@ Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn
     imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, nullptr);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleDesc.numSamples;
+    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkImage image;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image));
@@ -1470,13 +1482,9 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& descIn,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -1487,33 +1495,33 @@ Result DeviceImpl::createTextureResource(
 
     const int arraySize = calcEffectiveArraySize(desc);
 
-    RefPtr<TextureResourceImpl> texture(new TextureResourceImpl(desc, this));
+    RefPtr<TextureImpl> texture(new TextureImpl(desc, this));
     texture->m_vkformat = format;
     // Create the image
 
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         break;
     }
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
         SLANG_RHI_ASSERT(desc.arraySize <= 1);
@@ -1539,7 +1547,7 @@ Result DeviceImpl::createTextureResource(
     imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, initData);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleDesc.numSamples;
+    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
     };
@@ -1596,10 +1604,20 @@ Result DeviceImpl::createTextureResource(
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
 
+    if (desc.label && m_api.vkDebugMarkerSetObjectNameEXT)
+    {
+        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
+        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameDesc.object = (uint64_t)texture->m_image;
+        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
+        nameDesc.pObjectName = desc.label;
+        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
+    }
+
     VKBufferHandleRAII uploadBuffer;
     if (initData)
     {
-        std::vector<TextureResource::Extents> mipSizes;
+        std::vector<Extents> mipSizes;
 
         VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
@@ -1610,7 +1628,7 @@ Result DeviceImpl::createTextureResource(
         // Calculate how large an array entry is
         for (int j = 0; j < numMipMaps; ++j)
         {
-            const TextureResource::Extents mipSize = calcMipSize(desc.size, j);
+            const Extents mipSize = calcMipSize(desc.size, j);
 
             auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
             auto numRows = calcNumRows(desc.format, mipSize.height);
@@ -1693,7 +1711,7 @@ Result DeviceImpl::createTextureResource(
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         );
 
-        if (desc.sampleDesc.numSamples != 1)
+        if (desc.sampleCount > 1)
         {
             // Handle senario where texture is sampled. We cannot use
             // a simple buffer copy for sampled textures. ClearColorImage
@@ -1856,29 +1874,25 @@ Result DeviceImpl::createTextureResource(
         }
     }
     m_deviceQueue.flushAndWait();
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    return createBufferResourceImpl(descIn, 0, initData, outResource);
+    return createBufferImpl(descIn, 0, initData, outBuffer);
 }
 
-Result DeviceImpl::createBufferResourceImpl(
-    const IBufferResource::Desc& descIn,
+Result DeviceImpl::createBufferImpl(
+    const BufferDesc& descIn,
     VkBufferUsageFlags additionalUsageFlag,
     const void* initData,
-    IBufferResource** outResource
+    IBuffer** outBuffer
 )
 {
-    BufferResource::Desc desc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(descIn);
 
-    const Size bufferSize = desc.sizeInBytes;
+    const Size bufferSize = desc.size;
 
     VkMemoryPropertyFlags reqMemoryProperties = 0;
 
@@ -1907,7 +1921,7 @@ Result DeviceImpl::createBufferResourceImpl(
         reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
 
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(desc, this));
+    RefPtr<BufferImpl> buffer(new BufferImpl(desc, this));
     if (desc.isShared)
     {
         VkExternalMemoryHandleTypeFlagsKHR extMemHandleType
@@ -1917,12 +1931,22 @@ Result DeviceImpl::createBufferResourceImpl(
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
         SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.sizeInBytes, usage, reqMemoryProperties, desc.isShared, extMemHandleType)
+            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, desc.isShared, extMemHandleType)
         );
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.sizeInBytes, usage, reqMemoryProperties));
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
+    }
+
+    if (desc.label && m_api.vkDebugMarkerSetObjectNameEXT)
+    {
+        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
+        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameDesc.object = (uint64_t)buffer->m_buffer.m_buffer;
+        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT;
+        nameDesc.pObjectName = desc.label;
+        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
     }
 
     if (initData)
@@ -1965,32 +1989,28 @@ Result DeviceImpl::createBufferResourceImpl(
         }
     }
 
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc, this));
+    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc, this));
 
-    if (handle.api == InteropHandleAPI::Vulkan)
+    if (handle.type == NativeHandleType::VkBuffer)
     {
-        buffer->m_buffer.m_buffer = (VkBuffer)handle.handleValue;
+        buffer->m_buffer.m_buffer = (VkBuffer)handle.value;
     }
     else
     {
         return SLANG_FAIL;
     }
 
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     VkSamplerCreateInfo samplerInfo = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
 
@@ -2021,20 +2041,16 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     VkSampler sampler;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &sampler));
 
-    RefPtr<SamplerStateImpl> samplerImpl = new SamplerStateImpl(this);
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this);
     samplerImpl->m_sampler = sampler;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
-    auto resourceImpl = static_cast<TextureResourceImpl*>(texture);
-    RefPtr<TextureResourceViewImpl> view = new TextureResourceViewImpl(this);
+    auto resourceImpl = static_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this);
     view->m_texture = resourceImpl;
     view->m_desc = desc;
     if (!texture)
@@ -2057,18 +2073,18 @@ Result DeviceImpl::createTextureView(
         VK_COMPONENT_SWIZZLE_B,
         VK_COMPONENT_SWIZZLE_A
     };
-    switch (resourceImpl->getType())
+    switch (resourceImpl->getDesc()->type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
         break;
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
         break;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
         break;
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
         break;
     default:
@@ -2219,17 +2235,17 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
 }
 
 Result DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
-    auto resourceImpl = (BufferResourceImpl*)buffer;
+    auto resourceImpl = (BufferImpl*)buffer;
 
     VkDeviceSize offset = (VkDeviceSize)desc.bufferRange.offset;
-    VkDeviceSize size = desc.bufferRange.size == 0 ? (buffer ? resourceImpl->getDesc()->sizeInBytes : 0)
-                                                   : (VkDeviceSize)desc.bufferRange.size;
+    VkDeviceSize size =
+        desc.bufferRange.size == 0 ? (buffer ? resourceImpl->getDesc()->size : 0) : (VkDeviceSize)desc.bufferRange.size;
 
     // There are two different cases we need to think about for buffers.
     //
@@ -2264,7 +2280,7 @@ Result DeviceImpl::createBufferView(
         {
             // Buffer usage that doesn't involve formatting doesn't
             // require a view in Vulkan.
-            RefPtr<PlainBufferResourceViewImpl> viewImpl = new PlainBufferResourceViewImpl(this);
+            RefPtr<PlainBufferViewImpl> viewImpl = new PlainBufferViewImpl(this);
             viewImpl->m_buffer = resourceImpl;
             viewImpl->offset = offset;
             viewImpl->size = size;
@@ -2310,7 +2326,7 @@ Result DeviceImpl::createBufferView(
                 SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateBufferView(m_device, &info, nullptr, &view));
             }
 
-            RefPtr<TexelBufferResourceViewImpl> viewImpl = new TexelBufferResourceViewImpl(this);
+            RefPtr<TexelBufferViewImpl> viewImpl = new TexelBufferViewImpl(this);
             viewImpl->m_buffer = resourceImpl;
             viewImpl->m_view = view;
             viewImpl->m_desc = desc;
@@ -2449,36 +2465,36 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipeline** outPipeline)
 {
-    GraphicsPipelineStateDesc desc = inDesc;
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    pipelineStateImpl->establishStrongDeviceReference();
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
-    returnComPtr(outState, pipelineStateImpl);
+    RenderPipelineDesc desc = inDesc;
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    pipelineImpl->establishStrongDeviceReference();
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    returnComPtr(outPipeline, pipelineImpl);
 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& inDesc, IPipeline** outPipeline)
 {
-    ComputePipelineStateDesc desc = inDesc;
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
-    pipelineStateImpl->establishStrongDeviceReference();
-    returnComPtr(outState, pipelineStateImpl);
+    ComputePipelineDesc desc = inDesc;
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    pipelineImpl->establishStrongDeviceReference();
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<RayTracingPipelineStateImpl> pipelineStateImpl = new RayTracingPipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
-    pipelineStateImpl->establishStrongDeviceReference();
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<RayTracingPipelineImpl> pipelineImpl = new RayTracingPipelineImpl(this);
+    pipelineImpl->init(desc);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    pipelineImpl->establishStrongDeviceReference();
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 

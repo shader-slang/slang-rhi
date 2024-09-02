@@ -47,16 +47,16 @@ struct BaseRayTracingTest
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ICommandQueue> queue;
 
-    ComPtr<IPipelineState> renderPipelineState;
-    ComPtr<IBufferResource> vertexBuffer;
-    ComPtr<IBufferResource> indexBuffer;
-    ComPtr<IBufferResource> transformBuffer;
-    ComPtr<IBufferResource> instanceBuffer;
-    ComPtr<IBufferResource> BLASBuffer;
+    ComPtr<IPipeline> raytracingPipeline;
+    ComPtr<IBuffer> vertexBuffer;
+    ComPtr<IBuffer> indexBuffer;
+    ComPtr<IBuffer> transformBuffer;
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<IBuffer> BLASBuffer;
     ComPtr<IAccelerationStructure> BLAS;
-    ComPtr<IBufferResource> TLASBuffer;
+    ComPtr<IBuffer> TLASBuffer;
     ComPtr<IAccelerationStructure> TLAS;
-    ComPtr<ITextureResource> resultTexture;
+    ComPtr<ITexture> resultTexture;
     ComPtr<IResourceView> resultTextureUAV;
     ComPtr<IShaderTable> shaderTable;
 
@@ -110,15 +110,15 @@ struct BaseRayTracingTest
 
     void createResultTexture()
     {
-        ITextureResource::Desc resultTextureDesc = {};
-        resultTextureDesc.type = IResource::Type::Texture2D;
+        TextureDesc resultTextureDesc = {};
+        resultTextureDesc.type = TextureType::Texture2D;
         resultTextureDesc.numMipLevels = 1;
         resultTextureDesc.size.width = width;
         resultTextureDesc.size.height = height;
         resultTextureDesc.size.depth = 1;
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
         resultTextureDesc.format = Format::R32G32B32A32_FLOAT;
-        resultTexture = device->createTextureResource(resultTextureDesc);
+        resultTexture = device->createTexture(resultTextureDesc);
         IResourceView::Desc resultUAVDesc = {};
         resultUAVDesc.format = resultTextureDesc.format;
         resultUAVDesc.type = IResourceView::Type::UnorderedAccess;
@@ -131,26 +131,23 @@ struct BaseRayTracingTest
         queueDesc.type = ICommandQueue::QueueType::Graphics;
         queue = device->createCommandQueue(queueDesc);
 
-        IBufferResource::Desc vertexBufferDesc;
-        vertexBufferDesc.type = IResource::Type::Buffer;
-        vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::ShaderResource;
-        vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+        vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         REQUIRE(vertexBuffer != nullptr);
 
-        IBufferResource::Desc indexBufferDesc;
-        indexBufferDesc.type = IResource::Type::Buffer;
-        indexBufferDesc.sizeInBytes = kIndexCount * sizeof(int32_t);
+        BufferDesc indexBufferDesc;
+        indexBufferDesc.size = kIndexCount * sizeof(int32_t);
         indexBufferDesc.defaultState = ResourceState::ShaderResource;
-        indexBuffer = device->createBufferResource(indexBufferDesc, &kIndexData[0]);
+        indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
         REQUIRE(indexBuffer != nullptr);
 
-        IBufferResource::Desc transformBufferDesc;
-        transformBufferDesc.type = IResource::Type::Buffer;
-        transformBufferDesc.sizeInBytes = sizeof(float) * 12;
+        BufferDesc transformBufferDesc;
+        transformBufferDesc.size = sizeof(float) * 12;
         transformBufferDesc.defaultState = ResourceState::ShaderResource;
         float transformData[12] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
-        transformBuffer = device->createBufferResource(transformBufferDesc, &transformData);
+        transformBuffer = device->createBuffer(transformBufferDesc, &transformData);
         REQUIRE(transformBuffer != nullptr);
 
         createResultTexture();
@@ -193,16 +190,14 @@ struct BaseRayTracingTest
                 &accelerationStructurePrebuildInfo
             ));
             // Allocate buffers for acceleration structure.
-            IBufferResource::Desc asDraftBufferDesc;
-            asDraftBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc asDraftBufferDesc;
             asDraftBufferDesc.defaultState = ResourceState::AccelerationStructure;
-            asDraftBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
-            ComPtr<IBufferResource> draftBuffer = device->createBufferResource(asDraftBufferDesc);
-            IBufferResource::Desc scratchBufferDesc;
-            scratchBufferDesc.type = IResource::Type::Buffer;
+            asDraftBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
+            ComPtr<IBuffer> draftBuffer = device->createBuffer(asDraftBufferDesc);
+            BufferDesc scratchBufferDesc;
             scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
-            ComPtr<IBufferResource> scratchBuffer = device->createBufferResource(scratchBufferDesc);
+            scratchBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
+            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
             // Build acceleration structure.
             ComPtr<IQueryPool> compactedSizeQuery;
@@ -238,11 +233,10 @@ struct BaseRayTracingTest
 
             uint64_t compactedSize = 0;
             compactedSizeQuery->getResult(0, 1, &compactedSize);
-            IBufferResource::Desc asBufferDesc;
-            asBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc asBufferDesc;
             asBufferDesc.defaultState = ResourceState::AccelerationStructure;
-            asBufferDesc.sizeInBytes = (size_t)compactedSize;
-            BLASBuffer = device->createBufferResource(asBufferDesc);
+            asBufferDesc.size = (size_t)compactedSize;
+            BLASBuffer = device->createBuffer(asBufferDesc);
             IAccelerationStructure::CreateDesc createDesc;
             createDesc.buffer = BLASBuffer;
             createDesc.kind = IAccelerationStructure::Kind::BottomLevel;
@@ -271,11 +265,10 @@ struct BaseRayTracingTest
             float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
             memcpy(&instanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
 
-            IBufferResource::Desc instanceBufferDesc;
-            instanceBufferDesc.type = IResource::Type::Buffer;
-            instanceBufferDesc.sizeInBytes = instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
+            BufferDesc instanceBufferDesc;
+            instanceBufferDesc.size = instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
             instanceBufferDesc.defaultState = ResourceState::ShaderResource;
-            instanceBuffer = device->createBufferResource(instanceBufferDesc, instanceDescs.data());
+            instanceBuffer = device->createBuffer(instanceBufferDesc, instanceDescs.data());
             REQUIRE(instanceBuffer != nullptr);
 
             IAccelerationStructure::BuildInputs accelerationStructureBuildInputs = {};
@@ -290,17 +283,15 @@ struct BaseRayTracingTest
                 &accelerationStructurePrebuildInfo
             ));
 
-            IBufferResource::Desc asBufferDesc;
-            asBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc asBufferDesc;
             asBufferDesc.defaultState = ResourceState::AccelerationStructure;
-            asBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
-            TLASBuffer = device->createBufferResource(asBufferDesc);
+            asBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
+            TLASBuffer = device->createBuffer(asBufferDesc);
 
-            IBufferResource::Desc scratchBufferDesc;
-            scratchBufferDesc.type = IResource::Type::Buffer;
+            BufferDesc scratchBufferDesc;
             scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.sizeInBytes = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
-            ComPtr<IBufferResource> scratchBuffer = device->createBufferResource(scratchBufferDesc);
+            scratchBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
+            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
             IAccelerationStructure::CreateDesc createDesc;
             createDesc.buffer = TLASBuffer;
@@ -326,7 +317,7 @@ struct BaseRayTracingTest
 
         ComPtr<IShaderProgram> rayTracingProgram;
         REQUIRE_CALL(loadShaderProgram(device, rayTracingProgram.writeRef()));
-        RayTracingPipelineStateDesc rtpDesc = {};
+        RayTracingPipelineDesc rtpDesc = {};
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = 2;
         HitGroupDesc hitGroups[2];
@@ -337,8 +328,8 @@ struct BaseRayTracingTest
         rtpDesc.hitGroups = hitGroups;
         rtpDesc.maxRayPayloadSize = 64;
         rtpDesc.maxRecursion = 2;
-        REQUIRE_CALL(device->createRayTracingPipelineState(rtpDesc, renderPipelineState.writeRef()));
-        REQUIRE(renderPipelineState != nullptr);
+        REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
+        REQUIRE(raytracingPipeline != nullptr);
 
         const char* raygenNames[] = {"rayGenShaderA", "rayGenShaderB"};
         const char* missNames[] = {"missShaderA", "missShaderB"};
@@ -367,13 +358,9 @@ struct BaseRayTracingTest
         queue->executeCommandBuffer(cmdBuffer.get());
         queue->waitOnHost();
 
-        REQUIRE_CALL(device->readTextureResource(
-            resultTexture,
-            ResourceState::CopySource,
-            resultBlob.writeRef(),
-            &rowPitch,
-            &pixelSize
-        ));
+        REQUIRE_CALL(
+            device->readTexture(resultTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
+        );
 #if 0 // for debugging only
         writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);
 #endif
@@ -390,7 +377,7 @@ struct RayTracingTestA : BaseRayTracingTest
         ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
         IShaderObject* rootObject = nullptr;
-        renderEncoder->bindPipeline(renderPipelineState, &rootObject);
+        renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setResource(resultTextureUAV);
         cursor["sceneBVH"].setResource(TLAS);
@@ -418,7 +405,7 @@ struct RayTracingTestB : BaseRayTracingTest
         ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
         auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
         IShaderObject* rootObject = nullptr;
-        renderEncoder->bindPipeline(renderPipelineState, &rootObject);
+        renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setResource(resultTextureUAV);
         cursor["sceneBVH"].setResource(TLAS);

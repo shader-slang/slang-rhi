@@ -98,7 +98,7 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -107,14 +107,14 @@ Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* s
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerStateImpl*>(sampler);
+    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerImpl*>(sampler);
     return SLANG_OK;
 }
 
 Result ShaderObjectImpl::setCombinedTextureSampler(
     ShaderOffset const& offset,
     IResourceView* textureView,
-    ISamplerState* sampler
+    ISampler* sampler
 )
 {
     if (offset.bindingRangeIndex < 0)
@@ -125,8 +125,8 @@ Result ShaderObjectImpl::setCombinedTextureSampler(
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
     auto& slot = m_combinedTextureSamplers[bindingRange.baseIndex + offset.bindingArrayIndex];
-    slot.textureView = static_cast<TextureResourceViewImpl*>(textureView);
-    slot.sampler = static_cast<SamplerStateImpl*>(sampler);
+    slot.textureView = static_cast<TextureViewImpl*>(textureView);
+    slot.sampler = static_cast<SamplerImpl*>(sampler);
     return SLANG_OK;
 }
 
@@ -208,7 +208,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 
 Result ShaderObjectImpl::_writeOrdinaryData(
     PipelineCommandEncoder* encoder,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     Offset offset,
     Size destSize,
     ShaderObjectLayoutImpl* specializedLayout
@@ -320,7 +320,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset bufferOffset,
     Size bufferSize
 )
@@ -351,10 +351,10 @@ void ShaderObjectImpl::writeBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    BufferResourceImpl* buffer
+    BufferImpl* buffer
 )
 {
-    writeBufferDescriptor(context, offset, descriptorType, buffer, 0, buffer->getDesc()->sizeInBytes);
+    writeBufferDescriptor(context, offset, descriptorType, buffer, 0, buffer->getDesc()->size);
 }
 
 void ShaderObjectImpl::writePlainBufferDescriptor(
@@ -377,7 +377,7 @@ void ShaderObjectImpl::writePlainBufferDescriptor(
             auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
             if (boundViewType == ResourceViewImpl::ViewType::PlainBuffer)
             {
-                auto bufferView = static_cast<PlainBufferResourceViewImpl*>(resourceViews[i].Ptr());
+                auto bufferView = static_cast<PlainBufferViewImpl*>(resourceViews[i].Ptr());
                 bufferInfo.buffer = bufferView->m_buffer->m_buffer.m_buffer;
                 bufferInfo.offset = bufferView->offset;
                 bufferInfo.range = bufferView->size;
@@ -415,7 +415,7 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
             auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
             if (boundViewType == ResourceViewImpl::ViewType::TexelBuffer)
             {
-                auto resourceView = static_cast<TexelBufferResourceViewImpl*>(resourceViews[i].Ptr());
+                auto resourceView = static_cast<TexelBufferViewImpl*>(resourceViews[i].Ptr());
                 bufferView = resourceView->m_view;
             }
         }
@@ -529,7 +529,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
             auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
             if (boundViewType == ResourceViewImpl::ViewType::Texture)
             {
-                auto texture = static_cast<TextureResourceViewImpl*>(resourceViews[i].Ptr());
+                auto texture = static_cast<TextureViewImpl*>(resourceViews[i].Ptr());
                 imageInfo.imageView = texture->m_view;
                 imageInfo.imageLayout = texture->m_layout;
             }
@@ -553,7 +553,7 @@ void ShaderObjectImpl::writeSamplerDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    span<RefPtr<SamplerStateImpl>> samplers
+    span<RefPtr<SamplerImpl>> samplers
 )
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
@@ -939,7 +939,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
     //
     if (m_constantBuffer && m_constantBufferSize > 0)
     {
-        auto bufferImpl = static_cast<BufferResourceImpl*>(m_constantBuffer);
+        auto bufferImpl = static_cast<BufferImpl*>(m_constantBuffer);
         writeBufferDescriptor(
             context,
             ioOffset,
