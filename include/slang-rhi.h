@@ -149,117 +149,6 @@ public:
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 
-// TODO: Confirm with Yong that we really want this naming convention
-// TODO: Rename to what?
-// Dont' change without keeping in sync with Format
-// clang-format off
-#define SLANG_RHI_FORMAT(x) \
-    x( Unknown, 0, 0) \
-    \
-    x(R32G32B32A32_TYPELESS, 16, 1) \
-    x(R32G32B32_TYPELESS, 12, 1) \
-    x(R32G32_TYPELESS, 8, 1) \
-    x(R32_TYPELESS, 4, 1) \
-    \
-    x(R16G16B16A16_TYPELESS, 8, 1) \
-    x(R16G16_TYPELESS, 4, 1) \
-    x(R16_TYPELESS, 2, 1) \
-    \
-    x(R8G8B8A8_TYPELESS, 4, 1) \
-    x(R8G8_TYPELESS, 2, 1) \
-    x(R8_TYPELESS, 1, 1) \
-    x(B8G8R8A8_TYPELESS, 4, 1) \
-    \
-    x(R32G32B32A32_FLOAT, 16, 1) \
-    x(R32G32B32_FLOAT, 12, 1) \
-    x(R32G32_FLOAT, 8, 1) \
-    x(R32_FLOAT, 4, 1) \
-    \
-    x(R16G16B16A16_FLOAT, 8, 1) \
-    x(R16G16_FLOAT, 4, 1) \
-    x(R16_FLOAT, 2, 1) \
-    \
-    x(R32G32B32A32_UINT, 16, 1) \
-    x(R32G32B32_UINT, 12, 1) \
-    x(R32G32_UINT, 8, 1) \
-    x(R32_UINT, 4, 1) \
-    \
-    x(R16G16B16A16_UINT, 8, 1) \
-    x(R16G16_UINT, 4, 1) \
-    x(R16_UINT, 2, 1) \
-    \
-    x(R8G8B8A8_UINT, 4, 1) \
-    x(R8G8_UINT, 2, 1) \
-    x(R8_UINT, 1, 1) \
-    \
-    x(R32G32B32A32_SINT, 16, 1) \
-    x(R32G32B32_SINT, 12, 1) \
-    x(R32G32_SINT, 8, 1) \
-    x(R32_SINT, 4, 1) \
-    \
-    x(R16G16B16A16_SINT, 8, 1) \
-    x(R16G16_SINT, 4, 1) \
-    x(R16_SINT, 2, 1) \
-    \
-    x(R8G8B8A8_SINT, 4, 1) \
-    x(R8G8_SINT, 2, 1) \
-    x(R8_SINT, 1, 1) \
-    \
-    x(R16G16B16A16_UNORM, 8, 1) \
-    x(R16G16_UNORM, 4, 1) \
-    x(R16_UNORM, 2, 1) \
-    \
-    x(R8G8B8A8_UNORM, 4, 1) \
-    x(R8G8B8A8_UNORM_SRGB, 4, 1) \
-    x(R8G8_UNORM, 2, 1) \
-    x(R8_UNORM, 1, 1) \
-    x(B8G8R8A8_UNORM, 4, 1) \
-    x(B8G8R8A8_UNORM_SRGB, 4, 1) \
-    x(B8G8R8X8_UNORM, 4, 1) \
-    x(B8G8R8X8_UNORM_SRGB, 4, 1) \
-    \
-    x(R16G16B16A16_SNORM, 8, 1) \
-    x(R16G16_SNORM, 4, 1) \
-    x(R16_SNORM, 2, 1) \
-    \
-    x(R8G8B8A8_SNORM, 4, 1) \
-    x(R8G8_SNORM, 2, 1) \
-    x(R8_SNORM, 1, 1) \
-    \
-    x(D32_FLOAT, 4, 1) \
-    x(D16_UNORM, 2, 1) \
-    x(D32_FLOAT_S8_UINT, 8, 1) \
-    x(R32_FLOAT_X32_TYPELESS, 8, 1) \
-    \
-    x(B4G4R4A4_UNORM, 2, 1) \
-    x(B5G6R5_UNORM, 2, 1) \
-    x(B5G5R5A1_UNORM, 2, 1) \
-    \
-    x(R9G9B9E5_SHAREDEXP, 4, 1) \
-    x(R10G10B10A2_TYPELESS, 4, 1) \
-    x(R10G10B10A2_UNORM, 4, 1) \
-    x(R10G10B10A2_UINT, 4, 1) \
-    x(R11G11B10_FLOAT, 4, 1) \
-    \
-    x(BC1_UNORM, 8, 16) \
-    x(BC1_UNORM_SRGB, 8, 16) \
-    x(BC2_UNORM, 16, 16) \
-    x(BC2_UNORM_SRGB, 16, 16) \
-    x(BC3_UNORM, 16, 16) \
-    x(BC3_UNORM_SRGB, 16, 16) \
-    x(BC4_UNORM, 8, 16) \
-    x(BC4_SNORM, 8, 16) \
-    x(BC5_UNORM, 16, 16) \
-    x(BC5_SNORM, 16, 16) \
-    x(BC6H_UF16, 16, 16) \
-    x(BC6H_SF16, 16, 16) \
-    x(BC7_UNORM, 16, 16) \
-    x(BC7_UNORM_SRGB, 16, 16) \
-    \
-    x(R64_UINT, 8, 1) \
-    \
-    x(R64_SINT, 8, 1)
-
 // clang-format on
 
 // TODO: This should be generated from above
@@ -375,7 +264,6 @@ enum class Format
     BC7_UNORM_SRGB,
 
     R64_UINT,
-
     R64_SINT,
 
     _Count,
