@@ -1,3 +1,4 @@
+- remove SLANG_RHI_FORMAT(x) macro, extended FormatInfo with name
 - refactor NativeHandle to hold the actual type of the handle instead of just a category
 - rename InteropHandle -> NativeHandle
 - remove IResource::setDebugName/getDebugName, add label to BufferDesc and TextureDesc instead
