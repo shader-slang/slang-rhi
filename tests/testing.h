@@ -96,9 +96,9 @@ template<typename T, size_t Count>
 void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count> expectedResult)
 {
     if constexpr (std::is_same<T, float>::value)
-        return compareComputeResultFuzzy(device, buffer, expectedResult.data(), expectedResult.size());
+        return compareComputeResultFuzzy(device, buffer, expectedResult.data(), expectedResult.size() * sizeof(T));
     else
-        return compareComputeResult(device, buffer, 0, expectedResult.data(), expectedResult.size());
+        return compareComputeResult(device, buffer, 0, expectedResult.data(), expectedResult.size() * sizeof(T));
 }
 
 ComPtr<IDevice> createTestingDevice(
