@@ -71,5 +71,8 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("compute-trivial")
 {
-    runGpuTests(testComputeTrivial, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testComputeTrivial,
+        {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::CUDA, DeviceType::CPU}
+    );
 }

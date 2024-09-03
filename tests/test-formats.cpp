@@ -90,6 +90,10 @@ void setUpAndRunTest(
 
 ComPtr<IResourceView> createTexView(IDevice* device, Extents size, Format format, SubresourceData* data, int mips = 1)
 {
+    // FormatInfo info;
+    // rhiGetFormatInfo(format, &info);
+    // printf("format %s\n", info.name);
+
     TextureDesc texDesc = {};
     texDesc.type = TextureType::Texture2D;
     texDesc.numMipLevels = mips;

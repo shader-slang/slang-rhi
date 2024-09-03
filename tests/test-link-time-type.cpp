@@ -173,5 +173,6 @@ void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("link-time-type")
 {
-    runGpuTests(testLinkTimeType, {DeviceType::D3D12, DeviceType::Vulkan});
+    // Doesn't work on CUDA.
+    runGpuTests(testLinkTimeType, {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::CPU});
 }

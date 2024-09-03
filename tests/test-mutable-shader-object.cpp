@@ -108,5 +108,8 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("mutable-shader-object")
 {
-    runGpuTests(testMutableShaderObject, {DeviceType::D3D12, DeviceType::Vulkan, /*DeviceType::CPU*/});
+    runGpuTests(
+        testMutableShaderObject,
+        {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::CUDA, DeviceType::CPU}
+    );
 }

@@ -788,6 +788,8 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
+// Texture support is currently very limited for D3D11, CUDA and CPU
+
 TEST_CASE("copy-texture-simple")
 {
     runGpuTests(testCopyTexture<SimpleCopyTexture>, {DeviceType::D3D12, DeviceType::Vulkan});
