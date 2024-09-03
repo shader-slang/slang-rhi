@@ -431,10 +431,7 @@ void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     if (!device->hasFeature("ray-tracing"))
-    {
-        // TODO_TESTING better way to skip test
-        return;
-    }
+        SKIP("ray tracing not supported");
     T test;
     test.init(device);
     test.run();

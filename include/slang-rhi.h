@@ -388,6 +388,7 @@ enum class Format
 // TODO: Width/Height/Depth/whatever should not be used. We should use extentX, extentY, etc.
 struct FormatInfo
 {
+    const char* name;
     /// The amount of channels in the format. Only set if the channelType is set.
     GfxCount channelCount;
     /// One of SlangScalarType None if type isn't made up of elements of type. TODO: Change to uint32_t?

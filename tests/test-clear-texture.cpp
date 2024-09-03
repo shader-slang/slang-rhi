@@ -69,5 +69,6 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("clear-texture")
 {
-    runGpuTests(testClearTexture, {DeviceType::Vulkan, DeviceType::D3D12});
+    // D3D11, CUDA, CPU don't support clearResourceView
+    runGpuTests(testClearTexture, {DeviceType::D3D12, DeviceType::Vulkan});
 }

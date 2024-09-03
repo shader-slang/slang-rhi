@@ -134,7 +134,8 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(device, resultBuffer, makeArray<uint32_t>(1123u, 1123u, 1123u, 1123u));
 }
 
-TEST_CASE("NestedParameterBlock")
+TEST_CASE("nested-parameter-block")
 {
+    // Only supported on D3D12 and Vulkan.
     runGpuTests(testNestedParameterBlock, {DeviceType::D3D12, DeviceType::Vulkan});
 }

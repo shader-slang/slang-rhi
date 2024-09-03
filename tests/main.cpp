@@ -3,6 +3,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest.h>
 
+#include "doctest-reporter.h"
+
 // TODO_TESTING
 // SLANG_RHI_EXPORT_AGILITY_SDK
 
@@ -29,6 +31,8 @@ int main(int argc, char** argv)
     int result = 1;
     {
         doctest::Context context(argc, argv);
+
+        context.setOption("--reporters", "custom");
 
         // Select specific test suite to run
         // context.setOption("-tc", "shader-cache-*");

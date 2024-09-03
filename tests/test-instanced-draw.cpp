@@ -496,12 +496,12 @@ void testDraw(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("draw-instanced")
 {
-    runGpuTests(testDraw<DrawInstancedTest>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testDraw<DrawInstancedTest>, {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan});
 }
 
 TEST_CASE("draw-indexed-instanced")
 {
-    runGpuTests(testDraw<DrawIndexedInstancedTest>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testDraw<DrawIndexedInstancedTest>, {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan});
 }
 
 TEST_CASE("draw-indirect")
