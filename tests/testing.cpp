@@ -1,4 +1,5 @@
 #include "testing.h"
+#include "shader-cache.h"
 
 #include <algorithm>
 #include <cctype>
@@ -9,9 +10,13 @@
 #define SLANG_RHI_ENABLE_RENDERDOC 0
 #define SLANG_RHI_DEBUG_SPIRV 0
 
+#define ENABLE_SHADER_CACHE 0
+
+
 namespace rhi::testing {
 
 static std::map<DeviceType, ComPtr<IDevice>> gCachedDevices;
+static ShaderCache gShaderCache;
 
 // Temp directory to create files for teting in.
 static std::filesystem::path gTestTempDirectory;
@@ -316,6 +321,9 @@ ComPtr<IDevice> createTestingDevice(
         additionalSearchPaths.push_back(path);
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
+#if ENABLE_SHADER_CACHE
+    deviceDesc.persistentShaderCache = &gShaderCache;
+#endif
 
     D3D12DeviceExtendedDesc extDesc = {};
     extDesc.rootParameterShaderAttributeName = "root";
