@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+<Type Name="rhi::RefPtr&lt;*&gt;">
+    <SmartPointer Usage="Minimal">pointer</SmartPointer>
+    <DisplayString Condition="pointer == 0">empty</DisplayString>
+    <DisplayString Condition="pointer != 0">RefPtr {*pointer}</DisplayString>
+    <Expand>
+      <ExpandedItem>pointer</ExpandedItem>
+    </Expand>
+</Type>
+
+<Type Name="rhi::static_vector&lt;*,*&gt;">
+    <DisplayString>{{ size={m_size} }}</DisplayString>
+    <Expand>
+        <Item Name="[size]">m_size</Item>
+        <ArrayItems>
+            <Size>m_size</Size>
+            <ValuePointer>m_data.data()</ValuePointer>
+        </ArrayItems>
+    </Expand>
+</Type>
+
+<Type Name="rhi::short_vector&lt;*,*,*&gt;">
+    <DisplayString>{{ size={m_count} }}</DisplayString>
+    <Expand>
+        <Item Name="[size]">m_count</Item>
+        <Item Name="[capacity]">m_capacity</Item>
+        <ArrayItems>
+            <Size>m_size</Size>
+            <ValuePointer>m_data</ValuePointer>
+        </ArrayItems>
+    </Expand>
+</Type>
+
+</AutoVisualizer>
