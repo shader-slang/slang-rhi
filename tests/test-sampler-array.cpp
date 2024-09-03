@@ -26,6 +26,9 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 }
 void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 {
+    if (deviceType == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
+        SKIP("not supported on MoltenVK");
+
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
     ComPtr<ITransientResourceHeap> transientHeap;
@@ -150,5 +153,11 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("sampler-array")
 {
-    runGpuTests(testSamplerArray, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testSamplerArray,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

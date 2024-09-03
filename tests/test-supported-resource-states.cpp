@@ -179,5 +179,11 @@ void testSupportedResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("supported-resource-states")
 {
-    runGpuTests(testSupportedResourceStates, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testSupportedResourceStates,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

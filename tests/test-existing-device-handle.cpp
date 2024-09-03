@@ -89,5 +89,12 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("existing-device-handle")
 {
-    runGpuTests(testExistingDeviceHandle, {DeviceType::Vulkan, DeviceType::D3D12, DeviceType::CUDA});
+    runGpuTests(
+        testExistingDeviceHandle,
+        {
+            DeviceType::Vulkan,
+            DeviceType::D3D12,
+            DeviceType::CUDA,
+        }
+    );
 }

@@ -1101,5 +1101,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("formats")
 {
-    runGpuTests(testFormats, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testFormats,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

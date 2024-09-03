@@ -55,11 +55,13 @@ Result RenderPassLayoutImpl::init(DeviceImpl* device, const IRenderPassLayout::D
         colorAttachment->setStoreAction(translateStoreOp(desc.renderTargetAccess[i].storeOp));
     }
 
-    m_renderPassDesc->depthAttachment()->setLoadAction(translateLoadOp(desc.depthStencilAccess->loadOp));
-    m_renderPassDesc->depthAttachment()->setStoreAction(translateStoreOp(desc.depthStencilAccess->storeOp));
-
-    m_renderPassDesc->stencilAttachment()->setLoadAction(translateLoadOp(desc.depthStencilAccess->loadOp));
-    m_renderPassDesc->stencilAttachment()->setStoreAction(translateStoreOp(desc.depthStencilAccess->storeOp));
+    if (desc.depthStencilAccess)
+    {
+        m_renderPassDesc->depthAttachment()->setLoadAction(translateLoadOp(desc.depthStencilAccess->loadOp));
+        m_renderPassDesc->depthAttachment()->setStoreAction(translateStoreOp(desc.depthStencilAccess->storeOp));
+        m_renderPassDesc->stencilAttachment()->setLoadAction(translateLoadOp(desc.depthStencilAccess->loadOp));
+        m_renderPassDesc->stencilAttachment()->setStoreAction(translateStoreOp(desc.depthStencilAccess->storeOp));
+    }
 
     return SLANG_OK;
 }

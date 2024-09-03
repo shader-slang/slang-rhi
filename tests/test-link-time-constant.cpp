@@ -147,5 +147,11 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
 // TODO_TESTING crashes slang
 // TEST_CASE("link-time-constant")
 // {
-//     runGpuTests(testLinkTimeConstant, {DeviceType::D3D12, DeviceType::Vulkan});
+//     runGpuTests(
+//         testLinkTimeConstant,
+//         {
+//             DeviceType::D3D12,
+//             DeviceType::Vulkan,
+//         }
+//     );
 // }

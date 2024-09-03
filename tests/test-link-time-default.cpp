@@ -206,5 +206,14 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 TEST_CASE("link-time-default")
 {
     // Fails on CUDA
-    runGpuTests(testLinkTimeDefault, {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::CPU});
+    runGpuTests(
+        testLinkTimeDefault,
+        {
+            DeviceType::D3D11,
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::CPU,
+        }
+    );
 }

@@ -120,6 +120,7 @@ Result loadComputeProgram(
     programDesc.slangGlobalScope = composedProgram.get();
 
     auto shaderProgram = device->createProgram(programDesc);
+    REQUIRE(shaderProgram != nullptr);
 
     outShaderProgram = shaderProgram;
     return SLANG_OK;

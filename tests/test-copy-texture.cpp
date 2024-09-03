@@ -788,44 +788,92 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-// Texture support is currently very limited for D3D11, CUDA and CPU
+// Texture support is currently very limited for D3D11, Metal, CUDA and CPU
 
 TEST_CASE("copy-texture-simple")
 {
-    runGpuTests(testCopyTexture<SimpleCopyTexture>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<SimpleCopyTexture>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("copy-texture-section")
 {
-    runGpuTests(testCopyTexture<CopyTextureSection>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<CopyTextureSection>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("copy-texture-large-to-small")
 {
-    runGpuTests(testCopyTexture<LargeSrcToSmallDst>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<LargeSrcToSmallDst>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("copy-texture-small-to-large")
 {
-    runGpuTests(testCopyTexture<SmallSrcToLargeDst>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<SmallSrcToLargeDst>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("copy-texture-between-mips")
 {
-    runGpuTests(testCopyTexture<CopyBetweenMips>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<CopyBetweenMips>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("copy-texture-between-layers")
 {
-    runGpuTests(testCopyTexture<CopyBetweenLayers>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<CopyBetweenLayers>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("copy-texture-with-offsets")
 {
-    runGpuTests(testCopyTexture<CopyWithOffsets>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<CopyWithOffsets>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("copy-texture-with-extent")
 {
-    runGpuTests(testCopyTexture<CopySectionWithSetExtent>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCopyTexture<CopySectionWithSetExtent>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

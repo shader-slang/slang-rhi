@@ -99,5 +99,11 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("root-mutable-shader-object")
 {
-    runGpuTests(testRootMutableShaderObject, {DeviceType::D3D12, /*DeviceType::Vulkan*/});
+    runGpuTests(
+        testRootMutableShaderObject,
+        {
+            DeviceType::D3D12,
+            // DeviceType::Vulkan,
+        }
+    );
 }

@@ -653,12 +653,24 @@ void testRrenderTarget(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("texture-types-shader-and-unordered")
 {
-    runGpuTests(testShaderAndUnordered, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testShaderAndUnordered,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("texture-types-render-target")
 {
-    runGpuTests(testRrenderTarget, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testRrenderTarget,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 // 1D + array + multisample, ditto for 2D, ditto for 3D

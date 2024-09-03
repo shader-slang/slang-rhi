@@ -195,6 +195,12 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
 #if SLANG_WIN64
 TEST_CASE("shared-texture-cuda")
 {
-    runGpuTests(testSharedTexture<DeviceType::CUDA>, {DeviceType::Vulkan, DeviceType::D3D12});
+    runGpuTests(
+        testSharedTexture<DeviceType::CUDA>,
+        {
+            DeviceType::Vulkan,
+            DeviceType::D3D12,
+        }
+    );
 }
 #endif

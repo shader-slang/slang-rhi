@@ -91,6 +91,12 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 #if SLANG_WIN64
 TEST_CASE("shared-buffer-cuda")
 {
-    runGpuTests(testSharedBuffer<DeviceType::CUDA>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testSharedBuffer<DeviceType::CUDA>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 #endif

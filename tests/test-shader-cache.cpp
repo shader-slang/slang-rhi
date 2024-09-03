@@ -973,40 +973,88 @@ void runTest(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("shader-cache-source-file")
 {
-    runGpuTests(runTest<ShaderCacheTestSourceFile>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestSourceFile>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-source-string")
 {
-    runGpuTests(runTest<ShaderCacheTestSourceString>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestSourceString>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-entry-point")
 {
-    runGpuTests(runTest<ShaderCacheTestEntryPoint>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestEntryPoint>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-import-include")
 {
-    runGpuTests(runTest<ShaderCacheTestImportInclude>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestImportInclude>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-specialization")
 {
-    runGpuTests(runTest<ShaderCacheTestSpecialization>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestSpecialization>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-eviction")
 {
-    runGpuTests(runTest<ShaderCacheTestEviction>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestEviction>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-graphics")
 {
-    runGpuTests(runTest<ShaderCacheTestEviction>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestEviction>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-graphics-split")
 {
-    runGpuTests(runTest<ShaderCacheTestGraphicsSplit>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestGraphicsSplit>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

@@ -83,6 +83,9 @@ endif()
 
 set(SLANG_RHI_SLANG_INCLUDE_DIR ${SLANG_RHI_SLANG_INCLUDE_DIR} CACHE STRING "Slang include directory")
 set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang binary directory")
+# Use the variables from the cache.
+unset(SLANG_RHI_SLANG_INCLUDE_DIR)
+unset(SLANG_RHI_SLANG_BINARY_DIR)
 
 if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")

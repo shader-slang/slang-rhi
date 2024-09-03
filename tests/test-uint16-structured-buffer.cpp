@@ -73,5 +73,11 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("uint16-structured-buffer")
 {
-    runGpuTests(testUint16StructuredBuffer, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testUint16StructuredBuffer,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

@@ -130,5 +130,11 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("root-shader-parameter")
 {
-    runGpuTests(testRootShaderParameter, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testRootShaderParameter,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

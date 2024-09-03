@@ -160,20 +160,44 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("native-handle-buffer")
 {
-    runGpuTests(testNativeHandleBuffer, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testNativeHandleBuffer,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("native-handle-texture")
 {
-    runGpuTests(testNativeHandleTexture, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testNativeHandleTexture,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("native-handle-command-queue")
 {
-    runGpuTests(testNativeHandleCommandQueue, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testNativeHandleCommandQueue,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("native-handle-command-buffer")
 {
-    runGpuTests(testNativeHandleCommandBuffer, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testNativeHandleCommandBuffer,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

@@ -319,5 +319,11 @@ void testResolveResource(GpuTestContext* ctx, DeviceType deviceType)
 TEST_CASE("resolve-resource-simple")
 {
     // Only supported on D3D12 and Vulkan.
-    runGpuTests(testResolveResource<ResolveResourceSimple>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testResolveResource<ResolveResourceSimple>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

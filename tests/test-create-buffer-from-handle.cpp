@@ -78,5 +78,11 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("create-buffer-from-handle")
 {
-    runGpuTests(testCreateBufferFromHandle, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testCreateBufferFromHandle,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
