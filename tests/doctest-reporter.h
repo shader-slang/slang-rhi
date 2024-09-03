@@ -34,12 +34,14 @@ struct CustomReporter : public IReporter
 
     void test_run_start() override
     {
+        LOCK();
         stream << Color::None;
         consoleReporter.test_run_start();
     }
 
     void test_run_end(const TestRunStats& in) override
     {
+        LOCK();
         stream << Color::None;
         consoleReporter.test_run_end(in);
     }
@@ -47,6 +49,8 @@ struct CustomReporter : public IReporter
     void test_case_start(const TestCaseData& in) override
     {
         LOCK();
+        ensure_newline();
+        consoleReporter.test_case_start(in);
         tc = &in;
         color(Color::Grey);
         fill(79, '-');
@@ -56,12 +60,18 @@ struct CustomReporter : public IReporter
     }
 
     // called when a test case is reentered because of unfinished subcases
-    void test_case_reenter(const TestCaseData& /*in*/) override {}
+    void test_case_reenter(const TestCaseData& in) override
+    {
+        LOCK();
+        ensure_newline();
+        consoleReporter.test_case_reenter(in);
+    }
 
     void test_case_end(const CurrentTestCaseStats& in) override
     {
         LOCK();
         ensure_newline();
+        consoleReporter.test_case_end(in);
         color(Color::None);
         printf("%s", tc->m_name);
         fill(resultPos);
@@ -79,7 +89,12 @@ struct CustomReporter : public IReporter
         printf(" (%.2fs)\n", in.seconds);
     }
 
-    void test_case_exception(const TestCaseException& /*in*/) override {}
+    void test_case_exception(const TestCaseException& in) override
+    {
+        LOCK();
+        ensure_newline();
+        consoleReporter.test_case_exception(in);
+    }
 
     void subcase_start(const SubcaseSignature& in) override
     {
@@ -111,27 +126,14 @@ struct CustomReporter : public IReporter
 
         LOCK();
         ensure_newline();
-        print(indent);
-        if (in.m_failed)
-        {
-            const char* failure = failureString(in.m_at);
-            if (strlen(failure) > 0)
-            {
-                color(Color::Red);
-                printf("%s: ", failure);
-            }
-        }
-        color(Color::None);
-        printf("%s(%s) at %s:%d\n", assertString(in.m_at), in.m_expr, in.m_file, in.m_line);
+        consoleReporter.log_assert(in);
     }
 
     void log_message(const MessageData& in) override
     {
         LOCK();
         ensure_newline();
-        print(indent);
-        color(Color::Yellow);
-        printf("%s\n", in.m_string.c_str());
+        consoleReporter.log_message(in);
     }
 
     void test_case_skipped(const TestCaseData& /*in*/) override {}
