@@ -1415,15 +1415,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
 };
 
-class ICommandEncoder : public ISlangUnknown
-{
-    SLANG_COM_INTERFACE(0x12806d8b, 0x4fd0, 0x4aea, {0x95, 0x06, 0xf4, 0x22, 0x79, 0xe2, 0x1e, 0xee});
-
-public:
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) = 0;
-};
-
 struct IndirectDispatchArguments
 {
     GfxCount ThreadGroupCountX;
@@ -1465,6 +1456,42 @@ struct ClearResourceViewFlags
     };
 };
 
+class ICommandEncoder : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xb7483513, 0x8939, 0x4bdf, {0x81, 0x2c, 0xc3, 0xe5, 0xb0, 0xde, 0xdc, 0x8e});
+
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) = 0;
+
+    inline void textureBarrier(ITexture* texture, ResourceState src, ResourceState dst)
+    {
+        textureBarrier(1, &texture, src, dst);
+    }
+
+    virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        ResourceState src,
+        ResourceState dst
+    ) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) = 0;
+
+    inline void bufferBarrier(IBuffer* buffer, ResourceState src, ResourceState dst)
+    {
+        bufferBarrier(1, &buffer, src, dst);
+    }
+
+    virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) = 0;
+};
+
 class IResourceCommandEncoder : public ICommandEncoder
 {
     SLANG_COM_INTERFACE(0x9107510b, 0x75a7, 0x4e2f, {0x8d, 0x00, 0x58, 0xfd, 0x22, 0x48, 0xcd, 0x0d});
@@ -1500,6 +1527,7 @@ public:
         Offset3D srcOffset,
         Extents extent
     ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subResourceRange,
@@ -1508,19 +1536,12 @@ public:
         SubresourceData* subResourceData,
         GfxCount subResourceDataCount
     ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
-        ITexture* texture,
-        SubresourceRange subresourceRange,
-        ResourceState src,
-        ResourceState dst
-    ) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
         ITexture* source,
         ResourceState sourceState,
@@ -1529,21 +1550,12 @@ public:
         ResourceState destState,
         SubresourceRange destRange
     ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() = 0;
-    inline void textureBarrier(ITexture* texture, ResourceState src, ResourceState dst)
-    {
-        textureBarrier(1, &texture, src, dst);
-    }
-    inline void bufferBarrier(IBuffer* buffer, ResourceState src, ResourceState dst)
-    {
-        bufferBarrier(1, &buffer, src, dst);
-    }
 };
 
-class IRenderCommandEncoder : public IResourceCommandEncoder
+class IRenderCommandEncoder : public ICommandEncoder
 {
     SLANG_COM_INTERFACE(0xa2be110e, 0xaed7, 0x43b6, {0x90, 0x01, 0x77, 0x79, 0x1f, 0xea, 0x1d, 0x40});
 
@@ -1554,6 +1566,7 @@ public:
     // resources or shader objects that is set into `outRootShaderObject` stays alive during
     // the execution of the command buffer.
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) = 0;
+
     inline IShaderObject* bindPipeline(IPipeline* state)
     {
         IShaderObject* rootObject = nullptr;
@@ -1566,6 +1579,7 @@ public:
     bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setViewports(GfxCount count, const Viewport* viewports) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL setScissorRects(GfxCount count, const ScissorRect* scissors) = 0;
 
     /// Sets the viewport, and sets the scissor rect to match the viewport.
@@ -1579,17 +1593,22 @@ public:
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL setPrimitiveTopology(PrimitiveTopology topology) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets) = 0;
+
     inline void setVertexBuffer(GfxIndex slot, IBuffer* buffer, Offset offset = 0)
     {
         setVertexBuffers(slot, 1, &buffer, &offset);
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex = 0) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
     drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndirect(
         GfxCount maxDrawCount,
         IBuffer* argBuffer,
@@ -1597,6 +1616,7 @@ public:
         IBuffer* countBuffer = nullptr,
         Offset countOffset = 0
     ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndexedIndirect(
         GfxCount maxDrawCount,
         IBuffer* argBuffer,
@@ -1604,15 +1624,19 @@ public:
         IBuffer* countBuffer = nullptr,
         Offset countOffset = 0
     ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL setStencilReference(uint32_t referenceValue) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setSamplePositions(GfxCount samplesPerPixel, GfxCount pixelCount, const SamplePosition* samplePositions) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL drawInstanced(
         GfxCount vertexCount,
         GfxCount instanceCount,
         GfxIndex startVertex,
         GfxIndex startInstanceLocation
     ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL drawIndexedInstanced(
         GfxCount indexCount,
         GfxCount instanceCount,
@@ -1620,10 +1644,11 @@ public:
         GfxIndex baseVertexLocation,
         GfxIndex startInstanceLocation
     ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL drawMeshTasks(int x, int y, int z) = 0;
 };
 
-class IComputeCommandEncoder : public IResourceCommandEncoder
+class IComputeCommandEncoder : public ICommandEncoder
 {
     SLANG_COM_INTERFACE(0x46261132, 0xa7f6, 0x439b, {0x82, 0x6b, 0x1e, 0xaf, 0xf2, 0xae, 0xae, 0xa6});
 
@@ -1634,16 +1659,20 @@ public:
     // resources or shader objects that is set into `outRooShaderObject` stays alive during
     // the execution of the command buffer.
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) = 0;
+
     inline IShaderObject* bindPipeline(IPipeline* state)
     {
         IShaderObject* rootObject = nullptr;
         SLANG_RETURN_NULL_ON_FAIL(bindPipeline(state, &rootObject));
         return rootObject;
     }
+
     // Sets the current pipeline state along with a pre-created mutable root shader object.
     virtual SLANG_NO_THROW Result SLANG_MCALL
     bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* cmdBuffer, Offset offset) = 0;
 };
 
@@ -1662,7 +1691,7 @@ struct AccelerationStructureQueryDesc
     GfxIndex firstQueryIndex;
 };
 
-class IRayTracingCommandEncoder : public IResourceCommandEncoder
+class IRayTracingCommandEncoder : public ICommandEncoder
 {
     SLANG_COM_INTERFACE(0xef4f6545, 0x1f5d, 0x4b9a, {0x9e, 0x72, 0x4d, 0x03, 0x3f, 0xf0, 0x09, 0x1d});
 
@@ -1672,19 +1701,23 @@ public:
         GfxCount propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
         IAccelerationStructure* dest,
         IAccelerationStructure* src,
         AccelerationStructureCopyMode mode
     ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
         GfxCount accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
         GfxCount queryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) = 0;
 
@@ -1714,40 +1747,45 @@ public:
     // Once `endEncoding` is called, the `ICommandEncoder` object becomes obsolete and is
     // invalid for further use. To continue recording, the user must request a new encoder
     // object by calling one of the `encode*Commands` methods again.
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) = 0;
+
+    inline IResourceCommandEncoder* encodeResourceCommands()
+    {
+        IResourceCommandEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(encodeResourceCommands(&encoder));
+        return encoder;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRenderCommands(
         IRenderPassLayout* renderPass,
         IFramebuffer* framebuffer,
         IRenderCommandEncoder** outEncoder
     ) = 0;
+
     inline IRenderCommandEncoder* encodeRenderCommands(IRenderPassLayout* renderPass, IFramebuffer* framebuffer)
     {
-        IRenderCommandEncoder* result;
-        encodeRenderCommands(renderPass, framebuffer, &result);
-        return result;
+        IRenderCommandEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(encodeRenderCommands(renderPass, framebuffer, &encoder));
+        return encoder;
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) = 0;
+
     inline IComputeCommandEncoder* encodeComputeCommands()
     {
-        IComputeCommandEncoder* result;
-        encodeComputeCommands(&result);
-        return result;
+        IComputeCommandEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(encodeComputeCommands(&encoder));
+        return encoder;
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) = 0;
-    inline IResourceCommandEncoder* encodeResourceCommands()
-    {
-        IResourceCommandEncoder* result;
-        encodeResourceCommands(&result);
-        return result;
-    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) = 0;
     inline IRayTracingCommandEncoder* encodeRayTracingCommands()
     {
-        IRayTracingCommandEncoder* result;
-        encodeRayTracingCommands(&result);
-        return result;
+        IRayTracingCommandEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(encodeRayTracingCommands(&encoder));
+        return encoder;
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL close() = 0;

@@ -10,7 +10,7 @@ namespace rhi::d3d12 {
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     PipelineBase* pipeline,
     TransientResourceHeapBase* transientHeap,
-    IResourceCommandEncoder* encoder
+    IRayTracingCommandEncoder* encoder
 )
 {
     uint32_t raygenTableSize = m_rayGenShaderCount * kRayGenRecordSize;
@@ -97,7 +97,13 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     }
 
     stagingBuffer->unmap(nullptr);
-    encoder->copyBuffer(buffer, 0, stagingBuffer, stagingBufferOffset, tableSize);
+    static_cast<RayTracingCommandEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->CopyBufferRegion(
+        static_cast<BufferImpl*>(buffer.get())->m_resource.getResource(),
+        0,
+        static_cast<BufferImpl*>(stagingBuffer)->m_resource.getResource(),
+        stagingBufferOffset,
+        tableSize
+    );
     encoder->bufferBarrier(1, buffer.readRef(), ResourceState::CopyDestination, ResourceState::NonPixelShaderResource);
     RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);

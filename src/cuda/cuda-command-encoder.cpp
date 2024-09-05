@@ -4,26 +4,65 @@
 
 namespace rhi::cuda {
 
-void ResourceCommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+// CommandEncoderImpl
+
+void CommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 {
     m_writer = cmdBuffer;
 }
 
-SLANG_NO_THROW void SLANG_MCALL
-ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
+void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst)
+{
+    SLANG_UNUSED(count);
+    SLANG_UNUSED(textures);
+    SLANG_UNUSED(src);
+    SLANG_UNUSED(dst);
+}
+
+void CommandEncoderImpl::textureSubresourceBarrier(
+    ITexture* texture,
+    SubresourceRange subresourceRange,
+    ResourceState src,
+    ResourceState dst
+)
+{
+    SLANG_UNUSED(texture);
+    SLANG_UNUSED(subresourceRange);
+    SLANG_UNUSED(src);
+    SLANG_UNUSED(dst);
+}
+
+void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst)
+{
+    SLANG_UNUSED(count);
+    SLANG_UNUSED(buffers);
+    SLANG_UNUSED(src);
+    SLANG_UNUSED(dst);
+}
+
+void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
+{
+    SLANG_UNUSED(name);
+    SLANG_UNUSED(rgbColor);
+}
+
+void CommandEncoderImpl::endDebugEvent() {}
+
+void CommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
+{
+    m_writer->writeTimestamp(pool, index);
+}
+
+// ResourceCommandEncoderImpl
+
+void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     m_writer->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
-SLANG_NO_THROW void SLANG_MCALL
-ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     m_writer->uploadBufferData(dst, offset, size, data);
-}
-
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
-{
-    m_writer->writeTimestamp(pool, index);
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
@@ -138,25 +177,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
     SLANG_RHI_UNIMPLEMENTED("copyTextureToBuffer");
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::textureSubresourceBarrier(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState src,
-    ResourceState dst
-)
-{
-    SLANG_UNUSED(texture);
-    SLANG_UNUSED(subresourceRange);
-    SLANG_UNUSED(src);
-    SLANG_UNUSED(dst);
-    SLANG_RHI_UNIMPLEMENTED("textureSubresourceBarrier");
-}
-
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
-{
-    SLANG_UNUSED(name);
-    SLANG_UNUSED(rgbColor);
-}
+// ComputeCommandEncoderImpl
 
 void ComputeCommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 {

@@ -46,10 +46,11 @@ class DebugSampler;
 class DebugShaderObject;
 class DebugRootShaderObject;
 class DebugCommandBuffer;
-class DebugResourceCommandEncoderImpl;
-class DebugComputeCommandEncoder;
+template<typename TEncoderInterface>
+class DebugCommandEncoderImpl;
 class DebugResourceCommandEncoder;
 class DebugRenderCommandEncoder;
+class DebugComputeCommandEncoder;
 class DebugRayTracingCommandEncoder;
 class DebugFence;
 class DebugCommandQueue;

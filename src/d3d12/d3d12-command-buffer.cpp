@@ -70,13 +70,14 @@ void CommandBufferImpl::init(
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList1>(m_cmdList1.writeRef());
 }
 
-void CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
     m_resourceCommandEncoder.init(this);
     *outEncoder = &m_resourceCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeRenderCommands(
+Result CommandBufferImpl::encodeRenderCommands(
     IRenderPassLayout* renderPass,
     IFramebuffer* framebuffer,
     IRenderCommandEncoder** outEncoder
@@ -90,21 +91,25 @@ void CommandBufferImpl::encodeRenderCommands(
         static_cast<FramebufferImpl*>(framebuffer)
     );
     *outEncoder = &m_renderCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
     m_computeCommandEncoder.init(m_renderer, m_transientHeap, this);
     *outEncoder = &m_computeCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
 #if SLANG_RHI_DXR
     m_rayTracingCommandEncoder.init(this);
     *outEncoder = &m_rayTracingCommandEncoder;
+    return SLANG_OK;
 #else
     *outEncoder = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
 #endif
 }
 

@@ -15,7 +15,14 @@ void CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapBase* tran
     m_transientHeap = transientHeap;
 }
 
-SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeRenderCommands(
+SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+{
+    m_resourceCommandEncoder.init(this);
+    *outEncoder = &m_resourceCommandEncoder;
+    return SLANG_OK;
+}
+
+SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeRenderCommands(
     IRenderPassLayout* renderPass,
     IFramebuffer* framebuffer,
     IRenderCommandEncoder** outEncoder
@@ -24,23 +31,20 @@ SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeRenderCommands(
     SLANG_UNUSED(renderPass);
     SLANG_UNUSED(framebuffer);
     *outEncoder = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
-{
-    m_resourceCommandEncoder.init(this);
-    *outEncoder = &m_resourceCommandEncoder;
-}
-
-SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
     m_computeCommandEncoder.init(this);
     *outEncoder = &m_computeCommandEncoder;
+    return SLANG_OK;
 }
 
-SLANG_NO_THROW void SLANG_MCALL CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
     *outEncoder = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)

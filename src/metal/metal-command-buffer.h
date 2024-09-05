@@ -19,10 +19,10 @@ public:
     RootShaderObjectImpl m_rootObject;
     // RefPtr<MutableRootShaderObjectImpl> m_mutableRootShaderObject;
 
-    RefPtr<ResourceCommandEncoder> m_resourceCommandEncoder = nullptr;
-    RefPtr<ComputeCommandEncoder> m_computeCommandEncoder = nullptr;
-    RefPtr<RenderCommandEncoder> m_renderCommandEncoder = nullptr;
-    RefPtr<RayTracingCommandEncoder> m_rayTracingCommandEncoder = nullptr;
+    ResourceCommandEncoderImpl m_resourceCommandEncoder;
+    ComputeCommandEncoderImpl m_computeCommandEncoder;
+    RenderCommandEncoderImpl m_renderCommandEncoder;
+    RayTracingCommandEncoderImpl m_rayTracingCommandEncoder;
 
     NS::SharedPtr<MTL::RenderCommandEncoder> m_metalRenderCommandEncoder;
     NS::SharedPtr<MTL::ComputeCommandEncoder> m_metalComputeCommandEncoder;
@@ -42,14 +42,14 @@ public:
     void endMetalCommandEncoder();
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRenderCommands(
         IRenderPassLayout* renderPass,
         IFramebuffer* framebuffer,
         IRenderCommandEncoder** outEncoder
     ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };

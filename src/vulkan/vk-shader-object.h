@@ -52,7 +52,7 @@ protected:
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
     Result _writeOrdinaryData(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         IBuffer* buffer,
         Offset offset,
         Size destSize,
@@ -125,7 +125,7 @@ public:
 
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
@@ -137,7 +137,7 @@ public:
     /// parameter-block and constant-buffer cases.
     ///
     Result bindAsValue(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -146,7 +146,7 @@ public:
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
     /// blocks)
     Result allocateDescriptorSets(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -154,7 +154,7 @@ public:
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -162,7 +162,7 @@ public:
 
     /// Bind the ordinary data buffer if needed.
     Result bindOrdinaryDataBufferIfNeeded(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -170,7 +170,7 @@ public:
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -223,7 +223,7 @@ public:
 
     /// Bind this shader object as an entry point
     Result bindAsEntryPoint(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         EntryPointLayout* layout
@@ -257,7 +257,7 @@ public:
     copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(PipelineCommandEncoder* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);
+    Result bindAsRoot(CommandEncoderImpl* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
