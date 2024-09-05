@@ -135,13 +135,9 @@ struct BaseResolveResourceTest
             slangReflection
         ));
 
-        TargetLayoutDesc targetLayout;
-        targetLayout.format = format;
-        targetLayout.sampleCount = 4;
-
         FramebufferLayoutDesc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets = &targetLayout;
+        framebufferLayoutDesc.renderTargets[0] = {format, 4};
         ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 

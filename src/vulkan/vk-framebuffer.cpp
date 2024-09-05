@@ -18,7 +18,7 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const FramebufferLayout
     m_renderTargetCount = desc.renderTargetCount;
     // Create render pass.
     int numTargets = m_renderTargetCount;
-    m_hasDepthStencilTarget = (desc.depthStencil != nullptr);
+    m_hasDepthStencilTarget = (desc.depthStencil.format != Format::Unknown);
     if (m_hasDepthStencilTarget)
     {
         numTargets++;
@@ -51,12 +51,12 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const FramebufferLayout
         m_sampleCount = std::max(dst.samples, m_sampleCount);
     }
 
-    if (desc.depthStencil)
+    if (desc.depthStencil.format != Format::Unknown)
     {
         VkAttachmentDescription& dst = m_targetDescs[desc.renderTargetCount];
         dst.flags = 0;
-        dst.format = VulkanUtil::getVkFormat(desc.depthStencil->format);
-        dst.samples = (VkSampleCountFlagBits)desc.depthStencil->sampleCount;
+        dst.format = VulkanUtil::getVkFormat(desc.depthStencil.format);
+        dst.samples = (VkSampleCountFlagBits)desc.depthStencil.sampleCount;
         dst.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         dst.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         dst.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;

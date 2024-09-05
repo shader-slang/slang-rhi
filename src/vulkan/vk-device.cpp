@@ -1049,11 +1049,8 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     // Create empty frame buffer.
     {
-        FramebufferLayoutDesc layoutDesc = {};
-        layoutDesc.renderTargetCount = 0;
-        layoutDesc.depthStencil = nullptr;
         ComPtr<IFramebufferLayout> layout;
-        SLANG_RETURN_ON_FAIL(createFramebufferLayout(layoutDesc, layout.writeRef()));
+        SLANG_RETURN_ON_FAIL(createFramebufferLayout({}, layout.writeRef()));
         IFramebuffer::Desc desc = {};
         desc.layout = layout;
         ComPtr<IFramebuffer> framebuffer;

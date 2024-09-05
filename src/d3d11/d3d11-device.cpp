@@ -375,10 +375,10 @@ Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IF
         layout->m_renderTargets[i] = desc.renderTargets[i];
     }
 
-    if (desc.depthStencil)
+    if (desc.depthStencil.format != Format::Unknown)
     {
         layout->m_hasDepthStencil = true;
-        layout->m_depthStencil = *desc.depthStencil;
+        layout->m_depthStencil = desc.depthStencil;
     }
     else
     {

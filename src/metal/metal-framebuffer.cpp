@@ -11,9 +11,9 @@ Result FramebufferLayoutImpl::init(const FramebufferLayoutDesc& desc)
     {
         m_renderTargets.push_back(desc.renderTargets[i]);
     }
-    if (desc.depthStencil)
+    if (desc.depthStencil.format != Format::Unknown)
     {
-        m_depthStencil = *desc.depthStencil;
+        m_depthStencil = desc.depthStencil;
     }
     else
     {

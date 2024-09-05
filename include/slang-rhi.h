@@ -1174,15 +1174,15 @@ struct BlendDesc
 
 struct TargetLayoutDesc
 {
-    Format format;
-    GfxCount sampleCount;
+    Format format = Format::Unknown;
+    GfxCount sampleCount = 1;
 };
 
 struct FramebufferLayoutDesc
 {
     GfxCount renderTargetCount;
-    TargetLayoutDesc* renderTargets = nullptr;
-    TargetLayoutDesc* depthStencil = nullptr;
+    TargetLayoutDesc renderTargets[kMaxRenderTargetCount];
+    TargetLayoutDesc depthStencil;
 };
 
 class IFramebufferLayout : public ISlangUnknown
