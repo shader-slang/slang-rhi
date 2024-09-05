@@ -771,7 +771,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderProgram* getInterface(const Guid& guid);
 
-    Desc desc;
+    ShaderProgramDesc desc;
 
     ComPtr<slang::IComponentType> slangGlobalScope;
     std::vector<ComPtr<slang::IComponentType>> slangEntryPoints;
@@ -783,7 +783,7 @@ public:
     // Linked program for each entry point when linkingStyle is RayTracing.
     std::vector<ComPtr<slang::IComponentType>> linkedEntryPoints;
 
-    void init(const IShaderProgram::Desc& desc);
+    void init(const ShaderProgramDesc& desc);
 
     bool isSpecializable()
     {
@@ -1174,12 +1174,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) SLANG_OVERRIDE;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createProgram2(
-        const IShaderProgram::CreateDesc2& desc,
-        IShaderProgram** outProgram,
-        ISlangBlob** outDiagnostic
-    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderObject(slang::TypeReflection* type, ShaderObjectContainerType containerType, IShaderObject** outObject)

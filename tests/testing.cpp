@@ -6,6 +6,7 @@
 #include <ctime>
 #include <filesystem>
 #include <map>
+#include <string>
 
 #define SLANG_RHI_ENABLE_RENDERDOC 0
 #define SLANG_RHI_DEBUG_SPIRV 0
@@ -113,17 +114,9 @@ Result loadComputeProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    composedProgram = linkedProgram;
-    slangReflection = composedProgram->getLayout();
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
-
-    auto shaderProgram = device->createProgram(programDesc);
-    REQUIRE(shaderProgram != nullptr);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 Result loadComputeProgram(
@@ -163,28 +156,49 @@ Result loadComputeProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    composedProgram = linkedProgram;
-    slangReflection = composedProgram->getLayout();
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
-
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source)
 {
+    auto slangSession = device->getSlangSession();
+    slang::IModule* module = nullptr;
     ComPtr<slang::IBlob> diagnosticsBlob;
+    size_t hash = std::hash<std::string_view>()(source);
+    std::string moduleName = "source_module_" + std::to_string(hash);
+    auto srcBlob = UnownedBlob::create(source.data(), source.size());
+    module =
+        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    if (!module)
+        return SLANG_FAIL;
 
-    IShaderProgram::CreateDesc2 programDesc = {};
-    programDesc.sourceType = ShaderModuleSourceType::SlangSource;
-    programDesc.sourceData = (void*)source.data();
-    programDesc.sourceDataSize = source.size();
+    std::vector<ComPtr<slang::IComponentType>> componentTypes;
+    componentTypes.push_back(ComPtr<slang::IComponentType>(module));
 
-    return device->createProgram2(programDesc, outShaderProgram.writeRef(), diagnosticsBlob.writeRef());
+    for (SlangInt32 i = 0; i < module->getDefinedEntryPointCount(); i++)
+    {
+        ComPtr<slang::IEntryPoint> entryPoint;
+        SLANG_RETURN_ON_FAIL(module->getDefinedEntryPoint(i, entryPoint.writeRef()));
+        componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
+    }
+
+    std::vector<slang::IComponentType*> rawComponentTypes;
+    for (auto& compType : componentTypes)
+        rawComponentTypes.push_back(compType.get());
+
+    ComPtr<slang::IComponentType> linkedProgram;
+    Result result = slangSession->createCompositeComponentType(
+        rawComponentTypes.data(),
+        rawComponentTypes.size(),
+        linkedProgram.writeRef(),
+        diagnosticsBlob.writeRef()
+    );
+    SLANG_RETURN_ON_FAIL(result);
+
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 Result loadGraphicsProgram(
@@ -224,15 +238,15 @@ Result loadGraphicsProgram(
     );
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
-    slangReflection = composedProgram->getLayout();
 
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
+    ComPtr<slang::IComponentType> linkedProgram;
+    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    SLANG_RETURN_ON_FAIL(result);
 
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 void compareComputeResult(

@@ -458,8 +458,8 @@ Result DebugDevice::createMutableShaderObjectFromTypeLayout(
     return result;
 }
 
-Result DebugDevice::createProgram(
-    const IShaderProgram::Desc& desc,
+Result DebugDevice::createShaderProgram(
+    const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
     ISlangBlob** outDiagnostics
 )
@@ -467,28 +467,10 @@ Result DebugDevice::createProgram(
     SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderProgram> outObject = new DebugShaderProgram();
-    auto result = baseObject->createProgram(desc, outObject->baseObject.writeRef(), outDiagnostics);
+    auto result = baseObject->createShaderProgram(desc, outObject->baseObject.writeRef(), outDiagnostics);
     if (SLANG_FAILED(result))
         return result;
     outObject->m_slangProgram = desc.slangGlobalScope;
-    returnComPtr(outProgram, outObject);
-    return result;
-}
-
-Result DebugDevice::createProgram2(
-    const IShaderProgram::CreateDesc2& desc,
-    IShaderProgram** outProgram,
-    ISlangBlob** outDiagnostics
-)
-{
-    SLANG_RHI_API_FUNC;
-    IShaderProgram::Desc desc1 = {};
-    RefPtr<DebugShaderProgram> outObject = new DebugShaderProgram();
-    auto result = baseObject->createProgram2(desc, outObject->baseObject.writeRef(), outDiagnostics);
-    if (SLANG_FAILED(result))
-        return result;
-    auto base = static_cast<ShaderProgramBase*>(outObject->baseObject.get());
-    outObject->m_slangProgram = base->desc.slangGlobalScope;
     returnComPtr(outProgram, outObject);
     return result;
 }

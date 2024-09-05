@@ -51,8 +51,8 @@ public:
     virtual Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject) override;
     virtual void bindRootShaderObject(IShaderObject* shaderObject) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createProgram(
-        const IShaderProgram::Desc& desc,
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
+        const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
         ISlangBlob** outDiagnosticBlob
     ) override;

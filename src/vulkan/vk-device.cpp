@@ -2387,8 +2387,8 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
     return SLANG_OK;
 }
 
-Result DeviceImpl::createProgram(
-    const IShaderProgram::Desc& desc,
+Result DeviceImpl::createShaderProgram(
+    const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
     ISlangBlob** outDiagnosticBlob
 )

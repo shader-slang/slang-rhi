@@ -89,12 +89,34 @@ const GfxCount kMaxRenderTargetCount = 8;
 class ITransientResourceHeap;
 class IPersistentShaderCache;
 
-enum class ShaderModuleSourceType
+/// Defines how linking should be performed for a shader program.
+enum class LinkingStyle
 {
-    SlangSource,           // a slang source string in memory.
-    SlangModuleBinary,     // a slang module binary code in memory.
-    SlangSourceFile,       // a slang source from file.
-    SlangModuleBinaryFile, // a slang module binary code from file.
+    // Compose all entry-points in a single program, then compile all entry-points together with the same
+    // set of root shader arguments.
+    SingleProgram,
+
+    // Link and compile each entry-point individually, potentially with different specializations.
+    SeparateEntryPointCompilation
+};
+
+struct ShaderProgramDesc
+{
+    // TODO: Tess doesn't like this but doesn't know what to do about it
+    // The linking style of this program.
+    LinkingStyle linkingStyle = LinkingStyle::SingleProgram;
+
+    // The global scope or a Slang composite component that represents the entire program.
+    slang::IComponentType* slangGlobalScope;
+
+    // An array of Slang entry points. The size of the array must be `slangEntryPointCount`.
+    // Each element must define only 1 Slang EntryPoint.
+    slang::IComponentType** slangEntryPoints = nullptr;
+
+    // Number of separate entry point components in the `slangEntryPoints` array to link in.
+    // If set to 0, then `slangGlobalScope` must contain Slang EntryPoint components.
+    // If not 0, then `slangGlobalScope` must not contain any EntryPoint components.
+    GfxCount slangEntryPointCount = 0;
 };
 
 class IShaderProgram : public ISlangUnknown
@@ -102,50 +124,6 @@ class IShaderProgram : public ISlangUnknown
     SLANG_COM_INTERFACE(0x19cabd0d, 0xf3e3, 0x4b3d, {0x93, 0x43, 0xea, 0xcc, 0x00, 0x1e, 0xc5, 0xf2});
 
 public:
-    // Defines how linking should be performed for a shader program.
-    enum class LinkingStyle
-    {
-        // Compose all entry-points in a single program, then compile all entry-points together with the same
-        // set of root shader arguments.
-        SingleProgram,
-
-        // Link and compile each entry-point individually, potentially with different specializations.
-        SeparateEntryPointCompilation
-    };
-
-    struct Desc
-    {
-        // TODO: Tess doesn't like this but doesn't know what to do about it
-        // The linking style of this program.
-        LinkingStyle linkingStyle = LinkingStyle::SingleProgram;
-
-        // The global scope or a Slang composite component that represents the entire program.
-        slang::IComponentType* slangGlobalScope;
-
-        // Number of separate entry point components in the `slangEntryPoints` array to link in.
-        // If set to 0, then `slangGlobalScope` must contain Slang EntryPoint components.
-        // If not 0, then `slangGlobalScope` must not contain any EntryPoint components.
-        GfxCount entryPointCount = 0;
-
-        // An array of Slang entry points. The size of the array must be `entryPointCount`.
-        // Each element must define only 1 Slang EntryPoint.
-        slang::IComponentType** slangEntryPoints = nullptr;
-    };
-
-    struct CreateDesc2
-    {
-        ShaderModuleSourceType sourceType;
-        void* sourceData;
-        Size sourceDataSize;
-
-        // Number of entry points to include in the shader program. 0 means include all entry points
-        // defined in the module.
-        GfxCount entryPointCount = 0;
-        // Names of entry points to include in the shader program. The size of the array must be
-        // `entryPointCount`.
-        const char** entryPointNames = nullptr;
-    };
-
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 
@@ -2348,24 +2326,31 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createProgram(
-        const IShaderProgram::Desc& desc,
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
+        const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
         ISlangBlob** outDiagnosticBlob = nullptr
     ) = 0;
 
-    inline ComPtr<IShaderProgram> createProgram(const IShaderProgram::Desc& desc)
+    inline ComPtr<IShaderProgram> createShaderProgram(
+        const ShaderProgramDesc& desc,
+        ISlangBlob** outDiagnosticBlob = nullptr
+    )
     {
         ComPtr<IShaderProgram> program;
-        SLANG_RETURN_NULL_ON_FAIL(createProgram(desc, program.writeRef()));
+        SLANG_RETURN_NULL_ON_FAIL(createShaderProgram(desc, program.writeRef(), outDiagnosticBlob));
         return program;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createProgram2(
-        const IShaderProgram::CreateDesc2& createDesc,
-        IShaderProgram** outProgram,
+    inline ComPtr<IShaderProgram> createShaderProgram(
+        slang::IComponentType* linkedProgram,
         ISlangBlob** outDiagnosticBlob = nullptr
-    ) = 0;
+    )
+    {
+        ShaderProgramDesc desc = {};
+        desc.slangGlobalScope = linkedProgram;
+        return createShaderProgram(desc, outDiagnosticBlob);
+    }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) = 0;

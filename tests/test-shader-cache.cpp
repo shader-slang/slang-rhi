@@ -916,13 +916,13 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         entryPoints.push_back(vertexEntryPoint);
         entryPoints.push_back(fragmentEntryPoint);
 
-        IShaderProgram::Desc programDesc = {};
+        ShaderProgramDesc programDesc = {};
         programDesc.slangGlobalScope = composedProgram.get();
-        programDesc.linkingStyle = IShaderProgram::LinkingStyle::SeparateEntryPointCompilation;
-        programDesc.entryPointCount = 2;
+        programDesc.linkingStyle = LinkingStyle::SeparateEntryPointCompilation;
         programDesc.slangEntryPoints = entryPoints.data();
+        programDesc.slangEntryPointCount = 2;
 
-        ComPtr<IShaderProgram> shaderProgram = device->createProgram(programDesc);
+        ComPtr<IShaderProgram> shaderProgram = device->createShaderProgram(programDesc);
 
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
