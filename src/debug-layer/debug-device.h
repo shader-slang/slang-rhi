@@ -55,7 +55,7 @@ public:
         IAccelerationStructure** outView
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(IFramebufferLayout::Desc const& desc, IFramebufferLayout** outFrameBuffer) override;
+    createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outFrameBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFrameBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

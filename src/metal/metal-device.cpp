@@ -148,7 +148,7 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout)
+Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
 {
     AUTORELEASEPOOL
 

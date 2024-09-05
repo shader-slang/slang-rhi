@@ -154,13 +154,9 @@ public:
             slangReflection
         ));
 
-        IFramebufferLayout::TargetLayout targetLayout;
-        targetLayout.format = format;
-        targetLayout.sampleCount = 1;
-
-        IFramebufferLayout::Desc framebufferLayoutDesc;
+        FramebufferLayoutDesc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets = &targetLayout;
+        framebufferLayoutDesc.renderTargets[0] = {format, 1};
         ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         REQUIRE(framebufferLayout != nullptr);
 

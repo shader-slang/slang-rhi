@@ -133,7 +133,7 @@ public:
     createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFrameBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(IFramebufferLayout::Desc const& desc, IFramebufferLayout** outLayout) override;
+    createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outLayout) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;

@@ -85,33 +85,28 @@ Result PipelineImpl::createMetalRenderPipelineState()
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < framebufferLayoutImpl->m_renderTargets.size(); ++i)
+    for (Index i = 0; i < framebufferLayoutImpl->m_desc.renderTargetCount; ++i)
     {
-        const IFramebufferLayout::TargetLayout& targetLayout = framebufferLayoutImpl->m_renderTargets[i];
+        const TargetLayoutDesc& targetLayout = framebufferLayoutImpl->m_desc.renderTargets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
         colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetLayout.format));
-        if (i < blend.targetCount)
-        {
-            const TargetBlendDesc& targetBlendDesc = blend.targets[i];
-            colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
-            colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
-            colorAttachment->setDestinationRGBBlendFactor(
-                MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor)
-            );
-            colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
-            colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor)
-            );
-            colorAttachment->setDestinationAlphaBlendFactor(
-                MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
-            );
-            colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
-            colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
-        }
+
+        const TargetBlendDesc& targetBlendDesc = blend.targets[i];
+        colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
+        colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
+        colorAttachment->setDestinationRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor));
+        colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
+        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor));
+        colorAttachment->setDestinationAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
+        );
+        colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
+        colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
+
         sampleCount = std::max(sampleCount, targetLayout.sampleCount);
     }
-    if (framebufferLayoutImpl->m_depthStencil.format != Format::Unknown)
+    if (framebufferLayoutImpl->m_desc.depthStencil.format != Format::Unknown)
     {
-        const IFramebufferLayout::TargetLayout& depthStencil = framebufferLayoutImpl->m_depthStencil;
+        const TargetLayoutDesc& depthStencil = framebufferLayoutImpl->m_desc.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {

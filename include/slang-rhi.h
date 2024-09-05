@@ -1167,27 +1167,25 @@ struct TargetBlendDesc
 struct BlendDesc
 {
     TargetBlendDesc targets[kMaxRenderTargetCount];
-    GfxCount targetCount = 0;
-
     bool alphaToCoverageEnable = false;
+};
+
+struct TargetLayoutDesc
+{
+    Format format = Format::Unknown;
+    GfxCount sampleCount = 1;
+};
+
+struct FramebufferLayoutDesc
+{
+    GfxCount renderTargetCount;
+    TargetLayoutDesc renderTargets[kMaxRenderTargetCount];
+    TargetLayoutDesc depthStencil;
 };
 
 class IFramebufferLayout : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xe5facc0a, 0x3d48, 0x4459, {0x8e, 0xa5, 0x7d, 0xbe, 0x81, 0xba, 0x91, 0xc2});
-
-public:
-    struct TargetLayout
-    {
-        Format format;
-        GfxCount sampleCount;
-    };
-    struct Desc
-    {
-        GfxCount renderTargetCount;
-        TargetLayout* renderTargets = nullptr;
-        TargetLayout* depthStencil = nullptr;
-    };
 };
 
 struct RenderPipelineDesc
@@ -2253,8 +2251,8 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(IFramebufferLayout::Desc const& desc, IFramebufferLayout** outFrameBuffer) = 0;
-    inline ComPtr<IFramebufferLayout> createFramebufferLayout(IFramebufferLayout::Desc const& desc)
+    createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outFrameBuffer) = 0;
+    inline ComPtr<IFramebufferLayout> createFramebufferLayout(FramebufferLayoutDesc const& desc)
     {
         ComPtr<IFramebufferLayout> fb;
         SLANG_RETURN_NULL_ON_FAIL(createFramebufferLayout(desc, fb.writeRef()));

@@ -1,3 +1,4 @@
+- rename IFramebufferLayout::Desc -> FramebufferLayoutDesc
 - rename IInputLayout::Desc -> InputLayoutDesc
 - introduce ICommandEncoder, which is the new base interface for all command encoders (encoders don't inherit the IResourceCommandEncoder anymore)
 - remove IDevice::createProgram2

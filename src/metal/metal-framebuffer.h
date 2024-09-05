@@ -17,11 +17,10 @@ enum
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
 public:
-    std::vector<IFramebufferLayout::TargetLayout> m_renderTargets;
-    IFramebufferLayout::TargetLayout m_depthStencil;
+    FramebufferLayoutDesc m_desc;
 
 public:
-    Result init(const IFramebufferLayout::Desc& desc);
+    Result init(const FramebufferLayoutDesc& desc);
 };
 
 class FramebufferImpl : public FramebufferBase

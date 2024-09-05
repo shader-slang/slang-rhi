@@ -138,11 +138,11 @@ struct SwapchainResizeTest
             slangReflection
         ));
 
-        IFramebufferLayout::TargetLayout targetLayout;
+        TargetLayoutDesc targetLayout;
         targetLayout.format = swapchain->getDesc().format;
         targetLayout.sampleCount = 1;
 
-        IFramebufferLayout::Desc framebufferLayoutDesc;
+        FramebufferLayoutDesc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &targetLayout;
         framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);

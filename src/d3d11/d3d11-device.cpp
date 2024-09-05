@@ -366,24 +366,10 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout)
+Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
 {
     RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_renderTargets.resize(desc.renderTargetCount);
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        layout->m_renderTargets[i] = desc.renderTargets[i];
-    }
-
-    if (desc.depthStencil)
-    {
-        layout->m_hasDepthStencil = true;
-        layout->m_depthStencil = *desc.depthStencil;
-    }
-    else
-    {
-        layout->m_hasDepthStencil = false;
-    }
+    layout->m_desc = desc;
     returnComPtr(outLayout, layout);
     return SLANG_OK;
 }
@@ -1624,23 +1610,24 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
         TargetBlendDesc defaultTargetBlendDesc;
 
         static const UInt kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-        if (srcDesc.targetCount > kMaxTargets)
+        int targetCount = static_cast<FramebufferLayoutImpl*>(inDesc.framebufferLayout)->m_desc.renderTargetCount;
+        if (targetCount > kMaxTargets)
             return SLANG_FAIL;
 
         for (GfxIndex ii = 0; ii < kMaxTargets; ++ii)
         {
             TargetBlendDesc const* srcTargetBlendDescPtr = nullptr;
-            if (ii < srcDesc.targetCount)
+            if (ii < targetCount)
             {
                 srcTargetBlendDescPtr = &srcDesc.targets[ii];
             }
-            else if (srcDesc.targetCount == 0)
+            else if (targetCount == 0)
             {
                 srcTargetBlendDescPtr = &defaultTargetBlendDesc;
             }
             else
             {
-                srcTargetBlendDescPtr = &srcDesc.targets[srcDesc.targetCount - 1];
+                srcTargetBlendDescPtr = &srcDesc.targets[targetCount - 1];
             }
 
             auto& srcTargetBlendDesc = *srcTargetBlendDescPtr;
@@ -1670,7 +1657,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
             dstTargetBlendDesc.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTargetBlendDesc.writeMask);
         }
 
-        dstDesc.IndependentBlendEnable = srcDesc.targetCount > 1;
+        dstDesc.IndependentBlendEnable = targetCount > 1;
         dstDesc.AlphaToCoverageEnable = srcDesc.alphaToCoverageEnable;
 
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
@@ -1681,7 +1668,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
     pipeline->m_inputLayout = static_cast<InputLayoutImpl*>(desc.inputLayout);
-    pipeline->m_rtvCount = (UINT) static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout)->m_renderTargets.size();
+    pipeline->m_rtvCount = (UINT) static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout)->m_desc.renderTargetCount;
     pipeline->m_blendColor[0] = 0;
     pipeline->m_blendColor[1] = 0;
     pipeline->m_blendColor[2] = 0;
