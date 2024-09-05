@@ -66,10 +66,10 @@ Result PipelineImpl::ensureAPIPipelineCreated()
 
             psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveType);
 
-            {
-                auto framebufferLayout = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-                const int numRenderTargets = int(framebufferLayout->m_desc.renderTargetCount);
+            auto framebufferLayout = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
+            const int numRenderTargets = int(framebufferLayout->m_desc.renderTargetCount);
 
+            {
                 if (framebufferLayout->m_desc.depthStencil.format != Format::Unknown)
                 {
                     psoDesc.DSVFormat = D3DUtil::getMapFormat(framebufferLayout->m_desc.depthStencil.format);
@@ -116,7 +116,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                 blend.IndependentBlendEnable = FALSE;
                 blend.AlphaToCoverageEnable = desc.graphics.blend.alphaToCoverageEnable ? TRUE : FALSE;
                 blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)RenderTargetWriteMask::EnableAll;
-                for (GfxIndex i = 0; i < desc.graphics.blend.targetCount; i++)
+                for (GfxIndex i = 0; i < numRenderTargets; i++)
                 {
                     auto& d3dDesc = blend.RenderTarget[i];
                     d3dDesc.BlendEnable = desc.graphics.blend.targets[i].enableBlend ? TRUE : FALSE;
@@ -130,7 +130,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                     d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].color.srcFactor);
                     d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].alpha.srcFactor);
                 }
-                for (GfxIndex i = 1; i < desc.graphics.blend.targetCount; i++)
+                for (GfxIndex i = 1; i < numRenderTargets; i++)
                 {
                     if (memcmp(
                             &desc.graphics.blend.targets[i],
@@ -142,7 +142,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                         break;
                     }
                 }
-                for (uint32_t i = (uint32_t)desc.graphics.blend.targetCount; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
+                for (uint32_t i = (uint32_t)numRenderTargets; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
                      ++i)
                 {
                     blend.RenderTarget[i] = blend.RenderTarget[0];

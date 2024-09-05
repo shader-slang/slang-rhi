@@ -1610,23 +1610,24 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
         TargetBlendDesc defaultTargetBlendDesc;
 
         static const UInt kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-        if (srcDesc.targetCount > kMaxTargets)
+        int targetCount = static_cast<FramebufferLayoutImpl*>(inDesc.framebufferLayout)->m_desc.renderTargetCount;
+        if (targetCount > kMaxTargets)
             return SLANG_FAIL;
 
         for (GfxIndex ii = 0; ii < kMaxTargets; ++ii)
         {
             TargetBlendDesc const* srcTargetBlendDescPtr = nullptr;
-            if (ii < srcDesc.targetCount)
+            if (ii < targetCount)
             {
                 srcTargetBlendDescPtr = &srcDesc.targets[ii];
             }
-            else if (srcDesc.targetCount == 0)
+            else if (targetCount == 0)
             {
                 srcTargetBlendDescPtr = &defaultTargetBlendDesc;
             }
             else
             {
-                srcTargetBlendDescPtr = &srcDesc.targets[srcDesc.targetCount - 1];
+                srcTargetBlendDescPtr = &srcDesc.targets[targetCount - 1];
             }
 
             auto& srcTargetBlendDesc = *srcTargetBlendDescPtr;
@@ -1656,7 +1657,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
             dstTargetBlendDesc.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTargetBlendDesc.writeMask);
         }
 
-        dstDesc.IndependentBlendEnable = srcDesc.targetCount > 1;
+        dstDesc.IndependentBlendEnable = targetCount > 1;
         dstDesc.AlphaToCoverageEnable = srcDesc.alphaToCoverageEnable;
 
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));

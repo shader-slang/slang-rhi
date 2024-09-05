@@ -1167,8 +1167,6 @@ struct TargetBlendDesc
 struct BlendDesc
 {
     TargetBlendDesc targets[kMaxRenderTargetCount];
-    GfxCount targetCount = 0;
-
     bool alphaToCoverageEnable = false;
 };
 

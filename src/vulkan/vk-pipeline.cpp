@@ -154,7 +154,7 @@ Result PipelineImpl::createVKGraphicsPipeline()
     multisampling.alphaToCoverageEnable = blendDesc.alphaToCoverageEnable;
     multisampling.alphaToOneEnable = VK_FALSE;
 
-    auto targetCount = GfxCount(std::min(framebufferLayoutImpl->m_renderTargetCount, (uint32_t)blendDesc.targetCount));
+    auto targetCount = framebufferLayoutImpl->m_renderTargetCount;
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendTargets;
 
     // Regardless of whether blending is enabled, Vulkan always applies the color write mask

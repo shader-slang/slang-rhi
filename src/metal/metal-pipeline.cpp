@@ -90,23 +90,22 @@ Result PipelineImpl::createMetalRenderPipelineState()
         const TargetLayoutDesc& targetLayout = framebufferLayoutImpl->m_desc.renderTargets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
         colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetLayout.format));
-        if (i < blend.targetCount)
-        {
-            const TargetBlendDesc& targetBlendDesc = blend.targets[i];
-            colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
-            colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
-            colorAttachment->setDestinationRGBBlendFactor(
-                MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor)
-            );
-            colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
-            colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor)
-            );
-            colorAttachment->setDestinationAlphaBlendFactor(
-                MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
-            );
-            colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
-            colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
-        }
+
+        const TargetBlendDesc& targetBlendDesc = blend.targets[i];
+        colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
+        colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
+        colorAttachment->setDestinationRGBBlendFactor(
+            MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor)
+        );
+        colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
+        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor)
+        );
+        colorAttachment->setDestinationAlphaBlendFactor(
+            MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
+        );
+        colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
+        colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
+
         sampleCount = std::max(sampleCount, targetLayout.sampleCount);
     }
     if (framebufferLayoutImpl->m_desc.depthStencil.format != Format::Unknown)
