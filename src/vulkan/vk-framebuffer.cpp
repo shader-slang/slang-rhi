@@ -12,7 +12,7 @@ FramebufferLayoutImpl::~FramebufferLayoutImpl()
     m_renderer->m_api.vkDestroyRenderPass(m_renderer->m_api.m_device, m_renderPass, nullptr);
 }
 
-Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const IFramebufferLayout::Desc& desc)
+Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const FramebufferLayoutDesc& desc)
 {
     m_renderer = renderer;
     m_renderTargetCount = desc.renderTargetCount;

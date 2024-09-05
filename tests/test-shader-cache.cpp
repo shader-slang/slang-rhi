@@ -756,11 +756,11 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         vertexBuffer = createVertexBuffer(device);
         colorBuffer = createColorBuffer(device);
 
-        IFramebufferLayout::TargetLayout targetLayout;
+        TargetLayoutDesc targetLayout;
         targetLayout.format = format;
         targetLayout.sampleCount = 1;
 
-        IFramebufferLayout::Desc framebufferLayoutDesc;
+        FramebufferLayoutDesc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &targetLayout;
         framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);

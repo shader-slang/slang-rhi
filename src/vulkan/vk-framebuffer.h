@@ -27,7 +27,7 @@ public:
 
 public:
     ~FramebufferLayoutImpl();
-    Result init(DeviceImpl* renderer, const IFramebufferLayout::Desc& desc);
+    Result init(DeviceImpl* renderer, const FramebufferLayoutDesc& desc);
 };
 
 class FramebufferImpl : public FramebufferBase

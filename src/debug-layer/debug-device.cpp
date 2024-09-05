@@ -240,7 +240,7 @@ Result DebugDevice::createAccelerationStructure(
     return SLANG_OK;
 }
 
-Result DebugDevice::createFramebufferLayout(IFramebufferLayout::Desc const& desc, IFramebufferLayout** outFrameBuffer)
+Result DebugDevice::createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outFrameBuffer)
 {
     SLANG_RHI_API_FUNC;
 

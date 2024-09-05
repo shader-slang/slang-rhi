@@ -1049,7 +1049,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     // Create empty frame buffer.
     {
-        IFramebufferLayout::Desc layoutDesc = {};
+        FramebufferLayoutDesc layoutDesc = {};
         layoutDesc.renderTargetCount = 0;
         layoutDesc.depthStencil = nullptr;
         ComPtr<IFramebufferLayout> layout;
@@ -1116,7 +1116,7 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout)
+Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
 {
     RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->init(this, desc));

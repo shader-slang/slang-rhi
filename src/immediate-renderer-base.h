@@ -195,7 +195,7 @@ public:
         return SLANG_FAIL;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout) override
+    createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override
     {
         SLANG_UNUSED(desc);
         SLANG_UNUSED(outLayout);

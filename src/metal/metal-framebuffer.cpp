@@ -5,7 +5,7 @@
 
 namespace rhi::metal {
 
-Result FramebufferLayoutImpl::init(const IFramebufferLayout::Desc& desc)
+Result FramebufferLayoutImpl::init(const FramebufferLayoutDesc& desc)
 {
     for (Index i = 0; i < desc.renderTargetCount; ++i)
     {

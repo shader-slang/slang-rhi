@@ -10,9 +10,9 @@ namespace rhi::d3d12 {
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
 public:
-    short_vector<IFramebufferLayout::TargetLayout> m_renderTargets;
+    short_vector<TargetLayoutDesc> m_renderTargets;
     bool m_hasDepthStencil = false;
-    IFramebufferLayout::TargetLayout m_depthStencil;
+    TargetLayoutDesc m_depthStencil;
 };
 
 class FramebufferImpl : public FramebufferBase

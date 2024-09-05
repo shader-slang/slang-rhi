@@ -1706,7 +1706,7 @@ Result DeviceImpl::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffe
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(IFramebufferLayout::Desc const& desc, IFramebufferLayout** outLayout)
+Result DeviceImpl::createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outLayout)
 {
     RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
     layout->m_renderTargets.resize(desc.renderTargetCount);

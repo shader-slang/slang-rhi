@@ -87,7 +87,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
 
     for (Index i = 0; i < framebufferLayoutImpl->m_renderTargets.size(); ++i)
     {
-        const IFramebufferLayout::TargetLayout& targetLayout = framebufferLayoutImpl->m_renderTargets[i];
+        const TargetLayoutDesc& targetLayout = framebufferLayoutImpl->m_renderTargets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
         colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetLayout.format));
         if (i < blend.targetCount)
@@ -111,7 +111,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
     }
     if (framebufferLayoutImpl->m_depthStencil.format != Format::Unknown)
     {
-        const IFramebufferLayout::TargetLayout& depthStencil = framebufferLayoutImpl->m_depthStencil;
+        const TargetLayoutDesc& depthStencil = framebufferLayoutImpl->m_depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
