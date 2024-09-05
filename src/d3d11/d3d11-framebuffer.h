@@ -15,9 +15,7 @@ enum
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
 public:
-    short_vector<TargetLayoutDesc> m_renderTargets;
-    bool m_hasDepthStencil = false;
-    TargetLayoutDesc m_depthStencil;
+    FramebufferLayoutDesc m_desc;
 };
 
 class FramebufferImpl : public FramebufferBase

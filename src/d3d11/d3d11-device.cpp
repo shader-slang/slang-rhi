@@ -369,21 +369,7 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
 Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
 {
     RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_renderTargets.resize(desc.renderTargetCount);
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        layout->m_renderTargets[i] = desc.renderTargets[i];
-    }
-
-    if (desc.depthStencil.format != Format::Unknown)
-    {
-        layout->m_hasDepthStencil = true;
-        layout->m_depthStencil = desc.depthStencil;
-    }
-    else
-    {
-        layout->m_hasDepthStencil = false;
-    }
+    layout->m_desc = desc;
     returnComPtr(outLayout, layout);
     return SLANG_OK;
 }
@@ -1681,7 +1667,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
     pipeline->m_inputLayout = static_cast<InputLayoutImpl*>(desc.inputLayout);
-    pipeline->m_rtvCount = (UINT) static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout)->m_renderTargets.size();
+    pipeline->m_rtvCount = (UINT) static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout)->m_desc.renderTargetCount;
     pipeline->m_blendColor[0] = 0;
     pipeline->m_blendColor[1] = 0;
     pipeline->m_blendColor[2] = 0;

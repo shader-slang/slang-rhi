@@ -85,9 +85,9 @@ Result PipelineImpl::createMetalRenderPipelineState()
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < framebufferLayoutImpl->m_renderTargets.size(); ++i)
+    for (Index i = 0; i < framebufferLayoutImpl->m_desc.renderTargetCount; ++i)
     {
-        const TargetLayoutDesc& targetLayout = framebufferLayoutImpl->m_renderTargets[i];
+        const TargetLayoutDesc& targetLayout = framebufferLayoutImpl->m_desc.renderTargets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
         colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetLayout.format));
         if (i < blend.targetCount)
@@ -109,9 +109,9 @@ Result PipelineImpl::createMetalRenderPipelineState()
         }
         sampleCount = std::max(sampleCount, targetLayout.sampleCount);
     }
-    if (framebufferLayoutImpl->m_depthStencil.format != Format::Unknown)
+    if (framebufferLayoutImpl->m_desc.depthStencil.format != Format::Unknown)
     {
-        const TargetLayoutDesc& depthStencil = framebufferLayoutImpl->m_depthStencil;
+        const TargetLayoutDesc& depthStencil = framebufferLayoutImpl->m_desc.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {

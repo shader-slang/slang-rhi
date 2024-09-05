@@ -68,25 +68,25 @@ Result PipelineImpl::ensureAPIPipelineCreated()
 
             {
                 auto framebufferLayout = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-                const int numRenderTargets = int(framebufferLayout->m_renderTargets.size());
+                const int numRenderTargets = int(framebufferLayout->m_desc.renderTargetCount);
 
-                if (framebufferLayout->m_hasDepthStencil)
+                if (framebufferLayout->m_desc.depthStencil.format != Format::Unknown)
                 {
-                    psoDesc.DSVFormat = D3DUtil::getMapFormat(framebufferLayout->m_depthStencil.format);
-                    psoDesc.SampleDesc.Count = framebufferLayout->m_depthStencil.sampleCount;
+                    psoDesc.DSVFormat = D3DUtil::getMapFormat(framebufferLayout->m_desc.depthStencil.format);
+                    psoDesc.SampleDesc.Count = framebufferLayout->m_desc.depthStencil.sampleCount;
                 }
                 else
                 {
                     psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-                    if (framebufferLayout->m_renderTargets.size())
+                    if (numRenderTargets > 0)
                     {
-                        psoDesc.SampleDesc.Count = framebufferLayout->m_renderTargets[0].sampleCount;
+                        psoDesc.SampleDesc.Count = framebufferLayout->m_desc.renderTargets[0].sampleCount;
                     }
                 }
                 psoDesc.NumRenderTargets = numRenderTargets;
                 for (Int i = 0; i < numRenderTargets; i++)
                 {
-                    psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(framebufferLayout->m_renderTargets[i].format);
+                    psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(framebufferLayout->m_desc.renderTargets[0].format);
                 }
 
                 psoDesc.SampleDesc.Quality = 0;

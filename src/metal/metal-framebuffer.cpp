@@ -7,18 +7,7 @@ namespace rhi::metal {
 
 Result FramebufferLayoutImpl::init(const FramebufferLayoutDesc& desc)
 {
-    for (Index i = 0; i < desc.renderTargetCount; ++i)
-    {
-        m_renderTargets.push_back(desc.renderTargets[i]);
-    }
-    if (desc.depthStencil.format != Format::Unknown)
-    {
-        m_depthStencil = desc.depthStencil;
-    }
-    else
-    {
-        m_depthStencil = {};
-    }
+    m_desc = desc;
     return SLANG_OK;
 }
 

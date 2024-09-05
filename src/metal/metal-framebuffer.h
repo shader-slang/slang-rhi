@@ -17,8 +17,7 @@ enum
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
 public:
-    std::vector<TargetLayoutDesc> m_renderTargets;
-    TargetLayoutDesc m_depthStencil;
+    FramebufferLayoutDesc m_desc;
 
 public:
     Result init(const FramebufferLayoutDesc& desc);
