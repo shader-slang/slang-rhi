@@ -942,7 +942,7 @@ Result DeviceImpl::createBufferView(
     }
 }
 
-Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     D3D11_INPUT_ELEMENT_DESC inputElements[16] = {};
 

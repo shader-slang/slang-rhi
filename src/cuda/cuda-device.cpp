@@ -1099,8 +1099,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& d
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outLayout);

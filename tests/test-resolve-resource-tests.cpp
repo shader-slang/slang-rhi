@@ -110,7 +110,7 @@ struct BaseResolveResourceTest
 
         REQUIRE_CALL(device->createTexture(dstTexDesc, dstTextureInfo.initData, dstTexture.writeRef()));
 
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);

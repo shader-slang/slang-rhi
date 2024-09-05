@@ -392,7 +392,7 @@ struct RenderTargetTests : BaseTextureViewTest
 
         REQUIRE_CALL(device->createTexture(texDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
 
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);

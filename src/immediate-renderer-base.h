@@ -217,7 +217,7 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout) override
+    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override
     {
         SLANG_UNUSED(desc);
         SLANG_UNUSED(outLayout);

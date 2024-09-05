@@ -3,7 +3,7 @@
 
 namespace rhi::metal {
 
-Result InputLayoutImpl::init(const IInputLayout::Desc& desc)
+Result InputLayoutImpl::init(const InputLayoutDesc& desc)
 {
     for (Index i = 0; i < desc.inputElementCount; i++)
     {

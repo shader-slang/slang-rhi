@@ -1736,7 +1736,7 @@ Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, I
     return SLANG_OK;
 }
 
-Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);
 

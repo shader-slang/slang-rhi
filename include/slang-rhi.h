@@ -275,31 +275,6 @@ enum class InputSlotClass
     PerInstance
 };
 
-struct InputElementDesc
-{
-    /// The name of the corresponding parameter in shader code.
-    char const* semanticName;
-    /// The index of the corresponding parameter in shader code. Only needed if multiple parameters share a semantic
-    /// name.
-    GfxIndex semanticIndex;
-    /// The format of the data being fetched for this element.
-    Format format;
-    /// The offset in bytes of this element from the start of the corresponding chunk of vertex stream data.
-    Offset offset;
-    /// The index of the vertex stream to fetch this element's data from.
-    GfxIndex bufferSlotIndex;
-};
-
-struct VertexStreamDesc
-{
-    /// The stride in bytes for this vertex stream.
-    Size stride;
-    /// Whether the stream contains per-vertex or per-instance data.
-    InputSlotClass slotClass;
-    /// How many instances to draw per chunk of data.
-    GfxCount instanceDataStepRate;
-};
-
 enum class PrimitiveType
 {
     Point,
@@ -440,19 +415,43 @@ struct NativeHandle
     operator bool() const { return type != NativeHandleType::Unknown; }
 };
 
+struct InputElementDesc
+{
+    /// The name of the corresponding parameter in shader code.
+    char const* semanticName;
+    /// The index of the corresponding parameter in shader code. Only needed if multiple parameters share a semantic
+    /// name.
+    GfxIndex semanticIndex;
+    /// The format of the data being fetched for this element.
+    Format format;
+    /// The offset in bytes of this element from the start of the corresponding chunk of vertex stream data.
+    Offset offset;
+    /// The index of the vertex stream to fetch this element's data from.
+    GfxIndex bufferSlotIndex;
+};
+
+struct VertexStreamDesc
+{
+    /// The stride in bytes for this vertex stream.
+    Size stride;
+    /// Whether the stream contains per-vertex or per-instance data.
+    InputSlotClass slotClass;
+    /// How many instances to draw per chunk of data.
+    GfxCount instanceDataStepRate;
+};
+
+struct InputLayoutDesc
+{
+    InputElementDesc const* inputElements = nullptr;
+    GfxCount inputElementCount = 0;
+    VertexStreamDesc const* vertexStreams = nullptr;
+    GfxCount vertexStreamCount = 0;
+};
+
 // Declare opaque type
 class IInputLayout : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8957d16c, 0xdbc6, 0x4bb4, {0xb9, 0xa4, 0x8e, 0x22, 0xa1, 0xe8, 0xcc, 0x72});
-
-public:
-    struct Desc
-    {
-        InputElementDesc const* inputElements = nullptr;
-        GfxCount inputElementCount = 0;
-        VertexStreamDesc const* vertexStreams = nullptr;
-        GfxCount vertexStreamCount = 0;
-    };
 };
 
 class IResource : public ISlangUnknown
@@ -2290,9 +2289,9 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout) = 0;
+    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) = 0;
 
-    inline ComPtr<IInputLayout> createInputLayout(IInputLayout::Desc const& desc)
+    inline ComPtr<IInputLayout> createInputLayout(InputLayoutDesc const& desc)
     {
         ComPtr<IInputLayout> layout;
         SLANG_RETURN_NULL_ON_FAIL(createInputLayout(desc, layout.writeRef()));
@@ -2308,7 +2307,7 @@ public:
     {
         VertexStreamDesc streamDesc = {vertexSize, InputSlotClass::PerVertex, 0};
 
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = inputElementCount;
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = 1;
