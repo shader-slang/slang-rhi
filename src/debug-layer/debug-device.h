@@ -63,7 +63,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout) override;
+    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(

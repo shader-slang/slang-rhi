@@ -127,7 +127,7 @@ public:
             {"POSITIONB", 0, Format::R32G32B32_FLOAT, offsetof(Instance, position), 1},
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Instance, color), 1},
         };
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);

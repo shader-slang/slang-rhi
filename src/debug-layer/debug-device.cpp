@@ -304,7 +304,7 @@ Result DebugDevice::createSwapchain(ISwapchain::Desc const& desc, WindowHandle w
     return Result();
 }
 
-Result DebugDevice::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+Result DebugDevice::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     SLANG_RHI_API_FUNC;
 

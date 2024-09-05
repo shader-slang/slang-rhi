@@ -677,7 +677,7 @@ Result DeviceImpl::createBufferView(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     AUTORELEASEPOOL
 

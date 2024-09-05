@@ -745,7 +745,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             // Vertex buffer data
             {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
         };
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);
