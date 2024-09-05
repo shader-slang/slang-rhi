@@ -101,9 +101,9 @@ struct BaseRayTracingTest
         );
         SLANG_RETURN_ON_FAIL(result);
 
-        IShaderProgram::Desc programDesc = {};
+        ShaderProgramDesc programDesc = {};
         programDesc.slangGlobalScope = linkedProgram;
-        SLANG_RETURN_ON_FAIL(device->createProgram(programDesc, outProgram));
+        SLANG_RETURN_ON_FAIL(device->createShaderProgram(programDesc, outProgram));
 
         return SLANG_OK;
     }

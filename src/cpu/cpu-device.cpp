@@ -143,8 +143,11 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** outProgram, ISlangBlob** outDiagnosticBlob)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createShaderProgram(
+    const ShaderProgramDesc& desc,
+    IShaderProgram** outProgram,
+    ISlangBlob** outDiagnosticBlob
+)
 {
     RefPtr<ShaderProgramImpl> cpuProgram = new ShaderProgramImpl();
     cpuProgram->init(desc);

@@ -53,16 +53,9 @@ static Result loadProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    composedProgram = linkedProgram;
-    slangReflection = composedProgram->getLayout();
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
-
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
@@ -134,13 +127,11 @@ void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("link-time-options")
 {
-    // Doesn't work on D3D11, CUDA and CPU
+    // Test only works for D3D12 backend using dxc compiler.
     runGpuTests(
         testLinkTimeOptions,
         {
             DeviceType::D3D12,
-            // DeviceType::Vulkan,
-            // DeviceType::Metal,
         }
     );
 }

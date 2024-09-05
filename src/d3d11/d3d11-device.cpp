@@ -1330,8 +1330,8 @@ void DeviceImpl::drawIndexedInstanced(
     );
 }
 
-Result DeviceImpl::createProgram(
-    const IShaderProgram::Desc& desc,
+Result DeviceImpl::createShaderProgram(
+    const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
     ISlangBlob** outDiagnosticBlob
 )

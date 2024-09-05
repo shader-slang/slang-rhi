@@ -96,10 +96,8 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createProgram(const IShaderProgram::Desc& desc, IShaderProgram** outProgram, ISlangBlob** outDiagnostics) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createProgram2(
-        const IShaderProgram::CreateDesc2& desc,
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
+        const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
         ISlangBlob** outDiagnostics
     ) override;

@@ -474,82 +474,6 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createMutableShaderObject2(
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
 
-Result RendererBase::createProgram2(
-    const IShaderProgram::CreateDesc2& desc,
-    IShaderProgram** outProgram,
-    ISlangBlob** outDiagnostic
-)
-{
-    auto slangSession = slangContext.session.get();
-    slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    switch (desc.sourceType)
-    {
-    case ShaderModuleSourceType::SlangSourceFile:
-    {
-        auto fileName = (char*)desc.sourceData;
-        module = slangSession->loadModule(fileName, diagnosticsBlob.writeRef());
-        if (!module)
-            return SLANG_FAIL;
-        break;
-    }
-    case ShaderModuleSourceType::SlangSource:
-    {
-        uint32_t hash = hash_data(desc.sourceData, desc.sourceDataSize);
-        auto hashStr = std::to_string(hash);
-        auto srcBlob = UnownedBlob::create(desc.sourceData, desc.sourceDataSize);
-        module =
-            slangSession->loadModuleFromSource(hashStr.data(), hashStr.data(), srcBlob, diagnosticsBlob.writeRef());
-        if (!module)
-            return SLANG_FAIL;
-        break;
-    }
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown source type");
-    }
-
-    std::vector<ComPtr<slang::IComponentType>> componentTypes;
-    componentTypes.push_back(ComPtr<slang::IComponentType>(module));
-
-    if (desc.entryPointCount == 0)
-    {
-        for (SlangInt32 i = 0; i < module->getDefinedEntryPointCount(); i++)
-        {
-            ComPtr<slang::IEntryPoint> entryPoint;
-            SLANG_RETURN_ON_FAIL(module->getDefinedEntryPoint(i, entryPoint.writeRef()));
-            componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
-        }
-    }
-    else
-    {
-        for (GfxCount i = 0; i < desc.entryPointCount; i++)
-        {
-            ComPtr<slang::IEntryPoint> entryPoint;
-            SLANG_RETURN_ON_FAIL(module->findEntryPointByName(desc.entryPointNames[i], entryPoint.writeRef()));
-            componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
-        }
-    }
-
-    std::vector<slang::IComponentType*> rawComponentTypes;
-    for (auto& compType : componentTypes)
-        rawComponentTypes.push_back(compType.get());
-
-    ComPtr<slang::IComponentType> linkedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        rawComponentTypes.data(),
-        rawComponentTypes.size(),
-        linkedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    SLANG_RETURN_ON_FAIL(result);
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = linkedProgram;
-    SLANG_RETURN_ON_FAIL(createProgram(programDesc, outProgram, outDiagnostic));
-
-    return SLANG_OK;
-}
-
 SLANG_NO_THROW Result SLANG_MCALL
 RendererBase::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
@@ -883,25 +807,25 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     }
 }
 
-void ShaderProgramBase::init(const IShaderProgram::Desc& inDesc)
+void ShaderProgramBase::init(const ShaderProgramDesc& inDesc)
 {
     desc = inDesc;
 
     slangGlobalScope = desc.slangGlobalScope;
-    for (GfxIndex i = 0; i < desc.entryPointCount; i++)
+    for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
     {
         slangEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
     }
 
     auto session = desc.slangGlobalScope ? desc.slangGlobalScope->getSession() : nullptr;
-    if (desc.linkingStyle == IShaderProgram::LinkingStyle::SingleProgram)
+    if (desc.linkingStyle == LinkingStyle::SingleProgram)
     {
         std::vector<slang::IComponentType*> components;
         if (desc.slangGlobalScope)
         {
             components.push_back(desc.slangGlobalScope);
         }
-        for (GfxIndex i = 0; i < desc.entryPointCount; i++)
+        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (!session)
             {
@@ -913,7 +837,7 @@ void ShaderProgramBase::init(const IShaderProgram::Desc& inDesc)
     }
     else
     {
-        for (GfxIndex i = 0; i < desc.entryPointCount; i++)
+        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (desc.slangGlobalScope)
             {
@@ -1066,17 +990,17 @@ Result RendererBase::maybeSpecializePipeline(
 
             // Now create the specialized shader program using compiled binaries.
             ComPtr<IShaderProgram> specializedProgram;
-            IShaderProgram::Desc specializedProgramDesc = unspecializedProgram->desc;
+            ShaderProgramDesc specializedProgramDesc = unspecializedProgram->desc;
             specializedProgramDesc.slangGlobalScope = specializedComponentType;
 
-            if (specializedProgramDesc.linkingStyle == IShaderProgram::LinkingStyle::SingleProgram)
+            if (specializedProgramDesc.linkingStyle == LinkingStyle::SingleProgram)
             {
                 // When linking style is GraphicsCompute, the specialized global scope already contains
                 // entry-points, so we do not need to supply them again when creating the specialized
                 // pipeline.
-                specializedProgramDesc.entryPointCount = 0;
+                specializedProgramDesc.slangEntryPointCount = 0;
             }
-            SLANG_RETURN_ON_FAIL(createProgram(specializedProgramDesc, specializedProgram.writeRef()));
+            SLANG_RETURN_ON_FAIL(createShaderProgram(specializedProgramDesc, specializedProgram.writeRef()));
 
             // Create specialized pipeline state.
             ComPtr<IPipeline> specializedPipelineComPtr;
