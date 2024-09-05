@@ -1118,13 +1118,13 @@ public:
     virtual RefPtr<Buffer> createDeviceBuffer(
         PipelineBase* pipeline,
         TransientResourceHeapBase* transientHeap,
-        IResourceCommandEncoder* encoder
+        IRayTracingCommandEncoder* encoder
     ) = 0;
 
     Buffer* getOrCreateBuffer(
         PipelineBase* pipeline,
         TransientResourceHeapBase* transientHeap,
-        IResourceCommandEncoder* encoder
+        IRayTracingCommandEncoder* encoder
     )
     {
         auto it = m_deviceBuffers.find(pipeline);

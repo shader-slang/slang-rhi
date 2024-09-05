@@ -20,7 +20,18 @@ Result CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapImpl* tr
     return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeRenderCommands(
+Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+{
+    if (!m_resourceCommandEncoder)
+    {
+        m_resourceCommandEncoder = new ResourceCommandEncoder;
+        m_resourceCommandEncoder->init(this);
+    }
+    *outEncoder = m_resourceCommandEncoder;
+    return SLANG_OK;
+}
+
+Result CommandBufferImpl::encodeRenderCommands(
     IRenderPassLayout* renderPass,
     IFramebuffer* framebuffer,
     IRenderCommandEncoder** outEncoder
@@ -33,9 +44,10 @@ void CommandBufferImpl::encodeRenderCommands(
     }
     m_renderCommandEncoder->beginPass(renderPass, framebuffer);
     *outEncoder = m_renderCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
     if (!m_computeCommandEncoder)
     {
@@ -43,19 +55,10 @@ void CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncode
         m_computeCommandEncoder->init(this);
     }
     *outEncoder = m_computeCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
-{
-    if (!m_resourceCommandEncoder)
-    {
-        m_resourceCommandEncoder = new ResourceCommandEncoder;
-        m_resourceCommandEncoder->init(this);
-    }
-    *outEncoder = m_resourceCommandEncoder;
-}
-
-void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
     if (!m_rayTracingCommandEncoder)
     {
@@ -63,6 +66,7 @@ void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** out
         m_rayTracingCommandEncoder->init(this);
     }
     *outEncoder = m_rayTracingCommandEncoder;
+    return SLANG_OK;
 }
 
 void CommandBufferImpl::close()

@@ -44,6 +44,7 @@ class PipelineImpl;
 class QueryPoolImpl;
 class DeviceImpl;
 class CommandBufferImpl;
+class CommandEncoderImpl;
 class ResourceCommandEncoderImpl;
 class ComputeCommandEncoderImpl;
 class CommandQueueImpl;

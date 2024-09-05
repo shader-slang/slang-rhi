@@ -233,7 +233,7 @@ Result ShaderObjectImpl::init(
 /// `offset`
 
 Result ShaderObjectImpl::_writeOrdinaryData(
-    PipelineCommandEncoder* encoder,
+    CommandEncoderImpl* encoder,
     BufferImpl* buffer,
     Offset offset,
     Size destSize,
@@ -356,7 +356,7 @@ bool ShaderObjectImpl::shouldAllocateConstantBuffer(TransientResourceHeapImpl* t
 /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
 
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
-    PipelineCommandEncoder* encoder,
+    CommandEncoderImpl* encoder,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {

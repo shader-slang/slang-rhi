@@ -31,10 +31,11 @@ const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGui
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
 const Guid GUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
-const Guid GUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
+const Guid GUID::IID_ICommandEncoder = ICommandEncoder::getTypeGuid();
 const Guid GUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
-const Guid GUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
 const Guid GUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
 
 const Guid GUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
 const Guid GUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();

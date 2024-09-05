@@ -123,7 +123,7 @@ public:
 
 class RenderCommandEncoder : public IRenderCommandEncoder, public ResourceCommandEncoder
 {
-    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
+    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
         if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IRenderCommandEncoder ||
@@ -215,7 +215,7 @@ public:
 class ComputeCommandEncoder : public IComputeCommandEncoder, public ResourceCommandEncoder
 {
 public:
-    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
+    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
         if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IComputeCommandEncoder ||
@@ -241,7 +241,7 @@ public:
 class RayTracingCommandEncoder : public IRayTracingCommandEncoder, public ResourceCommandEncoder
 {
 public:
-    SLANG_RHI_FORWARD_RESOURCE_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
+    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(ResourceCommandEncoder)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
         if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_IRayTracingCommandEncoder ||

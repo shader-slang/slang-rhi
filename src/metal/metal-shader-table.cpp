@@ -6,7 +6,7 @@ namespace rhi::metal {
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     PipelineBase* pipeline,
     TransientResourceHeapBase* transientHeap,
-    IResourceCommandEncoder* encoder
+    IRayTracingCommandEncoder* encoder
 )
 {
     return RefPtr<Buffer>(0);
