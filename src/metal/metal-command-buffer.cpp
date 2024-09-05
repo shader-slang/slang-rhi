@@ -22,12 +22,8 @@ Result CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapImpl* tr
 
 Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
-    if (!m_resourceCommandEncoder)
-    {
-        m_resourceCommandEncoder = new ResourceCommandEncoder;
-        m_resourceCommandEncoder->init(this);
-    }
-    *outEncoder = m_resourceCommandEncoder;
+    m_resourceCommandEncoder.init(this);
+    *outEncoder = &m_resourceCommandEncoder;
     return SLANG_OK;
 }
 
@@ -37,35 +33,23 @@ Result CommandBufferImpl::encodeRenderCommands(
     IRenderCommandEncoder** outEncoder
 )
 {
-    if (!m_renderCommandEncoder)
-    {
-        m_renderCommandEncoder = new RenderCommandEncoder;
-        m_renderCommandEncoder->init(this);
-    }
-    m_renderCommandEncoder->beginPass(renderPass, framebuffer);
-    *outEncoder = m_renderCommandEncoder;
+    m_renderCommandEncoder.init(this);
+    m_renderCommandEncoder.beginPass(renderPass, framebuffer);
+    *outEncoder = &m_renderCommandEncoder;
     return SLANG_OK;
 }
 
 Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
-    if (!m_computeCommandEncoder)
-    {
-        m_computeCommandEncoder = new ComputeCommandEncoder;
-        m_computeCommandEncoder->init(this);
-    }
-    *outEncoder = m_computeCommandEncoder;
+    m_computeCommandEncoder.init(this);
+    *outEncoder = &m_computeCommandEncoder;
     return SLANG_OK;
 }
 
 Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
-    if (!m_rayTracingCommandEncoder)
-    {
-        m_rayTracingCommandEncoder = new RayTracingCommandEncoder;
-        m_rayTracingCommandEncoder->init(this);
-    }
-    *outEncoder = m_rayTracingCommandEncoder;
+    m_rayTracingCommandEncoder.init(this);
+    *outEncoder = &m_rayTracingCommandEncoder;
     return SLANG_OK;
 }
 
