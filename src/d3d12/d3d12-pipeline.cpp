@@ -142,8 +142,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                         break;
                     }
                 }
-                for (uint32_t i = (uint32_t)numRenderTargets; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
-                     ++i)
+                for (uint32_t i = (uint32_t)numRenderTargets; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
                 {
                     blend.RenderTarget[i] = blend.RenderTarget[0];
                 }

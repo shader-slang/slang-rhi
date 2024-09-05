@@ -94,14 +94,10 @@ Result PipelineImpl::createMetalRenderPipelineState()
         const TargetBlendDesc& targetBlendDesc = blend.targets[i];
         colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
         colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
-        colorAttachment->setDestinationRGBBlendFactor(
-            MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor)
-        );
+        colorAttachment->setDestinationRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor));
         colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
-        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor)
-        );
-        colorAttachment->setDestinationAlphaBlendFactor(
-            MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
+        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor));
+        colorAttachment->setDestinationAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
         );
         colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
         colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
