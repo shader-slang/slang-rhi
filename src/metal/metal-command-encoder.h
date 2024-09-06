@@ -166,7 +166,7 @@ public:
     uint32_t m_stencilReferenceValue = 0;
 
 public:
-    void beginPass(const RenderPassDesc& desc);
+    Result beginPass(const RenderPassDesc& desc);
 
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 

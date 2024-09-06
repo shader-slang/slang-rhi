@@ -220,7 +220,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
 
 // RenderCommandEncoderImpl
 
-void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
+Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 {
     uint32_t width = 1;
     uint32_t height = 1;
@@ -243,6 +243,8 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
     {
         const auto& attachment = desc.colorAttachments[i];
         TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        if (!view)
+            return SLANG_FAIL;
         visitView(view);
         m_renderTargetViews[i] = view;
 
@@ -264,10 +266,12 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
     }
 
     // Setup depth stencil attachment.
-    if (desc.depthStencilAttachment.view)
+    if (desc.depthStencilAttachment)
     {
-        const auto& attachment = desc.depthStencilAttachment;
+        const auto& attachment = *desc.depthStencilAttachment;
         TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        if (!view)
+            return SLANG_FAIL;
         visitView(view);
         m_depthStencilView = view;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(view->m_desc.format);
@@ -302,6 +306,8 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 
     m_renderPassDesc->setRenderTargetWidth(width);
     m_renderPassDesc->setRenderTargetHeight(height);
+
+    return SLANG_OK;
 }
 
 void RenderCommandEncoderImpl::endEncoding()
