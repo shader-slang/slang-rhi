@@ -168,21 +168,33 @@ public:
 
     void beginRenderPass(const RenderPassDesc& desc)
     {
-        auto dataOffset = encodeData(&desc, sizeof(RenderPassDesc));
+        Offset colorAttachmentsOffset =
+            encodeData(desc.colorAttachments, sizeof(RenderPassColorAttachment) * desc.colorAttachmentCount);
+        Offset depthStencilAttachmentOffset = encodeData(
+            desc.depthStencilAttachment,
+            desc.depthStencilAttachment ? sizeof(RenderPassDepthStencilAttachment) : 0
+        );
         Offset viewsOffset = 0;
         for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
         {
-            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.colorAttachments[0].view));
+            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.colorAttachments[i].view));
             if (i == 0)
                 viewsOffset = offset;
         }
-        if (desc.depthStencilAttachment.view)
+        if (desc.depthStencilAttachment)
         {
-            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.depthStencilAttachment.view));
+            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.depthStencilAttachment->view));
             if (desc.colorAttachmentCount == 0)
                 viewsOffset = offset;
         }
-        m_commands.push_back(Command(CommandName::BeginRenderPass, (uint32_t)dataOffset, (uint32_t)viewsOffset));
+        m_commands.push_back(Command(
+            CommandName::BeginRenderPass,
+            (uint32_t)desc.colorAttachmentCount,
+            (uint32_t)(desc.depthStencilAttachment ? 1 : 0),
+            (uint32_t)colorAttachmentsOffset,
+            (uint32_t)depthStencilAttachmentOffset,
+            (uint32_t)viewsOffset
+        ));
     }
 
     void endRenderPass() { m_commands.push_back(Command(CommandName::EndRenderPass)); }

@@ -249,7 +249,7 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
         MTL::RenderPassColorAttachmentDescriptor* colorAttachment = m_renderPassDesc->colorAttachments()->object(i);
         colorAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.loadOp));
         colorAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.storeOp));
-        if (attachment.loadOp == TargetLoadOp::Clear)
+        if (attachment.loadOp == LoadOp::Clear)
         {
             colorAttachment->setClearColor(MTL::ClearColor(
                 attachment.clearValue[0],
@@ -277,7 +277,7 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
             MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = m_renderPassDesc->depthAttachment();
             depthAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.depthLoadOp));
             depthAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.depthStoreOp));
-            if (attachment.depthLoadOp == TargetLoadOp::Clear)
+            if (attachment.depthLoadOp == LoadOp::Clear)
             {
                 depthAttachment->setClearDepth(attachment.depthClearValue);
             }
@@ -290,7 +290,7 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
             MTL::RenderPassStencilAttachmentDescriptor* stencilAttachment = m_renderPassDesc->stencilAttachment();
             stencilAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.stencilLoadOp));
             stencilAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.stencilStoreOp));
-            if (attachment.stencilLoadOp == TargetLoadOp::Clear)
+            if (attachment.stencilLoadOp == LoadOp::Clear)
             {
                 stencilAttachment->setClearStencil(attachment.stencilClearValue);
             }

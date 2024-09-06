@@ -533,8 +533,20 @@ public:
                 m_renderer->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));
                 break;
             case CommandName::BeginRenderPass:
-                m_renderer->beginRenderPass(*m_writer.getData<RenderPassDesc>(cmd.operands[0]));
+            {
+                RenderPassDesc desc;
+                if (cmd.operands[0] > 0)
+                {
+                    desc.colorAttachments = m_writer.getData<RenderPassColorAttachment>(cmd.operands[2]);
+                    desc.colorAttachmentCount = cmd.operands[0];
+                }
+                if (cmd.operands[1] > 0)
+                {
+                    desc.depthStencilAttachment = m_writer.getData<RenderPassDepthStencilAttachment>(cmd.operands[3]);
+                }
+                m_renderer->beginRenderPass(desc);
                 break;
+            }
             case CommandName::EndRenderPass:
                 m_renderer->endRenderPass();
                 break;

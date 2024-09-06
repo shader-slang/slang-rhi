@@ -144,8 +144,8 @@ struct RootBindingContext
 Size calcRowSize(Format format, int width);
 GfxCount calcNumRows(Format format, int height);
 
-VkAttachmentLoadOp translateLoadOp(TargetLoadOp loadOp);
-VkAttachmentStoreOp translateStoreOp(TargetStoreOp storeOp);
+VkAttachmentLoadOp translateLoadOp(LoadOp loadOp);
+VkAttachmentStoreOp translateStoreOp(StoreOp storeOp);
 VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags::Enum flags);
 
 uint32_t getMipLevelSize(uint32_t mipLevel, uint32_t size);

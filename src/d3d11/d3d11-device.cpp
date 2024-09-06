@@ -351,15 +351,15 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
     {
         m_d3dRenderTargetViews[i] = static_cast<RenderTargetViewImpl*>(desc.colorAttachments[i].view)->m_rtv;
     }
-    m_d3dDepthStencilView = desc.depthStencilAttachment.view
-                                ? static_cast<DepthStencilViewImpl*>(desc.depthStencilAttachment.view)->m_dsv
+    m_d3dDepthStencilView = desc.depthStencilAttachment
+                                ? static_cast<DepthStencilViewImpl*>(desc.depthStencilAttachment->view)->m_dsv
                                 : nullptr;
 
     // Clear color attachments.
     for (Index i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
-        if (attachment.loadOp == TargetLoadOp::Clear)
+        if (attachment.loadOp == LoadOp::Clear)
         {
             m_immediateContext->ClearRenderTargetView(
                 static_cast<RenderTargetViewImpl*>(attachment.view)->m_rtv,
@@ -368,15 +368,15 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
         }
     }
     // Clear depth/stencil attachment.
-    if (desc.depthStencilAttachment.view)
+    if (desc.depthStencilAttachment)
     {
-        const auto& attachment = desc.depthStencilAttachment;
+        const auto& attachment = *desc.depthStencilAttachment;
         UINT clearFlags = 0;
-        if (attachment.depthLoadOp == TargetLoadOp::Clear)
+        if (attachment.depthLoadOp == LoadOp::Clear)
         {
             clearFlags |= D3D11_CLEAR_DEPTH;
         }
-        if (attachment.stencilLoadOp == TargetLoadOp::Clear)
+        if (attachment.stencilLoadOp == LoadOp::Clear)
         {
             clearFlags |= D3D11_CLEAR_STENCIL;
         }

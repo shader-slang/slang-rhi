@@ -1335,47 +1335,51 @@ struct FaceMask
     };
 };
 
-enum class TargetLoadOp
+enum class LoadOp
 {
     Load,
     Clear,
     DontCare
 };
 
-enum class TargetStoreOp
+enum class StoreOp
 {
     Store,
     DontCare
 };
 
-struct RenderAttachmentDesc
+struct RenderPassColorAttachment
 {
-    float clearValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    TargetLoadOp loadOp = TargetLoadOp::DontCare;
-    TargetStoreOp storeOp = TargetStoreOp::Store;
     IResourceView* view = nullptr;
-    ResourceState initialState;
-    ResourceState finalState;
+    LoadOp loadOp = LoadOp::DontCare;
+    StoreOp storeOp = StoreOp::Store;
+    float clearValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    // TODO: remove with automatic resource tracking
+    ResourceState initialState = ResourceState::Undefined;
+    ResourceState finalState = ResourceState::Undefined;
 };
 
-struct DepthStencilAttachmentDesc
+struct RenderPassDepthStencilAttachment
 {
-    float depthClearValue = 1.f;
-    TargetLoadOp depthLoadOp = TargetLoadOp::DontCare;
-    TargetStoreOp depthStoreOp = TargetStoreOp::Store;
-    uint8_t stencilClearValue = 0;
-    TargetLoadOp stencilLoadOp = TargetLoadOp::DontCare;
-    TargetStoreOp stencilStoreOp = TargetStoreOp::DontCare;
     IResourceView* view = nullptr;
-    ResourceState initialState;
-    ResourceState finalState;
+    LoadOp depthLoadOp = LoadOp::DontCare;
+    StoreOp depthStoreOp = StoreOp::Store;
+    float depthClearValue = 1.f;
+    bool depthReadOnly = false;
+    LoadOp stencilLoadOp = LoadOp::DontCare;
+    StoreOp stencilStoreOp = StoreOp::DontCare;
+    uint8_t stencilClearValue = 0;
+    bool stencilReadOnly = false;
+    // TODO: remove with automatic resource tracking
+    ResourceState initialState = ResourceState::Undefined;
+    ResourceState finalState = ResourceState::Undefined;
 };
 
 struct RenderPassDesc
 {
-    RenderAttachmentDesc colorAttachments[kMaxRenderTargetCount];
+    RenderPassColorAttachment* colorAttachments = nullptr;
     GfxCount colorAttachmentCount = 0;
-    DepthStencilAttachmentDesc depthStencilAttachment;
+    RenderPassDepthStencilAttachment* depthStencilAttachment = nullptr;
 };
 
 enum class QueryType

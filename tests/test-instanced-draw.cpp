@@ -218,12 +218,14 @@ struct DrawInstancedTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
-        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
-        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
-        renderPass.colorAttachments[0].initialState = ResourceState::RenderTarget;
-        renderPass.colorAttachments[0].finalState = ResourceState::CopySource;
-        renderPass.colorAttachments[0].view = colorBufferView;
+        renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass);
@@ -275,12 +277,14 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
-        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
-        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
-        renderPass.colorAttachments[0].initialState = ResourceState::RenderTarget;
-        renderPass.colorAttachments[0].finalState = ResourceState::CopySource;
-        renderPass.colorAttachments[0].view = colorBufferView;
+        renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass);
@@ -358,12 +362,14 @@ struct DrawIndirectTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
-        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
-        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
-        renderPass.colorAttachments[0].initialState = ResourceState::RenderTarget;
-        renderPass.colorAttachments[0].finalState = ResourceState::CopySource;
-        renderPass.colorAttachments[0].view = colorBufferView;
+        renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass);
@@ -440,12 +446,14 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
-        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
-        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
-        renderPass.colorAttachments[0].initialState = ResourceState::RenderTarget;
-        renderPass.colorAttachments[0].finalState = ResourceState::CopySource;
-        renderPass.colorAttachments[0].view = colorBufferView;
+        renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass);

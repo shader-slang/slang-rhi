@@ -447,12 +447,14 @@ struct RenderTargetTests : BaseTextureViewTest
 
         auto commandBuffer = transientHeap->createCommandBuffer();
 
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = sampledTextureView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = getDefaultResourceStateForViewType(viewType);
+        colorAttachment.finalState = ResourceState::ResolveSource;
         RenderPassDesc renderPass;
-        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
-        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
-        renderPass.colorAttachments[0].initialState = getDefaultResourceStateForViewType(viewType);
-        renderPass.colorAttachments[0].finalState = ResourceState::ResolveSource;
-        renderPass.colorAttachments[0].view = sampledTextureView;
+        renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
         auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass);

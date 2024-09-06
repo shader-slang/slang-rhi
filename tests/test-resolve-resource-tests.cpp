@@ -165,12 +165,14 @@ struct BaseResolveResourceTest
 
         auto commandBuffer = transientHeap->createCommandBuffer();
 
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = msaaTextureView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::ResolveSource;
         RenderPassDesc renderPass;
-        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
-        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
-        renderPass.colorAttachments[0].initialState = ResourceState::RenderTarget;
-        renderPass.colorAttachments[0].finalState = ResourceState::ResolveSource;
-        renderPass.colorAttachments[0].view = msaaTextureView;
+        renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
         auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass);

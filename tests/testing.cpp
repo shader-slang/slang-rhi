@@ -327,7 +327,6 @@ void compareComputeResultFuzzy(const float* result, float* expectedResult, size_
     {
         CHECK_LE(result[i], expectedResult[i] + 0.01f);
         CHECK_GE(result[i], expectedResult[i] - 0.01f);
-        // CHECK_LE(abs(result[i] - expectedResult[i]), 0.01);
     }
 }
 

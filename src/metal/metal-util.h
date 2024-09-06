@@ -51,8 +51,8 @@ struct MetalUtil
     static MTL::CullMode translateCullMode(CullMode mode);
     static MTL::TriangleFillMode translateTriangleFillMode(FillMode mode);
 
-    static MTL::LoadAction translateLoadOp(TargetLoadOp loadOp);
-    static MTL::StoreAction translateStoreOp(TargetStoreOp storeOp);
+    static MTL::LoadAction translateLoadOp(LoadOp loadOp);
+    static MTL::StoreAction translateStoreOp(StoreOp storeOp);
 };
 
 struct ScopedAutoreleasePool

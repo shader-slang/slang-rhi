@@ -38,13 +38,19 @@ Result DebugCommandBuffer::encodeRenderCommands(const RenderPassDesc& desc, IRen
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
     RenderPassDesc innerDesc = desc;
-    for (Index i = 0; i < innerDesc.colorAttachmentCount; ++i)
+    short_vector<RenderPassColorAttachment> innerColorAttachments;
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
     {
-        innerDesc.colorAttachments[i].view = getInnerObj(desc.colorAttachments[i].view);
+        innerColorAttachments.push_back(desc.colorAttachments[i]);
+        innerColorAttachments[i].view = getInnerObj(desc.colorAttachments[i].view);
     }
-    if (innerDesc.depthStencilAttachment.view)
+    innerDesc.colorAttachments = innerColorAttachments.data();
+    RenderPassDepthStencilAttachment innerDepthStencilAttachment;
+    if (desc.depthStencilAttachment)
     {
-        innerDesc.depthStencilAttachment.view = getInnerObj(desc.depthStencilAttachment.view);
+        innerDepthStencilAttachment = *desc.depthStencilAttachment;
+        innerDepthStencilAttachment.view = getInnerObj(desc.depthStencilAttachment->view);
+        innerDesc.depthStencilAttachment = &innerDepthStencilAttachment;
     }
     m_renderCommandEncoder.isOpen = true;
     SLANG_RETURN_ON_FAIL(baseObject->encodeRenderCommands(innerDesc, &m_renderCommandEncoder.baseObject));

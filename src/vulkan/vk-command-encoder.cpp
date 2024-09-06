@@ -947,20 +947,17 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
 
 // RenderCommandEncoderImpl
 
-void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
+Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 {
     auto& api = *m_api;
 
     m_renderTargetViews.resize(desc.colorAttachmentCount);
     m_renderTargetFinalStates.resize(desc.colorAttachmentCount);
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
-    {
-        m_renderTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
-        m_renderTargetFinalStates[i] = desc.colorAttachments[i].finalState;
-    }
-    m_depthStencilView = static_cast<TextureViewImpl*>(desc.depthStencilAttachment.view);
-    m_depthStencilFinalState = desc.depthStencilAttachment.finalState;
-
+    short_vector<VkRenderingAttachmentInfoKHR> colorAttachmentInfos;
+    VkRenderingAttachmentInfoKHR depthAttachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
+    VkRenderingAttachmentInfoKHR stencilAttachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
+    bool hasDepthAttachment = false;
+    bool hasStencilAttachment = false;
     VkRect2D renderArea;
     renderArea.offset = {0, 0};
     renderArea.extent = {
@@ -969,16 +966,21 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
     };
     uint32_t layerCount = 1;
 
-    // Transition render targets from their initial state to render target state.
     for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
         TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
-        if (view)
-        {
-            ITexture* texture = view->m_texture;
-            textureBarrier(1, &texture, attachment.initialState, ResourceState::RenderTarget);
-        }
+        if (!view)
+            return SLANG_FAIL;
+
+        m_renderTargetViews[i] = view;
+        m_renderTargetFinalStates[i] = attachment.finalState;
+
+        // Transition state
+        ITexture* texture = view->m_texture;
+        textureBarrier(1, &texture, attachment.initialState, ResourceState::RenderTarget);
+
+        // Determine render area
         const IResourceView::Desc* viewDesc = &view->m_desc;
         const TextureDesc* textureDesc = view->m_texture->getDesc();
         uint32_t width = getMipLevelSize(viewDesc->subresourceRange.mipLevel, textureDesc->size.width);
@@ -989,65 +991,65 @@ void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
                                             ? textureDesc->size.depth
                                             : viewDesc->subresourceRange.layerCount;
         layerCount = std::max(layerCount, attachmentLayerCount);
-    }
-    // Transition depth stencil from its initial state to depth write state.
-    if (desc.depthStencilAttachment.view)
-    {
-        TextureViewImpl* view = static_cast<TextureViewImpl*>(desc.depthStencilAttachment.view);
-        ITexture* texture = view->m_texture;
-        // TODO we could use DepthRead if we are not writing to the depth buffer
-        textureBarrier(1, &texture, desc.depthStencilAttachment.initialState, ResourceState::DepthWrite);
 
+        // Create attachment info
+        VkRenderingAttachmentInfoKHR attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
+        attachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
+        attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        attachmentInfo.loadOp = translateLoadOp(attachment.loadOp);
+        attachmentInfo.storeOp = translateStoreOp(attachment.storeOp);
+        attachmentInfo.clearValue.color.float32[0] = attachment.clearValue[0];
+        attachmentInfo.clearValue.color.float32[1] = attachment.clearValue[1];
+        attachmentInfo.clearValue.color.float32[2] = attachment.clearValue[2];
+        attachmentInfo.clearValue.color.float32[3] = attachment.clearValue[3];
+        colorAttachmentInfos.push_back(attachmentInfo);
+    }
+
+    // Transition depth stencil from its initial state to depth write state.
+    if (desc.depthStencilAttachment)
+    {
+        const auto& attachment = *desc.depthStencilAttachment;
+        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        if (!view)
+            return SLANG_FAIL;
+
+        m_depthStencilView = static_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
+        m_depthStencilCurrentState = attachment.depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite;
+        m_depthStencilFinalState = desc.depthStencilAttachment->finalState;
+
+        // Transition state
+        ITexture* texture = view->m_texture;
+        textureBarrier(1, &texture, attachment.initialState, m_depthStencilCurrentState);
+
+        // Determine render area
         const IResourceView::Desc* viewDesc = &view->m_desc;
         const TextureDesc* textureDesc = view->m_texture->getDesc();
         uint32_t width = getMipLevelSize(viewDesc->subresourceRange.mipLevel, textureDesc->size.width);
         uint32_t height = getMipLevelSize(viewDesc->subresourceRange.mipLevel, textureDesc->size.height);
         renderArea.extent.width = std::min(renderArea.extent.width, width);
         renderArea.extent.height = std::min(renderArea.extent.height, height);
-    }
 
-    static_vector<VkRenderingAttachmentInfo, kMaxRenderTargetCount> colorAttachmentInfos;
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
-    {
-        const auto& attachment = desc.colorAttachments[i];
-        if (attachment.view)
+        // Create attachment info
+        if (VulkanUtil::isDepthFormat(view->m_texture->m_vkformat))
         {
-            VkRenderingAttachmentInfoKHR attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
-            attachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
-            attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            attachmentInfo.loadOp = translateLoadOp(attachment.loadOp);
-            attachmentInfo.storeOp = translateStoreOp(attachment.storeOp);
-            attachmentInfo.clearValue.color.float32[0] = attachment.clearValue[0];
-            attachmentInfo.clearValue.color.float32[1] = attachment.clearValue[1];
-            attachmentInfo.clearValue.color.float32[2] = attachment.clearValue[2];
-            attachmentInfo.clearValue.color.float32[3] = attachment.clearValue[3];
-            colorAttachmentInfos.push_back(attachmentInfo);
+            hasDepthAttachment = true;
+            const auto& attachment = *desc.depthStencilAttachment;
+            depthAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
+            depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depthAttachmentInfo.loadOp = translateLoadOp(attachment.depthLoadOp);
+            depthAttachmentInfo.storeOp = translateStoreOp(attachment.depthStoreOp);
+            depthAttachmentInfo.clearValue.depthStencil.depth = attachment.depthClearValue;
         }
-    }
-    VkRenderingAttachmentInfo depthAttachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
-    bool hasDepthAttachment = false;
-    if (desc.depthStencilAttachment.view)
-    {
-        hasDepthAttachment = true;
-        const auto& attachment = desc.depthStencilAttachment;
-        depthAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
-        depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthAttachmentInfo.loadOp = translateLoadOp(attachment.depthLoadOp);
-        depthAttachmentInfo.storeOp = translateStoreOp(attachment.depthStoreOp);
-        depthAttachmentInfo.clearValue.depthStencil.depth = attachment.depthClearValue;
-    }
-    VkRenderingAttachmentInfo stencilAttachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
-    bool hasStencilAttachment = false;
-    // TODO only set if stencil is present
-    if (desc.depthStencilAttachment.view)
-    {
-        hasStencilAttachment = true;
-        const auto& attachment = desc.depthStencilAttachment;
-        stencilAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
-        stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        stencilAttachmentInfo.loadOp = translateLoadOp(attachment.stencilLoadOp);
-        stencilAttachmentInfo.storeOp = translateStoreOp(attachment.stencilStoreOp);
-        stencilAttachmentInfo.clearValue.depthStencil.stencil = attachment.stencilClearValue;
+        if (VulkanUtil::isStencilFormat(view->m_texture->m_vkformat))
+        {
+            hasStencilAttachment = true;
+            const auto& attachment = *desc.depthStencilAttachment;
+            stencilAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
+            stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            stencilAttachmentInfo.loadOp = translateLoadOp(attachment.stencilLoadOp);
+            stencilAttachmentInfo.storeOp = translateStoreOp(attachment.stencilStoreOp);
+            stencilAttachmentInfo.clearValue.depthStencil.stencil = attachment.stencilClearValue;
+        }
     }
 
     VkRenderingInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO_KHR};
@@ -1068,17 +1070,13 @@ void RenderCommandEncoderImpl::endEncoding()
 
     for (Index i = 0; i < m_renderTargetViews.size(); ++i)
     {
-        if (m_renderTargetViews[i])
-        {
-            ITexture* texture = m_renderTargetViews[i]->m_texture;
-            textureBarrier(1, &texture, ResourceState::RenderTarget, m_renderTargetFinalStates[i]);
-        }
+        ITexture* texture = m_renderTargetViews[i]->m_texture;
+        textureBarrier(1, &texture, ResourceState::RenderTarget, m_renderTargetFinalStates[i]);
     }
     if (m_depthStencilView)
     {
         ITexture* texture = m_depthStencilView->m_texture;
-        // TODO we could use DepthRead if we are not writing to the depth buffer
-        textureBarrier(1, &texture, ResourceState::DepthWrite, m_depthStencilFinalState);
+        textureBarrier(1, &texture, m_depthStencilCurrentState, m_depthStencilFinalState);
     }
 
     m_renderTargetViews.clear();

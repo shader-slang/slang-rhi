@@ -178,13 +178,14 @@ public:
     static_vector<RefPtr<TextureViewImpl>, kMaxRenderTargetCount> m_renderTargetViews;
     static_vector<ResourceState, kMaxRenderTargetCount> m_renderTargetFinalStates;
     RefPtr<TextureViewImpl> m_depthStencilView;
+    ResourceState m_depthStencilCurrentState;
     ResourceState m_depthStencilFinalState;
 
     std::vector<VkViewport> m_viewports;
     std::vector<VkRect2D> m_scissorRects;
 
 public:
-    void beginPass(const RenderPassDesc& desc);
+    Result beginPass(const RenderPassDesc& desc);
 
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 

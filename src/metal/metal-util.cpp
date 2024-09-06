@@ -590,28 +590,28 @@ MTL::TriangleFillMode MetalUtil::translateTriangleFillMode(FillMode mode)
     }
 }
 
-MTL::LoadAction MetalUtil::translateLoadOp(TargetLoadOp loadOp)
+MTL::LoadAction MetalUtil::translateLoadOp(LoadOp loadOp)
 {
     switch (loadOp)
     {
-    case TargetLoadOp::Load:
+    case LoadOp::Load:
         return MTL::LoadActionLoad;
-    case TargetLoadOp::Clear:
+    case LoadOp::Clear:
         return MTL::LoadActionClear;
-    case TargetLoadOp::DontCare:
+    case LoadOp::DontCare:
         return MTL::LoadActionDontCare;
     default:
         return MTL::LoadAction(0);
     }
 }
 
-MTL::StoreAction MetalUtil::translateStoreOp(TargetStoreOp storeOp)
+MTL::StoreAction MetalUtil::translateStoreOp(StoreOp storeOp)
 {
     switch (storeOp)
     {
-    case TargetStoreOp::Store:
+    case StoreOp::Store:
         return MTL::StoreActionStore;
-    case TargetStoreOp::DontCare:
+    case StoreOp::DontCare:
         return MTL::StoreActionDontCare;
     default:
         return MTL::StoreAction(0);

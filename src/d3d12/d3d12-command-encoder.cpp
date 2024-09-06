@@ -811,8 +811,11 @@ void RenderCommandEncoderImpl::init(
         m_renderTargetFinalStates[i] = desc.colorAttachments[i].finalState;
         renderTargetDescriptors.push_back(m_renderTargetViews[i]->m_descriptor.cpuHandle);
     }
-    m_depthStencilView = static_cast<ResourceViewImpl*>(desc.depthStencilAttachment.view);
-    m_depthStencilFinalState = desc.depthStencilAttachment.finalState;
+    if (desc.depthStencilAttachment)
+    {
+        m_depthStencilView = static_cast<ResourceViewImpl*>(desc.depthStencilAttachment->view);
+        m_depthStencilFinalState = desc.depthStencilAttachment->finalState;
+    }
 
     m_d3dCmdList->OMSetRenderTargets(
         (UINT)m_renderTargetViews.size(),
@@ -849,15 +852,15 @@ void RenderCommandEncoderImpl::init(
             }
         }
         // Clear.
-        if (attachment.loadOp == TargetLoadOp::Clear)
+        if (attachment.loadOp == LoadOp::Clear)
         {
             m_d3dCmdList->ClearRenderTargetView(renderTargetDescriptors[i], attachment.clearValue, 0, nullptr);
         }
     }
 
-    if (m_depthStencilView)
+    if (desc.depthStencilAttachment)
     {
-        const auto& attachment = desc.depthStencilAttachment;
+        const auto& attachment = *desc.depthStencilAttachment;
 
         // Transit resource states.
         {
@@ -876,11 +879,11 @@ void RenderCommandEncoderImpl::init(
         }
         // Clear.
         uint32_t clearFlags = 0;
-        if (attachment.depthLoadOp == TargetLoadOp::Clear)
+        if (attachment.depthLoadOp == LoadOp::Clear)
         {
             clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
         }
-        if (attachment.stencilLoadOp == TargetLoadOp::Clear)
+        if (attachment.stencilLoadOp == LoadOp::Clear)
         {
             clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
         }
