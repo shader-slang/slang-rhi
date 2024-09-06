@@ -783,11 +783,13 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             slangReflection
         ));
 
+        ColorTargetState target;
+        target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout.renderTargets[0] = {format};
-        pipelineDesc.framebufferLayout.renderTargetCount = 1;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
@@ -902,11 +904,13 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
 
         ComPtr<IShaderProgram> shaderProgram = device->createShaderProgram(programDesc);
 
+        ColorTargetState target;
+        target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout.renderTargets[0] = {format};
-        pipelineDesc.framebufferLayout.renderTargetCount = 1;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));

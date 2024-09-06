@@ -231,6 +231,16 @@ void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
 {
     desc = inDesc;
 
+    descHolder.holdList(desc.graphics.targets, desc.graphics.targetCount);
+    descHolder.holdList(desc.rayTracing.hitGroups, desc.rayTracing.hitGroupCount);
+    for (Index i = 0; i < desc.rayTracing.hitGroupCount; i++)
+    {
+        descHolder.holdString(desc.rayTracing.hitGroups[i].hitGroupName);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].closestHitEntryPoint);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].anyHitEntryPoint);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].intersectionEntryPoint);
+    }
+
     auto program = desc.getProgram();
     m_program = program;
     isSpecializable = false;
@@ -1006,8 +1016,7 @@ Result RendererBase::maybeSpecializePipeline(
             {
                 auto pipelineDesc = currentPipeline->desc.rayTracing;
                 pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc.get(), specializedPipelineComPtr.writeRef())
-                );
+                SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             default:

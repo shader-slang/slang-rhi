@@ -836,79 +836,6 @@ enum class PipelineType
     CountOf,
 };
 
-struct OwnedHitGroupDesc
-{
-    std::string hitGroupName;
-    std::string closestHitEntryPoint;
-    std::string anyHitEntryPoint;
-    std::string intersectionEntryPoint;
-
-    void set(const HitGroupDesc& desc)
-    {
-        hitGroupName = desc.hitGroupName ? desc.hitGroupName : "";
-        closestHitEntryPoint = desc.closestHitEntryPoint ? desc.closestHitEntryPoint : "";
-        anyHitEntryPoint = desc.anyHitEntryPoint ? desc.anyHitEntryPoint : "";
-        intersectionEntryPoint = desc.intersectionEntryPoint ? desc.intersectionEntryPoint : "";
-    }
-
-    HitGroupDesc get()
-    {
-        HitGroupDesc desc;
-        desc.hitGroupName = hitGroupName.data();
-        desc.closestHitEntryPoint = closestHitEntryPoint.data();
-        desc.anyHitEntryPoint = anyHitEntryPoint.data();
-        desc.intersectionEntryPoint = intersectionEntryPoint.data();
-        return desc;
-    }
-};
-
-struct OwnedRayTracingPipelineDesc
-{
-    RefPtr<ShaderProgramBase> program;
-    std::vector<OwnedHitGroupDesc> hitGroups;
-    std::vector<HitGroupDesc> hitGroupDescs;
-    int maxRecursion = 0;
-    Size maxRayPayloadSize = 0;
-    Size maxAttributeSizeInBytes = 8;
-    RayTracingPipelineFlags::Enum flags = RayTracingPipelineFlags::None;
-
-    RayTracingPipelineDesc get()
-    {
-        // TODO horrible hack to update the c-strings after this struct is copied.
-        for (int32_t i = 0; i < hitGroupDescs.size(); i++)
-        {
-            hitGroupDescs[i] = hitGroups[i].get();
-        }
-        RayTracingPipelineDesc desc;
-        desc.program = program.Ptr();
-        desc.hitGroupCount = (int32_t)hitGroupDescs.size();
-        desc.hitGroups = hitGroupDescs.data();
-        desc.maxRecursion = maxRecursion;
-        desc.maxRayPayloadSize = maxRayPayloadSize;
-        desc.maxAttributeSizeInBytes = maxAttributeSizeInBytes;
-        desc.flags = flags;
-        return desc;
-    }
-
-    void set(const RayTracingPipelineDesc& inDesc)
-    {
-        program = static_cast<ShaderProgramBase*>(inDesc.program);
-        hitGroups.resize(inDesc.hitGroupCount);
-        hitGroupDescs.resize(inDesc.hitGroupCount);
-        for (int32_t i = 0; i < inDesc.hitGroupCount; i++)
-        {
-            OwnedHitGroupDesc ownedHitGroupDesc;
-            ownedHitGroupDesc.set(inDesc.hitGroups[i]);
-            hitGroups[i] = ownedHitGroupDesc;
-            hitGroupDescs[i] = hitGroups[i].get();
-        }
-        maxRecursion = inDesc.maxRecursion;
-        maxRayPayloadSize = inDesc.maxRayPayloadSize;
-        maxAttributeSizeInBytes = inDesc.maxAttributeSizeInBytes;
-        flags = inDesc.flags;
-    }
-};
-
 class PipelineBase : public IPipeline, public ComObject
 {
 public:
@@ -920,7 +847,7 @@ public:
         PipelineType type;
         RenderPipelineDesc graphics;
         ComputePipelineDesc compute;
-        OwnedRayTracingPipelineDesc rayTracing;
+        RayTracingPipelineDesc rayTracing;
         ShaderProgramBase* getProgram()
         {
             switch (type)
@@ -935,6 +862,8 @@ public:
             return nullptr;
         }
     } desc;
+
+    StructHolder descHolder;
 
     // We need to hold inputLayout object alive, since we may use it to
     // create specialized pipeline states later.

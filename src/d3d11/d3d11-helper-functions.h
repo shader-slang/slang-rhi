@@ -255,7 +255,7 @@ D3D11_STENCIL_OP translateStencilOp(StencilOp op);
 D3D11_FILL_MODE translateFillMode(FillMode mode);
 D3D11_CULL_MODE translateCullMode(CullMode mode);
 bool isBlendDisabled(AspectBlendDesc const& desc);
-bool isBlendDisabled(TargetBlendDesc const& desc);
+bool isBlendDisabled(ColorTargetState const& desc);
 D3D11_BLEND_OP translateBlendOp(BlendOp op);
 D3D11_BLEND translateBlendFactor(BlendFactor factor);
 D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT mask);

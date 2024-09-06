@@ -1600,61 +1600,60 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
 
     ComPtr<ID3D11BlendState> blendState;
     {
-        auto& srcDesc = desc.blend;
         D3D11_BLEND_DESC dstDesc = {};
 
-        TargetBlendDesc defaultTargetBlendDesc;
+        ColorTargetState defaultTargetState;
 
         static const UInt kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-        int targetCount = desc.framebufferLayout.renderTargetCount;
+        int targetCount = desc.targetCount;
         if (targetCount > kMaxTargets)
             return SLANG_FAIL;
 
         for (GfxIndex ii = 0; ii < kMaxTargets; ++ii)
         {
-            TargetBlendDesc const* srcTargetBlendDescPtr = nullptr;
+            const ColorTargetState* targetState = nullptr;
             if (ii < targetCount)
             {
-                srcTargetBlendDescPtr = &srcDesc.targets[ii];
+                targetState = &desc.targets[ii];
             }
             else if (targetCount == 0)
             {
-                srcTargetBlendDescPtr = &defaultTargetBlendDesc;
+                targetState = &defaultTargetState;
             }
             else
             {
-                srcTargetBlendDescPtr = &srcDesc.targets[targetCount - 1];
+                targetState = &desc.targets[targetCount - 1];
             }
 
-            auto& srcTargetBlendDesc = *srcTargetBlendDescPtr;
-            auto& dstTargetBlendDesc = dstDesc.RenderTarget[ii];
+            auto& srcTarget = *targetState;
+            auto& dstTarget = dstDesc.RenderTarget[ii];
 
-            if (isBlendDisabled(srcTargetBlendDesc))
+            if (isBlendDisabled(srcTarget))
             {
-                dstTargetBlendDesc.BlendEnable = false;
-                dstTargetBlendDesc.BlendOp = D3D11_BLEND_OP_ADD;
-                dstTargetBlendDesc.BlendOpAlpha = D3D11_BLEND_OP_ADD;
-                dstTargetBlendDesc.SrcBlend = D3D11_BLEND_ONE;
-                dstTargetBlendDesc.SrcBlendAlpha = D3D11_BLEND_ONE;
-                dstTargetBlendDesc.DestBlend = D3D11_BLEND_ZERO;
-                dstTargetBlendDesc.DestBlendAlpha = D3D11_BLEND_ZERO;
+                dstTarget.BlendEnable = false;
+                dstTarget.BlendOp = D3D11_BLEND_OP_ADD;
+                dstTarget.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+                dstTarget.SrcBlend = D3D11_BLEND_ONE;
+                dstTarget.SrcBlendAlpha = D3D11_BLEND_ONE;
+                dstTarget.DestBlend = D3D11_BLEND_ZERO;
+                dstTarget.DestBlendAlpha = D3D11_BLEND_ZERO;
             }
             else
             {
-                dstTargetBlendDesc.BlendEnable = true;
-                dstTargetBlendDesc.BlendOp = translateBlendOp(srcTargetBlendDesc.color.op);
-                dstTargetBlendDesc.BlendOpAlpha = translateBlendOp(srcTargetBlendDesc.alpha.op);
-                dstTargetBlendDesc.SrcBlend = translateBlendFactor(srcTargetBlendDesc.color.srcFactor);
-                dstTargetBlendDesc.SrcBlendAlpha = translateBlendFactor(srcTargetBlendDesc.alpha.srcFactor);
-                dstTargetBlendDesc.DestBlend = translateBlendFactor(srcTargetBlendDesc.color.dstFactor);
-                dstTargetBlendDesc.DestBlendAlpha = translateBlendFactor(srcTargetBlendDesc.alpha.dstFactor);
+                dstTarget.BlendEnable = true;
+                dstTarget.BlendOp = translateBlendOp(srcTarget.color.op);
+                dstTarget.BlendOpAlpha = translateBlendOp(srcTarget.alpha.op);
+                dstTarget.SrcBlend = translateBlendFactor(srcTarget.color.srcFactor);
+                dstTarget.SrcBlendAlpha = translateBlendFactor(srcTarget.alpha.srcFactor);
+                dstTarget.DestBlend = translateBlendFactor(srcTarget.color.dstFactor);
+                dstTarget.DestBlendAlpha = translateBlendFactor(srcTarget.alpha.dstFactor);
             }
 
-            dstTargetBlendDesc.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTargetBlendDesc.writeMask);
+            dstTarget.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTarget.writeMask);
         }
 
         dstDesc.IndependentBlendEnable = targetCount > 1;
-        dstDesc.AlphaToCoverageEnable = srcDesc.alphaToCoverageEnable;
+        dstDesc.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable;
 
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
     }
@@ -1664,7 +1663,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
     pipeline->m_inputLayout = static_cast<InputLayoutImpl*>(desc.inputLayout);
-    pipeline->m_rtvCount = desc.framebufferLayout.renderTargetCount;
+    pipeline->m_rtvCount = desc.targetCount;
     pipeline->m_blendColor[0] = 0;
     pipeline->m_blendColor[1] = 0;
     pipeline->m_blendColor[2] = 0;

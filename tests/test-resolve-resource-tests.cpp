@@ -135,14 +135,16 @@ struct BaseResolveResourceTest
         ));
 
 
+        ColorTargetState target;
+        target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout.renderTargets[0] = {format};
-        pipelineDesc.framebufferLayout.renderTargetCount = 1;
-        pipelineDesc.framebufferLayout.sampleCount = 4;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
+        pipelineDesc.multisample.sampleCount = 4;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IResourceView::Desc colorBufferViewDesc;

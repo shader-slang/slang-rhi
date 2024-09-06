@@ -83,9 +83,6 @@ enum class AccessFlag
     Write,
 };
 
-// TODO: Needed? Shouldn't be hard-coded if so
-const GfxCount kMaxRenderTargetCount = 8;
-
 class ITransientResourceHeap;
 class IPersistentShaderCache;
 
@@ -1068,8 +1065,10 @@ struct DepthStencilOpDesc
     ComparisonFunc stencilFunc = ComparisonFunc::Always;
 };
 
-struct DepthStencilDesc
+struct DepthStencilState
 {
+    Format format = Format::Unknown;
+
     bool depthTestEnable = false;
     bool depthWriteEnable = true;
     ComparisonFunc depthFunc = ComparisonFunc::Less;
@@ -1155,8 +1154,9 @@ struct AspectBlendDesc
     BlendOp op = BlendOp::Add;
 };
 
-struct TargetBlendDesc
+struct ColorTargetState
 {
+    Format format = Format::Unknown;
     AspectBlendDesc color;
     AspectBlendDesc alpha;
     bool enableBlend = false;
@@ -1164,23 +1164,12 @@ struct TargetBlendDesc
     RenderTargetWriteMaskT writeMask = RenderTargetWriteMask::EnableAll;
 };
 
-struct BlendDesc
+struct MultisampleState
 {
-    TargetBlendDesc targets[kMaxRenderTargetCount];
-    bool alphaToCoverageEnable = false;
-};
-
-struct TargetLayoutDesc
-{
-    Format format = Format::Unknown;
-};
-
-struct FramebufferLayoutDesc
-{
-    TargetLayoutDesc renderTargets[kMaxRenderTargetCount];
-    GfxCount renderTargetCount = 0;
-    TargetLayoutDesc depthStencil;
     GfxCount sampleCount = 1;
+    uint32_t sampleMask = 0xFFFFFFFF;
+    bool alphaToCoverageEnable = false;
+    bool alphaToOneEnable = false;
 };
 
 struct RenderPipelineDesc
@@ -1188,11 +1177,12 @@ struct RenderPipelineDesc
     IShaderProgram* program = nullptr;
 
     IInputLayout* inputLayout = nullptr;
-    FramebufferLayoutDesc framebufferLayout;
     PrimitiveType primitiveType = PrimitiveType::Triangle;
-    DepthStencilDesc depthStencil;
+    ColorTargetState* targets = nullptr;
+    GfxCount targetCount = 0;
+    DepthStencilState depthStencil;
     RasterizerDesc rasterizer;
-    BlendDesc blend;
+    MultisampleState multisample;
 };
 
 struct ComputePipelineDesc
@@ -1223,7 +1213,7 @@ struct RayTracingPipelineDesc
 {
     IShaderProgram* program = nullptr;
     GfxCount hitGroupCount = 0;
-    const HitGroupDesc* hitGroups = nullptr;
+    HitGroupDesc* hitGroups = nullptr;
     int maxRecursion = 0;
     Size maxRayPayloadSize = 0;
     Size maxAttributeSizeInBytes = 8;

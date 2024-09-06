@@ -804,7 +804,7 @@ void RenderCommandEncoderImpl::init(
 
     m_renderTargetViews.resize(desc.colorAttachmentCount);
     m_renderTargetFinalStates.resize(desc.colorAttachmentCount);
-    static_vector<D3D12_CPU_DESCRIPTOR_HANDLE, kMaxRenderTargetCount> renderTargetDescriptors;
+    short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
     for (Index i = 0; i < desc.colorAttachmentCount; i++)
     {
         m_renderTargetViews[i] = static_cast<ResourceViewImpl*>(desc.colorAttachments[i].view);

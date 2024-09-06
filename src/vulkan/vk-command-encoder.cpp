@@ -1061,6 +1061,8 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
     renderingInfo.pStencilAttachment = hasStencilAttachment ? &stencilAttachmentInfo : nullptr;
 
     api.vkCmdBeginRenderingKHR(m_vkCommandBuffer, &renderingInfo);
+
+    return SLANG_OK;
 }
 
 void RenderCommandEncoderImpl::endEncoding()

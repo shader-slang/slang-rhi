@@ -175,8 +175,8 @@ public:
     }
 
 public:
-    static_vector<RefPtr<TextureViewImpl>, kMaxRenderTargetCount> m_renderTargetViews;
-    static_vector<ResourceState, kMaxRenderTargetCount> m_renderTargetFinalStates;
+    short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
+    short_vector<ResourceState> m_renderTargetFinalStates;
     RefPtr<TextureViewImpl> m_depthStencilView;
     ResourceState m_depthStencilCurrentState;
     ResourceState m_depthStencilFinalState;

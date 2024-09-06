@@ -113,12 +113,8 @@ public:
     ComPtr<ID3D11Texture2D> m_backBufferTexture;
     ComPtr<IDXGIFactory> m_dxgiFactory;
 
-    short_vector<ID3D11RenderTargetView*, kMaxRenderTargetCount> m_d3dRenderTargetViews;
+    short_vector<ID3D11RenderTargetView*> m_d3dRenderTargetViews;
     ID3D11DepthStencilView* m_d3dDepthStencilView;
-
-    RefPtr<RenderTargetViewImpl> m_currentColorAttachments[kMaxRenderTargetCount];
-    GfxCount m_currentColorAttachmentCount = 0;
-    RefPtr<RenderTargetViewImpl> m_currentDepthStencilAttachment;
 
     RefPtr<PipelineImpl> m_currentPipeline;
 

@@ -149,7 +149,7 @@ public:
 
 public:
     NS::SharedPtr<MTL::RenderPassDescriptor> m_renderPassDesc;
-    static_vector<RefPtr<TextureViewImpl>, kMaxRenderTargetCount> m_renderTargetViews;
+    short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     RefPtr<TextureViewImpl> m_depthStencilView;
 
     short_vector<MTL::Viewport, 16> m_viewports;

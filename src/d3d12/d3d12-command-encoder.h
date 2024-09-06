@@ -166,8 +166,8 @@ public:
     }
 
 public:
-    static_vector<RefPtr<ResourceViewImpl>, kMaxRenderTargetCount> m_renderTargetViews;
-    static_vector<ResourceState, kMaxRenderTargetCount> m_renderTargetFinalStates;
+    short_vector<RefPtr<ResourceViewImpl>> m_renderTargetViews;
+    short_vector<ResourceState> m_renderTargetFinalStates;
     RefPtr<ResourceViewImpl> m_depthStencilView;
     ResourceState m_depthStencilFinalState;
 

@@ -417,14 +417,16 @@ struct RenderTargetTests : BaseTextureViewTest
             slangReflection
         ));
 
+        ColorTargetState target;
+        target.format = textureInfo->format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout.renderTargets[0] = {textureInfo->format};
-        pipelineDesc.framebufferLayout.renderTargetCount = 1;
-        pipelineDesc.framebufferLayout.sampleCount = sampleCount;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
+        pipelineDesc.multisample.sampleCount = sampleCount;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IResourceView::Desc colorBufferViewDesc;
