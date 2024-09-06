@@ -440,7 +440,6 @@ Result RenderCommandEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder
     encoder->setScissorRects(m_scissorRects.data(), m_scissorRects.size());
 
     const RasterizerDesc& rasterDesc = pipeline->desc.graphics.rasterizer;
-    const DepthStencilDesc& depthStencilDesc = pipeline->desc.graphics.depthStencil;
     encoder->setFrontFacingWinding(MetalUtil::translateWinding(rasterDesc.frontFace));
     encoder->setCullMode(MetalUtil::translateCullMode(rasterDesc.cullMode));
     encoder->setDepthClipMode(

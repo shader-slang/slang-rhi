@@ -4,7 +4,6 @@
 #include "metal-pipeline.h"
 
 #include "core/short_vector.h"
-#include "core/static_vector.h"
 
 namespace rhi::metal {
 
