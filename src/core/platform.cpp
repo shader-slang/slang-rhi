@@ -28,6 +28,7 @@ Result loadSharedLibrary(const char* path, SharedLibraryHandle& handleOut)
     {
         return SLANG_FAIL;
     }
+    return SLANG_OK;
 #else
     SLANG_RHI_ASSERT_FAILURE("Not implemented");
 #endif

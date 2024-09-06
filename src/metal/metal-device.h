@@ -3,7 +3,6 @@
 #include "../simple-transient-resource-heap.h"
 #include "metal-base.h"
 #include "metal-device.h"
-#include "metal-framebuffer.h"
 
 #include "core/stable_vector.h"
 

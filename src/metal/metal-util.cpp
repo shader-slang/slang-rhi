@@ -590,4 +590,32 @@ MTL::TriangleFillMode MetalUtil::translateTriangleFillMode(FillMode mode)
     }
 }
 
+MTL::LoadAction MetalUtil::translateLoadOp(TargetLoadOp loadOp)
+{
+    switch (loadOp)
+    {
+    case TargetLoadOp::Load:
+        return MTL::LoadActionLoad;
+    case TargetLoadOp::Clear:
+        return MTL::LoadActionClear;
+    case TargetLoadOp::DontCare:
+        return MTL::LoadActionDontCare;
+    default:
+        return MTL::LoadAction(0);
+    }
+}
+
+MTL::StoreAction MetalUtil::translateStoreOp(TargetStoreOp storeOp)
+{
+    switch (storeOp)
+    {
+    case TargetStoreOp::Store:
+        return MTL::StoreActionStore;
+    case TargetStoreOp::DontCare:
+        return MTL::StoreActionDontCare;
+    default:
+        return MTL::StoreAction(0);
+    }
+}
+
 } // namespace rhi::metal

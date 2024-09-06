@@ -77,17 +77,16 @@ Result PipelineImpl::createMetalRenderPipelineState()
     pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveType));
 
     // Set rasterization state
-    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
+    const auto& framebufferLayout = desc.graphics.framebufferLayout;
     const auto& blend = desc.graphics.blend;
-    GfxCount sampleCount = 1;
 
     pd->setAlphaToCoverageEnabled(blend.alphaToCoverageEnable);
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < framebufferLayoutImpl->m_desc.renderTargetCount; ++i)
+    for (Index i = 0; i < framebufferLayout.renderTargetCount; ++i)
     {
-        const TargetLayoutDesc& targetLayout = framebufferLayoutImpl->m_desc.renderTargets[i];
+        const TargetLayoutDesc& targetLayout = framebufferLayout.renderTargets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
         colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetLayout.format));
 
@@ -101,12 +100,10 @@ Result PipelineImpl::createMetalRenderPipelineState()
         );
         colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
         colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
-
-        sampleCount = std::max(sampleCount, targetLayout.sampleCount);
     }
-    if (framebufferLayoutImpl->m_desc.depthStencil.format != Format::Unknown)
+    if (framebufferLayout.depthStencil.format != Format::Unknown)
     {
-        const TargetLayoutDesc& depthStencil = framebufferLayoutImpl->m_desc.depthStencil;
+        const TargetLayoutDesc& depthStencil = framebufferLayout.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
@@ -118,7 +115,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
         }
     }
 
-    pd->setRasterSampleCount(sampleCount);
+    pd->setRasterSampleCount(framebufferLayout.sampleCount);
 
     NS::Error* error;
     m_renderPipelineState = NS::TransferPtr(m_device->m_device->newRenderPipelineState(pd.get(), &error));

@@ -1,7 +1,6 @@
 #include "metal-device.h"
 #include "../resource-desc-utils.h"
 #include "metal-buffer.h"
-#include "metal-render-pass.h"
 #include "metal-shader-program.h"
 #include "metal-swap-chain.h"
 #include "metal-texture.h"
