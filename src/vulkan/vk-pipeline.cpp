@@ -141,20 +141,20 @@ Result PipelineImpl::createVKGraphicsPipeline()
         rasterizer.pNext = &conservativeRasterInfo;
     }
 
-    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
+    const auto& framebufferLayout = desc.graphics.framebufferLayout;
     auto forcedSampleCount = rasterizerDesc.forcedSampleCount;
     auto blendDesc = desc.graphics.blend;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.rasterizationSamples = (forcedSampleCount == 0) ? framebufferLayoutImpl->m_sampleCount
+    multisampling.rasterizationSamples = (forcedSampleCount == 0) ? VkSampleCountFlagBits(framebufferLayout.sampleCount)
                                                                   : VulkanUtil::translateSampleCount(forcedSampleCount);
     multisampling.sampleShadingEnable = VK_FALSE; // TODO: Should check if fragment shader needs this
     // TODO: Sample mask is dynamic in D3D12 but PSO state in Vulkan
     multisampling.alphaToCoverageEnable = blendDesc.alphaToCoverageEnable;
     multisampling.alphaToOneEnable = VK_FALSE;
 
-    auto targetCount = framebufferLayoutImpl->m_renderTargetCount;
+    auto targetCount = framebufferLayout.renderTargetCount;
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendTargets;
 
     // Regardless of whether blending is enabled, Vulkan always applies the color write mask
@@ -239,16 +239,15 @@ Result PipelineImpl::createVKGraphicsPipeline()
 
     VkPipelineRenderingCreateInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
     static_vector<VkFormat, kMaxRenderTargetCount> colorAttachmentFormats;
-    for (GfxIndex i = 0; i < framebufferLayoutImpl->m_desc.renderTargetCount; ++i)
+    for (GfxIndex i = 0; i < framebufferLayout.renderTargetCount; ++i)
     {
-        colorAttachmentFormats.push_back(VulkanUtil::getVkFormat(framebufferLayoutImpl->m_desc.renderTargets[i].format)
-        );
+        colorAttachmentFormats.push_back(VulkanUtil::getVkFormat(framebufferLayout.renderTargets[i].format));
     }
     renderingInfo.colorAttachmentCount = colorAttachmentFormats.size();
     renderingInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
-    renderingInfo.depthAttachmentFormat = VulkanUtil::getVkFormat(framebufferLayoutImpl->m_desc.depthStencil.format);
+    renderingInfo.depthAttachmentFormat = VulkanUtil::getVkFormat(framebufferLayout.depthStencil.format);
     // TODO we should probably only set this when this is actually a stencil format
-    renderingInfo.stencilAttachmentFormat = VulkanUtil::getVkFormat(framebufferLayoutImpl->m_desc.depthStencil.format);
+    renderingInfo.stencilAttachmentFormat = VulkanUtil::getVkFormat(framebufferLayout.depthStencil.format);
 
     VkGraphicsPipelineCreateInfo pipelineInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     pipelineInfo.pNext = &renderingInfo;

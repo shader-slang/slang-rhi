@@ -25,7 +25,6 @@ struct GUID
     static const Guid IID_IPipeline;
     static const Guid IID_IResourceView;
     static const Guid IID_IFramebuffer;
-    static const Guid IID_IFramebufferLayout;
     static const Guid IID_ISwapchain;
     static const Guid IID_ISampler;
     static const Guid IID_IResource;
@@ -818,13 +817,6 @@ public:
     IInputLayout* getInterface(const Guid& guid);
 };
 
-class FramebufferLayoutBase : public IFramebufferLayout, public ComObject
-{
-public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IFramebufferLayout* getInterface(const Guid& guid);
-};
-
 class QueryPoolBase : public IQueryPool, public ComObject
 {
 public:
@@ -944,10 +936,9 @@ public:
         }
     } desc;
 
-    // We need to hold inputLayout and framebufferLayout objects alive, since we may use it to
+    // We need to hold inputLayout object alive, since we may use it to
     // create specialized pipeline states later.
     RefPtr<InputLayoutBase> inputLayout;
-    RefPtr<FramebufferLayoutBase> framebufferLayout;
 
     // The pipeline state from which this pipeline state is specialized.
     // If null, this pipeline is either an unspecialized pipeline.

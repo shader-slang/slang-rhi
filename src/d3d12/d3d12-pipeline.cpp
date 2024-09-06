@@ -1,6 +1,5 @@
 #include "d3d12-pipeline.h"
 #include "d3d12-device.h"
-#include "d3d12-framebuffer.h"
 #include "d3d12-pipeline-state-stream.h"
 #include "d3d12-shader-program.h"
 #include "d3d12-vertex-layout.h"
@@ -66,29 +65,25 @@ Result PipelineImpl::ensureAPIPipelineCreated()
 
             psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveType);
 
-            auto framebufferLayout = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-            const int numRenderTargets = int(framebufferLayout->m_desc.renderTargetCount);
+            const auto& framebufferLayout = desc.graphics.framebufferLayout;
+            const int numRenderTargets = int(framebufferLayout.renderTargetCount);
 
             {
-                if (framebufferLayout->m_desc.depthStencil.format != Format::Unknown)
+                if (framebufferLayout.depthStencil.format != Format::Unknown)
                 {
-                    psoDesc.DSVFormat = D3DUtil::getMapFormat(framebufferLayout->m_desc.depthStencil.format);
-                    psoDesc.SampleDesc.Count = framebufferLayout->m_desc.depthStencil.sampleCount;
+                    psoDesc.DSVFormat = D3DUtil::getMapFormat(framebufferLayout.depthStencil.format);
                 }
                 else
                 {
                     psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-                    if (numRenderTargets > 0)
-                    {
-                        psoDesc.SampleDesc.Count = framebufferLayout->m_desc.renderTargets[0].sampleCount;
-                    }
                 }
                 psoDesc.NumRenderTargets = numRenderTargets;
                 for (Int i = 0; i < numRenderTargets; i++)
                 {
-                    psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(framebufferLayout->m_desc.renderTargets[0].format);
+                    psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(framebufferLayout.renderTargets[0].format);
                 }
 
+                psoDesc.SampleDesc.Count = framebufferLayout.sampleCount;
                 psoDesc.SampleDesc.Quality = 0;
                 psoDesc.SampleMask = UINT_MAX;
             }

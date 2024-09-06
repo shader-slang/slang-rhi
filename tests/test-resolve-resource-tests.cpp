@@ -134,16 +134,13 @@ struct BaseResolveResourceTest
             slangReflection
         ));
 
-        FramebufferLayoutDesc framebufferLayoutDesc;
-        framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets[0] = {format, 4};
-        ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
-        REQUIRE(framebufferLayout != nullptr);
 
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.framebufferLayout.renderTargets[0] = {format};
+        pipelineDesc.framebufferLayout.renderTargetCount = 1;
+        pipelineDesc.framebufferLayout.sampleCount = 4;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));

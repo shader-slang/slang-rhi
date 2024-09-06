@@ -5,7 +5,6 @@
 #include "debug-command-queue.h"
 #include "debug-device.h"
 #include "debug-fence.h"
-#include "debug-framebuffer.h"
 #include "debug-pipeline.h"
 #include "debug-query.h"
 #include "debug-resource-views.h"
@@ -160,7 +159,6 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputeCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RenderCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ResourceCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RayTracingCommandEncoder)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(FramebufferLayout)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(InputLayout)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Pipeline)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ResourceView)

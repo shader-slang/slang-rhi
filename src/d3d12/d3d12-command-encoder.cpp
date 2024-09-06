@@ -10,6 +10,7 @@
 #include "d3d12-texture.h"
 #include "d3d12-transient-heap.h"
 #include "d3d12-vertex-layout.h"
+#include "d3d12-resource-views.h"
 
 #include "core/short_vector.h"
 

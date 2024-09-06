@@ -130,9 +130,6 @@ public:
         override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outLayout) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
 
     virtual Result createShaderObjectLayout(

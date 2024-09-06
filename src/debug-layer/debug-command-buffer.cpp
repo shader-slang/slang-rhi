@@ -1,5 +1,4 @@
 #include "debug-command-buffer.h"
-#include "debug-framebuffer.h"
 #include "debug-helper-functions.h"
 
 namespace rhi::debug {

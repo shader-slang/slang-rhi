@@ -1,6 +1,5 @@
 #pragma once
 
-#include "d3d11-framebuffer.h"
 #include "d3d11-pipeline.h"
 #include "d3d11-resource-views.h"
 
@@ -15,8 +14,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override;
     virtual void beginRenderPass(const RenderPassDesc& desc) override;
     virtual void endRenderPass() override;
     virtual void setStencilReference(uint32_t referenceValue) override;

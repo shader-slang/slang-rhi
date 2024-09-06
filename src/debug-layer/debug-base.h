@@ -55,7 +55,6 @@ class DebugRayTracingCommandEncoder;
 class DebugFence;
 class DebugCommandQueue;
 class DebugFramebuffer;
-class DebugFramebufferLayout;
 class DebugInputLayout;
 class DebugPipeline;
 class DebugShaderProgram;

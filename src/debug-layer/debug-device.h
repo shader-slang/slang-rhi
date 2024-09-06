@@ -55,8 +55,6 @@ public:
         IAccelerationStructure** outView
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outFrameBuffer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;

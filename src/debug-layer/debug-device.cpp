@@ -2,7 +2,6 @@
 #include "debug-buffer.h"
 #include "debug-command-queue.h"
 #include "debug-fence.h"
-#include "debug-framebuffer.h"
 #include "debug-helper-functions.h"
 #include "debug-pipeline.h"
 #include "debug-query.h"
@@ -239,18 +238,6 @@ Result DebugDevice::createAccelerationStructure(
     return SLANG_OK;
 }
 
-Result DebugDevice::createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outFrameBuffer)
-{
-    SLANG_RHI_API_FUNC;
-
-    RefPtr<DebugFramebufferLayout> outObject = new DebugFramebufferLayout();
-    auto result = baseObject->createFramebufferLayout(desc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outFrameBuffer, outObject);
-    return result;
-}
-
 Result DebugDevice::createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain)
 {
     SLANG_RHI_API_FUNC;
@@ -444,7 +431,6 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IPipeli
     RenderPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
     innerDesc.inputLayout = getInnerObj(desc.inputLayout);
-    innerDesc.framebufferLayout = getInnerObj(desc.framebufferLayout);
     RefPtr<DebugPipeline> outObject = new DebugPipeline();
     auto result = baseObject->createRenderPipeline(innerDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))

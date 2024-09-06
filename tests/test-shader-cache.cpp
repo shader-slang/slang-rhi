@@ -699,7 +699,6 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     ComPtr<ITexture> colorBuffer;
     ComPtr<IResourceView> colorBufferView;
     ComPtr<IInputLayout> inputLayout;
-    ComPtr<IFramebufferLayout> framebufferLayout;
 
     ComPtr<IBuffer> createVertexBuffer(IDevice* device)
     {
@@ -755,12 +754,6 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         vertexBuffer = createVertexBuffer(device);
         colorBuffer = createColorBuffer(device);
 
-        FramebufferLayoutDesc framebufferLayoutDesc;
-        framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets[0] = {format, 1};
-        framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
-        REQUIRE(framebufferLayout != nullptr);
-
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
@@ -772,7 +765,6 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     void freeGraphicsResources()
     {
         inputLayout = nullptr;
-        framebufferLayout = nullptr;
         vertexBuffer = nullptr;
         colorBuffer = nullptr;
         pipeline = nullptr;
@@ -794,7 +786,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.framebufferLayout.renderTargets[0] = {format};
+        pipelineDesc.framebufferLayout.renderTargetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
@@ -910,7 +903,8 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.framebufferLayout.renderTargets[0] = {format};
+        pipelineDesc.framebufferLayout.renderTargetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));

@@ -18,7 +18,6 @@ const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
 const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
-const Guid GUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
 const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
@@ -208,13 +207,6 @@ IInputLayout* InputLayoutBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IFramebufferLayout* FramebufferLayoutBase::getInterface(const Guid& guid)
-{
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebufferLayout)
-        return static_cast<IFramebufferLayout*>(this);
-    return nullptr;
-}
-
 IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
@@ -252,12 +244,10 @@ void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
             break;
         }
     }
-    // Hold a strong reference to inputLayout and framebufferLayout objects to prevent it from
-    // destruction.
+    // Hold a strong reference to inputLayout object to prevent it from destruction.
     if (inDesc.type == PipelineType::Graphics)
     {
         inputLayout = static_cast<InputLayoutBase*>(inDesc.graphics.inputLayout);
-        framebufferLayout = static_cast<FramebufferLayoutBase*>(inDesc.graphics.framebufferLayout);
     }
 }
 

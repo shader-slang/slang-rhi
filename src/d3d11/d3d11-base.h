@@ -53,7 +53,6 @@ class ShaderResourceViewImpl;
 class UnorderedAccessViewImpl;
 class DepthStencilViewImpl;
 class RenderTargetViewImpl;
-class FramebufferLayoutImpl;
 class SwapchainImpl;
 class InputLayoutImpl;
 class QueryPoolImpl;

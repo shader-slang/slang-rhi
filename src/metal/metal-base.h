@@ -22,7 +22,6 @@ class TextureViewImpl;
 class TexelBufferViewImpl;
 class PlainBufferViewImpl;
 class AccelerationStructureImpl;
-class FramebufferLayoutImpl;
 class PipelineImpl;
 class RayTracingPipelineImpl;
 class ShaderObjectLayoutImpl;

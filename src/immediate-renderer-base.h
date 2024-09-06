@@ -187,13 +187,6 @@ public:
         SLANG_UNUSED(outSwapchain);
         return SLANG_FAIL;
     }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override
-    {
-        SLANG_UNUSED(desc);
-        SLANG_UNUSED(outLayout);
-        return SLANG_FAIL;
-    }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override

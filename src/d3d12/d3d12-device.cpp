@@ -2,7 +2,6 @@
 #include "../nvapi/nvapi-util.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
-#include "d3d12-framebuffer.h"
 #include "d3d12-helper-functions.h"
 #include "d3d12-pipeline.h"
 #include "d3d12-query.h"
@@ -1653,14 +1652,6 @@ Result DeviceImpl::createBufferView(
     viewImpl->m_allocator = m_cpuViewHeap.get();
 
     returnComPtr(outView, viewImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outLayout)
-{
-    RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_desc = desc;
-    returnComPtr(outLayout, layout);
     return SLANG_OK;
 }
 

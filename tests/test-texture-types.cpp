@@ -417,16 +417,12 @@ struct RenderTargetTests : BaseTextureViewTest
             slangReflection
         ));
 
-        FramebufferLayoutDesc framebufferLayoutDesc;
-        framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets[0] = {textureInfo->format, sampleCount};
-        ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
-        REQUIRE(framebufferLayout != nullptr);
-
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.framebufferLayout.renderTargets[0] = {textureInfo->format};
+        pipelineDesc.framebufferLayout.renderTargetCount = 1;
+        pipelineDesc.framebufferLayout.sampleCount = sampleCount;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));

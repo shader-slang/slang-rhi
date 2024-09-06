@@ -337,14 +337,6 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
-{
-    RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_desc = desc;
-    returnComPtr(outLayout, layout);
-    return SLANG_OK;
-}
-
 void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
 {
     // Note: the framebuffer state will be flushed to the pipeline as part
@@ -1614,7 +1606,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
         TargetBlendDesc defaultTargetBlendDesc;
 
         static const UInt kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-        int targetCount = static_cast<FramebufferLayoutImpl*>(inDesc.framebufferLayout)->m_desc.renderTargetCount;
+        int targetCount = desc.framebufferLayout.renderTargetCount;
         if (targetCount > kMaxTargets)
             return SLANG_FAIL;
 
@@ -1672,7 +1664,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
     pipeline->m_inputLayout = static_cast<InputLayoutImpl*>(desc.inputLayout);
-    pipeline->m_rtvCount = (UINT) static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout)->m_desc.renderTargetCount;
+    pipeline->m_rtvCount = desc.framebufferLayout.renderTargetCount;
     pipeline->m_blendColor[0] = 0;
     pipeline->m_blendColor[1] = 0;
     pipeline->m_blendColor[2] = 0;

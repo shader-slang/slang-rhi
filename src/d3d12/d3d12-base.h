@@ -47,7 +47,6 @@ class RenderCommandEncoderImpl;
 class ComputeCommandEncoderImpl;
 class CommandQueueImpl;
 class FenceImpl;
-class FramebufferLayoutImpl;
 class QueryPoolImpl;
 class PlainBufferProxyQueryPoolImpl;
 class PipelineImpl;

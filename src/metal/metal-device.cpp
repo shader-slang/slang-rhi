@@ -148,16 +148,6 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<FramebufferLayoutImpl> layoutImpl = new FramebufferLayoutImpl;
-    SLANG_RETURN_ON_FAIL(layoutImpl->init(desc));
-    returnComPtr(outLayout, layoutImpl);
-    return SLANG_OK;
-}
-
 Result DeviceImpl::readTexture(
     ITexture* texture,
     ResourceState state,

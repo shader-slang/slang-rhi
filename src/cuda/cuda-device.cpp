@@ -1068,14 +1068,6 @@ DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, I
     return SLANG_FAIL;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
-{
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(outLayout);
-    return SLANG_FAIL;
-}
-
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
