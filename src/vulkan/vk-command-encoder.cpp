@@ -949,25 +949,6 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
 
 void RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 {
-#if 0
-    FramebufferImpl* framebufferImpl = static_cast<FramebufferImpl*>(framebuffer);
-    if (!framebuffer)
-        framebufferImpl = this->m_device->m_emptyFramebuffer;
-    RenderPassLayoutImpl* renderPassImpl = static_cast<RenderPassLayoutImpl*>(renderPass);
-    VkClearValue clearValues[kMaxTargets] = {};
-    VkRenderPassBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    beginInfo.framebuffer = framebufferImpl->m_handle;
-    beginInfo.renderPass = renderPassImpl->m_renderPass;
-    uint32_t targetCount = (uint32_t)framebufferImpl->renderTargetViews.size();
-    if (framebufferImpl->depthStencilView)
-        targetCount++;
-    beginInfo.clearValueCount = targetCount;
-    beginInfo.renderArea.extent.width = framebufferImpl->m_width;
-    beginInfo.renderArea.extent.height = framebufferImpl->m_height;
-    beginInfo.pClearValues = framebufferImpl->m_clearValues;
-    api.vkCmdBeginRenderPass(m_vkCommandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
-#endif
     auto& api = *m_api;
 
     m_renderTargetViews.resize(desc.colorAttachmentCount);
