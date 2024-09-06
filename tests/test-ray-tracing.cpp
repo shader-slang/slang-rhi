@@ -117,6 +117,7 @@ struct BaseRayTracingTest
         resultTextureDesc.size.height = height;
         resultTextureDesc.size.depth = 1;
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
+        resultTextureDesc.allowedStates = {ResourceState::UnorderedAccess, ResourceState::CopySource};
         resultTextureDesc.format = Format::R32G32B32A32_FLOAT;
         resultTexture = device->createTexture(resultTextureDesc);
         IResourceView::Desc resultUAVDesc = {};

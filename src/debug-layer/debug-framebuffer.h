@@ -4,15 +4,6 @@
 
 namespace rhi::debug {
 
-class DebugFramebuffer : public DebugObject<IFramebuffer>
-{
-public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL;
-
-public:
-    IFramebuffer* getInterface(const Guid& guid);
-};
-
 class DebugFramebufferLayout : public DebugObject<IFramebufferLayout>
 {
 public:

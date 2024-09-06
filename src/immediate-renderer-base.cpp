@@ -1,7 +1,6 @@
 #include "immediate-renderer-base.h"
 #include "command-encoder-com-forward.h"
 #include "command-writer.h"
-#include "simple-render-pass-layout.h"
 #include "simple-transient-resource-heap.h"
 
 #include "core/common.h"
@@ -273,40 +272,13 @@ public:
         }
 
     public:
-        virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
-
-        void init(CommandBufferImpl* cmdBuffer, SimpleRenderPassLayout* renderPass, IFramebuffer* framebuffer)
+        void init(CommandBufferImpl* cmdBuffer, const RenderPassDesc& desc)
         {
             CommandEncoderImpl::init(cmdBuffer);
-
-            // Encode clear commands.
-            m_writer->setFramebuffer(framebuffer);
-            uint32_t clearMask = 0;
-            for (Index i = 0; i < renderPass->m_renderTargetAccesses.size(); i++)
-            {
-                auto& access = renderPass->m_renderTargetAccesses[i];
-                // Clear.
-                if (access.loadOp == IRenderPassLayout::TargetLoadOp::Clear)
-                {
-                    clearMask |= (1 << (uint32_t)i);
-                }
-            }
-            bool clearDepth = false;
-            bool clearStencil = false;
-            if (renderPass->m_hasDepthStencil)
-            {
-                // Clear.
-                if (renderPass->m_depthStencilAccess.loadOp == IRenderPassLayout::TargetLoadOp::Clear)
-                {
-                    clearDepth = true;
-                }
-                if (renderPass->m_depthStencilAccess.stencilLoadOp == IRenderPassLayout::TargetLoadOp::Clear)
-                {
-                    clearStencil = true;
-                }
-            }
-            m_writer->clearFrame(clearMask, clearDepth, clearStencil);
+            m_writer->beginRenderPass(desc);
         }
+
+        virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override { m_writer->endRenderPass(); }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
         {
@@ -462,13 +434,10 @@ public:
     };
 
     RenderCommandEncoderImpl m_renderCommandEncoder;
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRenderCommands(
-        IRenderPassLayout* renderPass,
-        IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder
-    ) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) override
     {
-        m_renderCommandEncoder.init(this, static_cast<SimpleRenderPassLayout*>(renderPass), framebuffer);
+        m_renderCommandEncoder.init(this, desc);
         *outEncoder = &m_renderCommandEncoder;
         return SLANG_OK;
     }
@@ -563,11 +532,11 @@ public:
             case CommandName::BindRootShaderObject:
                 m_renderer->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));
                 break;
-            case CommandName::SetFramebuffer:
-                m_renderer->setFramebuffer(m_writer.getObject<FramebufferBase>(cmd.operands[0]));
+            case CommandName::BeginRenderPass:
+                m_renderer->beginRenderPass(*m_writer.getData<RenderPassDesc>(cmd.operands[0]));
                 break;
-            case CommandName::ClearFrame:
-                m_renderer->clearFrame(cmd.operands[0], (cmd.operands[1] != 0), (cmd.operands[2] != 0));
+            case CommandName::EndRenderPass:
+                m_renderer->endRenderPass();
                 break;
             case CommandName::SetViewports:
                 m_renderer->setViewports((UInt)cmd.operands[0], m_writer.getData<Viewport>(cmd.operands[1]));
@@ -741,17 +710,6 @@ ImmediateRendererBase::createCommandQueue(const ICommandQueue::Desc& desc, IComm
         return SLANG_FAIL;
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
-    return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL ImmediateRendererBase::createRenderPassLayout(
-    const IRenderPassLayout::Desc& desc,
-    IRenderPassLayout** outRenderPassLayout
-)
-{
-    RefPtr<SimpleRenderPassLayout> renderPass = new SimpleRenderPassLayout();
-    renderPass->init(desc);
-    returnComPtr(outRenderPassLayout, renderPass);
     return SLANG_OK;
 }
 

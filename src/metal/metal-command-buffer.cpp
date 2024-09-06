@@ -27,14 +27,10 @@ Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEn
     return SLANG_OK;
 }
 
-Result CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass,
-    IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder
-)
+Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
     m_renderCommandEncoder.init(this);
-    m_renderCommandEncoder.beginPass(renderPass, framebuffer);
+    m_renderCommandEncoder.beginPass(desc);
     *outEncoder = &m_renderCommandEncoder;
     return SLANG_OK;
 }

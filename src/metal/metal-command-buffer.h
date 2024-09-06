@@ -44,7 +44,7 @@ public:
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL encodeRenderCommands(
-        IRenderPassLayout* renderPass,
+        const RenderPassDesc& desc,
         IFramebuffer* framebuffer,
         IRenderCommandEncoder** outEncoder
     ) override;

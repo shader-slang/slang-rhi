@@ -2,6 +2,7 @@
 
 #include "d3d11-framebuffer.h"
 #include "d3d11-pipeline.h"
+#include "d3d11-resource-views.h"
 
 namespace rhi::d3d11 {
 
@@ -12,14 +13,12 @@ public:
 
     // Renderer    implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
-    virtual void clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override;
-    virtual void setFramebuffer(IFramebuffer* frameBuffer) override;
+    virtual void beginRenderPass(const RenderPassDesc& desc) override;
+    virtual void endRenderPass() override;
     virtual void setStencilReference(uint32_t referenceValue) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -116,7 +115,13 @@ public:
     ComPtr<ID3D11DeviceContext> m_immediateContext;
     ComPtr<ID3D11Texture2D> m_backBufferTexture;
     ComPtr<IDXGIFactory> m_dxgiFactory;
-    RefPtr<FramebufferImpl> m_currentFramebuffer;
+
+    short_vector<ID3D11RenderTargetView*, kMaxRenderTargetCount> m_d3dRenderTargetViews;
+    ID3D11DepthStencilView* m_d3dDepthStencilView;
+
+    RefPtr<RenderTargetViewImpl> m_currentColorAttachments[kMaxRenderTargetCount];
+    GfxCount m_currentColorAttachmentCount = 0;
+    RefPtr<RenderTargetViewImpl> m_currentDepthStencilAttachment;
 
     RefPtr<PipelineImpl> m_currentPipeline;
 

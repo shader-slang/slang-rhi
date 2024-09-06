@@ -1,3 +1,4 @@
+#if 0
 #include "vk-render-pass.h"
 #include "vk-helper-functions.h"
 
@@ -79,3 +80,4 @@ Result RenderPassLayoutImpl::init(DeviceImpl* renderer, const IRenderPassLayout:
 }
 
 } // namespace rhi::vk
+#endif

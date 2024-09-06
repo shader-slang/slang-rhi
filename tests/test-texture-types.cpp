@@ -210,6 +210,9 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 
             auto bufferElementCount = width * height * depth;
             encoder->dispatchCompute(bufferElementCount, 1, 1);
+
+            encoder->textureBarrier(texture, texture->getDesc()->defaultState, ResourceState::CopySource);
+
             encoder->endEncoding();
             commandBuffer->close();
             queue->executeCommandBuffer(commandBuffer);
@@ -341,10 +344,9 @@ struct RenderTargetTests : BaseTextureViewTest
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipeline> pipeline;
-    ComPtr<IRenderPassLayout> renderPass;
-    ComPtr<IFramebuffer> framebuffer;
 
     ComPtr<ITexture> sampledTexture;
+    ComPtr<IResourceView> sampledTextureView;
     ComPtr<IBuffer> vertexBuffer;
 
     void createRequiredResources()
@@ -429,30 +431,12 @@ struct RenderTargetTests : BaseTextureViewTest
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
-        IRenderPassLayout::Desc renderPassDesc = {};
-        renderPassDesc.framebufferLayout = framebufferLayout;
-        renderPassDesc.renderTargetCount = 1;
-        IRenderPassLayout::TargetAccessDesc renderTargetAccess = {};
-        renderTargetAccess.loadOp = IRenderPassLayout::TargetLoadOp::Clear;
-        renderTargetAccess.storeOp = IRenderPassLayout::TargetStoreOp::Store;
-        renderTargetAccess.initialState = getDefaultResourceStateForViewType(viewType);
-        renderTargetAccess.finalState = ResourceState::ResolveSource;
-        renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
-
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = textureInfo->format;
         colorBufferViewDesc.renderTarget.shape = textureInfo->textureType; // TODO: TextureCube?
         colorBufferViewDesc.type = viewType;
-        auto rtv = device->createTextureView(sampledTexture, colorBufferViewDesc);
-
-        IFramebuffer::Desc framebufferDesc;
-        framebufferDesc.renderTargetCount = 1;
-        framebufferDesc.depthStencilView = nullptr;
-        framebufferDesc.renderTargetViews = rtv.readRef();
-        framebufferDesc.layout = framebufferLayout;
-        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createTextureView(sampledTexture, colorBufferViewDesc, sampledTextureView.writeRef()));
 
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
@@ -466,11 +450,20 @@ struct RenderTargetTests : BaseTextureViewTest
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
+
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
+        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
+        renderPass.colorAttachments[0].initialState = getDefaultResourceStateForViewType(viewType);
+        renderPass.colorAttachments[0].finalState = ResourceState::ResolveSource;
+        renderPass.colorAttachments[0].view = sampledTextureView;
+        renderPass.colorAttachmentCount = 1;
+
+        auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass);
         auto rootObject = renderEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
-        viewport.maxZ = (float)textureInfo->extents.depth;
+        // viewport.maxZ = (float)textureInfo->extents.depth;
         viewport.extentX = (float)textureInfo->extents.width;
         viewport.extentY = (float)textureInfo->extents.height;
         renderEncoder->setViewportAndScissor(viewport);
@@ -628,7 +621,7 @@ void testShaderAndUnordered(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testRrenderTarget(GpuTestContext* ctx, DeviceType deviceType)
+void testRenderTarget(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
@@ -661,7 +654,7 @@ TEST_CASE("texture-types-shader-and-unordered")
 TEST_CASE("texture-types-render-target")
 {
     runGpuTests(
-        testRrenderTarget,
+        testRenderTarget,
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,

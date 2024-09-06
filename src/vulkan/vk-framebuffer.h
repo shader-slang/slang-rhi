@@ -16,6 +16,8 @@ enum
 class FramebufferLayoutImpl : public FramebufferLayoutBase
 {
 public:
+    FramebufferLayoutDesc m_desc;
+
     VkRenderPass m_renderPass;
     DeviceImpl* m_renderer;
     static_vector<VkAttachmentDescription, kMaxTargets> m_targetDescs;
@@ -30,6 +32,7 @@ public:
     Result init(DeviceImpl* renderer, const FramebufferLayoutDesc& desc);
 };
 
+#if 0
 class FramebufferImpl : public FramebufferBase
 {
 public:
@@ -47,5 +50,6 @@ public:
 
     Result init(DeviceImpl* renderer, const IFramebuffer::Desc& desc);
 };
+#endif
 
 } // namespace rhi::vk

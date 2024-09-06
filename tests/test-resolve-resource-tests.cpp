@@ -56,12 +56,11 @@ struct BaseResolveResourceTest
     IDevice* device;
 
     ComPtr<ITexture> msaaTexture;
+    ComPtr<IResourceView> msaaTextureView;
     ComPtr<ITexture> dstTexture;
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipeline> pipeline;
-    ComPtr<IRenderPassLayout> renderPass;
-    ComPtr<IFramebuffer> framebuffer;
 
     ComPtr<IBuffer> vertexBuffer;
 
@@ -149,30 +148,12 @@ struct BaseResolveResourceTest
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
-        IRenderPassLayout::Desc renderPassDesc = {};
-        renderPassDesc.framebufferLayout = framebufferLayout;
-        renderPassDesc.renderTargetCount = 1;
-        IRenderPassLayout::TargetAccessDesc renderTargetAccess = {};
-        renderTargetAccess.loadOp = IRenderPassLayout::TargetLoadOp::Clear;
-        renderTargetAccess.storeOp = IRenderPassLayout::TargetStoreOp::Store;
-        renderTargetAccess.initialState = ResourceState::RenderTarget;
-        renderTargetAccess.finalState = ResourceState::ResolveSource;
-        renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
-
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
         colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
         colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
-        auto rtv = device->createTextureView(msaaTexture, colorBufferViewDesc);
-
-        IFramebuffer::Desc framebufferDesc;
-        framebufferDesc.renderTargetCount = 1;
-        framebufferDesc.depthStencilView = nullptr;
-        framebufferDesc.renderTargetViews = rtv.readRef();
-        framebufferDesc.layout = framebufferLayout;
-        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createTextureView(msaaTexture, colorBufferViewDesc, msaaTextureView.writeRef()));
     }
 
     void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
@@ -186,7 +167,16 @@ struct BaseResolveResourceTest
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
+
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments[0].loadOp = TargetLoadOp::Clear;
+        renderPass.colorAttachments[0].storeOp = TargetStoreOp::Store;
+        renderPass.colorAttachments[0].initialState = ResourceState::RenderTarget;
+        renderPass.colorAttachments[0].finalState = ResourceState::ResolveSource;
+        renderPass.colorAttachments[0].view = msaaTextureView;
+        renderPass.colorAttachmentCount = 1;
+
+        auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass);
         auto rootObject = renderEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};

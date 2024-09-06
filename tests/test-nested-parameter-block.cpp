@@ -82,12 +82,21 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         materialObject.writeRef()
     ));
 
+    ShaderCursor materialCursor(materialObject);
+    materialCursor["cb"].setData(uint4{1000, 1000, 1000, 1000});
+    materialCursor["data"].setResource(srvs[2]);
+
     ComPtr<IShaderObject> sceneObject;
     REQUIRE_CALL(device->createMutableShaderObject(
         slangReflection->findTypeByName("Scene"),
         ShaderObjectContainerType::None,
         sceneObject.writeRef()
     ));
+
+    ShaderCursor sceneCursor(sceneObject);
+    sceneCursor["sceneCb"].setData(uint4{100, 100, 100, 100});
+    sceneCursor["data"].setResource(srvs[1]);
+    sceneCursor["material"].setObject(materialObject);
 
     ShaderCursor cursor(shaderObject);
     cursor["resultBuffer"].setResource(resultBufferView);
@@ -103,15 +112,6 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     cursor[0].setObject(globalCB);
     auto initialData = uint4{20, 20, 20, 20};
     globalCB->setData(ShaderOffset(), &initialData, sizeof(initialData));
-
-    ShaderCursor sceneCursor(sceneObject);
-    sceneCursor["sceneCb"].setData(uint4{100, 100, 100, 100});
-    sceneCursor["data"].setResource(srvs[1]);
-    sceneCursor["material"].setObject(materialObject);
-
-    ShaderCursor materialCursor(materialObject);
-    materialCursor["cb"].setData(uint4{1000, 1000, 1000, 1000});
-    materialCursor["data"].setResource(srvs[2]);
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.

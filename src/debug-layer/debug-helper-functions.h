@@ -8,7 +8,6 @@
 #include "debug-framebuffer.h"
 #include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-render-pass.h"
 #include "debug-resource-views.h"
 #include "debug-sampler.h"
 #include "debug-shader-object.h"
@@ -161,10 +160,8 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputeCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RenderCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ResourceCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RayTracingCommandEncoder)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(Framebuffer)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(FramebufferLayout)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(InputLayout)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(RenderPassLayout)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Pipeline)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ResourceView)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Sampler)

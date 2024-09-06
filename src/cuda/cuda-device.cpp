@@ -1076,22 +1076,6 @@ DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebuf
     return SLANG_FAIL;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(outFramebuffer);
-    return SLANG_FAIL;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(outRenderPassLayout);
-    return SLANG_FAIL;
-}
-
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);

@@ -68,6 +68,35 @@ void cleanupTestTempDirectories()
     remove_all(gTestTempDirectory);
 }
 
+class DebugCallback : public IDebugCallback
+{
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    {
+        switch (type)
+        {
+        case DebugMessageType::Info:
+        {
+            INFO("Validation info: ", doctest::String(message));
+            break;
+        }
+        case DebugMessageType::Warning:
+        {
+            MESSAGE("Validation warning: ", doctest::String(message));
+            break;
+        }
+        case DebugMessageType::Error:
+        {
+            FAIL("Validation error: ", doctest::String(message));
+            break;
+        }
+        }
+    }
+};
+
+static DebugCallback sDebugCallback;
+
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
 {
     if (diagnosticsBlob != nullptr)
@@ -296,7 +325,9 @@ void compareComputeResultFuzzy(const float* result, float* expectedResult, size_
 {
     for (size_t i = 0; i < expectedBufferSize / sizeof(float); ++i)
     {
-        CHECK_LE(abs(result[i] - expectedResult[i]), 0.01);
+        CHECK_LE(result[i], expectedResult[i] + 0.01f);
+        CHECK_GE(result[i], expectedResult[i] - 0.01f);
+        // CHECK_LE(abs(result[i] - expectedResult[i]), 0.01);
     }
 }
 
@@ -367,6 +398,7 @@ ComPtr<IDevice> createTestingDevice(
     // here and render-test-main.cpp)
 #ifdef _DEBUG
     rhiEnableDebugLayer();
+    rhiSetDebugCallback(&sDebugCallback);
 #endif
 
     REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));

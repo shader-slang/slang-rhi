@@ -1296,20 +1296,6 @@ struct Viewport
     float maxZ = 1.0f;
 };
 
-class IFramebuffer : public ISlangUnknown
-{
-    SLANG_COM_INTERFACE(0x19ed79f3, 0xcea8, 0x4a3d, {0xae, 0xf5, 0x03, 0xa7, 0xe4, 0xda, 0xc6, 0x11});
-
-public:
-    struct Desc
-    {
-        GfxCount renderTargetCount;
-        IResourceView* const* renderTargetViews;
-        IResourceView* depthStencilView;
-        IFramebufferLayout* layout;
-    };
-};
-
 struct WindowHandle
 {
     enum class Type
@@ -1354,38 +1340,47 @@ struct FaceMask
     };
 };
 
-class IRenderPassLayout : public ISlangUnknown
+enum class TargetLoadOp
 {
-    SLANG_COM_INTERFACE(0x923d7ba6, 0xee84, 0x434f, {0x91, 0x85, 0x67, 0xda, 0x6f, 0x93, 0x9c, 0x58});
+    Load,
+    Clear,
+    DontCare
+};
 
-public:
-    enum class TargetLoadOp
-    {
-        Load,
-        Clear,
-        DontCare
-    };
-    enum class TargetStoreOp
-    {
-        Store,
-        DontCare
-    };
-    struct TargetAccessDesc
-    {
-        TargetLoadOp loadOp;
-        TargetLoadOp stencilLoadOp;
-        TargetStoreOp storeOp;
-        TargetStoreOp stencilStoreOp;
-        ResourceState initialState;
-        ResourceState finalState;
-    };
-    struct Desc
-    {
-        IFramebufferLayout* framebufferLayout = nullptr;
-        GfxCount renderTargetCount;
-        TargetAccessDesc* renderTargetAccess = nullptr;
-        TargetAccessDesc* depthStencilAccess = nullptr;
-    };
+enum class TargetStoreOp
+{
+    Store,
+    DontCare
+};
+
+struct RenderAttachmentDesc
+{
+    float clearValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    TargetLoadOp loadOp = TargetLoadOp::DontCare;
+    TargetStoreOp storeOp = TargetStoreOp::Store;
+    IResourceView* view = nullptr;
+    ResourceState initialState;
+    ResourceState finalState;
+};
+
+struct DepthStencilAttachmentDesc
+{
+    float depthClearValue = 1.f;
+    TargetLoadOp depthLoadOp = TargetLoadOp::DontCare;
+    TargetStoreOp depthStoreOp = TargetStoreOp::Store;
+    uint8_t stencilClearValue = 0;
+    TargetLoadOp stencilLoadOp = TargetLoadOp::DontCare;
+    TargetStoreOp stencilStoreOp = TargetStoreOp::DontCare;
+    IResourceView* view = nullptr;
+    ResourceState initialState;
+    ResourceState finalState;
+};
+
+struct RenderPassDesc
+{
+    RenderAttachmentDesc colorAttachments[kMaxRenderTargetCount];
+    GfxCount colorAttachmentCount = 0;
+    DepthStencilAttachmentDesc depthStencilAttachment;
 };
 
 enum class QueryType
@@ -1754,16 +1749,13 @@ public:
         return encoder;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRenderCommands(
-        IRenderPassLayout* renderPass,
-        IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder
-    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) = 0;
 
-    inline IRenderCommandEncoder* encodeRenderCommands(IRenderPassLayout* renderPass, IFramebuffer* framebuffer)
+    inline IRenderCommandEncoder* encodeRenderCommands(const RenderPassDesc& desc)
     {
         IRenderCommandEncoder* encoder;
-        SLANG_RETURN_NULL_ON_FAIL(encodeRenderCommands(renderPass, framebuffer, &encoder));
+        SLANG_RETURN_NULL_ON_FAIL(encodeRenderCommands(desc, &encoder));
         return encoder;
     }
 
@@ -2257,24 +2249,6 @@ public:
         ComPtr<IFramebufferLayout> fb;
         SLANG_RETURN_NULL_ON_FAIL(createFramebufferLayout(desc, fb.writeRef()));
         return fb;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFrameBuffer) = 0;
-    inline ComPtr<IFramebuffer> createFramebuffer(IFramebuffer::Desc const& desc)
-    {
-        ComPtr<IFramebuffer> fb;
-        SLANG_RETURN_NULL_ON_FAIL(createFramebuffer(desc, fb.writeRef()));
-        return fb;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) = 0;
-    inline ComPtr<IRenderPassLayout> createRenderPassLayout(const IRenderPassLayout::Desc& desc)
-    {
-        ComPtr<IRenderPassLayout> rs;
-        SLANG_RETURN_NULL_ON_FAIL(createRenderPassLayout(desc, rs.writeRef()));
-        return rs;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

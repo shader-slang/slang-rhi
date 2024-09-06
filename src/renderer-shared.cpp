@@ -18,7 +18,6 @@ const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
 const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
-const Guid GUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
 const Guid GUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
@@ -30,7 +29,6 @@ const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
-const Guid GUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
 const Guid GUID::IID_ICommandEncoder = ICommandEncoder::getTypeGuid();
 const Guid GUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
 const Guid GUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
@@ -214,13 +212,6 @@ IFramebufferLayout* FramebufferLayoutBase::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebufferLayout)
         return static_cast<IFramebufferLayout*>(this);
-    return nullptr;
-}
-
-IFramebuffer* FramebufferBase::getInterface(const Guid& guid)
-{
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebuffer)
-        return static_cast<IFramebuffer*>(this);
     return nullptr;
 }
 

@@ -13,19 +13,4 @@ public:
     FramebufferLayoutDesc m_desc;
 };
 
-class FramebufferImpl : public FramebufferBase
-{
-public:
-    short_vector<RefPtr<ResourceViewImpl>> renderTargetViews;
-    RefPtr<ResourceViewImpl> depthStencilView;
-    short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
-    struct Color4f
-    {
-        float values[4];
-    };
-    short_vector<Color4f> renderTargetClearValues;
-    D3D12_CPU_DESCRIPTOR_HANDLE depthStencilDescriptor;
-    DepthStencilClearValue depthStencilClearValue;
-};
-
 } // namespace rhi::d3d12

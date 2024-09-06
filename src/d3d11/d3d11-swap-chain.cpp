@@ -40,7 +40,6 @@ void SwapchainImpl::createSwapchainBufferImages()
 
 SLANG_NO_THROW Result SLANG_MCALL SwapchainImpl::resize(GfxCount width, GfxCount height)
 {
-    m_renderer->m_currentFramebuffer = nullptr;
     m_renderer->m_immediateContext->ClearState();
     return D3DSwapchainBase::resize(width, height);
 }

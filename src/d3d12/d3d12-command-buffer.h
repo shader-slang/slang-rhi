@@ -61,11 +61,8 @@ public:
 
     RenderCommandEncoderImpl m_renderCommandEncoder;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRenderCommands(
-        IRenderPassLayout* renderPass,
-        IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) override;
 
     ComputeCommandEncoderImpl m_computeCommandEncoder;
 

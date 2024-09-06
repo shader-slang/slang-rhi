@@ -27,10 +27,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;

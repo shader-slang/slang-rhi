@@ -4,7 +4,6 @@
 #include "vk-fence.h"
 #include "vk-helper-functions.h"
 #include "vk-query.h"
-#include "vk-render-pass.h"
 #include "vk-resource-views.h"
 #include "vk-sampler.h"
 #include "vk-shader-object-layout.h"
@@ -52,8 +51,6 @@ DeviceImpl::~DeviceImpl()
     m_deviceQueue.destroy();
 
     descriptorSetAllocator.close();
-
-    m_emptyFramebuffer = nullptr;
 
     if (m_device != VK_NULL_HANDLE)
     {
@@ -521,11 +518,24 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         extendedFeatures.rayTracingValidationFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.rayTracingValidationFeatures;
 
+        // dynamic rendering features
+        extendedFeatures.dynamicRenderingFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingFeatures;
+
+        extendedFeatures.formats4444Features.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.formats4444Features;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
             deviceFeatures2.pNext = &extendedFeatures.vulkan12Features;
         }
+
+        // if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
+        // {
+        //     extendedFeatures.vulkan13Features.pNext = deviceFeatures2.pNext;
+        //     deviceFeatures2.pNext = &extendedFeatures.vulkan13Features;
+        // }
 
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
 
@@ -582,6 +592,20 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
                 m_features.push_back(p);                                                                               \
     }                                                                                                                  \
     while (0)
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.dynamicRenderingFeatures,
+            dynamicRendering,
+            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+            "dynamic-rendering"
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.formats4444Features,
+            formatA4R4G4B4,
+            VK_EXT_4444_FORMATS_EXTENSION_NAME,
+            "b4g4r4a4-format"
+        );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.storage16BitFeatures,
@@ -1047,18 +1071,6 @@ Result DeviceImpl::initialize(const Desc& desc)
         SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
     }
 
-    // Create empty frame buffer.
-    {
-        ComPtr<IFramebufferLayout> layout;
-        SLANG_RETURN_ON_FAIL(createFramebufferLayout({}, layout.writeRef()));
-        IFramebuffer::Desc desc = {};
-        desc.layout = layout;
-        ComPtr<IFramebuffer> framebuffer;
-        SLANG_RETURN_ON_FAIL(createFramebuffer(desc, framebuffer.writeRef()));
-        m_emptyFramebuffer = static_cast<FramebufferImpl*>(framebuffer.get());
-        m_emptyFramebuffer->m_renderer.breakStrongReference();
-    }
-
     return SLANG_OK;
 }
 
@@ -1117,23 +1129,8 @@ Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IF
 {
     RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->init(this, desc));
+    layout->m_desc = desc;
     returnComPtr(outLayout, layout);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    RefPtr<RenderPassLayoutImpl> result = new RenderPassLayoutImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, desc));
-    returnComPtr(outRenderPassLayout, result);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    RefPtr<FramebufferImpl> fb = new FramebufferImpl();
-    SLANG_RETURN_ON_FAIL(fb->init(this, desc));
-    returnComPtr(outFramebuffer, fb);
     return SLANG_OK;
 }
 

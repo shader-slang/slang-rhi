@@ -103,7 +103,7 @@ Result FramebufferLayoutImpl::init(DeviceImpl* renderer, const FramebufferLayout
     );
     return SLANG_OK;
 }
-
+#if 0
 FramebufferImpl::~FramebufferImpl()
 {
     m_renderer->m_api.vkDestroyFramebuffer(m_renderer->m_api.m_device, m_handle, nullptr);
@@ -200,5 +200,5 @@ Result FramebufferImpl::init(DeviceImpl* renderer, const IFramebuffer::Desc& des
     );
     return SLANG_OK;
 }
-
+#endif
 } // namespace rhi::vk

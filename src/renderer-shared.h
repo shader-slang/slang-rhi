@@ -36,7 +36,6 @@ struct GUID
     static const Guid IID_IPersistentShaderCache;
     static const Guid IID_IShaderObjectLayout;
     static const Guid IID_IShaderObject;
-    static const Guid IID_IRenderPassLayout;
     static const Guid IID_ICommandEncoder;
     static const Guid IID_IRenderCommandEncoder;
     static const Guid IID_IComputeCommandEncoder;
@@ -824,13 +823,6 @@ class FramebufferLayoutBase : public IFramebufferLayout, public ComObject
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IFramebufferLayout* getInterface(const Guid& guid);
-};
-
-class FramebufferBase : public IFramebuffer, public ComObject
-{
-public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IFramebuffer* getInterface(const Guid& guid);
 };
 
 class QueryPoolBase : public IQueryPool, public ComObject

@@ -25,7 +25,6 @@ class PlainBufferViewImpl;
 class AccelerationStructureImpl;
 class FramebufferLayoutImpl;
 class RenderPassLayoutImpl;
-class FramebufferImpl;
 class PipelineImpl;
 class RayTracingPipelineImpl;
 class ShaderObjectLayoutImpl;

@@ -22,14 +22,10 @@ SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeResourceCommands(IRes
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass,
-    IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder
-)
+SLANG_NO_THROW Result SLANG_MCALL
+CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
-    SLANG_UNUSED(renderPass);
-    SLANG_UNUSED(framebuffer);
+    SLANG_UNUSED(desc);
     *outEncoder = nullptr;
     return SLANG_E_NOT_AVAILABLE;
 }

@@ -158,26 +158,6 @@ Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IF
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<RenderPassLayoutImpl> renderPassLayoutImpl = new RenderPassLayoutImpl;
-    SLANG_RETURN_ON_FAIL(renderPassLayoutImpl->init(this, desc));
-    returnComPtr(outRenderPassLayout, renderPassLayoutImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<FramebufferImpl> framebufferImpl = new FramebufferImpl;
-    SLANG_RETURN_ON_FAIL(framebufferImpl->init(this, desc));
-    returnComPtr(outFramebuffer, framebufferImpl);
-    return SLANG_OK;
-}
-
 Result DeviceImpl::readTexture(
     ITexture* texture,
     ResourceState state,

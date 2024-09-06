@@ -329,35 +329,6 @@ Result DeviceImpl::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-void DeviceImpl::clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil)
-{
-    uint32_t mask = 1;
-    for (auto rtv : m_currentFramebuffer->renderTargetViews)
-    {
-        if (colorBufferMask & mask)
-            m_immediateContext->ClearRenderTargetView(rtv->m_rtv, rtv->m_clearValue);
-        mask <<= 1;
-    }
-
-    if (m_currentFramebuffer->depthStencilView)
-    {
-        UINT clearFlags = 0;
-        if (clearDepth)
-            clearFlags = D3D11_CLEAR_DEPTH;
-        if (clearStencil)
-            clearFlags |= D3D11_CLEAR_STENCIL;
-        if (clearFlags)
-        {
-            m_immediateContext->ClearDepthStencilView(
-                m_currentFramebuffer->depthStencilView->m_dsv,
-                clearFlags,
-                m_currentFramebuffer->depthStencilView->m_clearValue.depth,
-                m_currentFramebuffer->depthStencilView->m_clearValue.stencil
-            );
-        }
-    }
-}
-
 Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
 {
     RefPtr<SwapchainImpl> swapchain = new SwapchainImpl();
@@ -374,23 +345,7 @@ Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IF
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    RefPtr<FramebufferImpl> framebuffer = new FramebufferImpl();
-    framebuffer->renderTargetViews.resize(desc.renderTargetCount);
-    framebuffer->d3dRenderTargetViews.resize(desc.renderTargetCount);
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        framebuffer->renderTargetViews[i] = static_cast<RenderTargetViewImpl*>(desc.renderTargetViews[i]);
-        framebuffer->d3dRenderTargetViews[i] = framebuffer->renderTargetViews[i]->m_rtv;
-    }
-    framebuffer->depthStencilView = static_cast<DepthStencilViewImpl*>(desc.depthStencilView);
-    framebuffer->d3dDepthStencilView = framebuffer->depthStencilView ? framebuffer->depthStencilView->m_dsv : nullptr;
-    returnComPtr(outFramebuffer, framebuffer);
-    return SLANG_OK;
-}
-
-void DeviceImpl::setFramebuffer(IFramebuffer* frameBuffer)
+void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
 {
     // Note: the framebuffer state will be flushed to the pipeline as part
     // of binding the root shader object.
@@ -399,7 +354,56 @@ void DeviceImpl::setFramebuffer(IFramebuffer* frameBuffer)
     // call `OMSetRenderTargetsAndUnorderedAccessViews` later with the option
     // that preserves the existing RTV/DSV bindings.
     //
-    m_currentFramebuffer = static_cast<FramebufferImpl*>(frameBuffer);
+    m_d3dRenderTargetViews.resize(desc.colorAttachmentCount);
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        m_d3dRenderTargetViews[i] = static_cast<RenderTargetViewImpl*>(desc.colorAttachments[i].view)->m_rtv;
+    }
+    m_d3dDepthStencilView = desc.depthStencilAttachment.view
+                                ? static_cast<DepthStencilViewImpl*>(desc.depthStencilAttachment.view)->m_dsv
+                                : nullptr;
+
+    // Clear color attachments.
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        const auto& attachment = desc.colorAttachments[i];
+        if (attachment.loadOp == TargetLoadOp::Clear)
+        {
+            m_immediateContext->ClearRenderTargetView(
+                static_cast<RenderTargetViewImpl*>(attachment.view)->m_rtv,
+                attachment.clearValue
+            );
+        }
+    }
+    // Clear depth/stencil attachment.
+    if (desc.depthStencilAttachment.view)
+    {
+        const auto& attachment = desc.depthStencilAttachment;
+        UINT clearFlags = 0;
+        if (attachment.depthLoadOp == TargetLoadOp::Clear)
+        {
+            clearFlags |= D3D11_CLEAR_DEPTH;
+        }
+        if (attachment.stencilLoadOp == TargetLoadOp::Clear)
+        {
+            clearFlags |= D3D11_CLEAR_STENCIL;
+        }
+        if (clearFlags)
+        {
+            m_immediateContext->ClearDepthStencilView(
+                static_cast<DepthStencilViewImpl*>(attachment.view)->m_dsv,
+                D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                attachment.depthClearValue,
+                attachment.stencilClearValue
+            );
+        }
+    }
+}
+
+void DeviceImpl::endRenderPass()
+{
+    m_d3dRenderTargetViews.clear();
+    m_d3dDepthStencilView = nullptr;
 }
 
 void DeviceImpl::setStencilReference(uint32_t referenceValue)
@@ -1515,7 +1519,7 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
         // RTVs are bound as part of the active framebuffer, and then adjust
         // the UAVs that we bind accordingly.
         //
-        auto rtvCount = (UINT)m_currentFramebuffer->renderTargetViews.size();
+        auto rtvCount = (UINT)m_d3dRenderTargetViews.size();
         //
         // The `context` we are using will have computed the number of UAV registers
         // that might need to be bound, as a range from 0 to `context.uavCount`.
@@ -1543,8 +1547,8 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
         //
         m_immediateContext->OMSetRenderTargetsAndUnorderedAccessViews(
             rtvCount,
-            m_currentFramebuffer->d3dRenderTargetViews.data(),
-            m_currentFramebuffer->d3dDepthStencilView,
+            m_d3dRenderTargetViews.data(),
+            m_d3dDepthStencilView,
             rtvCount,
             bindableUAVCount,
             bindableUAVs,

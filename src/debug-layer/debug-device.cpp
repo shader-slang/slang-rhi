@@ -6,7 +6,6 @@
 #include "debug-helper-functions.h"
 #include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-render-pass.h"
 #include "debug-resource-views.h"
 #include "debug-sampler.h"
 #include "debug-shader-object.h"
@@ -249,43 +248,6 @@ Result DebugDevice::createFramebufferLayout(FramebufferLayoutDesc const& desc, I
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outFrameBuffer, outObject);
-    return result;
-}
-
-Result DebugDevice::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFrameBuffer)
-{
-    SLANG_RHI_API_FUNC;
-
-    auto innerDesc = desc;
-    innerDesc.layout = getInnerObj(desc.layout);
-    innerDesc.depthStencilView = getInnerObj(desc.depthStencilView);
-    std::vector<IResourceView*> innerRenderTargets;
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        auto innerRenderTarget = getInnerObj(desc.renderTargetViews[i]);
-        innerRenderTargets.push_back(innerRenderTarget);
-    }
-    innerDesc.renderTargetViews = innerRenderTargets.data();
-
-    RefPtr<DebugFramebuffer> outObject = new DebugFramebuffer();
-    auto result = baseObject->createFramebuffer(innerDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outFrameBuffer, outObject);
-    return result;
-}
-
-Result DebugDevice::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    SLANG_RHI_API_FUNC;
-
-    auto innerDesc = desc;
-    innerDesc.framebufferLayout = getInnerObj(desc.framebufferLayout);
-    RefPtr<DebugRenderPassLayout> outObject = new DebugRenderPassLayout();
-    auto result = baseObject->createRenderPassLayout(innerDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outRenderPassLayout, outObject);
     return result;
 }
 

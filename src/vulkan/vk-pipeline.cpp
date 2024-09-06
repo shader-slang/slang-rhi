@@ -237,7 +237,21 @@ Result PipelineImpl::createVKGraphicsPipeline()
     depthStencilStateInfo.depthWriteEnable = desc.graphics.depthStencil.depthWriteEnable ? 1 : 0;
     depthStencilStateInfo.stencilTestEnable = desc.graphics.depthStencil.stencilEnable ? 1 : 0;
 
+    VkPipelineRenderingCreateInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
+    static_vector<VkFormat, kMaxRenderTargetCount> colorAttachmentFormats;
+    for (GfxIndex i = 0; i < framebufferLayoutImpl->m_desc.renderTargetCount; ++i)
+    {
+        colorAttachmentFormats.push_back(VulkanUtil::getVkFormat(framebufferLayoutImpl->m_desc.renderTargets[i].format)
+        );
+    }
+    renderingInfo.colorAttachmentCount = colorAttachmentFormats.size();
+    renderingInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
+    renderingInfo.depthAttachmentFormat = VulkanUtil::getVkFormat(framebufferLayoutImpl->m_desc.depthStencil.format);
+    // TODO we should probably only set this when this is actually a stencil format
+    renderingInfo.stencilAttachmentFormat = VulkanUtil::getVkFormat(framebufferLayoutImpl->m_desc.depthStencil.format);
+
     VkGraphicsPipelineCreateInfo pipelineInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    pipelineInfo.pNext = &renderingInfo;
 
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
@@ -256,7 +270,6 @@ Result PipelineImpl::createVKGraphicsPipeline()
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDepthStencilState = &depthStencilStateInfo;
     pipelineInfo.layout = programImpl->m_rootObjectLayout->m_pipelineLayout;
-    pipelineInfo.renderPass = framebufferLayoutImpl->m_renderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.pDynamicState = &dynamicStateInfo;
