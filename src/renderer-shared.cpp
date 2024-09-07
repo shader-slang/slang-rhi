@@ -525,7 +525,7 @@ Result RendererBase::createMutableRootShaderObject(IShaderProgram* program, ISha
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createFence(const IFence::Desc& desc, IFence** outFence)
+Result RendererBase::createFence(const FenceDesc& desc, IFence** outFence)
 {
     SLANG_UNUSED(desc);
     *outFence = nullptr;

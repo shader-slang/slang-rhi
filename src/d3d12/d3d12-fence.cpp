@@ -17,13 +17,17 @@ HANDLE FenceImpl::getWaitEvent()
     return m_waitEvent;
 }
 
-Result FenceImpl::init(DeviceImpl* device, const IFence::Desc& desc)
+Result FenceImpl::init(DeviceImpl* device, const FenceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(device->m_device->CreateFence(
         desc.initialValue,
         desc.isShared ? D3D12_FENCE_FLAG_SHARED : D3D12_FENCE_FLAG_NONE,
         IID_PPV_ARGS(m_fence.writeRef())
     ));
+    if (desc.label)
+    {
+        m_fence->SetName(string::to_wstring(desc.label).c_str());
+    }
     return SLANG_OK;
 }
 

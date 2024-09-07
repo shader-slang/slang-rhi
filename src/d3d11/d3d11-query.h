@@ -12,7 +12,7 @@ public:
     RefPtr<DeviceImpl> m_device;
     D3D11_QUERY_DESC m_queryDesc;
 
-    Result init(const IQueryPool::Desc& desc, DeviceImpl* device);
+    Result init(const QueryPoolDesc& desc, DeviceImpl* device);
     ID3D11Query* getQuery(SlangInt index);
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) override;
 };

@@ -706,6 +706,8 @@ struct SamplerDesc
     float borderColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float minLOD = -FLT_MAX;
     float maxLOD = FLT_MAX;
+
+    const char* label = nullptr;
 };
 
 class ISampler : public ISlangUnknown
@@ -922,17 +924,19 @@ public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
 };
 
+struct FenceDesc
+{
+    uint64_t initialValue = 0;
+    bool isShared = false;
+
+    const char* label = nullptr;
+};
+
 class IFence : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x9daf743c, 0xbc69, 0x4887, {0x80, 0x8b, 0xe6, 0xcf, 0x1f, 0x9e, 0x48, 0xa0});
 
 public:
-    struct Desc
-    {
-        uint64_t initialValue = 0;
-        bool isShared = false;
-    };
-
     /// Returns the currently signaled value on the device.
     virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentValue(uint64_t* outValue) = 0;
 
@@ -1380,16 +1384,17 @@ enum class QueryType
     AccelerationStructureCurrentSize,
 };
 
+struct QueryPoolDesc
+{
+    QueryType type;
+    GfxCount count;
+
+    const char* label = nullptr;
+};
+
 class IQueryPool : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xe4b585e4, 0x9da9, 0x479b, {0x89, 0x5c, 0x48, 0x78, 0x8e, 0xf2, 0x33, 0x65});
-
-public:
-    struct Desc
-    {
-        QueryType type;
-        GfxCount count;
-    };
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) = 0;
@@ -2379,7 +2384,7 @@ public:
     /// Get the type of this renderer
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructurePrebuildInfo(
         const IAccelerationStructure::BuildInputs& buildInputs,
@@ -2389,7 +2394,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createAccelerationStructure(const IAccelerationStructure::CreateDesc& desc, IAccelerationStructure** outView) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const IFence::Desc& desc, IFence** outFence) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) = 0;
 
     /// Wait on the host for the fences to signals.
     /// `timeout` is in nanoseconds, can be set to `kTimeoutInfinite`.

@@ -904,7 +904,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferView(
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
     SLANG_RETURN_ON_FAIL(pool->init(desc));

@@ -9,7 +9,7 @@ class DebugQueryPool : public DebugObject<IQueryPool>
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
-    IQueryPool::Desc desc;
+    QueryPoolDesc desc;
 
 public:
     IQueryPool* getInterface(const Guid& guid);

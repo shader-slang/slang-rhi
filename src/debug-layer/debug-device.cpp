@@ -493,7 +493,7 @@ const DeviceInfo& DebugDevice::getDeviceInfo() const
     return baseObject->getDeviceInfo();
 }
 
-Result DebugDevice::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
+Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     SLANG_RHI_API_FUNC;
     RefPtr<DebugQueryPool> result = new DebugQueryPool();
@@ -503,7 +503,7 @@ Result DebugDevice::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** o
     return SLANG_OK;
 }
 
-Result DebugDevice::createFence(const IFence::Desc& desc, IFence** outFence)
+Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 {
     SLANG_RHI_API_FUNC;
     RefPtr<DebugFence> result = new DebugFence();

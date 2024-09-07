@@ -4,7 +4,7 @@
 
 namespace rhi::d3d12 {
 
-Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
+Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
 {
     m_desc = desc;
 
@@ -25,6 +25,11 @@ Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
     // Create query heap.
     auto d3dDevice = device->m_device;
     SLANG_RETURN_ON_FAIL(d3dDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(m_queryHeap.writeRef())));
+
+    if (desc.label)
+    {
+        m_queryHeap->SetName(string::to_wstring(desc.label).c_str());
+    }
 
     // Create readback buffer.
     D3D12_HEAP_PROPERTIES heapProps;
@@ -111,7 +116,7 @@ IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-Result PlainBufferProxyQueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device, uint32_t stride)
+Result PlainBufferProxyQueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device, uint32_t stride)
 {
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};

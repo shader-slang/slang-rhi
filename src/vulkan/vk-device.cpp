@@ -1386,6 +1386,18 @@ void DeviceImpl::_transitionImageLayout(
     _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
+void DeviceImpl::_labelObject(uint64_t object, VkDebugReportObjectTypeEXT objectType, const char* label)
+{
+    if (label && m_api.vkDebugMarkerSetObjectNameEXT)
+    {
+        VkDebugMarkerObjectNameInfoEXT nameDesc = {VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT};
+        nameDesc.object = object;
+        nameDesc.objectType = objectType;
+        nameDesc.pObjectName = label;
+        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
+    }
+}
+
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
 {
     TextureDesc desc = fixupTextureDesc(descIn);
@@ -1589,15 +1601,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
 
-    if (desc.label && m_api.vkDebugMarkerSetObjectNameEXT)
-    {
-        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
-        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-        nameDesc.object = (uint64_t)texture->m_image;
-        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
-        nameDesc.pObjectName = desc.label;
-        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
-    }
+    _labelObject((uint64_t)texture->m_image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, desc.label);
 
     VKBufferHandleRAII uploadBuffer;
     if (initData)
@@ -1924,15 +1928,7 @@ Result DeviceImpl::createBufferImpl(
         SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
     }
 
-    if (desc.label && m_api.vkDebugMarkerSetObjectNameEXT)
-    {
-        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
-        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-        nameDesc.object = (uint64_t)buffer->m_buffer.m_buffer;
-        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT;
-        nameDesc.pObjectName = desc.label;
-        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
-    }
+    _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, desc.label);
 
     if (initData)
     {
@@ -2025,6 +2021,8 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 
     VkSampler sampler;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &sampler));
+
+    _labelObject((uint64_t)sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, desc.label);
 
     RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this);
     samplerImpl->m_sampler = sampler;
@@ -2483,7 +2481,7 @@ Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
+Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     RefPtr<QueryPoolImpl> result = new QueryPoolImpl();
     SLANG_RETURN_ON_FAIL(result->init(desc, this));
@@ -2491,7 +2489,7 @@ Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** ou
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFence(const IFence::Desc& desc, IFence** outFence)
+Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
     RefPtr<FenceImpl> fence = new FenceImpl(this);
     SLANG_RETURN_ON_FAIL(fence->init(desc));

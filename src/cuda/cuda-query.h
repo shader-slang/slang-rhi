@@ -13,7 +13,7 @@ public:
     /// The event that marks the starting point.
     CUevent m_startEvent;
 
-    Result init(const IQueryPool::Desc& desc);
+    Result init(const QueryPoolDesc& desc);
 
     ~QueryPoolImpl();
 

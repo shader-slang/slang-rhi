@@ -5,7 +5,7 @@ namespace rhi::metal {
 
 FenceImpl::~FenceImpl() {}
 
-Result FenceImpl::init(DeviceImpl* device, const IFence::Desc& desc)
+Result FenceImpl::init(DeviceImpl* device, const FenceDesc& desc)
 {
     m_device = device;
     m_event = NS::TransferPtr(m_device->m_device->newSharedEvent());

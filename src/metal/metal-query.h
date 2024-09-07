@@ -13,7 +13,7 @@ public:
 
     ~QueryPoolImpl();
 
-    Result init(DeviceImpl* device, const IQueryPool::Desc& desc);
+    Result init(DeviceImpl* device, const QueryPoolDesc& desc);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex index, GfxCount count, uint64_t* data) override;
 };

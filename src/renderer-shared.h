@@ -824,7 +824,7 @@ public:
     IQueryPool* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
 
-    IQueryPool::Desc m_desc;
+    QueryPoolDesc m_desc;
 };
 
 enum class PipelineType
@@ -1148,7 +1148,7 @@ public:
     createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const IFence::Desc& desc, IFence** outFence) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL

@@ -107,9 +107,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const IFence::Desc& desc, IFence** outFence) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

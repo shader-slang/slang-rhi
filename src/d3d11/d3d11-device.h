@@ -34,8 +34,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,

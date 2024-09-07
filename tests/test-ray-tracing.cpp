@@ -193,7 +193,7 @@ struct BaseRayTracingTest
 
             // Build acceleration structure.
             ComPtr<IQueryPool> compactedSizeQuery;
-            IQueryPool::Desc queryPoolDesc;
+            QueryPoolDesc queryPoolDesc;
             queryPoolDesc.count = 1;
             queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
             REQUIRE_CALL(device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));

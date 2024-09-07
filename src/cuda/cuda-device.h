@@ -54,8 +54,7 @@ public:
     createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
         override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
