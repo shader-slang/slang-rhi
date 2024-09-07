@@ -32,7 +32,7 @@ Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
     samplerDesc->setLodMaxClamp(std::clamp(desc.maxLOD, samplerDesc->lodMinClamp(), 1000.f));
 
     samplerDesc->setSupportArgumentBuffers(true);
-    samplerDesc->setLabel(MetalUtil::createString(desc.label));
+    samplerDesc->setLabel(MetalUtil::createString(desc.label).get());
 
     // TODO: no support for reduction op
 
