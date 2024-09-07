@@ -17,20 +17,16 @@ Result loadSharedLibrary(const char* path, SharedLibraryHandle& handleOut)
 {
 #if SLANG_WINDOWS_FAMILY
     handleOut = LoadLibraryA(path);
+#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
+    handleOut = dlopen(path, RTLD_LAZY);
+#else
+    SLANG_RHI_ASSERT_FAILURE("Not implemented");
+#endif
     if (!handleOut)
     {
         return SLANG_FAIL;
     }
     return SLANG_OK;
-#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
-    handleOut = dlopen(path, RTLD_LAZY);
-    if (!handleOut)
-    {
-        return SLANG_FAIL;
-    }
-#else
-    SLANG_RHI_ASSERT_FAILURE("Not implemented");
-#endif
 }
 
 void unloadSharedLibrary(SharedLibraryHandle handle)
