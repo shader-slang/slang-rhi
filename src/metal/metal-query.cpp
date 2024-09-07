@@ -1,4 +1,5 @@
 #include "metal-query.h"
+#include "metal-util.h"
 
 namespace rhi::metal {
 
