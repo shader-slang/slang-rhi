@@ -1937,7 +1937,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
     }
 }
 
-Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outState)
+Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outState)
 {
     switch (desc.type)
     {

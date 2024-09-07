@@ -2,7 +2,7 @@
 
 namespace rhi::cpu {
 
-Result QueryPoolImpl::init(const IQueryPool::Desc& desc)
+Result QueryPoolImpl::init(const QueryPoolDesc& desc)
 {
     m_queries.resize(desc.count);
     return SLANG_OK;

@@ -50,8 +50,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
     virtual void writeTimestamp(IQueryPool* pool, GfxIndex index) override;
 

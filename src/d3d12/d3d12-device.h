@@ -155,7 +155,7 @@ public:
     createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outState) override;
+    createQueryPool(const QueryPoolDesc& desc, IQueryPool** outState) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 

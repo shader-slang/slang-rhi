@@ -4,7 +4,7 @@
 
 namespace rhi::d3d11 {
 
-Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
+Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
 {
     m_device = device;
     m_queryDesc.MiscFlags = 0;

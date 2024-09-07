@@ -415,7 +415,9 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     textureImpl->m_pixelFormat = textureDesc->pixelFormat();
 
     if (desc.label)
+    {
         textureImpl->m_texture->setLabel(MetalUtil::createString(desc.label).get());
+    }
 
     // TODO: handle initData
     if (initData)
@@ -758,7 +760,7 @@ Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, 
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
+Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     AUTORELEASEPOOL
 

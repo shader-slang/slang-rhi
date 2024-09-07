@@ -178,7 +178,7 @@ DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** o
     return Result();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
     pool->init(desc);

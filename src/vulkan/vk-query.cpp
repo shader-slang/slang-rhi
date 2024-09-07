@@ -3,7 +3,7 @@
 
 namespace rhi::vk {
 
-Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
+Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
 {
     m_device = device;
     m_pool = VK_NULL_HANDLE;
@@ -28,6 +28,9 @@ Result QueryPoolImpl::init(const IQueryPool::Desc& desc, DeviceImpl* device)
         return SLANG_E_INVALID_ARG;
     }
     SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkCreateQueryPool(m_device->m_api.m_device, &createInfo, nullptr, &m_pool));
+
+    m_device->_labelObject((uint64_t)m_pool, VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT, desc.label);
+
     return SLANG_OK;
 }
 

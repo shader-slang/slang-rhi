@@ -28,7 +28,7 @@ static MTL::CounterSet* findCounterSet(MTL::Device* device, QueryType queryType)
     return nullptr;
 }
 
-Result QueryPoolImpl::init(DeviceImpl* device, const IQueryPool::Desc& desc)
+Result QueryPoolImpl::init(DeviceImpl* device, const QueryPoolDesc& desc)
 {
     m_device = device;
     m_desc = desc;
@@ -44,6 +44,10 @@ Result QueryPoolImpl::init(DeviceImpl* device, const IQueryPool::Desc& desc)
     counterSampleBufferDesc->setStorageMode(MTL::StorageModeShared);
     counterSampleBufferDesc->setSampleCount(m_desc.count);
     counterSampleBufferDesc->setCounterSet(counterSet);
+    if (m_desc.label)
+    {
+        counterSampleBufferDesc->setLabel(MetalUtil::createString(m_desc.label).get());
+    }
 
     m_device->m_device->counterSets();
 

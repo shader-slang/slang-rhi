@@ -2,7 +2,7 @@
 
 namespace rhi::cuda {
 
-Result QueryPoolImpl::init(const IQueryPool::Desc& desc)
+Result QueryPoolImpl::init(const QueryPoolDesc& desc)
 {
     cuEventCreate(&m_startEvent, 0);
     cuEventRecord(m_startEvent, 0);

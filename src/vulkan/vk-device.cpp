@@ -2481,7 +2481,7 @@ Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
+Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     RefPtr<QueryPoolImpl> result = new QueryPoolImpl();
     SLANG_RETURN_ON_FAIL(result->init(desc, this));

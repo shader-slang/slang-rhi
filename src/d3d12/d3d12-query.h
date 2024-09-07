@@ -9,7 +9,7 @@ namespace rhi::d3d12 {
 class QueryPoolImpl : public QueryPoolBase
 {
 public:
-    Result init(const IQueryPool::Desc& desc, DeviceImpl* device);
+    Result init(const QueryPoolDesc& desc, DeviceImpl* device);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) override;
 
@@ -37,7 +37,7 @@ public:
     IQueryPool* getInterface(const Guid& guid);
 
 public:
-    Result init(const IQueryPool::Desc& desc, DeviceImpl* device, uint32_t stride);
+    Result init(const QueryPoolDesc& desc, DeviceImpl* device, uint32_t stride);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) override;

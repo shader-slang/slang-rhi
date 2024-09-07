@@ -493,7 +493,7 @@ const DeviceInfo& DebugDevice::getDeviceInfo() const
     return baseObject->getDeviceInfo();
 }
 
-Result DebugDevice::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool)
+Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     SLANG_RHI_API_FUNC;
     RefPtr<DebugQueryPool> result = new DebugQueryPool();
