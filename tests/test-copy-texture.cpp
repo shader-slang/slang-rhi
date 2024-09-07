@@ -110,12 +110,8 @@ struct BaseCopyTextureTest
         bufferDesc.size = bufferCopyExtents.height * bufferCopyExtents.depth * alignedRowStride;
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = 0;
-        bufferDesc.allowedStates = ResourceStateSet(
-            ResourceState::ShaderResource,
-            ResourceState::UnorderedAccess,
-            ResourceState::CopyDestination,
-            ResourceState::CopySource
-        );
+        bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                           BufferUsage::CopySource;
         bufferDesc.defaultState = ResourceState::CopyDestination;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 

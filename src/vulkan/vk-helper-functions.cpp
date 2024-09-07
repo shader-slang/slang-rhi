@@ -264,6 +264,34 @@ VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceStateSet states)
     return VkBufferUsageFlagBits(dstFlags);
 }
 
+VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
+{
+    int flags = 0;
+    if (is_set(usage, BufferUsage::VertexBuffer))
+        flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::IndexBuffer))
+        flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::ConstantBuffer))
+        flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::ShaderResource))
+        flags |= (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    if (is_set(usage, BufferUsage::UnorderedAccess))
+        flags |= (VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    if (is_set(usage, BufferUsage::IndirectArgument))
+        flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::CopySource))
+        flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, BufferUsage::CopyDestination))
+        flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (is_set(usage, BufferUsage::AccelerationStructure))
+        flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+    if (is_set(usage, BufferUsage::AccelerationStructureBuildInput))
+        flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    if (is_set(usage, BufferUsage::ShaderTable))
+        flags |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
+    return VkBufferUsageFlagBits(flags);
+}
+
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
 {
     switch (state)

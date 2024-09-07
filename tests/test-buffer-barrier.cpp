@@ -34,10 +34,9 @@ void createFloatBuffer(
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.defaultState = unorderedAccess ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
-    bufferDesc.allowedStates =
-        ResourceStateSet(ResourceState::ShaderResource, ResourceState::CopyDestination, ResourceState::CopySource);
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination | BufferUsage::CopySource;
     if (unorderedAccess)
-        bufferDesc.allowedStates.add(ResourceState::UnorderedAccess);
+        bufferDesc.usage |= BufferUsage::UnorderedAccess;
 
     REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, outBuffer.buffer.writeRef()));
 

@@ -100,12 +100,8 @@ ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
     bufferDesc.size = size * sizeof(T);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(T);
-    bufferDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 

@@ -157,6 +157,7 @@ VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access);
 
 VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceState state);
 VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceStateSet states);
+VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage);
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state);
 VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc);
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceStateSet states);

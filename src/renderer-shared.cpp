@@ -766,7 +766,7 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     {
         // Create structured buffer resource if it has not been created.
         BufferDesc desc = {};
-        desc.allowedStates = ResourceStateSet(ResourceState::ShaderResource, ResourceState::UnorderedAccess);
+        desc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
         desc.defaultState = ResourceState::ShaderResource;
         desc.elementSize = (int)elementLayout->getSize();
         desc.format = Format::Unknown;

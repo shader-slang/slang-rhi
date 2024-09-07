@@ -26,6 +26,18 @@
 #define SLANG_RHI_API
 #endif
 
+// clang-format off
+/// Implement logical operators on a class enum for making it usable as a flags enum.
+#define SLANG_RHI_ENUM_CLASS_OPERATORS(e_) \
+    inline e_ operator& (e_ a, e_ b) { return static_cast<e_>(static_cast<int>(a)& static_cast<int>(b)); } \
+    inline e_ operator| (e_ a, e_ b) { return static_cast<e_>(static_cast<int>(a)| static_cast<int>(b)); } \
+    inline e_& operator|= (e_& a, e_ b) { a = a | b; return a; }; \
+    inline e_& operator&= (e_& a, e_ b) { a = a & b; return a; }; \
+    inline e_  operator~ (e_ a) { return static_cast<e_>(~static_cast<int>(a)); } \
+    inline bool is_set(e_ val, e_ flag) { return (val & flag) != static_cast<e_>(0); } \
+    inline void flip_bit(e_& val, e_ flag) { val = is_set(val, flag) ? (val & (~flag)) : (val | flag); }
+// clang-format on
+
 // Needed for building on cygwin with gcc
 #undef Always
 #undef None
@@ -467,6 +479,23 @@ struct MemoryRange
     uint64_t size;
 };
 
+enum class BufferUsage
+{
+    None = 0,
+    VertexBuffer = 0x1,
+    IndexBuffer = 0x2,
+    ConstantBuffer = 0x4,
+    ShaderResource = 0x8,
+    UnorderedAccess = 0x10,
+    IndirectArgument = 0x20,
+    CopySource = 0x40,
+    CopyDestination = 0x80,
+    AccelerationStructure = 0x100,
+    AccelerationStructureBuildInput = 0x200,
+    ShaderTable = 0x400,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
+
 struct BufferDesc
 {
     /// Total size in bytes.
@@ -476,10 +505,12 @@ struct BufferDesc
     /// Format used for typed views.
     Format format = Format::Unknown;
 
+    BufferUsage usage = BufferUsage::None;
+
     MemoryType memoryType = MemoryType::DeviceLocal;
 
     ResourceState defaultState = ResourceState::Undefined;
-    ResourceStateSet allowedStates = ResourceStateSet();
+    // ResourceStateSet allowedStates = ResourceStateSet();
 
     bool isShared = false;
 

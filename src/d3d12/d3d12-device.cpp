@@ -1255,7 +1255,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     D3D12_RESOURCE_DESC bufferDesc;
     initBufferDesc(descIn.size, bufferDesc);
 
-    bufferDesc.Flags |= calcResourceFlags(srcDesc.allowedStates);
+    bufferDesc.Flags |= calcResourceFlags(srcDesc.usage);
 
     const D3D12_RESOURCE_STATES initialState = buffer->m_defaultState;
     SLANG_RETURN_ON_FAIL(createBuffer(

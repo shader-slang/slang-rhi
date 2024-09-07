@@ -5,7 +5,7 @@ namespace rhi {
 BufferDesc fixupBufferDesc(const BufferDesc& desc)
 {
     BufferDesc result = desc;
-    result.allowedStates.add(result.defaultState);
+    // result.allowedStates.add(result.defaultState);
     return result;
 }
 

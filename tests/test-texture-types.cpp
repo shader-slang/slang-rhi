@@ -150,9 +150,8 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             textureDesc.size.width * textureDesc.size.height * textureDesc.size.depth * texelSize * sizeof(uint32_t);
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = sizeof(uint32_t);
+        bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
-        bufferDesc.allowedStates =
-            ResourceStateSet(bufferDesc.defaultState, ResourceState::CopyDestination, ResourceState::CopySource);
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
         REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, resultsBuffer.writeRef()));
@@ -353,8 +352,8 @@ struct RenderTargetTests : BaseTextureViewTest
     {
         BufferDesc vertexBufferDesc;
         vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
+        vertexBufferDesc.usage = BufferUsage::VertexBuffer;
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-        vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         REQUIRE(vertexBuffer != nullptr);
 

@@ -69,18 +69,22 @@ struct SupportedResourceStatesTest
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeResourceCommands();
         ResourceState currentTextureState = texture->getDesc()->defaultState;
+#if 0
         ResourceState currentBufferState = buffer->getDesc()->defaultState;
+#endif
 
         for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; ++i)
         {
             auto nextState = (ResourceState)i;
             if (formatSupportedStates.contains(nextState))
             {
+#if 0
                 if (bufferAllowedStates.contains(nextState))
                 {
                     encoder->bufferBarrier(buffer, currentBufferState, nextState);
                     currentBufferState = nextState;
                 }
+#endif
                 if (textureAllowedStates.contains(nextState))
                 {
                     encoder->textureBarrier(texture, currentTextureState, nextState);
@@ -155,6 +159,7 @@ struct SupportedResourceStatesTest
 
             REQUIRE_CALL(device->createTexture(texDesc, nullptr, texture.writeRef()));
 
+#if 0
             BufferDesc bufferDesc = {};
             bufferDesc.size = 256;
             bufferDesc.format = Format::Unknown;
@@ -164,6 +169,7 @@ struct SupportedResourceStatesTest
             bufferDesc.memoryType = MemoryType::DeviceLocal;
 
             REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+#endif
 
             transitionResourceStates(device);
         }

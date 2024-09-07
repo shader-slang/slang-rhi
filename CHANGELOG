@@ -1,3 +1,4 @@
+- rename BufferDesc::allowedStates -> BufferDesc::usage and introduce BufferUsage enum
 - rename IQueryPool::Desc -> QueryPoolDesc, add label to QueryPoolDesc
 - rename IFence::Desc -> FenceDesc, add label to FenceDesc
 - implement dynamic rendering in Vulkan

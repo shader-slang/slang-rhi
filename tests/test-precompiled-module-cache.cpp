@@ -155,12 +155,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
     bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = gfx::Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
-    bufferDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 

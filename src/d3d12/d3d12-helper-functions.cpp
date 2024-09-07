@@ -61,6 +61,16 @@ D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states)
     return (D3D12_RESOURCE_FLAGS)dstFlags;
 }
 
+D3D12_RESOURCE_FLAGS calcResourceFlags(BufferUsage usage)
+{
+    int flags = D3D12_RESOURCE_FLAG_NONE;
+    if (is_set(usage, BufferUsage::UnorderedAccess))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    if (is_set(usage, BufferUsage::AccelerationStructure))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    return (D3D12_RESOURCE_FLAGS)flags;
+}
+
 D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type)
 {
     switch (type)

@@ -1869,28 +1869,18 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
 Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    return createBufferImpl(descIn, 0, initData, outBuffer);
-}
-
-Result DeviceImpl::createBufferImpl(
-    const BufferDesc& descIn,
-    VkBufferUsageFlags additionalUsageFlag,
-    const void* initData,
-    IBuffer** outBuffer
-)
-{
     BufferDesc desc = fixupBufferDesc(descIn);
 
     const Size bufferSize = desc.size;
 
     VkMemoryPropertyFlags reqMemoryProperties = 0;
 
-    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.allowedStates) | additionalUsageFlag;
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
     if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
     {
         usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     }
-    if (desc.allowedStates.contains(ResourceState::ShaderResource) &&
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
         m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
     {
         usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
@@ -1900,7 +1890,7 @@ Result DeviceImpl::createBufferImpl(
         usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     }
 
-    if (desc.allowedStates.contains(ResourceState::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
+    if (is_set(desc.usage, BufferUsage::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
         desc.memoryType == MemoryType::ReadBack)
     {
         reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;

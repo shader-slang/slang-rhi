@@ -244,6 +244,7 @@ bool isSupportedNVAPIOp(IUnknown* dev, uint32_t op);
 
 D3D11_BIND_FLAG calcResourceFlag(ResourceState state);
 int _calcResourceBindFlags(ResourceStateSet allowedStates);
+int _calcResourceBindFlags(BufferUsage usage);
 int _calcResourceAccessFlags(MemoryType memType);
 
 D3D11_FILTER_TYPE translateFilterMode(TextureFilteringMode mode);

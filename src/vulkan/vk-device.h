@@ -26,12 +26,6 @@ public:
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
-    SLANG_NO_THROW Result SLANG_MCALL createBufferImpl(
-        const BufferDesc& desc,
-        VkBufferUsageFlags additionalUsageFlag,
-        const void* initData,
-        IBuffer** outBuffer
-    );
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;

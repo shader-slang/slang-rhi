@@ -23,7 +23,7 @@ public:
     TDevice* m_device;
     MemoryType m_memoryType;
     uint32_t m_alignment;
-    ResourceStateSet m_allowedStates;
+    BufferUsage m_usage;
 
     std::vector<StagingBufferPage> m_pages;
     std::vector<RefPtr<TBuffer>> m_largeAllocations;
@@ -33,12 +33,12 @@ public:
 
     const size_t kStagingBufferDefaultPageSize = 16 * 1024 * 1024;
 
-    void init(TDevice* device, MemoryType memoryType, uint32_t alignment, ResourceStateSet allowedStates)
+    void init(TDevice* device, MemoryType memoryType, uint32_t alignment, BufferUsage usage)
     {
         m_device = device;
         m_memoryType = memoryType;
         m_alignment = alignment;
-        m_allowedStates = allowedStates;
+        m_usage = usage;
     }
 
     static size_t alignUp(size_t value, uint32_t alignment) { return (value + alignment - 1) / alignment * alignment; }
@@ -57,8 +57,8 @@ public:
 
         ComPtr<IBuffer> bufferPtr;
         BufferDesc bufferDesc;
+        bufferDesc.usage = m_usage;
         bufferDesc.defaultState = ResourceState::General;
-        bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
         bufferDesc.size = pageSize;
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
@@ -73,8 +73,8 @@ public:
     {
         ComPtr<IBuffer> bufferPtr;
         BufferDesc bufferDesc;
+        bufferDesc.usage = m_usage;
         bufferDesc.defaultState = ResourceState::General;
-        bufferDesc.allowedStates = m_allowedStates;
         bufferDesc.memoryType = m_memoryType;
         bufferDesc.size = size;
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
@@ -143,22 +143,14 @@ public:
             device,
             MemoryType::Upload,
             256,
-            ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopySource, ResourceState::CopyDestination)
+            BufferUsage::ConstantBuffer | BufferUsage::CopySource | BufferUsage::CopyDestination
         );
 
-        m_uploadBufferPool.init(
-            device,
-            MemoryType::Upload,
-            256,
-            ResourceStateSet(ResourceState::CopySource, ResourceState::CopyDestination)
-        );
+        m_uploadBufferPool
+            .init(device, MemoryType::Upload, 256, BufferUsage::CopySource | BufferUsage::CopyDestination);
 
-        m_readbackBufferPool.init(
-            device,
-            MemoryType::ReadBack,
-            256,
-            ResourceStateSet(ResourceState::CopySource, ResourceState::CopyDestination)
-        );
+        m_readbackBufferPool
+            .init(device, MemoryType::ReadBack, 256, BufferUsage::CopySource | BufferUsage::CopyDestination);
 
         m_version = getVersionCounter();
         getVersionCounter()++;

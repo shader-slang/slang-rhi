@@ -44,8 +44,8 @@ static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
     BufferDesc vertexBufferDesc;
     vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
+    vertexBufferDesc.usage = BufferUsage::VertexBuffer;
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-    vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
     ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
     REQUIRE(vertexBuffer != nullptr);
     return vertexBuffer;

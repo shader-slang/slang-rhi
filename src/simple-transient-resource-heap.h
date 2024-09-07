@@ -21,7 +21,7 @@ public:
     {
         m_device = device;
         BufferDesc bufferDesc = {};
-        bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
+        bufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.size = desc.constantBufferSize;
         bufferDesc.memoryType = MemoryType::Upload;

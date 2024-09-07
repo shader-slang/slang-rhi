@@ -58,6 +58,22 @@ int _calcResourceBindFlags(ResourceStateSet allowedStates)
     return dstFlags;
 }
 
+int _calcResourceBindFlags(BufferUsage usage)
+{
+    int flags = 0;
+    if (is_set(usage, BufferUsage::VertexBuffer))
+        flags |= D3D11_BIND_VERTEX_BUFFER;
+    if (is_set(usage, BufferUsage::IndexBuffer))
+        flags |= D3D11_BIND_INDEX_BUFFER;
+    if (is_set(usage, BufferUsage::ConstantBuffer))
+        flags |= D3D11_BIND_CONSTANT_BUFFER;
+    if (is_set(usage, BufferUsage::ShaderResource))
+        flags |= D3D11_BIND_SHADER_RESOURCE;
+    if (is_set(usage, BufferUsage::UnorderedAccess))
+        flags |= D3D11_BIND_UNORDERED_ACCESS;
+    return flags;
+}
+
 int _calcResourceAccessFlags(MemoryType memType)
 {
     switch (memType)

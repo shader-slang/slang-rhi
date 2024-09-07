@@ -51,8 +51,8 @@ static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
     BufferDesc vertexBufferDesc;
     vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
+    vertexBufferDesc.usage = BufferUsage::VertexBuffer;
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-    vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
     ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
     REQUIRE(vertexBuffer != nullptr);
     return vertexBuffer;
@@ -62,8 +62,8 @@ static ComPtr<IBuffer> createInstanceBuffer(IDevice* device)
 {
     BufferDesc instanceBufferDesc;
     instanceBufferDesc.size = kInstanceCount * sizeof(Instance);
+    instanceBufferDesc.usage = BufferUsage::VertexBuffer;
     instanceBufferDesc.defaultState = ResourceState::VertexBuffer;
-    instanceBufferDesc.allowedStates = ResourceState::VertexBuffer;
     ComPtr<IBuffer> instanceBuffer = device->createBuffer(instanceBufferDesc, &kInstanceData[0]);
     REQUIRE(instanceBuffer != nullptr);
     return instanceBuffer;
@@ -73,8 +73,8 @@ static ComPtr<IBuffer> createIndexBuffer(IDevice* device)
 {
     BufferDesc indexBufferDesc;
     indexBufferDesc.size = kIndexCount * sizeof(uint32_t);
+    indexBufferDesc.usage = BufferUsage::IndexBuffer;
     indexBufferDesc.defaultState = ResourceState::IndexBuffer;
-    indexBufferDesc.allowedStates = ResourceState::IndexBuffer;
     ComPtr<IBuffer> indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
     REQUIRE(indexBuffer != nullptr);
     return indexBuffer;
@@ -349,8 +349,8 @@ struct DrawIndirectTest : BaseDrawTest
 
         BufferDesc indirectBufferDesc;
         indirectBufferDesc.size = sizeof(IndirectArgData);
+        indirectBufferDesc.usage = BufferUsage::IndirectArgument;
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
-        indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
         ComPtr<IBuffer> indirectBuffer = device->createBuffer(indirectBufferDesc, &kIndirectData);
         REQUIRE(indirectBuffer != nullptr);
         return indirectBuffer;
@@ -433,8 +433,8 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 
         BufferDesc indirectBufferDesc;
         indirectBufferDesc.size = sizeof(IndexedIndirectArgData);
+        indirectBufferDesc.usage = BufferUsage::IndirectArgument;
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
-        indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
         ComPtr<IBuffer> indexBuffer = device->createBuffer(indirectBufferDesc, &kIndexedIndirectData);
         REQUIRE(indexBuffer != nullptr);
         return indexBuffer;
