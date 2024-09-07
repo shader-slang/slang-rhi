@@ -23,8 +23,7 @@ bool rhiCudaApiInit()
     };
 #elif SLANG_LINUX_FAMILY
     const char* cudaPaths[] = {
-        "/usr/lib/{x86_64-linux-gnu/libcuda.so",
-        "/usr/lib/aarch64-linux-gnu/libcuda.so",
+        "libcuda.so",
         nullptr,
     };
 #else
