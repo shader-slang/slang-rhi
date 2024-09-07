@@ -356,28 +356,42 @@ VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc)
     return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 }
 
-VkImageUsageFlagBits _calcImageUsageFlags(ResourceStateSet states)
+VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage)
 {
-    int dstFlags = 0;
-    for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; i++)
-    {
-        auto state = (ResourceState)i;
-        if (states.contains(state))
-            dstFlags |= _calcImageUsageFlags(state);
-    }
-    return VkImageUsageFlagBits(dstFlags);
+    int flags = 0;
+    if (is_set(usage, TextureUsage::ShaderResource))
+        flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (is_set(usage, TextureUsage::UnorderedAccess))
+        flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    if (is_set(usage, TextureUsage::RenderTarget))
+        flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::DepthRead))
+        flags |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::DepthWrite))
+        flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::Present))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::CopySource))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::CopyDestination))
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    if (is_set(usage, TextureUsage::ResolveSource))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::ResolveDestination))
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    return VkImageUsageFlagBits(flags);
 }
 
-VkImageUsageFlags _calcImageUsageFlags(ResourceStateSet states, MemoryType memoryType, const void* initData)
+VkImageUsageFlags _calcImageUsageFlags(TextureUsage usage, MemoryType memoryType, const void* initData)
 {
-    VkImageUsageFlags usage = _calcImageUsageFlags(states);
+    VkImageUsageFlags flags = _calcImageUsageFlags(usage);
 
     if (memoryType == MemoryType::Upload || initData)
     {
-        usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
-    return usage;
+    return flags;
 }
 
 VkAccessFlags calcAccessFlagsFromImageLayout(VkImageLayout layout)

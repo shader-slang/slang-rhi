@@ -73,13 +73,12 @@ struct BaseCopyTextureTest
         srcTexDesc.numMipLevels = srcTextureInfo->mipLevelCount;
         srcTexDesc.arraySize = srcTextureInfo->arrayLayerCount;
         srcTexDesc.size = srcTextureInfo->extents;
-        srcTexDesc.defaultState = ResourceState::ShaderResource;
-        srcTexDesc.allowedStates = ResourceStateSet(ResourceState::ShaderResource, ResourceState::CopySource);
+        srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
         if (srcTextureInfo->format == Format::D32_FLOAT || srcTextureInfo->format == Format::D16_UNORM)
         {
-            srcTexDesc.allowedStates.add(ResourceState::DepthWrite);
-            srcTexDesc.allowedStates.add(ResourceState::DepthRead);
+            srcTexDesc.usage |= (TextureUsage::DepthWrite | TextureUsage::DepthRead);
         }
+        srcTexDesc.defaultState = ResourceState::ShaderResource;
         srcTexDesc.format = srcTextureInfo->format;
 
         REQUIRE_CALL(device->createTexture(srcTexDesc, srcTextureInfo->subresourceDatas.data(), srcTexture.writeRef()));
@@ -89,14 +88,12 @@ struct BaseCopyTextureTest
         dstTexDesc.numMipLevels = dstTextureInfo->mipLevelCount;
         dstTexDesc.arraySize = dstTextureInfo->arrayLayerCount;
         dstTexDesc.size = dstTextureInfo->extents;
-        dstTexDesc.defaultState = ResourceState::CopyDestination;
-        dstTexDesc.allowedStates =
-            ResourceStateSet(ResourceState::ShaderResource, ResourceState::CopyDestination, ResourceState::CopySource);
+        dstTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;
         if (dstTextureInfo->format == Format::D32_FLOAT || dstTextureInfo->format == Format::D16_UNORM)
         {
-            dstTexDesc.allowedStates.add(ResourceState::DepthWrite);
-            dstTexDesc.allowedStates.add(ResourceState::DepthRead);
+            dstTexDesc.usage |= (TextureUsage::DepthWrite | TextureUsage::DepthRead);
         }
+        dstTexDesc.defaultState = ResourceState::CopyDestination;
         dstTexDesc.format = dstTextureInfo->format;
 
         REQUIRE_CALL(device->createTexture(dstTexDesc, dstTextureInfo->subresourceDatas.data(), dstTexture.writeRef()));

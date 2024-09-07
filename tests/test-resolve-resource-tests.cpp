@@ -91,8 +91,8 @@ struct BaseResolveResourceTest
         msaaTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         msaaTexDesc.arraySize = dstTextureInfo.arraySize;
         msaaTexDesc.size = dstTextureInfo.extent;
+        msaaTexDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource;
         msaaTexDesc.defaultState = ResourceState::RenderTarget;
-        msaaTexDesc.allowedStates = ResourceStateSet(ResourceState::RenderTarget, ResourceState::ResolveSource);
         msaaTexDesc.format = format;
         msaaTexDesc.sampleCount = 4;
 
@@ -103,8 +103,8 @@ struct BaseResolveResourceTest
         dstTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         dstTexDesc.arraySize = dstTextureInfo.arraySize;
         dstTexDesc.size = dstTextureInfo.extent;
+        dstTexDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
         dstTexDesc.defaultState = ResourceState::ResolveDestination;
-        dstTexDesc.allowedStates = ResourceStateSet(ResourceState::ResolveDestination, ResourceState::CopySource);
         dstTexDesc.format = format;
 
         REQUIRE_CALL(device->createTexture(dstTexDesc, dstTextureInfo.initData, dstTexture.writeRef()));

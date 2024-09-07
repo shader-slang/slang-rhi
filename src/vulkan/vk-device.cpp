@@ -1455,7 +1455,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     imageInfo.format = format;
 
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, nullptr);
+    imageInfo.usage = _calcImageUsageFlags(desc.usage, desc.memoryType, nullptr);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
@@ -1541,7 +1541,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     imageInfo.format = format;
 
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, initData);
+    imageInfo.usage = _calcImageUsageFlags(desc.usage, desc.memoryType, initData);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;

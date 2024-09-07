@@ -496,7 +496,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         return SLANG_FAIL;
     }
 
-    const int bindFlags = _calcResourceBindFlags(srcDesc.allowedStates);
+    const int bindFlags = _calcResourceBindFlags(srcDesc.usage);
 
     // Set up the initialize data
     std::vector<D3D11_SUBRESOURCE_DATA> subRes;

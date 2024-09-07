@@ -27,9 +27,8 @@ void SwapchainImpl::createSwapchainBufferImages()
     imageDesc.size.height = m_desc.height;
     imageDesc.size.depth = 1;
     imageDesc.format = m_desc.format;
+    imageDesc.usage = TextureUsage::Present | TextureUsage::CopyDestination | TextureUsage::RenderTarget;
     imageDesc.defaultState = ResourceState::Present;
-    imageDesc.allowedStates =
-        ResourceStateSet(ResourceState::Present, ResourceState::CopyDestination, ResourceState::RenderTarget);
     RefPtr<TextureImpl> image = new TextureImpl(imageDesc);
     image->m_resource = d3dResource;
     for (GfxIndex i = 0; i < m_desc.imageCount; i++)

@@ -160,8 +160,8 @@ VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceStateSet states);
 VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage);
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state);
 VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc);
-VkImageUsageFlagBits _calcImageUsageFlags(ResourceStateSet states);
-VkImageUsageFlags _calcImageUsageFlags(ResourceStateSet states, MemoryType memoryType, const void* initData);
+VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage);
+VkImageUsageFlags _calcImageUsageFlags(TextureUsage usage, MemoryType memoryType, const void* initData);
 
 VkAccessFlags calcAccessFlagsFromImageLayout(VkImageLayout layout);
 VkPipelineStageFlags calcPipelineStageFlagsFromImageLayout(VkImageLayout layout);

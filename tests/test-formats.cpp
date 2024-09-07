@@ -99,6 +99,7 @@ ComPtr<IResourceView> createTexView(IDevice* device, Extents size, Format format
     texDesc.numMipLevels = mips;
     texDesc.arraySize = 1;
     texDesc.size = size;
+    texDesc.usage = TextureUsage::ShaderResource;
     texDesc.defaultState = ResourceState::ShaderResource;
     texDesc.format = format;
 

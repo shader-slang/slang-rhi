@@ -14,7 +14,7 @@ TextureDesc fixupTextureDesc(const TextureDesc& desc)
     TextureDesc rs = desc;
     if (desc.numMipLevels == 0)
         rs.numMipLevels = calcNumMipLevels(desc.type, desc.size);
-    rs.allowedStates.add(rs.defaultState);
+    // rs.allowedStates.add(rs.defaultState);
     return rs;
 }
 

@@ -62,8 +62,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.size.depth = 1;
         textureDesc.numMipLevels = 2;
         textureDesc.memoryType = MemoryType::DeviceLocal;
+        textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination;
         textureDesc.defaultState = ResourceState::ShaderResource;
-        textureDesc.allowedStates.add(ResourceState::CopyDestination);
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
         SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
         REQUIRE_CALL(device->createTexture(textureDesc, subResourceData, texture.writeRef()));

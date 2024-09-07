@@ -74,6 +74,22 @@ int _calcResourceBindFlags(BufferUsage usage)
     return flags;
 }
 
+int _calcResourceBindFlags(TextureUsage usage)
+{
+    int flags = 0;
+    if (is_set(usage, TextureUsage::RenderTarget))
+        flags |= D3D11_BIND_RENDER_TARGET;
+    if (is_set(usage, TextureUsage::DepthRead))
+        flags |= D3D11_BIND_DEPTH_STENCIL;
+    if (is_set(usage, TextureUsage::DepthWrite))
+        flags |= D3D11_BIND_DEPTH_STENCIL;
+    if (is_set(usage, TextureUsage::ShaderResource))
+        flags |= D3D11_BIND_SHADER_RESOURCE;
+    if (is_set(usage, TextureUsage::UnorderedAccess))
+        flags |= D3D11_BIND_UNORDERED_ACCESS;
+    return flags;
+}
+
 int _calcResourceAccessFlags(MemoryType memType)
 {
     switch (memType)

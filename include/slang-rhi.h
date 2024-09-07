@@ -505,12 +505,10 @@ struct BufferDesc
     /// Format used for typed views.
     Format format = Format::Unknown;
 
-    BufferUsage usage = BufferUsage::None;
-
     MemoryType memoryType = MemoryType::DeviceLocal;
 
+    BufferUsage usage = BufferUsage::None;
     ResourceState defaultState = ResourceState::Undefined;
-    // ResourceStateSet allowedStates = ResourceStateSet();
 
     bool isShared = false;
 
@@ -552,6 +550,22 @@ struct BufferRange
     /// Size in bytes.
     Size size;
 };
+
+enum class TextureUsage
+{
+    None = 0x0,
+    ShaderResource = 0x1,
+    UnorderedAccess = 0x2,
+    RenderTarget = 0x4,
+    DepthRead = 0x8,
+    DepthWrite = 0x10,
+    Present = 0x20,
+    CopySource = 0x40,
+    CopyDestination = 0x80,
+    ResolveSource = 0x100,
+    ResolveDestination = 0x200,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 
 enum class TextureType
 {
@@ -656,9 +670,12 @@ struct Extents
 struct TextureDesc
 {
     TextureType type = TextureType::Texture2D;
-    ResourceState defaultState = ResourceState::Undefined;
-    ResourceStateSet allowedStates = ResourceStateSet();
+
     MemoryType memoryType = MemoryType::DeviceLocal;
+
+    TextureUsage usage = TextureUsage::None;
+    ResourceState defaultState = ResourceState::Undefined;
+    // ResourceStateSet allowedStates = ResourceStateSet();
     bool isShared = false;
 
     Extents size;

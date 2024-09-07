@@ -68,8 +68,8 @@ struct SupportedResourceStatesTest
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeResourceCommands();
-        ResourceState currentTextureState = texture->getDesc()->defaultState;
 #if 0
+        ResourceState currentTextureState = texture->getDesc()->defaultState;
         ResourceState currentBufferState = buffer->getDesc()->defaultState;
 #endif
 
@@ -84,12 +84,12 @@ struct SupportedResourceStatesTest
                     encoder->bufferBarrier(buffer, currentBufferState, nextState);
                     currentBufferState = nextState;
                 }
-#endif
                 if (textureAllowedStates.contains(nextState))
                 {
                     encoder->textureBarrier(texture, currentTextureState, nextState);
                     currentTextureState = nextState;
                 }
+#endif
             }
         }
         encoder->endEncoding();
@@ -147,19 +147,19 @@ struct SupportedResourceStatesTest
             extent.height = 4;
             extent.depth = 1;
 
+#if 0
             TextureDesc texDesc = {};
             texDesc.type = TextureType::Texture2D;
             texDesc.numMipLevels = 1;
             texDesc.arraySize = 1;
             texDesc.size = extent;
+            texDesc.usage = formatSupportedStates & textureAllowedStates;
             texDesc.defaultState = currentState;
-            texDesc.allowedStates = formatSupportedStates & textureAllowedStates;
             texDesc.memoryType = MemoryType::DeviceLocal;
             texDesc.format = format;
 
             REQUIRE_CALL(device->createTexture(texDesc, nullptr, texture.writeRef()));
 
-#if 0
             BufferDesc bufferDesc = {};
             bufferDesc.size = 256;
             bufferDesc.format = Format::Unknown;

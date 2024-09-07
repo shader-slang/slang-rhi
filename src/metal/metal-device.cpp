@@ -374,15 +374,15 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
 
     MTL::TextureUsage textureUsage = MTL::TextureUsageUnknown;
-    if (desc.allowedStates.contains(ResourceState::RenderTarget))
+    if (is_set(desc.usage, TextureUsage::RenderTarget))
     {
         textureUsage |= MTL::TextureUsageRenderTarget;
     }
-    if (desc.allowedStates.contains(ResourceState::ShaderResource))
+    if (is_set(desc.usage, TextureUsage::ShaderResource))
     {
         textureUsage |= MTL::TextureUsageShaderRead;
     }
-    if (desc.allowedStates.contains(ResourceState::UnorderedAccess))
+    if (is_set(desc.usage, TextureUsage::UnorderedAccess))
     {
         textureUsage |= MTL::TextureUsageShaderRead;
         textureUsage |= MTL::TextureUsageShaderWrite;

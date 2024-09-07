@@ -89,8 +89,8 @@ static ComPtr<ITexture> createColorBuffer(IDevice* device)
     colorBufferDesc.size.depth = 1;
     colorBufferDesc.numMipLevels = 1;
     colorBufferDesc.format = format;
+    colorBufferDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
     colorBufferDesc.defaultState = ResourceState::RenderTarget;
-    colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
     ComPtr<ITexture> colorBuffer = device->createTexture(colorBufferDesc, nullptr);
     REQUIRE(colorBuffer != nullptr);
     return colorBuffer;

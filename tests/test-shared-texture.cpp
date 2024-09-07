@@ -67,13 +67,9 @@ static ComPtr<ITexture> createTexture(IDevice* device, Extents extents, Format f
     texDesc.numMipLevels = 1;
     texDesc.arraySize = 1;
     texDesc.size = extents;
+    texDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination |
+                    TextureUsage::CopySource;
     texDesc.defaultState = ResourceState::UnorderedAccess;
-    texDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
     texDesc.format = format;
     texDesc.isShared = true;
 
