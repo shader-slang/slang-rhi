@@ -14,8 +14,8 @@ enum class CommandName
 {
     SetPipeline,
     BindRootShaderObject,
-    SetFramebuffer,
-    ClearFrame,
+    BeginRenderPass,
+    EndRenderPass,
     SetViewports,
     SetScissorRects,
     SetPrimitiveTopology,
@@ -39,6 +39,10 @@ struct Command
     CommandName name;
     uint32_t operands[kMaxCommandOperands];
     Command() = default;
+    Command(CommandName inName)
+        : name(inName)
+    {
+    }
     Command(CommandName inName, uint32_t op)
         : name(inName)
     {
@@ -162,17 +166,38 @@ public:
         ));
     }
 
-    void setFramebuffer(IFramebuffer* frameBuffer)
+    void beginRenderPass(const RenderPassDesc& desc)
     {
-        auto framebufferOffset = encodeObject(static_cast<FramebufferBase*>(frameBuffer));
-        m_commands.push_back(Command(CommandName::SetFramebuffer, (uint32_t)framebufferOffset));
+        Offset colorAttachmentsOffset =
+            encodeData(desc.colorAttachments, sizeof(RenderPassColorAttachment) * desc.colorAttachmentCount);
+        Offset depthStencilAttachmentOffset = encodeData(
+            desc.depthStencilAttachment,
+            desc.depthStencilAttachment ? sizeof(RenderPassDepthStencilAttachment) : 0
+        );
+        Offset viewsOffset = 0;
+        for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
+        {
+            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.colorAttachments[i].view));
+            if (i == 0)
+                viewsOffset = offset;
+        }
+        if (desc.depthStencilAttachment)
+        {
+            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.depthStencilAttachment->view));
+            if (desc.colorAttachmentCount == 0)
+                viewsOffset = offset;
+        }
+        m_commands.push_back(Command(
+            CommandName::BeginRenderPass,
+            (uint32_t)desc.colorAttachmentCount,
+            (uint32_t)(desc.depthStencilAttachment ? 1 : 0),
+            (uint32_t)colorAttachmentsOffset,
+            (uint32_t)depthStencilAttachmentOffset,
+            (uint32_t)viewsOffset
+        ));
     }
 
-    void clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil)
-    {
-        m_commands.push_back(Command(CommandName::ClearFrame, colorBufferMask, clearDepth ? 1 : 0, clearStencil ? 1 : 0)
-        );
-    }
+    void endRenderPass() { m_commands.push_back(Command(CommandName::EndRenderPass)); }
 
     void setViewports(GfxCount count, const Viewport* viewports)
     {

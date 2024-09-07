@@ -10,6 +10,7 @@
 #include "d3d12-texture.h"
 #include "d3d12-transient-heap.h"
 #include "d3d12-vertex-layout.h"
+#include "d3d12-resource-views.h"
 
 #include "core/short_vector.h"
 
@@ -787,14 +788,11 @@ void RenderCommandEncoderImpl::init(
     DeviceImpl* renderer,
     TransientResourceHeapImpl* transientHeap,
     CommandBufferImpl* cmdBuffer,
-    RenderPassLayoutImpl* renderPass,
-    FramebufferImpl* framebuffer
+    const RenderPassDesc& desc
 )
 {
     CommandEncoderImpl::init(cmdBuffer);
     m_preCmdList = nullptr;
-    m_renderPass = renderPass;
-    m_framebuffer = framebuffer;
     m_transientHeap = transientHeap;
     m_boundVertexBuffers.clear();
     m_boundIndexBuffer = nullptr;
@@ -804,95 +802,98 @@ void RenderCommandEncoderImpl::init(
     m_boundIndexOffset = 0;
     m_currentPipeline = nullptr;
 
-    // Set render target states.
-    if (!framebuffer)
+    m_renderTargetViews.resize(desc.colorAttachmentCount);
+    m_renderTargetFinalStates.resize(desc.colorAttachmentCount);
+    short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
+    for (Index i = 0; i < desc.colorAttachmentCount; i++)
     {
-        return;
+        m_renderTargetViews[i] = static_cast<ResourceViewImpl*>(desc.colorAttachments[i].view);
+        m_renderTargetFinalStates[i] = desc.colorAttachments[i].finalState;
+        renderTargetDescriptors.push_back(m_renderTargetViews[i]->m_descriptor.cpuHandle);
     }
+    if (desc.depthStencilAttachment)
+    {
+        m_depthStencilView = static_cast<ResourceViewImpl*>(desc.depthStencilAttachment->view);
+        m_depthStencilFinalState = desc.depthStencilAttachment->finalState;
+    }
+
     m_d3dCmdList->OMSetRenderTargets(
-        (UINT)framebuffer->renderTargetViews.size(),
-        framebuffer->renderTargetDescriptors.data(),
+        (UINT)m_renderTargetViews.size(),
+        renderTargetDescriptors.data(),
         FALSE,
-        framebuffer->depthStencilView ? &framebuffer->depthStencilDescriptor : nullptr
+        m_depthStencilView ? &m_depthStencilView->m_descriptor.cpuHandle : nullptr
     );
 
     // Issue clear commands based on render pass set up.
-    for (Index i = 0; i < framebuffer->renderTargetViews.size(); i++)
+    for (Index i = 0; i < m_renderTargetViews.size(); i++)
     {
-        if (i >= renderPass->m_renderTargetAccesses.size())
-            continue;
-
-        auto& access = renderPass->m_renderTargetAccesses[i];
+        const auto& attachment = desc.colorAttachments[i];
 
         // Transit resource states.
         {
             D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto resourceViewImpl = framebuffer->renderTargetViews[i].Ptr();
+            auto resourceViewImpl = m_renderTargetViews[i].get();
             if (resourceViewImpl)
             {
                 auto texture = static_cast<TextureImpl*>(resourceViewImpl->m_resource.Ptr());
                 if (texture)
                 {
                     D3D12_RESOURCE_STATES initialState;
-                    if (access.initialState == ResourceState::Undefined)
+                    if (attachment.initialState == ResourceState::Undefined)
                     {
                         initialState = texture->m_defaultState;
                     }
                     else
                     {
-                        initialState = D3DUtil::getResourceState(access.initialState);
+                        initialState = D3DUtil::getResourceState(attachment.initialState);
                     }
                     texture->m_resource.transition(initialState, D3D12_RESOURCE_STATE_RENDER_TARGET, submitter);
                 }
             }
         }
         // Clear.
-        if (access.loadOp == IRenderPassLayout::TargetLoadOp::Clear)
+        if (attachment.loadOp == LoadOp::Clear)
         {
-            m_d3dCmdList->ClearRenderTargetView(
-                framebuffer->renderTargetDescriptors[i],
-                framebuffer->renderTargetClearValues[i].values,
-                0,
-                nullptr
-            );
+            m_d3dCmdList->ClearRenderTargetView(renderTargetDescriptors[i], attachment.clearValue, 0, nullptr);
         }
     }
 
-    if (renderPass->m_hasDepthStencil)
+    if (desc.depthStencilAttachment)
     {
+        const auto& attachment = *desc.depthStencilAttachment;
+
         // Transit resource states.
         {
             D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto resourceViewImpl = framebuffer->depthStencilView.Ptr();
-            auto texture = static_cast<TextureImpl*>(resourceViewImpl->m_resource.Ptr());
+            auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_resource.get());
             D3D12_RESOURCE_STATES initialState;
-            if (renderPass->m_depthStencilAccess.initialState == ResourceState::Undefined)
+            if (attachment.initialState == ResourceState::Undefined)
             {
                 initialState = texture->m_defaultState;
             }
             else
             {
-                initialState = D3DUtil::getResourceState(renderPass->m_depthStencilAccess.initialState);
+                initialState = D3DUtil::getResourceState(attachment.initialState);
             }
             texture->m_resource.transition(initialState, D3D12_RESOURCE_STATE_DEPTH_WRITE, submitter);
         }
         // Clear.
         uint32_t clearFlags = 0;
-        if (renderPass->m_depthStencilAccess.loadOp == IRenderPassLayout::TargetLoadOp::Clear)
+        if (attachment.depthLoadOp == LoadOp::Clear)
         {
             clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
         }
-        if (renderPass->m_depthStencilAccess.stencilLoadOp == IRenderPassLayout::TargetLoadOp::Clear)
+        if (attachment.stencilLoadOp == LoadOp::Clear)
         {
             clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
         }
         if (clearFlags)
         {
             m_d3dCmdList->ClearDepthStencilView(
-                framebuffer->depthStencilDescriptor,
+                m_depthStencilView->m_descriptor.cpuHandle,
                 (D3D12_CLEAR_FLAGS)clearFlags,
-                framebuffer->depthStencilClearValue.depth,
-                framebuffer->depthStencilClearValue.stencil,
+                attachment.depthClearValue,
+                attachment.stencilClearValue,
                 0,
                 nullptr
             );
@@ -1056,45 +1057,44 @@ Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex start
 
 void RenderCommandEncoderImpl::endEncoding()
 {
-    CommandEncoderImpl::endEncodingImpl();
-    if (!m_framebuffer)
-        return;
     // Issue clear commands based on render pass set up.
-    for (Index i = 0; i < m_renderPass->m_renderTargetAccesses.size(); i++)
+    for (Index i = 0; i < m_renderTargetViews.size(); i++)
     {
-        auto& access = m_renderPass->m_renderTargetAccesses[i];
-
         // Transit resource states.
+        if (m_renderTargetViews[i])
         {
             D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto resourceViewImpl = m_framebuffer->renderTargetViews[i].Ptr();
-            if (!resourceViewImpl)
-                continue;
-            auto texture = static_cast<TextureImpl*>(resourceViewImpl->m_resource.Ptr());
+            auto texture = static_cast<TextureImpl*>(m_renderTargetViews[i]->m_resource.get());
             if (texture)
             {
                 texture->m_resource.transition(
                     D3D12_RESOURCE_STATE_RENDER_TARGET,
-                    D3DUtil::getResourceState(access.finalState),
+                    D3DUtil::getResourceState(m_renderTargetFinalStates[i]),
                     submitter
                 );
             }
         }
     }
 
-    if (m_renderPass->m_hasDepthStencil)
+    if (m_depthStencilView)
     {
         // Transit resource states.
         D3D12BarrierSubmitter submitter(m_d3dCmdList);
-        auto resourceViewImpl = m_framebuffer->depthStencilView.Ptr();
-        auto texture = static_cast<TextureImpl*>(resourceViewImpl->m_resource.Ptr());
-        texture->m_resource.transition(
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            D3DUtil::getResourceState(m_renderPass->m_depthStencilAccess.finalState),
-            submitter
-        );
+        auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_resource.get());
+        if (texture)
+        {
+            texture->m_resource.transition(
+                D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                D3DUtil::getResourceState(m_depthStencilFinalState),
+                submitter
+            );
+        }
     }
-    m_framebuffer = nullptr;
+
+    m_renderTargetViews.clear();
+    m_depthStencilView = nullptr;
+
+    CommandEncoderImpl::endEncodingImpl();
 }
 
 void RenderCommandEncoderImpl::setStencilReference(uint32_t referenceValue)

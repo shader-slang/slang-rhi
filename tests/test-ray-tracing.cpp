@@ -43,7 +43,6 @@ struct BaseRayTracingTest
 {
     IDevice* device;
 
-    ComPtr<IFramebufferLayout> framebufferLayout;
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ICommandQueue> queue;
 
@@ -117,6 +116,7 @@ struct BaseRayTracingTest
         resultTextureDesc.size.height = height;
         resultTextureDesc.size.depth = 1;
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
+        resultTextureDesc.allowedStates = {ResourceState::UnorderedAccess, ResourceState::CopySource};
         resultTextureDesc.format = Format::R32G32B32A32_FLOAT;
         resultTexture = device->createTexture(resultTextureDesc);
         IResourceView::Desc resultUAVDesc = {};
@@ -151,12 +151,6 @@ struct BaseRayTracingTest
         REQUIRE(transformBuffer != nullptr);
 
         createResultTexture();
-
-        FramebufferLayoutDesc framebufferLayoutDesc;
-        framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets[0] = {Format::R8G8B8A8_UNORM, 1};
-        framebufferLayoutDesc.depthStencil = {Format::D32_FLOAT, 1};
-        REQUIRE_CALL(device->createFramebufferLayout(framebufferLayoutDesc, framebufferLayout.writeRef()));
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
         transientHeapDesc.constantBufferSize = 4096 * 1024;

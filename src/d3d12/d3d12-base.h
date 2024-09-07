@@ -4,7 +4,6 @@
 #include "../d3d/d3d-swapchain.h"
 #include "../mutable-shader-object.h"
 #include "../renderer-shared.h"
-#include "../simple-render-pass-layout.h"
 #include "../transient-resource-heap-base.h"
 #include "d3d12-descriptor-heap.h"
 #include "d3d12-posix-synchapi.h"
@@ -48,12 +47,9 @@ class RenderCommandEncoderImpl;
 class ComputeCommandEncoderImpl;
 class CommandQueueImpl;
 class FenceImpl;
-class FramebufferLayoutImpl;
-class FramebufferImpl;
 class QueryPoolImpl;
 class PlainBufferProxyQueryPoolImpl;
 class PipelineImpl;
-class RenderPassLayoutImpl;
 class ResourceViewInternalImpl;
 class ResourceViewImpl;
 class AccelerationStructureImpl;

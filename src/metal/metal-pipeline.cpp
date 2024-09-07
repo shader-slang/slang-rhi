@@ -34,7 +34,7 @@ void PipelineImpl::init(const RayTracingPipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::RayTracing;
-    pipelineDesc.rayTracing.set(desc);
+    pipelineDesc.rayTracing = desc;
     initializeBase(pipelineDesc);
 }
 
@@ -76,37 +76,28 @@ Result PipelineImpl::createMetalRenderPipelineState()
     pd->setVertexDescriptor(vertexDescriptor.get());
     pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveType));
 
-    // Set rasterization state
-    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-    const auto& blend = desc.graphics.blend;
-    GfxCount sampleCount = 1;
-
-    pd->setAlphaToCoverageEnabled(blend.alphaToCoverageEnable);
+    pd->setAlphaToCoverageEnabled(desc.graphics.multisample.alphaToCoverageEnable);
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < framebufferLayoutImpl->m_desc.renderTargetCount; ++i)
+    for (Index i = 0; i < desc.graphics.targetCount; ++i)
     {
-        const TargetLayoutDesc& targetLayout = framebufferLayoutImpl->m_desc.renderTargets[i];
+        const ColorTargetState& targetState = desc.graphics.targets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
-        colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetLayout.format));
+        colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetState.format));
 
-        const TargetBlendDesc& targetBlendDesc = blend.targets[i];
-        colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
-        colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
-        colorAttachment->setDestinationRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor));
-        colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
-        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor));
-        colorAttachment->setDestinationAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
-        );
-        colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
-        colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
-
-        sampleCount = std::max(sampleCount, targetLayout.sampleCount);
+        colorAttachment->setBlendingEnabled(targetState.enableBlend);
+        colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetState.color.srcFactor));
+        colorAttachment->setDestinationRGBBlendFactor(MetalUtil::translateBlendFactor(targetState.color.dstFactor));
+        colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetState.color.op));
+        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetState.alpha.srcFactor));
+        colorAttachment->setDestinationAlphaBlendFactor(MetalUtil::translateBlendFactor(targetState.alpha.dstFactor));
+        colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetState.alpha.op));
+        colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetState.writeMask));
     }
-    if (framebufferLayoutImpl->m_desc.depthStencil.format != Format::Unknown)
+    if (desc.graphics.depthStencil.format != Format::Unknown)
     {
-        const TargetLayoutDesc& depthStencil = framebufferLayoutImpl->m_desc.depthStencil;
+        const DepthStencilState& depthStencil = desc.graphics.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
@@ -118,7 +109,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
         }
     }
 
-    pd->setRasterSampleCount(sampleCount);
+    pd->setRasterSampleCount(desc.graphics.multisample.sampleCount);
 
     NS::Error* error;
     m_renderPipelineState = NS::TransferPtr(m_device->m_device->newRenderPipelineState(pd.get(), &error));

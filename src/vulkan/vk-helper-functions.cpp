@@ -20,24 +20,24 @@ GfxCount calcNumRows(Format format, int height)
     return (GfxCount)(height + sizeInfo.blockHeight - 1) / sizeInfo.blockHeight;
 }
 
-VkAttachmentLoadOp translateLoadOp(IRenderPassLayout::TargetLoadOp loadOp)
+VkAttachmentLoadOp translateLoadOp(LoadOp loadOp)
 {
     switch (loadOp)
     {
-    case IRenderPassLayout::TargetLoadOp::Clear:
+    case LoadOp::Clear:
         return VK_ATTACHMENT_LOAD_OP_CLEAR;
-    case IRenderPassLayout::TargetLoadOp::Load:
+    case LoadOp::Load:
         return VK_ATTACHMENT_LOAD_OP_LOAD;
     default:
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
 }
 
-VkAttachmentStoreOp translateStoreOp(IRenderPassLayout::TargetStoreOp storeOp)
+VkAttachmentStoreOp translateStoreOp(StoreOp storeOp)
 {
     switch (storeOp)
     {
-    case IRenderPassLayout::TargetStoreOp::Store:
+    case StoreOp::Store:
         return VK_ATTACHMENT_STORE_OP_STORE;
     default:
         return VK_ATTACHMENT_STORE_OP_DONT_CARE;

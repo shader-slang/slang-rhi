@@ -2,9 +2,10 @@
 
 #include "d3d12-base.h"
 #include "d3d12-buffer.h"
-#include "d3d12-framebuffer.h"
-#include "d3d12-render-pass.h"
 #include "d3d12-submitter.h"
+#include "d3d12-resource-views.h"
+
+#include "core/static_vector.h"
 
 namespace rhi::d3d12 {
 
@@ -165,8 +166,10 @@ public:
     }
 
 public:
-    RefPtr<RenderPassLayoutImpl> m_renderPass;
-    RefPtr<FramebufferImpl> m_framebuffer;
+    short_vector<RefPtr<ResourceViewImpl>> m_renderTargetViews;
+    short_vector<ResourceState> m_renderTargetFinalStates;
+    RefPtr<ResourceViewImpl> m_depthStencilView;
+    ResourceState m_depthStencilFinalState;
 
     std::vector<BoundVertexBuffer> m_boundVertexBuffers;
 
@@ -185,8 +188,7 @@ public:
         DeviceImpl* renderer,
         TransientResourceHeapImpl* transientHeap,
         CommandBufferImpl* cmdBuffer,
-        RenderPassLayoutImpl* renderPass,
-        FramebufferImpl* framebuffer
+        const RenderPassDesc& desc
     );
 
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;

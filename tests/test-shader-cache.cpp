@@ -697,10 +697,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<ITexture> colorBuffer;
+    ComPtr<IResourceView> colorBufferView;
     ComPtr<IInputLayout> inputLayout;
-    ComPtr<IFramebufferLayout> framebufferLayout;
-    ComPtr<IRenderPassLayout> renderPass;
-    ComPtr<IFramebuffer> framebuffer;
 
     ComPtr<IBuffer> createVertexBuffer(IDevice* device)
     {
@@ -756,44 +754,17 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         vertexBuffer = createVertexBuffer(device);
         colorBuffer = createColorBuffer(device);
 
-        FramebufferLayoutDesc framebufferLayoutDesc;
-        framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets[0] = {format, 1};
-        framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
-        REQUIRE(framebufferLayout != nullptr);
-
-        IRenderPassLayout::Desc renderPassDesc = {};
-        renderPassDesc.framebufferLayout = framebufferLayout;
-        renderPassDesc.renderTargetCount = 1;
-        IRenderPassLayout::TargetAccessDesc renderTargetAccess = {};
-        renderTargetAccess.loadOp = IRenderPassLayout::TargetLoadOp::Clear;
-        renderTargetAccess.storeOp = IRenderPassLayout::TargetStoreOp::Store;
-        renderTargetAccess.initialState = ResourceState::RenderTarget;
-        renderTargetAccess.finalState = ResourceState::CopySource;
-        renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
-
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
         colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
         colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
-        auto rtv = device->createTextureView(colorBuffer, colorBufferViewDesc);
-
-        IFramebuffer::Desc framebufferDesc;
-        framebufferDesc.renderTargetCount = 1;
-        framebufferDesc.depthStencilView = nullptr;
-        framebufferDesc.renderTargetViews = rtv.readRef();
-        framebufferDesc.layout = framebufferLayout;
-        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createTextureView(colorBuffer, colorBufferViewDesc, colorBufferView.writeRef()));
     }
 
     void freeGraphicsResources()
     {
         inputLayout = nullptr;
-        framebufferLayout = nullptr;
-        renderPass = nullptr;
-        framebuffer = nullptr;
         vertexBuffer = nullptr;
         colorBuffer = nullptr;
         pipeline = nullptr;
@@ -812,10 +783,13 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             slangReflection
         ));
 
+        ColorTargetState target;
+        target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
@@ -832,7 +806,17 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments = &colorAttachment;
+        renderPass.colorAttachmentCount = 1;
+
+        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
         auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -920,10 +904,13 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
 
         ComPtr<IShaderProgram> shaderProgram = device->createShaderProgram(programDesc);
 
+        ColorTargetState target;
+        target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));

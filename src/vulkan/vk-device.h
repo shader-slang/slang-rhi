@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-framebuffer.h"
 
 #include "core/stable_vector.h"
 
@@ -23,12 +22,6 @@ public:
     createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -189,8 +182,6 @@ public:
     stable_vector<RefPtr<RefObject>, 1024> m_deviceObjectsWithPotentialBackReferences;
 
     VkSampler m_defaultSampler;
-
-    RefPtr<FramebufferImpl> m_emptyFramebuffer;
 };
 
 } // namespace rhi::vk

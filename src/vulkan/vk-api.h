@@ -171,6 +171,8 @@ namespace rhi::vk {
     x(vkGetSwapchainImagesKHR) \
     x(vkDestroySwapchainKHR) \
     x(vkAcquireNextImageKHR) \
+    x(vkCmdBeginRenderingKHR) \
+    x(vkCmdEndRenderingKHR) \
     x(vkCreateRayTracingPipelinesKHR) \
     x(vkCmdTraceRaysKHR) \
     x(vkGetRayTracingShaderGroupHandlesKHR) \
@@ -310,6 +312,18 @@ struct VulkanExtendedFeatureProperties
 
     // Vulkan 1.2 features.
     VkPhysicalDeviceVulkan12Features vulkan12Features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+
+    // Vulkan 1.3 features.
+    VkPhysicalDeviceVulkan13Features vulkan13Features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
+
+    // Dynamic rendering features
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR
+    };
+
+    VkPhysicalDevice4444FormatsFeaturesEXT formats4444Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_4444_FORMATS_FEATURES_EXT
+    };
 
     // Ray tracing validation features
     VkPhysicalDeviceRayTracingValidationFeaturesNV rayTracingValidationFeatures = {

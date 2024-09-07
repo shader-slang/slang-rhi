@@ -329,35 +329,6 @@ Result DeviceImpl::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-void DeviceImpl::clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil)
-{
-    uint32_t mask = 1;
-    for (auto rtv : m_currentFramebuffer->renderTargetViews)
-    {
-        if (colorBufferMask & mask)
-            m_immediateContext->ClearRenderTargetView(rtv->m_rtv, rtv->m_clearValue);
-        mask <<= 1;
-    }
-
-    if (m_currentFramebuffer->depthStencilView)
-    {
-        UINT clearFlags = 0;
-        if (clearDepth)
-            clearFlags = D3D11_CLEAR_DEPTH;
-        if (clearStencil)
-            clearFlags |= D3D11_CLEAR_STENCIL;
-        if (clearFlags)
-        {
-            m_immediateContext->ClearDepthStencilView(
-                m_currentFramebuffer->depthStencilView->m_dsv,
-                clearFlags,
-                m_currentFramebuffer->depthStencilView->m_clearValue.depth,
-                m_currentFramebuffer->depthStencilView->m_clearValue.stencil
-            );
-        }
-    }
-}
-
 Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
 {
     RefPtr<SwapchainImpl> swapchain = new SwapchainImpl();
@@ -366,31 +337,7 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
-{
-    RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_desc = desc;
-    returnComPtr(outLayout, layout);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    RefPtr<FramebufferImpl> framebuffer = new FramebufferImpl();
-    framebuffer->renderTargetViews.resize(desc.renderTargetCount);
-    framebuffer->d3dRenderTargetViews.resize(desc.renderTargetCount);
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        framebuffer->renderTargetViews[i] = static_cast<RenderTargetViewImpl*>(desc.renderTargetViews[i]);
-        framebuffer->d3dRenderTargetViews[i] = framebuffer->renderTargetViews[i]->m_rtv;
-    }
-    framebuffer->depthStencilView = static_cast<DepthStencilViewImpl*>(desc.depthStencilView);
-    framebuffer->d3dDepthStencilView = framebuffer->depthStencilView ? framebuffer->depthStencilView->m_dsv : nullptr;
-    returnComPtr(outFramebuffer, framebuffer);
-    return SLANG_OK;
-}
-
-void DeviceImpl::setFramebuffer(IFramebuffer* frameBuffer)
+void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
 {
     // Note: the framebuffer state will be flushed to the pipeline as part
     // of binding the root shader object.
@@ -399,7 +346,56 @@ void DeviceImpl::setFramebuffer(IFramebuffer* frameBuffer)
     // call `OMSetRenderTargetsAndUnorderedAccessViews` later with the option
     // that preserves the existing RTV/DSV bindings.
     //
-    m_currentFramebuffer = static_cast<FramebufferImpl*>(frameBuffer);
+    m_d3dRenderTargetViews.resize(desc.colorAttachmentCount);
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        m_d3dRenderTargetViews[i] = static_cast<RenderTargetViewImpl*>(desc.colorAttachments[i].view)->m_rtv;
+    }
+    m_d3dDepthStencilView = desc.depthStencilAttachment
+                                ? static_cast<DepthStencilViewImpl*>(desc.depthStencilAttachment->view)->m_dsv
+                                : nullptr;
+
+    // Clear color attachments.
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        const auto& attachment = desc.colorAttachments[i];
+        if (attachment.loadOp == LoadOp::Clear)
+        {
+            m_immediateContext->ClearRenderTargetView(
+                static_cast<RenderTargetViewImpl*>(attachment.view)->m_rtv,
+                attachment.clearValue
+            );
+        }
+    }
+    // Clear depth/stencil attachment.
+    if (desc.depthStencilAttachment)
+    {
+        const auto& attachment = *desc.depthStencilAttachment;
+        UINT clearFlags = 0;
+        if (attachment.depthLoadOp == LoadOp::Clear)
+        {
+            clearFlags |= D3D11_CLEAR_DEPTH;
+        }
+        if (attachment.stencilLoadOp == LoadOp::Clear)
+        {
+            clearFlags |= D3D11_CLEAR_STENCIL;
+        }
+        if (clearFlags)
+        {
+            m_immediateContext->ClearDepthStencilView(
+                static_cast<DepthStencilViewImpl*>(attachment.view)->m_dsv,
+                D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                attachment.depthClearValue,
+                attachment.stencilClearValue
+            );
+        }
+    }
+}
+
+void DeviceImpl::endRenderPass()
+{
+    m_d3dRenderTargetViews.clear();
+    m_d3dDepthStencilView = nullptr;
 }
 
 void DeviceImpl::setStencilReference(uint32_t referenceValue)
@@ -1515,7 +1511,7 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
         // RTVs are bound as part of the active framebuffer, and then adjust
         // the UAVs that we bind accordingly.
         //
-        auto rtvCount = (UINT)m_currentFramebuffer->renderTargetViews.size();
+        auto rtvCount = (UINT)m_d3dRenderTargetViews.size();
         //
         // The `context` we are using will have computed the number of UAV registers
         // that might need to be bound, as a range from 0 to `context.uavCount`.
@@ -1543,8 +1539,8 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
         //
         m_immediateContext->OMSetRenderTargetsAndUnorderedAccessViews(
             rtvCount,
-            m_currentFramebuffer->d3dRenderTargetViews.data(),
-            m_currentFramebuffer->d3dDepthStencilView,
+            m_d3dRenderTargetViews.data(),
+            m_d3dDepthStencilView,
             rtvCount,
             bindableUAVCount,
             bindableUAVs,
@@ -1604,61 +1600,60 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
 
     ComPtr<ID3D11BlendState> blendState;
     {
-        auto& srcDesc = desc.blend;
         D3D11_BLEND_DESC dstDesc = {};
 
-        TargetBlendDesc defaultTargetBlendDesc;
+        ColorTargetState defaultTargetState;
 
         static const UInt kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-        int targetCount = static_cast<FramebufferLayoutImpl*>(inDesc.framebufferLayout)->m_desc.renderTargetCount;
+        int targetCount = desc.targetCount;
         if (targetCount > kMaxTargets)
             return SLANG_FAIL;
 
         for (GfxIndex ii = 0; ii < kMaxTargets; ++ii)
         {
-            TargetBlendDesc const* srcTargetBlendDescPtr = nullptr;
+            const ColorTargetState* targetState = nullptr;
             if (ii < targetCount)
             {
-                srcTargetBlendDescPtr = &srcDesc.targets[ii];
+                targetState = &desc.targets[ii];
             }
             else if (targetCount == 0)
             {
-                srcTargetBlendDescPtr = &defaultTargetBlendDesc;
+                targetState = &defaultTargetState;
             }
             else
             {
-                srcTargetBlendDescPtr = &srcDesc.targets[targetCount - 1];
+                targetState = &desc.targets[targetCount - 1];
             }
 
-            auto& srcTargetBlendDesc = *srcTargetBlendDescPtr;
-            auto& dstTargetBlendDesc = dstDesc.RenderTarget[ii];
+            auto& srcTarget = *targetState;
+            auto& dstTarget = dstDesc.RenderTarget[ii];
 
-            if (isBlendDisabled(srcTargetBlendDesc))
+            if (isBlendDisabled(srcTarget))
             {
-                dstTargetBlendDesc.BlendEnable = false;
-                dstTargetBlendDesc.BlendOp = D3D11_BLEND_OP_ADD;
-                dstTargetBlendDesc.BlendOpAlpha = D3D11_BLEND_OP_ADD;
-                dstTargetBlendDesc.SrcBlend = D3D11_BLEND_ONE;
-                dstTargetBlendDesc.SrcBlendAlpha = D3D11_BLEND_ONE;
-                dstTargetBlendDesc.DestBlend = D3D11_BLEND_ZERO;
-                dstTargetBlendDesc.DestBlendAlpha = D3D11_BLEND_ZERO;
+                dstTarget.BlendEnable = false;
+                dstTarget.BlendOp = D3D11_BLEND_OP_ADD;
+                dstTarget.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+                dstTarget.SrcBlend = D3D11_BLEND_ONE;
+                dstTarget.SrcBlendAlpha = D3D11_BLEND_ONE;
+                dstTarget.DestBlend = D3D11_BLEND_ZERO;
+                dstTarget.DestBlendAlpha = D3D11_BLEND_ZERO;
             }
             else
             {
-                dstTargetBlendDesc.BlendEnable = true;
-                dstTargetBlendDesc.BlendOp = translateBlendOp(srcTargetBlendDesc.color.op);
-                dstTargetBlendDesc.BlendOpAlpha = translateBlendOp(srcTargetBlendDesc.alpha.op);
-                dstTargetBlendDesc.SrcBlend = translateBlendFactor(srcTargetBlendDesc.color.srcFactor);
-                dstTargetBlendDesc.SrcBlendAlpha = translateBlendFactor(srcTargetBlendDesc.alpha.srcFactor);
-                dstTargetBlendDesc.DestBlend = translateBlendFactor(srcTargetBlendDesc.color.dstFactor);
-                dstTargetBlendDesc.DestBlendAlpha = translateBlendFactor(srcTargetBlendDesc.alpha.dstFactor);
+                dstTarget.BlendEnable = true;
+                dstTarget.BlendOp = translateBlendOp(srcTarget.color.op);
+                dstTarget.BlendOpAlpha = translateBlendOp(srcTarget.alpha.op);
+                dstTarget.SrcBlend = translateBlendFactor(srcTarget.color.srcFactor);
+                dstTarget.SrcBlendAlpha = translateBlendFactor(srcTarget.alpha.srcFactor);
+                dstTarget.DestBlend = translateBlendFactor(srcTarget.color.dstFactor);
+                dstTarget.DestBlendAlpha = translateBlendFactor(srcTarget.alpha.dstFactor);
             }
 
-            dstTargetBlendDesc.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTargetBlendDesc.writeMask);
+            dstTarget.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTarget.writeMask);
         }
 
         dstDesc.IndependentBlendEnable = targetCount > 1;
-        dstDesc.AlphaToCoverageEnable = srcDesc.alphaToCoverageEnable;
+        dstDesc.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable;
 
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
     }
@@ -1668,7 +1663,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
     pipeline->m_inputLayout = static_cast<InputLayoutImpl*>(desc.inputLayout);
-    pipeline->m_rtvCount = (UINT) static_cast<FramebufferLayoutImpl*>(desc.framebufferLayout)->m_desc.renderTargetCount;
+    pipeline->m_rtvCount = desc.targetCount;
     pipeline->m_blendColor[0] = 0;
     pipeline->m_blendColor[1] = 0;
     pipeline->m_blendColor[2] = 0;

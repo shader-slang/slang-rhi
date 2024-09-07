@@ -96,15 +96,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

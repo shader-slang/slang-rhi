@@ -1,7 +1,6 @@
 #include "metal-device.h"
 #include "../resource-desc-utils.h"
 #include "metal-buffer.h"
-#include "metal-render-pass.h"
 #include "metal-shader-program.h"
 #include "metal-swap-chain.h"
 #include "metal-texture.h"
@@ -145,36 +144,6 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     RefPtr<SwapchainImpl> swapchainImpl = new SwapchainImpl();
     SLANG_RETURN_ON_FAIL(swapchainImpl->init(this, desc, window));
     returnComPtr(outSwapchain, swapchainImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<FramebufferLayoutImpl> layoutImpl = new FramebufferLayoutImpl;
-    SLANG_RETURN_ON_FAIL(layoutImpl->init(desc));
-    returnComPtr(outLayout, layoutImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<RenderPassLayoutImpl> renderPassLayoutImpl = new RenderPassLayoutImpl;
-    SLANG_RETURN_ON_FAIL(renderPassLayoutImpl->init(this, desc));
-    returnComPtr(outRenderPassLayout, renderPassLayoutImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<FramebufferImpl> framebufferImpl = new FramebufferImpl;
-    SLANG_RETURN_ON_FAIL(framebufferImpl->init(this, desc));
-    returnComPtr(outFramebuffer, framebufferImpl);
     return SLANG_OK;
 }
 

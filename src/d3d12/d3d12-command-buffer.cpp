@@ -77,19 +77,9 @@ Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEn
     return SLANG_OK;
 }
 
-Result CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass,
-    IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder
-)
+Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
-    m_renderCommandEncoder.init(
-        m_renderer,
-        m_transientHeap,
-        this,
-        static_cast<RenderPassLayoutImpl*>(renderPass),
-        static_cast<FramebufferImpl*>(framebuffer)
-    );
+    m_renderCommandEncoder.init(m_renderer, m_transientHeap, this, desc);
     *outEncoder = &m_renderCommandEncoder;
     return SLANG_OK;
 }

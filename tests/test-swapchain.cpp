@@ -160,8 +160,8 @@ struct SwapchainResizeTest
         renderPassDesc.framebufferLayout = framebufferLayout;
         renderPassDesc.renderTargetCount = 1;
         IRenderPassLayout::TargetAccessDesc renderTargetAccess = {};
-        renderTargetAccess.loadOp = IRenderPassLayout::TargetLoadOp::Clear;
-        renderTargetAccess.storeOp = IRenderPassLayout::TargetStoreOp::Store;
+        renderTargetAccess.loadOp = IRenderPassLayout::LoadOp::Clear;
+        renderTargetAccess.storeOp = IRenderPassLayout::StoreOp::Store;
         renderTargetAccess.initialState = ResourceState::Undefined;
         renderTargetAccess.finalState = ResourceState::Present;
         renderPassDesc.renderTargetAccess = &renderTargetAccess;

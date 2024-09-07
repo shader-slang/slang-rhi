@@ -3,6 +3,8 @@
 #include "vk-base.h"
 #include "vk-pipeline.h"
 
+#include "core/static_vector.h"
+
 #include <vector>
 
 namespace rhi::vk {
@@ -173,11 +175,17 @@ public:
     }
 
 public:
+    short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
+    short_vector<ResourceState> m_renderTargetFinalStates;
+    RefPtr<TextureViewImpl> m_depthStencilView;
+    ResourceState m_depthStencilCurrentState;
+    ResourceState m_depthStencilFinalState;
+
     std::vector<VkViewport> m_viewports;
     std::vector<VkRect2D> m_scissorRects;
 
 public:
-    void beginPass(IRenderPassLayout* renderPass, IFramebuffer* framebuffer);
+    Result beginPass(const RenderPassDesc& desc);
 
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 

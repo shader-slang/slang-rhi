@@ -3,7 +3,6 @@
 #include "metal-command-buffer.h"
 #include "metal-helper-functions.h"
 #include "metal-query.h"
-#include "metal-render-pass.h"
 #include "metal-resource-views.h"
 #include "metal-shader-object.h"
 #include "metal-shader-program.h"
@@ -221,54 +220,101 @@ void ResourceCommandEncoderImpl::resolveQuery(
 
 // RenderCommandEncoderImpl
 
-void RenderCommandEncoderImpl::beginPass(IRenderPassLayout* renderPass, IFramebuffer* framebuffer)
+Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 {
-    m_renderPassLayout = static_cast<RenderPassLayoutImpl*>(renderPass);
-    m_framebuffer = static_cast<FramebufferImpl*>(framebuffer);
-    if (!m_framebuffer)
+    uint32_t width = 1;
+    uint32_t height = 1;
+
+    auto visitView = [&](TextureViewImpl* view)
     {
-        // TODO use empty framebuffer
-        return;
-    }
+        const TextureDesc* textureDesc = view->m_texture->getDesc();
+        const IResourceView::Desc* viewDesc = view->getViewDesc();
+        width = std::max(1u, uint32_t(textureDesc->size.width >> viewDesc->subresourceRange.mipLevel));
+        height = std::max(1u, uint32_t(textureDesc->size.height >> viewDesc->subresourceRange.mipLevel));
+    };
 
-    // Create a copy of the render pass descriptor and fill in remaining information.
-    m_renderPassDesc = NS::TransferPtr(m_renderPassLayout->m_renderPassDesc->copy());
+    // Initialize render pass descriptor.
+    m_renderPassDesc = NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
 
-    m_renderPassDesc->setRenderTargetWidth(m_framebuffer->m_width);
-    m_renderPassDesc->setRenderTargetHeight(m_framebuffer->m_height);
-
-    for (Index i = 0; i < m_framebuffer->m_renderTargetViews.size(); ++i)
+    // Setup color attachments.
+    m_renderTargetViews.resize(desc.colorAttachmentCount);
+    m_renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
+    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
     {
-        TextureViewImpl* renderTargetView = m_framebuffer->m_renderTargetViews[i];
+        const auto& attachment = desc.colorAttachments[i];
+        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        if (!view)
+            return SLANG_FAIL;
+        visitView(view);
+        m_renderTargetViews[i] = view;
+
         MTL::RenderPassColorAttachmentDescriptor* colorAttachment = m_renderPassDesc->colorAttachments()->object(i);
-        colorAttachment->setTexture(renderTargetView->m_textureView.get());
-        colorAttachment->setLevel(renderTargetView->m_desc.subresourceRange.mipLevel);
-        colorAttachment->setSlice(renderTargetView->m_desc.subresourceRange.baseArrayLayer);
+        colorAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.loadOp));
+        colorAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.storeOp));
+        if (attachment.loadOp == LoadOp::Clear)
+        {
+            colorAttachment->setClearColor(MTL::ClearColor(
+                attachment.clearValue[0],
+                attachment.clearValue[1],
+                attachment.clearValue[2],
+                attachment.clearValue[3]
+            ));
+        }
+        colorAttachment->setTexture(view->m_textureView.get());
+        colorAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+        colorAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
     }
 
-    if (m_framebuffer->m_depthStencilView)
+    // Setup depth stencil attachment.
+    if (desc.depthStencilAttachment)
     {
-        TextureViewImpl* depthStencilView = m_framebuffer->m_depthStencilView.get();
-        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencilView->m_desc.format);
+        const auto& attachment = *desc.depthStencilAttachment;
+        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        if (!view)
+            return SLANG_FAIL;
+        visitView(view);
+        m_depthStencilView = view;
+        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(view->m_desc.format);
+
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
             MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = m_renderPassDesc->depthAttachment();
-            depthAttachment->setTexture(depthStencilView->m_textureView.get());
-            depthAttachment->setLevel(depthStencilView->m_desc.subresourceRange.mipLevel);
-            depthAttachment->setSlice(depthStencilView->m_desc.subresourceRange.baseArrayLayer);
+            depthAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.depthLoadOp));
+            depthAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.depthStoreOp));
+            if (attachment.depthLoadOp == LoadOp::Clear)
+            {
+                depthAttachment->setClearDepth(attachment.depthClearValue);
+            }
+            depthAttachment->setTexture(view->m_textureView.get());
+            depthAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+            depthAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
         }
         if (MetalUtil::isStencilFormat(pixelFormat))
         {
             MTL::RenderPassStencilAttachmentDescriptor* stencilAttachment = m_renderPassDesc->stencilAttachment();
-            stencilAttachment->setTexture(depthStencilView->m_textureView.get());
-            stencilAttachment->setLevel(depthStencilView->m_desc.subresourceRange.mipLevel);
-            stencilAttachment->setSlice(depthStencilView->m_desc.subresourceRange.baseArrayLayer);
+            stencilAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.stencilLoadOp));
+            stencilAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.stencilStoreOp));
+            if (attachment.stencilLoadOp == LoadOp::Clear)
+            {
+                stencilAttachment->setClearStencil(attachment.stencilClearValue);
+            }
+            stencilAttachment->setTexture(view->m_textureView.get());
+            stencilAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+            stencilAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
         }
     }
+
+    m_renderPassDesc->setRenderTargetWidth(width);
+    m_renderPassDesc->setRenderTargetHeight(height);
+
+    return SLANG_OK;
 }
 
 void RenderCommandEncoderImpl::endEncoding()
 {
+    m_renderTargetViews.clear();
+    m_depthStencilView = nullptr;
+
     CommandEncoderImpl::endEncodingImpl();
 }
 
@@ -394,7 +440,6 @@ Result RenderCommandEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder
     encoder->setScissorRects(m_scissorRects.data(), m_scissorRects.size());
 
     const RasterizerDesc& rasterDesc = pipeline->desc.graphics.rasterizer;
-    const DepthStencilDesc& depthStencilDesc = pipeline->desc.graphics.depthStencil;
     encoder->setFrontFacingWinding(MetalUtil::translateWinding(rasterDesc.frontFace));
     encoder->setCullMode(MetalUtil::translateCullMode(rasterDesc.cullMode));
     encoder->setDepthClipMode(
@@ -403,7 +448,7 @@ Result RenderCommandEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder
     encoder->setDepthBias(rasterDesc.depthBias, rasterDesc.slopeScaledDepthBias, rasterDesc.depthBiasClamp);
     encoder->setTriangleFillMode(MetalUtil::translateTriangleFillMode(rasterDesc.fillMode));
     // encoder->setBlendColor(); // not supported by rhi
-    if (m_framebuffer->m_depthStencilView)
+    if (m_depthStencilView)
     {
         encoder->setDepthStencilState(pipeline->m_depthStencilState.get());
     }

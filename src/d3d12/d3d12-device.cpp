@@ -2,11 +2,9 @@
 #include "../nvapi/nvapi-util.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
-#include "d3d12-framebuffer.h"
 #include "d3d12-helper-functions.h"
 #include "d3d12-pipeline.h"
 #include "d3d12-query.h"
-#include "d3d12-render-pass.h"
 #include "d3d12-resource-views.h"
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object.h"
@@ -1654,71 +1652,6 @@ Result DeviceImpl::createBufferView(
     viewImpl->m_allocator = m_cpuViewHeap.get();
 
     returnComPtr(outView, viewImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFb)
-{
-    RefPtr<FramebufferImpl> framebuffer = new FramebufferImpl();
-    framebuffer->renderTargetViews.resize(desc.renderTargetCount);
-    framebuffer->renderTargetDescriptors.resize(desc.renderTargetCount);
-    framebuffer->renderTargetClearValues.resize(desc.renderTargetCount);
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        framebuffer->renderTargetViews[i] = static_cast<ResourceViewImpl*>(desc.renderTargetViews[i]);
-        framebuffer->renderTargetDescriptors[i] = framebuffer->renderTargetViews[i]->m_descriptor.cpuHandle;
-        if (static_cast<ResourceViewImpl*>(desc.renderTargetViews[i])->m_resource.Ptr())
-        {
-            auto clearValue =
-                static_cast<TextureImpl*>(static_cast<ResourceViewImpl*>(desc.renderTargetViews[i])->m_resource.Ptr())
-                    ->getDesc()
-                    ->optimalClearValue;
-            if (clearValue)
-            {
-                memcpy(&framebuffer->renderTargetClearValues[i], &clearValue->color, sizeof(ColorClearValue));
-            }
-        }
-        else
-        {
-            memset(&framebuffer->renderTargetClearValues[i], 0, sizeof(ColorClearValue));
-        }
-    }
-    framebuffer->depthStencilView = static_cast<ResourceViewImpl*>(desc.depthStencilView);
-    if (desc.depthStencilView)
-    {
-        auto clearValue =
-            static_cast<TextureImpl*>(static_cast<ResourceViewImpl*>(desc.depthStencilView)->m_resource.Ptr())
-                ->getDesc()
-                ->optimalClearValue;
-
-        if (clearValue)
-        {
-            framebuffer->depthStencilClearValue = clearValue->depthStencil;
-        }
-        framebuffer->depthStencilDescriptor =
-            static_cast<ResourceViewImpl*>(desc.depthStencilView)->m_descriptor.cpuHandle;
-    }
-    else
-    {
-        framebuffer->depthStencilDescriptor.ptr = 0;
-    }
-    returnComPtr(outFb, framebuffer);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebufferLayout(FramebufferLayoutDesc const& desc, IFramebufferLayout** outLayout)
-{
-    RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_desc = desc;
-    returnComPtr(outLayout, layout);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    RefPtr<RenderPassLayoutImpl> result = new RenderPassLayoutImpl();
-    result->init(desc);
-    returnComPtr(outRenderPassLayout, result);
     return SLANG_OK;
 }
 

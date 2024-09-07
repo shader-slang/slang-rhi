@@ -2,7 +2,6 @@
 
 #include "metal-base.h"
 #include "metal-pipeline.h"
-#include "metal-render-pass.h"
 
 #include "core/short_vector.h"
 
@@ -148,9 +147,9 @@ public:
     }
 
 public:
-    RefPtr<RenderPassLayoutImpl> m_renderPassLayout;
-    RefPtr<FramebufferImpl> m_framebuffer;
     NS::SharedPtr<MTL::RenderPassDescriptor> m_renderPassDesc;
+    short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
+    RefPtr<TextureViewImpl> m_depthStencilView;
 
     short_vector<MTL::Viewport, 16> m_viewports;
     short_vector<MTL::ScissorRect, 16> m_scissorRects;
@@ -166,7 +165,7 @@ public:
     uint32_t m_stencilReferenceValue = 0;
 
 public:
-    void beginPass(IRenderPassLayout* renderPass, IFramebuffer* framebuffer);
+    Result beginPass(const RenderPassDesc& desc);
 
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 

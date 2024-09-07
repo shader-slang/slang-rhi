@@ -18,8 +18,6 @@ const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
 const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
-const Guid GUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
-const Guid GUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
 const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
@@ -30,7 +28,6 @@ const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
-const Guid GUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
 const Guid GUID::IID_ICommandEncoder = ICommandEncoder::getTypeGuid();
 const Guid GUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
 const Guid GUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
@@ -210,20 +207,6 @@ IInputLayout* InputLayoutBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IFramebufferLayout* FramebufferLayoutBase::getInterface(const Guid& guid)
-{
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebufferLayout)
-        return static_cast<IFramebufferLayout*>(this);
-    return nullptr;
-}
-
-IFramebuffer* FramebufferBase::getInterface(const Guid& guid)
-{
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebuffer)
-        return static_cast<IFramebuffer*>(this);
-    return nullptr;
-}
-
 IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
@@ -248,6 +231,16 @@ void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
 {
     desc = inDesc;
 
+    descHolder.holdList(desc.graphics.targets, desc.graphics.targetCount);
+    descHolder.holdList(desc.rayTracing.hitGroups, desc.rayTracing.hitGroupCount);
+    for (Index i = 0; i < desc.rayTracing.hitGroupCount; i++)
+    {
+        descHolder.holdString(desc.rayTracing.hitGroups[i].hitGroupName);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].closestHitEntryPoint);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].anyHitEntryPoint);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].intersectionEntryPoint);
+    }
+
     auto program = desc.getProgram();
     m_program = program;
     isSpecializable = false;
@@ -261,12 +254,10 @@ void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
             break;
         }
     }
-    // Hold a strong reference to inputLayout and framebufferLayout objects to prevent it from
-    // destruction.
+    // Hold a strong reference to inputLayout object to prevent it from destruction.
     if (inDesc.type == PipelineType::Graphics)
     {
         inputLayout = static_cast<InputLayoutBase*>(inDesc.graphics.inputLayout);
-        framebufferLayout = static_cast<FramebufferLayoutBase*>(inDesc.graphics.framebufferLayout);
     }
 }
 
@@ -1025,8 +1016,7 @@ Result RendererBase::maybeSpecializePipeline(
             {
                 auto pipelineDesc = currentPipeline->desc.rayTracing;
                 pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc.get(), specializedPipelineComPtr.writeRef())
-                );
+                SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             default:

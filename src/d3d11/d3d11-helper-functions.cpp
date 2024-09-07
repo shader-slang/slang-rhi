@@ -218,7 +218,7 @@ bool isBlendDisabled(AspectBlendDesc const& desc)
     return desc.op == BlendOp::Add && desc.srcFactor == BlendFactor::One && desc.dstFactor == BlendFactor::Zero;
 }
 
-bool isBlendDisabled(TargetBlendDesc const& desc)
+bool isBlendDisabled(ColorTargetState const& desc)
 {
     return isBlendDisabled(desc.color) && isBlendDisabled(desc.alpha);
 }

@@ -1,7 +1,5 @@
 #include "debug-command-buffer.h"
-#include "debug-framebuffer.h"
 #include "debug-helper-functions.h"
-#include "debug-render-pass.h"
 
 namespace rhi::debug {
 
@@ -34,21 +32,28 @@ Result DebugCommandBuffer::encodeResourceCommands(IResourceCommandEncoder** outE
     return SLANG_OK;
 }
 
-Result DebugCommandBuffer::encodeRenderCommands(
-    IRenderPassLayout* renderPass,
-    IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder
-)
+Result DebugCommandBuffer::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
     SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
-    auto innerRenderPass = getInnerObj(renderPass);
-    auto innerFramebuffer = getInnerObj(framebuffer);
+    RenderPassDesc innerDesc = desc;
+    short_vector<RenderPassColorAttachment> innerColorAttachments;
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        innerColorAttachments.push_back(desc.colorAttachments[i]);
+        innerColorAttachments[i].view = getInnerObj(desc.colorAttachments[i].view);
+    }
+    innerDesc.colorAttachments = innerColorAttachments.data();
+    RenderPassDepthStencilAttachment innerDepthStencilAttachment;
+    if (desc.depthStencilAttachment)
+    {
+        innerDepthStencilAttachment = *desc.depthStencilAttachment;
+        innerDepthStencilAttachment.view = getInnerObj(desc.depthStencilAttachment->view);
+        innerDesc.depthStencilAttachment = &innerDepthStencilAttachment;
+    }
     m_renderCommandEncoder.isOpen = true;
-    SLANG_RETURN_ON_FAIL(
-        baseObject->encodeRenderCommands(innerRenderPass, innerFramebuffer, &m_renderCommandEncoder.baseObject)
-    );
+    SLANG_RETURN_ON_FAIL(baseObject->encodeRenderCommands(innerDesc, &m_renderCommandEncoder.baseObject));
     *outEncoder = &m_renderCommandEncoder;
     return SLANG_OK;
 }

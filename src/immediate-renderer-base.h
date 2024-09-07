@@ -49,8 +49,8 @@ public:
     virtual Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject) = 0;
     virtual void bindRootShaderObject(IShaderObject* rootObject) = 0;
     virtual void setPipeline(IPipeline* state) = 0;
-    virtual void setFramebuffer(IFramebuffer* frameBuffer) = 0;
-    virtual void clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil) = 0;
+    virtual void beginRenderPass(const RenderPassDesc& desc) = 0;
+    virtual void endRenderPass() = 0;
     virtual void setViewports(GfxCount count, const Viewport* viewports) = 0;
     virtual void setScissorRects(GfxCount count, const ScissorRect* scissors) = 0;
     virtual void setPrimitiveTopology(PrimitiveTopology topology) = 0;
@@ -97,8 +97,6 @@ public:
     createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
 
     void uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data);
 
@@ -110,13 +108,8 @@ class ImmediateComputeDeviceBase : public ImmediateRendererBase
 {
 public:
     // Provide empty implementation for devices without graphics support.
-    virtual void setFramebuffer(IFramebuffer* frameBuffer) override { SLANG_UNUSED(frameBuffer); }
-    virtual void clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil) override
-    {
-        SLANG_UNUSED(colorBufferMask);
-        SLANG_UNUSED(clearDepth);
-        SLANG_UNUSED(clearStencil);
-    }
+    virtual void beginRenderPass(const RenderPassDesc& desc) override { SLANG_UNUSED(desc); }
+    virtual void endRenderPass() override {}
     virtual void setViewports(GfxCount count, const Viewport* viewports) override
     {
         SLANG_UNUSED(count);
@@ -192,27 +185,6 @@ public:
         SLANG_UNUSED(desc);
         SLANG_UNUSED(window);
         SLANG_UNUSED(outSwapchain);
-        return SLANG_FAIL;
-    }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(const FramebufferLayoutDesc& desc, IFramebufferLayout** outLayout) override
-    {
-        SLANG_UNUSED(desc);
-        SLANG_UNUSED(outLayout);
-        return SLANG_FAIL;
-    }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override
-    {
-        SLANG_UNUSED(desc);
-        SLANG_UNUSED(outFramebuffer);
-        return SLANG_FAIL;
-    }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override
-    {
-        SLANG_UNUSED(desc);
-        SLANG_UNUSED(outRenderPassLayout);
         return SLANG_FAIL;
     }
 

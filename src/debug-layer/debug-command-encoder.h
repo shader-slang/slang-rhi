@@ -12,7 +12,7 @@ public:
     virtual ICommandEncoder* getBaseObject() = 0;
 
     virtual void* getInterface(SlangUUID const& uuid) = 0;
-    Result queryInterface(SlangUUID const& uuid, void** outObject)
+    Result queryInterface(SlangUUID const& uuid, void** outObject) override
     {
         if (auto ptr = getInterface(uuid))
         {
@@ -21,8 +21,8 @@ public:
         }
         return SLANG_E_NO_INTERFACE;
     }
-    uint32_t addRef() { return 2; }
-    uint32_t release() { return 2; }
+    uint32_t addRef() override { return 2; }
+    uint32_t release() override { return 2; }
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) override;
@@ -69,9 +69,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size);
+    copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data);
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
         ITexture* dst,
@@ -83,7 +84,7 @@ public:
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
-    );
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITexture* dst,
@@ -92,10 +93,10 @@ public:
         Extents extent,
         SubresourceData* subResourceData,
         GfxCount subResourceDataCount
-    );
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags);
+    clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
         ITexture* source,
@@ -104,7 +105,7 @@ public:
         ITexture* dest,
         ResourceState destState,
         SubresourceRange destRange
-    );
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
         IBuffer* dst,
@@ -116,10 +117,10 @@ public:
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
-    );
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset);
+    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
 };
 
 class DebugRenderCommandEncoder : public UnownedDebugObject<IRenderCommandEncoder>, public DebugCommandEncoder
