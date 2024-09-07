@@ -503,7 +503,7 @@ Result DebugDevice::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** o
     return SLANG_OK;
 }
 
-Result DebugDevice::createFence(const IFence::Desc& desc, IFence** outFence)
+Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 {
     SLANG_RHI_API_FUNC;
     RefPtr<DebugFence> result = new DebugFence();

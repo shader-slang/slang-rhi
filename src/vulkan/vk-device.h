@@ -93,7 +93,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const IFence::Desc& desc, IFence** outFence) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
@@ -129,6 +129,8 @@ public:
         void* pUserData
     );
 
+    void _labelObject(uint64_t object, VkDebugReportObjectTypeEXT objectType, const char* label);
+
     void _transitionImageLayout(
         VkImage image,
         VkFormat format,
@@ -136,6 +138,7 @@ public:
         VkImageLayout oldLayout,
         VkImageLayout newLayout
     );
+
     void _transitionImageLayout(
         VkCommandBuffer commandBuffer,
         VkImage image,

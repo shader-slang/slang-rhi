@@ -14,7 +14,7 @@ public:
 
     ~FenceImpl();
 
-    Result init(const IFence::Desc& desc);
+    Result init(const FenceDesc& desc);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentValue(uint64_t* outValue) override;
 

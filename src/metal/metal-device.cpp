@@ -768,7 +768,7 @@ Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** ou
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFence(const IFence::Desc& desc, IFence** outFence)
+Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
     AUTORELEASEPOOL
 

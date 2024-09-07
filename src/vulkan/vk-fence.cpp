@@ -17,7 +17,7 @@ FenceImpl::~FenceImpl()
     }
 }
 
-Result FenceImpl::init(const IFence::Desc& desc)
+Result FenceImpl::init(const FenceDesc& desc)
 {
     if (!m_device->m_api.m_extendedFeatures.vulkan12Features.timelineSemaphore)
         return SLANG_E_NOT_AVAILABLE;
@@ -60,6 +60,8 @@ Result FenceImpl::init(const IFence::Desc& desc)
     SLANG_VK_RETURN_ON_FAIL(
         m_device->m_api.vkCreateSemaphore(m_device->m_api.m_device, &createInfo, nullptr, &m_semaphore)
     );
+
+    m_device->_labelObject((uint64_t)m_semaphore, VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT, desc.label);
 
     return SLANG_OK;
 }

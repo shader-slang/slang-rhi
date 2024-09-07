@@ -1963,7 +1963,7 @@ Result DeviceImpl::createQueryPool(const IQueryPool::Desc& desc, IQueryPool** ou
     }
 }
 
-Result DeviceImpl::createFence(const IFence::Desc& desc, IFence** outFence)
+Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
     RefPtr<FenceImpl> fence = new FenceImpl();
     SLANG_RETURN_ON_FAIL(fence->init(this, desc));
