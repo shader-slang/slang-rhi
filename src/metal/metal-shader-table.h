@@ -14,10 +14,10 @@ public:
 
     DeviceImpl* m_device;
 
-    virtual RefPtr<BufferResource> createDeviceBuffer(
-        PipelineStateBase* pipeline,
+    virtual RefPtr<Buffer> createDeviceBuffer(
+        PipelineBase* pipeline,
         TransientResourceHeapBase* transientHeap,
-        IResourceCommandEncoder* encoder
+        IRayTracingCommandEncoder* encoder
     ) override;
 };
 

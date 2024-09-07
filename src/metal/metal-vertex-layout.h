@@ -12,7 +12,7 @@ public:
     std::vector<InputElementDesc> m_inputElements;
     std::vector<VertexStreamDesc> m_vertexStreams;
 
-    Result init(const IInputLayout::Desc& desc);
+    Result init(const InputLayoutDesc& desc);
     NS::SharedPtr<MTL::VertexDescriptor> createVertexDescriptor(NS::UInteger vertexBufferIndexOffset);
 };
 

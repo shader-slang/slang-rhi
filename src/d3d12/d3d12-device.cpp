@@ -2,11 +2,9 @@
 #include "../nvapi/nvapi-util.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
-#include "d3d12-framebuffer.h"
 #include "d3d12-helper-functions.h"
-#include "d3d12-pipeline-state.h"
+#include "d3d12-pipeline.h"
 #include "d3d12-query.h"
-#include "d3d12-render-pass.h"
 #include "d3d12-resource-views.h"
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object.h"
@@ -167,7 +165,7 @@ Result DeviceImpl::createBuffer(
 }
 
 Result DeviceImpl::captureTextureToSurface(
-    TextureResourceImpl* resourceImpl,
+    TextureImpl* resourceImpl,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
@@ -178,7 +176,7 @@ Result DeviceImpl::captureTextureToSurface(
 
     const D3D12_RESOURCE_STATES initialState = D3DUtil::getResourceState(state);
 
-    const ITextureResource::Desc& rhiDesc = *resourceImpl->getDesc();
+    const TextureDesc& rhiDesc = *resourceImpl->getDesc();
     const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
 
     // Don't bother supporting MSAA for right now
@@ -203,7 +201,7 @@ Result DeviceImpl::captureTextureToSurface(
     D3D12Resource stagingResource;
     {
         D3D12_RESOURCE_DESC stagingDesc;
-        initBufferResourceDesc(bufferSize, stagingDesc);
+        initBufferDesc(bufferSize, stagingDesc);
 
         D3D12_HEAP_PROPERTIES heapProps;
         heapProps.Type = D3D12_HEAP_TYPE_READBACK;
@@ -275,10 +273,12 @@ Result DeviceImpl::captureTextureToSurface(
     }
 }
 
-Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].handleValue = (uint64_t)m_device;
-    outHandles->handles[0].api = InteropHandleAPI::D3D12;
+    outHandles->handles[0].type = NativeHandleType::D3D12Device;
+    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[1] = {};
+    outHandles->handles[2] = {};
     return SLANG_OK;
 }
 
@@ -536,7 +536,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         return SLANG_FAIL;
     }
 
-    if (desc.existingDeviceHandles.handles[0].handleValue == 0)
+    if (!desc.existingDeviceHandles.handles[0])
     {
         FlagCombiner combiner;
         // TODO: we should probably provide a command-line option
@@ -579,8 +579,12 @@ Result DeviceImpl::initialize(const Desc& desc)
     }
     else
     {
+        if (desc.existingDeviceHandles.handles[0].type != NativeHandleType::D3D12Device)
+        {
+            return SLANG_FAIL;
+        }
         // Store the existing device handle in desc in m_deviceInfo
-        m_deviceInfo.m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].handleValue;
+        m_deviceInfo.m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].value;
     }
 
     // Set the device
@@ -977,28 +981,22 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTextureResource(
-    ITextureResource* resource,
+Result DeviceImpl::readTexture(
+    ITexture* resource,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
     Size* outPixelSize
 )
 {
-    return captureTextureToSurface(
-        static_cast<TextureResourceImpl*>(resource),
-        state,
-        outBlob,
-        outRowPitch,
-        outPixelSize
-    );
+    return captureTextureToSurface(static_cast<TextureImpl*>(resource), state, outBlob, outRowPitch, outPixelSize);
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
 {
-    TextureResource::Desc srcDesc = fixupTextureDesc(desc);
+    TextureDesc srcDesc = fixupTextureDesc(desc);
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureResourceDesc(resourceDesc, srcDesc);
+    initTextureDesc(resourceDesc, srcDesc);
     auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
     *outSize = (Size)allocInfo.SizeInBytes;
     *outAlignment = (Size)allocInfo.Alignment;
@@ -1011,23 +1009,19 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& descIn,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
     // Description of uploading on Dx12
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899215%28v=vs.85%29.aspx
 
-    TextureResource::Desc srcDesc = fixupTextureDesc(descIn);
+    TextureDesc srcDesc = fixupTextureDesc(descIn);
 
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureResourceDesc(resourceDesc, srcDesc);
+    initTextureDesc(resourceDesc, srcDesc);
     const int arraySize = calcEffectiveArraySize(srcDesc);
     const int numMipMaps = srcDesc.numMipLevels;
 
-    RefPtr<TextureResourceImpl> texture(new TextureResourceImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
 
     // Create the target resource
     {
@@ -1067,7 +1061,10 @@ Result DeviceImpl::createTextureResource(
                 .initCommitted(m_device, heapProps, flags, resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, clearValuePtr)
         );
 
-        texture->m_resource.setDebugName(L"Texture");
+        if (srcDesc.label)
+        {
+            texture->m_resource.setDebugName(srcDesc.label);
+        }
     }
 
     // Calculate the layout
@@ -1148,7 +1145,7 @@ Result DeviceImpl::createTextureResource(
                 const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[j];
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
 
-                TextureResource::Extents mipSize = calcMipSize(srcDesc.size, j);
+                Extents mipSize = calcMipSize(srcDesc.size, j);
                 if (rhiIsCompressedFormat(descIn.format))
                 {
                     mipSize.width = int(D3DUtil::calcAligned(mipSize.width, 4));
@@ -1228,43 +1225,35 @@ Result DeviceImpl::createTextureResource(
         submitResourceCommandsAndWait(encodeInfo);
     }
 
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureFromNativeHandle(
-    InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
-    ITextureResource** outResource
-)
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
 {
-    RefPtr<TextureResourceImpl> texture(new TextureResourceImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
 
-    if (handle.api == InteropHandleAPI::D3D12)
+    if (handle.type == NativeHandleType::D3D12Resource)
     {
-        texture->m_resource.setResource((ID3D12Resource*)handle.handleValue);
+        texture->m_resource.setResource((ID3D12Resource*)handle.value);
     }
     else
     {
         return SLANG_FAIL;
     }
 
-    returnComPtr(outResource, texture);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    BufferResource::Desc srcDesc = fixupBufferDesc(descIn);
+    BufferDesc srcDesc = fixupBufferDesc(descIn);
 
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
     D3D12_RESOURCE_DESC bufferDesc;
-    initBufferResourceDesc(descIn.sizeInBytes, bufferDesc);
+    initBufferDesc(descIn.size, bufferDesc);
 
     bufferDesc.Flags |= calcResourceFlags(srcDesc.allowedStates);
 
@@ -1272,39 +1261,40 @@ Result DeviceImpl::createBufferResource(
     SLANG_RETURN_ON_FAIL(createBuffer(
         bufferDesc,
         initData,
-        srcDesc.sizeInBytes,
+        srcDesc.size,
         initialState,
         buffer->m_resource,
         descIn.isShared,
         descIn.memoryType
     ));
 
-    returnComPtr(outResource, buffer);
+    if (srcDesc.label)
+    {
+        buffer->m_resource.setDebugName(srcDesc.label);
+    }
+
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
-    RefPtr<BufferResourceImpl> buffer(new BufferResourceImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
 
-    if (handle.api == InteropHandleAPI::D3D12)
+    if (handle.type == NativeHandleType::D3D12Resource)
     {
-        buffer->m_resource.setResource((ID3D12Resource*)handle.handleValue);
+        buffer->m_resource.setResource((ID3D12Resource*)handle.value);
     }
     else
     {
         return SLANG_FAIL;
     }
 
-    returnComPtr(outResource, buffer);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     D3D12_FILTER_REDUCTION_TYPE dxReduction = translateFilterReduction(desc.reductionOp);
     D3D12_FILTER dxFilter;
@@ -1344,26 +1334,23 @@ Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerS
     // entries that we check before we go to the heap, and then
     // when we are done with a sampler we simply add it to the free list.
     //
-    RefPtr<SamplerStateImpl> samplerImpl = new SamplerStateImpl();
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl();
     samplerImpl->m_allocator = samplerHeap;
     samplerImpl->m_descriptor = cpuDescriptor;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
-    auto resourceImpl = (TextureResourceImpl*)texture;
+    auto resourceImpl = (TextureImpl*)texture;
 
     RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
+    viewImpl->m_isBufferView = false;
     viewImpl->m_resource = resourceImpl;
     viewImpl->m_desc = desc;
     bool isArray = resourceImpl ? resourceImpl->getDesc()->arraySize > 1 : false;
-    bool isMultiSample = resourceImpl ? resourceImpl->getDesc()->sampleDesc.numSamples > 1 : false;
+    bool isMultiSample = resourceImpl ? resourceImpl->getDesc()->sampleCount > 1 : false;
     switch (desc.type)
     {
     default:
@@ -1377,7 +1364,7 @@ Result DeviceImpl::createTextureView(
         rtvDesc.Format = D3DUtil::getMapFormat(desc.format);
         switch (desc.renderTarget.shape)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             rtvDesc.ViewDimension = isArray ? D3D12_RTV_DIMENSION_TEXTURE1DARRAY : D3D12_RTV_DIMENSION_TEXTURE1D;
             if (isArray)
             {
@@ -1391,7 +1378,7 @@ Result DeviceImpl::createTextureView(
             }
 
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             if (isMultiSample)
             {
                 rtvDesc.ViewDimension =
@@ -1426,7 +1413,7 @@ Result DeviceImpl::createTextureView(
                 }
             }
             break;
-        case IResource::Type::TextureCube:
+        case TextureType::TextureCube:
             rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
             rtvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
             rtvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
@@ -1438,14 +1425,11 @@ Result DeviceImpl::createTextureView(
                                                       )
                                                     : 0;
             break;
-        case IResource::Type::Texture3D:
+        case TextureType::Texture3D:
             rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
             rtvDesc.Texture3D.MipSlice = desc.subresourceRange.mipLevel;
             rtvDesc.Texture3D.FirstWSlice = desc.subresourceRange.baseArrayLayer;
             rtvDesc.Texture3D.WSize = (desc.subresourceRange.layerCount == 0) ? -1 : desc.subresourceRange.layerCount;
-            break;
-        case IResource::Type::Buffer:
-            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_BUFFER;
             break;
         default:
             return SLANG_FAIL;
@@ -1466,11 +1450,11 @@ Result DeviceImpl::createTextureView(
         dsvDesc.Format = D3DUtil::getMapFormat(desc.format);
         switch (desc.renderTarget.shape)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1D;
             dsvDesc.Texture1D.MipSlice = desc.subresourceRange.mipLevel;
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             if (isMultiSample)
             {
                 dsvDesc.ViewDimension =
@@ -1486,7 +1470,7 @@ Result DeviceImpl::createTextureView(
                 dsvDesc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
             }
             break;
-        case IResource::Type::TextureCube:
+        case TextureType::TextureCube:
             dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
             dsvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
             dsvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
@@ -1517,7 +1501,7 @@ Result DeviceImpl::createTextureView(
                                : D3DUtil::getMapFormat(texture->getDesc()->format);
         switch (resourceImpl->getDesc()->type)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             d3d12desc.ViewDimension = isArray ? D3D12_UAV_DIMENSION_TEXTURE1DARRAY : D3D12_UAV_DIMENSION_TEXTURE1D;
             if (isArray)
             {
@@ -1531,7 +1515,7 @@ Result DeviceImpl::createTextureView(
                 d3d12desc.Texture1DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
             }
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             d3d12desc.ViewDimension = isArray ? D3D12_UAV_DIMENSION_TEXTURE2DARRAY : D3D12_UAV_DIMENSION_TEXTURE2D;
             if (isArray)
             {
@@ -1549,7 +1533,7 @@ Result DeviceImpl::createTextureView(
                     D3DUtil::getPlaneSlice(d3d12desc.Format, desc.subresourceRange.aspectMask);
             }
             break;
-        case IResource::Type::TextureCube:
+        case TextureType::TextureCube:
             d3d12desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
             d3d12desc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
             d3d12desc.Texture2DArray.ArraySize =
@@ -1558,7 +1542,7 @@ Result DeviceImpl::createTextureView(
             d3d12desc.Texture2DArray.PlaneSlice =
                 D3DUtil::getPlaneSlice(d3d12desc.Format, desc.subresourceRange.aspectMask);
             break;
-        case IResource::Type::Texture3D:
+        case TextureType::Texture3D:
             d3d12desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
             d3d12desc.Texture3D.MipSlice = desc.subresourceRange.mipLevel;
             d3d12desc.Texture3D.FirstWSlice = desc.subresourceRange.baseArrayLayer;
@@ -1589,14 +1573,7 @@ Result DeviceImpl::createTextureView(
             desc.format == Format::Unknown ? resourceDesc.Format : D3DUtil::getMapFormat(desc.format);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-        initSrvDesc(
-            resourceImpl->getType(),
-            *resourceImpl->getDesc(),
-            resourceDesc,
-            pixelFormat,
-            desc.subresourceRange,
-            srvDesc
-        );
+        initSrvDesc(*resourceImpl->getDesc(), resourceDesc, pixelFormat, desc.subresourceRange, srvDesc);
 
         m_device->CreateShaderResourceView(resourceImpl->m_resource, &srvDesc, viewImpl->m_descriptor.cpuHandle);
     }
@@ -1654,17 +1631,18 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
 }
 
 Result DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
-    auto resourceImpl = (BufferResourceImpl*)buffer;
+    auto resourceImpl = (BufferImpl*)buffer;
     auto resourceDesc = *resourceImpl->getDesc();
-    const auto counterResourceImpl = static_cast<BufferResourceImpl*>(counterBuffer);
+    const auto counterResourceImpl = static_cast<BufferImpl*>(counterBuffer);
 
     RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
+    viewImpl->m_isBufferView = true;
     viewImpl->m_resource = resourceImpl;
     viewImpl->m_counterResource = counterResourceImpl;
     viewImpl->m_desc = desc;
@@ -1677,87 +1655,7 @@ Result DeviceImpl::createBufferView(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebuffer(IFramebuffer::Desc const& desc, IFramebuffer** outFb)
-{
-    RefPtr<FramebufferImpl> framebuffer = new FramebufferImpl();
-    framebuffer->renderTargetViews.resize(desc.renderTargetCount);
-    framebuffer->renderTargetDescriptors.resize(desc.renderTargetCount);
-    framebuffer->renderTargetClearValues.resize(desc.renderTargetCount);
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        framebuffer->renderTargetViews[i] = static_cast<ResourceViewImpl*>(desc.renderTargetViews[i]);
-        framebuffer->renderTargetDescriptors[i] = framebuffer->renderTargetViews[i]->m_descriptor.cpuHandle;
-        if (static_cast<ResourceViewImpl*>(desc.renderTargetViews[i])->m_resource.Ptr())
-        {
-            auto clearValue = static_cast<TextureResourceImpl*>(
-                                  static_cast<ResourceViewImpl*>(desc.renderTargetViews[i])->m_resource.Ptr()
-            )
-                                  ->getDesc()
-                                  ->optimalClearValue;
-            if (clearValue)
-            {
-                memcpy(&framebuffer->renderTargetClearValues[i], &clearValue->color, sizeof(ColorClearValue));
-            }
-        }
-        else
-        {
-            memset(&framebuffer->renderTargetClearValues[i], 0, sizeof(ColorClearValue));
-        }
-    }
-    framebuffer->depthStencilView = static_cast<ResourceViewImpl*>(desc.depthStencilView);
-    if (desc.depthStencilView)
-    {
-        auto clearValue =
-            static_cast<TextureResourceImpl*>(static_cast<ResourceViewImpl*>(desc.depthStencilView)->m_resource.Ptr())
-                ->getDesc()
-                ->optimalClearValue;
-
-        if (clearValue)
-        {
-            framebuffer->depthStencilClearValue = clearValue->depthStencil;
-        }
-        framebuffer->depthStencilDescriptor =
-            static_cast<ResourceViewImpl*>(desc.depthStencilView)->m_descriptor.cpuHandle;
-    }
-    else
-    {
-        framebuffer->depthStencilDescriptor.ptr = 0;
-    }
-    returnComPtr(outFb, framebuffer);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebufferLayout(IFramebufferLayout::Desc const& desc, IFramebufferLayout** outLayout)
-{
-    RefPtr<FramebufferLayoutImpl> layout = new FramebufferLayoutImpl();
-    layout->m_renderTargets.resize(desc.renderTargetCount);
-    for (GfxIndex i = 0; i < desc.renderTargetCount; i++)
-    {
-        layout->m_renderTargets[i] = desc.renderTargets[i];
-    }
-
-    if (desc.depthStencil)
-    {
-        layout->m_hasDepthStencil = true;
-        layout->m_depthStencil = *desc.depthStencil;
-    }
-    else
-    {
-        layout->m_hasDepthStencil = false;
-    }
-    returnComPtr(outLayout, layout);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    RefPtr<RenderPassLayoutImpl> result = new RenderPassLayoutImpl();
-    result->init(desc);
-    returnComPtr(outRenderPassLayout, result);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);
 
@@ -1820,12 +1718,12 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-Result DeviceImpl::readBufferResource(IBufferResource* bufferIn, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlangBlob** outBlob)
 {
 
-    BufferResourceImpl* buffer = static_cast<BufferResourceImpl*>(bufferIn);
+    BufferImpl* buffer = static_cast<BufferImpl*>(bufferIn);
 
-    const Size bufferSize = buffer->getDesc()->sizeInBytes;
+    const Size bufferSize = buffer->getDesc()->size;
 
     // This will be slow!!! - it blocks CPU on GPU completion
     D3D12Resource& resource = buffer->m_resource;
@@ -1845,7 +1743,7 @@ Result DeviceImpl::readBufferResource(IBufferResource* bufferIn, Offset offset, 
 
         // Resource to readback to
         D3D12_RESOURCE_DESC stagingDesc;
-        initBufferResourceDesc(size, stagingDesc);
+        initBufferDesc(size, stagingDesc);
 
         SLANG_RETURN_ON_FAIL(stageBuf.initCommitted(
             m_device,
@@ -1882,8 +1780,8 @@ Result DeviceImpl::readBufferResource(IBufferResource* bufferIn, Offset offset, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createProgram(
-    const IShaderProgram::Desc& desc,
+Result DeviceImpl::createShaderProgram(
+    const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
     ISlangBlob** outDiagnosticBlob
 )
@@ -1967,19 +1865,19 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
@@ -2127,7 +2025,7 @@ Result DeviceImpl::createAccelerationStructure(
 #if SLANG_RHI_DXR
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl();
     result->m_device5 = m_device5;
-    result->m_buffer = static_cast<BufferResourceImpl*>(desc.buffer);
+    result->m_buffer = static_cast<BufferImpl*>(desc.buffer);
     result->m_size = desc.size;
     result->m_offset = desc.offset;
     result->m_allocator = m_cpuViewHeap;
@@ -2147,16 +2045,16 @@ Result DeviceImpl::createAccelerationStructure(
 #endif
 }
 
-Result DeviceImpl::createRayTracingPipelineState(const RayTracingPipelineStateDesc& inDesc, IPipelineState** outState)
+Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& inDesc, IPipeline** outPipeline)
 {
     if (!m_device5)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    RefPtr<RayTracingPipelineStateImpl> pipelineStateImpl = new RayTracingPipelineStateImpl(this);
-    pipelineStateImpl->init(inDesc);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<RayTracingPipelineImpl> pipelineImpl = new RayTracingPipelineImpl(this);
+    pipelineImpl->init(inDesc);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 

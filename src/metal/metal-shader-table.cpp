@@ -3,13 +3,13 @@
 
 namespace rhi::metal {
 
-RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
-    PipelineStateBase* pipeline,
+RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
+    PipelineBase* pipeline,
     TransientResourceHeapBase* transientHeap,
-    IResourceCommandEncoder* encoder
+    IRayTracingCommandEncoder* encoder
 )
 {
-    return RefPtr<BufferResource>(0);
+    return RefPtr<Buffer>(0);
 }
 
 } // namespace rhi::metal

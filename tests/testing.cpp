@@ -1,17 +1,23 @@
 #include "testing.h"
+#include "shader-cache.h"
 
 #include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <filesystem>
 #include <map>
+#include <string>
 
 #define SLANG_RHI_ENABLE_RENDERDOC 0
 #define SLANG_RHI_DEBUG_SPIRV 0
 
+#define ENABLE_SHADER_CACHE 0
+
+
 namespace rhi::testing {
 
 static std::map<DeviceType, ComPtr<IDevice>> gCachedDevices;
+static ShaderCache gShaderCache;
 
 // Temp directory to create files for teting in.
 static std::filesystem::path gTestTempDirectory;
@@ -62,6 +68,35 @@ void cleanupTestTempDirectories()
     remove_all(gTestTempDirectory);
 }
 
+class DebugCallback : public IDebugCallback
+{
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    {
+        switch (type)
+        {
+        case DebugMessageType::Info:
+        {
+            INFO("Validation info: ", doctest::String(message));
+            break;
+        }
+        case DebugMessageType::Warning:
+        {
+            MESSAGE("Validation warning: ", doctest::String(message));
+            break;
+        }
+        case DebugMessageType::Error:
+        {
+            FAIL("Validation error: ", doctest::String(message));
+            break;
+        }
+        }
+    }
+};
+
+static DebugCallback sDebugCallback;
+
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
 {
     if (diagnosticsBlob != nullptr)
@@ -108,16 +143,9 @@ Result loadComputeProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    composedProgram = linkedProgram;
-    slangReflection = composedProgram->getLayout();
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
-
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 Result loadComputeProgram(
@@ -157,28 +185,49 @@ Result loadComputeProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    composedProgram = linkedProgram;
-    slangReflection = composedProgram->getLayout();
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
-
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source)
 {
+    auto slangSession = device->getSlangSession();
+    slang::IModule* module = nullptr;
     ComPtr<slang::IBlob> diagnosticsBlob;
+    size_t hash = std::hash<std::string_view>()(source);
+    std::string moduleName = "source_module_" + std::to_string(hash);
+    auto srcBlob = UnownedBlob::create(source.data(), source.size());
+    module =
+        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    if (!module)
+        return SLANG_FAIL;
 
-    IShaderProgram::CreateDesc2 programDesc = {};
-    programDesc.sourceType = ShaderModuleSourceType::SlangSource;
-    programDesc.sourceData = (void*)source.data();
-    programDesc.sourceDataSize = source.size();
+    std::vector<ComPtr<slang::IComponentType>> componentTypes;
+    componentTypes.push_back(ComPtr<slang::IComponentType>(module));
 
-    return device->createProgram2(programDesc, outShaderProgram.writeRef(), diagnosticsBlob.writeRef());
+    for (SlangInt32 i = 0; i < module->getDefinedEntryPointCount(); i++)
+    {
+        ComPtr<slang::IEntryPoint> entryPoint;
+        SLANG_RETURN_ON_FAIL(module->getDefinedEntryPoint(i, entryPoint.writeRef()));
+        componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
+    }
+
+    std::vector<slang::IComponentType*> rawComponentTypes;
+    for (auto& compType : componentTypes)
+        rawComponentTypes.push_back(compType.get());
+
+    ComPtr<slang::IComponentType> linkedProgram;
+    Result result = slangSession->createCompositeComponentType(
+        rawComponentTypes.data(),
+        rawComponentTypes.size(),
+        linkedProgram.writeRef(),
+        diagnosticsBlob.writeRef()
+    );
+    SLANG_RETURN_ON_FAIL(result);
+
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 Result loadGraphicsProgram(
@@ -218,20 +267,20 @@ Result loadGraphicsProgram(
     );
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
-    slangReflection = composedProgram->getLayout();
 
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
+    ComPtr<slang::IComponentType> linkedProgram;
+    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    SLANG_RETURN_ON_FAIL(result);
 
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 void compareComputeResult(
     IDevice* device,
-    ITextureResource* texture,
+    ITexture* texture,
     ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
@@ -242,7 +291,7 @@ void compareComputeResult(
     ComPtr<ISlangBlob> resultBlob;
     size_t rowPitch = 0;
     size_t pixelSize = 0;
-    REQUIRE_CALL(device->readTextureResource(texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
+    REQUIRE_CALL(device->readTexture(texture, state, resultBlob.writeRef(), &rowPitch, &pixelSize));
     // Compare results.
     for (size_t row = 0; row < rowCount; row++)
     {
@@ -258,7 +307,7 @@ void compareComputeResult(
 
 void compareComputeResult(
     IDevice* device,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     size_t offset,
     const void* expectedResult,
     size_t expectedBufferSize
@@ -266,7 +315,7 @@ void compareComputeResult(
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
-    REQUIRE_CALL(device->readBufferResource(buffer, offset, expectedBufferSize, resultBlob.writeRef()));
+    REQUIRE_CALL(device->readBuffer(buffer, offset, expectedBufferSize, resultBlob.writeRef()));
     CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
     // Compare results.
     CHECK(memcmp(resultBlob->getBufferPointer(), (uint8_t*)expectedResult, expectedBufferSize) == 0);
@@ -276,20 +325,16 @@ void compareComputeResultFuzzy(const float* result, float* expectedResult, size_
 {
     for (size_t i = 0; i < expectedBufferSize / sizeof(float); ++i)
     {
-        CHECK_LE(abs(result[i] - expectedResult[i]), 0.01);
+        CHECK_LE(result[i], expectedResult[i] + 0.01f);
+        CHECK_GE(result[i], expectedResult[i] - 0.01f);
     }
 }
 
-void compareComputeResultFuzzy(
-    IDevice* device,
-    IBufferResource* buffer,
-    float* expectedResult,
-    size_t expectedBufferSize
-)
+void compareComputeResultFuzzy(IDevice* device, IBuffer* buffer, float* expectedResult, size_t expectedBufferSize)
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
-    REQUIRE_CALL(device->readBufferResource(buffer, 0, expectedBufferSize, resultBlob.writeRef()));
+    REQUIRE_CALL(device->readBuffer(buffer, 0, expectedBufferSize, resultBlob.writeRef()));
     CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
     // Compare results with a tolerance of 0.01.
     auto result = (float*)resultBlob->getBufferPointer();
@@ -321,6 +366,9 @@ ComPtr<IDevice> createTestingDevice(
         additionalSearchPaths.push_back(path);
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
+#if ENABLE_SHADER_CACHE
+    deviceDesc.persistentShaderCache = &gShaderCache;
+#endif
 
     D3D12DeviceExtendedDesc extDesc = {};
     extDesc.rootParameterShaderAttributeName = "root";
@@ -349,6 +397,7 @@ ComPtr<IDevice> createTestingDevice(
     // here and render-test-main.cpp)
 #ifdef _DEBUG
     rhiEnableDebugLayer();
+    rhiSetDebugCallback(&sDebugCallback);
 #endif
 
     REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
@@ -457,18 +506,20 @@ inline const char* deviceTypeToString(DeviceType deviceType)
 {
     switch (deviceType)
     {
+    case DeviceType::D3D11:
+        return "d3d11";
     case DeviceType::D3D12:
-        return "D3D12";
+        return "d3d12";
     case DeviceType::Vulkan:
-        return "Vulkan";
+        return "vulkan";
     case DeviceType::Metal:
-        return "Metal";
+        return "metal";
     case DeviceType::CPU:
-        return "CPU";
+        return "cpu";
     case DeviceType::CUDA:
-        return "CUDA";
+        return "cuda";
     default:
-        return "Unknown";
+        return "unknown";
     }
 }
 

@@ -20,24 +20,24 @@ GfxCount calcNumRows(Format format, int height)
     return (GfxCount)(height + sizeInfo.blockHeight - 1) / sizeInfo.blockHeight;
 }
 
-VkAttachmentLoadOp translateLoadOp(IRenderPassLayout::TargetLoadOp loadOp)
+VkAttachmentLoadOp translateLoadOp(LoadOp loadOp)
 {
     switch (loadOp)
     {
-    case IRenderPassLayout::TargetLoadOp::Clear:
+    case LoadOp::Clear:
         return VK_ATTACHMENT_LOAD_OP_CLEAR;
-    case IRenderPassLayout::TargetLoadOp::Load:
+    case LoadOp::Load:
         return VK_ATTACHMENT_LOAD_OP_LOAD;
     default:
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
 }
 
-VkAttachmentStoreOp translateStoreOp(IRenderPassLayout::TargetStoreOp storeOp)
+VkAttachmentStoreOp translateStoreOp(StoreOp storeOp)
 {
     switch (storeOp)
     {
-    case IRenderPassLayout::TargetStoreOp::Store:
+    case StoreOp::Store:
         return VK_ATTACHMENT_STORE_OP_STORE;
     default:
         return VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -301,17 +301,17 @@ VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
     }
 }
 
-VkImageViewType _calcImageViewType(ITextureResource::Type type, const ITextureResource::Desc& desc)
+VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc)
 {
     switch (type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
         return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
         SLANG_RHI_ASSERT(desc.arraySize <= 1);

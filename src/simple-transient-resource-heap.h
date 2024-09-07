@@ -14,19 +14,18 @@ class SimpleTransientResourceHeap : public TransientResourceHeapBase
 {
 public:
     RefPtr<TDevice> m_device;
-    ComPtr<IBufferResource> m_constantBuffer;
+    ComPtr<IBuffer> m_constantBuffer;
 
 public:
     Result init(TDevice* device, const ITransientResourceHeap::Desc& desc)
     {
         m_device = device;
-        IBufferResource::Desc bufferDesc = {};
-        bufferDesc.type = IResource::Type::Buffer;
+        BufferDesc bufferDesc = {};
         bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
-        bufferDesc.sizeInBytes = desc.constantBufferSize;
+        bufferDesc.size = desc.constantBufferSize;
         bufferDesc.memoryType = MemoryType::Upload;
-        SLANG_RETURN_ON_FAIL(device->createBufferResource(bufferDesc, nullptr, m_constantBuffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, m_constantBuffer.writeRef()));
         return SLANG_OK;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override

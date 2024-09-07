@@ -218,7 +218,7 @@ bool isBlendDisabled(AspectBlendDesc const& desc)
     return desc.op == BlendOp::Add && desc.srcFactor == BlendFactor::One && desc.dstFactor == BlendFactor::Zero;
 }
 
-bool isBlendDisabled(TargetBlendDesc const& desc)
+bool isBlendDisabled(ColorTargetState const& desc)
 {
     return isBlendDisabled(desc.color) && isBlendDisabled(desc.alpha);
 }
@@ -291,12 +291,7 @@ D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT m
     return D3D11_COLOR_WRITE_ENABLE(result);
 }
 
-void initSrvDesc(
-    IResource::Type resourceType,
-    const ITextureResource::Desc& textureDesc,
-    DXGI_FORMAT pixelFormat,
-    D3D11_SHADER_RESOURCE_VIEW_DESC& descOut
-)
+void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_SHADER_RESOURCE_VIEW_DESC& descOut)
 {
     // create SRV
     descOut = D3D11_SHADER_RESOURCE_VIEW_DESC();
@@ -309,13 +304,13 @@ void initSrvDesc(
     {
         switch (textureDesc.type)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
             break;
-        case IResource::Type::Texture3D:
+        case TextureType::Texture3D:
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
             break;
         default:
@@ -325,7 +320,7 @@ void initSrvDesc(
         descOut.Texture2D.MipLevels = textureDesc.numMipLevels;
         descOut.Texture2D.MostDetailedMip = 0;
     }
-    else if (resourceType == IResource::Type::TextureCube)
+    else if (textureDesc.type == TextureType::TextureCube)
     {
         if (textureDesc.arraySize > 1)
         {
@@ -350,13 +345,13 @@ void initSrvDesc(
 
         switch (textureDesc.type)
         {
-        case IResource::Type::Texture1D:
+        case TextureType::Texture1D:
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
             break;
-        case IResource::Type::Texture2D:
+        case TextureType::Texture2D:
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
             break;
-        case IResource::Type::Texture3D:
+        case TextureType::Texture3D:
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
             break;
 

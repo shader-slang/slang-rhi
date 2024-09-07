@@ -1,7 +1,7 @@
 #include "cuda-device.h"
 #include "cuda-buffer.h"
 #include "cuda-command-queue.h"
-#include "cuda-pipeline-state.h"
+#include "cuda-pipeline.h"
 #include "cuda-query.h"
 #include "cuda-resource-views.h"
 #include "cuda-shader-object-layout.h"
@@ -127,10 +127,12 @@ Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].handleValue = (uint64_t)m_device;
-    outHandles->handles[0].api = InteropHandleAPI::CUDA;
+    outHandles->handles[0].type = NativeHandleType::CUdevice;
+    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[1] = {};
+    outHandles->handles[2] = {};
     return SLANG_OK;
 }
 
@@ -314,15 +316,12 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
     }
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& desc,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureResource::Desc srcDesc = fixupTextureDesc(desc);
+    TextureDesc srcDesc = fixupTextureDesc(desc);
 
-    RefPtr<TextureResourceImpl> tex = new TextureResourceImpl(srcDesc);
+    RefPtr<TextureImpl> tex = new TextureImpl(srcDesc);
     tex->m_cudaContext = m_context;
 
     CUresourcetype resourceType;
@@ -330,7 +329,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
     // The size of the element/texel in bytes
     size_t elementSize = 0;
 
-    // Our `ITextureResource::Desc` uses an enumeration to specify
+    // Our `TextureDesc` uses an enumeration to specify
     // the "shape"/rank of a texture (1D, 2D, 3D, Cube), but CUDA's
     // `cuMipmappedArrayCreate` seemingly relies on a policy where
     // the extents of the array in dimenions above the rank are
@@ -345,19 +344,19 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
     int depth = desc.size.depth;
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         height = 0;
         depth = 0;
         break;
 
-    case IResource::Type::Texture2D:
+    case TextureType::Texture2D:
         depth = 0;
         break;
 
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         break;
 
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         depth = 1;
         break;
     }
@@ -411,8 +410,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
             if (desc.arraySize > 1)
             {
-                if (desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Flags |= CUDA_ARRAY3D_LAYERED;
                     arrayDesc.Depth = desc.arraySize;
@@ -424,7 +423,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 }
             }
 
-            if (desc.type == IResource::Type::TextureCube)
+            if (desc.type == TextureType::TextureCube)
             {
                 arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
                 arrayDesc.Depth *= 6;
@@ -439,8 +438,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
             if (desc.arraySize > 1)
             {
-                if (desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube)
                 {
                     SLANG_RHI_ASSERT_FAILURE("Only 1D, 2D and Cube arrays supported");
                     return SLANG_FAIL;
@@ -451,7 +450,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
 
                 // Set the depth as the array length
                 arrayDesc.Depth = desc.arraySize;
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Depth *= 6;
                 }
@@ -461,14 +460,14 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 arrayDesc.Format = format;
                 arrayDesc.NumChannels = numChannels;
 
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
                 }
 
                 SLANG_CUDA_RETURN_ON_FAIL(cuArray3DCreate(&tex->m_cudaArray, &arrayDesc));
             }
-            else if (desc.type == IResource::Type::Texture3D || desc.type == IResource::Type::TextureCube)
+            else if (desc.type == TextureType::Texture3D || desc.type == TextureType::TextureCube)
             {
                 CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
                 memset(&arrayDesc, 0, sizeof(arrayDesc));
@@ -482,7 +481,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 arrayDesc.Flags = 0;
 
                 // Handle cube texture
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Depth = 6;
                     arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
@@ -521,7 +520,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
             mipDepth = (mipDepth == 0) ? 1 : mipDepth;
 
             // If it's a cubemap then the depth is always 6
-            if (desc.type == IResource::Type::TextureCube)
+            if (desc.type == TextureType::TextureCube)
             {
                 mipDepth = 6;
             }
@@ -548,8 +547,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
             if (desc.arraySize > 1)
             {
                 SLANG_RHI_ASSERT(
-                    desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube
+                    desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube
                 );
 
                 // TODO(JS): Here I assume that arrays are just held contiguously within a
@@ -557,7 +556,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 const size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
 
                 Index faceCount = desc.arraySize;
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     faceCount *= 6;
                 }
@@ -578,7 +577,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
             }
             else
             {
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
 
@@ -601,8 +600,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
             if (desc.arraySize > 1)
             {
                 SLANG_RHI_ASSERT(
-                    desc.type == IResource::Type::Texture1D || desc.type == IResource::Type::Texture2D ||
-                    desc.type == IResource::Type::TextureCube
+                    desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
+                    desc.type == TextureType::TextureCube
                 );
 
                 CUDA_MEMCPY3D copyParam;
@@ -619,7 +618,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                 // Set the depth to the array length
                 copyParam.Depth = desc.arraySize;
 
-                if (desc.type == IResource::Type::TextureCube)
+                if (desc.type == TextureType::TextureCube)
                 {
                     copyParam.Depth *= 6;
                 }
@@ -630,8 +629,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
             {
                 switch (desc.type)
                 {
-                case IResource::Type::Texture1D:
-                case IResource::Type::Texture2D:
+                case TextureType::Texture1D:
+                case TextureType::Texture2D:
                 {
                     CUDA_MEMCPY2D copyParam;
                     memset(&copyParam, 0, sizeof(copyParam));
@@ -645,8 +644,8 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
                     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy2D(&copyParam));
                     break;
                 }
-                case IResource::Type::Texture3D:
-                case IResource::Type::TextureCube:
+                case TextureType::Texture3D:
+                case TextureType::TextureCube:
                 {
                     CUDA_MEMCPY3D copyParam;
                     memset(&copyParam, 0, sizeof(copyParam));
@@ -721,45 +720,37 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureResource(
         SLANG_CUDA_RETURN_ON_FAIL(cuTexObjectCreate(&tex->m_cudaTexObj, &resDesc, &texDesc, nullptr));
     }
 
-    returnComPtr(outResource, tex);
+    returnComPtr(outTexture, tex);
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferResourceImpl> resource = new BufferResourceImpl(desc);
-    resource->m_cudaContext = m_context;
-    SLANG_CUDA_RETURN_ON_FAIL(
-        cuMemAllocManaged((CUdeviceptr*)(&resource->m_cudaMemory), desc.sizeInBytes, CU_MEM_ATTACH_GLOBAL)
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    buffer->m_cudaContext = m_context;
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL)
     );
     if (initData)
     {
-        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)resource->m_cudaMemory, (CUdeviceptr)initData, desc.sizeInBytes)
-        );
+        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.size));
     }
-    returnComPtr(outResource, resource);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferFromSharedHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& desc,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    if (handle.handleValue == 0)
+    if (!handle)
     {
-        *outResource = nullptr;
+        *outBuffer = nullptr;
         return SLANG_OK;
     }
 
-    RefPtr<BufferResourceImpl> resource = new BufferResourceImpl(desc);
-    resource->m_cudaContext = m_context;
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    buffer->m_cudaContext = m_context;
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship
@@ -767,19 +758,19 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferFromSharedHandle(
     // memory association, we first need to fill in a descriptor struct.
     CUDA_EXTERNAL_MEMORY_HANDLE_DESC externalMemoryHandleDesc;
     memset(&externalMemoryHandleDesc, 0, sizeof(externalMemoryHandleDesc));
-    switch (handle.api)
+    switch (handle.type)
     {
-    case InteropHandleAPI::D3D12:
+    case NativeHandleType::D3D12Resource:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE;
         break;
-    case InteropHandleAPI::Vulkan:
+    case NativeHandleType::Win32:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32;
         break;
     default:
         return SLANG_FAIL;
     }
-    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.handleValue;
-    externalMemoryHandleDesc.size = desc.sizeInBytes;
+    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.value;
+    externalMemoryHandleDesc.size = desc.size;
     externalMemoryHandleDesc.flags = CUDA_EXTERNAL_MEMORY_DEDICATED;
 
     // Once we have filled in the descriptor, we can request
@@ -787,7 +778,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferFromSharedHandle(
     // external buffer and its own memory.
     CUexternalMemory externalMemory;
     SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));
-    resource->m_cudaExternalMemory = externalMemory;
+    buffer->m_cudaExternalMemory = externalMemory;
 
     // The CUDA "external memory" handle is not itself a device
     // pointer, so we need to query for a suitable device address
@@ -798,33 +789,33 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferFromSharedHandle(
     // the size).
     CUDA_EXTERNAL_MEMORY_BUFFER_DESC bufferDesc;
     memset(&bufferDesc, 0, sizeof(bufferDesc));
-    bufferDesc.size = desc.sizeInBytes;
+    bufferDesc.size = desc.size;
 
     // Finally, we can "map" the buffer to get a device address.
     void* deviceAddress;
     SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedBuffer((CUdeviceptr*)&deviceAddress, externalMemory, &bufferDesc)
     );
-    resource->m_cudaMemory = deviceAddress;
+    buffer->m_cudaMemory = deviceAddress;
 
-    returnComPtr(outResource, resource);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
-    InteropHandle handle,
-    const ITextureResource::Desc& desc,
+    NativeHandle handle,
+    const TextureDesc& desc,
     const size_t size,
-    ITextureResource** outResource
+    ITexture** outTexture
 )
 {
-    if (handle.handleValue == 0)
+    if (!handle)
     {
-        *outResource = nullptr;
+        *outTexture = nullptr;
         return SLANG_OK;
     }
 
-    RefPtr<TextureResourceImpl> resource = new TextureResourceImpl(desc);
-    resource->m_cudaContext = m_context;
+    RefPtr<TextureImpl> texture = new TextureImpl(desc);
+    texture->m_cudaContext = m_context;
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship
@@ -832,24 +823,24 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
     // memory association, we first need to fill in a descriptor struct.
     CUDA_EXTERNAL_MEMORY_HANDLE_DESC externalMemoryHandleDesc;
     memset(&externalMemoryHandleDesc, 0, sizeof(externalMemoryHandleDesc));
-    switch (handle.api)
+    switch (handle.type)
     {
-    case InteropHandleAPI::D3D12:
+    case NativeHandleType::D3D12Resource:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE;
         break;
-    case InteropHandleAPI::Vulkan:
+    case NativeHandleType::Win32:
         externalMemoryHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32;
         break;
     default:
         return SLANG_FAIL;
     }
-    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.handleValue;
+    externalMemoryHandleDesc.handle.win32.handle = (void*)handle.value;
     externalMemoryHandleDesc.size = size;
     externalMemoryHandleDesc.flags = CUDA_EXTERNAL_MEMORY_DEDICATED;
 
     CUexternalMemory externalMemory;
     SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));
-    resource->m_cudaExternalMemory = externalMemory;
+    texture->m_cudaExternalMemory = externalMemory;
 
     FormatInfo formatInfo;
     SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &formatInfo));
@@ -870,11 +861,11 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
     CUmipmappedArray mipArray;
     SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedMipmappedArray(&mipArray, externalMemory, &externalMemoryMipDesc)
     );
-    resource->m_cudaMipMappedArray = mipArray;
+    texture->m_cudaMipMappedArray = mipArray;
 
     CUarray cuArray;
     SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&cuArray, mipArray, 0));
-    resource->m_cudaArray = cuArray;
+    texture->m_cudaArray = cuArray;
 
     CUDA_RESOURCE_DESC surfDesc;
     memset(&surfDesc, 0, sizeof(surfDesc));
@@ -883,32 +874,32 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createTextureFromSharedHandle(
 
     CUsurfObject surface;
     SLANG_CUDA_RETURN_ON_FAIL(cuSurfObjectCreate(&surface, &surfDesc));
-    resource->m_cudaSurfObj = surface;
+    texture->m_cudaSurfObj = surface;
 
-    returnComPtr(outResource, resource);
+    returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView)
+DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
     RefPtr<ResourceViewImpl> view = new ResourceViewImpl();
     view->m_desc = desc;
-    view->textureResource = dynamic_cast<TextureResourceImpl*>(texture);
+    view->texture = dynamic_cast<TextureImpl*>(texture);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
 {
     RefPtr<ResourceViewImpl> view = new ResourceViewImpl();
     view->m_desc = desc;
-    view->memoryResource = dynamic_cast<BufferResourceImpl*>(buffer);
+    view->buffer = dynamic_cast<BufferImpl*>(buffer);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
@@ -960,8 +951,11 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** outProgram, ISlangBlob** outDiagnosticBlob)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createShaderProgram(
+    const ShaderProgramDesc& desc,
+    IShaderProgram** outProgram,
+    ISlangBlob** outDiagnosticBlob
+)
 {
     // If this is a specializable program, we just keep a reference to the slang program and
     // don't actually create any kernels. This program will be specialized later when we know
@@ -1023,21 +1017,21 @@ DeviceImpl::createProgram(const IShaderProgram::Desc& desc, IShaderProgram** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
-    RefPtr<ComputePipelineStateImpl> state = new ComputePipelineStateImpl();
+    RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
     state->shaderProgram = static_cast<ShaderProgramImpl*>(desc.program);
     state->init(desc);
-    returnComPtr(outState, state);
+    returnComPtr(outPipeline, state);
     return Result();
 }
 
-void* DeviceImpl::map(IBufferResource* buffer)
+void* DeviceImpl::map(IBuffer* buffer)
 {
-    return static_cast<BufferResourceImpl*>(buffer)->m_cudaMemory;
+    return static_cast<BufferImpl*>(buffer)->m_cudaMemory;
 }
 
-void DeviceImpl::unmap(IBufferResource* buffer)
+void DeviceImpl::unmap(IBuffer* buffer)
 {
     SLANG_UNUSED(buffer);
 }
@@ -1074,40 +1068,14 @@ DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, I
     return SLANG_FAIL;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout)
-{
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(outLayout);
-    return SLANG_FAIL;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(outFramebuffer);
-    return SLANG_FAIL;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(outRenderPassLayout);
-    return SLANG_FAIL;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
     *outSampler = nullptr;
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outLayout);
@@ -1115,22 +1083,22 @@ DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** out
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState)
+DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
-    SLANG_UNUSED(outState);
+    SLANG_UNUSED(outPipeline);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTextureResource(
-    ITextureResource* texture,
+SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTexture(
+    ITexture* texture,
     ResourceState state,
     ISlangBlob** outBlob,
     size_t* outRowPitch,
     size_t* outPixelSize
 )
 {
-    auto textureImpl = static_cast<TextureResourceImpl*>(texture);
+    auto textureImpl = static_cast<TextureImpl*>(texture);
 
     auto desc = textureImpl->getDesc();
     auto width = desc->size.width;
@@ -1164,9 +1132,9 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::readTextureResource(
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::readBufferResource(IBufferResource* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
-    auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    auto bufferImpl = static_cast<BufferImpl*>(buffer);
 
     auto blob = OwnedBlob::create(size);
     cuMemcpy((CUdeviceptr)blob->getBufferPointer(), (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size);

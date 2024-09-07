@@ -3,11 +3,11 @@
 using namespace rhi;
 using namespace testing;
 
-static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
+static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 {
-    ComPtr<IBufferResource> buffer;
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = sizeof(uint32_t);
+    ComPtr<IBuffer> buffer;
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(uint32_t);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -19,8 +19,8 @@ static ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t content)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)&content, buffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)&content, buffer.writeRef()));
 
     return buffer;
 }
@@ -38,12 +38,12 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-root-shader-parameter", "computeMain", slangReflection)
     );
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
-    std::vector<ComPtr<IBufferResource>> buffers;
+    std::vector<ComPtr<IBuffer>> buffers;
     std::vector<ComPtr<IResourceView>> srvs, uavs;
 
     for (uint32_t i = 0; i < 9; i++)
@@ -115,7 +115,7 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         {
             auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipelineState, rootObject);
+            encoder->bindPipelineWithRootObject(pipeline, rootObject);
             encoder->dispatchCompute(1, 1, 1);
             encoder->endEncoding();
         }
@@ -130,5 +130,11 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("root-shader-parameter")
 {
-    runGpuTests(testRootShaderParameter, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testRootShaderParameter,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

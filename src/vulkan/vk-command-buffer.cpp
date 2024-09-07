@@ -76,52 +76,35 @@ VkCommandBuffer CommandBufferImpl::getPreCommandBuffer()
     return m_preCommandBuffer;
 }
 
-void CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass,
-    IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder
-)
+Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
-    if (!m_renderCommandEncoder)
-    {
-        m_renderCommandEncoder = new RenderCommandEncoder();
-        m_renderCommandEncoder->init(this);
-    }
-    m_renderCommandEncoder->beginPass(renderPass, framebuffer);
-    *outEncoder = m_renderCommandEncoder.Ptr();
+    m_resourceCommandEncoder.init(this);
+    *outEncoder = &m_resourceCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
-    if (!m_computeCommandEncoder)
-    {
-        m_computeCommandEncoder = new ComputeCommandEncoder();
-        m_computeCommandEncoder->init(this);
-    }
-    *outEncoder = m_computeCommandEncoder.Ptr();
+    m_renderCommandEncoder.init(this);
+    SLANG_RETURN_ON_FAIL(m_renderCommandEncoder.beginPass(desc));
+    *outEncoder = &m_renderCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
-    if (!m_resourceCommandEncoder)
-    {
-        m_resourceCommandEncoder = new ResourceCommandEncoder();
-        m_resourceCommandEncoder->init(this);
-    }
-    *outEncoder = m_resourceCommandEncoder.Ptr();
+    m_computeCommandEncoder.init(this);
+    *outEncoder = &m_computeCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
-    if (!m_rayTracingCommandEncoder)
-    {
-        if (m_renderer->m_api.vkCmdBuildAccelerationStructuresKHR)
-        {
-            m_rayTracingCommandEncoder = new RayTracingCommandEncoder();
-            m_rayTracingCommandEncoder->init(this);
-        }
-    }
-    *outEncoder = m_rayTracingCommandEncoder.Ptr();
+    if (!m_renderer->m_api.vkCmdBuildAccelerationStructuresKHR)
+        return SLANG_E_NOT_AVAILABLE;
+    m_rayTracingCommandEncoder.init(this);
+    *outEncoder = &m_rayTracingCommandEncoder;
+    return SLANG_OK;
 }
 
 void CommandBufferImpl::close()
@@ -152,10 +135,10 @@ void CommandBufferImpl::close()
     vkAPI.vkEndCommandBuffer(m_commandBuffer);
 }
 
-Result CommandBufferImpl::getNativeHandle(InteropHandle* outHandle)
+Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = (uint64_t)m_commandBuffer;
+    outHandle->type = NativeHandleType::VkCommandBuffer;
+    outHandle->value = (uint64_t)m_commandBuffer;
     return SLANG_OK;
 }
 

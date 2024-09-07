@@ -27,10 +27,10 @@ public:
     RootShaderObjectImpl m_rootObject;
     RefPtr<MutableRootShaderObjectImpl> m_mutableRootShaderObject;
 
-    RefPtr<ResourceCommandEncoder> m_resourceCommandEncoder;
-    RefPtr<ComputeCommandEncoder> m_computeCommandEncoder;
-    RefPtr<RenderCommandEncoder> m_renderCommandEncoder;
-    RefPtr<RayTracingCommandEncoder> m_rayTracingCommandEncoder;
+    ResourceCommandEncoderImpl m_resourceCommandEncoder;
+    RenderCommandEncoderImpl m_renderCommandEncoder;
+    ComputeCommandEncoderImpl m_computeCommandEncoder;
+    RayTracingCommandEncoderImpl m_rayTracingCommandEncoder;
 
     // Command buffers are deallocated by its command pool,
     // so no need to free individually.
@@ -45,16 +45,13 @@ public:
     VkCommandBuffer getPreCommandBuffer();
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
-        IRenderPassLayout* renderPass,
-        IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder
-    ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::vk

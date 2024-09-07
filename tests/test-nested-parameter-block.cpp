@@ -3,12 +3,12 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t data, ResourceState defaultState)
+ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t data, ResourceState defaultState)
 {
     uint32_t initialData[] = {data, data, data, data};
     const int numberCount = SLANG_COUNT_OF(initialData);
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = sizeof(initialData);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(initialData);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(uint32_t) * 4;
     bufferDesc.allowedStates = ResourceStateSet(
@@ -20,8 +20,8 @@ ComPtr<IBufferResource> createBuffer(IDevice* device, uint32_t data, ResourceSta
     bufferDesc.defaultState = defaultState;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
     return numbersBuffer;
 }
 
@@ -45,15 +45,15 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         loadComputeProgram(device, shaderProgram, "test-nested-parameter-block", "computeMain", slangReflection)
     );
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     ComPtr<IShaderObject> shaderObject;
     REQUIRE_CALL(device->createMutableRootShaderObject(shaderProgram, shaderObject.writeRef()));
 
-    std::vector<ComPtr<IBufferResource>> srvBuffers;
+    std::vector<ComPtr<IBuffer>> srvBuffers;
     std::vector<ComPtr<IResourceView>> srvs;
 
     for (uint32_t i = 0; i < 6; i++)
@@ -66,7 +66,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         srvDesc.bufferRange.size = sizeof(uint32_t) * 4;
         srvs.push_back(device->createBufferView(srvBuffers[i], nullptr, srvDesc));
     }
-    ComPtr<IBufferResource> resultBuffer = createBuffer(device, 0, ResourceState::UnorderedAccess);
+    ComPtr<IBuffer> resultBuffer = createBuffer(device, 0, ResourceState::UnorderedAccess);
     IResourceView::Desc resultBufferViewDesc = {};
     resultBufferViewDesc.type = IResourceView::Type::UnorderedAccess;
     resultBufferViewDesc.format = Format::Unknown;
@@ -82,12 +82,21 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         materialObject.writeRef()
     ));
 
+    ShaderCursor materialCursor(materialObject);
+    materialCursor["cb"].setData(uint4{1000, 1000, 1000, 1000});
+    materialCursor["data"].setResource(srvs[2]);
+
     ComPtr<IShaderObject> sceneObject;
     REQUIRE_CALL(device->createMutableShaderObject(
         slangReflection->findTypeByName("Scene"),
         ShaderObjectContainerType::None,
         sceneObject.writeRef()
     ));
+
+    ShaderCursor sceneCursor(sceneObject);
+    sceneCursor["sceneCb"].setData(uint4{100, 100, 100, 100});
+    sceneCursor["data"].setResource(srvs[1]);
+    sceneCursor["material"].setObject(materialObject);
 
     ShaderCursor cursor(shaderObject);
     cursor["resultBuffer"].setResource(resultBufferView);
@@ -104,15 +113,6 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     auto initialData = uint4{20, 20, 20, 20};
     globalCB->setData(ShaderOffset(), &initialData, sizeof(initialData));
 
-    ShaderCursor sceneCursor(sceneObject);
-    sceneCursor["sceneCb"].setData(uint4{100, 100, 100, 100});
-    sceneCursor["data"].setResource(srvs[1]);
-    sceneCursor["material"].setObject(materialObject);
-
-    ShaderCursor materialCursor(materialObject);
-    materialCursor["cb"].setData(uint4{1000, 1000, 1000, 1000});
-    materialCursor["data"].setResource(srvs[2]);
-
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
@@ -122,7 +122,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        encoder->bindPipelineWithRootObject(pipelineState, shaderObject);
+        encoder->bindPipelineWithRootObject(pipeline, shaderObject);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();
@@ -134,7 +134,14 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(device, resultBuffer, makeArray<uint32_t>(1123u, 1123u, 1123u, 1123u));
 }
 
-TEST_CASE("NestedParameterBlock")
+TEST_CASE("nested-parameter-block")
 {
-    runGpuTests(testNestedParameterBlock, {DeviceType::D3D12, DeviceType::Vulkan});
+    // Only supported on D3D12 and Vulkan.
+    runGpuTests(
+        testNestedParameterBlock,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

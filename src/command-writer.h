@@ -12,10 +12,10 @@ namespace rhi {
 
 enum class CommandName
 {
-    SetPipelineState,
+    SetPipeline,
     BindRootShaderObject,
-    SetFramebuffer,
-    ClearFrame,
+    BeginRenderPass,
+    EndRenderPass,
     SetViewports,
     SetScissorRects,
     SetPrimitiveTopology,
@@ -39,6 +39,10 @@ struct Command
     CommandName name;
     uint32_t operands[kMaxCommandOperands];
     Command() = default;
+    Command(CommandName inName)
+        : name(inName)
+    {
+    }
     Command(CommandName inName, uint32_t op)
         : name(inName)
     {
@@ -123,10 +127,10 @@ public:
         return reinterpret_cast<T*>(m_data.data() + offset);
     }
 
-    void setPipelineState(IPipelineState* state)
+    void setPipeline(IPipeline* state)
     {
-        auto offset = encodeObject(static_cast<PipelineStateBase*>(state));
-        m_commands.push_back(Command(CommandName::SetPipelineState, (uint32_t)offset));
+        auto offset = encodeObject(static_cast<PipelineBase*>(state));
+        m_commands.push_back(Command(CommandName::SetPipeline, (uint32_t)offset));
     }
 
     void bindRootShaderObject(IShaderObject* object)
@@ -135,9 +139,9 @@ public:
         m_commands.push_back(Command(CommandName::BindRootShaderObject, (uint32_t)rootOffset));
     }
 
-    void uploadBufferData(IBufferResource* buffer, Offset offset, Size size, void* data)
+    void uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
     {
-        auto bufferOffset = encodeObject(static_cast<BufferResource*>(buffer));
+        auto bufferOffset = encodeObject(static_cast<Buffer*>(buffer));
         auto dataOffset = encodeData(data, size);
         m_commands.push_back(Command(
             CommandName::UploadBufferData,
@@ -148,10 +152,10 @@ public:
         ));
     }
 
-    void copyBuffer(IBufferResource* dst, Offset dstOffset, IBufferResource* src, Offset srcOffset, Size size)
+    void copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
     {
-        auto dstBuffer = encodeObject(static_cast<BufferResource*>(dst));
-        auto srcBuffer = encodeObject(static_cast<BufferResource*>(src));
+        auto dstBuffer = encodeObject(static_cast<Buffer*>(dst));
+        auto srcBuffer = encodeObject(static_cast<Buffer*>(src));
         m_commands.push_back(Command(
             CommandName::CopyBuffer,
             (uint32_t)dstBuffer,
@@ -162,17 +166,38 @@ public:
         ));
     }
 
-    void setFramebuffer(IFramebuffer* frameBuffer)
+    void beginRenderPass(const RenderPassDesc& desc)
     {
-        auto framebufferOffset = encodeObject(static_cast<FramebufferBase*>(frameBuffer));
-        m_commands.push_back(Command(CommandName::SetFramebuffer, (uint32_t)framebufferOffset));
+        Offset colorAttachmentsOffset =
+            encodeData(desc.colorAttachments, sizeof(RenderPassColorAttachment) * desc.colorAttachmentCount);
+        Offset depthStencilAttachmentOffset = encodeData(
+            desc.depthStencilAttachment,
+            desc.depthStencilAttachment ? sizeof(RenderPassDepthStencilAttachment) : 0
+        );
+        Offset viewsOffset = 0;
+        for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
+        {
+            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.colorAttachments[i].view));
+            if (i == 0)
+                viewsOffset = offset;
+        }
+        if (desc.depthStencilAttachment)
+        {
+            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.depthStencilAttachment->view));
+            if (desc.colorAttachmentCount == 0)
+                viewsOffset = offset;
+        }
+        m_commands.push_back(Command(
+            CommandName::BeginRenderPass,
+            (uint32_t)desc.colorAttachmentCount,
+            (uint32_t)(desc.depthStencilAttachment ? 1 : 0),
+            (uint32_t)colorAttachmentsOffset,
+            (uint32_t)depthStencilAttachmentOffset,
+            (uint32_t)viewsOffset
+        ));
     }
 
-    void clearFrame(uint32_t colorBufferMask, bool clearDepth, bool clearStencil)
-    {
-        m_commands.push_back(Command(CommandName::ClearFrame, colorBufferMask, clearDepth ? 1 : 0, clearStencil ? 1 : 0)
-        );
-    }
+    void endRenderPass() { m_commands.push_back(Command(CommandName::EndRenderPass)); }
 
     void setViewports(GfxCount count, const Viewport* viewports)
     {
@@ -191,17 +216,12 @@ public:
         m_commands.push_back(Command(CommandName::SetPrimitiveTopology, (uint32_t)topology));
     }
 
-    void setVertexBuffers(
-        GfxIndex startSlot,
-        GfxCount slotCount,
-        IBufferResource* const* buffers,
-        const Offset* offsets
-    )
+    void setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)
     {
         Offset bufferOffset = 0;
         for (GfxCount i = 0; i < slotCount; i++)
         {
-            auto offset = encodeObject(static_cast<BufferResource*>(buffers[i]));
+            auto offset = encodeObject(static_cast<Buffer*>(buffers[i]));
             if (i == 0)
                 bufferOffset = offset;
         }
@@ -215,9 +235,9 @@ public:
         ));
     }
 
-    void setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset)
+    void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
     {
-        auto bufferOffset = encodeObject(static_cast<BufferResource*>(buffer));
+        auto bufferOffset = encodeObject(static_cast<Buffer*>(buffer));
         m_commands.push_back(
             Command(CommandName::SetIndexBuffer, (uint32_t)bufferOffset, (uint32_t)indexFormat, (uint32_t)offset)
         );

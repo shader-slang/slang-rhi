@@ -29,11 +29,11 @@ struct SwapchainResizeTest
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<gfx::IFramebufferLayout> framebufferLayout;
-    ComPtr<IPipelineState> pipelineState;
+    ComPtr<IPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
     List<ComPtr<IFramebuffer>> framebuffers;
 
-    ComPtr<IBufferResource> vertexBuffer;
+    ComPtr<IBuffer> vertexBuffer;
 
     GfxCount width = 500;
     GfxCount height = 500;
@@ -51,13 +51,13 @@ struct SwapchainResizeTest
         framebuffers.clear();
         for (GfxIndex i = 0; i < kSwapchainImageCount; ++i)
         {
-            ComPtr<ITextureResource> colorBuffer;
+            ComPtr<ITexture> colorBuffer;
             swapchain->getImage(i, colorBuffer.writeRef());
 
             gfx::IResourceView::Desc colorBufferViewDesc;
             memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
             colorBufferViewDesc.format = swapchain->getDesc().format;
-            colorBufferViewDesc.renderTarget.shape = gfx::IResource::Type::Texture2D;
+            colorBufferViewDesc.renderTarget.shape = gfx::TextureType::Texture2D;
             colorBufferViewDesc.type = gfx::IResourceView::Type::RenderTarget;
             auto rtv = device->createTextureView(colorBuffer.get(), colorBufferViewDesc);
 
@@ -109,7 +109,7 @@ struct SwapchainResizeTest
             // Vertex buffer data
             {"POSITIONA", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
         };
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);
@@ -117,11 +117,10 @@ struct SwapchainResizeTest
         auto inputLayout = device->createInputLayout(inputLayoutDesc);
         SLANG_CHECK_ABORT(inputLayout != nullptr);
 
-        IBufferResource::Desc vertexBufferDesc;
-        vertexBufferDesc.type = IResource::Type::Buffer;
-        vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-        vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+        vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         SLANG_CHECK_ABORT(vertexBuffer != nullptr);
 
         ITransientResourceHeap::Desc transientHeapDesc = {};
@@ -139,30 +138,30 @@ struct SwapchainResizeTest
             slangReflection
         ));
 
-        IFramebufferLayout::TargetLayout targetLayout;
+        TargetLayoutDesc targetLayout;
         targetLayout.format = swapchain->getDesc().format;
         targetLayout.sampleCount = 1;
 
-        IFramebufferLayout::Desc framebufferLayoutDesc;
+        FramebufferLayoutDesc framebufferLayoutDesc;
         framebufferLayoutDesc.renderTargetCount = 1;
         framebufferLayoutDesc.renderTargets = &targetLayout;
         framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
         SLANG_CHECK_ABORT(framebufferLayout != nullptr);
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
         pipelineDesc.framebufferLayout = framebufferLayout;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IRenderPassLayout::Desc renderPassDesc = {};
         renderPassDesc.framebufferLayout = framebufferLayout;
         renderPassDesc.renderTargetCount = 1;
         IRenderPassLayout::TargetAccessDesc renderTargetAccess = {};
-        renderTargetAccess.loadOp = IRenderPassLayout::TargetLoadOp::Clear;
-        renderTargetAccess.storeOp = IRenderPassLayout::TargetStoreOp::Store;
+        renderTargetAccess.loadOp = IRenderPassLayout::LoadOp::Clear;
+        renderTargetAccess.storeOp = IRenderPassLayout::StoreOp::Store;
         renderTargetAccess.initialState = ResourceState::Undefined;
         renderTargetAccess.finalState = ResourceState::Present;
         renderPassDesc.renderTargetAccess = &renderTargetAccess;
@@ -176,7 +175,7 @@ struct SwapchainResizeTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffers[framebufferIndex]);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         gfx::Viewport viewport = {};
         viewport.maxZ = 1.0f;

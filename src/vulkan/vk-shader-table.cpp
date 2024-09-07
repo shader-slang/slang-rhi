@@ -7,10 +7,10 @@
 
 namespace rhi::vk {
 
-RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
-    PipelineStateBase* pipeline,
+RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
+    PipelineBase* pipeline,
     TransientResourceHeapBase* transientHeap,
-    IResourceCommandEncoder* encoder
+    IRayTracingCommandEncoder* encoder
 )
 {
     auto vkApi = m_device->m_api;
@@ -24,24 +24,19 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
         (uint32_t)VulkanUtil::calcAligned(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
-    auto pipelineImpl = static_cast<RayTracingPipelineStateImpl*>(pipeline);
-    ComPtr<IBufferResource> bufferResource;
-    IBufferResource::Desc bufferDesc = {};
+    auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
+    ComPtr<IBuffer> buffer;
+    BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.allowedStates = ResourceStateSet(ResourceState::General, ResourceState::CopyDestination);
-    bufferDesc.type = IResource::Type::Buffer;
-    bufferDesc.sizeInBytes = tableSize;
-    static_cast<vk::DeviceImpl*>(m_device)->createBufferResourceImpl(
-        bufferDesc,
-        VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-        nullptr,
-        bufferResource.writeRef()
-    );
+    bufferDesc.size = tableSize;
+    static_cast<vk::DeviceImpl*>(m_device)
+        ->createBufferImpl(bufferDesc, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, nullptr, buffer.writeRef());
 
     TransientResourceHeapImpl* transientHeapImpl = static_cast<TransientResourceHeapImpl*>(transientHeap);
 
-    IBufferResource* stagingBuffer = nullptr;
+    IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
     transientHeapImpl->allocateStagingBuffer(tableSize, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
 
@@ -123,9 +118,20 @@ RefPtr<BufferResource> ShaderTableImpl::createDeviceBuffer(
     subTablePtr += m_callableTableSize;
 
     stagingBuffer->unmap(nullptr);
-    encoder->copyBuffer(bufferResource, 0, stagingBuffer, stagingBufferOffset, tableSize);
-    encoder->bufferBarrier(1, bufferResource.readRef(), ResourceState::CopyDestination, ResourceState::ShaderResource);
-    RefPtr<BufferResource> resultPtr = static_cast<BufferResource*>(bufferResource.get());
+
+    VkBufferCopy copyRegion;
+    copyRegion.dstOffset = 0;
+    copyRegion.srcOffset = stagingBufferOffset;
+    copyRegion.size = tableSize;
+    vkApi.vkCmdCopyBuffer(
+        static_cast<RayTracingCommandEncoderImpl*>(encoder)->m_commandBuffer->m_commandBuffer,
+        static_cast<BufferImpl*>(stagingBuffer)->m_buffer.m_buffer,
+        static_cast<BufferImpl*>(buffer.get())->m_buffer.m_buffer,
+        /* regionCount: */ 1,
+        &copyRegion
+    );
+    encoder->bufferBarrier(1, buffer.readRef(), ResourceState::CopyDestination, ResourceState::ShaderResource);
+    RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);
 }
 

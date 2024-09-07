@@ -6,10 +6,10 @@
 
 namespace rhi::metal {
 
-class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl>
+class TransientResourceHeapImpl : public TransientResourceHeapBaseImpl<DeviceImpl, BufferImpl>
 {
 private:
-    typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferResourceImpl> Super;
+    typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferImpl> Super;
 
 public:
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;

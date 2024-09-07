@@ -15,26 +15,24 @@ namespace rhi {
 const Guid GUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
 const Guid GUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
 const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
-const Guid GUID::IID_IPipelineState = IPipelineState::getTypeGuid();
+const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
-const Guid GUID::IID_IFramebuffer = IFramebuffer::getTypeGuid();
-const Guid GUID::IID_IFramebufferLayout = IFramebufferLayout::getTypeGuid();
 
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
-const Guid GUID::IID_ISamplerState = ISamplerState::getTypeGuid();
+const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
 const Guid GUID::IID_IResource = IResource::getTypeGuid();
-const Guid GUID::IID_IBufferResource = IBufferResource::getTypeGuid();
-const Guid GUID::IID_ITextureResource = ITextureResource::getTypeGuid();
+const Guid GUID::IID_IBuffer = IBuffer::getTypeGuid();
+const Guid GUID::IID_ITexture = ITexture::getTypeGuid();
 const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
-const Guid GUID::IID_IRenderPassLayout = IRenderPassLayout::getTypeGuid();
-const Guid GUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
+const Guid GUID::IID_ICommandEncoder = ICommandEncoder::getTypeGuid();
 const Guid GUID::IID_IResourceCommandEncoder = IResourceCommandEncoder::getTypeGuid();
-const Guid GUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
 const Guid GUID::IID_IRenderCommandEncoder = IRenderCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IComputeCommandEncoder = IComputeCommandEncoder::getTypeGuid();
+const Guid GUID::IID_IRayTracingCommandEncoder = IRayTracingCommandEncoder::getTypeGuid();
 
 const Guid GUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
 const Guid GUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
@@ -47,37 +45,6 @@ const Guid GUID::IID_IShaderTable = IShaderTable::getTypeGuid();
 const Guid GUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
-StageType translateStage(SlangStage slangStage)
-{
-    switch (slangStage)
-    {
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unhandled case");
-        return StageType::Unknown;
-
-#define CASE(FROM, TO)                                                                                                 \
-    case SLANG_STAGE_##FROM:                                                                                           \
-        return StageType::TO
-
-        CASE(VERTEX, Vertex);
-        CASE(HULL, Hull);
-        CASE(DOMAIN, Domain);
-        CASE(GEOMETRY, Geometry);
-        CASE(FRAGMENT, Fragment);
-
-        CASE(COMPUTE, Compute);
-
-        CASE(RAY_GENERATION, RayGeneration);
-        CASE(INTERSECTION, Intersection);
-        CASE(ANY_HIT, AnyHit);
-        CASE(CLOSEST_HIT, ClosestHit);
-        CASE(MISS, Miss);
-        CASE(CALLABLE, Callable);
-
-#undef CASE
-    }
-}
-
 IFence* FenceBase::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFence)
@@ -85,102 +52,52 @@ IFence* FenceBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IResource* BufferResource::getInterface(const Guid& guid)
+IResource* Buffer::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IBufferResource)
-        return static_cast<IBufferResource*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IBuffer)
+        return static_cast<IBuffer*>(this);
     return nullptr;
 }
 
-SLANG_NO_THROW IResource::Type SLANG_MCALL BufferResource::getType()
-{
-    return m_type;
-}
-SLANG_NO_THROW IBufferResource::Desc* SLANG_MCALL BufferResource::getDesc()
+SLANG_NO_THROW BufferDesc* SLANG_MCALL Buffer::getDesc()
 {
     return &m_desc;
 }
 
-Result BufferResource::getNativeResourceHandle(InteropHandle* outHandle)
+Result Buffer::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = 0;
-    outHandle->api = InteropHandleAPI::Unknown;
-    return SLANG_FAIL;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-Result BufferResource::getSharedHandle(InteropHandle* outHandle)
+Result Buffer::getSharedHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Unknown;
-    outHandle->handleValue = 0;
-    return SLANG_FAIL;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-IResource* TextureResource::getInterface(const Guid& guid)
+IResource* Texture::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITextureResource)
-        return static_cast<ITextureResource*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITexture)
+        return static_cast<ITexture*>(this);
     return nullptr;
 }
 
-SLANG_NO_THROW IResource::Type SLANG_MCALL TextureResource::getType()
-{
-    return m_type;
-}
-SLANG_NO_THROW ITextureResource::Desc* SLANG_MCALL TextureResource::getDesc()
+SLANG_NO_THROW TextureDesc* SLANG_MCALL Texture::getDesc()
 {
     return &m_desc;
 }
 
-Result TextureResource::getNativeResourceHandle(InteropHandle* outHandle)
+Result Texture::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = 0;
-    outHandle->api = InteropHandleAPI::Unknown;
-    return SLANG_FAIL;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-Result TextureResource::getSharedHandle(InteropHandle* outHandle)
+Result Texture::getSharedHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Unknown;
-    outHandle->handleValue = 0;
-    return SLANG_OK;
-}
-
-StageType mapStage(SlangStage stage)
-{
-    switch (stage)
-    {
-    default:
-        return StageType::Unknown;
-
-    case SLANG_STAGE_AMPLIFICATION:
-        return StageType::Amplification;
-    case SLANG_STAGE_ANY_HIT:
-        return StageType::AnyHit;
-    case SLANG_STAGE_CALLABLE:
-        return StageType::Callable;
-    case SLANG_STAGE_CLOSEST_HIT:
-        return StageType::ClosestHit;
-    case SLANG_STAGE_COMPUTE:
-        return StageType::Compute;
-    case SLANG_STAGE_DOMAIN:
-        return StageType::Domain;
-    case SLANG_STAGE_FRAGMENT:
-        return StageType::Fragment;
-    case SLANG_STAGE_GEOMETRY:
-        return StageType::Geometry;
-    case SLANG_STAGE_HULL:
-        return StageType::Hull;
-    case SLANG_STAGE_INTERSECTION:
-        return StageType::Intersection;
-    case SLANG_STAGE_MESH:
-        return StageType::Mesh;
-    case SLANG_STAGE_MISS:
-        return StageType::Miss;
-    case SLANG_STAGE_RAY_GENERATION:
-        return StageType::RayGeneration;
-    case SLANG_STAGE_VERTEX:
-        return StageType::Vertex;
-    }
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 IResourceView* ResourceViewBase::getInterface(const Guid& guid)
@@ -190,24 +107,22 @@ IResourceView* ResourceViewBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-Result ResourceViewBase::getNativeHandle(InteropHandle* outHandle)
+Result ResourceViewBase::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Unknown;
-    outHandle->handleValue = 0;
-    return SLANG_E_NOT_IMPLEMENTED;
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-ISamplerState* SamplerStateBase::getInterface(const Guid& guid)
+ISampler* SamplerBase::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISamplerState)
-        return static_cast<ISamplerState*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISampler)
+        return static_cast<ISampler*>(this);
     return nullptr;
 }
 
-Result SamplerStateBase::getNativeHandle(InteropHandle* outHandle)
+Result SamplerBase::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Unknown;
-    outHandle->handleValue = 0;
+    *outHandle = {};
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
@@ -292,20 +207,6 @@ IInputLayout* InputLayoutBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IFramebufferLayout* FramebufferLayoutBase::getInterface(const Guid& guid)
-{
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebufferLayout)
-        return static_cast<IFramebufferLayout*>(this);
-    return nullptr;
-}
-
-IFramebuffer* FramebufferBase::getInterface(const Guid& guid)
-{
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFramebuffer)
-        return static_cast<IFramebuffer*>(this);
-    return nullptr;
-}
-
 IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
@@ -313,23 +214,32 @@ IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IPipelineState* PipelineStateBase::getInterface(const Guid& guid)
+IPipeline* PipelineBase::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipelineState)
-        return static_cast<IPipelineState*>(this);
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline)
+        return static_cast<IPipeline*>(this);
     return nullptr;
 }
 
-Result PipelineStateBase::getNativeHandle(InteropHandle* outHandle)
+Result PipelineBase::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Unknown;
-    outHandle->handleValue = 0;
+    *outHandle = {};
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void PipelineStateBase::initializeBase(const PipelineStateDesc& inDesc)
+void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
 {
     desc = inDesc;
+
+    descHolder.holdList(desc.graphics.targets, desc.graphics.targetCount);
+    descHolder.holdList(desc.rayTracing.hitGroups, desc.rayTracing.hitGroupCount);
+    for (Index i = 0; i < desc.rayTracing.hitGroupCount; i++)
+    {
+        descHolder.holdString(desc.rayTracing.hitGroups[i].hitGroupName);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].closestHitEntryPoint);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].anyHitEntryPoint);
+        descHolder.holdString(desc.rayTracing.hitGroups[i].intersectionEntryPoint);
+    }
 
     auto program = desc.getProgram();
     m_program = program;
@@ -344,12 +254,10 @@ void PipelineStateBase::initializeBase(const PipelineStateDesc& inDesc)
             break;
         }
     }
-    // Hold a strong reference to inputLayout and framebufferLayout objects to prevent it from
-    // destruction.
+    // Hold a strong reference to inputLayout object to prevent it from destruction.
     if (inDesc.type == PipelineType::Graphics)
     {
         inputLayout = static_cast<InputLayoutBase*>(inDesc.graphics.inputLayout);
-        framebufferLayout = static_cast<FramebufferLayoutBase*>(inDesc.graphics.framebufferLayout);
     }
 }
 
@@ -412,7 +320,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::getNativeDeviceHandles(InteropHandles* outHandles)
+SLANG_NO_THROW Result SLANG_MCALL RendererBase::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     return SLANG_OK;
 }
@@ -475,53 +383,44 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::getSlangSession(slang::ISession*
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromNativeHandle(
-    InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
-    ITextureResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+RendererBase::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outTexture);
     return SLANG_E_NOT_AVAILABLE;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromSharedHandle(
-    InteropHandle handle,
-    const ITextureResource::Desc& srcDesc,
+    NativeHandle handle,
+    const TextureDesc& srcDesc,
     const Size size,
-    ITextureResource** outResource
+    ITexture** outTexture
 )
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
     SLANG_UNUSED(size);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outTexture);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+RendererBase::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outBuffer);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createBufferFromSharedHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+SLANG_NO_THROW Result SLANG_MCALL
+RendererBase::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
-    SLANG_UNUSED(outResource);
+    SLANG_UNUSED(outBuffer);
     return SLANG_E_NOT_AVAILABLE;
 }
 
@@ -565,82 +464,6 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createMutableShaderObject2(
     RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, containerType, shaderObjectLayout.writeRef()));
     return createMutableShaderObject(shaderObjectLayout, outObject);
-}
-
-Result RendererBase::createProgram2(
-    const IShaderProgram::CreateDesc2& desc,
-    IShaderProgram** outProgram,
-    ISlangBlob** outDiagnostic
-)
-{
-    auto slangSession = slangContext.session.get();
-    slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    switch (desc.sourceType)
-    {
-    case ShaderModuleSourceType::SlangSourceFile:
-    {
-        auto fileName = (char*)desc.sourceData;
-        module = slangSession->loadModule(fileName, diagnosticsBlob.writeRef());
-        if (!module)
-            return SLANG_FAIL;
-        break;
-    }
-    case ShaderModuleSourceType::SlangSource:
-    {
-        uint32_t hash = hash_data(desc.sourceData, desc.sourceDataSize);
-        auto hashStr = std::to_string(hash);
-        auto srcBlob = UnownedBlob::create(desc.sourceData, desc.sourceDataSize);
-        module =
-            slangSession->loadModuleFromSource(hashStr.data(), hashStr.data(), srcBlob, diagnosticsBlob.writeRef());
-        if (!module)
-            return SLANG_FAIL;
-        break;
-    }
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown source type");
-    }
-
-    std::vector<ComPtr<slang::IComponentType>> componentTypes;
-    componentTypes.push_back(ComPtr<slang::IComponentType>(module));
-
-    if (desc.entryPointCount == 0)
-    {
-        for (SlangInt32 i = 0; i < module->getDefinedEntryPointCount(); i++)
-        {
-            ComPtr<slang::IEntryPoint> entryPoint;
-            SLANG_RETURN_ON_FAIL(module->getDefinedEntryPoint(i, entryPoint.writeRef()));
-            componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
-        }
-    }
-    else
-    {
-        for (GfxCount i = 0; i < desc.entryPointCount; i++)
-        {
-            ComPtr<slang::IEntryPoint> entryPoint;
-            SLANG_RETURN_ON_FAIL(module->findEntryPointByName(desc.entryPointNames[i], entryPoint.writeRef()));
-            componentTypes.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
-        }
-    }
-
-    std::vector<slang::IComponentType*> rawComponentTypes;
-    for (auto& compType : componentTypes)
-        rawComponentTypes.push_back(compType.get());
-
-    ComPtr<slang::IComponentType> linkedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        rawComponentTypes.data(),
-        rawComponentTypes.size(),
-        linkedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    SLANG_RETURN_ON_FAIL(result);
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = linkedProgram;
-    SLANG_RETURN_ON_FAIL(createProgram(programDesc, outProgram, outDiagnostic));
-
-    return SLANG_OK;
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
@@ -688,10 +511,10 @@ Result RendererBase::createShaderTable(const IShaderTable::Desc& desc, IShaderTa
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result RendererBase::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
-    SLANG_UNUSED(outState);
+    SLANG_UNUSED(outPipeline);
     return SLANG_E_NOT_AVAILABLE;
 }
 
@@ -725,7 +548,7 @@ Result RendererBase::waitForFences(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment)
+Result RendererBase::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
 {
     SLANG_UNUSED(desc);
     *outSize = 0;
@@ -844,7 +667,7 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
-void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<PipelineStateBase> specializedPipeline)
+void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<PipelineBase> specializedPipeline)
 {
     specializedPipelines[key] = specializedPipeline;
 }
@@ -942,30 +765,25 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     if (!m_structuredBuffer)
     {
         // Create structured buffer resource if it has not been created.
-        IBufferResource::Desc desc = {};
+        BufferDesc desc = {};
         desc.allowedStates = ResourceStateSet(ResourceState::ShaderResource, ResourceState::UnorderedAccess);
         desc.defaultState = ResourceState::ShaderResource;
         desc.elementSize = (int)elementLayout->getSize();
         desc.format = Format::Unknown;
-        desc.type = IResource::Type::Buffer;
-        desc.sizeInBytes = (Size)m_ordinaryData.size();
-        ComPtr<IBufferResource> bufferResource;
-        SLANG_RETURN_NULL_ON_FAIL(device->createBufferResource(desc, m_ordinaryData.data(), bufferResource.writeRef()));
-        m_structuredBuffer = static_cast<BufferResource*>(bufferResource.get());
+        desc.size = (Size)m_ordinaryData.size();
+        ComPtr<IBuffer> buffer;
+        SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(desc, m_ordinaryData.data(), buffer.writeRef()));
+        m_structuredBuffer = static_cast<Buffer*>(buffer.get());
 
         // Create read-only (shader-resource) and mutable (unordered access) views.
         ComPtr<IResourceView> resourceView;
         IResourceView::Desc viewDesc = {};
         viewDesc.format = Format::Unknown;
         viewDesc.type = IResourceView::Type::ShaderResource;
-        SLANG_RETURN_NULL_ON_FAIL(
-            device->createBufferView(bufferResource.get(), nullptr, viewDesc, resourceView.writeRef())
-        );
+        SLANG_RETURN_NULL_ON_FAIL(device->createBufferView(buffer.get(), nullptr, viewDesc, resourceView.writeRef()));
         m_structuredBufferView = static_cast<ResourceViewBase*>(resourceView.get());
         viewDesc.type = IResourceView::Type::UnorderedAccess;
-        SLANG_RETURN_NULL_ON_FAIL(
-            device->createBufferView(bufferResource.get(), nullptr, viewDesc, resourceView.writeRef())
-        );
+        SLANG_RETURN_NULL_ON_FAIL(device->createBufferView(buffer.get(), nullptr, viewDesc, resourceView.writeRef()));
         m_rwStructuredBufferView = static_cast<ResourceViewBase*>(resourceView.get());
     }
 
@@ -981,25 +799,25 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
     }
 }
 
-void ShaderProgramBase::init(const IShaderProgram::Desc& inDesc)
+void ShaderProgramBase::init(const ShaderProgramDesc& inDesc)
 {
     desc = inDesc;
 
     slangGlobalScope = desc.slangGlobalScope;
-    for (GfxIndex i = 0; i < desc.entryPointCount; i++)
+    for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
     {
         slangEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
     }
 
     auto session = desc.slangGlobalScope ? desc.slangGlobalScope->getSession() : nullptr;
-    if (desc.linkingStyle == IShaderProgram::LinkingStyle::SingleProgram)
+    if (desc.linkingStyle == LinkingStyle::SingleProgram)
     {
         std::vector<slang::IComponentType*> components;
         if (desc.slangGlobalScope)
         {
             components.push_back(desc.slangGlobalScope);
         }
-        for (GfxIndex i = 0; i < desc.entryPointCount; i++)
+        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (!session)
             {
@@ -1011,7 +829,7 @@ void ShaderProgramBase::init(const IShaderProgram::Desc& inDesc)
     }
     else
     {
-        for (GfxIndex i = 0; i < desc.entryPointCount; i++)
+        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (desc.slangGlobalScope)
             {
@@ -1109,16 +927,16 @@ bool ShaderProgramBase::isMeshShaderProgram() const
 }
 
 Result RendererBase::maybeSpecializePipeline(
-    PipelineStateBase* currentPipeline,
+    PipelineBase* currentPipeline,
     ShaderObjectBase* rootObject,
-    RefPtr<PipelineStateBase>& outNewPipeline
+    RefPtr<PipelineBase>& outNewPipeline
 )
 {
-    outNewPipeline = static_cast<PipelineStateBase*>(currentPipeline);
+    outNewPipeline = static_cast<PipelineBase*>(currentPipeline);
 
     auto pipelineType = currentPipeline->desc.type;
-    if (currentPipeline->unspecializedPipelineState)
-        currentPipeline = currentPipeline->unspecializedPipelineState;
+    if (currentPipeline->unspecializedPipeline)
+        currentPipeline = currentPipeline->unspecializedPipeline;
     // If the currently bound pipeline is specializable, we need to specialize it based on bound shader objects.
     if (currentPipeline->isSpecializable)
     {
@@ -1134,9 +952,9 @@ Result RendererBase::maybeSpecializePipeline(
         }
         pipelineKey.updateHash();
 
-        RefPtr<PipelineStateBase> specializedPipelineState = shaderCache.getSpecializedPipelineState(pipelineKey);
+        RefPtr<PipelineBase> specializedPipeline = shaderCache.getSpecializedPipeline(pipelineKey);
         // Try to find specialized pipeline from shader cache.
-        if (!specializedPipelineState)
+        if (!specializedPipeline)
         {
             auto unspecializedProgram = static_cast<ShaderProgramBase*>(
                 pipelineType == PipelineType::Compute ? currentPipeline->desc.compute.program
@@ -1164,54 +982,52 @@ Result RendererBase::maybeSpecializePipeline(
 
             // Now create the specialized shader program using compiled binaries.
             ComPtr<IShaderProgram> specializedProgram;
-            IShaderProgram::Desc specializedProgramDesc = unspecializedProgram->desc;
+            ShaderProgramDesc specializedProgramDesc = unspecializedProgram->desc;
             specializedProgramDesc.slangGlobalScope = specializedComponentType;
 
-            if (specializedProgramDesc.linkingStyle == IShaderProgram::LinkingStyle::SingleProgram)
+            if (specializedProgramDesc.linkingStyle == LinkingStyle::SingleProgram)
             {
                 // When linking style is GraphicsCompute, the specialized global scope already contains
                 // entry-points, so we do not need to supply them again when creating the specialized
                 // pipeline.
-                specializedProgramDesc.entryPointCount = 0;
+                specializedProgramDesc.slangEntryPointCount = 0;
             }
-            SLANG_RETURN_ON_FAIL(createProgram(specializedProgramDesc, specializedProgram.writeRef()));
+            SLANG_RETURN_ON_FAIL(createShaderProgram(specializedProgramDesc, specializedProgram.writeRef()));
 
             // Create specialized pipeline state.
-            ComPtr<IPipelineState> specializedPipelineComPtr;
+            ComPtr<IPipeline> specializedPipelineComPtr;
             switch (pipelineType)
             {
             case PipelineType::Compute:
             {
                 auto pipelineDesc = currentPipeline->desc.compute;
                 pipelineDesc.program = specializedProgram;
-                SLANG_RETURN_ON_FAIL(createComputePipelineState(pipelineDesc, specializedPipelineComPtr.writeRef()));
+                SLANG_RETURN_ON_FAIL(createComputePipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             case PipelineType::Graphics:
             {
                 auto pipelineDesc = currentPipeline->desc.graphics;
                 pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(createGraphicsPipelineState(pipelineDesc, specializedPipelineComPtr.writeRef()));
+                SLANG_RETURN_ON_FAIL(createRenderPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             case PipelineType::RayTracing:
             {
                 auto pipelineDesc = currentPipeline->desc.rayTracing;
                 pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
-                SLANG_RETURN_ON_FAIL(
-                    createRayTracingPipelineState(pipelineDesc.get(), specializedPipelineComPtr.writeRef())
-                );
+                SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             default:
                 break;
             }
-            specializedPipelineState = static_cast<PipelineStateBase*>(specializedPipelineComPtr.get());
-            specializedPipelineState->unspecializedPipelineState = currentPipeline;
-            shaderCache.addSpecializedPipeline(pipelineKey, specializedPipelineState);
+            specializedPipeline = static_cast<PipelineBase*>(specializedPipelineComPtr.get());
+            specializedPipeline->unspecializedPipeline = currentPipeline;
+            shaderCache.addSpecializedPipeline(pipelineKey, specializedPipeline);
         }
-        auto specializedPipelineStateBase = static_cast<PipelineStateBase*>(specializedPipelineState.Ptr());
-        outNewPipeline = specializedPipelineStateBase;
+        auto specializedPipelineBase = static_cast<PipelineBase*>(specializedPipeline.Ptr());
+        outNewPipeline = specializedPipelineBase;
     }
     return SLANG_OK;
 }

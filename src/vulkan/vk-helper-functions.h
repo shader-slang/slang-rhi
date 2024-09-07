@@ -144,8 +144,8 @@ struct RootBindingContext
 Size calcRowSize(Format format, int width);
 GfxCount calcNumRows(Format format, int height);
 
-VkAttachmentLoadOp translateLoadOp(IRenderPassLayout::TargetLoadOp loadOp);
-VkAttachmentStoreOp translateStoreOp(IRenderPassLayout::TargetStoreOp storeOp);
+VkAttachmentLoadOp translateLoadOp(LoadOp loadOp);
+VkAttachmentStoreOp translateStoreOp(StoreOp storeOp);
 VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags::Enum flags);
 
 uint32_t getMipLevelSize(uint32_t mipLevel, uint32_t size);
@@ -158,7 +158,7 @@ VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access);
 VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceState state);
 VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceStateSet states);
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state);
-VkImageViewType _calcImageViewType(ITextureResource::Type type, const ITextureResource::Desc& desc);
+VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc);
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceStateSet states);
 VkImageUsageFlags _calcImageUsageFlags(ResourceStateSet states, MemoryType memoryType, const void* initData);
 

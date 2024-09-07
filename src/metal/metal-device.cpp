@@ -1,7 +1,6 @@
 #include "metal-device.h"
 #include "../resource-desc-utils.h"
 #include "metal-buffer.h"
-#include "metal-render-pass.h"
 #include "metal-shader-program.h"
 #include "metal-swap-chain.h"
 #include "metal-texture.h"
@@ -28,10 +27,12 @@ namespace rhi::metal {
 
 DeviceImpl::~DeviceImpl() {}
 
-Result DeviceImpl::getNativeDeviceHandles(InteropHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
-    outHandles->handles[0].api = InteropHandleAPI::Metal;
-    outHandles->handles[0].handleValue = reinterpret_cast<intptr_t>(m_device.get());
+    outHandles->handles[0].type = NativeHandleType::MTLDevice;
+    outHandles->handles[0].value = (uint64_t)m_device.get();
+    outHandles->handles[1] = {};
+    outHandles->handles[2] = {};
     return SLANG_OK;
 }
 
@@ -132,7 +133,7 @@ Result DeviceImpl::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQ
     RefPtr<CommandQueueImpl> result = new CommandQueueImpl;
     result->init(this, m_commandQueue);
     returnComPtr(outQueue, result);
-    m_queueAllocCount++;
+    // m_queueAllocCount++;
     return SLANG_OK;
 }
 
@@ -146,38 +147,8 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<FramebufferLayoutImpl> layoutImpl = new FramebufferLayoutImpl;
-    SLANG_RETURN_ON_FAIL(layoutImpl->init(desc));
-    returnComPtr(outLayout, layoutImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<RenderPassLayoutImpl> renderPassLayoutImpl = new RenderPassLayoutImpl;
-    SLANG_RETURN_ON_FAIL(renderPassLayoutImpl->init(this, desc));
-    returnComPtr(outRenderPassLayout, renderPassLayoutImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<FramebufferImpl> framebufferImpl = new FramebufferImpl;
-    SLANG_RETURN_ON_FAIL(framebufferImpl->init(this, desc));
-    returnComPtr(outFramebuffer, framebufferImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::readTextureResource(
-    ITextureResource* texture,
+Result DeviceImpl::readTexture(
+    ITexture* texture,
     ResourceState state,
     ISlangBlob** outBlob,
     Size* outRowPitch,
@@ -186,16 +157,16 @@ Result DeviceImpl::readTextureResource(
 {
     AUTORELEASEPOOL
 
-    TextureResourceImpl* textureImpl = static_cast<TextureResourceImpl*>(texture);
+    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
 
-    if (textureImpl->getDesc()->sampleDesc.numSamples > 1)
+    if (textureImpl->getDesc()->sampleCount > 1)
     {
         return SLANG_E_NOT_IMPLEMENTED;
     }
 
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
-    const ITextureResource::Desc& desc = *textureImpl->getDesc();
+    const TextureDesc& desc = *textureImpl->getDesc();
     GfxCount width = std::max(desc.size.width, 1);
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
@@ -241,7 +212,7 @@ Result DeviceImpl::readTextureResource(
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     AUTORELEASEPOOL
 
@@ -254,13 +225,7 @@ Result DeviceImpl::readBufferResource(IBufferResource* buffer, Offset offset, Si
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
-    blitEncoder->copyFromBuffer(
-        static_cast<BufferResourceImpl*>(buffer)->m_buffer.get(),
-        offset,
-        stagingBuffer.get(),
-        0,
-        size
-    );
+    blitEncoder->copyFromBuffer(static_cast<BufferImpl*>(buffer)->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
@@ -292,19 +257,19 @@ Result DeviceImpl::createAccelerationStructure(
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const ITextureResource::Desc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
 {
     AUTORELEASEPOOL
 
     auto alignTo = [&](Size size, Size alignment) -> Size { return ((size + alignment - 1) / alignment) * alignment; };
 
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
     FormatInfo formatInfo;
     rhiGetFormatInfo(desc.format, &formatInfo);
     MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;
-    ITextureResource::Extents extents = desc.size;
+    Extents extents = desc.size;
     extents.width = extents.width ? extents.width : 1;
     extents.height = extents.height ? extents.height : 1;
     extents.depth = extents.depth ? extents.depth : 1;
@@ -336,20 +301,16 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createTextureResource(
-    const ITextureResource::Desc& descIn,
-    const ITextureResource::SubresourceData* initData,
-    ITextureResource** outResource
-)
+Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
     AUTORELEASEPOOL
 
-    TextureResource::Desc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(descIn);
 
     // Metal doesn't support mip-mapping for 1D textures
     // However, we still need to use the provided mip level count when initializing the texture
     GfxCount initMipLevels = desc.numMipLevels;
-    desc.numMipLevels = desc.type == IResource::Type::Texture1D ? 1 : desc.numMipLevels;
+    desc.numMipLevels = desc.type == TextureType::Texture1D ? 1 : desc.numMipLevels;
 
     const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     if (pixelFormat == MTL::PixelFormat::PixelFormatInvalid)
@@ -358,7 +319,7 @@ Result DeviceImpl::createTextureResource(
         return SLANG_FAIL;
     }
 
-    RefPtr<TextureResourceImpl> textureImpl(new TextureResourceImpl(desc, this));
+    RefPtr<TextureImpl> textureImpl(new TextureImpl(desc, this));
 
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
     switch (desc.memoryType)
@@ -379,15 +340,15 @@ Result DeviceImpl::createTextureResource(
 
     switch (desc.type)
     {
-    case IResource::Type::Texture1D:
+    case TextureType::Texture1D:
         textureDesc->setTextureType(isArray ? MTL::TextureType1DArray : MTL::TextureType1D);
         textureDesc->setWidth(desc.size.width);
         break;
-    case IResource::Type::Texture2D:
-        if (desc.sampleDesc.numSamples > 1)
+    case TextureType::Texture2D:
+        if (desc.sampleCount > 1)
         {
             textureDesc->setTextureType(isArray ? MTL::TextureType2DMultisampleArray : MTL::TextureType2DMultisample);
-            textureDesc->setSampleCount(desc.sampleDesc.numSamples);
+            textureDesc->setSampleCount(desc.sampleCount);
         }
         else
         {
@@ -396,12 +357,12 @@ Result DeviceImpl::createTextureResource(
         textureDesc->setWidth(descIn.size.width);
         textureDesc->setHeight(descIn.size.height);
         break;
-    case IResource::Type::TextureCube:
+    case TextureType::TextureCube:
         textureDesc->setTextureType(isArray ? MTL::TextureTypeCubeArray : MTL::TextureTypeCube);
         textureDesc->setWidth(descIn.size.width);
         textureDesc->setHeight(descIn.size.height);
         break;
-    case IResource::Type::Texture3D:
+    case TextureType::Texture3D:
         textureDesc->setTextureType(MTL::TextureType::TextureType3D);
         textureDesc->setWidth(descIn.size.width);
         textureDesc->setHeight(descIn.size.height);
@@ -442,7 +403,7 @@ Result DeviceImpl::createTextureResource(
     textureDesc->setArrayLength(isArray ? desc.arraySize : 1);
     textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setUsage(textureUsage);
-    textureDesc->setSampleCount(desc.sampleDesc.numSamples);
+    textureDesc->setSampleCount(desc.sampleCount);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
 
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
@@ -452,6 +413,9 @@ Result DeviceImpl::createTextureResource(
     }
     textureImpl->m_textureType = textureDesc->textureType();
     textureImpl->m_pixelFormat = textureDesc->pixelFormat();
+
+    if (desc.label)
+        textureImpl->m_texture->setLabel(MetalUtil::createString(desc.label).get());
 
     // TODO: handle initData
     if (initData)
@@ -468,7 +432,7 @@ Result DeviceImpl::createTextureResource(
         }
 
         GfxCount sliceCount = isArray ? desc.arraySize : 1;
-        if (desc.type == IResource::Type::TextureCube)
+        if (desc.type == TextureType::TextureCube)
         {
             sliceCount *= 6;
         }
@@ -482,7 +446,7 @@ Result DeviceImpl::createTextureResource(
             {
                 if (level >= desc.numMipLevels)
                     continue;
-                const ITextureResource::SubresourceData& subresourceData = initData[slice * initMipLevels + level];
+                const SubresourceData& subresourceData = initData[slice * initMipLevels + level];
                 stagingTexture->replaceRegion(
                     region,
                     level,
@@ -504,21 +468,17 @@ Result DeviceImpl::createTextureResource(
         commandBuffer->waitUntilCompleted();
     }
 
-    returnComPtr(outResource, textureImpl);
+    returnComPtr(outTexture, textureImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferResource(
-    const IBufferResource::Desc& descIn,
-    const void* initData,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 
-    BufferResource::Desc desc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(descIn);
 
-    const Size bufferSize = desc.sizeInBytes;
+    const Size bufferSize = desc.size;
 
     MTL::ResourceOptions resourceOptions = MTL::ResourceOptions(0);
     switch (desc.memoryType)
@@ -536,12 +496,15 @@ Result DeviceImpl::createBufferResource(
     resourceOptions |=
         (desc.memoryType == MemoryType::DeviceLocal) ? MTL::ResourceStorageModePrivate : MTL::ResourceStorageModeShared;
 
-    RefPtr<BufferResourceImpl> bufferImpl(new BufferResourceImpl(desc, this));
-    bufferImpl->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
-    if (!bufferImpl->m_buffer)
+    RefPtr<BufferImpl> buffer(new BufferImpl(desc, this));
+    buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
+    if (!buffer->m_buffer)
     {
         return SLANG_FAIL;
     }
+
+    if (desc.label)
+        buffer->m_buffer->addDebugMarker(MetalUtil::createString(desc.label).get(), NS::Range(0, desc.size));
 
     if (initData)
     {
@@ -554,47 +517,39 @@ Result DeviceImpl::createBufferResource(
         {
             return SLANG_FAIL;
         }
-        encoder->copyFromBuffer(stagingBuffer.get(), 0, bufferImpl->m_buffer.get(), 0, bufferSize);
+        encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
         encoder->endEncoding();
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();
     }
 
-    returnComPtr(outResource, bufferImpl);
+    returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(
-    InteropHandle handle,
-    const IBufferResource::Desc& srcDesc,
-    IBufferResource** outResource
-)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler)
+Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     AUTORELEASEPOOL
 
-    RefPtr<SamplerStateImpl> samplerImpl = new SamplerStateImpl();
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl();
     SLANG_RETURN_ON_FAIL(samplerImpl->init(this, desc));
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(
-    ITextureResource* texture,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
+Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
 {
     AUTORELEASEPOOL
 
-    auto textureImpl = static_cast<TextureResourceImpl*>(texture);
-    RefPtr<TextureResourceViewImpl> viewImpl = new TextureResourceViewImpl(this);
+    auto textureImpl = static_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(this);
     viewImpl->m_desc = desc;
     viewImpl->m_device = this;
     viewImpl->m_texture = textureImpl;
@@ -604,7 +559,7 @@ Result DeviceImpl::createTextureView(
         return SLANG_OK;
     }
 
-    const ITextureResource::Desc& textureDesc = *textureImpl->getDesc();
+    const TextureDesc& textureDesc = *textureImpl->getDesc();
     SubresourceRange sr = desc.subresourceRange;
     sr.mipLevelCount = sr.mipLevelCount == 0 ? textureDesc.numMipLevels - sr.mipLevel : sr.mipLevelCount;
     sr.layerCount = sr.layerCount == 0 ? textureDesc.arraySize - sr.baseArrayLayer : sr.layerCount;
@@ -661,8 +616,8 @@ Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceState
 }
 
 Result DeviceImpl::createBufferView(
-    IBufferResource* buffer,
-    IBufferResource* counterBuffer,
+    IBuffer* buffer,
+    IBuffer* counterBuffer,
     IResourceView::Desc const& desc,
     IResourceView** outView
 )
@@ -680,18 +635,18 @@ Result DeviceImpl::createBufferView(
         return SLANG_FAIL;
     }
 
-    auto bufferImpl = static_cast<BufferResourceImpl*>(buffer);
+    auto bufferImpl = static_cast<BufferImpl*>(buffer);
 
-    RefPtr<BufferResourceViewImpl> viewImpl = new BufferResourceViewImpl(this);
+    RefPtr<BufferViewImpl> viewImpl = new BufferViewImpl(this);
     viewImpl->m_desc = desc;
     viewImpl->m_buffer = bufferImpl;
     viewImpl->m_offset = desc.bufferRange.offset;
-    viewImpl->m_size = desc.bufferRange.size == 0 ? bufferImpl->getDesc()->sizeInBytes : desc.bufferRange.size;
+    viewImpl->m_size = desc.bufferRange.size == 0 ? bufferImpl->getDesc()->size : desc.bufferRange.size;
     returnComPtr(outView, viewImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
 {
     AUTORELEASEPOOL
 
@@ -701,8 +656,8 @@ Result DeviceImpl::createInputLayout(IInputLayout::Desc const& desc, IInputLayou
     return SLANG_OK;
 }
 
-Result DeviceImpl::createProgram(
-    const IShaderProgram::Desc& desc,
+Result DeviceImpl::createShaderProgram(
+    const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
     ISlangBlob** outDiagnosticBlob
 )
@@ -775,28 +730,28 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
 {
     AUTORELEASEPOOL
 
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
     AUTORELEASEPOOL
 
-    RefPtr<PipelineStateImpl> pipelineStateImpl = new PipelineStateImpl(this);
-    pipelineStateImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineStateImpl);
-    returnComPtr(outState, pipelineStateImpl);
+    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
+    pipelineImpl->init(desc);
+    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
+    returnComPtr(outPipeline, pipelineImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState)
+Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
     AUTORELEASEPOOL
 

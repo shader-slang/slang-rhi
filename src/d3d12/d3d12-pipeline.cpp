@@ -1,6 +1,5 @@
-#include "d3d12-pipeline-state.h"
+#include "d3d12-pipeline.h"
 #include "d3d12-device.h"
-#include "d3d12-framebuffer.h"
 #include "d3d12-pipeline-state-stream.h"
 #include "d3d12-shader-program.h"
 #include "d3d12-vertex-layout.h"
@@ -20,31 +19,31 @@
 
 namespace rhi::d3d12 {
 
-void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
+void PipelineImpl::init(const RenderPipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Graphics;
-    pipelineDesc.graphics = inDesc;
+    pipelineDesc.graphics = desc;
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
+void PipelineImpl::init(const ComputePipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Compute;
-    pipelineDesc.compute = inDesc;
+    pipelineDesc.compute = desc;
     initializeBase(pipelineDesc);
 }
 
-Result PipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
-    outHandle->api = InteropHandleAPI::D3D12;
-    outHandle->handleValue = reinterpret_cast<uint64_t>(m_pipelineState.get());
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
+    outHandle->type = NativeHandleType::D3D12PipelineState;
+    outHandle->value = (uint64_t)(m_pipelineState.get());
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::ensureAPIPipelineStateCreated()
+Result PipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_pipelineState)
         return SLANG_OK;
@@ -66,31 +65,26 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
             psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveType);
 
-            {
-                auto framebufferLayout = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-                const int numRenderTargets = int(framebufferLayout->m_renderTargets.size());
+            const int numRenderTargets = desc.graphics.targetCount;
 
-                if (framebufferLayout->m_hasDepthStencil)
+            {
+                if (desc.graphics.depthStencil.format != Format::Unknown)
                 {
-                    psoDesc.DSVFormat = D3DUtil::getMapFormat(framebufferLayout->m_depthStencil.format);
-                    psoDesc.SampleDesc.Count = framebufferLayout->m_depthStencil.sampleCount;
+                    psoDesc.DSVFormat = D3DUtil::getMapFormat(desc.graphics.depthStencil.format);
                 }
                 else
                 {
                     psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-                    if (framebufferLayout->m_renderTargets.size())
-                    {
-                        psoDesc.SampleDesc.Count = framebufferLayout->m_renderTargets[0].sampleCount;
-                    }
                 }
                 psoDesc.NumRenderTargets = numRenderTargets;
                 for (Int i = 0; i < numRenderTargets; i++)
                 {
-                    psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(framebufferLayout->m_renderTargets[i].format);
+                    psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(desc.graphics.targets[i].format);
                 }
 
+                psoDesc.SampleDesc.Count = desc.graphics.multisample.sampleCount;
                 psoDesc.SampleDesc.Quality = 0;
-                psoDesc.SampleMask = UINT_MAX;
+                psoDesc.SampleMask = desc.graphics.multisample.sampleMask;
             }
 
             {
@@ -114,36 +108,38 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             {
                 D3D12_BLEND_DESC& blend = psoDesc.BlendState;
                 blend.IndependentBlendEnable = FALSE;
-                blend.AlphaToCoverageEnable = desc.graphics.blend.alphaToCoverageEnable ? TRUE : FALSE;
+                blend.AlphaToCoverageEnable = desc.graphics.multisample.alphaToCoverageEnable ? TRUE : FALSE;
                 blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)RenderTargetWriteMask::EnableAll;
-                for (GfxIndex i = 0; i < desc.graphics.blend.targetCount; i++)
+                for (GfxIndex i = 0; i < numRenderTargets; i++)
                 {
                     auto& d3dDesc = blend.RenderTarget[i];
-                    d3dDesc.BlendEnable = desc.graphics.blend.targets[i].enableBlend ? TRUE : FALSE;
-                    d3dDesc.BlendOp = D3DUtil::getBlendOp(desc.graphics.blend.targets[i].color.op);
-                    d3dDesc.BlendOpAlpha = D3DUtil::getBlendOp(desc.graphics.blend.targets[i].alpha.op);
-                    d3dDesc.DestBlend = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].color.dstFactor);
-                    d3dDesc.DestBlendAlpha = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].alpha.dstFactor);
+                    d3dDesc.BlendEnable = desc.graphics.targets[i].enableBlend ? TRUE : FALSE;
+                    d3dDesc.BlendOp = D3DUtil::getBlendOp(desc.graphics.targets[i].color.op);
+                    d3dDesc.BlendOpAlpha = D3DUtil::getBlendOp(desc.graphics.targets[i].alpha.op);
+                    d3dDesc.DestBlend = D3DUtil::getBlendFactor(desc.graphics.targets[i].color.dstFactor);
+                    d3dDesc.DestBlendAlpha = D3DUtil::getBlendFactor(desc.graphics.targets[i].alpha.dstFactor);
                     d3dDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
                     d3dDesc.LogicOpEnable = FALSE;
-                    d3dDesc.RenderTargetWriteMask = desc.graphics.blend.targets[i].writeMask;
-                    d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].color.srcFactor);
-                    d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.graphics.blend.targets[i].alpha.srcFactor);
+                    d3dDesc.RenderTargetWriteMask = desc.graphics.targets[i].writeMask;
+                    d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.graphics.targets[i].color.srcFactor);
+                    d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.graphics.targets[i].alpha.srcFactor);
                 }
-                for (GfxIndex i = 1; i < desc.graphics.blend.targetCount; i++)
+                auto equalBlendState = [](const ColorTargetState& a, const ColorTargetState& b)
                 {
-                    if (memcmp(
-                            &desc.graphics.blend.targets[i],
-                            &desc.graphics.blend.targets[0],
-                            sizeof(desc.graphics.blend.targets[0])
-                        ) != 0)
+                    return a.enableBlend == b.enableBlend && a.color.op == b.color.op &&
+                           a.color.srcFactor == b.color.srcFactor && a.color.dstFactor == b.color.dstFactor &&
+                           a.alpha.op == b.alpha.op && a.alpha.srcFactor == b.alpha.srcFactor &&
+                           a.alpha.dstFactor == b.alpha.dstFactor && a.writeMask == b.writeMask;
+                };
+                for (GfxIndex i = 1; i < numRenderTargets; i++)
+                {
+                    if (!equalBlendState(desc.graphics.targets[i], desc.graphics.targets[0]))
                     {
                         blend.IndependentBlendEnable = TRUE;
                         break;
                     }
                 }
-                for (uint32_t i = (uint32_t)desc.graphics.blend.targetCount; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
-                     ++i)
+                for (uint32_t i = (uint32_t)numRenderTargets; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
                 {
                     blend.RenderTarget[i] = blend.RenderTarget[0];
                 }
@@ -194,7 +190,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             fillCommonGraphicsState(meshDesc);
             if (m_device->m_pipelineCreationAPIDispatcher)
             {
-                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createMeshPipelineState(
+                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createMeshPipeline(
                     m_device,
                     programImpl->linkedProgram.get(),
                     &meshDesc,
@@ -255,7 +251,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
             if (m_device->m_pipelineCreationAPIDispatcher)
             {
-                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
+                SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createRenderPipeline(
                     m_device,
                     programImpl->linkedProgram.get(),
                     &graphicsDesc,
@@ -322,7 +318,7 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
             {
                 if (m_device->m_pipelineCreationAPIDispatcher)
                 {
-                    SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
+                    SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipeline(
                         m_device,
                         programImpl->linkedProgram.get(),
                         &computeDesc,
@@ -345,28 +341,28 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
 
 #if SLANG_RHI_DXR
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
     : m_device(device)
 {
 }
 
-void RayTracingPipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc)
+void RayTracingPipelineImpl::init(const RayTracingPipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::RayTracing;
-    pipelineDesc.rayTracing.set(inDesc);
+    pipelineDesc.rayTracing = desc;
     initializeBase(pipelineDesc);
 }
 
-Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
-    outHandle->api = InteropHandleAPI::D3D12;
-    outHandle->handleValue = reinterpret_cast<uint64_t>(m_stateObject.get());
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
+    outHandle->type = NativeHandleType::D3D12StateObject;
+    outHandle->value = (uint64_t)(m_stateObject.get());
     return SLANG_OK;
 }
 
-Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
+Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_stateObject)
         return SLANG_OK;
@@ -457,26 +453,26 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
         }
     }
 
-    for (Index i = 0; i < desc.rayTracing.hitGroupDescs.size(); i++)
+    for (Index i = 0; i < desc.rayTracing.hitGroupCount; i++)
     {
         auto& hitGroup = desc.rayTracing.hitGroups[i];
         D3D12_HIT_GROUP_DESC hitGroupDesc = {};
-        hitGroupDesc.Type = hitGroup.intersectionEntryPoint.empty() ? D3D12_HIT_GROUP_TYPE_TRIANGLES
-                                                                    : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+        hitGroupDesc.Type = hitGroup.intersectionEntryPoint ? D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE
+                                                            : D3D12_HIT_GROUP_TYPE_TRIANGLES;
 
-        if (!hitGroup.anyHitEntryPoint.empty())
+        if (hitGroup.anyHitEntryPoint)
         {
-            hitGroupDesc.AnyHitShaderImport = getWStr(hitGroup.anyHitEntryPoint.data());
+            hitGroupDesc.AnyHitShaderImport = getWStr(hitGroup.anyHitEntryPoint);
         }
-        if (!hitGroup.closestHitEntryPoint.empty())
+        if (hitGroup.closestHitEntryPoint)
         {
-            hitGroupDesc.ClosestHitShaderImport = getWStr(hitGroup.closestHitEntryPoint.data());
+            hitGroupDesc.ClosestHitShaderImport = getWStr(hitGroup.closestHitEntryPoint);
         }
-        if (!hitGroup.intersectionEntryPoint.empty())
+        if (hitGroup.intersectionEntryPoint)
         {
-            hitGroupDesc.IntersectionShaderImport = getWStr(hitGroup.intersectionEntryPoint.data());
+            hitGroupDesc.IntersectionShaderImport = getWStr(hitGroup.intersectionEntryPoint);
         }
-        hitGroupDesc.HitGroupExport = getWStr(hitGroup.hitGroupName.data());
+        hitGroupDesc.HitGroupExport = getWStr(hitGroup.hitGroupName);
 
         D3D12_STATE_SUBOBJECT hitGroupSubObject = {};
         hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;

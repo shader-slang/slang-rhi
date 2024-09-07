@@ -121,8 +121,8 @@ struct ShaderCacheTest
     std::filesystem::path tempDirectory;
 
     ComPtr<IDevice> device;
-    ComPtr<IPipelineState> pipelineState;
-    ComPtr<IBufferResource> bufferResource;
+    ComPtr<IPipeline> pipeline;
+    ComPtr<IBuffer> buffer;
     ComPtr<IResourceView> bufferView;
 
     std::string computeShaderA = std::string(
@@ -218,8 +218,8 @@ struct ShaderCacheTest
     {
         const int numberCount = 4;
         float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-        IBufferResource::Desc bufferDesc = {};
-        bufferDesc.sizeInBytes = numberCount * sizeof(float);
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = numberCount * sizeof(float);
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = sizeof(float);
         bufferDesc.allowedStates = ResourceStateSet(
@@ -231,19 +231,19 @@ struct ShaderCacheTest
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, bufferResource.writeRef()));
+        REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
         IResourceView::Desc viewDesc = {};
         viewDesc.type = IResourceView::Type::UnorderedAccess;
         viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(bufferResource, nullptr, viewDesc, bufferView.writeRef()));
+        REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, bufferView.writeRef()));
     }
 
     void freeComputeResources()
     {
-        bufferResource = nullptr;
+        buffer = nullptr;
         bufferView = nullptr;
-        pipelineState = nullptr;
+        pipeline = nullptr;
     }
 
     void createComputePipeline(const char* moduleName, const char* entryPointName)
@@ -252,9 +252,9 @@ struct ShaderCacheTest
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, moduleName, entryPointName, slangReflection));
 
-        ComputePipelineStateDesc pipelineDesc = {};
+        ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void createComputePipeline(std::string shaderSource)
@@ -262,9 +262,9 @@ struct ShaderCacheTest
         ComPtr<IShaderProgram> shaderProgram;
         REQUIRE_CALL(loadComputeProgramFromSource(device, shaderProgram, shaderSource));
 
-        ComputePipelineStateDesc pipelineDesc = {};
+        ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void dispatchComputePipeline()
@@ -280,7 +280,7 @@ struct ShaderCacheTest
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         // Bind buffer view to the entry point.
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
@@ -296,7 +296,7 @@ struct ShaderCacheTest
     bool checkOutput(const std::vector<float>& expectedOutput)
     {
         ComPtr<ISlangBlob> bufferBlob;
-        device->readBufferResource(bufferResource, 0, 4 * sizeof(float), bufferBlob.writeRef());
+        device->readBuffer(buffer, 0, 4 * sizeof(float), bufferBlob.writeRef());
         REQUIRE(bufferBlob);
         REQUIRE(bufferBlob->getBufferSize() == expectedOutput.size() * sizeof(float));
         return ::memcmp(bufferBlob->getBufferPointer(), expectedOutput.data(), bufferBlob->getBufferSize()) == 0;
@@ -560,9 +560,9 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
             slangReflection
         ));
 
-        ComputePipelineStateDesc pipelineDesc = {};
+        ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void dispatchComputePipeline(const char* transformerTypeName)
@@ -578,7 +578,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
@@ -695,14 +695,12 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     static const int kHeight = 256;
     static const Format format = Format::R32G32B32A32_FLOAT;
 
-    ComPtr<IBufferResource> vertexBuffer;
-    ComPtr<ITextureResource> colorBuffer;
+    ComPtr<IBuffer> vertexBuffer;
+    ComPtr<ITexture> colorBuffer;
+    ComPtr<IResourceView> colorBufferView;
     ComPtr<IInputLayout> inputLayout;
-    ComPtr<IFramebufferLayout> framebufferLayout;
-    ComPtr<IRenderPassLayout> renderPass;
-    ComPtr<IFramebuffer> framebuffer;
 
-    ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
+    ComPtr<IBuffer> createVertexBuffer(IDevice* device)
     {
         const Vertex vertices[] = {
             {0, 0, 0.5},
@@ -710,20 +708,19 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             {0, 1, 0.5},
         };
 
-        IBufferResource::Desc vertexBufferDesc;
-        vertexBufferDesc.type = IResource::Type::Buffer;
-        vertexBufferDesc.sizeInBytes = sizeof(vertices);
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = sizeof(vertices);
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
         vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
-        ComPtr<IBufferResource> vertexBuffer = device->createBufferResource(vertexBufferDesc, vertices);
+        ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, vertices);
         REQUIRE(vertexBuffer != nullptr);
         return vertexBuffer;
     }
 
-    ComPtr<ITextureResource> createColorBuffer(IDevice* device)
+    ComPtr<ITexture> createColorBuffer(IDevice* device)
     {
-        ITextureResource::Desc colorBufferDesc;
-        colorBufferDesc.type = IResource::Type::Texture2D;
+        TextureDesc colorBufferDesc;
+        colorBufferDesc.type = TextureType::Texture2D;
         colorBufferDesc.size.width = kWidth;
         colorBufferDesc.size.height = kHeight;
         colorBufferDesc.size.depth = 1;
@@ -731,7 +728,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         colorBufferDesc.format = format;
         colorBufferDesc.defaultState = ResourceState::RenderTarget;
         colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
-        ComPtr<ITextureResource> colorBuffer = device->createTextureResource(colorBufferDesc, nullptr);
+        ComPtr<ITexture> colorBuffer = device->createTexture(colorBufferDesc, nullptr);
         REQUIRE(colorBuffer != nullptr);
         return colorBuffer;
     }
@@ -746,7 +743,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             // Vertex buffer data
             {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
         };
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);
@@ -757,51 +754,20 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         vertexBuffer = createVertexBuffer(device);
         colorBuffer = createColorBuffer(device);
 
-        IFramebufferLayout::TargetLayout targetLayout;
-        targetLayout.format = format;
-        targetLayout.sampleCount = 1;
-
-        IFramebufferLayout::Desc framebufferLayoutDesc;
-        framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets = &targetLayout;
-        framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
-        REQUIRE(framebufferLayout != nullptr);
-
-        IRenderPassLayout::Desc renderPassDesc = {};
-        renderPassDesc.framebufferLayout = framebufferLayout;
-        renderPassDesc.renderTargetCount = 1;
-        IRenderPassLayout::TargetAccessDesc renderTargetAccess = {};
-        renderTargetAccess.loadOp = IRenderPassLayout::TargetLoadOp::Clear;
-        renderTargetAccess.storeOp = IRenderPassLayout::TargetStoreOp::Store;
-        renderTargetAccess.initialState = ResourceState::RenderTarget;
-        renderTargetAccess.finalState = ResourceState::CopySource;
-        renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
-
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
         colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
-        auto rtv = device->createTextureView(colorBuffer, colorBufferViewDesc);
-
-        IFramebuffer::Desc framebufferDesc;
-        framebufferDesc.renderTargetCount = 1;
-        framebufferDesc.depthStencilView = nullptr;
-        framebufferDesc.renderTargetViews = rtv.readRef();
-        framebufferDesc.layout = framebufferLayout;
-        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createTextureView(colorBuffer, colorBufferViewDesc, colorBufferView.writeRef()));
     }
 
     void freeGraphicsResources()
     {
         inputLayout = nullptr;
-        framebufferLayout = nullptr;
-        renderPass = nullptr;
-        framebuffer = nullptr;
         vertexBuffer = nullptr;
         colorBuffer = nullptr;
-        pipelineState = nullptr;
+        pipeline = nullptr;
     }
 
     void createGraphicsPipeline()
@@ -817,13 +783,16 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             slangReflection
         ));
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        ColorTargetState target;
+        target.format = format;
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void dispatchGraphicsPipeline()
@@ -837,8 +806,18 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments = &colorAttachment;
+        renderPass.colorAttachmentCount = 1;
+
+        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -917,21 +896,24 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         entryPoints.push_back(vertexEntryPoint);
         entryPoints.push_back(fragmentEntryPoint);
 
-        IShaderProgram::Desc programDesc = {};
+        ShaderProgramDesc programDesc = {};
         programDesc.slangGlobalScope = composedProgram.get();
-        programDesc.linkingStyle = IShaderProgram::LinkingStyle::SeparateEntryPointCompilation;
-        programDesc.entryPointCount = 2;
+        programDesc.linkingStyle = LinkingStyle::SeparateEntryPointCompilation;
         programDesc.slangEntryPoints = entryPoints.data();
+        programDesc.slangEntryPointCount = 2;
 
-        ComPtr<IShaderProgram> shaderProgram = device->createProgram(programDesc);
+        ComPtr<IShaderProgram> shaderProgram = device->createShaderProgram(programDesc);
 
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        ColorTargetState target;
+        target.format = format;
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
     }
 
     void runGraphicsPipeline()
@@ -974,40 +956,88 @@ void runTest(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("shader-cache-source-file")
 {
-    runGpuTests(runTest<ShaderCacheTestSourceFile>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestSourceFile>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-source-string")
 {
-    runGpuTests(runTest<ShaderCacheTestSourceString>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestSourceString>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-entry-point")
 {
-    runGpuTests(runTest<ShaderCacheTestEntryPoint>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestEntryPoint>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-import-include")
 {
-    runGpuTests(runTest<ShaderCacheTestImportInclude>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestImportInclude>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-specialization")
 {
-    runGpuTests(runTest<ShaderCacheTestSpecialization>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestSpecialization>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-eviction")
 {
-    runGpuTests(runTest<ShaderCacheTestEviction>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestEviction>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-graphics")
 {
-    runGpuTests(runTest<ShaderCacheTestEviction>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestEviction>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("shader-cache-graphics-split")
 {
-    runGpuTests(runTest<ShaderCacheTestGraphicsSplit>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        runTest<ShaderCacheTestGraphicsSplit>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

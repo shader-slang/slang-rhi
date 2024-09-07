@@ -92,16 +92,9 @@ static Result loadProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    composedProgram = linkedProgram;
-    slangReflection = composedProgram->getLayout();
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
-
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
@@ -117,15 +110,15 @@ void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection));
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
     float initialData[] = {0.0f, 0.0f, 0.0f, 0.0f};
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -137,8 +130,8 @@ void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
@@ -155,7 +148,7 @@ void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
@@ -173,5 +166,15 @@ void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("link-time-type")
 {
-    runGpuTests(testLinkTimeType, {DeviceType::D3D12, DeviceType::Vulkan});
+    // Doesn't work on CUDA.
+    runGpuTests(
+        testLinkTimeType,
+        {
+            DeviceType::D3D11,
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::CPU,
+        }
+    );
 }

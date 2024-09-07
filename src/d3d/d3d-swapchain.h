@@ -95,9 +95,9 @@ public:
         return SLANG_OK;
     }
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITextureResource** outResource) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITexture** outTexture) override
     {
-        returnComPtr(outResource, m_images[index]);
+        returnComPtr(outTexture, m_images[index]);
         return SLANG_OK;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override
@@ -153,7 +153,7 @@ public:
     virtual IUnknown* getOwningDevice() = 0;
     ISwapchain::Desc m_desc;
     ComPtr<IDXGISwapChain2> m_swapChain;
-    short_vector<RefPtr<TextureResource>> m_images;
+    short_vector<RefPtr<Texture>> m_images;
 };
 
 } // namespace rhi

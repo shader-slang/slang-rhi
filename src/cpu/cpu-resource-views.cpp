@@ -8,21 +8,21 @@ ResourceViewImpl::ResourceViewImpl(Kind kind, Desc const& desc)
     m_desc = desc;
 }
 
-BufferResourceImpl* BufferResourceViewImpl::getBuffer() const
+BufferImpl* BufferViewImpl::getBuffer() const
 {
     return m_buffer;
 }
 
-TextureResourceImpl* TextureResourceViewImpl::getTexture() const
+TextureImpl* TextureViewImpl::getTexture() const
 {
     return m_texture;
 }
 
-slang_prelude::TextureDimensions TextureResourceViewImpl::GetDimensions(int mipLevel)
+slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mipLevel)
 {
     slang_prelude::TextureDimensions dimensions = {};
 
-    TextureResourceImpl* texture = m_texture;
+    TextureImpl* texture = m_texture;
     auto& desc = texture->_getDesc();
     auto baseShape = texture->m_baseShape;
 
@@ -36,14 +36,14 @@ slang_prelude::TextureDimensions TextureResourceViewImpl::GetDimensions(int mipL
     return dimensions;
 }
 
-void TextureResourceViewImpl::Load(const int32_t* texelCoords, void* outData, size_t dataSize)
+void TextureViewImpl::Load(const int32_t* texelCoords, void* outData, size_t dataSize)
 {
     void* texelPtr = _getTexelPtr(texelCoords);
 
     m_texture->m_formatInfo->unpackFunc(texelPtr, outData, dataSize);
 }
 
-void TextureResourceViewImpl::Sample(
+void TextureViewImpl::Sample(
     slang_prelude::SamplerState samplerState,
     const float* coords,
     void* outData,
@@ -58,7 +58,7 @@ void TextureResourceViewImpl::Sample(
     SampleLevel(samplerState, coords, 0.0f, outData, dataSize);
 }
 
-void TextureResourceViewImpl::SampleLevel(
+void TextureViewImpl::SampleLevel(
     slang_prelude::SamplerState samplerState,
     const float* coords,
     float level,
@@ -66,7 +66,7 @@ void TextureResourceViewImpl::SampleLevel(
     size_t dataSize
 )
 {
-    TextureResourceImpl* texture = m_texture;
+    TextureImpl* texture = m_texture;
     auto baseShape = texture->m_baseShape;
     auto& desc = texture->_getDesc();
     int32_t rank = baseShape->rank;
@@ -80,7 +80,7 @@ void TextureResourceViewImpl::SampleLevel(
 
     auto& mipLevelInfo = texture->m_mipLevels[integerMipLevel];
 
-    bool isArray = (desc.arraySize != 0) || (desc.type == ITextureResource::Type::TextureCube);
+    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::TextureType::TextureCube);
     int32_t effectiveArrayElementCount = texture->m_effectiveArrayElementCount;
     int32_t coordIndex = baseCoordCount;
     int32_t elementIndex = 0;
@@ -118,24 +118,23 @@ void TextureResourceViewImpl::SampleLevel(
     m_texture->m_formatInfo->unpackFunc(texelPtr, outData, dataSize);
 }
 
-void* TextureResourceViewImpl::refAt(const uint32_t* texelCoords)
+void* TextureViewImpl::refAt(const uint32_t* texelCoords)
 {
     return _getTexelPtr((int32_t const*)texelCoords);
 }
 
-void* TextureResourceViewImpl::_getTexelPtr(int32_t const* texelCoords)
+void* TextureViewImpl::_getTexelPtr(int32_t const* texelCoords)
 {
-    TextureResourceImpl* texture = m_texture;
+    TextureImpl* texture = m_texture;
     auto baseShape = texture->m_baseShape;
     auto& desc = texture->_getDesc();
 
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
-    bool isArray = (desc.arraySize != 0) || (desc.type == ITextureResource::Type::TextureCube);
-    bool isMultisample = desc.sampleDesc.numSamples > 1;
-    bool isBuffer = desc.type == ITextureResource::Type::Buffer;
-    bool hasMipLevels = !(isMultisample || isBuffer);
+    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::TextureType::TextureCube);
+    bool isMultisample = desc.sampleCount > 1;
+    bool hasMipLevels = !isMultisample;
 
     int32_t effectiveArrayElementCount = texture->m_effectiveArrayElementCount;
 

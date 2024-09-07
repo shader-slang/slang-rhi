@@ -3,7 +3,6 @@
 #include "../simple-transient-resource-heap.h"
 #include "metal-base.h"
 #include "metal-device.h"
-#include "metal-framebuffer.h"
 
 #include "core/stable_vector.h"
 
@@ -25,40 +24,21 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebufferLayout(const IFramebufferLayout::Desc& desc, IFramebufferLayout** outLayout) override;
+    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createFramebuffer(const IFramebuffer::Desc& desc, IFramebuffer** outFramebuffer) override;
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPassLayout(const IRenderPassLayout::Desc& desc, IRenderPassLayout** outRenderPassLayout) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureResource(
-        const ITextureResource::Desc& desc,
-        const ITextureResource::SubresourceData* initData,
-        ITextureResource** outResource
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferResource(
-        const IBufferResource::Desc& desc,
-        const void* initData,
-        IBufferResource** outResource
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
-        InteropHandle handle,
-        const IBufferResource::Desc& srcDesc,
-        IBufferResource** outResource
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSamplerState(ISamplerState::Desc const& desc, ISamplerState** outSampler) override;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITextureResource* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBufferResource* buffer,
-        IBufferResource* counterBuffer,
-        IResourceView::Desc const& desc,
-        IResourceView** outView
-    ) override;
+    createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(IInputLayout::Desc const& desc, IInputLayout** outLayout) override;
+    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
@@ -72,30 +52,26 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createProgram(
-        const IShaderProgram::Desc& desc,
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
+        const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
         ISlangBlob** outDiagnosticBlob
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createGraphicsPipelineState(const GraphicsPipelineStateDesc& desc, IPipelineState** outState) override;
+    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipelineState(const ComputePipelineStateDesc& desc, IPipelineState** outState) override;
+    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipelineState(const RayTracingPipelineStateDesc& desc, IPipelineState** outState) override;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const IQueryPool::Desc& desc, IQueryPool** outPool) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTextureResource(
-        ITextureResource* texture,
-        ResourceState state,
-        ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBufferResource(IBufferResource* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructurePrebuildInfo(
         const IAccelerationStructure::BuildInputs& buildInputs,
@@ -108,7 +84,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const ITextureResource::Desc& desc, Size* outSize, Size* outAlignment) override;
+    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;
 
@@ -120,7 +96,7 @@ public:
 
     // void waitForGpu();
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(InteropHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
     ~DeviceImpl();
 
 public:
@@ -139,7 +115,7 @@ public:
 
     // A list to hold objects that may have a strong back reference to the device
     // instance. Because of the pipeline cache in `RendererBase`, there could be a reference
-    // cycle among `DeviceImpl`->`PipelineStateImpl`->`ShaderProgramImpl`->`DeviceImpl`.
+    // cycle among `DeviceImpl`->`PipelineImpl`->`ShaderProgramImpl`->`DeviceImpl`.
     // Depending on whether a `PipelineState` objects gets stored in pipeline cache, there
     // may or may not be such a reference cycle.
     // We need to hold strong references to any objects that may become part of the reference

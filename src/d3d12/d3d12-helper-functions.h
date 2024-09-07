@@ -27,7 +27,7 @@ struct PendingDescriptorTableBinding
 /// Contextual data and operations required when binding shader objects to the pipeline state
 struct BindingContext
 {
-    PipelineCommandEncoder* encoder;
+    CommandEncoderImpl* encoder;
     Submitter* submitter;
     TransientResourceHeapImpl* transientHeap;
     DeviceImpl* device;
@@ -40,7 +40,7 @@ bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op);
 
 D3D12_RESOURCE_FLAGS calcResourceFlag(ResourceState state);
 D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states);
-D3D12_RESOURCE_DIMENSION calcResourceDimension(IResource::Type type);
+D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type);
 
 DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format);
 bool isTypelessDepthFormat(DXGI_FORMAT format);
@@ -52,20 +52,19 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
 
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc);
 void initSrvDesc(
-    IResource::Type resourceType,
-    const ITextureResource::Desc& textureDesc,
+    const TextureDesc& textureDesc,
     const D3D12_RESOURCE_DESC& desc,
     DXGI_FORMAT pixelFormat,
     SubresourceRange subresourceRange,
     D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
 );
-Result initTextureResourceDesc(D3D12_RESOURCE_DESC& resourceDesc, const ITextureResource::Desc& srcDesc);
-void initBufferResourceDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc);
+void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 Result uploadBufferDataImpl(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
     TransientResourceHeapImpl* transientHeap,
-    BufferResourceImpl* buffer,
+    BufferImpl* buffer,
     Offset offset,
     Size size,
     void* data

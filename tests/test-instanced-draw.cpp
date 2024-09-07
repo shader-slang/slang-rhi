@@ -47,46 +47,43 @@ const int kWidth = 256;
 const int kHeight = 256;
 const Format format = Format::R32G32B32A32_FLOAT;
 
-static ComPtr<IBufferResource> createVertexBuffer(IDevice* device)
+static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
-    IBufferResource::Desc vertexBufferDesc;
-    vertexBufferDesc.type = IResource::Type::Buffer;
-    vertexBufferDesc.sizeInBytes = kVertexCount * sizeof(Vertex);
+    BufferDesc vertexBufferDesc;
+    vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
     vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
     vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
-    ComPtr<IBufferResource> vertexBuffer = device->createBufferResource(vertexBufferDesc, &kVertexData[0]);
+    ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
     REQUIRE(vertexBuffer != nullptr);
     return vertexBuffer;
 }
 
-static ComPtr<IBufferResource> createInstanceBuffer(IDevice* device)
+static ComPtr<IBuffer> createInstanceBuffer(IDevice* device)
 {
-    IBufferResource::Desc instanceBufferDesc;
-    instanceBufferDesc.type = IResource::Type::Buffer;
-    instanceBufferDesc.sizeInBytes = kInstanceCount * sizeof(Instance);
+    BufferDesc instanceBufferDesc;
+    instanceBufferDesc.size = kInstanceCount * sizeof(Instance);
     instanceBufferDesc.defaultState = ResourceState::VertexBuffer;
     instanceBufferDesc.allowedStates = ResourceState::VertexBuffer;
-    ComPtr<IBufferResource> instanceBuffer = device->createBufferResource(instanceBufferDesc, &kInstanceData[0]);
+    ComPtr<IBuffer> instanceBuffer = device->createBuffer(instanceBufferDesc, &kInstanceData[0]);
     REQUIRE(instanceBuffer != nullptr);
     return instanceBuffer;
 }
 
-static ComPtr<IBufferResource> createIndexBuffer(IDevice* device)
+static ComPtr<IBuffer> createIndexBuffer(IDevice* device)
 {
-    IBufferResource::Desc indexBufferDesc;
-    indexBufferDesc.type = IResource::Type::Buffer;
-    indexBufferDesc.sizeInBytes = kIndexCount * sizeof(uint32_t);
+    BufferDesc indexBufferDesc;
+    indexBufferDesc.size = kIndexCount * sizeof(uint32_t);
     indexBufferDesc.defaultState = ResourceState::IndexBuffer;
     indexBufferDesc.allowedStates = ResourceState::IndexBuffer;
-    ComPtr<IBufferResource> indexBuffer = device->createBufferResource(indexBufferDesc, &kIndexData[0]);
+    ComPtr<IBuffer> indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
     REQUIRE(indexBuffer != nullptr);
     return indexBuffer;
 }
 
-static ComPtr<ITextureResource> createColorBuffer(IDevice* device)
+static ComPtr<ITexture> createColorBuffer(IDevice* device)
 {
-    ITextureResource::Desc colorBufferDesc;
-    colorBufferDesc.type = IResource::Type::Texture2D;
+    TextureDesc colorBufferDesc;
+    colorBufferDesc.type = TextureType::Texture2D;
     colorBufferDesc.size.width = kWidth;
     colorBufferDesc.size.height = kHeight;
     colorBufferDesc.size.depth = 1;
@@ -94,7 +91,7 @@ static ComPtr<ITextureResource> createColorBuffer(IDevice* device)
     colorBufferDesc.format = format;
     colorBufferDesc.defaultState = ResourceState::RenderTarget;
     colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
-    ComPtr<ITextureResource> colorBuffer = device->createTextureResource(colorBufferDesc, nullptr);
+    ComPtr<ITexture> colorBuffer = device->createTexture(colorBufferDesc, nullptr);
     REQUIRE(colorBuffer != nullptr);
     return colorBuffer;
 }
@@ -105,13 +102,12 @@ public:
     ComPtr<IDevice> device;
 
     ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipelineState> pipelineState;
-    ComPtr<IRenderPassLayout> renderPass;
-    ComPtr<IFramebuffer> framebuffer;
+    ComPtr<IPipeline> pipeline;
 
-    ComPtr<IBufferResource> vertexBuffer;
-    ComPtr<IBufferResource> instanceBuffer;
-    ComPtr<ITextureResource> colorBuffer;
+    ComPtr<IBuffer> vertexBuffer;
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<ITexture> colorBuffer;
+    ComPtr<IResourceView> colorBufferView;
 
     void init(IDevice* device) { this->device = device; }
 
@@ -130,7 +126,7 @@ public:
             {"POSITIONB", 0, Format::R32G32B32_FLOAT, offsetof(Instance, position), 1},
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Instance, color), 1},
         };
-        IInputLayout::Desc inputLayoutDesc = {};
+        InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
         inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);
@@ -157,48 +153,23 @@ public:
             slangReflection
         ));
 
-        IFramebufferLayout::TargetLayout targetLayout;
-        targetLayout.format = format;
-        targetLayout.sampleCount = 1;
-
-        IFramebufferLayout::Desc framebufferLayoutDesc;
-        framebufferLayoutDesc.renderTargetCount = 1;
-        framebufferLayoutDesc.renderTargets = &targetLayout;
-        ComPtr<IFramebufferLayout> framebufferLayout = device->createFramebufferLayout(framebufferLayoutDesc);
-        REQUIRE(framebufferLayout != nullptr);
-
-        GraphicsPipelineStateDesc pipelineDesc = {};
+        ColorTargetState colorTarget;
+        colorTarget.format = format;
+        RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
         pipelineDesc.inputLayout = inputLayout;
-        pipelineDesc.framebufferLayout = framebufferLayout;
+        pipelineDesc.targets = &colorTarget;
+        pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createGraphicsPipelineState(pipelineDesc, pipelineState.writeRef()));
-
-        IRenderPassLayout::Desc renderPassDesc = {};
-        renderPassDesc.framebufferLayout = framebufferLayout;
-        renderPassDesc.renderTargetCount = 1;
-        IRenderPassLayout::TargetAccessDesc renderTargetAccess = {};
-        renderTargetAccess.loadOp = IRenderPassLayout::TargetLoadOp::Clear;
-        renderTargetAccess.storeOp = IRenderPassLayout::TargetStoreOp::Store;
-        renderTargetAccess.initialState = ResourceState::RenderTarget;
-        renderTargetAccess.finalState = ResourceState::CopySource;
-        renderPassDesc.renderTargetAccess = &renderTargetAccess;
-        REQUIRE_CALL(device->createRenderPassLayout(renderPassDesc, renderPass.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
         IResourceView::Desc colorBufferViewDesc;
         memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = IResource::Type::Texture2D;
+        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
         colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
-        auto rtv = device->createTextureView(colorBuffer, colorBufferViewDesc);
-
-        IFramebuffer::Desc framebufferDesc;
-        framebufferDesc.renderTargetCount = 1;
-        framebufferDesc.depthStencilView = nullptr;
-        framebufferDesc.renderTargetViews = rtv.readRef();
-        framebufferDesc.layout = framebufferLayout;
-        REQUIRE_CALL(device->createFramebuffer(framebufferDesc, framebuffer.writeRef()));
+        REQUIRE_CALL(device->createTextureView(colorBuffer, colorBufferViewDesc, colorBufferView.writeRef()));
     }
 
     void checkTestResults(
@@ -215,13 +186,9 @@ public:
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTextureResource(
-            colorBuffer,
-            ResourceState::CopySource,
-            resultBlob.writeRef(),
-            &rowPitch,
-            &pixelSize
-        ));
+        REQUIRE_CALL(
+            device->readTexture(colorBuffer, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
+        );
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -253,8 +220,18 @@ struct DrawInstancedTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments = &colorAttachment;
+        renderPass.colorAttachmentCount = 1;
+
+        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -292,7 +269,7 @@ struct DrawInstancedTest : BaseDrawTest
 
 struct DrawIndexedInstancedTest : BaseDrawTest
 {
-    ComPtr<IBufferResource> indexBuffer;
+    ComPtr<IBuffer> indexBuffer;
 
     void setUpAndDraw()
     {
@@ -302,8 +279,18 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments = &colorAttachment;
+        renderPass.colorAttachmentCount = 1;
+
+        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -345,7 +332,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
 
 struct DrawIndirectTest : BaseDrawTest
 {
-    ComPtr<IBufferResource> indirectBuffer;
+    ComPtr<IBuffer> indirectBuffer;
 
     struct IndirectArgData
     {
@@ -353,19 +340,18 @@ struct DrawIndirectTest : BaseDrawTest
         IndirectDrawArguments args;
     };
 
-    ComPtr<IBufferResource> createIndirectBuffer(IDevice* device)
+    ComPtr<IBuffer> createIndirectBuffer(IDevice* device)
     {
         static const IndirectArgData kIndirectData = {
             42.0f,        // padding
             {6, 2, 0, 0}, // args
         };
 
-        IBufferResource::Desc indirectBufferDesc;
-        indirectBufferDesc.type = IResource::Type::Buffer;
-        indirectBufferDesc.sizeInBytes = sizeof(IndirectArgData);
+        BufferDesc indirectBufferDesc;
+        indirectBufferDesc.size = sizeof(IndirectArgData);
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
         indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
-        ComPtr<IBufferResource> indirectBuffer = device->createBufferResource(indirectBufferDesc, &kIndirectData);
+        ComPtr<IBuffer> indirectBuffer = device->createBuffer(indirectBufferDesc, &kIndirectData);
         REQUIRE(indirectBuffer != nullptr);
         return indirectBuffer;
     }
@@ -378,8 +364,18 @@ struct DrawIndirectTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments = &colorAttachment;
+        renderPass.colorAttachmentCount = 1;
+
+        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -419,8 +415,8 @@ struct DrawIndirectTest : BaseDrawTest
 
 struct DrawIndexedIndirectTest : BaseDrawTest
 {
-    ComPtr<IBufferResource> indexBuffer;
-    ComPtr<IBufferResource> indirectBuffer;
+    ComPtr<IBuffer> indexBuffer;
+    ComPtr<IBuffer> indirectBuffer;
 
     struct IndexedIndirectArgData
     {
@@ -428,19 +424,18 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         IndirectDrawIndexedArguments args;
     };
 
-    ComPtr<IBufferResource> createIndirectBuffer(IDevice* device)
+    ComPtr<IBuffer> createIndirectBuffer(IDevice* device)
     {
         static const IndexedIndirectArgData kIndexedIndirectData = {
             42.0f,           // padding
             {6, 2, 0, 0, 0}, // args
         };
 
-        IBufferResource::Desc indirectBufferDesc;
-        indirectBufferDesc.type = IResource::Type::Buffer;
-        indirectBufferDesc.sizeInBytes = sizeof(IndexedIndirectArgData);
+        BufferDesc indirectBufferDesc;
+        indirectBufferDesc.size = sizeof(IndexedIndirectArgData);
         indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
         indirectBufferDesc.allowedStates = ResourceState::IndirectArgument;
-        ComPtr<IBufferResource> indexBuffer = device->createBufferResource(indirectBufferDesc, &kIndexedIndirectData);
+        ComPtr<IBuffer> indexBuffer = device->createBuffer(indirectBufferDesc, &kIndexedIndirectData);
         REQUIRE(indexBuffer != nullptr);
         return indexBuffer;
     }
@@ -453,8 +448,18 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         auto queue = device->createCommandQueue(queueDesc);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffer);
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = colorBufferView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.initialState = ResourceState::RenderTarget;
+        colorAttachment.finalState = ResourceState::CopySource;
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments = &colorAttachment;
+        renderPass.colorAttachmentCount = 1;
+
+        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
@@ -505,20 +510,48 @@ void testDraw(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("draw-instanced")
 {
-    runGpuTests(testDraw<DrawInstancedTest>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testDraw<DrawInstancedTest>,
+        {
+            DeviceType::D3D11,
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+            DeviceType::Metal,
+        }
+    );
 }
 
 TEST_CASE("draw-indexed-instanced")
 {
-    runGpuTests(testDraw<DrawIndexedInstancedTest>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testDraw<DrawIndexedInstancedTest>,
+        {
+            DeviceType::D3D11,
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+            DeviceType::Metal,
+        }
+    );
 }
 
 TEST_CASE("draw-indirect")
 {
-    runGpuTests(testDraw<DrawIndirectTest>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testDraw<DrawIndirectTest>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }
 
 TEST_CASE("draw-indexed-indirect")
 {
-    runGpuTests(testDraw<DrawIndexedIndirectTest>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testDraw<DrawIndexedIndirectTest>,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

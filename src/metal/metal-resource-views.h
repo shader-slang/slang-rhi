@@ -27,53 +27,53 @@ public:
     RefPtr<DeviceImpl> m_device;
 };
 
-class TextureResourceViewImpl : public ResourceViewImpl
+class TextureViewImpl : public ResourceViewImpl
 {
 public:
-    TextureResourceViewImpl(DeviceImpl* device)
+    TextureViewImpl(DeviceImpl* device)
         : ResourceViewImpl(ViewType::Texture, device)
     {
     }
-    ~TextureResourceViewImpl();
-    RefPtr<TextureResourceImpl> m_texture;
+    ~TextureViewImpl();
+    RefPtr<TextureImpl> m_texture;
     NS::SharedPtr<MTL::Texture> m_textureView;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
-class BufferResourceViewImpl : public ResourceViewImpl
+class BufferViewImpl : public ResourceViewImpl
 {
 public:
-    BufferResourceViewImpl(DeviceImpl* device)
+    BufferViewImpl(DeviceImpl* device)
         : ResourceViewImpl(ViewType::Buffer, device)
     {
     }
-    ~BufferResourceViewImpl();
-    RefPtr<BufferResourceImpl> m_buffer;
+    ~BufferViewImpl();
+    RefPtr<BufferImpl> m_buffer;
     Offset m_offset;
     Size m_size;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
-class TexelBufferResourceViewImpl : public ResourceViewImpl
+class TexelBufferViewImpl : public ResourceViewImpl
 {
 public:
-    TexelBufferResourceViewImpl(DeviceImpl* device);
-    ~TexelBufferResourceViewImpl();
-    RefPtr<BufferResourceImpl> m_buffer;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    TexelBufferViewImpl(DeviceImpl* device);
+    ~TexelBufferViewImpl();
+    RefPtr<BufferImpl> m_buffer;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 class AccelerationStructureImpl : public AccelerationStructureBase
 {
 public:
-    RefPtr<BufferResourceImpl> m_buffer;
+    RefPtr<BufferImpl> m_buffer;
     RefPtr<DeviceImpl> m_device;
 
 public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     ~AccelerationStructureImpl();
 };
 

@@ -7,15 +7,16 @@ struct Shader
 {
     ComPtr<IShaderProgram> program;
     slang::ProgramLayout* reflection = nullptr;
-    ComputePipelineStateDesc pipelineDesc = {};
-    ComPtr<IPipelineState> pipelineState;
+    ComputePipelineDesc pipelineDesc = {};
+    ComPtr<IPipeline> pipeline;
 };
 
 struct Buffer
 {
-    IBufferResource::Desc desc;
-    ComPtr<IBufferResource> buffer;
-    ComPtr<IResourceView> view;
+    BufferDesc desc;
+    ComPtr<IBuffer> buffer;
+    ComPtr<IResourceView> srv;
+    ComPtr<IResourceView> uav;
 };
 
 void createFloatBuffer(
@@ -27,8 +28,8 @@ void createFloatBuffer(
 )
 {
     outBuffer = {};
-    IBufferResource::Desc& bufferDesc = outBuffer.desc;
-    bufferDesc.sizeInBytes = elementCount * sizeof(float);
+    BufferDesc& bufferDesc = outBuffer.desc;
+    bufferDesc.size = elementCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.defaultState = unorderedAccess ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;
@@ -38,12 +39,22 @@ void createFloatBuffer(
     if (unorderedAccess)
         bufferDesc.allowedStates.add(ResourceState::UnorderedAccess);
 
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, outBuffer.buffer.writeRef()));
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, outBuffer.buffer.writeRef()));
 
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = unorderedAccess ? IResourceView::Type::UnorderedAccess : IResourceView::Type::ShaderResource;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(outBuffer.buffer, nullptr, viewDesc, outBuffer.view.writeRef()));
+    {
+        IResourceView::Desc viewDesc = {};
+        viewDesc.type = IResourceView::Type::ShaderResource;
+        viewDesc.format = Format::Unknown;
+        REQUIRE_CALL(device->createBufferView(outBuffer.buffer, nullptr, viewDesc, outBuffer.srv.writeRef()));
+    }
+
+    if (unorderedAccess)
+    {
+        IResourceView::Desc viewDesc = {};
+        viewDesc.type = IResourceView::Type::UnorderedAccess;
+        viewDesc.format = Format::Unknown;
+        REQUIRE_CALL(device->createBufferView(outBuffer.buffer, nullptr, viewDesc, outBuffer.uav.writeRef()));
+    }
 }
 
 void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
@@ -61,8 +72,8 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(loadComputeProgram(device, programB.program, "test-buffer-barrier", "computeB", programB.reflection));
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
-    REQUIRE_CALL(device->createComputePipelineState(programA.pipelineDesc, programA.pipelineState.writeRef()));
-    REQUIRE_CALL(device->createComputePipelineState(programB.pipelineDesc, programB.pipelineState.writeRef()));
+    REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));
+    REQUIRE_CALL(device->createComputePipeline(programB.pipelineDesc, programB.pipeline.writeRef()));
 
     float initialData[] = {1.0f, 2.0f, 3.0f, 4.0f};
     Buffer inputBuffer;
@@ -74,6 +85,9 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     Buffer outputBuffer;
     createFloatBuffer(device, outputBuffer, true, nullptr, 4);
 
+    auto insertBarrier = [](ICommandEncoder* encoder, IBuffer* buffer, ResourceState before, ResourceState after)
+    { encoder->bufferBarrier(1, &buffer, before, after); };
+
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
@@ -82,26 +96,28 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
-        auto resourceEncoder = commandBuffer->encodeResourceCommands();
 
         // Write inputBuffer data to intermediateBuffer
-        auto rootObjectA = encoder->bindPipeline(programA.pipelineState);
+        auto rootObjectA = encoder->bindPipeline(programA.pipeline);
         ShaderCursor entryPointCursorA(rootObjectA->getEntryPoint(0));
-        entryPointCursorA.getPath("inBuffer").setResource(inputBuffer.view);
-        entryPointCursorA.getPath("outBuffer").setResource(intermediateBuffer.view);
+        entryPointCursorA.getPath("inBuffer").setResource(inputBuffer.srv);
+        entryPointCursorA.getPath("outBuffer").setResource(intermediateBuffer.uav);
 
         encoder->dispatchCompute(1, 1, 1);
 
         // Insert barrier to ensure writes to intermediateBuffer are complete before the next shader starts executing
-        auto bufferPtr = intermediateBuffer.buffer.get();
-        resourceEncoder->bufferBarrier(1, &bufferPtr, ResourceState::UnorderedAccess, ResourceState::ShaderResource);
-        resourceEncoder->endEncoding();
+        insertBarrier(
+            encoder,
+            intermediateBuffer.buffer,
+            ResourceState::UnorderedAccess,
+            ResourceState::ShaderResource
+        );
 
         // Write intermediateBuffer to outputBuffer
-        auto rootObjectB = encoder->bindPipeline(programB.pipelineState);
+        auto rootObjectB = encoder->bindPipeline(programB.pipeline);
         ShaderCursor entryPointCursorB(rootObjectB->getEntryPoint(0));
-        entryPointCursorB.getPath("inBuffer").setResource(intermediateBuffer.view);
-        entryPointCursorB.getPath("outBuffer").setResource(outputBuffer.view);
+        entryPointCursorB.getPath("inBuffer").setResource(intermediateBuffer.srv);
+        entryPointCursorB.getPath("outBuffer").setResource(outputBuffer.uav);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();
@@ -115,5 +131,14 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("buffer-barrier")
 {
-    runGpuTests(testBufferBarrier, {DeviceType::D3D12, DeviceType::Vulkan});
+    // D3D11 and Metal don't work
+    runGpuTests(
+        testBufferBarrier,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+            DeviceType::CUDA,
+            DeviceType::CPU,
+        }
+    );
 }

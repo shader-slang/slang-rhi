@@ -3,7 +3,7 @@
 #include "cuda-base.h"
 #include "cuda-device.h"
 #include "cuda-helper-functions.h"
-#include "cuda-pipeline-state.h"
+#include "cuda-pipeline.h"
 #include "cuda-shader-object.h"
 
 namespace rhi::cuda {
@@ -15,7 +15,7 @@ public:
 
     ICommandQueue* getInterface(const Guid& guid);
 
-    RefPtr<ComputePipelineStateImpl> currentPipeline;
+    RefPtr<ComputePipelineImpl> currentPipeline;
     RefPtr<RootShaderObjectImpl> currentRootObject;
     RefPtr<DeviceImpl> renderer;
     CUstream stream;
@@ -35,17 +35,17 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
-    void setPipelineState(IPipelineState* state);
+    void setPipeline(IPipeline* state);
 
     Result bindRootShaderObject(IShaderObject* object);
 
     void dispatchCompute(int x, int y, int z);
 
-    void copyBuffer(IBufferResource* dst, size_t dstOffset, IBufferResource* src, size_t srcOffset, size_t size);
+    void copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size);
 
-    void uploadBufferData(IBufferResource* dst, size_t offset, size_t size, void* data);
+    void uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data);
 
     void writeTimestamp(IQueryPool* pool, SlangInt index);
 

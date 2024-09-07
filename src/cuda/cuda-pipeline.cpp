@@ -1,8 +1,8 @@
-#include "cuda-pipeline-state.h"
+#include "cuda-pipeline.h"
 
 namespace rhi::cuda {
 
-void ComputePipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
+void ComputePipelineImpl::init(const ComputePipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Compute;

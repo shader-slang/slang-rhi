@@ -23,7 +23,7 @@ public:
     ICommandBufferD3D12* getInterface(const Guid& guid);
     virtual void comFree() override { m_transientHeap.breakStrongReference(); }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(InteropHandle* handle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* handle) override;
 
 public:
     ComPtr<ID3D12GraphicsCommandList> m_cmdList;
@@ -57,22 +57,23 @@ public:
 
     ResourceCommandEncoderImpl m_resourceCommandEncoder;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
 
     RenderCommandEncoderImpl m_renderCommandEncoder;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRenderCommands(
-        IRenderPassLayout* renderPass,
-        IFramebuffer* framebuffer,
-        IRenderCommandEncoder** outEncoder
-    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) override;
 
     ComputeCommandEncoderImpl m_computeCommandEncoder;
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
 
 #if SLANG_RHI_DXR
     RayTracingCommandEncoderImpl m_rayTracingCommandEncoder;
 #endif
-    virtual SLANG_NO_THROW void SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
 };
 

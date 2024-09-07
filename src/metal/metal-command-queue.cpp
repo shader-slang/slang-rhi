@@ -25,10 +25,10 @@ void CommandQueueImpl::waitOnHost()
     // TODO implement
 }
 
-Result CommandQueueImpl::getNativeHandle(InteropHandle* outHandle)
+Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->api = InteropHandleAPI::Metal;
-    outHandle->handleValue = reinterpret_cast<intptr_t>(m_commandQueue.get());
+    outHandle->type = NativeHandleType::MTLCommandQueue;
+    outHandle->value = (uint64_t)m_commandQueue.get();
     return SLANG_OK;
 }
 

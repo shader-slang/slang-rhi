@@ -1,4 +1,4 @@
-#include "vk-pipeline-state.h"
+#include "vk-pipeline.h"
 #include "vk-device.h"
 #include "vk-helper-functions.h"
 #include "vk-shader-object-layout.h"
@@ -13,18 +13,18 @@
 
 namespace rhi::vk {
 
-PipelineStateImpl::PipelineStateImpl(DeviceImpl* device)
+PipelineImpl::PipelineImpl(DeviceImpl* device)
 {
     // Only weakly reference `device` at start.
     // We make it a strong reference only when the pipeline state is exposed to the user.
-    // Note that `PipelineState`s may also be created via implicit specialization that
+    // Note that `Pipeline`s may also be created via implicit specialization that
     // happens behind the scenes, and the user will not have access to those specialized
     // pipeline states. Only those pipeline states that are returned to the user needs to
     // hold a strong reference to `device`.
     m_device.setWeakReference(device);
 }
 
-PipelineStateImpl::~PipelineStateImpl()
+PipelineImpl::~PipelineImpl()
 {
     if (m_pipeline != VK_NULL_HANDLE)
     {
@@ -32,17 +32,17 @@ PipelineStateImpl::~PipelineStateImpl()
     }
 }
 
-void PipelineStateImpl::establishStrongDeviceReference()
+void PipelineImpl::establishStrongDeviceReference()
 {
     m_device.establishStrongReference();
 }
 
-void PipelineStateImpl::comFree()
+void PipelineImpl::comFree()
 {
     m_device.breakStrongReference();
 }
 
-void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
+void PipelineImpl::init(const RenderPipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Graphics;
@@ -50,7 +50,7 @@ void PipelineStateImpl::init(const GraphicsPipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
+void PipelineImpl::init(const ComputePipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Compute;
@@ -58,15 +58,15 @@ void PipelineStateImpl::init(const ComputePipelineStateDesc& inDesc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const RayTracingPipelineStateDesc& inDesc)
+void PipelineImpl::init(const RayTracingPipelineDesc& inDesc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::RayTracing;
-    pipelineDesc.rayTracing.set(inDesc);
+    pipelineDesc.rayTracing = inDesc;
     initializeBase(pipelineDesc);
 }
 
-Result PipelineStateImpl::createVKGraphicsPipelineState()
+Result PipelineImpl::createVKGraphicsPipeline()
 {
     VkPipelineCache pipelineCache = VK_NULL_HANDLE;
 
@@ -141,20 +141,19 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
         rasterizer.pNext = &conservativeRasterInfo;
     }
 
-    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
     auto forcedSampleCount = rasterizerDesc.forcedSampleCount;
-    auto blendDesc = desc.graphics.blend;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.rasterizationSamples = (forcedSampleCount == 0) ? framebufferLayoutImpl->m_sampleCount
-                                                                  : VulkanUtil::translateSampleCount(forcedSampleCount);
+    multisampling.rasterizationSamples = (forcedSampleCount == 0)
+                                             ? VkSampleCountFlagBits(desc.graphics.multisample.sampleCount)
+                                             : VulkanUtil::translateSampleCount(forcedSampleCount);
     multisampling.sampleShadingEnable = VK_FALSE; // TODO: Should check if fragment shader needs this
     // TODO: Sample mask is dynamic in D3D12 but PSO state in Vulkan
-    multisampling.alphaToCoverageEnable = blendDesc.alphaToCoverageEnable;
-    multisampling.alphaToOneEnable = VK_FALSE;
+    multisampling.alphaToCoverageEnable = desc.graphics.multisample.alphaToCoverageEnable;
+    multisampling.alphaToOneEnable = desc.graphics.multisample.alphaToOneEnable;
 
-    auto targetCount = GfxCount(std::min(framebufferLayoutImpl->m_renderTargetCount, (uint32_t)blendDesc.targetCount));
+    auto targetCount = desc.graphics.targetCount;
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendTargets;
 
     // Regardless of whether blending is enabled, Vulkan always applies the color write mask
@@ -179,17 +178,17 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
         colorBlendTargets.resize(targetCount);
         for (GfxIndex i = 0; i < targetCount; ++i)
         {
-            auto& rhiBlendDesc = blendDesc.targets[i];
+            auto& target = desc.graphics.targets[i];
             auto& vkBlendDesc = colorBlendTargets[i];
 
-            vkBlendDesc.blendEnable = rhiBlendDesc.enableBlend;
-            vkBlendDesc.srcColorBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.color.srcFactor);
-            vkBlendDesc.dstColorBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.color.dstFactor);
-            vkBlendDesc.colorBlendOp = VulkanUtil::translateBlendOp(rhiBlendDesc.color.op);
-            vkBlendDesc.srcAlphaBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.srcFactor);
-            vkBlendDesc.dstAlphaBlendFactor = VulkanUtil::translateBlendFactor(rhiBlendDesc.alpha.dstFactor);
-            vkBlendDesc.alphaBlendOp = VulkanUtil::translateBlendOp(rhiBlendDesc.alpha.op);
-            vkBlendDesc.colorWriteMask = (VkColorComponentFlags)rhiBlendDesc.writeMask;
+            vkBlendDesc.blendEnable = target.enableBlend;
+            vkBlendDesc.srcColorBlendFactor = VulkanUtil::translateBlendFactor(target.color.srcFactor);
+            vkBlendDesc.dstColorBlendFactor = VulkanUtil::translateBlendFactor(target.color.dstFactor);
+            vkBlendDesc.colorBlendOp = VulkanUtil::translateBlendOp(target.color.op);
+            vkBlendDesc.srcAlphaBlendFactor = VulkanUtil::translateBlendFactor(target.alpha.srcFactor);
+            vkBlendDesc.dstAlphaBlendFactor = VulkanUtil::translateBlendFactor(target.alpha.dstFactor);
+            vkBlendDesc.alphaBlendOp = VulkanUtil::translateBlendOp(target.alpha.op);
+            vkBlendDesc.colorWriteMask = (VkColorComponentFlags)target.writeMask;
         }
     }
 
@@ -237,7 +236,20 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     depthStencilStateInfo.depthWriteEnable = desc.graphics.depthStencil.depthWriteEnable ? 1 : 0;
     depthStencilStateInfo.stencilTestEnable = desc.graphics.depthStencil.stencilEnable ? 1 : 0;
 
+    VkPipelineRenderingCreateInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
+    short_vector<VkFormat> colorAttachmentFormats;
+    for (GfxIndex i = 0; i < desc.graphics.targetCount; ++i)
+    {
+        colorAttachmentFormats.push_back(VulkanUtil::getVkFormat(desc.graphics.targets[i].format));
+    }
+    renderingInfo.colorAttachmentCount = colorAttachmentFormats.size();
+    renderingInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
+    renderingInfo.depthAttachmentFormat = VulkanUtil::getVkFormat(desc.graphics.depthStencil.format);
+    // TODO we should probably only set this when this is actually a stencil format
+    renderingInfo.stencilAttachmentFormat = VulkanUtil::getVkFormat(desc.graphics.depthStencil.format);
+
     VkGraphicsPipelineCreateInfo pipelineInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    pipelineInfo.pNext = &renderingInfo;
 
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
@@ -256,19 +268,16 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDepthStencilState = &depthStencilStateInfo;
     pipelineInfo.layout = programImpl->m_rootObjectLayout->m_pipelineLayout;
-    pipelineInfo.renderPass = framebufferLayoutImpl->m_renderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.pDynamicState = &dynamicStateInfo;
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createGraphicsPipelineState(
-            m_device,
-            programImpl->linkedProgram.get(),
-            &pipelineInfo,
-            (void**)&m_pipeline
-        ));
+        SLANG_RETURN_ON_FAIL(
+            m_device->m_pipelineCreationAPIDispatcher
+                ->createRenderPipeline(m_device, programImpl->linkedProgram.get(), &pipelineInfo, (void**)&m_pipeline)
+        );
     }
     else
     {
@@ -281,7 +290,7 @@ Result PipelineStateImpl::createVKGraphicsPipelineState()
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::createVKComputePipelineState()
+Result PipelineImpl::createVKComputePipeline()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
@@ -295,7 +304,7 @@ Result PipelineStateImpl::createVKComputePipelineState()
 
     if (m_device->m_pipelineCreationAPIDispatcher)
     {
-        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipelineState(
+        SLANG_RETURN_ON_FAIL(m_device->m_pipelineCreationAPIDispatcher->createComputePipeline(
             m_device,
             programImpl->linkedProgram.get(),
             &computePipelineInfo,
@@ -317,7 +326,7 @@ Result PipelineStateImpl::createVKComputePipelineState()
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::ensureAPIPipelineStateCreated()
+Result PipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_pipeline)
         return SLANG_OK;
@@ -325,28 +334,27 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
     switch (desc.type)
     {
     case PipelineType::Compute:
-        return createVKComputePipelineState();
+        return createVKComputePipeline();
     case PipelineType::Graphics:
-        return createVKGraphicsPipelineState();
+        return createVKGraphicsPipeline();
     default:
         SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
         return SLANG_FAIL;
     }
 }
-SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = 0;
-    memcpy(&outHandle->handleValue, &m_pipeline, sizeof(m_pipeline));
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
+    outHandle->type = NativeHandleType::VkPipeline;
+    outHandle->value = (uint64_t)m_pipeline;
     return SLANG_OK;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
-    : PipelineStateImpl(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
+    : PipelineImpl(device)
 {
 }
-uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
+uint32_t RayTracingPipelineImpl::findEntryPointIndexByName(
     const std::map<std::string, Index>& entryPointNameToIndex,
     const char* name
 )
@@ -360,7 +368,7 @@ uint32_t RayTracingPipelineStateImpl::findEntryPointIndexByName(
     // TODO: Error reporting?
     return VK_SHADER_UNUSED_KHR;
 }
-Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
+Result RayTracingPipelineImpl::createVKRayTracingPipeline()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
@@ -407,7 +415,7 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
         shaderGroupNameToIndex.emplace(shaderGroupName, shaderGroupIndex);
     }
 
-    for (int32_t i = 0; i < desc.rayTracing.hitGroups.size(); ++i)
+    for (int32_t i = 0; i < desc.rayTracing.hitGroupCount; ++i)
     {
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
             VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR
@@ -415,16 +423,15 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
         auto& groupDesc = desc.rayTracing.hitGroups[i];
 
         shaderGroupInfo.pNext = nullptr;
-        shaderGroupInfo.type = (!groupDesc.intersectionEntryPoint.empty())
+        shaderGroupInfo.type = groupDesc.intersectionEntryPoint
                                    ? VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR
                                    : VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
         shaderGroupInfo.generalShader = VK_SHADER_UNUSED_KHR;
         shaderGroupInfo.closestHitShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.closestHitEntryPoint.c_str());
-        shaderGroupInfo.anyHitShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.anyHitEntryPoint.c_str());
+            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.closestHitEntryPoint);
+        shaderGroupInfo.anyHitShader = findEntryPointIndexByName(entryPointNameToIndex, groupDesc.anyHitEntryPoint);
         shaderGroupInfo.intersectionShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint.c_str());
+            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint);
         shaderGroupInfo.pShaderGroupCaptureReplayHandle = nullptr;
 
         auto shaderGroupIndex = Index(shaderGroupInfos.size());
@@ -475,7 +482,7 @@ Result RayTracingPipelineStateImpl::createVKRayTracingPipelineState()
     }
     return SLANG_OK;
 }
-Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
+Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
 {
     if (m_pipeline)
         return SLANG_OK;
@@ -483,18 +490,17 @@ Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
     switch (desc.type)
     {
     case PipelineType::RayTracing:
-        return createVKRayTracingPipelineState();
+        return createVKRayTracingPipeline();
     default:
         SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
         return SLANG_FAIL;
     }
 }
-Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    SLANG_RETURN_ON_FAIL(ensureAPIPipelineStateCreated());
-    outHandle->api = InteropHandleAPI::Vulkan;
-    outHandle->handleValue = 0;
-    memcpy(&outHandle->handleValue, &m_pipeline, sizeof(m_pipeline));
+    SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
+    outHandle->type = NativeHandleType::VkPipeline;
+    outHandle->value = (uint64_t)m_pipeline;
     return SLANG_OK;
 }
 

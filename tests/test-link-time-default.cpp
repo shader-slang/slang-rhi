@@ -92,16 +92,9 @@ static Result loadProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    composedProgram = linkedProgram;
-    slangReflection = composedProgram->getLayout();
-
-    IShaderProgram::Desc programDesc = {};
-    programDesc.slangGlobalScope = composedProgram.get();
-
-    auto shaderProgram = device->createProgram(programDesc);
-
-    outShaderProgram = shaderProgram;
-    return SLANG_OK;
+    slangReflection = linkedProgram->getLayout();
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
 void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
@@ -119,25 +112,25 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection, false));
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     // Create pipeline with a specialization override module linked in, so we should
     // see the result of using `Bar` for `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram1;
     REQUIRE_CALL(loadProgram(device, shaderProgram1, slangReflection, true));
 
-    ComputePipelineStateDesc pipelineDesc1 = {};
+    ComputePipelineDesc pipelineDesc1 = {};
     pipelineDesc1.program = shaderProgram1.get();
-    ComPtr<IPipelineState> pipelineState1;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc1, pipelineState1.writeRef()));
+    ComPtr<IPipeline> pipeline1;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc1, pipeline1.writeRef()));
 
     const int numberCount = 4;
     float initialData[] = {0.0f, 0.0f, 0.0f, 0.0f};
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -149,8 +142,8 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> numbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
+    ComPtr<IBuffer> numbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
 
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
@@ -167,7 +160,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
@@ -187,7 +180,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState1);
+        auto rootObject = encoder->bindPipeline(pipeline1);
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
@@ -205,5 +198,15 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("link-time-default")
 {
-    runGpuTests(testLinkTimeDefault, {DeviceType::D3D12, DeviceType::Vulkan});
+    // Fails on CUDA
+    runGpuTests(
+        testLinkTimeDefault,
+        {
+            DeviceType::D3D11,
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::CPU,
+        }
+    );
 }

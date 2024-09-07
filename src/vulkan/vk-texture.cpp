@@ -2,13 +2,13 @@
 
 namespace rhi::vk {
 
-TextureResourceImpl::TextureResourceImpl(const Desc& desc, DeviceImpl* device)
+TextureImpl::TextureImpl(const TextureDesc& desc, DeviceImpl* device)
     : Parent(desc)
     , m_device(device)
 {
 }
 
-TextureResourceImpl::~TextureResourceImpl()
+TextureImpl::~TextureImpl()
 {
     auto& vkAPI = m_device->m_api;
     if (!m_isWeakImageReference)
@@ -16,25 +16,25 @@ TextureResourceImpl::~TextureResourceImpl()
         vkAPI.vkFreeMemory(vkAPI.m_device, m_imageMemory, nullptr);
         vkAPI.vkDestroyImage(vkAPI.m_device, m_image, nullptr);
     }
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        CloseHandle((HANDLE)sharedHandle.handleValue);
+        CloseHandle((HANDLE)sharedHandle.value);
 #endif
     }
 }
 
-Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = (uint64_t)m_image;
-    outHandle->api = InteropHandleAPI::Vulkan;
+    outHandle->type = NativeHandleType::VkImage;
+    outHandle->value = (uint64_t)m_image;
     return SLANG_OK;
 }
 
-Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
     // Check if a shared handle already exists for this resource.
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
         *outHandle = sharedHandle;
         return SLANG_OK;
@@ -55,9 +55,8 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(
-        vkCreateSharedHandle(m_device->m_device, &info, (HANDLE*)&outHandle->handleValue) != VK_SUCCESS
-    );
+    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (HANDLE*)&sharedHandle.value) != VK_SUCCESS);
+    sharedHandle.type = NativeHandleType::Win32;
 #else
     VkMemoryGetFdInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -72,24 +71,10 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (int*)&outHandle->handleValue) != VK_SUCCESS);
+    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (int*)&sharedHandle.value) != VK_SUCCESS);
+    sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
-    outHandle->api = InteropHandleAPI::Vulkan;
-    return SLANG_OK;
-}
-Result TextureResourceImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    auto& api = m_device->m_api;
-    if (api.vkDebugMarkerSetObjectNameEXT)
-    {
-        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
-        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-        nameDesc.object = (uint64_t)m_image;
-        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;
-        nameDesc.pObjectName = name;
-        api.vkDebugMarkerSetObjectNameEXT(api.m_device, &nameDesc);
-    }
+    *outHandle = sharedHandle;
     return SLANG_OK;
 }
 

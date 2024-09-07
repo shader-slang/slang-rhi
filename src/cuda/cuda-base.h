@@ -30,8 +30,8 @@
 namespace rhi::cuda {
 
 class CUDAContext;
-class BufferResourceImpl;
-class TextureResourceImpl;
+class BufferImpl;
+class TextureImpl;
 class ResourceViewImpl;
 class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
@@ -40,10 +40,11 @@ class MutableShaderObjectImpl;
 class EntryPointShaderObjectImpl;
 class RootShaderObjectImpl;
 class ShaderProgramImpl;
-class PipelineStateImpl;
+class PipelineImpl;
 class QueryPoolImpl;
 class DeviceImpl;
 class CommandBufferImpl;
+class CommandEncoderImpl;
 class ResourceCommandEncoderImpl;
 class ComputeCommandEncoderImpl;
 class CommandQueueImpl;

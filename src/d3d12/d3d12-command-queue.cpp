@@ -98,10 +98,10 @@ ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-Result CommandQueueImpl::getNativeHandle(InteropHandle* handle)
+Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    handle->api = InteropHandleAPI::D3D12;
-    handle->handleValue = (uint64_t)m_d3dQueue.get();
+    outHandle->type = NativeHandleType::D3D12CommandQueue;
+    outHandle->value = (uint64_t)m_d3dQueue.get();
     return SLANG_OK;
 }
 

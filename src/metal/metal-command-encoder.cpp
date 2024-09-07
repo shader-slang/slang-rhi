@@ -3,7 +3,6 @@
 #include "metal-command-buffer.h"
 #include "metal-helper-functions.h"
 #include "metal-query.h"
-#include "metal-render-pass.h"
 #include "metal-resource-views.h"
 #include "metal-shader-object.h"
 #include "metal-shader-program.h"
@@ -13,20 +12,60 @@
 
 namespace rhi::metal {
 
-void PipelineCommandEncoder::init(CommandBufferImpl* commandBuffer)
+// CommandEncoderImpl
+
+void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst)
+{
+    // We use automatic hazard tracking for now, no need for barriers.
+}
+
+void CommandEncoderImpl::textureSubresourceBarrier(
+    ITexture* texture,
+    SubresourceRange subresourceRange,
+    ResourceState src,
+    ResourceState dst
+)
+{
+    // We use automatic hazard tracking for now, no need for barriers.
+}
+
+void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst)
+{
+    // We use automatic hazard tracking for now, no need for barriers.
+}
+
+void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
+{
+    NS::SharedPtr<NS::String> string = MetalUtil::createString(name);
+    m_commandBuffer->m_commandBuffer->pushDebugGroup(string.get());
+}
+
+void CommandEncoderImpl::endDebugEvent()
+{
+    m_commandBuffer->m_commandBuffer->popDebugGroup();
+}
+
+void CommandEncoderImpl::writeTimestamp(IQueryPool* queryPool, GfxIndex index)
+{
+    auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
+    encoder->sampleCountersInBuffer(static_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(), index, true);
+}
+
+
+void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer;
     m_metalCommandBuffer = m_commandBuffer->m_commandBuffer.get();
 }
 
-void PipelineCommandEncoder::endEncodingImpl()
+void CommandEncoderImpl::endEncodingImpl()
 {
     m_commandBuffer->endMetalCommandEncoder();
 }
 
-Result PipelineCommandEncoder::setPipelineStateImpl(IPipelineState* state, IShaderObject** outRootObject)
+Result CommandEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineStateImpl*>(state);
+    m_currentPipeline = static_cast<PipelineImpl*>(state);
     // m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
@@ -36,45 +75,35 @@ Result PipelineCommandEncoder::setPipelineStateImpl(IPipelineState* state, IShad
     return SLANG_OK;
 }
 
-void ResourceCommandEncoder::endEncoding()
+// ResourceCommandEncoderImpl
+
+void ResourceCommandEncoderImpl::endEncoding()
 {
-    PipelineCommandEncoder::endEncodingImpl();
+    CommandEncoderImpl::endEncodingImpl();
 }
 
-void ResourceCommandEncoder::writeTimestamp(IQueryPool* queryPool, GfxIndex index)
-{
-    auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
-    encoder->sampleCountersInBuffer(static_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(), index, true);
-}
-
-void ResourceCommandEncoder::copyBuffer(
-    IBufferResource* dst,
-    Offset dstOffset,
-    IBufferResource* src,
-    Offset srcOffset,
-    Size size
-)
+void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->copyFromBuffer(
-        static_cast<BufferResourceImpl*>(src)->m_buffer.get(),
+        static_cast<BufferImpl*>(src)->m_buffer.get(),
         srcOffset,
-        static_cast<BufferResourceImpl*>(dst)->m_buffer.get(),
+        static_cast<BufferImpl*>(dst)->m_buffer.get(),
         dstOffset,
         size
     );
 }
 
-void ResourceCommandEncoder::copyTexture(
-    ITextureResource* dst,
+void ResourceCommandEncoderImpl::copyTexture(
+    ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
-    ITextureResource::Offset3D dstOffset,
-    ITextureResource* src,
+    Offset3D dstOffset,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
@@ -83,8 +112,8 @@ void ResourceCommandEncoder::copyTexture(
         srcSubresource.mipLevelCount == 0)
     {
         encoder->copyFromTexture(
-            static_cast<TextureResourceImpl*>(src)->m_texture.get(),
-            static_cast<TextureResourceImpl*>(dst)->m_texture.get()
+            static_cast<TextureImpl*>(src)->m_texture.get(),
+            static_cast<TextureImpl*>(dst)->m_texture.get()
         );
     }
     else
@@ -92,12 +121,12 @@ void ResourceCommandEncoder::copyTexture(
         for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
         {
             encoder->copyFromTexture(
-                static_cast<TextureResourceImpl*>(src)->m_texture.get(),
+                static_cast<TextureImpl*>(src)->m_texture.get(),
                 srcSubresource.baseArrayLayer + layer,
                 srcSubresource.mipLevel,
                 MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
                 MTL::Size(extent.width, extent.height, extent.depth),
-                static_cast<TextureResourceImpl*>(dst)->m_texture.get(),
+                static_cast<TextureImpl*>(dst)->m_texture.get(),
                 dstSubresource.baseArrayLayer + layer,
                 dstSubresource.mipLevel,
                 MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
@@ -106,82 +135,52 @@ void ResourceCommandEncoder::copyTexture(
     }
 }
 
-void ResourceCommandEncoder::copyTextureToBuffer(
-    IBufferResource* dst,
+void ResourceCommandEncoderImpl::copyTextureToBuffer(
+    IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
     Size dstRowStride,
-    ITextureResource* src,
+    ITexture* src,
     ResourceState srcState,
     SubresourceRange srcSubresource,
-    ITextureResource::Offset3D srcOffset,
-    ITextureResource::Extents extent
+    Offset3D srcOffset,
+    Extents extent
 )
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->copyFromTexture(
-        static_cast<TextureResourceImpl*>(src)->m_texture.get(),
+        static_cast<TextureImpl*>(src)->m_texture.get(),
         srcSubresource.baseArrayLayer,
         srcSubresource.mipLevel,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
         MTL::Size(extent.width, extent.height, extent.depth),
-        static_cast<BufferResourceImpl*>(dst)->m_buffer.get(),
+        static_cast<BufferImpl*>(dst)->m_buffer.get(),
         dstOffset,
         dstRowStride,
         dstSize
     );
 }
 
-void ResourceCommandEncoder::uploadBufferData(IBufferResource* buffer, Offset offset, Size size, void* data)
+void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     SLANG_RHI_UNIMPLEMENTED("uploadBufferData");
 }
 
-void ResourceCommandEncoder::uploadTextureData(
-    ITextureResource* dst,
+void ResourceCommandEncoderImpl::uploadTextureData(
+    ITexture* dst,
     SubresourceRange subResourceRange,
-    ITextureResource::Offset3D offset,
-    ITextureResource::Extents extend,
-    ITextureResource::SubresourceData* subResourceData,
+    Offset3D offset,
+    Extents extend,
+    SubresourceData* subResourceData,
     GfxCount subResourceDataCount
 )
 {
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
-void ResourceCommandEncoder::bufferBarrier(
-    GfxCount count,
-    IBufferResource* const* buffers,
-    ResourceState src,
-    ResourceState dst
-)
-{
-    // We use automatic hazard tracking for now, no need for barriers.
-}
-
-void ResourceCommandEncoder::textureBarrier(
-    GfxCount count,
-    ITextureResource* const* textures,
-    ResourceState src,
-    ResourceState dst
-)
-{
-    // We use automatic hazard tracking for now, no need for barriers.
-}
-
-void ResourceCommandEncoder::textureSubresourceBarrier(
-    ITextureResource* texture,
-    SubresourceRange subresourceRange,
-    ResourceState src,
-    ResourceState dst
-)
-{
-    // We use automatic hazard tracking for now, no need for barriers.
-}
-
-void ResourceCommandEncoder::clearResourceView(
+void ResourceCommandEncoderImpl::clearResourceView(
     IResourceView* view,
     ClearValue* clearValue,
     ClearResourceViewFlags::Enum flags
@@ -190,11 +189,11 @@ void ResourceCommandEncoder::clearResourceView(
     SLANG_RHI_UNIMPLEMENTED("clearResourceView");
 }
 
-void ResourceCommandEncoder::resolveResource(
-    ITextureResource* source,
+void ResourceCommandEncoderImpl::resolveResource(
+    ITexture* source,
     ResourceState sourceState,
     SubresourceRange sourceRange,
-    ITextureResource* dest,
+    ITexture* dest,
     ResourceState destState,
     SubresourceRange destRange
 )
@@ -202,11 +201,11 @@ void ResourceCommandEncoder::resolveResource(
     SLANG_RHI_UNIMPLEMENTED("resolveResource");
 }
 
-void ResourceCommandEncoder::resolveQuery(
+void ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     Offset offset
 )
 {
@@ -214,84 +213,122 @@ void ResourceCommandEncoder::resolveQuery(
     encoder->resolveCounters(
         static_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(),
         NS::Range(index, count),
-        static_cast<BufferResourceImpl*>(buffer)->m_buffer.get(),
+        static_cast<BufferImpl*>(buffer)->m_buffer.get(),
         offset
     );
 }
 
-void ResourceCommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
-{
-    NS::SharedPtr<NS::String> string = MetalUtil::createString(name);
-    m_commandBuffer->m_commandBuffer->pushDebugGroup(string.get());
-}
+// RenderCommandEncoderImpl
 
-void ResourceCommandEncoder::endDebugEvent()
+Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 {
-    m_commandBuffer->m_commandBuffer->popDebugGroup();
-}
+    uint32_t width = 1;
+    uint32_t height = 1;
 
-void RenderCommandEncoder::beginPass(IRenderPassLayout* renderPass, IFramebuffer* framebuffer)
-{
-    m_renderPassLayout = static_cast<RenderPassLayoutImpl*>(renderPass);
-    m_framebuffer = static_cast<FramebufferImpl*>(framebuffer);
-    if (!m_framebuffer)
+    auto visitView = [&](TextureViewImpl* view)
     {
-        // TODO use empty framebuffer
-        return;
-    }
+        const TextureDesc* textureDesc = view->m_texture->getDesc();
+        const IResourceView::Desc* viewDesc = view->getViewDesc();
+        width = std::max(1u, uint32_t(textureDesc->size.width >> viewDesc->subresourceRange.mipLevel));
+        height = std::max(1u, uint32_t(textureDesc->size.height >> viewDesc->subresourceRange.mipLevel));
+    };
 
-    // Create a copy of the render pass descriptor and fill in remaining information.
-    m_renderPassDesc = NS::TransferPtr(m_renderPassLayout->m_renderPassDesc->copy());
+    // Initialize render pass descriptor.
+    m_renderPassDesc = NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
 
-    m_renderPassDesc->setRenderTargetWidth(m_framebuffer->m_width);
-    m_renderPassDesc->setRenderTargetHeight(m_framebuffer->m_height);
-
-    for (Index i = 0; i < m_framebuffer->m_renderTargetViews.size(); ++i)
+    // Setup color attachments.
+    m_renderTargetViews.resize(desc.colorAttachmentCount);
+    m_renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
+    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
     {
-        TextureResourceViewImpl* renderTargetView = m_framebuffer->m_renderTargetViews[i];
+        const auto& attachment = desc.colorAttachments[i];
+        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        if (!view)
+            return SLANG_FAIL;
+        visitView(view);
+        m_renderTargetViews[i] = view;
+
         MTL::RenderPassColorAttachmentDescriptor* colorAttachment = m_renderPassDesc->colorAttachments()->object(i);
-        colorAttachment->setTexture(renderTargetView->m_textureView.get());
-        colorAttachment->setLevel(renderTargetView->m_desc.subresourceRange.mipLevel);
-        colorAttachment->setSlice(renderTargetView->m_desc.subresourceRange.baseArrayLayer);
+        colorAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.loadOp));
+        colorAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.storeOp));
+        if (attachment.loadOp == LoadOp::Clear)
+        {
+            colorAttachment->setClearColor(MTL::ClearColor(
+                attachment.clearValue[0],
+                attachment.clearValue[1],
+                attachment.clearValue[2],
+                attachment.clearValue[3]
+            ));
+        }
+        colorAttachment->setTexture(view->m_textureView.get());
+        colorAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+        colorAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
     }
 
-    if (m_framebuffer->m_depthStencilView)
+    // Setup depth stencil attachment.
+    if (desc.depthStencilAttachment)
     {
-        TextureResourceViewImpl* depthStencilView = m_framebuffer->m_depthStencilView.get();
-        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencilView->m_desc.format);
+        const auto& attachment = *desc.depthStencilAttachment;
+        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        if (!view)
+            return SLANG_FAIL;
+        visitView(view);
+        m_depthStencilView = view;
+        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(view->m_desc.format);
+
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
             MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = m_renderPassDesc->depthAttachment();
-            depthAttachment->setTexture(depthStencilView->m_textureView.get());
-            depthAttachment->setLevel(depthStencilView->m_desc.subresourceRange.mipLevel);
-            depthAttachment->setSlice(depthStencilView->m_desc.subresourceRange.baseArrayLayer);
+            depthAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.depthLoadOp));
+            depthAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.depthStoreOp));
+            if (attachment.depthLoadOp == LoadOp::Clear)
+            {
+                depthAttachment->setClearDepth(attachment.depthClearValue);
+            }
+            depthAttachment->setTexture(view->m_textureView.get());
+            depthAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+            depthAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
         }
         if (MetalUtil::isStencilFormat(pixelFormat))
         {
             MTL::RenderPassStencilAttachmentDescriptor* stencilAttachment = m_renderPassDesc->stencilAttachment();
-            stencilAttachment->setTexture(depthStencilView->m_textureView.get());
-            stencilAttachment->setLevel(depthStencilView->m_desc.subresourceRange.mipLevel);
-            stencilAttachment->setSlice(depthStencilView->m_desc.subresourceRange.baseArrayLayer);
+            stencilAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.stencilLoadOp));
+            stencilAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.stencilStoreOp));
+            if (attachment.stencilLoadOp == LoadOp::Clear)
+            {
+                stencilAttachment->setClearStencil(attachment.stencilClearValue);
+            }
+            stencilAttachment->setTexture(view->m_textureView.get());
+            stencilAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+            stencilAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
         }
     }
+
+    m_renderPassDesc->setRenderTargetWidth(width);
+    m_renderPassDesc->setRenderTargetHeight(height);
+
+    return SLANG_OK;
 }
 
-void RenderCommandEncoder::endEncoding()
+void RenderCommandEncoderImpl::endEncoding()
 {
-    PipelineCommandEncoder::endEncodingImpl();
+    m_renderTargetViews.clear();
+    m_depthStencilView = nullptr;
+
+    CommandEncoderImpl::endEncodingImpl();
 }
 
-Result RenderCommandEncoder::bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject)
+Result RenderCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineStateImpl(pipelineState, outRootObject);
+    return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result RenderCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result RenderCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewports)
+void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
 {
     m_viewports.resize(count);
     for (GfxIndex i = 0; i < count; ++i)
@@ -307,7 +344,7 @@ void RenderCommandEncoder::setViewports(GfxCount count, const Viewport* viewport
     }
 }
 
-void RenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRect* rects)
+void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
 {
     m_scissorRects.resize(count);
     for (GfxIndex i = 0; i < count; ++i)
@@ -321,15 +358,15 @@ void RenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRect* re
     }
 }
 
-void RenderCommandEncoder::setPrimitiveTopology(PrimitiveTopology topology)
+void RenderCommandEncoderImpl::setPrimitiveTopology(PrimitiveTopology topology)
 {
     m_primitiveType = MetalUtil::translatePrimitiveType(topology);
 }
 
-void RenderCommandEncoder::setVertexBuffers(
+void RenderCommandEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
-    IBufferResource* const* buffers,
+    IBuffer* const* buffers,
     const Offset* offsets
 )
 {
@@ -340,14 +377,14 @@ void RenderCommandEncoder::setVertexBuffers(
     for (Index i = 0; i < Index(slotCount); i++)
     {
         Index slotIndex = startSlot + i;
-        m_vertexBuffers[slotIndex] = static_cast<BufferResourceImpl*>(buffers[i])->m_buffer.get();
+        m_vertexBuffers[slotIndex] = static_cast<BufferImpl*>(buffers[i])->m_buffer.get();
         m_vertexBufferOffsets[slotIndex] = offsets[i];
     }
 }
 
-void RenderCommandEncoder::setIndexBuffer(IBufferResource* buffer, Format indexFormat, Offset offset)
+void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
 {
-    m_indexBuffer = static_cast<BufferResourceImpl*>(buffer)->m_buffer.get();
+    m_indexBuffer = static_cast<BufferImpl*>(buffer)->m_buffer.get();
     m_indexBufferOffset = offset;
 
     switch (indexFormat)
@@ -363,12 +400,12 @@ void RenderCommandEncoder::setIndexBuffer(IBufferResource* buffer, Format indexF
     }
 }
 
-void RenderCommandEncoder::setStencilReference(uint32_t referenceValue)
+void RenderCommandEncoderImpl::setStencilReference(uint32_t referenceValue)
 {
     m_stencilReferenceValue = referenceValue;
 }
 
-Result RenderCommandEncoder::setSamplePositions(
+Result RenderCommandEncoderImpl::setSamplePositions(
     GfxCount samplesPerPixel,
     GfxCount pixelCount,
     const SamplePosition* samplePositions
@@ -377,10 +414,10 @@ Result RenderCommandEncoder::setSamplePositions(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
+Result RenderCommandEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 {
-    auto pipeline = static_cast<PipelineStateImpl*>(m_currentPipeline.Ptr());
-    pipeline->ensureAPIPipelineStateCreated();
+    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    pipeline->ensureAPIPipelineCreated();
 
     encoder = m_commandBuffer->getMetalRenderCommandEncoder(m_renderPassDesc.get());
     encoder->setRenderPipelineState(pipeline->m_renderPipelineState.get());
@@ -403,7 +440,6 @@ Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
     encoder->setScissorRects(m_scissorRects.data(), m_scissorRects.size());
 
     const RasterizerDesc& rasterDesc = pipeline->desc.graphics.rasterizer;
-    const DepthStencilDesc& depthStencilDesc = pipeline->desc.graphics.depthStencil;
     encoder->setFrontFacingWinding(MetalUtil::translateWinding(rasterDesc.frontFace));
     encoder->setCullMode(MetalUtil::translateCullMode(rasterDesc.cullMode));
     encoder->setDepthClipMode(
@@ -412,7 +448,7 @@ Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
     encoder->setDepthBias(rasterDesc.depthBias, rasterDesc.slopeScaledDepthBias, rasterDesc.depthBiasClamp);
     encoder->setTriangleFillMode(MetalUtil::translateTriangleFillMode(rasterDesc.fillMode));
     // encoder->setBlendColor(); // not supported by rhi
-    if (m_framebuffer->m_depthStencilView)
+    if (m_depthStencilView)
     {
         encoder->setDepthStencilState(pipeline->m_depthStencilState.get());
     }
@@ -421,7 +457,7 @@ Result RenderCommandEncoder::prepareDraw(MTL::RenderCommandEncoder*& encoder)
     return SLANG_OK;
 }
 
-Result RenderCommandEncoder::draw(GfxCount vertexCount, GfxIndex startVertex)
+Result RenderCommandEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
 {
     MTL::RenderCommandEncoder* encoder;
     SLANG_RETURN_ON_FAIL(prepareDraw(encoder));
@@ -429,7 +465,7 @@ Result RenderCommandEncoder::draw(GfxCount vertexCount, GfxIndex startVertex)
     return SLANG_OK;
 }
 
-Result RenderCommandEncoder::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
+Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
 {
     MTL::RenderCommandEncoder* encoder;
     SLANG_RETURN_ON_FAIL(prepareDraw(encoder));
@@ -438,29 +474,29 @@ Result RenderCommandEncoder::drawIndexed(GfxCount indexCount, GfxIndex startInde
     return SLANG_OK;
 }
 
-Result RenderCommandEncoder::drawIndirect(
+Result RenderCommandEncoderImpl::drawIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RenderCommandEncoder::drawIndexedIndirect(
+Result RenderCommandEncoderImpl::drawIndexedIndirect(
     GfxCount maxDrawCount,
-    IBufferResource* argBuffer,
+    IBuffer* argBuffer,
     Offset argOffset,
-    IBufferResource* countBuffer,
+    IBuffer* countBuffer,
     Offset countOffset
 )
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RenderCommandEncoder::drawInstanced(
+Result RenderCommandEncoderImpl::drawInstanced(
     GfxCount vertexCount,
     GfxCount instanceCount,
     GfxIndex startVertex,
@@ -473,7 +509,7 @@ Result RenderCommandEncoder::drawInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoder::drawIndexedInstanced(
+Result RenderCommandEncoderImpl::drawIndexedInstanced(
     GfxCount indexCount,
     GfxCount instanceCount,
     GfxIndex startIndexLocation,
@@ -496,27 +532,29 @@ Result RenderCommandEncoder::drawIndexedInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoder::drawMeshTasks(int x, int y, int z)
+Result RenderCommandEncoderImpl::drawMeshTasks(int x, int y, int z)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void ComputeCommandEncoder::endEncoding()
+// ComputeCommandEncoderImpl
+
+void ComputeCommandEncoderImpl::endEncoding()
 {
-    ResourceCommandEncoder::endEncoding();
+    CommandEncoderImpl::endEncodingImpl();
 }
 
-Result ComputeCommandEncoder::bindPipeline(IPipelineState* pipelineState, IShaderObject** outRootObject)
+Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    return setPipelineStateImpl(pipelineState, outRootObject);
+    return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result ComputeCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
+Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
 {
     MTL::ComputeCommandEncoder* encoder = m_commandBuffer->getMetalComputeCommandEncoder();
 
@@ -525,18 +563,18 @@ Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
     auto program = static_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
     m_commandBuffer->m_rootObject.bindAsRoot(&bindingContext, program->m_rootObjectLayout);
 
-    auto pipeline = static_cast<PipelineStateImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     RootShaderObjectImpl* rootObjectImpl = &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineStateBase> newPipeline;
+    RefPtr<PipelineBase> newPipeline;
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline)
     );
-    PipelineStateImpl* newPipelineImpl = static_cast<PipelineStateImpl*>(newPipeline.Ptr());
+    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
 
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineStateCreated());
+    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
     m_currentPipeline = newPipelineImpl;
 
-    m_currentPipeline->ensureAPIPipelineStateCreated();
+    m_currentPipeline->ensureAPIPipelineCreated();
     encoder->setComputePipelineState(m_currentPipeline->m_computePipelineState.get());
 
     encoder->dispatchThreadgroups(MTL::Size(x, y, z), m_currentPipeline->m_threadGroupSize);
@@ -544,30 +582,19 @@ Result ComputeCommandEncoder::dispatchCompute(int x, int y, int z)
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoder::dispatchComputeIndirect(IBufferResource* argBuffer, Offset offset)
+Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }
 
-void RayTracingCommandEncoder::_memoryBarrier(
-    int count,
-    IAccelerationStructure* const* structures,
-    AccessFlag srcAccess,
-    AccessFlag destAccess
-)
+// RayTracingCommandEncoderImpl
+
+void RayTracingCommandEncoderImpl::endEncoding()
 {
+    CommandEncoderImpl::endEncodingImpl();
 }
 
-void RayTracingCommandEncoder::_queryAccelerationStructureProperties(
-    GfxCount accelerationStructureCount,
-    IAccelerationStructure* const* accelerationStructures,
-    GfxCount queryCount,
-    AccelerationStructureQueryDesc* queryDescs
-)
-{
-}
-
-void RayTracingCommandEncoder::buildAccelerationStructure(
+void RayTracingCommandEncoderImpl::buildAccelerationStructure(
     const IAccelerationStructure::BuildDesc& desc,
     GfxCount propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
@@ -575,7 +602,7 @@ void RayTracingCommandEncoder::buildAccelerationStructure(
 {
 }
 
-void RayTracingCommandEncoder::copyAccelerationStructure(
+void RayTracingCommandEncoderImpl::copyAccelerationStructure(
     IAccelerationStructure* dest,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
@@ -583,31 +610,32 @@ void RayTracingCommandEncoder::copyAccelerationStructure(
 {
 }
 
-void RayTracingCommandEncoder::queryAccelerationStructureProperties(
+void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
     GfxCount accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     GfxCount queryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
-    _queryAccelerationStructureProperties(accelerationStructureCount, accelerationStructures, queryCount, queryDescs);
 }
 
-void RayTracingCommandEncoder::serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) {}
+void RayTracingCommandEncoderImpl::serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) {}
 
-void RayTracingCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) {}
+void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source)
+{
+}
 
-Result RayTracingCommandEncoder::bindPipeline(IPipelineState* pipeline, IShaderObject** outRootObject)
+Result RayTracingCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingCommandEncoder::bindPipelineWithRootObject(IPipelineState* pipelineState, IShaderObject* rootObject)
+Result RayTracingCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingCommandEncoder::dispatchRays(
+Result RayTracingCommandEncoderImpl::dispatchRays(
     GfxIndex raygenShaderIndex,
     IShaderTable* shaderTable,
     GfxCount width,
@@ -617,7 +645,5 @@ Result RayTracingCommandEncoder::dispatchRays(
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
-
-void RayTracingCommandEncoder::endEncoding() {}
 
 } // namespace rhi::metal

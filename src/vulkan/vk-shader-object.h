@@ -12,8 +12,8 @@ namespace rhi::vk {
 
 struct CombinedTextureSamplerSlot
 {
-    RefPtr<TextureResourceViewImpl> textureView;
-    RefPtr<SamplerStateImpl> sampler;
+    RefPtr<TextureViewImpl> textureView;
+    RefPtr<SamplerImpl> sampler;
     operator bool() { return textureView && sampler; }
 };
 
@@ -39,10 +39,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setResource(ShaderOffset const& offset, IResourceView* resourceView) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler) override;
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override;
 
 protected:
     friend class RootShaderObjectLayout;
@@ -52,8 +52,8 @@ protected:
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
     Result _writeOrdinaryData(
-        PipelineCommandEncoder* encoder,
-        IBufferResource* buffer,
+        CommandEncoderImpl* encoder,
+        IBuffer* buffer,
         Offset offset,
         Size destSize,
         ShaderObjectLayoutImpl* specializedLayout
@@ -67,7 +67,7 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        BufferResourceImpl* buffer,
+        BufferImpl* buffer,
         Offset bufferOffset,
         Size bufferSize
     );
@@ -76,7 +76,7 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        BufferResourceImpl* buffer
+        BufferImpl* buffer
     );
 
     static void writePlainBufferDescriptor(
@@ -118,14 +118,14 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<RefPtr<SamplerStateImpl>> samplers
+        span<RefPtr<SamplerImpl>> samplers
     );
 
     bool shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap);
 
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
@@ -137,7 +137,7 @@ public:
     /// parameter-block and constant-buffer cases.
     ///
     Result bindAsValue(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -146,7 +146,7 @@ public:
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
     /// blocks)
     Result allocateDescriptorSets(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -154,7 +154,7 @@ public:
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -162,7 +162,7 @@ public:
 
     /// Bind the ordinary data buffer if needed.
     Result bindOrdinaryDataBufferIfNeeded(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -170,7 +170,7 @@ public:
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -178,13 +178,13 @@ public:
 
     std::vector<RefPtr<ResourceViewInternalBase>> m_resourceViews;
 
-    std::vector<RefPtr<SamplerStateImpl>> m_samplers;
+    std::vector<RefPtr<SamplerImpl>> m_samplers;
 
     std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
 
     // The transient constant buffer that holds the GPU copy of the constant data,
     // weak referenced.
-    IBufferResource* m_constantBuffer = nullptr;
+    IBuffer* m_constantBuffer = nullptr;
     // The offset into the transient constant buffer where the constant data starts.
     Offset m_constantBufferOffset = 0;
     Size m_constantBufferSize = 0;
@@ -223,7 +223,7 @@ public:
 
     /// Bind this shader object as an entry point
     Result bindAsEntryPoint(
-        PipelineCommandEncoder* encoder,
+        CommandEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         EntryPointLayout* layout
@@ -257,7 +257,7 @@ public:
     copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(PipelineCommandEncoder* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);
+    Result bindAsRoot(CommandEncoderImpl* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 

@@ -14,10 +14,10 @@ ICommandBufferD3D12* CommandBufferImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-Result CommandBufferImpl::getNativeHandle(InteropHandle* handle)
+Result CommandBufferImpl::getNativeHandle(NativeHandle* handle)
 {
-    handle->api = InteropHandleAPI::D3D12;
-    handle->handleValue = (uint64_t)m_cmdList.get();
+    handle->type = NativeHandleType::D3D12GraphicsCommandList;
+    handle->value = (uint64_t)m_cmdList.get();
     return SLANG_OK;
 }
 
@@ -70,41 +70,36 @@ void CommandBufferImpl::init(
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList1>(m_cmdList1.writeRef());
 }
 
-void CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
     m_resourceCommandEncoder.init(this);
     *outEncoder = &m_resourceCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeRenderCommands(
-    IRenderPassLayout* renderPass,
-    IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder
-)
+Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
-    m_renderCommandEncoder.init(
-        m_renderer,
-        m_transientHeap,
-        this,
-        static_cast<RenderPassLayoutImpl*>(renderPass),
-        static_cast<FramebufferImpl*>(framebuffer)
-    );
+    m_renderCommandEncoder.init(m_renderer, m_transientHeap, this, desc);
     *outEncoder = &m_renderCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
     m_computeCommandEncoder.init(m_renderer, m_transientHeap, this);
     *outEncoder = &m_computeCommandEncoder;
+    return SLANG_OK;
 }
 
-void CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
 #if SLANG_RHI_DXR
     m_rayTracingCommandEncoder.init(this);
     *outEncoder = &m_rayTracingCommandEncoder;
+    return SLANG_OK;
 #else
     *outEncoder = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
 #endif
 }
 

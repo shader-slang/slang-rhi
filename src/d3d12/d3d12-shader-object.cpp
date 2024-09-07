@@ -77,7 +77,7 @@ Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* ob
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* sampler)
+Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -85,7 +85,7 @@ Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* s
     if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-    auto samplerImpl = static_cast<SamplerStateImpl*>(sampler);
+    auto samplerImpl = static_cast<SamplerImpl*>(sampler);
     ID3D12Device* d3dDevice = static_cast<DeviceImpl*>(getDevice())->m_device;
     d3dDevice->CopyDescriptorsSimple(
         1,
@@ -100,7 +100,7 @@ Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISamplerState* s
 Result ShaderObjectImpl::setCombinedTextureSampler(
     ShaderOffset const& offset,
     IResourceView* textureView,
-    ISamplerState* sampler
+    ISampler* sampler
 )
 {
 #if 0
@@ -120,7 +120,7 @@ Result ShaderObjectImpl::setCombinedTextureSampler(
             (int32_t)offset.bindingArrayIndex),
         resourceViewImpl->m_descriptor.cpuHandle,
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    auto samplerImpl = static_cast<SamplerStateImpl*>(sampler);
+    auto samplerImpl = static_cast<SamplerImpl*>(sampler);
     d3dDevice->CopyDescriptorsSimple(
         1,
         m_samplerHeap.getCpuHandle(
@@ -233,8 +233,8 @@ Result ShaderObjectImpl::init(
 /// `offset`
 
 Result ShaderObjectImpl::_writeOrdinaryData(
-    PipelineCommandEncoder* encoder,
-    BufferResourceImpl* buffer,
+    CommandEncoderImpl* encoder,
+    BufferImpl* buffer,
     Offset offset,
     Size destSize,
     ShaderObjectLayoutImpl* specializedLayout
@@ -356,7 +356,7 @@ bool ShaderObjectImpl::shouldAllocateConstantBuffer(TransientResourceHeapImpl* t
 /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
 
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
-    PipelineCommandEncoder* encoder,
+    CommandEncoderImpl* encoder,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
@@ -402,7 +402,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     //
     SLANG_RETURN_ON_FAIL(_writeOrdinaryData(
         encoder,
-        static_cast<BufferResourceImpl*>(m_constantBufferWeakPtr),
+        static_cast<BufferImpl*>(m_constantBufferWeakPtr),
         m_constantBufferOffset,
         m_constantBufferSize,
         specializedLayout
@@ -417,10 +417,9 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         //
         auto descriptorTable = m_descriptorSet.resourceTable;
         D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
-        viewDesc.BufferLocation = static_cast<BufferResourceImpl*>(m_constantBufferWeakPtr)
-                                      ->m_resource.getResource()
-                                      ->GetGPUVirtualAddress() +
-                                  m_constantBufferOffset;
+        viewDesc.BufferLocation =
+            static_cast<BufferImpl*>(m_constantBufferWeakPtr)->m_resource.getResource()->GetGPUVirtualAddress() +
+            m_constantBufferOffset;
         viewDesc.SizeInBytes = (UINT)alignedConstantBufferSize;
         encoder->m_device->CreateConstantBufferView(&viewDesc, descriptorTable.getCpuHandle());
     }
@@ -926,9 +925,9 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
         case IResourceView::Type::UnorderedAccess:
         {
             auto resourceViewImpl = static_cast<ResourceViewImpl*>(resourceView);
-            if (resourceViewImpl->m_resource->isBuffer())
+            if (resourceViewImpl->m_isBufferView)
             {
-                rootArg = static_cast<BufferResourceImpl*>(resourceViewImpl->m_resource.Ptr())->getDeviceAddress();
+                rootArg = static_cast<BufferImpl*>(resourceViewImpl->m_resource.Ptr())->getDeviceAddress();
             }
             else
             {

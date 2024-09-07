@@ -92,13 +92,12 @@ public:
 
     /// Default constructor.
     short_vector() noexcept
-        : m_data(m_short_data)
+        : m_data((value_type*)m_short_data)
         , m_size(0)
         , m_capacity(N)
     {
     }
 
-#if 0
     /// Size constructor.
     short_vector(size_type size, const value_type& value)
         : m_data(m_short_data)
@@ -108,11 +107,9 @@ public:
         if (size > m_capacity)
             grow(size);
         for (size_type i = 0; i < size; ++i)
-            m_data[i] = value;
+            push_back(value);
     }
-#endif
 
-#if 0
     /// Initializer list constructor.
     short_vector(std::initializer_list<value_type> list)
         : m_data(m_short_data)
@@ -122,13 +119,12 @@ public:
         for (const auto& value : list)
             push_back(value);
     }
-#endif
 
     ~short_vector()
     {
-        if (m_data != m_short_data)
+        detail::destruct_range(m_data, m_data + m_size);
+        if ((void*)m_data != (void*)m_short_data)
         {
-            detail::destruct_range(m_data, m_data + m_size);
             std::free(m_data);
         }
     }
@@ -170,7 +166,9 @@ public:
 
     short_vector& operator=(short_vector&& other)
     {
-        if (other.m_data == other.m_short_data)
+        if (this == &other)
+            return *this;
+        if ((void*)other.m_data == (void*)other.m_short_data)
         {
             detail::move_range(other.m_data, other.m_data + other.m_size, m_data);
         }
@@ -271,12 +269,12 @@ private:
         m_capacity = new_capacity;
         value_type* new_data = reinterpret_cast<value_type*>(std::malloc(m_capacity * sizeof(T)));
         detail::move_range(m_data, m_data + m_size, new_data);
-        if (m_data != m_short_data)
+        if ((void*)m_data != (void*)m_short_data)
             std::free(m_data);
         m_data = new_data;
     }
 
-    value_type m_short_data[N];
+    uint8_t m_short_data[sizeof(value_type) * N];
     value_type* m_data;
     size_type m_size;
     size_type m_capacity;

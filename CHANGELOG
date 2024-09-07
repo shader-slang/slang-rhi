@@ -1,0 +1,31 @@
+- implement dynamic rendering in Vulkan
+- remove IFramebuffer and IFramebufferLayout
+- rename IFramebufferLayout::Desc -> FramebufferLayoutDesc
+- rename IInputLayout::Desc -> InputLayoutDesc
+- introduce ICommandEncoder, which is the new base interface for all command encoders (encoders don't inherit the IResourceCommandEncoder anymore)
+- remove IDevice::createProgram2
+- rename IDevice::createProgram -> IDevice::createShaderProgram
+- rename IShaderProgram::Desc -> ShaderProgramDesc
+- remove SLANG_RHI_FORMAT(x) macro, extended FormatInfo with name
+- refactor NativeHandle to hold the actual type of the handle instead of just a category
+- rename InteropHandle -> NativeHandle
+- remove IResource::setDebugName/getDebugName, add label to BufferDesc and TextureDesc instead
+- rename IPipelineState -> IPipeline
+- rename IDevice::createRayTracingPipelineState -> IDevice::createRayTracingPipeline
+- rename IDevice::createComputePipelineState -> IDevice::createComputePipeline
+- rename IDevice::createGraphicsPipelineState -> IDevice::createRenderPipeline
+- rename RayTracingPipelineStateDesc -> RayTracingPipelineDesc
+- rename ComputePipelineStateDesc -> ComputePipelineDesc
+- rename GraphicsPipelineStateDesc -> RenderPipelineDesc
+- remove SampleDesc and instead add sampleCount and sampleQuality to TextureDesc
+- rename ISamplerState -> ISampler
+- rename ISamplerState::Desc -> SamlerDesc
+- rename BufferDesc::sizeInBytes -> size
+- replace IResource::Type with TextureType, buffers don't have a type
+- remove nested structs from IBuffer & ITexture
+- rename ITexture::Desc -> TextureDesc
+- rename IBuffer::Desc -> BufferDesc
+- rename ITextureResource -> ITexture
+- rename IDevice::createTextureResource -> IDevice::createTexture
+- rename IBufferResource -> IBuffer
+- rename IDevice::createBufferResource -> IDevice::createBuffer

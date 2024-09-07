@@ -1,4 +1,4 @@
-#include "metal-pipeline-state.h"
+#include "metal-pipeline.h"
 #include "metal-device.h"
 #include "metal-shader-object-layout.h"
 #include "metal-shader-program.h"
@@ -7,14 +7,14 @@
 
 namespace rhi::metal {
 
-PipelineStateImpl::PipelineStateImpl(DeviceImpl* device)
+PipelineImpl::PipelineImpl(DeviceImpl* device)
     : m_device(device)
 {
 }
 
-PipelineStateImpl::~PipelineStateImpl() {}
+PipelineImpl::~PipelineImpl() {}
 
-void PipelineStateImpl::init(const GraphicsPipelineStateDesc& desc)
+void PipelineImpl::init(const RenderPipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Graphics;
@@ -22,7 +22,7 @@ void PipelineStateImpl::init(const GraphicsPipelineStateDesc& desc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const ComputePipelineStateDesc& desc)
+void PipelineImpl::init(const ComputePipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::Compute;
@@ -30,15 +30,15 @@ void PipelineStateImpl::init(const ComputePipelineStateDesc& desc)
     initializeBase(pipelineDesc);
 }
 
-void PipelineStateImpl::init(const RayTracingPipelineStateDesc& desc)
+void PipelineImpl::init(const RayTracingPipelineDesc& desc)
 {
     PipelineStateDesc pipelineDesc;
     pipelineDesc.type = PipelineType::RayTracing;
-    pipelineDesc.rayTracing.set(desc);
+    pipelineDesc.rayTracing = desc;
     initializeBase(pipelineDesc);
 }
 
-Result PipelineStateImpl::createMetalRenderPipelineState()
+Result PipelineImpl::createMetalRenderPipelineState()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (!programImpl)
@@ -76,42 +76,28 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     pd->setVertexDescriptor(vertexDescriptor.get());
     pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveType));
 
-    // Set rasterization state
-    auto framebufferLayoutImpl = static_cast<FramebufferLayoutImpl*>(desc.graphics.framebufferLayout);
-    const auto& blend = desc.graphics.blend;
-    GfxCount sampleCount = 1;
-
-    pd->setAlphaToCoverageEnabled(blend.alphaToCoverageEnable);
+    pd->setAlphaToCoverageEnabled(desc.graphics.multisample.alphaToCoverageEnable);
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < framebufferLayoutImpl->m_renderTargets.size(); ++i)
+    for (Index i = 0; i < desc.graphics.targetCount; ++i)
     {
-        const IFramebufferLayout::TargetLayout& targetLayout = framebufferLayoutImpl->m_renderTargets[i];
+        const ColorTargetState& targetState = desc.graphics.targets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
-        colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetLayout.format));
-        if (i < blend.targetCount)
-        {
-            const TargetBlendDesc& targetBlendDesc = blend.targets[i];
-            colorAttachment->setBlendingEnabled(targetBlendDesc.enableBlend);
-            colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.color.srcFactor));
-            colorAttachment->setDestinationRGBBlendFactor(
-                MetalUtil::translateBlendFactor(targetBlendDesc.color.dstFactor)
-            );
-            colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.color.op));
-            colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetBlendDesc.alpha.srcFactor)
-            );
-            colorAttachment->setDestinationAlphaBlendFactor(
-                MetalUtil::translateBlendFactor(targetBlendDesc.alpha.dstFactor)
-            );
-            colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetBlendDesc.alpha.op));
-            colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetBlendDesc.writeMask));
-        }
-        sampleCount = std::max(sampleCount, targetLayout.sampleCount);
+        colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetState.format));
+
+        colorAttachment->setBlendingEnabled(targetState.enableBlend);
+        colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetState.color.srcFactor));
+        colorAttachment->setDestinationRGBBlendFactor(MetalUtil::translateBlendFactor(targetState.color.dstFactor));
+        colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetState.color.op));
+        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetState.alpha.srcFactor));
+        colorAttachment->setDestinationAlphaBlendFactor(MetalUtil::translateBlendFactor(targetState.alpha.dstFactor));
+        colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetState.alpha.op));
+        colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetState.writeMask));
     }
-    if (framebufferLayoutImpl->m_depthStencil.format != Format::Unknown)
+    if (desc.graphics.depthStencil.format != Format::Unknown)
     {
-        const IFramebufferLayout::TargetLayout& depthStencil = framebufferLayoutImpl->m_depthStencil;
+        const DepthStencilState& depthStencil = desc.graphics.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
@@ -123,7 +109,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
         }
     }
 
-    pd->setRasterSampleCount(sampleCount);
+    pd->setRasterSampleCount(desc.graphics.multisample.sampleCount);
 
     NS::Error* error;
     m_renderPipelineState = NS::TransferPtr(m_device->m_device->newRenderPipelineState(pd.get(), &error));
@@ -173,7 +159,7 @@ Result PipelineStateImpl::createMetalRenderPipelineState()
     return SLANG_OK;
 }
 
-Result PipelineStateImpl::createMetalComputePipelineState()
+Result PipelineImpl::createMetalComputePipelineState()
 {
     auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (!programImpl)
@@ -196,7 +182,7 @@ Result PipelineStateImpl::createMetalComputePipelineState()
     return m_computePipelineState ? SLANG_OK : SLANG_FAIL;
 }
 
-Result PipelineStateImpl::ensureAPIPipelineStateCreated()
+Result PipelineImpl::ensureAPIPipelineCreated()
 {
     AUTORELEASEPOOL
 
@@ -213,33 +199,33 @@ Result PipelineStateImpl::ensureAPIPipelineStateCreated()
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL PipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     switch (desc.type)
     {
     case PipelineType::Compute:
-        outHandle->api = InteropHandleAPI::Metal;
-        outHandle->handleValue = reinterpret_cast<intptr_t>(m_computePipelineState.get());
+        outHandle->type = NativeHandleType::MTLComputePipelineState;
+        outHandle->value = (uint64_t)m_computePipelineState.get();
         return SLANG_OK;
     case PipelineType::Graphics:
-        outHandle->api = InteropHandleAPI::Metal;
-        outHandle->handleValue = reinterpret_cast<intptr_t>(m_renderPipelineState.get());
+        outHandle->type = NativeHandleType::MTLRenderPipelineState;
+        outHandle->value = (uint64_t)m_renderPipelineState.get();
         return SLANG_OK;
     }
-    return SLANG_FAIL;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-RayTracingPipelineStateImpl::RayTracingPipelineStateImpl(DeviceImpl* device)
-    : PipelineStateImpl(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
+    : PipelineImpl(device)
 {
 }
 
-Result RayTracingPipelineStateImpl::ensureAPIPipelineStateCreated()
+Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingPipelineStateImpl::getNativeHandle(InteropHandle* outHandle)
+Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }

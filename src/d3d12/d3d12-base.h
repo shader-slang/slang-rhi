@@ -4,7 +4,6 @@
 #include "../d3d/d3d-swapchain.h"
 #include "../mutable-shader-object.h"
 #include "../renderer-shared.h"
-#include "../simple-render-pass-layout.h"
 #include "../transient-resource-heap-base.h"
 #include "d3d12-descriptor-heap.h"
 #include "d3d12-posix-synchapi.h"
@@ -38,25 +37,23 @@ struct ID3D12GraphicsCommandList1
 namespace rhi::d3d12 {
 
 class DeviceImpl;
-class BufferResourceImpl;
-class TextureResourceImpl;
+class BufferImpl;
+class TextureImpl;
 class CommandBufferImpl;
-class PipelineCommandEncoder;
+class CommandEncoderImpl;
+;
 class ResourceCommandEncoderImpl;
-class ComputeCommandEncoderImpl;
 class RenderCommandEncoderImpl;
+class ComputeCommandEncoderImpl;
 class CommandQueueImpl;
 class FenceImpl;
-class FramebufferLayoutImpl;
-class FramebufferImpl;
 class QueryPoolImpl;
 class PlainBufferProxyQueryPoolImpl;
-class PipelineStateImpl;
-class RenderPassLayoutImpl;
+class PipelineImpl;
 class ResourceViewInternalImpl;
 class ResourceViewImpl;
 class AccelerationStructureImpl;
-class SamplerStateImpl;
+class SamplerImpl;
 class ShaderObjectImpl;
 class RootShaderObjectImpl;
 class MutableRootShaderObjectImpl;
@@ -70,7 +67,7 @@ class InputLayoutImpl;
 
 #if SLANG_RHI_DXR
 class RayTracingCommandEncoderImpl;
-class RayTracingPipelineStateImpl;
+class RayTracingPipelineImpl;
 #endif
 
 } // namespace rhi::d3d12

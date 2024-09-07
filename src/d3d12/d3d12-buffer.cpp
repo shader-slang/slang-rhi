@@ -2,39 +2,39 @@
 
 namespace rhi::d3d12 {
 
-BufferResourceImpl::BufferResourceImpl(const Desc& desc)
+BufferImpl::BufferImpl(const BufferDesc& desc)
     : Parent(desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
-BufferResourceImpl::~BufferResourceImpl()
+BufferImpl::~BufferImpl()
 {
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
-        CloseHandle((HANDLE)sharedHandle.handleValue);
+        CloseHandle((HANDLE)sharedHandle.value);
     }
 }
 
-DeviceAddress BufferResourceImpl::getDeviceAddress()
+DeviceAddress BufferImpl::getDeviceAddress()
 {
     return (DeviceAddress)m_resource.getResource()->GetGPUVirtualAddress();
 }
 
-Result BufferResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = (uint64_t)m_resource.getResource();
-    outHandle->api = InteropHandleAPI::D3D12;
+    outHandle->type = NativeHandleType::D3D12Resource;
+    outHandle->value = (uint64_t)m_resource.getResource();
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
 #if !SLANG_WINDOWS_FAMILY
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
         *outHandle = sharedHandle;
         return SLANG_OK;
@@ -45,15 +45,15 @@ Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
     auto pResource = m_resource.getResource();
     pResource->GetDevice(IID_PPV_ARGS(pDevice.writeRef()));
     SLANG_RETURN_ON_FAIL(
-        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue)
+        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&sharedHandle.value)
     );
-    outHandle->api = InteropHandleAPI::D3D12;
-    sharedHandle = *outHandle;
+    sharedHandle.type = NativeHandleType::Win32;
+    *outHandle = sharedHandle;
     return SLANG_OK;
 #endif
 }
 
-Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     D3D12_RANGE range = {};
     if (rangeToRead)
@@ -65,7 +65,7 @@ Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(MemoryRange* writtenRange)
 {
     D3D12_RANGE range = {};
     if (writtenRange)
@@ -74,13 +74,6 @@ Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
         range.End = (SIZE_T)(writtenRange->offset + writtenRange->size);
     }
     m_resource.getResource()->Unmap(0, writtenRange ? &range : nullptr);
-    return SLANG_OK;
-}
-
-Result BufferResourceImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    m_resource.setDebugName(name);
     return SLANG_OK;
 }
 

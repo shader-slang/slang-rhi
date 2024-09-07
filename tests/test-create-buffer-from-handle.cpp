@@ -16,15 +16,15 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
 
-    ComputePipelineStateDesc pipelineDesc = {};
+    ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipelineState> pipelineState;
-    REQUIRE_CALL(device->createComputePipelineState(pipelineDesc, pipelineState.writeRef()));
+    ComPtr<IPipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
-    IBufferResource::Desc bufferDesc = {};
-    bufferDesc.sizeInBytes = numberCount * sizeof(float);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.allowedStates = ResourceStateSet(
@@ -36,12 +36,12 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBufferResource> originalNumbersBuffer;
-    REQUIRE_CALL(device->createBufferResource(bufferDesc, (void*)initialData, originalNumbersBuffer.writeRef()));
+    ComPtr<IBuffer> originalNumbersBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, originalNumbersBuffer.writeRef()));
 
-    InteropHandle handle;
-    originalNumbersBuffer->getNativeResourceHandle(&handle);
-    ComPtr<IBufferResource> numbersBuffer;
+    NativeHandle handle;
+    originalNumbersBuffer->getNativeHandle(&handle);
+    ComPtr<IBuffer> numbersBuffer;
     REQUIRE_CALL(device->createBufferFromNativeHandle(handle, bufferDesc, numbersBuffer.writeRef()));
     compareComputeResult(device, numbersBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
@@ -60,7 +60,7 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeComputeCommands();
 
-        auto rootObject = encoder->bindPipeline(pipelineState);
+        auto rootObject = encoder->bindPipeline(pipeline);
 
         ShaderCursor rootCursor(rootObject);
         // Bind buffer view to the entry point.
@@ -78,5 +78,11 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("create-buffer-from-handle")
 {
-    runGpuTests(testCreateBufferFromHandle, {DeviceType::Vulkan, DeviceType::D3D12});
+    runGpuTests(
+        testCreateBufferFromHandle,
+        {
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+        }
+    );
 }

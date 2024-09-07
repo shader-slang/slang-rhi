@@ -86,24 +86,24 @@ Result VKBufferHandleRAII::init(
     return SLANG_OK;
 }
 
-BufferResourceImpl::BufferResourceImpl(const IBufferResource::Desc& desc, DeviceImpl* renderer)
+BufferImpl::BufferImpl(const BufferDesc& desc, DeviceImpl* renderer)
     : Parent(desc)
     , m_renderer(renderer)
 {
     SLANG_RHI_ASSERT(renderer);
 }
 
-BufferResourceImpl::~BufferResourceImpl()
+BufferImpl::~BufferImpl()
 {
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        CloseHandle((HANDLE)sharedHandle.handleValue);
+        CloseHandle((HANDLE)sharedHandle.value);
 #endif
     }
 }
 
-DeviceAddress BufferResourceImpl::getDeviceAddress()
+DeviceAddress BufferImpl::getDeviceAddress()
 {
     if (!m_buffer.m_api->vkGetBufferDeviceAddress)
         return 0;
@@ -113,17 +113,17 @@ DeviceAddress BufferResourceImpl::getDeviceAddress()
     return (DeviceAddress)m_buffer.m_api->vkGetBufferDeviceAddress(m_buffer.m_api->m_device, &info);
 }
 
-Result BufferResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = (uint64_t)m_buffer.m_buffer;
-    outHandle->api = InteropHandleAPI::Vulkan;
+    outHandle->type = NativeHandleType::VkBuffer;
+    outHandle->value = (uint64_t)m_buffer.m_buffer;
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
     // Check if a shared handle already exists for this resource.
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
         *outHandle = sharedHandle;
         return SLANG_OK;
@@ -144,7 +144,8 @@ Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (HANDLE*)&outHandle->handleValue));
+    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (HANDLE*)&sharedHandle.value));
+    sharedHandle.type = NativeHandleType::Win32;
 #else
     VkMemoryGetFdInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -159,13 +160,14 @@ Result BufferResourceImpl::getSharedHandle(InteropHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (int*)&outHandle->handleValue));
+    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (int*)&sharedHandle.value));
+    sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
-    outHandle->api = InteropHandleAPI::Vulkan;
+    *outHandle = sharedHandle;
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     auto api = m_buffer.m_api;
@@ -173,27 +175,11 @@ Result BufferResourceImpl::map(MemoryRange* rangeToRead, void** outPointer)
     return SLANG_OK;
 }
 
-Result BufferResourceImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(MemoryRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     auto api = m_buffer.m_api;
     api->vkUnmapMemory(api->m_device, m_buffer.m_memory);
-    return SLANG_OK;
-}
-
-Result BufferResourceImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    auto api = m_buffer.m_api;
-    if (api->vkDebugMarkerSetObjectNameEXT)
-    {
-        VkDebugMarkerObjectNameInfoEXT nameDesc = {};
-        nameDesc.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-        nameDesc.object = (uint64_t)m_buffer.m_buffer;
-        nameDesc.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT;
-        nameDesc.pObjectName = name;
-        api->vkDebugMarkerSetObjectNameEXT(api->m_device, &nameDesc);
-    }
     return SLANG_OK;
 }
 

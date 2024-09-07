@@ -16,7 +16,7 @@ struct S1
 struct S0
 {
     float data;
-    RaytracingAccelerationStructure acc;
+    // RaytracingAccelerationStructure acc;
     ParameterBlock<S1> s;
 }
 

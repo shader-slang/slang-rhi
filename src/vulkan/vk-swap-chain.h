@@ -25,7 +25,7 @@ public:
     ISwapchain::Desc m_desc;
     VkFormat m_vkformat;
     RefPtr<CommandQueueImpl> m_queue;
-    short_vector<RefPtr<TextureResourceImpl>> m_images;
+    short_vector<RefPtr<TextureImpl>> m_images;
     RefPtr<DeviceImpl> m_renderer;
     VulkanApi* m_api;
     uint32_t m_currentImageIndex = 0;
@@ -48,7 +48,7 @@ public:
     Result init(DeviceImpl* renderer, const ISwapchain::Desc& desc, WindowHandle window);
 
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITextureResource** outResource) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL resize(GfxCount width, GfxCount height) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
     virtual SLANG_NO_THROW int SLANG_MCALL acquireNextImage() override;

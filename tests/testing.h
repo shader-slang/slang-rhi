@@ -71,7 +71,7 @@ Result loadGraphicsProgram(
 /// Reads back the content of `buffer` and compares it against `expectedResult`.
 void compareComputeResult(
     IDevice* device,
-    IBufferResource* buffer,
+    IBuffer* buffer,
     size_t offset,
     const void* expectedResult,
     size_t expectedBufferSize
@@ -80,7 +80,7 @@ void compareComputeResult(
 /// Reads back the content of `texture` and compares it against `expectedResult`.
 void compareComputeResult(
     IDevice* device,
-    ITextureResource* texture,
+    ITexture* texture,
     ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
@@ -90,20 +90,15 @@ void compareComputeResult(
 void compareComputeResultFuzzy(const float* result, float* expectedResult, size_t expectedBufferSize);
 
 /// Reads back the content of `buffer` and compares it against `expectedResult` with a set tolerance.
-void compareComputeResultFuzzy(
-    IDevice* device,
-    IBufferResource* buffer,
-    float* expectedResult,
-    size_t expectedBufferSize
-);
+void compareComputeResultFuzzy(IDevice* device, IBuffer* buffer, float* expectedResult, size_t expectedBufferSize);
 
 template<typename T, size_t Count>
-void compareComputeResult(IDevice* device, IBufferResource* buffer, std::array<T, Count> expectedResult)
+void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count> expectedResult)
 {
     if constexpr (std::is_same<T, float>::value)
-        return compareComputeResultFuzzy(device, buffer, expectedResult.data(), expectedResult.size());
+        return compareComputeResultFuzzy(device, buffer, expectedResult.data(), expectedResult.size() * sizeof(T));
     else
-        return compareComputeResult(device, buffer, 0, expectedResult.data(), expectedResult.size());
+        return compareComputeResult(device, buffer, 0, expectedResult.data(), expectedResult.size() * sizeof(T));
 }
 
 ComPtr<IDevice> createTestingDevice(
@@ -141,3 +136,11 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
+
+#define SKIP(msg)                                                                                                      \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        MESSAGE("Skipping (" msg ")");                                                                                 \
+        return;                                                                                                        \
+    }                                                                                                                  \
+    while (0)

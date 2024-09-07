@@ -1,7 +1,5 @@
 #include "debug-command-buffer.h"
-#include "debug-framebuffer.h"
 #include "debug-helper-functions.h"
-#include "debug-render-pass.h"
 
 namespace rhi::debug {
 
@@ -23,74 +21,63 @@ ICommandBuffer* DebugCommandBuffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void DebugCommandBuffer::encodeRenderCommands(
-    IRenderPassLayout* renderPass,
-    IFramebuffer* framebuffer,
-    IRenderCommandEncoder** outEncoder
-)
-{
-    SLANG_RHI_API_FUNC;
-    checkCommandBufferOpenWhenCreatingEncoder();
-    checkEncodersClosedBeforeNewEncoder();
-    auto innerRenderPass = getInnerObj(renderPass);
-    auto innerFramebuffer = getInnerObj(framebuffer);
-    m_renderCommandEncoder.isOpen = true;
-    baseObject->encodeRenderCommands(innerRenderPass, innerFramebuffer, &m_renderCommandEncoder.baseObject);
-    if (m_renderCommandEncoder.baseObject)
-        *outEncoder = &m_renderCommandEncoder;
-    else
-        *outEncoder = nullptr;
-}
-
-void DebugCommandBuffer::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
-{
-    SLANG_RHI_API_FUNC;
-    checkCommandBufferOpenWhenCreatingEncoder();
-    checkEncodersClosedBeforeNewEncoder();
-    m_computeCommandEncoder.isOpen = true;
-    baseObject->encodeComputeCommands(&m_computeCommandEncoder.baseObject);
-    if (m_computeCommandEncoder.baseObject)
-    {
-        *outEncoder = &m_computeCommandEncoder;
-    }
-    else
-    {
-        *outEncoder = nullptr;
-    }
-}
-
-void DebugCommandBuffer::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result DebugCommandBuffer::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
     SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
     m_resourceCommandEncoder.isOpen = true;
-    baseObject->encodeResourceCommands(&m_resourceCommandEncoder.baseObject);
-    if (m_resourceCommandEncoder.baseObject)
-    {
-        *outEncoder = &m_resourceCommandEncoder;
-    }
-    else
-    {
-        *outEncoder = nullptr;
-    }
+    SLANG_RETURN_ON_FAIL(baseObject->encodeResourceCommands(&m_resourceCommandEncoder.baseObject));
+    *outEncoder = &m_resourceCommandEncoder;
+    return SLANG_OK;
 }
 
-void DebugCommandBuffer::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result DebugCommandBuffer::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
+{
+    SLANG_RHI_API_FUNC;
+    checkCommandBufferOpenWhenCreatingEncoder();
+    checkEncodersClosedBeforeNewEncoder();
+    RenderPassDesc innerDesc = desc;
+    short_vector<RenderPassColorAttachment> innerColorAttachments;
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        innerColorAttachments.push_back(desc.colorAttachments[i]);
+        innerColorAttachments[i].view = getInnerObj(desc.colorAttachments[i].view);
+    }
+    innerDesc.colorAttachments = innerColorAttachments.data();
+    RenderPassDepthStencilAttachment innerDepthStencilAttachment;
+    if (desc.depthStencilAttachment)
+    {
+        innerDepthStencilAttachment = *desc.depthStencilAttachment;
+        innerDepthStencilAttachment.view = getInnerObj(desc.depthStencilAttachment->view);
+        innerDesc.depthStencilAttachment = &innerDepthStencilAttachment;
+    }
+    m_renderCommandEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->encodeRenderCommands(innerDesc, &m_renderCommandEncoder.baseObject));
+    *outEncoder = &m_renderCommandEncoder;
+    return SLANG_OK;
+}
+
+Result DebugCommandBuffer::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+{
+    SLANG_RHI_API_FUNC;
+    checkCommandBufferOpenWhenCreatingEncoder();
+    checkEncodersClosedBeforeNewEncoder();
+    m_computeCommandEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->encodeComputeCommands(&m_computeCommandEncoder.baseObject));
+    *outEncoder = &m_computeCommandEncoder;
+    return SLANG_OK;
+}
+
+Result DebugCommandBuffer::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
     SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
     m_rayTracingCommandEncoder.isOpen = true;
-    baseObject->encodeRayTracingCommands(&m_rayTracingCommandEncoder.baseObject);
-    if (m_rayTracingCommandEncoder.baseObject)
-    {
-        *outEncoder = &m_rayTracingCommandEncoder;
-    }
-    else
-    {
-        *outEncoder = nullptr;
-    }
+    SLANG_RETURN_ON_FAIL(baseObject->encodeRayTracingCommands(&m_rayTracingCommandEncoder.baseObject));
+    *outEncoder = &m_rayTracingCommandEncoder;
+    return SLANG_OK;
 }
 
 void DebugCommandBuffer::close()
@@ -125,7 +112,7 @@ void DebugCommandBuffer::close()
     baseObject->close();
 }
 
-Result DebugCommandBuffer::getNativeHandle(InteropHandle* outHandle)
+Result DebugCommandBuffer::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getNativeHandle(outHandle);
@@ -159,10 +146,11 @@ void DebugCommandBuffer::ensureInternalDescriptorHeapsBound()
 
 void DebugCommandBuffer::checkEncodersClosedBeforeNewEncoder()
 {
-    if (m_renderCommandEncoder.isOpen || m_resourceCommandEncoder.isOpen || m_computeCommandEncoder.isOpen)
+    if (m_resourceCommandEncoder.isOpen || m_renderCommandEncoder.isOpen || m_computeCommandEncoder.isOpen ||
+        m_rayTracingCommandEncoder.isOpen)
     {
         RHI_VALIDATION_ERROR(
-            "A previouse command encoder created on this command buffer is still open. "
+            "A previous command encoder created on this command buffer is still open. "
             "endEncoding() must be called on the encoder before creating an encoder."
         );
     }

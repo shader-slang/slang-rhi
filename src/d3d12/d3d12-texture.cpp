@@ -2,34 +2,34 @@
 
 namespace rhi::d3d12 {
 
-TextureResourceImpl::TextureResourceImpl(const Desc& desc)
+TextureImpl::TextureImpl(const TextureDesc& desc)
     : Parent(desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
-TextureResourceImpl::~TextureResourceImpl()
+TextureImpl::~TextureImpl()
 {
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle)
     {
-        CloseHandle((HANDLE)sharedHandle.handleValue);
+        CloseHandle((HANDLE)sharedHandle.value);
     }
 }
 
-Result TextureResourceImpl::getNativeResourceHandle(InteropHandle* outHandle)
+Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->handleValue = (uint64_t)m_resource.getResource();
-    outHandle->api = InteropHandleAPI::D3D12;
+    outHandle->type = NativeHandleType::D3D12Resource;
+    outHandle->value = (uint64_t)m_resource.getResource();
     return SLANG_OK;
 }
 
-Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
+Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
 #if !SLANG_WINDOWS_FAMILY
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (sharedHandle.handleValue != 0)
+    if (sharedHandle != 0)
     {
         *outHandle = sharedHandle;
         return SLANG_OK;
@@ -40,18 +40,12 @@ Result TextureResourceImpl::getSharedHandle(InteropHandle* outHandle)
     auto pResource = m_resource.getResource();
     pResource->GetDevice(IID_PPV_ARGS(pDevice.writeRef()));
     SLANG_RETURN_ON_FAIL(
-        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&outHandle->handleValue)
+        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&sharedHandle.value)
     );
-    outHandle->api = InteropHandleAPI::D3D12;
+    sharedHandle.type = NativeHandleType::Win32;
+    *outHandle = sharedHandle;
     return SLANG_OK;
 #endif
-}
-
-Result TextureResourceImpl::setDebugName(const char* name)
-{
-    Parent::setDebugName(name);
-    m_resource.setDebugName(name);
-    return SLANG_OK;
 }
 
 } // namespace rhi::d3d12

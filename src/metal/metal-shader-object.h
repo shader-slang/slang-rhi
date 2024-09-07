@@ -37,11 +37,10 @@ public:
     SLANG_NO_THROW Result SLANG_MCALL setResource(ShaderOffset const& offset, IResourceView* resourceView)
         SLANG_OVERRIDE;
 
-    SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISamplerState* sampler) SLANG_OVERRIDE;
+    SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) SLANG_OVERRIDE;
 
     SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISamplerState* sampler)
-        SLANG_OVERRIDE
+    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) SLANG_OVERRIDE
     {
         return SLANG_E_NOT_IMPLEMENTED;
     }
@@ -62,7 +61,7 @@ protected:
     ///
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
-    BufferResourceImpl* _ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
+    BufferImpl* _ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     void writeOrdinaryDataIntoArgumentBuffer(
         slang::TypeLayoutReflection* argumentBufferTypeLayout,
@@ -104,22 +103,22 @@ public:
     // of simple arrays.
 
     /// The buffers that are part of the state of this object
-    std::vector<RefPtr<BufferResourceViewImpl>> m_buffers;
+    std::vector<RefPtr<BufferViewImpl>> m_buffers;
 
     /// The textures that are part of the state of this object
-    std::vector<RefPtr<TextureResourceViewImpl>> m_textures;
+    std::vector<RefPtr<TextureViewImpl>> m_textures;
 
     /// The samplers that are part of the state of this object
-    std::vector<RefPtr<SamplerStateImpl>> m_samplers;
+    std::vector<RefPtr<SamplerImpl>> m_samplers;
 
     /// A constant buffer used to stored ordinary data for this object
     /// and existential-type sub-objects.
     ///
     /// Created on demand with `_createOrdinaryDataBufferIfNeeded()`
-    RefPtr<BufferResourceImpl> m_ordinaryDataBuffer;
+    RefPtr<BufferImpl> m_ordinaryDataBuffer;
 
     /// Argument buffer created on demand to bind as a parameter block.
-    RefPtr<BufferResourceImpl> m_argumentBuffer;
+    RefPtr<BufferImpl> m_argumentBuffer;
 
     bool m_isConstantBufferDirty = true;
     bool m_isArgumentBufferDirty = true;
