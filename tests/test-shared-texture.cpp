@@ -67,13 +67,9 @@ static ComPtr<ITexture> createTexture(IDevice* device, Extents extents, Format f
     texDesc.numMipLevels = 1;
     texDesc.arraySize = 1;
     texDesc.size = extents;
+    texDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination |
+                    TextureUsage::CopySource;
     texDesc.defaultState = ResourceState::UnorderedAccess;
-    texDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
     texDesc.format = format;
     texDesc.isShared = true;
 
@@ -100,12 +96,8 @@ ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
     bufferDesc.size = size * sizeof(T);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(T);
-    bufferDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 

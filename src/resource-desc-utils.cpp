@@ -5,7 +5,6 @@ namespace rhi {
 BufferDesc fixupBufferDesc(const BufferDesc& desc)
 {
     BufferDesc result = desc;
-    result.allowedStates.add(result.defaultState);
     return result;
 }
 
@@ -14,7 +13,6 @@ TextureDesc fixupTextureDesc(const TextureDesc& desc)
     TextureDesc rs = desc;
     if (desc.numMipLevels == 0)
         rs.numMipLevels = calcNumMipLevels(desc.type, desc.size);
-    rs.allowedStates.add(rs.defaultState);
     return rs;
 }
 

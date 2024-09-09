@@ -1255,7 +1255,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     D3D12_RESOURCE_DESC bufferDesc;
     initBufferDesc(descIn.size, bufferDesc);
 
-    bufferDesc.Flags |= calcResourceFlags(srcDesc.allowedStates);
+    bufferDesc.Flags |= calcResourceFlags(srcDesc.usage);
 
     const D3D12_RESOURCE_STATES initialState = buffer->m_defaultState;
     SLANG_RETURN_ON_FAIL(createBuffer(
@@ -1584,49 +1584,42 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
     return SLANG_OK;
 }
 
-Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates)
+Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
-    D3D12_FEATURE_DATA_FORMAT_SUPPORT support;
-    support.Format = D3DUtil::getMapFormat(format);
-    SLANG_RETURN_ON_FAIL(m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support)));
+    D3D12_FEATURE_DATA_FORMAT_SUPPORT featureData;
+    featureData.Format = D3DUtil::getMapFormat(format);
+    SLANG_RETURN_ON_FAIL(m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &featureData, sizeof(featureData))
+    );
 
-    ResourceStateSet allowedStates;
+    FormatSupport support = FormatSupport::None;
 
-    auto dxgi1 = support.Support1;
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_BUFFER)
-        allowedStates.add(ResourceState::ConstantBuffer);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER)
-        allowedStates.add(ResourceState::VertexBuffer);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER)
-        allowedStates.add(ResourceState::IndexBuffer);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_SO_BUFFER)
-        allowedStates.add(ResourceState::StreamOutput);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_TEXTURE1D)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_TEXTURE2D)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_TEXTURE3D)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_TEXTURECUBE)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_SHADER_LOAD)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE_COMPARISON)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_SHADER_GATHER)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_SHADER_GATHER_COMPARISON)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET)
-        allowedStates.add(ResourceState::RenderTarget);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL)
-        allowedStates.add(ResourceState::DepthWrite);
-    if (dxgi1 & D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW)
-        allowedStates.add(ResourceState::UnorderedAccess);
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_BUFFER)
+        support = support | FormatSupport::Buffer;
+    if (featureData.Support1 & (D3D12_FORMAT_SUPPORT1_TEXTURE1D | D3D12_FORMAT_SUPPORT1_TEXTURE2D |
+                                D3D12_FORMAT_SUPPORT1_TEXTURE3D | D3D12_FORMAT_SUPPORT1_TEXTURECUBE))
+        support = support | FormatSupport::Texture;
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL)
+        support = support | FormatSupport::DepthStencil;
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET)
+        support = support | FormatSupport::RenderTarget;
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_BLENDABLE)
+        support = support | FormatSupport::Blendable;
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER)
+        support = support | FormatSupport::IndexBuffer;
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER)
+        support = support | FormatSupport::VertexBuffer;
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_LOAD)
+        support = support | FormatSupport::ShaderLoad;
+    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE)
+        support = support | FormatSupport::ShaderSample;
+    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_ADD)
+        support = support | FormatSupport::ShaderAtomic;
+    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD)
+        support = support | FormatSupport::ShaderUavLoad;
+    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE)
+        support = support | FormatSupport::ShaderUavStore;
 
-    *outStates = allowedStates;
+    *outFormatSupport = support;
     return SLANG_OK;
 }
 

@@ -212,56 +212,32 @@ VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access)
     return result;
 }
 
-VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceState state)
+VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
 {
-    switch (state)
-    {
-    case ResourceState::VertexBuffer:
-        return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    case ResourceState::IndexBuffer:
-        return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    case ResourceState::ConstantBuffer:
-        return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    case ResourceState::StreamOutput:
-        return VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
-    case ResourceState::RenderTarget:
-    case ResourceState::DepthRead:
-    case ResourceState::DepthWrite:
-    {
-        SLANG_RHI_ASSERT_FAILURE("Invalid resource state for buffer resource.");
-        return VkBufferUsageFlagBits(0);
-    }
-    case ResourceState::UnorderedAccess:
-        return (VkBufferUsageFlagBits)(VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    case ResourceState::ShaderResource:
-    case ResourceState::NonPixelShaderResource:
-    case ResourceState::PixelShaderResource:
-        return (VkBufferUsageFlagBits)(VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    case ResourceState::CopySource:
-        return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    case ResourceState::CopyDestination:
-        return VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    case ResourceState::AccelerationStructure:
-        return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
-    case ResourceState::IndirectArgument:
-        return VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-    case ResourceState::AccelerationStructureBuildInput:
-        return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    default:
-        return VkBufferUsageFlagBits(0);
-    }
-}
-
-VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceStateSet states)
-{
-    int dstFlags = 0;
-    for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; i++)
-    {
-        auto state = (ResourceState)i;
-        if (states.contains(state))
-            dstFlags |= _calcBufferUsageFlags(state);
-    }
-    return VkBufferUsageFlagBits(dstFlags);
+    int flags = 0;
+    if (is_set(usage, BufferUsage::VertexBuffer))
+        flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::IndexBuffer))
+        flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::ConstantBuffer))
+        flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::ShaderResource))
+        flags |= (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    if (is_set(usage, BufferUsage::UnorderedAccess))
+        flags |= (VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    if (is_set(usage, BufferUsage::IndirectArgument))
+        flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::CopySource))
+        flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, BufferUsage::CopyDestination))
+        flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (is_set(usage, BufferUsage::AccelerationStructure))
+        flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+    if (is_set(usage, BufferUsage::AccelerationStructureBuildInput))
+        flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    if (is_set(usage, BufferUsage::ShaderTable))
+        flags |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
+    return VkBufferUsageFlagBits(flags);
 }
 
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
@@ -328,28 +304,42 @@ VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc)
     return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 }
 
-VkImageUsageFlagBits _calcImageUsageFlags(ResourceStateSet states)
+VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage)
 {
-    int dstFlags = 0;
-    for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; i++)
-    {
-        auto state = (ResourceState)i;
-        if (states.contains(state))
-            dstFlags |= _calcImageUsageFlags(state);
-    }
-    return VkImageUsageFlagBits(dstFlags);
+    int flags = 0;
+    if (is_set(usage, TextureUsage::ShaderResource))
+        flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (is_set(usage, TextureUsage::UnorderedAccess))
+        flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    if (is_set(usage, TextureUsage::RenderTarget))
+        flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::DepthRead))
+        flags |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::DepthWrite))
+        flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::Present))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::CopySource))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::CopyDestination))
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    if (is_set(usage, TextureUsage::ResolveSource))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::ResolveDestination))
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    return VkImageUsageFlagBits(flags);
 }
 
-VkImageUsageFlags _calcImageUsageFlags(ResourceStateSet states, MemoryType memoryType, const void* initData)
+VkImageUsageFlags _calcImageUsageFlags(TextureUsage usage, MemoryType memoryType, const void* initData)
 {
-    VkImageUsageFlags usage = _calcImageUsageFlags(states);
+    VkImageUsageFlags flags = _calcImageUsageFlags(usage);
 
     if (memoryType == MemoryType::Upload || initData)
     {
-        usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
-    return usage;
+    return flags;
 }
 
 VkAccessFlags calcAccessFlagsFromImageLayout(VkImageLayout layout)

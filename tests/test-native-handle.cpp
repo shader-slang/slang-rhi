@@ -18,12 +18,8 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
-    bufferDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
@@ -63,6 +59,7 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
     desc.size.width = 1;
     desc.size.height = 1;
     desc.size.depth = 1;
+    desc.usage = TextureUsage::UnorderedAccess;
     desc.defaultState = ResourceState::UnorderedAccess;
     desc.format = Format::R16G16B16A16_FLOAT;
 

@@ -22,12 +22,8 @@ void SwapchainImpl::createImages()
     for (GfxCount i = 0; i < m_desc.imageCount; ++i)
     {
         TextureDesc imageDesc = {};
-        imageDesc.allowedStates = ResourceStateSet(
-            ResourceState::Present,
-            ResourceState::RenderTarget,
-            ResourceState::CopyDestination,
-            ResourceState::CopySource
-        );
+        imageDesc.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination |
+                          TextureUsage::CopySource;
         imageDesc.type = TextureType::Texture2D;
         imageDesc.arraySize = 0;
         imageDesc.format = m_desc.format;

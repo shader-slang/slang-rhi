@@ -245,8 +245,8 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         ComPtr<IBuffer> buffer;
         BufferDesc bufferDesc = {};
         bufferDesc.size = specializedOrdinaryDataSize;
+        bufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
-        bufferDesc.allowedStates = ResourceStateSet(ResourceState::ConstantBuffer, ResourceState::CopyDestination);
         bufferDesc.memoryType = MemoryType::Upload;
         SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
         m_ordinaryDataBuffer = static_cast<BufferImpl*>(buffer.get());

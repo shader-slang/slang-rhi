@@ -29,12 +29,8 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     // Note: we don't specify any element size here, and rhi should be able to derive the
     // correct element size from the reflection infomation.
     bufferDesc.elementSize = 0;
-    bufferDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 

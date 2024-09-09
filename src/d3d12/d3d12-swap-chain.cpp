@@ -39,8 +39,7 @@ void SwapchainImpl::createSwapchainBufferImages()
         ComPtr<ID3D12Resource> d3dResource;
         m_swapChain->GetBuffer(i, IID_PPV_ARGS(d3dResource.writeRef()));
         TextureDesc imageDesc = {};
-        imageDesc.allowedStates =
-            ResourceStateSet(ResourceState::Present, ResourceState::RenderTarget, ResourceState::CopyDestination);
+        imageDesc.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
         imageDesc.type = TextureType::Texture2D;
         imageDesc.arraySize = 0;
         imageDesc.format = m_desc.format;

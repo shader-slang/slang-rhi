@@ -19,9 +19,8 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     srcTexDesc.size.width = 4;
     srcTexDesc.size.height = 4;
     srcTexDesc.size.depth = 1;
+    srcTexDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource | TextureUsage::CopyDestination;
     srcTexDesc.defaultState = ResourceState::RenderTarget;
-    srcTexDesc.allowedStates =
-        ResourceStateSet(ResourceState::RenderTarget, ResourceState::CopySource, ResourceState::CopyDestination);
     srcTexDesc.format = Format::R32G32B32A32_FLOAT;
 
     ComPtr<ITexture> srcTexture;

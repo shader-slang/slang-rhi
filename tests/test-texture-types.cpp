@@ -47,6 +47,23 @@ struct BaseTextureViewTest
         this->textureInfo->textureType = type;
     }
 
+    TextureUsage getTextureUsageForViewType(IResourceView::Type type)
+    {
+        switch (type)
+        {
+        case IResourceView::Type::RenderTarget:
+            return TextureUsage::RenderTarget;
+        case IResourceView::Type::DepthStencil:
+            return TextureUsage::DepthWrite;
+        case IResourceView::Type::ShaderResource:
+            return TextureUsage::ShaderResource;
+        case IResourceView::Type::UnorderedAccess:
+            return TextureUsage::UnorderedAccess;
+        default:
+            return TextureUsage::None;
+        }
+    }
+
     ResourceState getDefaultResourceStateForViewType(IResourceView::Type type)
     {
         switch (type)
@@ -127,9 +144,9 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         textureDesc.numMipLevels = textureInfo->mipLevelCount;
         textureDesc.arraySize = textureInfo->arrayLayerCount;
         textureDesc.size = textureInfo->extents;
+        textureDesc.usage =
+            getTextureUsageForViewType(viewType) | TextureUsage::CopySource | TextureUsage::CopyDestination;
         textureDesc.defaultState = getDefaultResourceStateForViewType(viewType);
-        textureDesc.allowedStates =
-            ResourceStateSet(textureDesc.defaultState, ResourceState::CopySource, ResourceState::CopyDestination);
         textureDesc.format = textureInfo->format;
 
         REQUIRE_CALL(device->createTexture(textureDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
@@ -150,9 +167,8 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             textureDesc.size.width * textureDesc.size.height * textureDesc.size.depth * texelSize * sizeof(uint32_t);
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = sizeof(uint32_t);
+        bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
-        bufferDesc.allowedStates =
-            ResourceStateSet(bufferDesc.defaultState, ResourceState::CopyDestination, ResourceState::CopySource);
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
         REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, resultsBuffer.writeRef()));
@@ -353,8 +369,8 @@ struct RenderTargetTests : BaseTextureViewTest
     {
         BufferDesc vertexBufferDesc;
         vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
+        vertexBufferDesc.usage = BufferUsage::VertexBuffer;
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-        vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         REQUIRE(vertexBuffer != nullptr);
 
@@ -373,9 +389,9 @@ struct RenderTargetTests : BaseTextureViewTest
         sampledTexDesc.numMipLevels = textureInfo->mipLevelCount;
         sampledTexDesc.arraySize = textureInfo->arrayLayerCount;
         sampledTexDesc.size = textureInfo->extents;
+        sampledTexDesc.usage =
+            getTextureUsageForViewType(viewType) | TextureUsage::ResolveSource | TextureUsage::CopySource;
         sampledTexDesc.defaultState = getDefaultResourceStateForViewType(viewType);
-        sampledTexDesc.allowedStates =
-            ResourceStateSet(sampledTexDesc.defaultState, ResourceState::ResolveSource, ResourceState::CopySource);
         sampledTexDesc.format = textureInfo->format;
         sampledTexDesc.sampleCount = sampleCount;
 
@@ -388,8 +404,8 @@ struct RenderTargetTests : BaseTextureViewTest
         texDesc.numMipLevels = textureInfo->mipLevelCount;
         texDesc.arraySize = textureInfo->arrayLayerCount;
         texDesc.size = textureInfo->extents;
+        texDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
         texDesc.defaultState = ResourceState::ResolveDestination;
-        texDesc.allowedStates = ResourceStateSet(ResourceState::ResolveDestination, ResourceState::CopySource);
         texDesc.format = textureInfo->format;
 
         REQUIRE_CALL(device->createTexture(texDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));

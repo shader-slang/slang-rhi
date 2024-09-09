@@ -496,7 +496,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         return SLANG_FAIL;
     }
 
-    const int bindFlags = _calcResourceBindFlags(srcDesc.allowedStates);
+    const int bindFlags = _calcResourceBindFlags(srcDesc.usage);
 
     // Set up the initialize data
     std::vector<D3D11_SUBRESOURCE_DATA> subRes;
@@ -609,7 +609,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 {
     BufferDesc srcDesc = fixupBufferDesc(descIn);
 
-    auto d3dBindFlags = _calcResourceBindFlags(srcDesc.allowedStates);
+    auto d3dBindFlags = _calcResourceBindFlags(srcDesc.usage);
 
     size_t alignedSizeInBytes = srcDesc.size;
 
@@ -636,7 +636,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     bufferDesc.Usage = D3D11_USAGE_DEFAULT;
 
     // If written by CPU, make it dynamic
-    if (descIn.memoryType == MemoryType::Upload && !descIn.allowedStates.contains(ResourceState::UnorderedAccess))
+    if (descIn.memoryType == MemoryType::Upload && !is_set(descIn.usage, BufferUsage::UnorderedAccess))
     {
         bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
     }

@@ -700,7 +700,7 @@ DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initDa
         // time we create a resource, and then allocate the surface or
         // texture objects as part of view creation.
         //
-        if (desc.allowedStates.contains(ResourceState::UnorderedAccess))
+        if (is_set(desc.usage, TextureUsage::UnorderedAccess))
         {
             // On CUDA surfaces only support a single MIP map
             SLANG_RHI_ASSERT(desc.numMipLevels == 1);

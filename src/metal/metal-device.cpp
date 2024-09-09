@@ -374,15 +374,15 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
 
     MTL::TextureUsage textureUsage = MTL::TextureUsageUnknown;
-    if (desc.allowedStates.contains(ResourceState::RenderTarget))
+    if (is_set(desc.usage, TextureUsage::RenderTarget))
     {
         textureUsage |= MTL::TextureUsageRenderTarget;
     }
-    if (desc.allowedStates.contains(ResourceState::ShaderResource))
+    if (is_set(desc.usage, TextureUsage::ShaderResource))
     {
         textureUsage |= MTL::TextureUsageShaderRead;
     }
-    if (desc.allowedStates.contains(ResourceState::UnorderedAccess))
+    if (is_set(desc.usage, TextureUsage::UnorderedAccess))
     {
         textureUsage |= MTL::TextureUsageShaderRead;
         textureUsage |= MTL::TextureUsageShaderWrite;
@@ -590,30 +590,26 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
     return SLANG_OK;
 }
 
-Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates)
+Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
     AUTORELEASEPOOL
 
     // TODO - add table based on https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
-    ResourceStateSet allowedStates;
-    allowedStates.add(ResourceState::VertexBuffer);
-    allowedStates.add(ResourceState::IndexBuffer);
-    allowedStates.add(ResourceState::ConstantBuffer);
-    allowedStates.add(ResourceState::ShaderResource);
-    allowedStates.add(ResourceState::UnorderedAccess);
-    allowedStates.add(ResourceState::RenderTarget);
-    allowedStates.add(ResourceState::DepthRead);
-    allowedStates.add(ResourceState::DepthWrite);
-    allowedStates.add(ResourceState::Present);
-    allowedStates.add(ResourceState::IndirectArgument);
-    allowedStates.add(ResourceState::CopySource);
-    allowedStates.add(ResourceState::ResolveSource);
-    allowedStates.add(ResourceState::CopyDestination);
-    allowedStates.add(ResourceState::ResolveDestination);
-    allowedStates.add(ResourceState::AccelerationStructure);
-    allowedStates.add(ResourceState::AccelerationStructureBuildInput);
+    FormatSupport support = FormatSupport::None;
+    support |= FormatSupport::Buffer;
+    support |= FormatSupport::IndexBuffer;
+    support |= FormatSupport::VertexBuffer;
+    support |= FormatSupport::Texture;
+    support |= FormatSupport::DepthStencil;
+    support |= FormatSupport::RenderTarget;
+    support |= FormatSupport::Blendable;
+    support |= FormatSupport::ShaderLoad;
+    support |= FormatSupport::ShaderSample;
+    support |= FormatSupport::ShaderUavLoad;
+    support |= FormatSupport::ShaderUavStore;
+    support |= FormatSupport::ShaderAtomic;
 
-    *outStates = allowedStates;
+    *outFormatSupport = support;
     return SLANG_OK;
 }
 

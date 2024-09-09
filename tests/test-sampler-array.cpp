@@ -10,12 +10,8 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
     bufferDesc.size = sizeof(uint32_t);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
-    bufferDesc.allowedStates = ResourceStateSet(
-        ResourceState::ShaderResource,
-        ResourceState::UnorderedAccess,
-        ResourceState::CopyDestination,
-        ResourceState::CopySource
-    );
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
@@ -66,8 +62,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.size.depth = 1;
         textureDesc.numMipLevels = 2;
         textureDesc.memoryType = MemoryType::DeviceLocal;
+        textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination;
         textureDesc.defaultState = ResourceState::ShaderResource;
-        textureDesc.allowedStates.add(ResourceState::CopyDestination);
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
         SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
         REQUIRE_CALL(device->createTexture(textureDesc, subResourceData, texture.writeRef()));

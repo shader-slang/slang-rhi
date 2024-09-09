@@ -222,12 +222,8 @@ struct ShaderCacheTest
         bufferDesc.size = numberCount * sizeof(float);
         bufferDesc.format = Format::Unknown;
         bufferDesc.elementSize = sizeof(float);
-        bufferDesc.allowedStates = ResourceStateSet(
-            ResourceState::ShaderResource,
-            ResourceState::UnorderedAccess,
-            ResourceState::CopyDestination,
-            ResourceState::CopySource
-        );
+        bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                           BufferUsage::CopySource;
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
@@ -710,8 +706,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
         BufferDesc vertexBufferDesc;
         vertexBufferDesc.size = sizeof(vertices);
+        vertexBufferDesc.usage = BufferUsage::VertexBuffer;
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-        vertexBufferDesc.allowedStates = ResourceState::VertexBuffer;
         ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, vertices);
         REQUIRE(vertexBuffer != nullptr);
         return vertexBuffer;
@@ -726,8 +722,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         colorBufferDesc.size.depth = 1;
         colorBufferDesc.numMipLevels = 1;
         colorBufferDesc.format = format;
+        colorBufferDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
         colorBufferDesc.defaultState = ResourceState::RenderTarget;
-        colorBufferDesc.allowedStates = {ResourceState::RenderTarget, ResourceState::CopySource};
         ComPtr<ITexture> colorBuffer = device->createTexture(colorBufferDesc, nullptr);
         REQUIRE(colorBuffer != nullptr);
         return colorBuffer;

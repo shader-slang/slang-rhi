@@ -1064,8 +1064,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* featureName) SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE;
     IDevice* getInterface(const Guid& guid);

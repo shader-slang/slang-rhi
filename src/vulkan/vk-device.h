@@ -14,8 +14,7 @@ public:
     // Renderer    implementation
     Result initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer);
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -26,12 +25,6 @@ public:
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
-    SLANG_NO_THROW Result SLANG_MCALL createBufferImpl(
-        const BufferDesc& desc,
-        VkBufferUsageFlags additionalUsageFlag,
-        const void* initData,
-        IBuffer** outBuffer
-    );
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;

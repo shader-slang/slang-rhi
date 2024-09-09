@@ -30,7 +30,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.defaultState = ResourceState::General;
-    bufferDesc.allowedStates.add(ResourceState::NonPixelShaderResource);
+    bufferDesc.usage = BufferUsage::ShaderTable;
     bufferDesc.size = tableSize;
     m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef());
 

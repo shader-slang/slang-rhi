@@ -26,6 +26,18 @@
 #define SLANG_RHI_API
 #endif
 
+// clang-format off
+/// Implement logical operators on a class enum for making it usable as a flags enum.
+#define SLANG_RHI_ENUM_CLASS_OPERATORS(e_) \
+    inline e_ operator& (e_ a, e_ b) { return static_cast<e_>(static_cast<int>(a)& static_cast<int>(b)); } \
+    inline e_ operator| (e_ a, e_ b) { return static_cast<e_>(static_cast<int>(a)| static_cast<int>(b)); } \
+    inline e_& operator|= (e_& a, e_ b) { a = a | b; return a; }; \
+    inline e_& operator&= (e_& a, e_ b) { a = a & b; return a; }; \
+    inline e_  operator~ (e_ a) { return static_cast<e_>(~static_cast<int>(a)); } \
+    inline bool is_set(e_ val, e_ flag) { return (val & flag) != static_cast<e_>(0); } \
+    inline void flip_bit(e_& val, e_ flag) { val = is_set(val, flag) ? (val & (~flag)) : (val | flag); }
+// clang-format on
+
 // Needed for building on cygwin with gcc
 #undef Always
 #undef None
@@ -266,6 +278,27 @@ struct FormatInfo
     GfxCount blockHeight;
 };
 
+enum class FormatSupport
+{
+    None = 0x0,
+
+    Buffer = 0x1,
+    IndexBuffer = 0x2,
+    VertexBuffer = 0x4,
+
+    Texture = 0x8,
+    DepthStencil = 0x10,
+    RenderTarget = 0x20,
+    Blendable = 0x40,
+
+    ShaderLoad = 0x80,
+    ShaderSample = 0x100,
+    ShaderUavLoad = 0x200,
+    ShaderUavStore = 0x400,
+    ShaderAtomic = 0x800,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(FormatSupport);
+
 enum class InputSlotClass
 {
     PerVertex,
@@ -313,42 +346,6 @@ enum class ResourceState
     AccelerationStructureBuildInput,
     PixelShaderResource,
     NonPixelShaderResource,
-    _Count
-};
-
-struct ResourceStateSet
-{
-public:
-    void add(ResourceState state) { m_bitFields |= (1LL << (uint32_t)state); }
-    template<typename... TResourceState>
-    void add(ResourceState s, TResourceState... states)
-    {
-        add(s);
-        add(states...);
-    }
-    bool contains(ResourceState state) const { return (m_bitFields & (1LL << (uint32_t)state)) != 0; }
-    ResourceStateSet()
-        : m_bitFields(0)
-    {
-    }
-    ResourceStateSet(const ResourceStateSet& other) = default;
-    ResourceStateSet(ResourceState state) { add(state); }
-    template<typename... TResourceState>
-    ResourceStateSet(TResourceState... states)
-    {
-        add(states...);
-    }
-
-    ResourceStateSet operator&(const ResourceStateSet& that) const
-    {
-        ResourceStateSet result;
-        result.m_bitFields = this->m_bitFields & that.m_bitFields;
-        return result;
-    }
-
-private:
-    uint64_t m_bitFields = 0;
-    void add() {}
 };
 
 /// Describes how memory for the resource should be allocated for CPU access.
@@ -467,6 +464,23 @@ struct MemoryRange
     uint64_t size;
 };
 
+enum class BufferUsage
+{
+    None = 0,
+    VertexBuffer = 0x1,
+    IndexBuffer = 0x2,
+    ConstantBuffer = 0x4,
+    ShaderResource = 0x8,
+    UnorderedAccess = 0x10,
+    IndirectArgument = 0x20,
+    CopySource = 0x40,
+    CopyDestination = 0x80,
+    AccelerationStructure = 0x100,
+    AccelerationStructureBuildInput = 0x200,
+    ShaderTable = 0x400,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
+
 struct BufferDesc
 {
     /// Total size in bytes.
@@ -478,8 +492,8 @@ struct BufferDesc
 
     MemoryType memoryType = MemoryType::DeviceLocal;
 
+    BufferUsage usage = BufferUsage::None;
     ResourceState defaultState = ResourceState::Undefined;
-    ResourceStateSet allowedStates = ResourceStateSet();
 
     bool isShared = false;
 
@@ -521,6 +535,22 @@ struct BufferRange
     /// Size in bytes.
     Size size;
 };
+
+enum class TextureUsage
+{
+    None = 0x0,
+    ShaderResource = 0x1,
+    UnorderedAccess = 0x2,
+    RenderTarget = 0x4,
+    DepthRead = 0x8,
+    DepthWrite = 0x10,
+    Present = 0x20,
+    CopySource = 0x40,
+    CopyDestination = 0x80,
+    ResolveSource = 0x100,
+    ResolveDestination = 0x200,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 
 enum class TextureType
 {
@@ -625,9 +655,11 @@ struct Extents
 struct TextureDesc
 {
     TextureType type = TextureType::Texture2D;
-    ResourceState defaultState = ResourceState::Undefined;
-    ResourceStateSet allowedStates = ResourceStateSet();
+
     MemoryType memoryType = MemoryType::DeviceLocal;
+
+    TextureUsage usage = TextureUsage::None;
+    ResourceState defaultState = ResourceState::Undefined;
     bool isShared = false;
 
     Extents size;
@@ -2122,8 +2154,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) = 0;
 

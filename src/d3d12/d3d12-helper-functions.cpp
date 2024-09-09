@@ -32,33 +32,28 @@ bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
 #endif
 }
 
-D3D12_RESOURCE_FLAGS calcResourceFlag(ResourceState state)
+D3D12_RESOURCE_FLAGS calcResourceFlags(BufferUsage usage)
 {
-    switch (state)
-    {
-    case ResourceState::RenderTarget:
-        return D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    case ResourceState::DepthRead:
-    case ResourceState::DepthWrite:
-        return D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    case ResourceState::UnorderedAccess:
-    case ResourceState::AccelerationStructure:
-        return D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-    default:
-        return D3D12_RESOURCE_FLAG_NONE;
-    }
+    int flags = D3D12_RESOURCE_FLAG_NONE;
+    if (is_set(usage, BufferUsage::UnorderedAccess))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    if (is_set(usage, BufferUsage::AccelerationStructure))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    return (D3D12_RESOURCE_FLAGS)flags;
 }
 
-D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states)
+D3D12_RESOURCE_FLAGS calcResourceFlags(TextureUsage usage)
 {
-    int dstFlags = 0;
-    for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; i++)
-    {
-        auto state = (ResourceState)i;
-        if (states.contains(state))
-            dstFlags |= calcResourceFlag(state);
-    }
-    return (D3D12_RESOURCE_FLAGS)dstFlags;
+    int flags = D3D12_RESOURCE_FLAG_NONE;
+    if (is_set(usage, TextureUsage::RenderTarget))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (is_set(usage, TextureUsage::DepthRead))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (is_set(usage, TextureUsage::DepthWrite))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    if (is_set(usage, TextureUsage::UnorderedAccess))
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    return (D3D12_RESOURCE_FLAGS)flags;
 }
 
 D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type)
@@ -363,12 +358,12 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
     resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
     resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
-    resourceDesc.Flags |= calcResourceFlags(srcDesc.allowedStates);
+    resourceDesc.Flags |= calcResourceFlags(srcDesc.usage);
 
     resourceDesc.Alignment = 0;
 
-    if (isDepthFormat(srcDesc.format) && (srcDesc.allowedStates.contains(ResourceState::ShaderResource) ||
-                                          srcDesc.allowedStates.contains(ResourceState::UnorderedAccess)))
+    if (isDepthFormat(srcDesc.format) &&
+        (is_set(srcDesc.usage, TextureUsage::ShaderResource) || is_set(srcDesc.usage, TextureUsage::UnorderedAccess)))
     {
         resourceDesc.Format = getTypelessFormatFromDepthFormat(srcDesc.format);
     }

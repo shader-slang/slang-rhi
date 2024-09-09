@@ -149,8 +149,7 @@ Result SwapchainImpl::createSwapchainAndImages()
     for (GfxIndex i = 0; i < m_desc.imageCount; i++)
     {
         TextureDesc imageDesc = {};
-        imageDesc.allowedStates =
-            ResourceStateSet(ResourceState::Present, ResourceState::RenderTarget, ResourceState::CopyDestination);
+        imageDesc.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
         imageDesc.type = TextureType::Texture2D;
         imageDesc.arraySize = 0;
         imageDesc.format = m_desc.format;

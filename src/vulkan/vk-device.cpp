@@ -1455,7 +1455,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     imageInfo.format = format;
 
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, nullptr);
+    imageInfo.usage = _calcImageUsageFlags(desc.usage, desc.memoryType, nullptr);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
@@ -1541,7 +1541,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     imageInfo.format = format;
 
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = _calcImageUsageFlags(desc.allowedStates, desc.memoryType, initData);
+    imageInfo.usage = _calcImageUsageFlags(desc.usage, desc.memoryType, initData);
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
@@ -1869,28 +1869,18 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
 Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
-    return createBufferImpl(descIn, 0, initData, outBuffer);
-}
-
-Result DeviceImpl::createBufferImpl(
-    const BufferDesc& descIn,
-    VkBufferUsageFlags additionalUsageFlag,
-    const void* initData,
-    IBuffer** outBuffer
-)
-{
     BufferDesc desc = fixupBufferDesc(descIn);
 
     const Size bufferSize = desc.size;
 
     VkMemoryPropertyFlags reqMemoryProperties = 0;
 
-    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.allowedStates) | additionalUsageFlag;
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
     if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
     {
         usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     }
-    if (desc.allowedStates.contains(ResourceState::ShaderResource) &&
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
         m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
     {
         usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
@@ -1900,7 +1890,7 @@ Result DeviceImpl::createBufferImpl(
         usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     }
 
-    if (desc.allowedStates.contains(ResourceState::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
+    if (is_set(desc.usage, BufferUsage::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
         desc.memoryType == MemoryType::ReadBack)
     {
         reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -2115,105 +2105,46 @@ Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc cons
     return SLANG_OK;
 }
 
-Result DeviceImpl::getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates)
+Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
-    // TODO: Add variables to VkDevice to track supported surface presentable formats
-
     VkFormat vkFormat = VulkanUtil::getVkFormat(format);
 
-    VkFormatProperties supportedProperties = {};
-    m_api.vkGetPhysicalDeviceFormatProperties(m_api.m_physicalDevice, vkFormat, &supportedProperties);
+    VkFormatProperties props = {};
+    m_api.vkGetPhysicalDeviceFormatProperties(m_api.m_physicalDevice, vkFormat, &props);
 
-    std::set<VkFormat> presentableFormats;
-    // TODO: enable this once we have VK_GOOGLE_surfaceless_query.
-#if 0
-    std::vector<VkSurfaceFormatKHR> surfaceFormats;
+    FormatSupport support = FormatSupport::None;
 
-    uint32_t surfaceFormatCount = 0;
-    m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(
-        m_api.m_physicalDevice, VK_NULL_HANDLE, &surfaceFormatCount, nullptr);
+    if (props.bufferFeatures)
+        support = support | FormatSupport::Buffer;
 
-    surfaceFormats.resize(surfaceFormatCount);
-    m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(m_api.m_physicalDevice, VK_NULL_HANDLE, &surfaceFormatCount, surfaceFormats.data());
-    for (auto surfaceFormat : surfaceFormats)
+    if (format == Format::R32_UINT || format == Format::R16_UINT)
     {
-        presentableFormats.emplace(surfaceFormat.format);
-    }
-#else
-    // Until we have a solution to query presentable formats without needing a surface,
-    // hard code presentable formats that is supported by most drivers.
-    presentableFormats.emplace(VK_FORMAT_R8G8B8A8_UNORM);
-    presentableFormats.emplace(VK_FORMAT_B8G8R8A8_UNORM);
-    presentableFormats.emplace(VK_FORMAT_R8G8B8A8_SRGB);
-    presentableFormats.emplace(VK_FORMAT_B8G8R8A8_SRGB);
-#endif
-
-    ResourceStateSet allowedStates;
-    // TODO: Currently only supports VK_IMAGE_TILING_OPTIMAL
-    auto imageFeatures = supportedProperties.optimalTilingFeatures;
-    auto bufferFeatures = supportedProperties.bufferFeatures;
-    // PreInitialized - Only supported for VK_IMAGE_TILING_LINEAR
-    // VertexBuffer
-    if (bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT)
-        allowedStates.add(ResourceState::VertexBuffer);
-    // IndexBuffer - Without extensions, Vulkan only supports two formats for index buffers.
-    switch (format)
-    {
-    case Format::R32_UINT:
-    case Format::R16_UINT:
-        allowedStates.add(ResourceState::IndexBuffer);
-        break;
-    default:
-        break;
-    }
-    // ConstantBuffer
-    allowedStates.add(ResourceState::ConstantBuffer);
-    // StreamOutput - TODO: Requires VK_EXT_transform_feedback
-    // ShaderResource
-    if (imageFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
-        allowedStates.add(ResourceState::ShaderResource);
-    if (bufferFeatures & VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT)
-        allowedStates.add(ResourceState::ShaderResource);
-    // UnorderedAccess
-    if (imageFeatures & (VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT))
-        allowedStates.add(ResourceState::UnorderedAccess);
-    if (bufferFeatures &
-        (VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT | VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT))
-        allowedStates.add(ResourceState::UnorderedAccess);
-    // RenderTarget
-    if (imageFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
-        allowedStates.add(ResourceState::RenderTarget);
-    // DepthRead, DepthWrite
-    if (imageFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
-    {
-        allowedStates.add(ResourceState::DepthRead);
-        allowedStates.add(ResourceState::DepthWrite);
-    }
-    // Present
-    if (presentableFormats.count(vkFormat))
-        allowedStates.add(ResourceState::Present);
-    // IndirectArgument
-    allowedStates.add(ResourceState::IndirectArgument);
-    // CopySource, ResolveSource
-    if (imageFeatures & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT)
-    {
-        allowedStates.add(ResourceState::CopySource);
-        allowedStates.add(ResourceState::ResolveSource);
-    }
-    // CopyDestination, ResolveDestination
-    if (imageFeatures & VK_FORMAT_FEATURE_TRANSFER_DST_BIT)
-    {
-        allowedStates.add(ResourceState::CopyDestination);
-        allowedStates.add(ResourceState::ResolveDestination);
-    }
-    // AccelerationStructure
-    if (bufferFeatures & VK_FORMAT_FEATURE_ACCELERATION_STRUCTURE_VERTEX_BUFFER_BIT_KHR)
-    {
-        allowedStates.add(ResourceState::AccelerationStructure);
-        allowedStates.add(ResourceState::AccelerationStructureBuildInput);
+        // There is no explicit bit in vk::FormatFeatureFlags for index buffers
+        support = support | FormatSupport::IndexBuffer;
     }
 
-    *outStates = allowedStates;
+    if (props.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT)
+        support = support | FormatSupport::VertexBuffer;
+
+    if (props.optimalTilingFeatures)
+        support = support | FormatSupport::Texture;
+
+    if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+        support = support | FormatSupport::DepthStencil;
+
+    if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
+        support = support | FormatSupport::RenderTarget;
+
+    if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT)
+        support = support | FormatSupport::Blendable;
+
+    if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) ||
+        (props.bufferFeatures & VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT))
+    {
+        support = support | FormatSupport::ShaderLoad;
+    }
+
+    *outFormatSupport = support;
     return SLANG_OK;
 }
 

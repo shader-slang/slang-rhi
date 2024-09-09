@@ -115,8 +115,8 @@ struct BaseRayTracingTest
         resultTextureDesc.size.width = width;
         resultTextureDesc.size.height = height;
         resultTextureDesc.size.depth = 1;
+        resultTextureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
-        resultTextureDesc.allowedStates = {ResourceState::UnorderedAccess, ResourceState::CopySource};
         resultTextureDesc.format = Format::R32G32B32A32_FLOAT;
         resultTexture = device->createTexture(resultTextureDesc);
         IResourceView::Desc resultUAVDesc = {};
@@ -133,18 +133,21 @@ struct BaseRayTracingTest
 
         BufferDesc vertexBufferDesc;
         vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
+        vertexBufferDesc.usage = BufferUsage::ShaderResource;
         vertexBufferDesc.defaultState = ResourceState::ShaderResource;
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         REQUIRE(vertexBuffer != nullptr);
 
         BufferDesc indexBufferDesc;
         indexBufferDesc.size = kIndexCount * sizeof(int32_t);
+        indexBufferDesc.usage = BufferUsage::ShaderResource;
         indexBufferDesc.defaultState = ResourceState::ShaderResource;
         indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
         REQUIRE(indexBuffer != nullptr);
 
         BufferDesc transformBufferDesc;
         transformBufferDesc.size = sizeof(float) * 12;
+        transformBufferDesc.usage = BufferUsage::ShaderResource;
         transformBufferDesc.defaultState = ResourceState::ShaderResource;
         float transformData[12] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
         transformBuffer = device->createBuffer(transformBufferDesc, &transformData);
@@ -183,10 +186,12 @@ struct BaseRayTracingTest
             ));
             // Allocate buffers for acceleration structure.
             BufferDesc asDraftBufferDesc;
+            asDraftBufferDesc.usage = BufferUsage::AccelerationStructure;
             asDraftBufferDesc.defaultState = ResourceState::AccelerationStructure;
             asDraftBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
             ComPtr<IBuffer> draftBuffer = device->createBuffer(asDraftBufferDesc);
             BufferDesc scratchBufferDesc;
+            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
             scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
             scratchBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
             ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
@@ -226,6 +231,7 @@ struct BaseRayTracingTest
             uint64_t compactedSize = 0;
             compactedSizeQuery->getResult(0, 1, &compactedSize);
             BufferDesc asBufferDesc;
+            asBufferDesc.usage = BufferUsage::AccelerationStructure;
             asBufferDesc.defaultState = ResourceState::AccelerationStructure;
             asBufferDesc.size = (size_t)compactedSize;
             BLASBuffer = device->createBuffer(asBufferDesc);
@@ -259,6 +265,7 @@ struct BaseRayTracingTest
 
             BufferDesc instanceBufferDesc;
             instanceBufferDesc.size = instanceDescs.size() * sizeof(IAccelerationStructure::InstanceDesc);
+            instanceBufferDesc.usage = BufferUsage::ShaderResource;
             instanceBufferDesc.defaultState = ResourceState::ShaderResource;
             instanceBuffer = device->createBuffer(instanceBufferDesc, instanceDescs.data());
             REQUIRE(instanceBuffer != nullptr);
@@ -276,11 +283,13 @@ struct BaseRayTracingTest
             ));
 
             BufferDesc asBufferDesc;
+            asBufferDesc.usage = BufferUsage::AccelerationStructure;
             asBufferDesc.defaultState = ResourceState::AccelerationStructure;
             asBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.resultDataMaxSize;
             TLASBuffer = device->createBuffer(asBufferDesc);
 
             BufferDesc scratchBufferDesc;
+            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
             scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
             scratchBufferDesc.size = (size_t)accelerationStructurePrebuildInfo.scratchDataSize;
             ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);

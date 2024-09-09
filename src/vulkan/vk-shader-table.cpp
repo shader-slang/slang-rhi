@@ -28,11 +28,10 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
     bufferDesc.defaultState = ResourceState::General;
-    bufferDesc.allowedStates = ResourceStateSet(ResourceState::General, ResourceState::CopyDestination);
     bufferDesc.size = tableSize;
-    static_cast<vk::DeviceImpl*>(m_device)
-        ->createBufferImpl(bufferDesc, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, nullptr, buffer.writeRef());
+    static_cast<vk::DeviceImpl*>(m_device)->createBuffer(bufferDesc, nullptr, buffer.writeRef());
 
     TransientResourceHeapImpl* transientHeapImpl = static_cast<TransientResourceHeapImpl*>(transientHeap);
 
