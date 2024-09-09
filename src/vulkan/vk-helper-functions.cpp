@@ -212,58 +212,6 @@ VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access)
     return result;
 }
 
-VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceState state)
-{
-    switch (state)
-    {
-    case ResourceState::VertexBuffer:
-        return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    case ResourceState::IndexBuffer:
-        return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    case ResourceState::ConstantBuffer:
-        return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    case ResourceState::StreamOutput:
-        return VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT;
-    case ResourceState::RenderTarget:
-    case ResourceState::DepthRead:
-    case ResourceState::DepthWrite:
-    {
-        SLANG_RHI_ASSERT_FAILURE("Invalid resource state for buffer resource.");
-        return VkBufferUsageFlagBits(0);
-    }
-    case ResourceState::UnorderedAccess:
-        return (VkBufferUsageFlagBits)(VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    case ResourceState::ShaderResource:
-    case ResourceState::NonPixelShaderResource:
-    case ResourceState::PixelShaderResource:
-        return (VkBufferUsageFlagBits)(VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-    case ResourceState::CopySource:
-        return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    case ResourceState::CopyDestination:
-        return VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    case ResourceState::AccelerationStructure:
-        return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
-    case ResourceState::IndirectArgument:
-        return VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-    case ResourceState::AccelerationStructureBuildInput:
-        return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    default:
-        return VkBufferUsageFlagBits(0);
-    }
-}
-
-VkBufferUsageFlagBits _calcBufferUsageFlags(ResourceStateSet states)
-{
-    int dstFlags = 0;
-    for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; i++)
-    {
-        auto state = (ResourceState)i;
-        if (states.contains(state))
-            dstFlags |= _calcBufferUsageFlags(state);
-    }
-    return VkBufferUsageFlagBits(dstFlags);
-}
-
 VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
 {
     int flags = 0;

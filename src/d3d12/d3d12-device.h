@@ -99,8 +99,7 @@ public:
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;

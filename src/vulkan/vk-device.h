@@ -14,8 +14,7 @@ public:
     // Renderer    implementation
     Result initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer);
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

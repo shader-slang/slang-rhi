@@ -38,8 +38,6 @@ struct BindingContext
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op);
 
-D3D12_RESOURCE_FLAGS calcResourceFlag(ResourceState state);
-D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states);
 D3D12_RESOURCE_FLAGS calcResourceFlags(BufferUsage usage);
 D3D12_RESOURCE_FLAGS calcResourceFlags(TextureUsage usage);
 D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type);

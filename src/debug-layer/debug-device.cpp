@@ -47,10 +47,10 @@ Result DebugDevice::getFeatures(const char** outFeatures, Size bufferSize, GfxCo
     return baseObject->getFeatures(outFeatures, bufferSize, outFeatureCount);
 }
 
-Result DebugDevice::getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates)
+Result DebugDevice::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getFormatSupportedResourceStates(format, outStates);
+    return baseObject->getFormatSupport(format, outFormatSupport);
 }
 
 DebugDevice::DebugDevice()

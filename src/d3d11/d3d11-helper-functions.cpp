@@ -18,46 +18,6 @@ bool isSupportedNVAPIOp(IUnknown* dev, uint32_t op)
 #endif
 }
 
-D3D11_BIND_FLAG calcResourceFlag(ResourceState state)
-{
-    switch (state)
-    {
-    case ResourceState::VertexBuffer:
-        return D3D11_BIND_VERTEX_BUFFER;
-    case ResourceState::IndexBuffer:
-        return D3D11_BIND_INDEX_BUFFER;
-    case ResourceState::ConstantBuffer:
-        return D3D11_BIND_CONSTANT_BUFFER;
-    case ResourceState::StreamOutput:
-        return D3D11_BIND_STREAM_OUTPUT;
-    case ResourceState::RenderTarget:
-        return D3D11_BIND_RENDER_TARGET;
-    case ResourceState::DepthRead:
-    case ResourceState::DepthWrite:
-        return D3D11_BIND_DEPTH_STENCIL;
-    case ResourceState::UnorderedAccess:
-        return D3D11_BIND_UNORDERED_ACCESS;
-    case ResourceState::ShaderResource:
-    case ResourceState::PixelShaderResource:
-    case ResourceState::NonPixelShaderResource:
-        return D3D11_BIND_SHADER_RESOURCE;
-    default:
-        return D3D11_BIND_FLAG(0);
-    }
-}
-
-int _calcResourceBindFlags(ResourceStateSet allowedStates)
-{
-    int dstFlags = 0;
-    for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; i++)
-    {
-        auto state = (ResourceState)i;
-        if (allowedStates.contains(state))
-            dstFlags |= calcResourceFlag(state);
-    }
-    return dstFlags;
-}
-
 int _calcResourceBindFlags(BufferUsage usage)
 {
     int flags = 0;

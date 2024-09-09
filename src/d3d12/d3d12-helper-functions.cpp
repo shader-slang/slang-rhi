@@ -32,35 +32,6 @@ bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
 #endif
 }
 
-D3D12_RESOURCE_FLAGS calcResourceFlag(ResourceState state)
-{
-    switch (state)
-    {
-    case ResourceState::RenderTarget:
-        return D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    case ResourceState::DepthRead:
-    case ResourceState::DepthWrite:
-        return D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    case ResourceState::UnorderedAccess:
-    case ResourceState::AccelerationStructure:
-        return D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-    default:
-        return D3D12_RESOURCE_FLAG_NONE;
-    }
-}
-
-D3D12_RESOURCE_FLAGS calcResourceFlags(ResourceStateSet states)
-{
-    int dstFlags = 0;
-    for (uint32_t i = 0; i < (uint32_t)ResourceState::_Count; i++)
-    {
-        auto state = (ResourceState)i;
-        if (states.contains(state))
-            dstFlags |= calcResourceFlag(state);
-    }
-    return (D3D12_RESOURCE_FLAGS)dstFlags;
-}
-
 D3D12_RESOURCE_FLAGS calcResourceFlags(BufferUsage usage)
 {
     int flags = D3D12_RESOURCE_FLAG_NONE;

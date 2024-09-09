@@ -278,6 +278,27 @@ struct FormatInfo
     GfxCount blockHeight;
 };
 
+enum class FormatSupport
+{
+    None = 0x0,
+
+    Buffer = 0x1,
+    IndexBuffer = 0x2,
+    VertexBuffer = 0x4,
+
+    Texture = 0x8,
+    DepthStencil = 0x10,
+    RenderTarget = 0x20,
+    Blendable = 0x40,
+
+    ShaderLoad = 0x80,
+    ShaderSample = 0x100,
+    ShaderUavLoad = 0x200,
+    ShaderUavStore = 0x400,
+    ShaderAtomic = 0x800,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(FormatSupport);
+
 enum class InputSlotClass
 {
     PerVertex,
@@ -325,42 +346,6 @@ enum class ResourceState
     AccelerationStructureBuildInput,
     PixelShaderResource,
     NonPixelShaderResource,
-    _Count
-};
-
-struct ResourceStateSet
-{
-public:
-    void add(ResourceState state) { m_bitFields |= (1LL << (uint32_t)state); }
-    template<typename... TResourceState>
-    void add(ResourceState s, TResourceState... states)
-    {
-        add(s);
-        add(states...);
-    }
-    bool contains(ResourceState state) const { return (m_bitFields & (1LL << (uint32_t)state)) != 0; }
-    ResourceStateSet()
-        : m_bitFields(0)
-    {
-    }
-    ResourceStateSet(const ResourceStateSet& other) = default;
-    ResourceStateSet(ResourceState state) { add(state); }
-    template<typename... TResourceState>
-    ResourceStateSet(TResourceState... states)
-    {
-        add(states...);
-    }
-
-    ResourceStateSet operator&(const ResourceStateSet& that) const
-    {
-        ResourceStateSet result;
-        result.m_bitFields = this->m_bitFields & that.m_bitFields;
-        return result;
-    }
-
-private:
-    uint64_t m_bitFields = 0;
-    void add() {}
 };
 
 /// Describes how memory for the resource should be allocated for CPU access.
@@ -675,7 +660,6 @@ struct TextureDesc
 
     TextureUsage usage = TextureUsage::None;
     ResourceState defaultState = ResourceState::Undefined;
-    // ResourceStateSet allowedStates = ResourceStateSet();
     bool isShared = false;
 
     Extents size;
@@ -2170,8 +2154,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) = 0;
 

@@ -349,30 +349,23 @@ SLANG_NO_THROW bool SLANG_MCALL RendererBase::hasFeature(const char* featureName
     );
 }
 
-Result RendererBase::getFormatSupportedResourceStates(Format format, ResourceStateSet* outStates)
+Result RendererBase::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
     SLANG_UNUSED(format);
-    outStates->add(ResourceState::AccelerationStructure);
-    outStates->add(ResourceState::AccelerationStructureBuildInput);
-    outStates->add(ResourceState::ConstantBuffer);
-    outStates->add(ResourceState::CopyDestination);
-    outStates->add(ResourceState::CopySource);
-    outStates->add(ResourceState::DepthRead);
-    outStates->add(ResourceState::DepthWrite);
-    outStates->add(ResourceState::IndexBuffer);
-    outStates->add(ResourceState::IndirectArgument);
-    outStates->add(ResourceState::PreInitialized);
-    outStates->add(ResourceState::Present);
-    outStates->add(ResourceState::RenderTarget);
-    outStates->add(ResourceState::ResolveDestination);
-    outStates->add(ResourceState::ResolveSource);
-    outStates->add(ResourceState::ShaderResource);
-    outStates->add(ResourceState::PixelShaderResource);
-    outStates->add(ResourceState::NonPixelShaderResource);
-    outStates->add(ResourceState::StreamOutput);
-    outStates->add(ResourceState::Undefined);
-    outStates->add(ResourceState::UnorderedAccess);
-    outStates->add(ResourceState::VertexBuffer);
+    FormatSupport support = FormatSupport::None;
+    support |= FormatSupport::Buffer;
+    support |= FormatSupport::IndexBuffer;
+    support |= FormatSupport::VertexBuffer;
+    support |= FormatSupport::Texture;
+    support |= FormatSupport::DepthStencil;
+    support |= FormatSupport::RenderTarget;
+    support |= FormatSupport::Blendable;
+    support |= FormatSupport::ShaderLoad;
+    support |= FormatSupport::ShaderSample;
+    support |= FormatSupport::ShaderUavLoad;
+    support |= FormatSupport::ShaderUavStore;
+    support |= FormatSupport::ShaderAtomic;
+    *outFormatSupport = support;
     return SLANG_OK;
 }
 
