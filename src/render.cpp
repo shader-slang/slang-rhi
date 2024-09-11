@@ -279,59 +279,430 @@ extern "C"
         return SLANG_OK;
     }
 
+    struct CachedIDevice
+    {
+        IDevice::Desc desc = {};
+        IDevice* device = nullptr;
+
+        AdapterLUID adapterLUID;
+
+        static constexpr size_t preprocessorMacroDescDataMax = 32;
+        slang::PreprocessorMacroDesc preprocessorMacroDescData[preprocessorMacroDescDataMax];
+        size_t preprocessorMacroDescDataNext = 0;
+
+        static constexpr size_t extendedDescDataMax = 16;
+        D3D12DeviceExtendedDesc extendedDescData[extendedDescDataMax];
+        size_t extendedDescDataNext = 0;
+
+        static constexpr size_t pointerArrayData_requiredFeatures = 64;
+        static constexpr size_t pointerArrayData_searchPaths = 64;
+        static constexpr size_t pointerArrayDataMax = pointerArrayData_requiredFeatures
+                                                     + pointerArrayData_searchPaths
+                                                     + extendedDescDataMax;
+        void* pointerArrayData[pointerArrayDataMax];
+        size_t pointerArrayDataNext = 0;
+
+        static constexpr size_t stringDataMax = 32 * pointerArrayData_requiredFeatures + 256 * pointerArrayData_searchPaths;
+        char stringData[stringDataMax];
+        size_t stringDataNext = 0;
+
+        void invalidate()
+        {
+            stringDataNext = 0;
+            extendedDescDataNext = 0;
+
+            if (device)
+            {
+                device->release();
+                device = nullptr;
+            }
+
+            if (desc.apiCommandDispatcher)
+            {
+                desc.apiCommandDispatcher->release();
+                desc.apiCommandDispatcher = nullptr;
+            }
+
+            if (desc.persistentShaderCache)
+            {
+                desc.persistentShaderCache->release();
+                desc.persistentShaderCache = nullptr;
+            }
+
+            if (desc.slang.slangGlobalSession)
+            {
+                desc.slang.slangGlobalSession->release();
+                desc.slang.slangGlobalSession = nullptr;
+            }
+        }
+
+        void** allocatePointerArray(size_t count)
+        {
+            void** result = &pointerArrayData[pointerArrayDataNext];
+
+            pointerArrayDataNext += count;
+            assert(pointerArrayDataNext <= pointerArrayDataMax);
+            if (pointerArrayDataNext > pointerArrayDataMax)
+            {
+                // Out of memory
+                invalidate();
+                return nullptr;
+            }
+
+            return result;
+        }
+
+        char* copyString(const char* src)
+        {
+            assert(src); // need to be handled outside
+
+            size_t length = strlen(src) + 1;
+            char* dst = stringData + stringDataNext;
+
+            stringDataNext += length;
+            assert(stringDataNext <= stringDataMax);
+            if (stringDataNext > stringDataMax)
+            {
+                // Out of memory
+                invalidate();
+                return nullptr;
+            }
+
+            memcpy(dst, src, length);
+            return dst;
+        }
+
+        void cache(const IDevice::Desc* srcDesc, IDevice* srcDevice)
+        {
+            invalidate();
+
+            srcDevice->addRef();
+            device = srcDevice;
+
+            desc.deviceType = srcDesc->deviceType;
+            desc.existingDeviceHandles = srcDesc->existingDeviceHandles;
+
+            if (srcDesc->adapterLUID)
+            {
+                desc.adapterLUID = &adapterLUID;
+                memcpy(&adapterLUID, srcDesc->adapterLUID, sizeof(AdapterLUID));
+            }
+            else
+            {
+                desc.adapterLUID = nullptr;
+            }
+
+            desc.requiredFeatureCount = srcDesc->requiredFeatureCount;
+            char** requiredFeatures = reinterpret_cast<char**>(allocatePointerArray(srcDesc->requiredFeatureCount));
+            if (requiredFeatures == nullptr)
+                return; // OOM
+
+            for (int i = 0; i < srcDesc->requiredFeatureCount; ++i)
+            {
+                requiredFeatures[i] = copyString(srcDesc->requiredFeatures[i]);
+                if (requiredFeatures[i] == nullptr)
+                    return; // OOM
+            }
+            desc.requiredFeatures = const_cast<const char**>(requiredFeatures);
+
+            desc.nvapiExtnSlot = srcDesc->nvapiExtnSlot;
+
+            if (srcDesc->apiCommandDispatcher)
+                srcDesc->apiCommandDispatcher->addRef();
+            desc.apiCommandDispatcher = srcDesc->apiCommandDispatcher;
+
+            if (srcDesc->slang.slangGlobalSession)
+                srcDesc->slang.slangGlobalSession->addRef();
+            desc.slang.slangGlobalSession = srcDesc->slang.slangGlobalSession;
+
+            desc.slang.defaultMatrixLayoutMode = srcDesc->slang.defaultMatrixLayoutMode;
+
+            desc.slang.searchPathCount = srcDesc->slang.searchPathCount;
+            desc.slang.searchPaths = reinterpret_cast<char**>(allocatePointerArray(srcDesc->slang.searchPathCount));
+            if (desc.slang.searchPaths == nullptr)
+                return; // OOM
+
+            for (int i = 0; i < srcDesc->slang.searchPathCount; ++i)
+            {
+                *const_cast<char**>(desc.slang.searchPaths + i) = copyString(srcDesc->slang.searchPaths[i]);
+                if (desc.slang.searchPaths[i] == nullptr)
+                    return; // OOM
+            }
+
+            desc.slang.preprocessorMacroCount = srcDesc->slang.preprocessorMacroCount;
+            assert(preprocessorMacroDescDataMax >= srcDesc->slang.preprocessorMacroCount);
+            if (preprocessorMacroDescDataMax < srcDesc->slang.preprocessorMacroCount)
+            {
+                // Out of memory
+                invalidate();
+                return;
+            }
+
+            desc.slang.preprocessorMacros = preprocessorMacroDescData;
+
+            for (int i = 0; i < srcDesc->slang.preprocessorMacroCount; ++i)
+            {
+                slang::PreprocessorMacroDesc* dstPM =
+                    const_cast<slang::PreprocessorMacroDesc*>(desc.slang.preprocessorMacros) + i;
+                dstPM->name = copyString(srcDesc->slang.preprocessorMacros[i].name);
+                if (dstPM->name == nullptr)
+                    return; // OOM
+                dstPM->value = copyString(srcDesc->slang.preprocessorMacros[i].value);
+                if (dstPM->value == nullptr)
+                    return; // OOM
+            }
+
+            desc.slang.targetProfile = nullptr;
+            if (srcDesc->slang.targetProfile)
+            {
+                desc.slang.targetProfile = copyString(srcDesc->slang.targetProfile);
+                if (desc.slang.targetProfile == nullptr)
+                    return; // OOM
+            }
+
+            desc.slang.floatingPointMode = srcDesc->slang.floatingPointMode;
+            desc.slang.optimizationLevel = srcDesc->slang.optimizationLevel;
+            desc.slang.targetFlags = srcDesc->slang.targetFlags;
+            desc.slang.lineDirectiveMode = srcDesc->slang.lineDirectiveMode;
+
+            if (srcDesc->persistentShaderCache)
+                srcDesc->persistentShaderCache->addRef();
+            desc.persistentShaderCache = srcDesc->persistentShaderCache;
+
+            desc.extendedDescCount = srcDesc->extendedDescCount;
+            desc.extendedDescs = reinterpret_cast<void**>(allocatePointerArray(srcDesc->extendedDescCount));
+            if (desc.extendedDescs == nullptr)
+                return; // OOM
+
+            for (GfxIndex i = 0; i < srcDesc->extendedDescCount; i++)
+            {
+                void* srcED = srcDesc->extendedDescs[i];
+
+                StructType stype = *reinterpret_cast<StructType*>(srcED);
+                switch (stype)
+                {
+                case StructType::D3D12DeviceExtendedDesc:
+                {
+                    D3D12DeviceExtendedDesc* dstED = extendedDescData + extendedDescDataNext;
+                    ++extendedDescDataNext;
+                    assert(extendedDescDataNext <= extendedDescDataMax);
+                    if (extendedDescDataNext > extendedDescDataMax)
+                    {
+                        // Out of memory
+                        invalidate();
+                        return;
+                    }
+
+                    *dstED = *reinterpret_cast<D3D12DeviceExtendedDesc*>(srcED);
+
+                    desc.extendedDescs[i] = dstED;
+                    break;
+                }
+                case StructType::D3D12ExperimentalFeaturesDesc:
+                {
+                    //SLANG_UNIMPLEMENTED_X("Experimental features are unused yet.");
+                    break;
+                }
+                default:
+                    //SLANG_UNIMPLEMENTED_X("Unknown extendedDesc");
+                    break;
+                }
+            }
+        }
+
+        bool equals(const IDevice::Desc* src)
+        {
+            if (desc.deviceType != src->deviceType)
+                return false;
+            if (0 != memcmp(&(desc.existingDeviceHandles), &(src->existingDeviceHandles), sizeof(IDevice::InteropHandles)))
+                return false;
+            if (desc.adapterLUID != src->adapterLUID)
+            {
+                if (0 != memcmp(desc.adapterLUID, src->adapterLUID, sizeof(AdapterLUID)))
+                    return false;
+            }
+
+            if (desc.requiredFeatureCount != src->requiredFeatureCount)
+                return false;
+
+            for (int i = 0; i < src->requiredFeatureCount; ++i)
+            {
+                if (0 != strcmp(desc.requiredFeatures[i], src->requiredFeatures[i]))
+                    return false;
+            }
+
+            if (desc.apiCommandDispatcher != src->apiCommandDispatcher)
+                return false;
+
+            if (desc.nvapiExtnSlot != src->nvapiExtnSlot)
+                return false;
+
+            if (desc.slang.slangGlobalSession != src->slang.slangGlobalSession)
+                return false;
+
+            if (desc.slang.defaultMatrixLayoutMode != src->slang.defaultMatrixLayoutMode)
+                return false;
+
+            if (desc.slang.searchPathCount != src->slang.searchPathCount)
+                return false;
+
+            for (int i = 0; i < src->slang.searchPathCount; ++i)
+            {
+                if (0 != strcmp(desc.slang.searchPaths[i], src->requiredFeatures[i]))
+                    return false;
+            }
+
+            if (desc.slang.preprocessorMacroCount != src->slang.preprocessorMacroCount)
+                return false;
+
+            for (int i = 0; i < src->slang.preprocessorMacroCount; ++i)
+            {
+                auto srcPM = src->slang.preprocessorMacros + i;
+                auto descPM = desc.slang.preprocessorMacros + i;
+                if (0 != strcmp(descPM->name, srcPM->name))
+                    return false;
+                if (0 != strcmp(descPM->value, srcPM->value))
+                    return false;
+            }
+
+            if (desc.slang.targetProfile != src->slang.targetProfile)
+            {
+                if (desc.slang.targetProfile == nullptr)
+                    return false;
+                if (src->slang.targetProfile == nullptr)
+                    return false;
+                if (0 != strcmp(desc.slang.targetProfile, src->slang.targetProfile))
+                    return false;
+            }
+
+            if (desc.slang.floatingPointMode != src->slang.floatingPointMode)
+                return false;
+            if (desc.slang.optimizationLevel != src->slang.optimizationLevel)
+                return false;
+            if (desc.slang.targetFlags != src->slang.targetFlags)
+                return false;
+            if (desc.slang.lineDirectiveMode != src->slang.lineDirectiveMode)
+                return false;
+
+            if (desc.persistentShaderCache != src->persistentShaderCache)
+                return false;
+
+            if (desc.extendedDescCount != src->extendedDescCount)
+                return false;
+
+            for (GfxIndex i = 0; i < src->extendedDescCount; i++)
+            {
+                void* srcED = src->extendedDescs[i];
+
+                StructType stype = *reinterpret_cast<StructType*>(srcED);
+                switch (stype)
+                {
+                case StructType::D3D12DeviceExtendedDesc:
+                {
+                    if (0 != memcmp(desc.extendedDescs[i], srcED, sizeof(D3D12DeviceExtendedDesc)))
+                        return false;
+                    break;
+                }
+                case StructType::D3D12ExperimentalFeaturesDesc:
+                {
+                    // SLANG_UNIMPLEMENTED_X("Experimental features are unused yet.");
+                    break;
+                }
+                default:
+                    // SLANG_UNIMPLEMENTED_X("Unknown extendedDesc");
+                    break;
+                }
+            }
+            return true;
+        }
+    };
+
     Result _createDevice(const IDevice::Desc* desc, IDevice** outDevice)
     {
+        static CachedIDevice s_desc[size_t(DeviceType::CountOf)];
+
+        CachedIDevice* cachedDevice = &s_desc[size_t(desc->deviceType)];
+        if (cachedDevice->device && cachedDevice->equals(desc))
+        {
+            cachedDevice->device->addRef();
+            *outDevice = cachedDevice->device;
+            return SLANG_OK;
+        }
+
         switch (desc->deviceType)
         {
         case DeviceType::Default:
         {
             IDevice::Desc newDesc = *desc;
+
             newDesc.deviceType = DeviceType::D3D12;
             if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+            {
+                cachedDevice->cache(&newDesc, *outDevice);
                 return SLANG_OK;
+            }
+
             newDesc.deviceType = DeviceType::Vulkan;
             if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+            {
+                cachedDevice->cache(&newDesc, *outDevice);
                 return SLANG_OK;
+            }
+
+            cachedDevice->invalidate();
             return SLANG_FAIL;
         }
         break;
 #if SLANG_RHI_ENABLE_D3D11
         case DeviceType::D3D11:
         {
-            return createD3D11Device(desc, outDevice);
+            auto result = createD3D11Device(desc, outDevice);
+            cachedDevice->cache(desc, *outDevice);
+            return result;
         }
 #endif
 #if SLANG_RHI_ENABLE_D3D12
         case DeviceType::D3D12:
         {
-            return createD3D12Device(desc, outDevice);
+            auto result = createD3D12Device(desc, outDevice);
+            cachedDevice->cache(desc, *outDevice);
+            return result;
         }
 #endif
 #if SLANG_RHI_ENABLE_VULKAN
         case DeviceType::Vulkan:
         {
-            return createVKDevice(desc, outDevice);
+            auto result = createVKDevice(desc, outDevice);
+            cachedDevice->cache(desc, *outDevice);
+            return result;
         }
 #endif
 #if SLANG_RHI_ENABLE_METAL
         case DeviceType::Metal:
         {
-            return createMetalDevice(desc, outDevice);
+            auto result = createMetalDevice(desc, outDevice);
+            cachedDevice->cache(desc, *outDevice);
+            return result;
         }
 #endif
 #if SLANG_RHI_ENABLE_CUDA
         case DeviceType::CUDA:
         {
-            return createCUDADevice(desc, outDevice);
+            auto result = createCUDADevice(desc, outDevice);
+            cachedDevice->cache(desc, *outDevice);
+            return result;
         }
 #endif
         case DeviceType::CPU:
         {
-            return createCPUDevice(desc, outDevice);
+            auto result = createCPUDevice(desc, outDevice);
+            cachedDevice->cache(desc, *outDevice);
+            return result;
         }
         break;
 
         default:
+            cachedDevice->invalidate();
             return SLANG_FAIL;
         }
     }
