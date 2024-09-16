@@ -10,11 +10,9 @@ namespace rhi::metal {
 class TextureViewImpl : public TextureView
 {
 public:
-    Result init(const TextureViewDesc& desc, TextureImpl* texture)
+    TextureViewImpl(RendererBase* device, const TextureViewDesc& desc)
+        : TextureView(device, desc)
     {
-        TextureView::init(desc);
-        m_texture = texture;
-        return SLANG_OK;
     }
 
     RefPtr<TextureImpl> m_texture;

@@ -30,10 +30,7 @@ public:
     {
         Format format;
         SubresourceRange range;
-        bool operator==(const ViewKey& other) const
-        {
-            return format == other.format && range == other.range;
-        }
+        bool operator==(const ViewKey& other) const { return format == other.format && range == other.range; }
     };
 
     struct ViewKeyHasher

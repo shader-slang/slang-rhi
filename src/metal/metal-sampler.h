@@ -11,6 +11,7 @@ public:
     RefPtr<DeviceImpl> m_device;
     NS::SharedPtr<MTL::SamplerState> m_samplerState;
 
+    SamplerImpl(RendererBase* device, const SamplerDesc& desc);
     ~SamplerImpl();
 
     Result init(DeviceImpl* device, const SamplerDesc& desc);

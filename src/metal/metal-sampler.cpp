@@ -3,6 +3,11 @@
 
 namespace rhi::metal {
 
+SamplerImpl::SamplerImpl(RendererBase* device, const SamplerDesc& desc)
+    : SamplerBase(device, desc)
+{
+}
+
 SamplerImpl::~SamplerImpl() {}
 
 Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)

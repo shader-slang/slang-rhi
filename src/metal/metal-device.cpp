@@ -158,14 +158,14 @@ Result DeviceImpl::readTexture(
 
     TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
 
-    if (textureImpl->getDesc()->sampleCount > 1)
+    if (textureImpl->m_desc.sampleCount > 1)
     {
         return SLANG_E_NOT_IMPLEMENTED;
     }
 
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
-    const TextureDesc& desc = *textureImpl->getDesc();
+    const TextureDesc& desc = textureImpl->m_desc;
     GfxCount width = std::max(desc.size.width, 1);
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
@@ -318,7 +318,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         return SLANG_FAIL;
     }
 
-    RefPtr<TextureImpl> textureImpl(new TextureImpl(desc, this));
+    RefPtr<TextureImpl> textureImpl(new TextureImpl(this, desc));
 
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
     switch (desc.memoryType)
@@ -497,7 +497,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     resourceOptions |=
         (desc.memoryType == MemoryType::DeviceLocal) ? MTL::ResourceStorageModePrivate : MTL::ResourceStorageModeShared;
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(desc, this));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
     buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
     if (!buffer->m_buffer)
     {
@@ -539,7 +539,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     AUTORELEASEPOOL
 
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl();
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     SLANG_RETURN_ON_FAIL(samplerImpl->init(this, desc));
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
@@ -550,20 +550,14 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     AUTORELEASEPOOL
 
     auto textureImpl = static_cast<TextureImpl*>(texture);
-    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl();
-    viewImpl->init(desc, textureImpl);
-    if (textureImpl == nullptr)
-    {
-        returnComPtr(outView, viewImpl);
-        return SLANG_OK;
-    }
-
+    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(this, desc);
+    viewImpl->m_texture = textureImpl;
     if (viewImpl->m_desc.format == Format::Unknown)
         viewImpl->m_desc.format = viewImpl->m_texture->m_desc.format;
     viewImpl->m_desc.subresourceRange = viewImpl->m_texture->resolveSubresourceRange(desc.subresourceRange);
 
-    const TextureDesc& textureDesc = *textureImpl->getDesc();
-    SubresourceRange sr = desc.subresourceRange;
+    const TextureDesc& textureDesc = textureImpl->m_desc;
+    SubresourceRange sr = viewImpl->m_desc.subresourceRange;
     sr.mipLevelCount = sr.mipLevelCount == 0 ? textureDesc.numMipLevels - sr.mipLevel : sr.mipLevelCount;
     sr.layerCount = sr.layerCount == 0 ? textureDesc.arraySize - sr.baseArrayLayer : sr.layerCount;
     if (sr.mipLevel == 0 && sr.mipLevelCount == textureDesc.numMipLevels && sr.baseArrayLayer == 0 &&

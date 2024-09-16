@@ -234,7 +234,7 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 
     auto visitView = [&](TextureViewImpl* view)
     {
-        const TextureDesc& textureDesc = *view->m_texture->getDesc();
+        const TextureDesc& textureDesc = view->m_texture->m_desc;
         const TextureViewDesc& viewDesc = view->m_desc;
         width = std::max(1u, uint32_t(textureDesc.size.width >> viewDesc.subresourceRange.mipLevel));
         height = std::max(1u, uint32_t(textureDesc.size.height >> viewDesc.subresourceRange.mipLevel));
