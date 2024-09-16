@@ -46,11 +46,7 @@ public:
     setData(ShaderOffset const& offset, void const* data, size_t size) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(ShaderOffset const& offset, IShaderObject** object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setResource(ShaderOffset const& offset, IResourceView* resourceView) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setSpecializationArgs(ShaderOffset const& offset, const slang::SpecializationArg* args, GfxCount count) override;
 
@@ -79,8 +75,7 @@ public:
         size_t operator()(const ShaderOffsetKey& key) const { return key.getHashCode(); }
     };
     std::unordered_map<ShaderOffsetKey, RefPtr<DebugShaderObject>, ShaderOffsetKeyHasher> m_objects;
-    std::unordered_map<ShaderOffsetKey, RefPtr<DebugResourceView>, ShaderOffsetKeyHasher> m_resources;
-    std::unordered_map<ShaderOffsetKey, RefPtr<DebugSampler>, ShaderOffsetKeyHasher> m_samplers;
+    std::unordered_map<ShaderOffsetKey, Binding, ShaderOffsetKeyHasher> m_bindings;
     std::set<SlangInt> m_initializedBindingRanges;
 };
 

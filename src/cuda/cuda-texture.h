@@ -8,8 +8,8 @@ namespace rhi::cuda {
 class TextureImpl : public Texture
 {
 public:
-    TextureImpl(const TextureDesc& desc)
-        : Texture(desc)
+    TextureImpl(RendererBase* device, const TextureDesc& desc)
+        : Texture(device, desc)
     {
     }
     ~TextureImpl();
@@ -27,8 +27,6 @@ public:
     CUmipmappedArray m_cudaMipMappedArray = CUmipmappedArray();
 
     void* m_cudaExternalMemory = nullptr;
-
-    RefPtr<CUDAContext> m_cudaContext;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };

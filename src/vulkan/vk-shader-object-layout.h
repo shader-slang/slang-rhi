@@ -149,7 +149,7 @@ public:
         std::vector<BindingRangeInfo> m_bindingRanges;
         std::vector<SubObjectRangeInfo> m_subObjectRanges;
 
-        Index m_resourceViewCount = 0;
+        Index m_resourceCount = 0;
         Index m_samplerCount = 0;
         Index m_combinedTextureSamplerCount = 0;
         Index m_subObjectCount = 0;
@@ -280,7 +280,7 @@ public:
 
     BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
-    Index getResourceViewCount() { return m_resourceViewCount; }
+    Index getResourceCount() { return m_resourceCount; }
     Index getSamplerCount() { return m_samplerCount; }
     Index getCombinedTextureSamplerCount() { return m_combinedTextureSamplerCount; }
     Index getSubObjectCount() { return m_subObjectCount; }
@@ -297,7 +297,7 @@ protected:
 
     std::vector<DescriptorSetInfo> m_descriptorSetInfos;
     std::vector<BindingRangeInfo> m_bindingRanges;
-    Index m_resourceViewCount = 0;
+    Index m_resourceCount = 0;
     Index m_samplerCount = 0;
     Index m_combinedTextureSamplerCount = 0;
     Index m_subObjectCount = 0;

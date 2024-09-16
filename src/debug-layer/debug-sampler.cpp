@@ -3,6 +3,11 @@
 
 namespace rhi::debug {
 
+const SamplerDesc& DebugSampler::getDesc()
+{
+    return baseObject->getDesc();
+}
+
 Result DebugSampler::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;

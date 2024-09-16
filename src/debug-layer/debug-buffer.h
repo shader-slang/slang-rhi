@@ -11,7 +11,7 @@ public:
 
 public:
     IBuffer* getInterface(const Guid& guid);
-    virtual SLANG_NO_THROW BufferDesc* SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW const BufferDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;

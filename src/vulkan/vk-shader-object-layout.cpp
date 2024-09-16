@@ -345,8 +345,8 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
                 subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
-            baseIndex = m_resourceViewCount;
-            m_resourceViewCount += count;
+            baseIndex = m_resourceCount;
+            m_resourceCount += count;
             break;
         case slang::BindingType::Sampler:
             baseIndex = m_samplerCount;
@@ -370,8 +370,8 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             m_varyingOutputCount += count;
             break;
         default:
-            baseIndex = m_resourceViewCount;
-            m_resourceViewCount += count;
+            baseIndex = m_resourceCount;
+            m_resourceCount += count;
             m_totalBindingCount += 1;
             break;
         }
@@ -616,7 +616,7 @@ Result ShaderObjectLayoutImpl::_init(Builder const* builder)
 
     m_descriptorSetInfos = _Move(builder->m_descriptorSetBuildInfos);
     m_ownPushConstantRanges = builder->m_ownPushConstantRanges;
-    m_resourceViewCount = builder->m_resourceViewCount;
+    m_resourceCount = builder->m_resourceCount;
     m_samplerCount = builder->m_samplerCount;
     m_combinedTextureSamplerCount = builder->m_combinedTextureSamplerCount;
     m_childDescriptorSetCount = builder->m_childDescriptorSetCount;

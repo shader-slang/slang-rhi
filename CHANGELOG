@@ -1,3 +1,6 @@
+- binding resources is now unified using the Binding struct that holds the type + resource of the binding
+- make all resources implement the IResource interface (buffers, textures, samplers, acceleration structures, etc.)
+- remove IResourceView and replace with ITextureView (for texture views)
 - replace IDevice::getFormatSupportedResourceStates with IDevice::getFormatSupport
 - rename TextureDesc::allowedStates -> TextureDesc::usage and introduce TextureUsage enum
 - rename BufferDesc::allowedStates -> BufferDesc::usage and introduce BufferUsage enum

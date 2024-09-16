@@ -45,7 +45,7 @@ ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* resourceView)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -54,42 +54,27 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    auto resourceViewImpl = static_cast<ResourceViewImpl*>(resourceView);
-    switch (bindingRange.bindingType)
+    Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+
+    switch (binding.type)
     {
-    case slang::BindingType::Texture:
-    case slang::BindingType::MutableTexture:
-        SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Texture);
-        m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<TextureViewImpl*>(resourceView);
+    case BindingType::Buffer:
+        m_buffers[bindingIndex] = static_cast<BufferImpl*>(binding.resource.get());
+        m_bufferOffsets[bindingIndex] = binding.bufferRange.offset;
         break;
-    case slang::BindingType::RawBuffer:
-    case slang::BindingType::ConstantBuffer:
-    case slang::BindingType::MutableRawBuffer:
-        SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::Buffer);
-        m_buffers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<BufferViewImpl*>(resourceView);
+    case BindingType::Texture:
+    {
+        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        return setBinding(offset, m_device->createTextureView(texture, {}));
+    }
+    case BindingType::TextureView:
+        m_textureViews[bindingIndex] = static_cast<TextureViewImpl*>(binding.resource.get());
         break;
-    case slang::BindingType::TypedBuffer:
-    case slang::BindingType::MutableTypedBuffer:
-        SLANG_RHI_ASSERT_FAILURE("Not implemented");
-        // SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::ViewType::TexelBuffer);
-        // m_textures[bindingRange.baseIndex + offset.bindingArrayIndex] =
-        // static_cast<TextureViewImpl*>(resourceView);
+    case BindingType::Sampler:
+        m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
         break;
     }
-    m_isArgumentBufferDirty = true;
-    return SLANG_OK;
-}
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
-{
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
-    auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-
-    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerImpl*>(sampler);
     m_isArgumentBufferDirty = true;
     return SLANG_OK;
 }
@@ -115,7 +100,8 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
     }
 
     m_buffers.resize(layout->getBufferCount());
-    m_textures.resize(layout->getTextureCount());
+    m_bufferOffsets.resize(layout->getBufferCount());
+    m_textureViews.resize(layout->getTextureCount());
     m_samplers.resize(layout->getSamplerCount());
 
     // If the layout specifies that we have any sub-objects, then
@@ -411,13 +397,11 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
                 case slang::BindingType::RawBuffer:
                 case slang::BindingType::MutableRawBuffer:
                 {
-                    auto bufferViewImpl =
-                        static_cast<BufferViewImpl*>(m_buffers[resourceIndex + bufferBindingIndexOffset].get());
-
-                    if (bufferViewImpl)
+                    BufferImpl* buffer = m_buffers[resourceIndex + bufferBindingIndexOffset].get();
+                    uint64_t offset = m_bufferOffsets[resourceIndex + bufferBindingIndexOffset];
+                    if (buffer)
                     {
-                        DeviceAddress bufferPtr =
-                            bufferViewImpl->m_buffer->getDeviceAddress() + bufferViewImpl->m_offset;
+                        DeviceAddress bufferPtr = buffer->getDeviceAddress() + offset;
                         memcpy(argumentPtr, &bufferPtr, sizeof(bufferPtr));
                     }
                     break;
@@ -425,10 +409,10 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
                 case slang::BindingType::Texture:
                 case slang::BindingType::MutableTexture:
                 {
-                    auto textureViewImpl = static_cast<TextureViewImpl*>(m_textures[resourceIndex].get());
-                    if (textureViewImpl)
+                    TextureViewImpl* textureView = m_textureViews[resourceIndex].get();
+                    if (textureView)
                     {
-                        auto resourceId = textureViewImpl->m_textureView->gpuResourceID();
+                        auto resourceId = textureView->m_textureView->gpuResourceID();
                         memcpy(argumentPtr, &resourceId, sizeof(resourceId));
                     }
                     break;
@@ -521,8 +505,8 @@ Result ShaderObjectImpl::bindAsValue(
         auto registerOffset = bindingRange.registerOffset + offset.buffer;
         for (uint32_t i = 0; i < count; ++i)
         {
-            auto buffer = m_buffers[baseIndex + i];
-            context->setBuffer(buffer ? buffer->m_buffer->m_buffer.get() : nullptr, registerOffset + i);
+            BufferImpl* buffer = m_buffers[baseIndex + i];
+            context->setBuffer(buffer ? buffer->m_buffer.get() : nullptr, registerOffset + i);
         }
     }
 
@@ -534,8 +518,8 @@ Result ShaderObjectImpl::bindAsValue(
         auto registerOffset = bindingRange.registerOffset + offset.texture;
         for (uint32_t i = 0; i < count; ++i)
         {
-            auto texture = m_textures[baseIndex + i];
-            context->setTexture(texture ? texture->m_textureView.get() : nullptr, registerOffset + i);
+            TextureViewImpl* textureView = m_textureViews[baseIndex + i];
+            context->setTexture(textureView ? textureView->m_textureView.get() : nullptr, registerOffset + i);
         }
     }
 
@@ -547,7 +531,7 @@ Result ShaderObjectImpl::bindAsValue(
         auto registerOffset = bindingRange.registerOffset + offset.sampler;
         for (uint32_t i = 0; i < count; ++i)
         {
-            auto sampler = m_samplers[baseIndex + i];
+            SamplerImpl* sampler = m_samplers[baseIndex + i];
             context->setSampler(sampler ? sampler->m_samplerState.get() : nullptr, registerOffset + i);
         }
     }

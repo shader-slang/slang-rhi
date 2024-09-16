@@ -1,8 +1,44 @@
-#include "d3d12-resource-views.h"
+#include "d3d12-texture-view.h"
 #include "d3d12-device.h"
 
 namespace rhi::d3d12 {
 
+Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    // TODO return view descriptor
+    return m_texture->getNativeHandle(outHandle);
+}
+
+D3D12Descriptor TextureViewImpl::getSRV()
+{
+    if (!m_srv)
+        m_srv = m_texture->getSRV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+    return m_srv;
+}
+
+D3D12Descriptor TextureViewImpl::getUAV()
+{
+    if (!m_uav)
+        m_uav = m_texture->getUAV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+    return m_uav;
+}
+
+D3D12Descriptor TextureViewImpl::getRTV()
+{
+    if (!m_rtv)
+        m_rtv = m_texture->getRTV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+    return m_rtv;
+}
+
+D3D12Descriptor TextureViewImpl::getDSV()
+{
+    if (!m_dsv)
+        m_dsv = m_texture->getDSV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+    return m_dsv;
+}
+
+
+#if 0
 ResourceViewInternalImpl::~ResourceViewInternalImpl()
 {
     if (m_descriptor.cpuHandle.ptr)
@@ -170,8 +206,16 @@ Result ResourceViewImpl::getNativeHandle(NativeHandle* outHandle)
     outHandle->value = m_descriptor.cpuHandle.ptr;
     return SLANG_OK;
 }
+#endif
 
 #if SLANG_RHI_DXR
+
+AccelerationStructureImpl::~AccelerationStructureImpl()
+{
+    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
+    if (m_descriptor)
+        device->m_cpuViewHeap->free(m_descriptor);
+}
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {

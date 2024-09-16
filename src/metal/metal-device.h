@@ -31,10 +31,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferView(IBuffer* buffer, IBuffer* counterBuffer, IResourceView::Desc const& desc, IResourceView** outView)
-        override;
+    createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;

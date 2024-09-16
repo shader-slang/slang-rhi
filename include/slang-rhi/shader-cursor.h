@@ -99,21 +99,11 @@ struct ShaderCursor
 
     SlangResult setObject(IShaderObject* object) const { return m_baseObject->setObject(m_offset, object); }
 
+    SlangResult setBinding(Binding binding) const { return m_baseObject->setBinding(m_offset, binding); }
+
     SlangResult setSpecializationArgs(const slang::SpecializationArg* args, GfxCount count) const
     {
         return m_baseObject->setSpecializationArgs(m_offset, args, count);
-    }
-
-    SlangResult setResource(IResourceView* resourceView) const
-    {
-        return m_baseObject->setResource(m_offset, resourceView);
-    }
-
-    SlangResult setSampler(ISampler* sampler) const { return m_baseObject->setSampler(m_offset, sampler); }
-
-    SlangResult setCombinedTextureSampler(IResourceView* textureView, ISampler* sampler) const
-    {
-        return m_baseObject->setCombinedTextureSampler(m_offset, textureView, sampler);
     }
 
     /// Produce a cursor to the field with the given `name`.

@@ -3,7 +3,7 @@
 
 namespace rhi::debug {
 
-BufferDesc* DebugBuffer::getDesc()
+const BufferDesc& DebugBuffer::getDesc()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDesc();

@@ -40,23 +40,10 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     std::vector<ComPtr<IBuffer>> buffers;
-    std::vector<ComPtr<IResourceView>> srvs, uavs;
 
     for (uint32_t i = 0; i < 9; i++)
     {
         buffers.push_back(createBuffer(device, i == 0 ? 10 : i));
-
-        ComPtr<IResourceView> bufferView;
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::UnorderedAccess;
-        viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
-        uavs.push_back(bufferView);
-
-        viewDesc.type = IResourceView::Type::ShaderResource;
-        viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(buffers[i], nullptr, viewDesc, bufferView.writeRef()));
-        srvs.push_back(bufferView);
     }
 
     ComPtr<IShaderObject> rootObject;
@@ -81,27 +68,27 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         auto cursor = ShaderCursor(s1);
-        cursor["c0"].setResource(srvs[2]);
-        cursor["c1"].setResource(uavs[3]);
-        cursor["c2"].setResource(srvs[4]);
+        cursor["c0"].setBinding(buffers[2]);
+        cursor["c1"].setBinding(buffers[3]);
+        cursor["c2"].setBinding(buffers[4]);
     }
     {
         auto cursor = ShaderCursor(s2);
-        cursor["c0"].setResource(srvs[5]);
-        cursor["c1"].setResource(uavs[6]);
-        cursor["c2"].setResource(srvs[7]);
+        cursor["c0"].setBinding(buffers[5]);
+        cursor["c1"].setBinding(buffers[6]);
+        cursor["c2"].setBinding(buffers[7]);
     }
     {
         auto cursor = ShaderCursor(g);
-        cursor["b0"].setResource(srvs[0]);
-        cursor["b1"].setResource(srvs[1]);
+        cursor["b0"].setBinding(buffers[0]);
+        cursor["b1"].setBinding(buffers[1]);
         cursor["s1"].setObject(s1);
         cursor["s2"].setObject(s2);
     }
     {
         auto cursor = ShaderCursor(rootObject);
         cursor["g"].setObject(g);
-        cursor["buffer"].setResource(uavs[8]);
+        cursor["buffer"].setBinding(buffers[8]);
     }
 
     {

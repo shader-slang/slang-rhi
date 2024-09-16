@@ -23,13 +23,13 @@ struct GUID
     static const Guid IID_IShaderProgram;
     static const Guid IID_ITransientResourceHeap;
     static const Guid IID_IPipeline;
-    static const Guid IID_IResourceView;
     static const Guid IID_IFramebuffer;
     static const Guid IID_ISwapchain;
     static const Guid IID_ISampler;
     static const Guid IID_IResource;
     static const Guid IID_IBuffer;
     static const Guid IID_ITexture;
+    static const Guid IID_ITextureView;
     static const Guid IID_IInputLayout;
     static const Guid IID_IDevice;
     static const Guid IID_IPersistentShaderCache;
@@ -50,6 +50,8 @@ struct GUID
     static const Guid IID_IPipelineCreationAPIDispatcher;
     static const Guid IID_ITransientResourceHeapD3D12;
 };
+
+class RendererBase;
 
 bool isRhiDebugLayerEnabled();
 
@@ -200,8 +202,14 @@ protected:
 
 class Resource : public ComObject
 {
-protected:
-    NativeHandle sharedHandle = {};
+public:
+    Resource(RendererBase* device)
+        : m_device(device)
+    {
+        SLANG_RHI_ASSERT(device);
+    }
+
+    RefPtr<RendererBase> m_device;
 };
 
 class Buffer : public IBuffer, public Resource
@@ -211,22 +219,23 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    typedef Resource Parent;
-
-    /// Ctor
-    Buffer(const BufferDesc& desc)
-        : m_desc(desc)
+    Buffer(RendererBase* device, const BufferDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
 
-    virtual SLANG_NO_THROW BufferDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
 
-protected:
+    BufferRange resolveBufferRange(const BufferRange& range);
+
+public:
     BufferDesc m_desc;
     StructHolder m_descHolder;
+    NativeHandle m_sharedHandle;
 };
 
 class Texture : public ITexture, public Resource
@@ -236,56 +245,85 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    typedef Resource Parent;
-
-    /// Ctor
-    Texture(const TextureDesc& desc)
-        : m_desc(desc)
+    Texture(RendererBase* device, const TextureDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
 
-    virtual SLANG_NO_THROW TextureDesc* SLANG_MCALL getDesc() SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
 
-protected:
+    SubresourceRange resolveSubresourceRange(const SubresourceRange& range);
+
+public:
     TextureDesc m_desc;
+    StructHolder m_descHolder;
+    NativeHandle m_sharedHandle;
+};
+
+class TextureView : public ITextureView, public Resource
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    ITextureView* getInterface(const Guid& guid);
+
+public:
+    TextureView(RendererBase* device, const TextureViewDesc& desc)
+        : Resource(device)
+    {
+        m_desc = desc;
+        m_descHolder.holdString(m_desc.label);
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
+
+public:
+    TextureViewDesc m_desc;
     StructHolder m_descHolder;
 };
 
-class ResourceViewInternalBase : public ComObject
-{};
-
-class ResourceViewBase : public IResourceView, public ResourceViewInternalBase
-{
-public:
-    Desc m_desc = {};
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IResourceView* getInterface(const Guid& guid);
-    virtual SLANG_NO_THROW Desc* SLANG_MCALL getViewDesc() override { return &m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-};
-
-class SamplerBase : public ISampler, public ComObject
+class SamplerBase : public ISampler, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ISampler* getInterface(const Guid& guid);
+
+public:
+    SamplerBase(RendererBase* device, const SamplerDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
+    {
+        m_descHolder.holdString(m_desc.label);
+    }
+
+    virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+public:
+    SamplerDesc m_desc;
+    StructHolder m_descHolder;
 };
 
-class AccelerationStructureBase : public IAccelerationStructure, public ResourceViewInternalBase
+class AccelerationStructureBase : public IAccelerationStructure, public Resource
 {
 public:
-    IResourceView::Desc m_desc = {};
-
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IAccelerationStructure* getInterface(const Guid& guid);
-    virtual SLANG_NO_THROW Desc* SLANG_MCALL getViewDesc() override { return &m_desc; }
-};
 
-class RendererBase;
+public:
+    AccelerationStructureBase(RendererBase* device, const CreateDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
+    {
+        // m_descHolder.holdString(m_desc.label);
+    }
+
+public:
+    CreateDesc m_desc;
+};
 
 typedef uint32_t ShaderComponentID;
 const ShaderComponentID kInvalidComponentID = 0xFFFFFFFF;
@@ -405,9 +443,6 @@ public:
     std::vector<uint8_t> m_ordinaryData;
     // The structured buffer resource used when the object represents a structured buffer.
     RefPtr<Buffer> m_structuredBuffer;
-    // The structured buffer resource view used when the object represents a structured buffer.
-    RefPtr<ResourceViewBase> m_structuredBufferView;
-    RefPtr<ResourceViewBase> m_rwStructuredBufferView;
 
     Index getCount() { return m_ordinaryData.size(); }
     void setCount(Index count) { m_ordinaryData.resize(count); }
@@ -415,7 +450,7 @@ public:
 
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
-    ResourceViewBase* getResourceView(
+    Buffer* getBufferResource(
         RendererBase* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
@@ -700,13 +735,13 @@ public:
         {
             // If we are setting into a `StructuredBuffer` field, make sure we create and set
             // the StructuredBuffer resource as well.
-            auto resourceView = subObject->m_data.getResourceView(
+            auto buffer = subObject->m_data.getBufferResource(
                 getRenderer(),
                 subObject->getElementTypeLayout(),
                 bindingRange.bindingType
             );
-            if (resourceView)
-                setResource(offset, resourceView);
+            if (buffer)
+                setBinding(offset, static_cast<IBuffer*>(buffer));
         }
         break;
         }

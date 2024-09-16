@@ -1,6 +1,6 @@
 #include "cuda-shader-object.h"
 #include "cuda-helper-functions.h"
-#include "cuda-resource-views.h"
+#include "cuda-texture-view.h"
 #include "cuda-shader-object-layout.h"
 
 namespace rhi::cuda {
@@ -10,50 +10,49 @@ Result ShaderObjectData::setCount(Index count)
     if (isHostOnly)
     {
         m_cpuBuffer.resize(count);
-        if (!m_bufferView)
+        if (!m_buffer)
         {
-            IResourceView::Desc viewDesc = {};
-            viewDesc.type = IResourceView::Type::UnorderedAccess;
-            m_bufferView = new ResourceViewImpl();
-            m_bufferView->proxyBuffer = m_cpuBuffer.data();
-            m_bufferView->m_desc = viewDesc;
+            BufferDesc desc;
+            desc.size = count;
+            m_buffer = new BufferImpl(device, desc);
         }
-        return SLANG_OK;
+        m_buffer->m_cpuBuffer = m_cpuBuffer.data();
+        m_buffer->m_desc.size = count;
+    }
+    else
+    {
+        if (!m_buffer)
+        {
+            BufferDesc desc;
+            desc.size = count;
+            m_buffer = new BufferImpl(device, desc);
+            if (count)
+            {
+                SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc((CUdeviceptr*)&m_buffer->m_cudaMemory, (size_t)count));
+            }
+        }
+        auto oldSize = m_buffer->m_desc.size;
+        if ((size_t)count != oldSize)
+        {
+            void* newMemory = nullptr;
+            if (count)
+            {
+                SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc((CUdeviceptr*)&newMemory, (size_t)count));
+            }
+            if (oldSize)
+            {
+                SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
+                    (CUdeviceptr)newMemory,
+                    (CUdeviceptr)m_buffer->m_cudaMemory,
+                    std::min((size_t)count, oldSize)
+                ));
+            }
+            cuMemFree((CUdeviceptr)m_buffer->m_cudaMemory);
+            m_buffer->m_cudaMemory = newMemory;
+            m_buffer->m_desc.size = count;
+        }
     }
 
-    if (!m_buffer)
-    {
-        BufferDesc desc;
-        desc.size = count;
-        m_buffer = new BufferImpl(desc);
-        if (count)
-        {
-            SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc((CUdeviceptr*)&m_buffer->m_cudaMemory, (size_t)count));
-        }
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::UnorderedAccess;
-        m_bufferView = new ResourceViewImpl();
-        m_bufferView->buffer = m_buffer;
-        m_bufferView->m_desc = viewDesc;
-    }
-    auto oldSize = m_buffer->getDesc()->size;
-    if ((size_t)count != oldSize)
-    {
-        void* newMemory = nullptr;
-        if (count)
-        {
-            SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc((CUdeviceptr*)&newMemory, (size_t)count));
-        }
-        if (oldSize)
-        {
-            SLANG_CUDA_RETURN_ON_FAIL(
-                cuMemcpy((CUdeviceptr)newMemory, (CUdeviceptr)m_buffer->m_cudaMemory, std::min((size_t)count, oldSize))
-            );
-        }
-        cuMemFree((CUdeviceptr)m_buffer->m_cudaMemory);
-        m_buffer->m_cudaMemory = newMemory;
-        m_buffer->getDesc()->size = count;
-    }
     return SLANG_OK;
 }
 
@@ -62,7 +61,7 @@ Index ShaderObjectData::getCount()
     if (isHostOnly)
         return m_cpuBuffer.size();
     if (m_buffer)
-        return (Index)(m_buffer->getDesc()->size);
+        return (Index)(m_buffer->m_desc.size);
     else
         return 0;
 }
@@ -78,19 +77,21 @@ void* ShaderObjectData::getBuffer()
 }
 
 /// Returns a resource view for GPU access into the buffer content.
-ResourceViewBase* ShaderObjectData::getResourceView(
+Buffer* ShaderObjectData::getBufferResource(
     RendererBase* device,
     slang::TypeLayoutReflection* elementLayout,
     slang::BindingType bindingType
 )
 {
     SLANG_UNUSED(device);
-    m_buffer->getDesc()->elementSize = (int)elementLayout->getSize();
-    return m_bufferView.Ptr();
+    m_buffer->m_desc.elementSize = elementLayout->getSize();
+    return m_buffer.get();
 }
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
+    m_data.device = static_cast<RendererBase*>(device);
+
     m_layout = typeLayout;
 
     // If the layout tells us that there is any uniform data,
@@ -115,7 +116,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayou
     // Note: the counts here are the *total* number of resources/sub-objects
     // and not just the number of resource/sub-object ranges.
     //
-    resources.resize(typeLayout->getResourceCount());
+    m_resources.resize(typeLayout->getResourceCount());
     m_objects.resize(typeLayout->getSubObjectCount());
 
     for (auto subObjectRange : getLayout()->subObjectRanges)
@@ -183,11 +184,8 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setData(ShaderOffset const& 
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* resourceView)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
-    if (!resourceView)
-        return SLANG_OK;
-
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
@@ -197,46 +195,57 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
     auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
 
     auto viewIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
-    auto cudaView = static_cast<ResourceViewImpl*>(resourceView);
 
-    resources[viewIndex] = cudaView;
-
-    if (cudaView->texture)
+    switch (binding.type)
     {
-        if (cudaView->m_desc.type == IResourceView::Type::UnorderedAccess)
-        {
-            auto handle = cudaView->texture->m_cudaSurfObj;
-            setData(offset, &handle, sizeof(uint64_t));
-        }
-        else
-        {
-            auto handle = cudaView->texture->getBindlessHandle();
-            setData(offset, &handle, sizeof(uint64_t));
-        }
-    }
-    else if (cudaView->buffer)
+    case BindingType::Buffer:
     {
-        auto handle = cudaView->buffer->getBindlessHandle();
+        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        const BufferDesc& desc = buffer->m_desc;
+        BufferRange range = buffer->resolveBufferRange(binding.bufferRange);
+        m_resources[viewIndex] = buffer;
+        uint64_t handle = buffer->m_cpuBuffer ? (uint64_t)buffer->m_cpuBuffer : (uint64_t)buffer->m_cudaMemory;
+        handle += range.offset;
         setData(offset, &handle, sizeof(handle));
-        auto sizeOffset = offset;
+        ShaderOffset sizeOffset = offset;
         sizeOffset.uniformOffset += sizeof(handle);
-        auto& desc = *cudaView->buffer->getDesc();
         size_t size = desc.size;
         if (desc.elementSize > 1)
             size /= desc.elementSize;
         setData(sizeOffset, &size, sizeof(size));
+        break;
     }
-    else if (cudaView->proxyBuffer)
+    case BindingType::Texture:
     {
-        auto handle = cudaView->proxyBuffer;
-        setData(offset, &handle, sizeof(handle));
-        auto sizeOffset = offset;
-        sizeOffset.uniformOffset += sizeof(handle);
-        auto& desc = *cudaView->buffer->getDesc();
-        size_t size = desc.size;
-        if (desc.elementSize > 1)
-            size /= desc.elementSize;
-        setData(sizeOffset, &size, sizeof(size));
+        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        m_resources[viewIndex] = texture;
+        switch (bindingRange.bindingType)
+        {
+        case slang::BindingType::Texture:
+            setData(offset, &texture->m_cudaSurfObj, sizeof(texture->m_cudaSurfObj));
+            break;
+        case slang::BindingType::MutableTexture:
+            setData(offset, &texture->m_cudaTexObj, sizeof(texture->m_cudaTexObj));
+            break;
+        }
+        break;
+    }
+    case BindingType::TextureView:
+    {
+        TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        m_resources[viewIndex] = textureView;
+        TextureImpl* texture = textureView->m_texture;
+        switch (bindingRange.bindingType)
+        {
+        case slang::BindingType::Texture:
+            setData(offset, &texture->m_cudaSurfObj, sizeof(texture->m_cudaSurfObj));
+            break;
+        case slang::BindingType::MutableTexture:
+            setData(offset, &texture->m_cudaTexObj, sizeof(texture->m_cudaTexObj));
+            break;
+        }
+        break;
+    }
     }
     return SLANG_OK;
 }
@@ -262,21 +271,6 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setObject(ShaderOffset const
     case slang::BindingType::MutableRawBuffer:
         break;
     }
-    return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
-{
-    SLANG_UNUSED(sampler);
-    SLANG_UNUSED(offset);
-    return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL
-ShaderObjectImpl::setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler)
-{
-    SLANG_UNUSED(sampler);
-    setResource(offset, textureView);
     return SLANG_OK;
 }
 

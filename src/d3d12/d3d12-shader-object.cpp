@@ -3,7 +3,7 @@
 #include "d3d12-command-encoder.h"
 #include "d3d12-device.h"
 #include "d3d12-helper-functions.h"
-#include "d3d12-resource-views.h"
+#include "d3d12-texture-view.h"
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-transient-heap.h"
@@ -74,63 +74,6 @@ Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* ob
         m_subObjectVersions[subObjectIndex] = static_cast<ShaderObjectImpl*>(object)->m_version;
         m_version++;
     }
-    return SLANG_OK;
-}
-
-Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
-{
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
-    auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-    auto samplerImpl = static_cast<SamplerImpl*>(sampler);
-    ID3D12Device* d3dDevice = static_cast<DeviceImpl*>(getDevice())->m_device;
-    d3dDevice->CopyDescriptorsSimple(
-        1,
-        m_descriptorSet.samplerTable.getCpuHandle(bindingRange.baseIndex + (int32_t)offset.bindingArrayIndex),
-        samplerImpl->m_descriptor.cpuHandle,
-        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
-    );
-    m_version++;
-    return SLANG_OK;
-}
-
-Result ShaderObjectImpl::setCombinedTextureSampler(
-    ShaderOffset const& offset,
-    IResourceView* textureView,
-    ISampler* sampler
-)
-{
-#if 0
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
-    auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-    auto resourceViewImpl = static_cast<ResourceViewImpl*>(textureView);
-    ID3D12Device* d3dDevice = static_cast<DeviceImpl*>(getDevice())->m_device;
-    d3dDevice->CopyDescriptorsSimple(
-        1,
-        m_resourceHeap.getCpuHandle(
-            m_descriptorSet.m_resourceTable +
-            bindingRange.binding.offsetInDescriptorTable.resource +
-            (int32_t)offset.bindingArrayIndex),
-        resourceViewImpl->m_descriptor.cpuHandle,
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    auto samplerImpl = static_cast<SamplerImpl*>(sampler);
-    d3dDevice->CopyDescriptorsSimple(
-        1,
-        m_samplerHeap.getCpuHandle(
-            m_descriptorSet.m_samplerTable +
-            bindingRange.binding.offsetInDescriptorTable.sampler +
-            (int32_t)offset.bindingArrayIndex),
-        samplerImpl->m_descriptor.cpuHandle,
-        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-#endif
-    m_version++;
     return SLANG_OK;
 }
 
@@ -833,17 +776,13 @@ Result ShaderObjectImpl::bindRootArguments(BindingContext* context, uint32_t& in
     auto layoutImpl = getLayout();
     for (Index i = 0; i < m_rootArguments.size(); i++)
     {
-        switch (layoutImpl->getRootParameterInfo(i).type)
+        if (layoutImpl->getRootParameterInfo(i).isUAV)
         {
-        case IResourceView::Type::ShaderResource:
-        case IResourceView::Type::AccelerationStructure:
-            context->submitter->setRootSRV(index, m_rootArguments[i]);
-            break;
-        case IResourceView::Type::UnorderedAccess:
             context->submitter->setRootUAV(index, m_rootArguments[i]);
-            break;
-        default:
-            continue;
+        }
+        else
+        {
+            context->submitter->setRootSRV(index, m_rootArguments[i]);
         }
         index++;
     }
@@ -896,7 +835,7 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* resourceView)
+Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -910,112 +849,127 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
 
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    if (bindingRange.isRootParameter && resourceView)
+    Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+
+    switch (binding.type)
     {
-        auto& rootArg = m_rootArguments[bindingRange.baseIndex];
-        switch (resourceView->getViewDesc()->type)
+    case BindingType::Buffer:
+    {
+        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        m_boundResources[bindingIndex] = buffer;
+        if (bindingRange.isRootParameter)
         {
-        case IResourceView::Type::AccelerationStructure:
-        {
-            auto resourceViewImpl = static_cast<AccelerationStructureImpl*>(resourceView);
-            rootArg = resourceViewImpl->getDeviceAddress();
+            m_rootArguments[bindingRange.baseIndex] = buffer->getDeviceAddress() + bufferRange.offset;
         }
-        break;
-        case IResourceView::Type::ShaderResource:
-        case IResourceView::Type::UnorderedAccess:
+        else
         {
-            auto resourceViewImpl = static_cast<ResourceViewImpl*>(resourceView);
-            if (resourceViewImpl->m_isBufferView)
+            D3D12Descriptor descriptor;
+            switch (bindingRange.bindingType)
             {
-                rootArg = static_cast<BufferImpl*>(resourceViewImpl->m_resource.Ptr())->getDeviceAddress();
-            }
-            else
-            {
-                getDebugCallback()->handleMessage(
-                    DebugMessageType::Error,
-                    DebugMessageSource::Layer,
-                    "The shader parameter at the specified offset is a root parameter, and "
-                    "therefore can only be a buffer view."
-                );
+            case slang::BindingType::TypedBuffer:
+                descriptor = buffer->getSRV(buffer->m_desc.format, 0, bufferRange);
+                break;
+            case slang::BindingType::RawBuffer:
+                descriptor = buffer->getSRV(Format::Unknown, bindingRange.bufferElementStride, bufferRange);
+                break;
+            case slang::BindingType::MutableTypedBuffer:
+                descriptor = buffer->getUAV(buffer->m_desc.format, 0, bufferRange);
+                break;
+            case slang::BindingType::MutableRawBuffer:
+                descriptor = buffer->getUAV(Format::Unknown, bindingRange.bufferElementStride, bufferRange);
+                break;
+            default:
                 return SLANG_FAIL;
             }
+            d3dDevice->CopyDescriptorsSimple(
+                1,
+                m_descriptorSet.resourceTable.getCpuHandle(bindingIndex),
+                descriptor.cpuHandle,
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+            );
         }
         break;
-        }
-        return SLANG_OK;
     }
-
-    if (resourceView == nullptr)
+    case BindingType::Texture:
     {
-        if (!bindingRange.isRootParameter)
+        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        return setBinding(offset, m_device->createTextureView(texture, {}));
+    }
+    case BindingType::TextureView:
+    {
+        TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        m_boundResources[bindingIndex] = textureView;
+        D3D12Descriptor descriptor;
+        switch (bindingRange.bindingType)
         {
-            // Create null descriptor for the binding.
-            auto destDescriptor =
-                m_descriptorSet.resourceTable.getCpuHandle(bindingRange.baseIndex + (int32_t)offset.bindingArrayIndex);
-            return createNullDescriptor(d3dDevice, destDescriptor, bindingRange);
+        case slang::BindingType::Texture:
+            descriptor = textureView->getSRV();
+            break;
+        case slang::BindingType::MutableTexture:
+            descriptor = textureView->getUAV();
+            break;
+        default:
+            return SLANG_FAIL;
         }
-        return SLANG_OK;
-    }
-
-    ResourceViewInternalImpl* internalResourceView = nullptr;
-    auto resourceViewImpl = static_cast<ResourceViewImpl*>(resourceView);
-
-    switch (resourceView->getViewDesc()->type)
-    {
-#if SLANG_RHI_DXR
-    case IResourceView::Type::AccelerationStructure:
-    {
-        auto asImpl = static_cast<AccelerationStructureImpl*>(resourceView);
-        // Hold a reference to the resource to prevent its destruction.
-        m_boundResources[bindingRange.baseIndex + offset.bindingArrayIndex] = asImpl->m_buffer;
-        internalResourceView = asImpl;
-    }
-    break;
-#endif
-    default:
-    {
-        // Hold a reference to the resource to prevent its destruction.
-        const auto resourceOffset = bindingRange.baseIndex + offset.bindingArrayIndex;
-        m_boundResources[resourceOffset] = resourceViewImpl->m_resource;
-        m_boundCounterResources[resourceOffset] = resourceViewImpl->m_counterResource;
-        internalResourceView = resourceViewImpl;
-    }
-    break;
-    }
-
-    auto descriptorSlotIndex = bindingRange.baseIndex + (int32_t)offset.bindingArrayIndex;
-    D3D12Descriptor srcDescriptor = internalResourceView->m_descriptor;
-
-    // Buffer descriptors are created on demand.
-    if (!srcDescriptor.cpuHandle.ptr)
-    {
-        SLANG_RETURN_ON_FAIL(internalResourceView->getBufferDescriptorForBinding(
-            static_cast<DeviceImpl*>(m_device.get()),
-            resourceViewImpl,
-            bindingRange.bufferElementStride,
-            srcDescriptor
-        ));
-    }
-
-    if (srcDescriptor.cpuHandle.ptr)
-    {
         d3dDevice->CopyDescriptorsSimple(
             1,
-            m_descriptorSet.resourceTable.getCpuHandle(bindingRange.baseIndex + (int32_t)offset.bindingArrayIndex),
-            srcDescriptor.cpuHandle,
+            m_descriptorSet.resourceTable.getCpuHandle(bindingIndex),
+            descriptor.cpuHandle,
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
+        break;
     }
-    else
+    case BindingType::Sampler:
     {
-        getDebugCallback()->handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "IShaderObject::setResource: the resource view cannot be set to this shader parameter. "
-            "A possible reason is that the view is too large to be supported by D3D12."
+        SamplerImpl* sampler = static_cast<SamplerImpl*>(binding.resource.get());
+        d3dDevice->CopyDescriptorsSimple(
+            1,
+            m_descriptorSet.samplerTable.getCpuHandle(bindingIndex),
+            sampler->m_descriptor.cpuHandle,
+            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
         );
-        return SLANG_FAIL;
+        break;
     }
+    case BindingType::CombinedTextureSampler:
+    {
+        TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        SamplerImpl* sampler = static_cast<SamplerImpl*>(binding.resource2.get());
+        d3dDevice->CopyDescriptorsSimple(
+            1,
+            m_descriptorSet.resourceTable.getCpuHandle(bindingIndex),
+            textureView->getSRV().cpuHandle,
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+        );
+        d3dDevice->CopyDescriptorsSimple(
+            1,
+            m_descriptorSet.samplerTable.getCpuHandle(bindingIndex),
+            sampler->m_descriptor.cpuHandle,
+            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
+        );
+        break;
+    }
+    case BindingType::AccelerationStructure:
+    {
+        AccelerationStructureImpl* as = static_cast<AccelerationStructureImpl*>(binding.resource.get());
+        m_boundResources[bindingIndex] = as;
+        if (bindingRange.isRootParameter)
+        {
+            m_rootArguments[bindingRange.baseIndex] = as->getDeviceAddress();
+        }
+        else
+        {
+            d3dDevice->CopyDescriptorsSimple(
+                1,
+                m_descriptorSet.resourceTable.getCpuHandle(bindingIndex),
+                as->m_descriptor.cpuHandle,
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+            );
+        }
+        break;
+    }
+    }
+
     return SLANG_OK;
 }
 

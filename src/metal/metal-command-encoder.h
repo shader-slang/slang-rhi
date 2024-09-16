@@ -112,12 +112,15 @@ public:
         GfxCount subResourceDataCount
     ) override;
 
-    void _clearColorImage(TextureViewImpl* viewImpl, ClearValue* clearValue);
+    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range) override;
 
-    void _clearDepthImage(TextureViewImpl* viewImpl, ClearValue* clearValue, ClearResourceViewFlags::Enum flags);
-
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTexture(
+        ITexture* texture,
+        const ClearValue& clearValue,
+        const SubresourceRange* subresourceRange,
+        bool clearDepth,
+        bool clearStencil
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
         ITexture* source,

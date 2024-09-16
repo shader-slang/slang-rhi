@@ -3,7 +3,7 @@
 #include "d3d12-base.h"
 #include "d3d12-buffer.h"
 #include "d3d12-submitter.h"
-#include "d3d12-resource-views.h"
+#include "d3d12-texture-view.h"
 
 #include "core/static_vector.h"
 
@@ -119,8 +119,15 @@ public:
         GfxCount subResourceDataCount
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* view, const BufferRange* range = nullptr) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTexture(
+        ITexture* texture,
+        const ClearValue& clearValue,
+        const SubresourceRange* subresourceRange,
+        bool clearDepth,
+        bool clearStencil
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
         ITexture* source,
@@ -166,9 +173,9 @@ public:
     }
 
 public:
-    short_vector<RefPtr<ResourceViewImpl>> m_renderTargetViews;
+    short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<ResourceState> m_renderTargetFinalStates;
-    RefPtr<ResourceViewImpl> m_depthStencilView;
+    RefPtr<TextureViewImpl> m_depthStencilView;
     ResourceState m_depthStencilFinalState;
 
     std::vector<BoundVertexBuffer> m_boundVertexBuffers;

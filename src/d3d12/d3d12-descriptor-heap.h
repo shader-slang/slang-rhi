@@ -95,6 +95,7 @@ protected:
 struct D3D12Descriptor
 {
     D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+    operator bool() const { return cpuHandle.ptr != 0; }
 };
 
 /// An allocator for host-visible descriptors.

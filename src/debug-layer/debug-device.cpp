@@ -5,13 +5,13 @@
 #include "debug-helper-functions.h"
 #include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-resource-views.h"
 #include "debug-sampler.h"
 #include "debug-shader-object.h"
 #include "debug-shader-program.h"
 #include "debug-shader-table.h"
 #include "debug-swap-chain.h"
 #include "debug-texture.h"
+#include "debug-texture-view.h"
 #include "debug-transient-heap.h"
 #include "debug-vertex-layout.h"
 
@@ -181,31 +181,12 @@ Result DebugDevice::createSampler(SamplerDesc const& desc, ISampler** outSampler
     return result;
 }
 
-Result DebugDevice::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
+Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugResourceView> outObject = new DebugResourceView();
+    RefPtr<DebugTextureView> outObject = new DebugTextureView();
     auto result = baseObject->createTextureView(getInnerObj(texture), desc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outView, outObject);
-    return result;
-}
-
-Result DebugDevice::createBufferView(
-    IBuffer* buffer,
-    IBuffer* counterBuffer,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
-{
-    SLANG_RHI_API_FUNC;
-
-    RefPtr<DebugResourceView> outObject = new DebugResourceView();
-    auto result =
-        baseObject
-            ->createBufferView(getInnerObj(buffer), getInnerObj(counterBuffer), desc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outView, outObject);

@@ -99,7 +99,7 @@ public:
         for (GfxIndex i = m_pageAllocCounter; i < m_pages.size(); i++)
         {
             auto cb = m_pages[i].resource.Ptr();
-            if (bufferAllocOffset + size <= cb->getDesc()->size)
+            if (bufferAllocOffset + size <= cb->m_desc.size)
             {
                 bufferId = i;
                 break;

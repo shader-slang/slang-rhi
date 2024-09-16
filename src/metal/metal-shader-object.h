@@ -2,7 +2,7 @@
 
 #include "metal-base.h"
 #include "metal-helper-functions.h"
-#include "metal-resource-views.h"
+#include "metal-texture-view.h"
 #include "metal-sampler.h"
 #include "metal-shader-object-layout.h"
 
@@ -34,16 +34,7 @@ public:
     SLANG_NO_THROW Result SLANG_MCALL setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
         SLANG_OVERRIDE;
 
-    SLANG_NO_THROW Result SLANG_MCALL setResource(ShaderOffset const& offset, IResourceView* resourceView)
-        SLANG_OVERRIDE;
-
-    SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) SLANG_OVERRIDE;
-
-    SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) SLANG_OVERRIDE
-    {
-        return SLANG_E_NOT_IMPLEMENTED;
-    }
+    SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) SLANG_OVERRIDE;
 
 public:
 protected:
@@ -103,10 +94,11 @@ public:
     // of simple arrays.
 
     /// The buffers that are part of the state of this object
-    std::vector<RefPtr<BufferViewImpl>> m_buffers;
+    std::vector<RefPtr<BufferImpl>> m_buffers;
+    std::vector<uint64_t> m_bufferOffsets;
 
-    /// The textures that are part of the state of this object
-    std::vector<RefPtr<TextureViewImpl>> m_textures;
+    /// The texture views that are part of the state of this object
+    std::vector<RefPtr<TextureViewImpl>> m_textureViews;
 
     /// The samplers that are part of the state of this object
     std::vector<RefPtr<SamplerImpl>> m_samplers;

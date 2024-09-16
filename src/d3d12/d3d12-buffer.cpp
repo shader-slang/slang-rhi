@@ -1,18 +1,35 @@
 #include "d3d12-buffer.h"
+#include "d3d12-device.h"
 
 namespace rhi::d3d12 {
 
-BufferImpl::BufferImpl(const BufferDesc& desc)
-    : Parent(desc)
+BufferImpl::BufferImpl(RendererBase* device, const BufferDesc& desc)
+    : Buffer(device, desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
 BufferImpl::~BufferImpl()
 {
-    if (sharedHandle)
+    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
+    for (auto& srv : m_srvs)
     {
-        CloseHandle((HANDLE)sharedHandle.value);
+        if (srv.second)
+        {
+            device->m_cpuViewHeap->free(srv.second);
+        }
+    }
+    for (auto& uav : m_uavs)
+    {
+        if (uav.second)
+        {
+            device->m_cpuViewHeap->free(uav.second);
+        }
+    }
+
+    if (m_sharedHandle)
+    {
+        CloseHandle((HANDLE)m_sharedHandle.value);
     }
 }
 
@@ -34,9 +51,9 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (sharedHandle)
+    if (m_sharedHandle)
     {
-        *outHandle = sharedHandle;
+        *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
@@ -45,10 +62,10 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     auto pResource = m_resource.getResource();
     pResource->GetDevice(IID_PPV_ARGS(pDevice.writeRef()));
     SLANG_RETURN_ON_FAIL(
-        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&sharedHandle.value)
+        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&m_sharedHandle.value)
     );
-    sharedHandle.type = NativeHandleType::Win32;
-    *outHandle = sharedHandle;
+    m_sharedHandle.type = NativeHandleType::Win32;
+    *outHandle = m_sharedHandle;
     return SLANG_OK;
 #endif
 }
@@ -75,6 +92,85 @@ Result BufferImpl::unmap(MemoryRange* writtenRange)
     }
     m_resource.getResource()->Unmap(0, writtenRange ? &range : nullptr);
     return SLANG_OK;
+}
+
+D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
+{
+    ViewKey key = {format, stride, range};
+    D3D12Descriptor& descriptor = m_srvs[key];
+    if (descriptor)
+        return descriptor;
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
+    viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    viewDesc.Format = D3DUtil::getMapFormat(format);
+    viewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    if (stride)
+    {
+        viewDesc.Buffer.FirstElement = range.offset / stride;
+        viewDesc.Buffer.NumElements = UINT(range.size / stride);
+        viewDesc.Buffer.StructureByteStride = stride;
+    }
+    else if (format == Format::Unknown)
+    {
+        viewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        viewDesc.Buffer.FirstElement = range.offset / 4;
+        viewDesc.Buffer.NumElements = UINT(range.size / 4);
+        viewDesc.Buffer.Flags |= D3D12_BUFFER_SRV_FLAG_RAW;
+    }
+    else
+    {
+        FormatInfo sizeInfo;
+        rhiGetFormatInfo(format, &sizeInfo);
+        SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
+        viewDesc.Buffer.FirstElement = range.offset / sizeInfo.blockSizeInBytes;
+        viewDesc.Buffer.NumElements = UINT(range.size / sizeInfo.blockSizeInBytes);
+    }
+
+    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
+    device->m_cpuViewHeap->allocate(&descriptor);
+    device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
+
+    return descriptor;
+}
+
+D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferRange& range)
+{
+    ViewKey key = {format, stride, range};
+    D3D12Descriptor& descriptor = m_uavs[key];
+    if (descriptor)
+        return descriptor;
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
+    viewDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    viewDesc.Format = D3DUtil::getMapFormat(format);
+    if (stride)
+    {
+        viewDesc.Buffer.FirstElement = range.offset / stride;
+        viewDesc.Buffer.NumElements = UINT(range.size / stride);
+        viewDesc.Buffer.StructureByteStride = stride;
+    }
+    else if (format == Format::Unknown)
+    {
+        viewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        viewDesc.Buffer.FirstElement = range.offset / 4;
+        viewDesc.Buffer.NumElements = UINT(range.size / 4);
+        viewDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
+    }
+    else
+    {
+        FormatInfo sizeInfo;
+        rhiGetFormatInfo(format, &sizeInfo);
+        SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
+        viewDesc.Buffer.FirstElement = range.offset / sizeInfo.blockSizeInBytes;
+        viewDesc.Buffer.NumElements = UINT(range.size / sizeInfo.blockSizeInBytes);
+    }
+
+    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
+    device->m_cpuViewHeap->allocate(&descriptor);
+    device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, descriptor.cpuHandle);
+
+    return descriptor;
 }
 
 } // namespace rhi::d3d12

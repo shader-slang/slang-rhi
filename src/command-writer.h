@@ -177,13 +177,13 @@ public:
         Offset viewsOffset = 0;
         for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
         {
-            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.colorAttachments[i].view));
+            auto offset = encodeObject(static_cast<TextureView*>(desc.colorAttachments[i].view));
             if (i == 0)
                 viewsOffset = offset;
         }
         if (desc.depthStencilAttachment)
         {
-            auto offset = encodeObject(static_cast<ResourceViewBase*>(desc.depthStencilAttachment->view));
+            auto offset = encodeObject(static_cast<TextureView*>(desc.depthStencilAttachment->view));
             if (desc.colorAttachmentCount == 0)
                 viewsOffset = offset;
         }

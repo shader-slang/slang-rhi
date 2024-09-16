@@ -107,16 +107,27 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::uploadTextureData(
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::clearResourceView(
-    IResourceView* view,
-    ClearValue* clearValue,
-    ClearResourceViewFlags::Enum flags
+void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+{
+    SLANG_UNUSED(buffer);
+    SLANG_UNUSED(range);
+    SLANG_RHI_UNIMPLEMENTED("clearBuffer");
+}
+
+void ResourceCommandEncoderImpl::clearTexture(
+    ITexture* texture,
+    const ClearValue& clearValue,
+    const SubresourceRange* subresourceRange,
+    bool clearDepth,
+    bool clearStencil
 )
 {
-    SLANG_UNUSED(view);
+    SLANG_UNUSED(texture);
     SLANG_UNUSED(clearValue);
-    SLANG_UNUSED(flags);
-    SLANG_RHI_UNIMPLEMENTED("clearResourceView");
+    SLANG_UNUSED(subresourceRange);
+    SLANG_UNUSED(clearDepth);
+    SLANG_UNUSED(clearStencil);
+    SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
 SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveResource(

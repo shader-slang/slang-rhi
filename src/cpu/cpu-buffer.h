@@ -7,8 +7,8 @@ namespace rhi::cpu {
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(const BufferDesc& _desc)
-        : Buffer(_desc)
+    BufferImpl(RendererBase* device, const BufferDesc& desc)
+        : Buffer(device, desc)
     {
     }
 

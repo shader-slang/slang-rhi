@@ -35,9 +35,9 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     // TODO: Implement actual synchronization (and not this hacky solution)
     compareComputeResult(srcDevice, srcBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
-    BufferDesc* testDesc = dstBuffer->getDesc();
-    CHECK_EQ(testDesc->elementSize, sizeof(float));
-    CHECK_EQ(testDesc->size, numberCount * sizeof(float));
+    const BufferDesc& testDesc = dstBuffer->getDesc();
+    CHECK_EQ(testDesc.elementSize, sizeof(float));
+    CHECK_EQ(testDesc.size, numberCount * sizeof(float));
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
     // Check that dstBuffer can be successfully used in a compute dispatch using dstDevice.
@@ -55,12 +55,6 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IPipeline> pipeline;
     REQUIRE_CALL(dstDevice->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
-    ComPtr<IResourceView> bufferView;
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(dstDevice->createBufferView(dstBuffer, nullptr, viewDesc, bufferView.writeRef()));
-
     {
         ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = dstDevice->createCommandQueue(queueDesc);
@@ -72,7 +66,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
         ShaderCursor rootCursor(rootObject);
         // Bind buffer view to the entry point.
-        rootCursor.getPath("buffer").setResource(bufferView);
+        rootCursor.getPath("buffer").setBinding(dstBuffer);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();

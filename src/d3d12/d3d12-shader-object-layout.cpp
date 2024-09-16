@@ -139,16 +139,9 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             RootParameterInfo rootInfo = {};
             switch (slangBindingType)
             {
-            case slang::BindingType::RayTracingAccelerationStructure:
-                rootInfo.type = IResourceView::Type::AccelerationStructure;
-                break;
-            case slang::BindingType::RawBuffer:
-            case slang::BindingType::TypedBuffer:
-                rootInfo.type = IResourceView::Type::ShaderResource;
-                break;
             case slang::BindingType::MutableRawBuffer:
             case slang::BindingType::MutableTypedBuffer:
-                rootInfo.type = IResourceView::Type::UnorderedAccess;
+                rootInfo.isUAV = true;
                 break;
             }
             bindingRangeInfo.baseIndex = (uint32_t)m_rootParamsInfo.size();

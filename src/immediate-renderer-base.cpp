@@ -185,13 +185,27 @@ public:
             SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
         }
 
-        virtual SLANG_NO_THROW void SLANG_MCALL
-        clearResourceView(IResourceView* view, ClearValue* clearValue, ClearResourceViewFlags::Enum flags) override
+        virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range) override
         {
-            SLANG_UNUSED(view);
+            SLANG_UNUSED(buffer);
+            SLANG_UNUSED(range);
+            SLANG_RHI_UNIMPLEMENTED("clearBuffer");
+        }
+
+        virtual SLANG_NO_THROW void SLANG_MCALL clearTexture(
+            ITexture* texture,
+            const ClearValue& clearValue,
+            const SubresourceRange* subresourceRange,
+            bool clearDepth,
+            bool clearStencil
+        ) override
+        {
+            SLANG_UNUSED(texture);
             SLANG_UNUSED(clearValue);
-            SLANG_UNUSED(flags);
-            SLANG_RHI_UNIMPLEMENTED("clearResourceView");
+            SLANG_UNUSED(subresourceRange);
+            SLANG_UNUSED(clearDepth);
+            SLANG_UNUSED(clearStencil);
+            SLANG_RHI_UNIMPLEMENTED("clearTexture");
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(

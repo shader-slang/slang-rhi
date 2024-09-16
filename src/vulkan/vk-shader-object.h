@@ -2,7 +2,7 @@
 
 #include "vk-base.h"
 #include "vk-helper-functions.h"
-#include "vk-resource-views.h"
+#include "vk-texture-view.h"
 #include "vk-sampler.h"
 #include "vk-shader-object-layout.h"
 
@@ -10,11 +10,23 @@
 
 namespace rhi::vk {
 
+struct ResourceSlot
+{
+    BindingType type = BindingType::Unknown;
+    RefPtr<Resource> resource;
+    Format format = Format::Unknown;
+    union
+    {
+        BufferRange bufferRange = kEntireBuffer;
+    };
+    operator bool() const { return type != BindingType::Unknown && resource; }
+};
+
 struct CombinedTextureSamplerSlot
 {
     RefPtr<TextureViewImpl> textureView;
     RefPtr<SamplerImpl> sampler;
-    operator bool() { return textureView && sampler; }
+    operator bool() const { return textureView && sampler; }
 };
 
 class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
@@ -36,13 +48,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setData(ShaderOffset const& inOffset, void const* data, size_t inSize) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setResource(ShaderOffset const& offset, IResourceView* resourceView) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
 
 protected:
     friend class RootShaderObjectLayout;
@@ -83,14 +89,14 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<RefPtr<ResourceViewInternalBase>> resourceViews
+        span<ResourceSlot> slots
     );
 
     static void writeTexelBufferDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<RefPtr<ResourceViewInternalBase>> resourceViews
+        span<ResourceSlot> slots
     );
 
     static void writeTextureSamplerDescriptor(
@@ -104,14 +110,14 @@ public:
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<RefPtr<ResourceViewInternalBase>> resourceViews
+        span<ResourceSlot> slots
     );
 
     static void writeTextureDescriptor(
         RootBindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<RefPtr<ResourceViewInternalBase>> resourceViews
+        span<ResourceSlot> slots
     );
 
     static void writeSamplerDescriptor(
@@ -176,11 +182,10 @@ public:
         ShaderObjectLayoutImpl* specializedLayout
     );
 
-    std::vector<RefPtr<ResourceViewInternalBase>> m_resourceViews;
-
+    std::vector<ResourceSlot> m_resources;
     std::vector<RefPtr<SamplerImpl>> m_samplers;
-
     std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
+    std::vector<RefPtr<AccelerationStructureImpl>> m_accelerationStructures;
 
     // The transient constant buffer that holds the GPU copy of the constant data,
     // weak referenced.

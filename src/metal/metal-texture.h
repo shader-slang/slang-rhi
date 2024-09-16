@@ -8,12 +8,9 @@ namespace rhi::metal {
 class TextureImpl : public Texture
 {
 public:
-    typedef Texture Parent;
-
-    TextureImpl(const TextureDesc& desc, DeviceImpl* device);
+    TextureImpl(RendererBase* device, const TextureDesc& desc);
     ~TextureImpl();
 
-    BreakableReference<DeviceImpl> m_device;
     NS::SharedPtr<MTL::Texture> m_texture;
     MTL::TextureType m_textureType;
     MTL::PixelFormat m_pixelFormat;

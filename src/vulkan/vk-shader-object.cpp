@@ -70,7 +70,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* resourceView)
+Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -78,60 +78,59 @@ Result ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* 
     if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-    if (!resourceView)
+
+    Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+
+    switch (binding.type)
     {
-        m_resourceViews[bindingRange.baseIndex + offset.bindingArrayIndex] = nullptr;
-    }
-    else
+    case BindingType::Buffer:
     {
-        if (resourceView->getViewDesc()->type == IResourceView::Type::AccelerationStructure)
-        {
-            m_resourceViews[bindingRange.baseIndex + offset.bindingArrayIndex] =
-                static_cast<AccelerationStructureImpl*>(resourceView);
-        }
-        else
-        {
-            m_resourceViews[bindingRange.baseIndex + offset.bindingArrayIndex] =
-                static_cast<ResourceViewImpl*>(resourceView);
-        }
+        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        ResourceSlot slot;
+        slot.type = BindingType::Buffer;
+        slot.resource = buffer;
+        slot.format = slot.format != Format::Unknown ? slot.format : buffer->m_desc.format;
+        slot.bufferRange = buffer->resolveBufferRange(slot.bufferRange);
+        m_resources[bindingIndex] = slot;
+        break;
     }
-    return SLANG_OK;
-}
+    case BindingType::Texture:
+    {
+        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        return setBinding(offset, m_device->createTextureView(texture, {}));
+    }
+    case BindingType::TextureView:
+    {
+        ResourceSlot slot;
+        slot.type = BindingType::TextureView;
+        slot.resource = static_cast<TextureViewImpl*>(binding.resource.get());
+        m_resources[bindingIndex] = slot;
+        break;
+    }
+    case BindingType::Sampler:
+        m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
+        break;
+    case BindingType::CombinedTextureSampler:
+        m_combinedTextureSamplers[bindingIndex] = CombinedTextureSamplerSlot{
+            static_cast<TextureViewImpl*>(binding.resource.get()),
+            static_cast<SamplerImpl*>(binding.resource2.get())
+        };
+        break;
+    case BindingType::AccelerationStructure:
+        ResourceSlot slot;
+        slot.type = BindingType::AccelerationStructure;
+        slot.resource = static_cast<AccelerationStructureImpl*>(binding.resource.get());
+        m_resources[bindingIndex] = slot;
+        break;
+    }
 
-Result ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
-{
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
-    auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-
-    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerImpl*>(sampler);
-    return SLANG_OK;
-}
-
-Result ShaderObjectImpl::setCombinedTextureSampler(
-    ShaderOffset const& offset,
-    IResourceView* textureView,
-    ISampler* sampler
-)
-{
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
-    auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-
-    auto& slot = m_combinedTextureSamplers[bindingRange.baseIndex + offset.bindingArrayIndex];
-    slot.textureView = static_cast<TextureViewImpl*>(textureView);
-    slot.sampler = static_cast<SamplerImpl*>(sampler);
     return SLANG_OK;
 }
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 {
+    m_device = static_cast<DeviceImpl*>(device);
+
     m_layout = layout;
 
     m_constantBufferTransientHeap = nullptr;
@@ -167,7 +166,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
         }
 #endif
 
-    m_resourceViews.resize(layout->getResourceViewCount());
+    m_resources.resize(layout->getResourceCount());
     m_samplers.resize(layout->getSamplerCount());
     m_combinedTextureSamplers.resize(layout->getCombinedTextureSamplerCount());
 
@@ -354,34 +353,34 @@ void ShaderObjectImpl::writeBufferDescriptor(
     BufferImpl* buffer
 )
 {
-    writeBufferDescriptor(context, offset, descriptorType, buffer, 0, buffer->getDesc()->size);
+    writeBufferDescriptor(context, offset, descriptorType, buffer, 0, buffer->m_desc.size);
 }
 
 void ShaderObjectImpl::writePlainBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    span<RefPtr<ResourceViewInternalBase>> resourceViews
+    span<ResourceSlot> slots
 )
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.size();
+    Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
+        const ResourceSlot& slot = slots[i];
+
         VkDescriptorBufferInfo bufferInfo = {};
         bufferInfo.range = VK_WHOLE_SIZE;
 
-        if (resourceViews[i])
+        if (slot)
         {
-            auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
-            if (boundViewType == ResourceViewImpl::ViewType::PlainBuffer)
-            {
-                auto bufferView = static_cast<PlainBufferViewImpl*>(resourceViews[i].Ptr());
-                bufferInfo.buffer = bufferView->m_buffer->m_buffer.m_buffer;
-                bufferInfo.offset = bufferView->offset;
-                bufferInfo.range = bufferView->size;
-            }
+            SLANG_RHI_ASSERT(slot.type == BindingType::Buffer);
+            BufferImpl* buffer = static_cast<BufferImpl*>(slot.resource.get());
+            BufferRange bufferRange = buffer->resolveBufferRange(slot.bufferRange);
+            bufferInfo.buffer = buffer->m_buffer.m_buffer;
+            bufferInfo.offset = bufferRange.offset;
+            bufferInfo.range = bufferRange.size;
         }
 
         VkWriteDescriptorSet write = {};
@@ -401,24 +400,25 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    span<RefPtr<ResourceViewInternalBase>> resourceViews
+    span<ResourceSlot> slots
 )
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.size();
+    Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
+        const ResourceSlot& slot = slots[i];
+
         VkBufferView bufferView = VK_NULL_HANDLE;
-        if (resourceViews[i])
+
+        if (slot)
         {
-            auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
-            if (boundViewType == ResourceViewImpl::ViewType::TexelBuffer)
-            {
-                auto resourceView = static_cast<TexelBufferViewImpl*>(resourceViews[i].Ptr());
-                bufferView = resourceView->m_view;
-            }
+            SLANG_RHI_ASSERT(slot.type == BindingType::Buffer);
+            BufferImpl* buffer = static_cast<BufferImpl*>(slot.resource.get());
+            bufferView = buffer->getView(slot.format, slot.bufferRange);
         }
+
         VkWriteDescriptorSet write = {};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.descriptorType = descriptorType;
@@ -443,21 +443,13 @@ void ShaderObjectImpl::writeTextureSamplerDescriptor(
     Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
-        auto texture = slots[i].textureView;
-        auto sampler = slots[i].sampler;
+        const CombinedTextureSamplerSlot& slot = slots[i];
         VkDescriptorImageInfo imageInfo = {};
-        if (texture)
+        if (slot)
         {
-            imageInfo.imageView = texture->m_view;
-            imageInfo.imageLayout = texture->m_layout;
-        }
-        if (sampler)
-        {
-            imageInfo.sampler = sampler->m_sampler;
-        }
-        else
-        {
-            imageInfo.sampler = context.device->m_defaultSampler;
+            imageInfo.imageView = slot.textureView->getView().imageView;
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.sampler = slot.sampler->m_sampler;
         }
 
         VkWriteDescriptorSet write = {};
@@ -477,28 +469,33 @@ void ShaderObjectImpl::writeAccelerationStructureDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    span<RefPtr<ResourceViewInternalBase>> resourceViews
+    span<ResourceSlot> slots
 )
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.size();
+    Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
-        auto accelerationStructure = static_cast<AccelerationStructureImpl*>(resourceViews[i].Ptr());
+        const ResourceSlot& slot = slots[i];
+
         VkWriteDescriptorSetAccelerationStructureKHR writeAS = {};
         writeAS.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+        writeAS.accelerationStructureCount = 1;
         VkAccelerationStructureKHR nullHandle = VK_NULL_HANDLE;
-        if (accelerationStructure)
+
+        if (slot)
         {
-            writeAS.accelerationStructureCount = 1;
+            SLANG_RHI_ASSERT(slot.type == BindingType::AccelerationStructure);
+            AccelerationStructureImpl* accelerationStructure =
+                static_cast<AccelerationStructureImpl*>(slot.resource.get());
             writeAS.pAccelerationStructures = &accelerationStructure->m_vkHandle;
         }
         else
         {
-            writeAS.accelerationStructureCount = 1;
             writeAS.pAccelerationStructures = &nullHandle;
         }
+
         VkWriteDescriptorSet write = {};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.descriptorCount = 1;
@@ -515,24 +512,25 @@ void ShaderObjectImpl::writeTextureDescriptor(
     RootBindingContext& context,
     BindingOffset const& offset,
     VkDescriptorType descriptorType,
-    span<RefPtr<ResourceViewInternalBase>> resourceViews
+    span<ResourceSlot> slots
 )
 {
     auto descriptorSet = (*context.descriptorSets)[offset.bindingSet];
 
-    Index count = resourceViews.size();
+    Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
+        const ResourceSlot& slot = slots[i];
+
         VkDescriptorImageInfo imageInfo = {};
-        if (resourceViews[i])
+        if (slot)
         {
-            auto boundViewType = static_cast<ResourceViewImpl*>(resourceViews[i].Ptr())->m_type;
-            if (boundViewType == ResourceViewImpl::ViewType::Texture)
-            {
-                auto texture = static_cast<TextureViewImpl*>(resourceViews[i].Ptr());
-                imageInfo.imageView = texture->m_view;
-                imageInfo.imageLayout = texture->m_layout;
-            }
+            SLANG_RHI_ASSERT(slot.type == BindingType::TextureView);
+            TextureViewImpl* textureView = static_cast<TextureViewImpl*>(slot.resource.get());
+            imageInfo.imageView = textureView->getView().imageView;
+            imageInfo.imageLayout = descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+                                        ? VK_IMAGE_LAYOUT_GENERAL
+                                        : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         }
         imageInfo.sampler = 0;
 
@@ -665,7 +663,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                span(m_resourceViews.data() + baseIndex, count)
+                span(m_resources.data() + baseIndex, count)
             );
             break;
         case slang::BindingType::MutableTexture:
@@ -675,7 +673,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                span(m_resourceViews.data() + baseIndex, count)
+                span(m_resources.data() + baseIndex, count)
             );
             break;
         case slang::BindingType::CombinedTextureSampler:
@@ -708,7 +706,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                span(m_resourceViews.data() + baseIndex, count)
+                span(m_resources.data() + baseIndex, count)
             );
             break;
 
@@ -719,7 +717,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-                span(m_resourceViews.data() + baseIndex, count)
+                span(m_resources.data() + baseIndex, count)
             );
             break;
         case slang::BindingType::MutableTypedBuffer:
@@ -729,7 +727,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-                span(m_resourceViews.data() + baseIndex, count)
+                span(m_resources.data() + baseIndex, count)
             );
             break;
         case slang::BindingType::RayTracingAccelerationStructure:
@@ -739,7 +737,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-                span(m_resourceViews.data() + baseIndex, count)
+                span(m_resources.data() + baseIndex, count)
             );
             break;
         case slang::BindingType::VaryingInput:

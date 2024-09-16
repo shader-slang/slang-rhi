@@ -112,7 +112,7 @@ public:
 
     struct RootParameterInfo
     {
-        IResourceView::Type type;
+        bool isUAV;
     };
 
     static bool isBindingRangeRootParameter(

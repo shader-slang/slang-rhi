@@ -3,7 +3,7 @@
 #include "d3d11-base.h"
 #include "d3d11-buffer.h"
 #include "d3d11-helper-functions.h"
-#include "d3d11-resource-views.h"
+#include "d3d11-texture-view.h"
 #include "d3d11-sampler.h"
 #include "d3d11-shader-object-layout.h"
 
@@ -31,16 +31,7 @@ public:
     SLANG_NO_THROW Result SLANG_MCALL setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
         SLANG_OVERRIDE;
 
-    SLANG_NO_THROW Result SLANG_MCALL setResource(ShaderOffset const& offset, IResourceView* resourceView)
-        SLANG_OVERRIDE;
-
-    SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) SLANG_OVERRIDE;
-
-    SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) SLANG_OVERRIDE
-    {
-        return SLANG_E_NOT_IMPLEMENTED;
-    }
+    SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) SLANG_OVERRIDE;
 
 public:
 protected:
@@ -86,15 +77,18 @@ public:
     ///
     Result bindAsValue(BindingContext* context, BindingOffset const& offset, ShaderObjectLayoutImpl* specializedLayout);
 
+    // Set of resources to keep alive while this object is alive.
+    std::set<RefPtr<Resource>> m_resources;
+
     // Because the binding ranges have already been reflected
     // and organized as part of each shader object layout,
     // the object itself can store its data in a small number
     // of simple arrays.
     /// The shader resource views (SRVs) that are part of the state of this object
-    std::vector<RefPtr<ShaderResourceViewImpl>> m_srvs;
+    std::vector<ComPtr<ID3D11ShaderResourceView>> m_srvs;
 
     /// The unordered access views (UAVs) that are part of the state of this object
-    std::vector<RefPtr<UnorderedAccessViewImpl>> m_uavs;
+    std::vector<ComPtr<ID3D11UnorderedAccessView>> m_uavs;
 
     /// The samplers that are part of the state of this object
     std::vector<RefPtr<SamplerImpl>> m_samplers;
