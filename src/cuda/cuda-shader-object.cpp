@@ -153,28 +153,28 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayou
     return SLANG_OK;
 }
 
-SLANG_NO_THROW GfxCount SLANG_MCALL ShaderObjectImpl::getEntryPointCount()
+GfxCount ShaderObjectImpl::getEntryPointCount()
 {
     return 0;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+Result ShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
 {
     *outEntryPoint = nullptr;
     return SLANG_OK;
 }
 
-SLANG_NO_THROW const void* SLANG_MCALL ShaderObjectImpl::getRawData()
+const void* ShaderObjectImpl::getRawData()
 {
     return m_data.getBuffer();
 }
 
-SLANG_NO_THROW Size SLANG_MCALL ShaderObjectImpl::getSize()
+Size ShaderObjectImpl::getSize()
 {
     return (Size)m_data.getCount();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, Size size)
+Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, Size size)
 {
     Size temp = m_data.getCount() - (Size)offset.uniformOffset;
     size = std::min(size, temp);
@@ -184,7 +184,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setData(ShaderOffset const& 
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
+Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
     auto layout = getLayout();
 
@@ -250,7 +250,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset cons
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
+Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
 {
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));
 
@@ -279,12 +279,12 @@ EntryPointShaderObjectImpl::EntryPointShaderObjectImpl()
     m_data.isHostOnly = true;
 }
 
-SLANG_NO_THROW uint32_t SLANG_MCALL RootShaderObjectImpl::addRef()
+uint32_t RootShaderObjectImpl::addRef()
 {
     return 1;
 }
 
-SLANG_NO_THROW uint32_t SLANG_MCALL RootShaderObjectImpl::release()
+uint32_t RootShaderObjectImpl::release()
 {
     return 1;
 }
@@ -302,12 +302,12 @@ Result RootShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeL
     return SLANG_OK;
 }
 
-SLANG_NO_THROW GfxCount SLANG_MCALL RootShaderObjectImpl::getEntryPointCount()
+GfxCount RootShaderObjectImpl::getEntryPointCount()
 {
     return (GfxCount)entryPointObjects.size();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
+Result RootShaderObjectImpl::getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint)
 {
     returnComPtr(outEntryPoint, entryPointObjects[index]);
     return SLANG_OK;

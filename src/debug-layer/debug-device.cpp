@@ -59,7 +59,7 @@ DebugDevice::DebugDevice()
     RHI_VALIDATION_INFO("Debug layer is enabled.");
 }
 
-SLANG_NO_THROW bool SLANG_MCALL DebugDevice::hasFeature(const char* feature)
+bool DebugDevice::hasFeature(const char* feature)
 {
     SLANG_RHI_API_FUNC;
 

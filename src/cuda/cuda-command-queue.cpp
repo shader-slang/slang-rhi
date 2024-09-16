@@ -28,7 +28,7 @@ CommandQueueImpl::~CommandQueueImpl()
     currentRootObject = nullptr;
 }
 
-SLANG_NO_THROW void SLANG_MCALL CommandQueueImpl::executeCommandBuffers(
+void CommandQueueImpl::executeCommandBuffers(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
@@ -44,20 +44,19 @@ SLANG_NO_THROW void SLANG_MCALL CommandQueueImpl::executeCommandBuffers(
     }
 }
 
-SLANG_NO_THROW void SLANG_MCALL CommandQueueImpl::waitOnHost()
+void CommandQueueImpl::waitOnHost()
 {
     auto resultCode = cuStreamSynchronize(stream);
     if (resultCode != CUDA_SUCCESS)
         SLANG_CUDA_HANDLE_ERROR(resultCode);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {
     return SLANG_FAIL;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
+Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;

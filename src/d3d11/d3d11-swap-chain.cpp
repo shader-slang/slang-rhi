@@ -37,18 +37,18 @@ void SwapchainImpl::createSwapchainBufferImages()
     }
 }
 
-SLANG_NO_THROW Result SLANG_MCALL SwapchainImpl::resize(GfxCount width, GfxCount height)
+Result SwapchainImpl::resize(GfxCount width, GfxCount height)
 {
     m_renderer->m_immediateContext->ClearState();
     return D3DSwapchainBase::resize(width, height);
 }
 
-SLANG_NO_THROW bool SLANG_MCALL SwapchainImpl::isOccluded()
+bool SwapchainImpl::isOccluded()
 {
     return false;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL SwapchainImpl::setFullScreenMode(bool mode)
+Result SwapchainImpl::setFullScreenMode(bool mode)
 {
     return SLANG_FAIL;
 }

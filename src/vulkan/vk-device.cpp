@@ -1079,7 +1079,7 @@ void DeviceImpl::waitForGpu()
     m_deviceQueue.flushAndWait();
 }
 
-SLANG_NO_THROW const DeviceInfo& SLANG_MCALL DeviceImpl::getDeviceInfo() const
+const DeviceInfo& DeviceImpl::getDeviceInfo() const
 {
     return m_info;
 }
