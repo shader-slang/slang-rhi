@@ -127,6 +127,11 @@ Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
     return SLANG_OK;
 }
 
+Result DeviceImpl::close()
+{
+    return SLANG_OK;
+}
+
 SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::CUdevice;

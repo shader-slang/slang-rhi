@@ -716,6 +716,11 @@ ImmediateRendererBase::ImmediateRendererBase()
     m_queue = new CommandQueueImpl(this);
 }
 
+Result ImmediateRendererBase::close()
+{
+    return SLANG_OK;
+}
+
 SLANG_NO_THROW Result SLANG_MCALL ImmediateRendererBase::createTransientResourceHeap(
     const ITransientResourceHeap::Desc& desc,
     ITransientResourceHeap** outHeap

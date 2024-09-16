@@ -11,7 +11,8 @@ namespace rhi::vk {
 class DeviceImpl : public RendererBase
 {
 public:
-    // Renderer    implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL close() override;
+
     Result initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer);
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;

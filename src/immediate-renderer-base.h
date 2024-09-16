@@ -93,6 +93,8 @@ public:
 
     ImmediateRendererBase();
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL close() override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

@@ -432,6 +432,11 @@ Result DeviceImpl::_createDevice(
     return SLANG_OK;
 }
 
+Result DeviceImpl::close()
+{
+    return SLANG_OK;
+}
+
 Result DeviceImpl::initialize(const Desc& desc)
 {
     SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));

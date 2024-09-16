@@ -25,6 +25,8 @@ private:
     std::string m_adapterName;
 
 public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL close() override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;

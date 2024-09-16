@@ -98,6 +98,7 @@ public:
     ComPtr<ID3D12CommandSignature> dispatchIndirectCmdSignature;
 
 public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL close() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 

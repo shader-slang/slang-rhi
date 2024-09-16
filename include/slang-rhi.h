@@ -2178,6 +2178,8 @@ public:
         void** extendedDescs = nullptr;
     };
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL close() = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) = 0;
 
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
