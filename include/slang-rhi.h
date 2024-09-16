@@ -1004,6 +1004,7 @@ enum class BindingType
 {
     Unknown,
     Buffer,
+    BufferWithCounter,
     Texture,
     TextureView,
     Sampler,
@@ -1025,12 +1026,14 @@ struct Binding
     Binding() : type(BindingType::Unknown) {}
     Binding(ComPtr<IBuffer> buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer), bufferRange(range) {}
     Binding(IBuffer* buffer, const BufferRange& range = kEntireBuffer) : Binding(ComPtr<IBuffer>(buffer), range) {}
+    Binding(ComPtr<IBuffer> buffer, ComPtr<IBuffer> counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
     Binding(ComPtr<ITexture> texture) : type(BindingType::Texture), resource(texture) {}
     Binding(ComPtr<ITextureView> textureView) : type(BindingType::TextureView), resource(textureView) {}
     Binding(ComPtr<ISampler> sampler) : type(BindingType::Sampler) , resource(sampler) {}
     Binding(ComPtr<ITextureView> textureView, ComPtr<ISampler> sampler) : type(BindingType::CombinedTextureSampler), resource(textureView), resource2(sampler) {}
     Binding(ComPtr<ITexture> texture, ComPtr<ISampler> sampler) : type(BindingType::CombinedTextureSampler) , resource(texture) {}
     Binding(ComPtr<IAccelerationStructure> as) : type(BindingType::AccelerationStructure) , resource(as) {}
+    Binding(IAccelerationStructure* as) : Binding(ComPtr<IAccelerationStructure>(as)) {}
     // clang-format on
 };
 

@@ -1,4 +1,5 @@
 #include "cpu-shader-object.h"
+#include "cpu-device.h"
 #include "cpu-buffer.h"
 #include "cpu-texture-view.h"
 #include "cpu-shader-object-layout.h"
@@ -49,6 +50,8 @@ Buffer* CPUShaderObjectData::getBufferResource(
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
+    m_device = static_cast<DeviceImpl*>(device);
+
     m_layout = typeLayout;
 
     // If the layout tells us that there is any uniform data,

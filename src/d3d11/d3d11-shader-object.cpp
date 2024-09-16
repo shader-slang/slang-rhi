@@ -104,6 +104,8 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset cons
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 {
+    m_device = static_cast<DeviceImpl*>(device);
+
     m_layout = layout;
 
     // If the layout tells us that there is any uniform data,

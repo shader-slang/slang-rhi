@@ -891,6 +891,10 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         }
         break;
     }
+    case BindingType::BufferWithCounter:
+    {
+        return SLANG_FAIL;
+    }
     case BindingType::Texture:
     {
         TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
