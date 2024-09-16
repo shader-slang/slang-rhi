@@ -59,7 +59,7 @@ IResource* Buffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
-SLANG_NO_THROW BufferDesc& SLANG_MCALL Buffer::getDesc()
+BufferDesc& Buffer::getDesc()
 {
     return m_desc;
 }
@@ -91,7 +91,7 @@ IResource* Texture::getInterface(const Guid& guid)
     return nullptr;
 }
 
-SLANG_NO_THROW TextureDesc& SLANG_MCALL Texture::getDesc()
+TextureDesc& Texture::getDesc()
 {
     return m_desc;
 }
@@ -329,7 +329,7 @@ IDevice* RendererBase::getInterface(const Guid& guid)
     return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IDevice) ? static_cast<IDevice*>(this) : nullptr;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
+Result RendererBase::initialize(const Desc& desc)
 {
     persistentShaderCache = desc.persistentShaderCache;
 
@@ -343,13 +343,12 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::getNativeDeviceHandles(NativeHandles* outHandles)
+Result RendererBase::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
+Result RendererBase::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
 {
     if (bufferSize >= (UInt)m_features.size())
     {
@@ -363,7 +362,7 @@ RendererBase::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* o
     return SLANG_OK;
 }
 
-SLANG_NO_THROW bool SLANG_MCALL RendererBase::hasFeature(const char* featureName)
+bool RendererBase::hasFeature(const char* featureName)
 {
     return std::any_of(
         m_features.begin(),
@@ -392,15 +391,18 @@ Result RendererBase::getFormatSupport(Format format, FormatSupport* outFormatSup
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::getSlangSession(slang::ISession** outSlangSession)
+Result RendererBase::getSlangSession(slang::ISession** outSlangSession)
 {
     *outSlangSession = slangContext.session.get();
     slangContext.session->addRef();
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
+Result RendererBase::createTextureFromNativeHandle(
+    NativeHandle handle,
+    const TextureDesc& srcDesc,
+    ITexture** outTexture
+)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -408,7 +410,7 @@ RendererBase::createTextureFromNativeHandle(NativeHandle handle, const TextureDe
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromSharedHandle(
+Result RendererBase::createTextureFromSharedHandle(
     NativeHandle handle,
     const TextureDesc& srcDesc,
     const Size size,
@@ -422,8 +424,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createTextureFromSharedHandle(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result RendererBase::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -431,8 +432,7 @@ RendererBase::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result RendererBase::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -440,7 +440,7 @@ RendererBase::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createShaderObject(
+Result RendererBase::createShaderObject(
     slang::TypeReflection* type,
     ShaderObjectContainerType container,
     IShaderObject** outObject
@@ -449,7 +449,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createShaderObject(
     return createShaderObject2(slangContext.session, type, container, outObject);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createShaderObject2(
+Result RendererBase::createShaderObject2(
     slang::ISession* slangSession,
     slang::TypeReflection* type,
     ShaderObjectContainerType container,
@@ -461,7 +461,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createShaderObject2(
     return createShaderObject(shaderObjectLayout, outObject);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createMutableShaderObject(
+Result RendererBase::createMutableShaderObject(
     slang::TypeReflection* type,
     ShaderObjectContainerType containerType,
     IShaderObject** outObject
@@ -470,7 +470,7 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createMutableShaderObject(
     return createMutableShaderObject2(slangContext.session, type, containerType, outObject);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createMutableShaderObject2(
+Result RendererBase::createMutableShaderObject2(
     slang::ISession* slangSession,
     slang::TypeReflection* type,
     ShaderObjectContainerType containerType,
@@ -482,15 +482,17 @@ SLANG_NO_THROW Result SLANG_MCALL RendererBase::createMutableShaderObject2(
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-RendererBase::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
+Result RendererBase::createShaderObjectFromTypeLayout(
+    slang::TypeLayoutReflection* typeLayout,
+    IShaderObject** outObject
+)
 {
     RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     return createShaderObject(shaderObjectLayout, outObject);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL RendererBase::createMutableShaderObjectFromTypeLayout(
+Result RendererBase::createMutableShaderObjectFromTypeLayout(
     slang::TypeLayoutReflection* typeLayout,
     IShaderObject** outObject
 )
@@ -1037,8 +1039,7 @@ IDebugCallback*& _getDebugCallback()
 class NullDebugCallback : public IDebugCallback
 {
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    virtual void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
     {
         SLANG_UNUSED(type);
         SLANG_UNUSED(source);

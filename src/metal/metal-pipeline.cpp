@@ -199,7 +199,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
+Result PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     switch (desc.type)
     {

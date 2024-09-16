@@ -15,35 +15,34 @@ void CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapBase* tran
     m_transientHeap = transientHeap;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
 {
     m_resourceCommandEncoder.init(this);
     *outEncoder = &m_resourceCommandEncoder;
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
     SLANG_UNUSED(desc);
     *outEncoder = nullptr;
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
     m_computeCommandEncoder.init(this);
     *outEncoder = &m_computeCommandEncoder;
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
     *outEncoder = nullptr;
     return SLANG_E_NOT_AVAILABLE;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
+Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;

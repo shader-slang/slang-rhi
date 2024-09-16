@@ -716,7 +716,7 @@ ImmediateRendererBase::ImmediateRendererBase()
     m_queue = new CommandQueueImpl(this);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ImmediateRendererBase::createTransientResourceHeap(
+Result ImmediateRendererBase::createTransientResourceHeap(
     const ITransientResourceHeap::Desc& desc,
     ITransientResourceHeap** outHeap
 )
@@ -727,8 +727,7 @@ SLANG_NO_THROW Result SLANG_MCALL ImmediateRendererBase::createTransientResource
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-ImmediateRendererBase::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result ImmediateRendererBase::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
 {
     SLANG_UNUSED(desc);
     // Only one queue is supported.
@@ -746,8 +745,7 @@ void ImmediateRendererBase::uploadBufferData(IBuffer* dst, size_t offset, size_t
     unmap(dst, offset, size);
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-ImmediateRendererBase::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+Result ImmediateRendererBase::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     auto blob = OwnedBlob::create(size);
     auto content = (uint8_t*)map(buffer, MapFlavor::HostRead);

@@ -65,7 +65,7 @@ void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, S
     m_writer->uploadBufferData(dst, offset, size, data);
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
+void ResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
     ResourceState dstState,
     SubresourceRange dstSubresource,
@@ -89,7 +89,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTexture(
     SLANG_RHI_UNIMPLEMENTED("copyTexture");
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::uploadTextureData(
+void ResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subResourceRange,
     Offset3D offset,
@@ -130,7 +130,7 @@ void ResourceCommandEncoderImpl::clearTexture(
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveResource(
+void ResourceCommandEncoderImpl::resolveResource(
     ITexture* source,
     ResourceState sourceState,
     SubresourceRange sourceRange,
@@ -148,7 +148,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveResource(
     SLANG_RHI_UNIMPLEMENTED("resolveResource");
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveQuery(
+void ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
@@ -164,7 +164,7 @@ SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::resolveQuery(
     SLANG_RHI_UNIMPLEMENTED("resolveQuery");
 }
 
-SLANG_NO_THROW void SLANG_MCALL ResourceCommandEncoderImpl::copyTextureToBuffer(
+void ResourceCommandEncoderImpl::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
@@ -196,8 +196,7 @@ void ComputeCommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
     m_commandBuffer = cmdBuffer;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     m_writer->setPipeline(state);
     PipelineBase* pipelineImpl = static_cast<PipelineBase*>(state);
@@ -208,8 +207,7 @@ ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRoo
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     m_writer->setPipeline(state);
     PipelineBase* pipelineImpl = static_cast<PipelineBase*>(state);
@@ -220,14 +218,14 @@ ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderO
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
+Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
 {
     m_writer->bindRootShaderObject(m_rootObject);
     m_writer->dispatchCompute(x, y, z);
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }

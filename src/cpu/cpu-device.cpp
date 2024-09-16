@@ -18,7 +18,7 @@ DeviceImpl::~DeviceImpl()
     m_currentRootObject = nullptr;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const Desc& desc)
 {
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
@@ -49,8 +49,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
     TextureDesc srcDesc = fixupTextureDesc(desc);
 
@@ -62,8 +61,7 @@ DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initDa
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
@@ -76,8 +74,7 @@ DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
+Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = static_cast<TextureImpl*>(texture);
@@ -133,7 +130,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createShaderProgram(
+Result DeviceImpl::createShaderProgram(
     const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
     ISlangBlob** outDiagnosticBlob
@@ -159,8 +156,7 @@ SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createShaderProgram(
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
+Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
     RefPtr<PipelineImpl> state = new PipelineImpl();
     state->init(desc);
@@ -168,7 +164,7 @@ DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** o
     return Result();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
+Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
     pool->init(desc);
@@ -182,12 +178,12 @@ void DeviceImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
         std::chrono::high_resolution_clock::now().time_since_epoch().count();
 }
 
-SLANG_NO_THROW const DeviceInfo& SLANG_MCALL DeviceImpl::getDeviceInfo() const
+const DeviceInfo& DeviceImpl::getDeviceInfo() const
 {
     return m_info;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
+Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
     *outSampler = nullptr;
@@ -276,7 +272,7 @@ void DeviceImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t
 
 namespace rhi {
 
-Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice)
+Result createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice)
 {
     RefPtr<cpu::DeviceImpl> result = new cpu::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

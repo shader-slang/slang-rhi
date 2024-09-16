@@ -12,8 +12,7 @@ Result ShaderObjectImpl::create(IDevice* device, ShaderObjectLayoutImpl* layout,
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL
-ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
+Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
 {
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
@@ -42,7 +41,7 @@ ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
+Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;

@@ -24,12 +24,12 @@ Result BufferImpl::setData(size_t offset, size_t size, void const* data)
     return SLANG_OK;
 }
 
-SLANG_NO_THROW DeviceAddress SLANG_MCALL BufferImpl::getDeviceAddress()
+DeviceAddress BufferImpl::getDeviceAddress()
 {
     return (DeviceAddress)m_data;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     if (outPointer)
@@ -37,7 +37,7 @@ SLANG_NO_THROW Result SLANG_MCALL BufferImpl::map(MemoryRange* rangeToRead, void
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL BufferImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(MemoryRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     return SLANG_OK;

@@ -342,7 +342,8 @@ Result PipelineImpl::ensureAPIPipelineCreated()
         return SLANG_FAIL;
     }
 }
-SLANG_NO_THROW Result SLANG_MCALL PipelineImpl::getNativeHandle(NativeHandle* outHandle)
+
+Result PipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RETURN_ON_FAIL(ensureAPIPipelineCreated());
     outHandle->type = NativeHandleType::VkPipeline;

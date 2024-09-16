@@ -27,7 +27,7 @@ ID3D11Query* QueryPoolImpl::getQuery(SlangInt index)
     return m_queries[index].get();
 }
 
-SLANG_NO_THROW Result SLANG_MCALL QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
+Result QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
 {
     D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
     while (S_OK !=
