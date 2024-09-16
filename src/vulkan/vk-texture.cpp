@@ -71,14 +71,15 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     info.memory = m_imageMemory;
     info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 
-    auto& api = m_device->m_api;
+    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
+    auto& api = device->m_api;
     PFN_vkGetMemoryFdKHR vkCreateSharedHandle;
     vkCreateSharedHandle = api.vkGetMemoryFdKHR;
     if (!vkCreateSharedHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(m_device->m_device, &info, (int*)&m_sharedHandle.value) != VK_SUCCESS);
+    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(device->m_device, &info, (int*)&m_sharedHandle.value) != VK_SUCCESS);
     m_sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
     *outHandle = m_sharedHandle;
