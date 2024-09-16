@@ -43,13 +43,10 @@ public:
 class BufferImpl : public Buffer
 {
 public:
-    typedef Buffer Parent;
-
-    BufferImpl(const BufferDesc& desc, DeviceImpl* renderer);
+    BufferImpl(RendererBase* device, const BufferDesc& desc);
 
     ~BufferImpl();
 
-    RefPtr<DeviceImpl> m_renderer;
     VKBufferHandleRAII m_buffer;
     VKBufferHandleRAII m_uploadBuffer;
 
@@ -62,6 +59,29 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) override;
+
+    struct ViewKey
+    {
+        Format format;
+        BufferRange range;
+        bool operator==(const ViewKey& other) const { return format == other.format && range == other.range; }
+    };
+
+    struct ViewKeyHasher
+    {
+        size_t operator()(const ViewKey& key) const
+        {
+            size_t hash = 0;
+            hash_combine(hash, key.format);
+            hash_combine(hash, key.range.offset);
+            hash_combine(hash, key.range.size);
+            return hash;
+        }
+    };
+
+    std::unordered_map<ViewKey, VkBufferView, ViewKeyHasher> m_views;
+
+    VkBufferView getView(Format format, const BufferRange& range);
 };
 
 } // namespace rhi::vk

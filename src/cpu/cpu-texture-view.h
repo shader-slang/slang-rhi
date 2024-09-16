@@ -6,50 +6,13 @@
 
 namespace rhi::cpu {
 
-class ResourceViewImpl : public ResourceViewBase
+class TextureViewImpl : public TextureView, public slang_prelude::IRWTexture
 {
 public:
-    enum class Kind
-    {
-        Buffer,
-        Texture,
-    };
-
-    Kind getViewKind() const { return m_kind; }
-    Desc const& getDesc() const { return m_desc; }
-
-protected:
-    ResourceViewImpl(Kind kind, Desc const& desc);
-
-private:
-    Kind m_kind;
-};
-
-class BufferViewImpl : public ResourceViewImpl
-{
-public:
-    BufferViewImpl(Desc const& desc, BufferImpl* buffer)
-        : ResourceViewImpl(Kind::Buffer, desc)
-        , m_buffer(buffer)
+    TextureViewImpl(RendererBase* device, const TextureViewDesc& desc)
+        : TextureView(device, desc)
     {
     }
-
-    BufferImpl* getBuffer() const;
-
-private:
-    RefPtr<BufferImpl> m_buffer;
-};
-
-class TextureViewImpl : public ResourceViewImpl, public slang_prelude::IRWTexture
-{
-public:
-    TextureViewImpl(Desc const& desc, TextureImpl* texture)
-        : ResourceViewImpl(Kind::Texture, desc)
-        , m_texture(texture)
-    {
-    }
-
-    TextureImpl* getTexture() const;
 
     //
     // ITexture interface
@@ -76,7 +39,7 @@ public:
 
     void* refAt(const uint32_t* texelCoords) SLANG_OVERRIDE;
 
-private:
+public:
     RefPtr<TextureImpl> m_texture;
 
     void* _getTexelPtr(int32_t const* texelCoords);

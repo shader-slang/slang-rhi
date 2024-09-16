@@ -4,7 +4,7 @@
 namespace rhi::metal {
 
 BufferImpl::BufferImpl(const BufferDesc& desc, DeviceImpl* device)
-    : Parent(desc)
+    : Buffer(desc)
     , m_device(device)
 {
 }

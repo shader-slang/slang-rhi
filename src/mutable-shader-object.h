@@ -64,7 +64,7 @@ public:
 
     // We don't actually create any GPU buffers here, since they will be handled
     // by the immutable shader objects once the user calls `getCurrentVersion`.
-    ResourceViewBase* getResourceView(
+    Buffer* getBufferResource(
         RendererBase* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
@@ -80,8 +80,7 @@ class MutableShaderObject : public ShaderObjectBaseImpl<TShaderObject, TShaderOb
     typedef ShaderObjectBaseImpl<TShaderObject, TShaderObjectLayoutImpl, MutableShaderObjectData> Super;
 
 protected:
-    std::map<ShaderOffset, RefPtr<ResourceViewBase>> m_resources;
-    std::map<ShaderOffset, RefPtr<SamplerBase>> m_samplers;
+    std::map<ShaderOffset, Binding> m_bindings;
     std::set<ShaderOffset> m_objectOffsets;
     VersionedObjectPool<ShaderObjectBase> m_shaderObjectVersions;
     bool m_dirty = true;
@@ -140,26 +139,9 @@ public:
         return SLANG_OK;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setResource(ShaderOffset const& offset, IResourceView* resourceView) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override
     {
-        m_resources[offset] = static_cast<ResourceViewBase*>(resourceView);
-        markDirty();
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override
-    {
-        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
-        markDirty();
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override
-    {
-        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
-        m_resources[offset] = static_cast<ResourceViewBase*>(textureView);
+        m_bindings[offset] = binding;
         markDirty();
         return SLANG_OK;
     }
@@ -175,10 +157,8 @@ public:
 
         RefPtr<ShaderObjectBase> object = allocateShaderObject(static_cast<TransientResourceHeapBase*>(transientHeap));
         SLANG_RETURN_ON_FAIL(object->setData(ShaderOffset(), this->m_data.getBuffer(), this->m_data.getCount()));
-        for (auto it : m_resources)
-            SLANG_RETURN_ON_FAIL(object->setResource(it.first, it.second));
-        for (auto it : m_samplers)
-            SLANG_RETURN_ON_FAIL(object->setSampler(it.first, it.second));
+        for (auto it : m_bindings)
+            SLANG_RETURN_ON_FAIL(object->setBinding(it.first, it.second));
         for (auto offset : m_objectOffsets)
         {
             if (offset.bindingRangeIndex < 0)
@@ -225,8 +205,7 @@ class MutableRootShaderObject : public ShaderObjectBase
 {
 public:
     std::vector<uint8_t> m_data;
-    std::map<ShaderOffset, RefPtr<ResourceViewBase>> m_resources;
-    std::map<ShaderOffset, RefPtr<SamplerBase>> m_samplers;
+    std::map<ShaderOffset, Binding> m_bindings;
     std::map<ShaderOffset, RefPtr<ShaderObjectBase>> m_objects;
     std::map<ShaderOffset, std::vector<slang::SpecializationArg>> m_specializationArgs;
     std::vector<RefPtr<MutableRootShaderObject>> m_entryPoints;
@@ -304,23 +283,9 @@ public:
         return SLANG_OK;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setResource(ShaderOffset const& offset, IResourceView* resourceView) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override
     {
-        m_resources[offset] = static_cast<ResourceViewBase*>(resourceView);
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override
-    {
-        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
-        return SLANG_OK;
-    }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override
-    {
-        m_resources[offset] = static_cast<ResourceViewBase*>(textureView);
-        m_samplers[offset] = static_cast<SamplerBase*>(sampler);
+        m_bindings[offset] = binding;
         return SLANG_OK;
     }
 

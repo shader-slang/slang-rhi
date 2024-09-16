@@ -1,22 +1,6 @@
-#include "cpu-resource-views.h"
+#include "cpu-texture-view.h"
 
 namespace rhi::cpu {
-
-ResourceViewImpl::ResourceViewImpl(Kind kind, Desc const& desc)
-    : m_kind(kind)
-{
-    m_desc = desc;
-}
-
-BufferImpl* BufferViewImpl::getBuffer() const
-{
-    return m_buffer;
-}
-
-TextureImpl* TextureViewImpl::getTexture() const
-{
-    return m_texture;
-}
 
 slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mipLevel)
 {

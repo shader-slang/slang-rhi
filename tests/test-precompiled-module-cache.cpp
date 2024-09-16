@@ -181,7 +181,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setResource(bufferView);
+        entryPointCursor.getPath("buffer").setBinding(bufferView);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();

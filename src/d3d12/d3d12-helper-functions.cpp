@@ -199,135 +199,6 @@ uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
     );
 }
 
-void initSrvDesc(
-    const TextureDesc& textureDesc,
-    const D3D12_RESOURCE_DESC& desc,
-    DXGI_FORMAT pixelFormat,
-    SubresourceRange subresourceRange,
-    D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
-)
-{
-    // create SRV
-    descOut = D3D12_SHADER_RESOURCE_VIEW_DESC();
-
-    descOut.Format =
-        (pixelFormat == DXGI_FORMAT_UNKNOWN) ? D3DUtil::calcFormat(D3DUtil::USAGE_SRV, desc.Format) : pixelFormat;
-    descOut.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    if (desc.DepthOrArraySize == 1)
-    {
-        switch (desc.Dimension)
-        {
-        case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
-            descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
-            descOut.Texture1D.MipLevels = subresourceRange.mipLevelCount == 0
-                                              ? desc.MipLevels - subresourceRange.mipLevel
-                                              : subresourceRange.mipLevelCount;
-            descOut.Texture1D.MostDetailedMip = subresourceRange.mipLevel;
-            break;
-        case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-            descOut.ViewDimension =
-                textureDesc.sampleCount > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
-            descOut.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
-            descOut.Texture2D.ResourceMinLODClamp = 0.0f;
-            descOut.Texture2D.MipLevels = subresourceRange.mipLevelCount == 0
-                                              ? desc.MipLevels - subresourceRange.mipLevel
-                                              : subresourceRange.mipLevelCount;
-            descOut.Texture2D.MostDetailedMip = subresourceRange.mipLevel;
-            break;
-        case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
-            descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
-            descOut.Texture3D.MipLevels = subresourceRange.mipLevelCount == 0
-                                              ? desc.MipLevels - subresourceRange.mipLevel
-                                              : subresourceRange.mipLevelCount;
-            descOut.Texture3D.MostDetailedMip = subresourceRange.mipLevel;
-            break;
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
-        }
-    }
-    else if (textureDesc.type == TextureType::TextureCube)
-    {
-        if (textureDesc.arraySize > 1)
-        {
-            descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
-
-            descOut.TextureCubeArray.NumCubes =
-                subresourceRange.layerCount == 0 ? textureDesc.arraySize : subresourceRange.layerCount / 6;
-            descOut.TextureCubeArray.First2DArrayFace = subresourceRange.baseArrayLayer;
-            descOut.TextureCubeArray.MipLevels = subresourceRange.mipLevelCount == 0
-                                                     ? desc.MipLevels - subresourceRange.mipLevel
-                                                     : subresourceRange.mipLevelCount;
-            descOut.TextureCubeArray.MostDetailedMip = subresourceRange.mipLevel;
-            descOut.TextureCubeArray.ResourceMinLODClamp = 0;
-        }
-        else
-        {
-            descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-
-            descOut.TextureCube.MipLevels = subresourceRange.mipLevelCount == 0
-                                                ? desc.MipLevels - subresourceRange.mipLevel
-                                                : subresourceRange.mipLevelCount;
-            descOut.TextureCube.MostDetailedMip = subresourceRange.mipLevel;
-            descOut.TextureCube.ResourceMinLODClamp = 0;
-        }
-    }
-    else
-    {
-        SLANG_RHI_ASSERT(desc.DepthOrArraySize > 1);
-
-        switch (desc.Dimension)
-        {
-        case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
-            descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
-            descOut.Texture1D.MostDetailedMip = subresourceRange.mipLevel;
-            descOut.Texture1D.MipLevels =
-                subresourceRange.mipLevelCount == 0 ? desc.MipLevels : subresourceRange.mipLevelCount;
-            descOut.Texture1DArray.ArraySize =
-                subresourceRange.layerCount == 0 ? desc.DepthOrArraySize : subresourceRange.layerCount;
-            descOut.Texture1DArray.FirstArraySlice = subresourceRange.baseArrayLayer;
-            descOut.Texture1DArray.ResourceMinLODClamp = 0;
-            descOut.Texture1DArray.MostDetailedMip = subresourceRange.mipLevel;
-            descOut.Texture1DArray.MipLevels = subresourceRange.mipLevelCount == 0
-                                                   ? desc.MipLevels - subresourceRange.mipLevel
-                                                   : subresourceRange.mipLevelCount;
-            break;
-        case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
-            descOut.ViewDimension =
-                textureDesc.sampleCount > 1 ? D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY : D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-            if (descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DARRAY)
-            {
-                descOut.Texture2DArray.ArraySize =
-                    subresourceRange.layerCount == 0 ? desc.DepthOrArraySize : subresourceRange.layerCount;
-                descOut.Texture2DArray.FirstArraySlice = subresourceRange.baseArrayLayer;
-                descOut.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(descOut.Format, subresourceRange.aspectMask);
-                descOut.Texture2DArray.ResourceMinLODClamp = 0;
-                descOut.Texture2DArray.MostDetailedMip = subresourceRange.mipLevel;
-                descOut.Texture2DArray.MipLevels = subresourceRange.mipLevelCount == 0
-                                                       ? desc.MipLevels - subresourceRange.mipLevel
-                                                       : subresourceRange.mipLevelCount;
-            }
-            else
-            {
-                SLANG_RHI_ASSERT(descOut.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY);
-                descOut.Texture2DMSArray.FirstArraySlice = subresourceRange.baseArrayLayer;
-                descOut.Texture2DMSArray.ArraySize =
-                    subresourceRange.layerCount == 0 ? desc.DepthOrArraySize : subresourceRange.layerCount;
-            }
-
-            break;
-        case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
-            descOut.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
-            descOut.Texture3D.MostDetailedMip = subresourceRange.mipLevel;
-            descOut.Texture3D.MipLevels =
-                subresourceRange.mipLevelCount == 0 ? desc.MipLevels : subresourceRange.mipLevelCount;
-            break;
-
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
-        }
-    }
-}
-
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc)
 {
     const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
@@ -400,7 +271,7 @@ Result uploadBufferDataImpl(
 {
     IBuffer* uploadResource;
     Offset uploadResourceOffset = 0;
-    if (buffer->getDesc()->memoryType != MemoryType::Upload)
+    if (buffer->m_desc.memoryType != MemoryType::Upload)
     {
         SLANG_RETURN_ON_FAIL(
             transientHeap->allocateStagingBuffer(size, uploadResource, uploadResourceOffset, MemoryType::Upload)
@@ -410,7 +281,7 @@ Result uploadBufferDataImpl(
     {
         uploadResourceOffset = offset;
     }
-    D3D12Resource& uploadResourceRef = (buffer->getDesc()->memoryType == MemoryType::Upload)
+    D3D12Resource& uploadResourceRef = (buffer->m_desc.memoryType == MemoryType::Upload)
                                            ? buffer->m_resource
                                            : static_cast<BufferImpl*>(uploadResource)->m_resource;
 
@@ -425,7 +296,7 @@ Result uploadBufferDataImpl(
     writtenRange.End = uploadResourceOffset + size;
     uploadResourceRef.getResource()->Unmap(0, &writtenRange);
 
-    if (buffer->getDesc()->memoryType != MemoryType::Upload)
+    if (buffer->m_desc.memoryType != MemoryType::Upload)
     {
         cmdList->CopyBufferRegion(
             buffer->m_resource.getResource(),

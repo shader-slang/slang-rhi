@@ -86,19 +86,22 @@ Result VKBufferHandleRAII::init(
     return SLANG_OK;
 }
 
-BufferImpl::BufferImpl(const BufferDesc& desc, DeviceImpl* renderer)
-    : Parent(desc)
-    , m_renderer(renderer)
+BufferImpl::BufferImpl(RendererBase* device, const BufferDesc& desc)
+    : Buffer(device, desc)
 {
-    SLANG_RHI_ASSERT(renderer);
 }
 
 BufferImpl::~BufferImpl()
 {
-    if (sharedHandle)
+    for (auto& view : m_views)
+    {
+        m_buffer.m_api->vkDestroyBufferView(m_buffer.m_api->m_device, view.second, nullptr);
+    }
+
+    if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        CloseHandle((HANDLE)sharedHandle.value);
+        CloseHandle((HANDLE)m_sharedHandle.value);
 #endif
     }
 }
@@ -123,9 +126,9 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
     // Check if a shared handle already exists for this resource.
-    if (sharedHandle)
+    if (m_sharedHandle)
     {
-        *outHandle = sharedHandle;
+        *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
@@ -144,8 +147,8 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (HANDLE*)&sharedHandle.value));
-    sharedHandle.type = NativeHandleType::Win32;
+    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (HANDLE*)&m_sharedHandle.value));
+    m_sharedHandle.type = NativeHandleType::Win32;
 #else
     VkMemoryGetFdInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -160,10 +163,10 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (int*)&sharedHandle.value));
-    sharedHandle.type = NativeHandleType::FileDescriptor;
+    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (int*)&m_sharedHandle.value));
+    m_sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
-    *outHandle = sharedHandle;
+    *outHandle = m_sharedHandle;
     return SLANG_OK;
 }
 
@@ -181,6 +184,42 @@ Result BufferImpl::unmap(MemoryRange* writtenRange)
     auto api = m_buffer.m_api;
     api->vkUnmapMemory(api->m_device, m_buffer.m_memory);
     return SLANG_OK;
+}
+
+VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
+{
+    ViewKey key = {format, range};
+    VkBufferView& view = m_views[key];
+    if (view)
+        return view;
+
+    VkBufferViewCreateInfo info = {VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO};
+    info.format = VulkanUtil::getVkFormat(format);
+    info.buffer = m_buffer.m_buffer;
+    info.offset = range.offset;
+    info.range = range.size;
+
+    // VkBufferUsageFlags2CreateInfoKHR bufferViewUsage{};
+    // bufferViewUsage.sType = VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO_KHR;
+
+    // if (desc.type == IResourceView::Type::UnorderedAccess)
+    // {
+    //     info.pNext = &bufferViewUsage;
+    //     bufferViewUsage.usage = VK_BUFFER_USAGE_2_STORAGE_TEXEL_BUFFER_BIT_KHR;
+    // }
+    // else if (desc.type == IResourceView::Type::ShaderResource)
+    // {
+    //     info.pNext = &bufferViewUsage;
+    //     bufferViewUsage.usage = VK_BUFFER_USAGE_2_UNIFORM_TEXEL_BUFFER_BIT_KHR;
+    // }
+    // else
+    // {
+    //     SLANG_RHI_ASSERT_FAILURE("Unhandled");
+    // }
+
+    VkResult result = m_buffer.m_api->vkCreateBufferView(m_buffer.m_api->m_device, &info, nullptr, &view);
+    SLANG_RHI_ASSERT(result == VK_SUCCESS);
+    return view;
 }
 
 } // namespace rhi::vk

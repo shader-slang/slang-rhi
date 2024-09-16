@@ -9,7 +9,6 @@
 // #include "metal-command-queue.h"
 #include "metal-fence.h"
 #include "metal-query.h"
-// #include "metal-resource-views.h"
 #include "metal-sampler.h"
 #include "metal-shader-object-layout.h"
 #include "metal-shader-object.h"
@@ -546,20 +545,22 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
+Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     AUTORELEASEPOOL
 
     auto textureImpl = static_cast<TextureImpl*>(texture);
-    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(this);
-    viewImpl->m_desc = desc;
-    viewImpl->m_device = this;
-    viewImpl->m_texture = textureImpl;
+    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl();
+    viewImpl->init(desc, textureImpl);
     if (textureImpl == nullptr)
     {
         returnComPtr(outView, viewImpl);
         return SLANG_OK;
     }
+
+    if (viewImpl->m_desc.format == Format::Unknown)
+        viewImpl->m_desc.format = viewImpl->m_texture->m_desc.format;
+    viewImpl->m_desc.subresourceRange = viewImpl->m_texture->resolveSubresourceRange(desc.subresourceRange);
 
     const TextureDesc& textureDesc = *textureImpl->getDesc();
     SubresourceRange sr = desc.subresourceRange;
@@ -610,37 +611,6 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     support |= FormatSupport::ShaderAtomic;
 
     *outFormatSupport = support;
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createBufferView(
-    IBuffer* buffer,
-    IBuffer* counterBuffer,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
-{
-    AUTORELEASEPOOL
-
-    // Counter buffers are not supported on metal.
-    if (counterBuffer)
-    {
-        return SLANG_FAIL;
-    }
-
-    if (desc.type != IResourceView::Type::UnorderedAccess && desc.type != IResourceView::Type::ShaderResource)
-    {
-        return SLANG_FAIL;
-    }
-
-    auto bufferImpl = static_cast<BufferImpl*>(buffer);
-
-    RefPtr<BufferViewImpl> viewImpl = new BufferViewImpl(this);
-    viewImpl->m_desc = desc;
-    viewImpl->m_buffer = bufferImpl;
-    viewImpl->m_offset = desc.bufferRange.offset;
-    viewImpl->m_size = desc.bufferRange.size == 0 ? bufferImpl->getDesc()->size : desc.bufferRange.size;
-    returnComPtr(outView, viewImpl);
     return SLANG_OK;
 }
 

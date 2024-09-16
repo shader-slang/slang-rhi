@@ -3,12 +3,14 @@
 #include "vk-command-buffer.h"
 #include "vk-helper-functions.h"
 #include "vk-query.h"
-#include "vk-resource-views.h"
 #include "vk-shader-object.h"
 #include "vk-shader-program.h"
 #include "vk-shader-table.h"
 #include "vk-texture.h"
+#include "vk-texture-view.h"
 #include "vk-transient-heap.h"
+#include "vk-device.h"
+#include "vk-api.h"
 
 #include "core/short_vector.h"
 
@@ -24,15 +26,15 @@ void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* texture
 
     for (GfxIndex i = 0; i < count; i++)
     {
-        auto image = static_cast<TextureImpl*>(textures[i]);
-        auto desc = image->getDesc();
+        TextureImpl* texture = static_cast<TextureImpl*>(textures[i]);
+        const TextureDesc& desc = texture->getDesc();
 
         VkImageMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.image = image->m_image;
+        barrier.image = texture->m_image;
         barrier.oldLayout = translateImageLayout(src);
         barrier.newLayout = translateImageLayout(dst);
-        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(desc->format));
+        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(desc.format));
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.baseMipLevel = 0;
         barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
@@ -45,8 +47,8 @@ void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* texture
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
     VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
 
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    vkApi.vkCmdPipelineBarrier(
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
         srcStage,
         dstStage,
@@ -88,8 +90,8 @@ void CommandEncoderImpl::textureSubresourceBarrier(
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
     VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
 
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    vkApi.vkCmdPipelineBarrier(
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
         srcStage,
         dstStage,
@@ -111,15 +113,15 @@ void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, 
 
     for (GfxIndex i = 0; i < count; i++)
     {
-        auto bufferImpl = static_cast<BufferImpl*>(buffers[i]);
+        BufferImpl* buffer = static_cast<BufferImpl*>(buffers[i]);
 
         VkBufferMemoryBarrier barrier = {};
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barrier.srcAccessMask = calcAccessFlags(src);
         barrier.dstAccessMask = calcAccessFlags(dst);
-        barrier.buffer = bufferImpl->m_buffer.m_buffer;
+        barrier.buffer = buffer->m_buffer.m_buffer;
         barrier.offset = 0;
-        barrier.size = bufferImpl->getDesc()->size;
+        barrier.size = buffer->m_desc.size;
 
         barriers.push_back(barrier);
     }
@@ -127,8 +129,8 @@ void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, 
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
     VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
 
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    vkApi.vkCmdPipelineBarrier(
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
         srcStage,
         dstStage,
@@ -144,8 +146,8 @@ void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, 
 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    if (vkApi.vkCmdDebugMarkerBeginEXT)
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    if (api.vkCmdDebugMarkerBeginEXT)
     {
         VkDebugMarkerMarkerInfoEXT eventInfo = {};
         eventInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
@@ -154,16 +156,16 @@ void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
         eventInfo.color[1] = rgbColor[1];
         eventInfo.color[2] = rgbColor[2];
         eventInfo.color[3] = 1.0f;
-        vkApi.vkCmdDebugMarkerBeginEXT(m_commandBuffer->m_commandBuffer, &eventInfo);
+        api.vkCmdDebugMarkerBeginEXT(m_commandBuffer->m_commandBuffer, &eventInfo);
     }
 }
 
 void CommandEncoderImpl::endDebugEvent()
 {
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    if (vkApi.vkCmdDebugMarkerEndEXT)
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    if (api.vkCmdDebugMarkerEndEXT)
     {
-        vkApi.vkCmdDebugMarkerEndEXT(m_commandBuffer->m_commandBuffer);
+        api.vkCmdDebugMarkerEndEXT(m_commandBuffer->m_commandBuffer);
     }
 }
 
@@ -203,6 +205,7 @@ void CommandEncoderImpl::endEncodingImpl()
 }
 
 void CommandEncoderImpl::_uploadBufferData(
+    VulkanApi* api,
     VkCommandBuffer commandBuffer,
     TransientResourceHeapImpl* transientHeap,
     BufferImpl* buffer,
@@ -211,7 +214,6 @@ void CommandEncoderImpl::_uploadBufferData(
     void* data
 )
 {
-    auto& api = buffer->m_renderer->m_api;
     IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
     transientHeap->allocateStagingBuffer(size, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
@@ -219,8 +221,8 @@ void CommandEncoderImpl::_uploadBufferData(
     BufferImpl* stagingBufferImpl = static_cast<BufferImpl*>(stagingBuffer);
 
     void* mappedData = nullptr;
-    SLANG_VK_CHECK(api.vkMapMemory(
-        api.m_device,
+    SLANG_VK_CHECK(api->vkMapMemory(
+        api->m_device,
         stagingBufferImpl->m_buffer.m_memory,
         0,
         stagingBufferOffset + size,
@@ -228,20 +230,21 @@ void CommandEncoderImpl::_uploadBufferData(
         &mappedData
     ));
     memcpy((char*)mappedData + stagingBufferOffset, data, size);
-    api.vkUnmapMemory(api.m_device, stagingBufferImpl->m_buffer.m_memory);
+    api->vkUnmapMemory(api->m_device, stagingBufferImpl->m_buffer.m_memory);
 
     // Copy from staging buffer to real buffer
     VkBufferCopy copyInfo = {};
     copyInfo.size = size;
     copyInfo.dstOffset = offset;
     copyInfo.srcOffset = stagingBufferOffset;
-    api.vkCmdCopyBuffer(commandBuffer, stagingBufferImpl->m_buffer.m_buffer, buffer->m_buffer.m_buffer, 1, &copyInfo);
+    api->vkCmdCopyBuffer(commandBuffer, stagingBufferImpl->m_buffer.m_buffer, buffer->m_buffer.m_buffer, 1, &copyInfo);
 }
 
 void CommandEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     m_vkPreCommandBuffer = m_commandBuffer->getPreCommandBuffer();
     _uploadBufferData(
+        m_api,
         m_vkPreCommandBuffer,
         m_commandBuffer->m_transientHeap.get(),
         static_cast<BufferImpl*>(buffer),
@@ -388,6 +391,7 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
 void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     CommandEncoderImpl::_uploadBufferData(
+        m_api,
         m_commandBuffer->m_commandBuffer,
         m_commandBuffer->m_transientHeap.get(),
         static_cast<BufferImpl*>(buffer),
@@ -432,27 +436,27 @@ void ResourceCommandEncoderImpl::copyTexture(
     Extents extent
 )
 {
-    auto srcImage = static_cast<TextureImpl*>(src);
-    auto srcDesc = srcImage->getDesc();
-    auto srcImageLayout = VulkanUtil::getImageLayoutFromState(srcState);
-    auto dstImage = static_cast<TextureImpl*>(dst);
-    auto dstDesc = dstImage->getDesc();
-    auto dstImageLayout = VulkanUtil::getImageLayoutFromState(dstState);
+    TextureImpl* srcImage = static_cast<TextureImpl*>(src);
+    const TextureDesc& srcDesc = srcImage->m_desc;
+    VkImageLayout srcImageLayout = VulkanUtil::getImageLayoutFromState(srcState);
+    TextureImpl* dstImage = static_cast<TextureImpl*>(dst);
+    const TextureDesc& dstDesc = dstImage->m_desc;
+    VkImageLayout dstImageLayout = VulkanUtil::getImageLayoutFromState(dstState);
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0)
     {
-        extent = dstDesc->size;
-        dstSubresource.layerCount = dstDesc->arraySize;
+        extent = dstDesc.size;
+        dstSubresource.layerCount = dstDesc.arraySize;
         if (dstSubresource.layerCount == 0)
             dstSubresource.layerCount = 1;
-        dstSubresource.mipLevelCount = dstDesc->numMipLevels;
+        dstSubresource.mipLevelCount = dstDesc.numMipLevels;
     }
     if (srcSubresource.layerCount == 0 && srcSubresource.mipLevelCount == 0)
     {
-        extent = srcDesc->size;
-        srcSubresource.layerCount = srcDesc->arraySize;
+        extent = srcDesc.size;
+        srcSubresource.layerCount = srcDesc.arraySize;
         if (srcSubresource.layerCount == 0)
             srcSubresource.layerCount = 1;
-        srcSubresource.mipLevelCount = dstDesc->numMipLevels;
+        srcSubresource.mipLevelCount = dstDesc.numMipLevels;
     }
     VkImageCopy region = {};
     region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(srcSubresource.aspectMask, srcImage->m_vkformat);
@@ -467,8 +471,8 @@ void ResourceCommandEncoderImpl::copyTexture(
     region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
     region.extent = {(uint32_t)extent.width, (uint32_t)extent.height, (uint32_t)extent.depth};
 
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    vkApi.vkCmdCopyImage(
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    api.vkCmdCopyImage(
         m_commandBuffer->m_commandBuffer,
         srcImage->m_image,
         srcImageLayout,
@@ -490,12 +494,12 @@ void ResourceCommandEncoderImpl::uploadTextureData(
 {
     // VALIDATION: dst must be in TransferDst state.
 
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_renderer->m_api;
     auto dstImpl = static_cast<TextureImpl*>(dst);
     std::vector<Extents> mipSizes;
 
     VkCommandBuffer commandBuffer = m_commandBuffer->m_commandBuffer;
-    auto& desc = *dstImpl->getDesc();
+    const TextureDesc& desc = dstImpl->m_desc;
     // Calculate how large the buffer has to be
     Size bufferSize = 0;
     // Calculate how large an array entry is
@@ -603,7 +607,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
                 region.imageExtent = {uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth)};
 
                 // Do the copy (do all depths in a single go)
-                vkApi.vkCmdCopyBufferToImage(
+                api.vkCmdCopyBufferToImage(
                     commandBuffer,
                     static_cast<BufferImpl*>(uploadBuffer)->m_buffer.m_buffer,
                     dstImpl->m_image,
@@ -619,6 +623,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     }
 }
 
+#if 0
 void ResourceCommandEncoderImpl::_clearColorImage(TextureViewImpl* viewImpl, ClearValue* clearValue)
 {
     auto& api = m_commandBuffer->m_renderer->m_api;
@@ -829,6 +834,28 @@ void ResourceCommandEncoderImpl::clearResourceView(
     break;
     }
 }
+#endif
+
+void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+{
+    // TODO(skallweit) transition to copy destination
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    uint64_t offset = range ? range->offset : 0;
+    uint64_t size = range ? range->size : bufferImpl->m_desc.size;
+    api.vkCmdFillBuffer(m_commandBuffer->m_commandBuffer, bufferImpl->m_buffer.m_buffer, offset, size, 0);
+}
+
+void ResourceCommandEncoderImpl::clearTexture(
+    ITexture* texture,
+    const ClearValue& clearValue,
+    const SubresourceRange* subresourceRange,
+    bool clearDepth,
+    bool clearStencil
+)
+{
+    SLANG_RHI_UNIMPLEMENTED("clearTexture");
+}
 
 void ResourceCommandEncoderImpl::resolveResource(
     ITexture* source,
@@ -839,8 +866,8 @@ void ResourceCommandEncoderImpl::resolveResource(
     SubresourceRange destRange
 )
 {
-    auto srcTexture = static_cast<TextureImpl*>(source);
-    auto srcExtent = srcTexture->getDesc()->size;
+    TextureImpl* srcTexture = static_cast<TextureImpl*>(source);
+    auto srcExtent = srcTexture->m_desc.size;
     auto dstTexture = static_cast<TextureImpl*>(dest);
 
     auto srcImage = srcTexture->m_image;
@@ -867,8 +894,8 @@ void ResourceCommandEncoderImpl::resolveResource(
             region.dstOffset = {0, 0, 0};
             region.extent = {(uint32_t)srcExtent.width, (uint32_t)srcExtent.height, (uint32_t)srcExtent.depth};
 
-            auto& vkApi = m_commandBuffer->m_renderer->m_api;
-            vkApi.vkCmdResolveImage(
+            auto& api = m_commandBuffer->m_renderer->m_api;
+            api.vkCmdResolveImage(
                 m_commandBuffer->m_commandBuffer,
                 srcImage,
                 srcImageLayout,
@@ -889,10 +916,10 @@ void ResourceCommandEncoderImpl::resolveQuery(
     Offset offset
 )
 {
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_renderer->m_api;
     auto poolImpl = static_cast<QueryPoolImpl*>(queryPool);
     auto bufferImpl = static_cast<BufferImpl*>(buffer);
-    vkApi.vkCmdCopyQueryPoolResults(
+    api.vkCmdCopyQueryPoolResults(
         m_commandBuffer->m_commandBuffer,
         poolImpl->m_pool,
         index,
@@ -934,8 +961,8 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
     region.imageExtent = {uint32_t(extent.width), uint32_t(extent.height), uint32_t(extent.depth)};
 
-    auto& vkApi = m_commandBuffer->m_renderer->m_api;
-    vkApi.vkCmdCopyImageToBuffer(
+    auto& api = m_commandBuffer->m_renderer->m_api;
+    api.vkCmdCopyImageToBuffer(
         m_commandBuffer->m_commandBuffer,
         image->m_image,
         srcImageLayout,
@@ -981,20 +1008,20 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
         textureBarrier(1, &texture, attachment.initialState, ResourceState::RenderTarget);
 
         // Determine render area
-        const IResourceView::Desc* viewDesc = &view->m_desc;
-        const TextureDesc* textureDesc = view->m_texture->getDesc();
-        uint32_t width = getMipLevelSize(viewDesc->subresourceRange.mipLevel, textureDesc->size.width);
-        uint32_t height = getMipLevelSize(viewDesc->subresourceRange.mipLevel, textureDesc->size.height);
+        const TextureViewDesc& viewDesc = view->m_desc;
+        const TextureDesc& textureDesc = view->m_texture->m_desc;
+        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
+        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
         renderArea.extent.width = std::min(renderArea.extent.width, width);
         renderArea.extent.height = std::min(renderArea.extent.height, height);
-        uint32_t attachmentLayerCount = (textureDesc->type == TextureType::Texture3D)
-                                            ? textureDesc->size.depth
-                                            : viewDesc->subresourceRange.layerCount;
+        uint32_t attachmentLayerCount = (textureDesc.type == TextureType::Texture3D)
+                                            ? textureDesc.size.depth
+                                            : viewDesc.subresourceRange.layerCount;
         layerCount = std::max(layerCount, attachmentLayerCount);
 
         // Create attachment info
         VkRenderingAttachmentInfoKHR attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
-        attachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
+        attachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
         attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         attachmentInfo.loadOp = translateLoadOp(attachment.loadOp);
         attachmentInfo.storeOp = translateStoreOp(attachment.storeOp);
@@ -1022,10 +1049,10 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
         textureBarrier(1, &texture, attachment.initialState, m_depthStencilCurrentState);
 
         // Determine render area
-        const IResourceView::Desc* viewDesc = &view->m_desc;
-        const TextureDesc* textureDesc = view->m_texture->getDesc();
-        uint32_t width = getMipLevelSize(viewDesc->subresourceRange.mipLevel, textureDesc->size.width);
-        uint32_t height = getMipLevelSize(viewDesc->subresourceRange.mipLevel, textureDesc->size.height);
+        const TextureViewDesc& viewDesc = view->m_desc;
+        const TextureDesc& textureDesc = view->m_texture->m_desc;
+        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
+        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
         renderArea.extent.width = std::min(renderArea.extent.width, width);
         renderArea.extent.height = std::min(renderArea.extent.height, height);
 
@@ -1034,7 +1061,7 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
         {
             hasDepthAttachment = true;
             const auto& attachment = *desc.depthStencilAttachment;
-            depthAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
+            depthAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
             depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachmentInfo.loadOp = translateLoadOp(attachment.depthLoadOp);
             depthAttachmentInfo.storeOp = translateStoreOp(attachment.depthStoreOp);
@@ -1044,7 +1071,7 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
         {
             hasStencilAttachment = true;
             const auto& attachment = *desc.depthStencilAttachment;
-            stencilAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->m_view;
+            stencilAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
             stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             stencilAttachmentInfo.loadOp = translateLoadOp(attachment.stencilLoadOp);
             stencilAttachmentInfo.storeOp = translateStoreOp(attachment.stencilStoreOp);
@@ -1611,12 +1638,12 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
     GfxCount depth
 )
 {
-    auto vkApi = m_commandBuffer->m_renderer->m_api;
+    auto api = m_commandBuffer->m_renderer->m_api;
     auto vkCommandBuffer = m_commandBuffer->m_commandBuffer;
 
     SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR));
 
-    auto rtProps = vkApi.m_rtProperties;
+    auto rtProps = api.m_rtProperties;
     auto shaderTableImpl = (ShaderTableImpl*)shaderTable;
     auto alignedHandleSize = VulkanUtil::calcAligned(rtProps.shaderGroupHandleSize, rtProps.shaderGroupHandleAlignment);
 
@@ -1644,7 +1671,7 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
     callableSBT.stride = alignedHandleSize;
     callableSBT.size = shaderTableImpl->m_callableTableSize;
 
-    vkApi.vkCmdTraceRaysKHR(
+    api.vkCmdTraceRaysKHR(
         vkCommandBuffer,
         &raygenSBT,
         &missSBT,

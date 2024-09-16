@@ -158,7 +158,7 @@ Result SwapchainImpl::createSwapchainAndImages()
         imageDesc.size.depth = 1;
         imageDesc.numMipLevels = 1;
         imageDesc.defaultState = ResourceState::Present;
-        RefPtr<TextureImpl> image = new TextureImpl(imageDesc, m_renderer);
+        RefPtr<TextureImpl> image = new TextureImpl(m_renderer, imageDesc);
         image->m_image = vkImages[i];
         image->m_imageMemory = 0;
         image->m_vkformat = m_vkformat;

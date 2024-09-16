@@ -56,7 +56,7 @@ struct BaseResolveResourceTest
     IDevice* device;
 
     ComPtr<ITexture> msaaTexture;
-    ComPtr<IResourceView> msaaTextureView;
+    ComPtr<ITextureView> msaaTextureView;
     ComPtr<ITexture> dstTexture;
 
     ComPtr<ITransientResourceHeap> transientHeap;
@@ -147,12 +147,9 @@ struct BaseResolveResourceTest
         pipelineDesc.multisample.sampleCount = 4;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
-        IResourceView::Desc colorBufferViewDesc;
-        memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
-        colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
-        colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
-        REQUIRE_CALL(device->createTextureView(msaaTexture, colorBufferViewDesc, msaaTextureView.writeRef()));
+        TextureViewDesc textureViewDesc = {};
+        textureViewDesc.format = format;
+        REQUIRE_CALL(device->createTextureView(msaaTexture, textureViewDesc, msaaTextureView.writeRef()));
     }
 
     void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)

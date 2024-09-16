@@ -102,13 +102,7 @@ public:
     setData(ShaderOffset const& inOffset, void const* data, size_t inSize) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setResource(ShaderOffset const& offset, IResourceView* resourceView) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
 
 protected:
     Result init(

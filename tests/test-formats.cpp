@@ -39,8 +39,8 @@ Format convertTypelessFormat(Format format)
 void setUpAndRunTest(
     IDevice* device,
     ComPtr<ITransientResourceHeap> transientHeap,
-    ComPtr<IResourceView> texView,
-    ComPtr<IResourceView> bufferView,
+    ComPtr<ITextureView> texView,
+    ComPtr<IBuffer> buffer,
     const char* entryPoint,
     ComPtr<ISampler> sampler = nullptr
 )
@@ -68,13 +68,13 @@ void setUpAndRunTest(
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
         // Bind texture view to the entry point
-        entryPointCursor.getPath("tex").setResource(texView);
+        entryPointCursor.getPath("tex").setBinding(texView);
 
         if (sampler)
-            entryPointCursor.getPath("sampler").setSampler(sampler);
+            entryPointCursor.getPath("sampler").setBinding(sampler);
 
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setResource(bufferView);
+        entryPointCursor.getPath("buffer").setBinding(buffer);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();
@@ -84,7 +84,7 @@ void setUpAndRunTest(
     }
 }
 
-ComPtr<IResourceView> createTexView(IDevice* device, Extents size, Format format, SubresourceData* data, int mips = 1)
+ComPtr<ITextureView> createTexView(IDevice* device, Extents size, Format format, SubresourceData* data, int mips = 1)
 {
     // FormatInfo info;
     // rhiGetFormatInfo(format, &info);
@@ -102,9 +102,8 @@ ComPtr<IResourceView> createTexView(IDevice* device, Extents size, Format format
     ComPtr<ITexture> inTex;
     REQUIRE_CALL(device->createTexture(texDesc, data, inTex.writeRef()));
 
-    ComPtr<IResourceView> texView;
-    IResourceView::Desc texViewDesc = {};
-    texViewDesc.type = IResourceView::Type::ShaderResource;
+    ComPtr<ITextureView> texView;
+    TextureViewDesc texViewDesc = {};
     texViewDesc.format = rhiIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
     REQUIRE_CALL(device->createTextureView(inTex, texViewDesc, texView.writeRef()));
     return texView;
@@ -127,16 +126,6 @@ ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
     return outBuffer;
 }
 
-ComPtr<IResourceView> createBufferView(IDevice* device, ComPtr<IBuffer> outBuffer)
-{
-    ComPtr<IResourceView> bufferView;
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(outBuffer, nullptr, viewDesc, bufferView.writeRef()));
-    return bufferView;
-}
-
 void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
@@ -153,15 +142,12 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
 
     float initFloatData[16] = {0.0f};
     auto floatResults = createBuffer<float>(device, 16, initFloatData);
-    auto floatBufferView = createBufferView(device, floatResults);
 
     uint32_t initUintData[16] = {0u};
     auto uintResults = createBuffer<uint32_t>(device, 16, initUintData);
-    auto uintBufferView = createBufferView(device, uintResults);
 
     int32_t initIntData[16] = {0};
     auto intResults = createBuffer<uint32_t>(device, 16, initIntData);
-    auto intBufferView = createBufferView(device, intResults);
 
     Extents size = {};
     size.width = 2;
@@ -181,7 +167,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 32, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32A32_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -189,7 +175,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R32G32B32A32_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -204,7 +190,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 24, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat3");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat3");
         compareComputeResult(
             device,
             floatResults,
@@ -212,7 +198,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R32G32B32_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat3");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat3");
         compareComputeResult(
             device,
             floatResults,
@@ -225,11 +211,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R32G32_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f});
 
         texView = createTexView(device, size, Format::R32G32_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f});
     }
 
@@ -238,11 +224,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R32_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.5f, 0.25f});
 
         texView = createTexView(device, size, Format::R32_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.5f, 0.25f});
     }
 
@@ -252,7 +238,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -260,7 +246,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R16G16B16A16_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -273,11 +259,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f});
 
         texView = createTexView(device, size, Format::R16G16_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f});
     }
 
@@ -286,11 +272,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.5f, 0.25f});
 
         texView = createTexView(device, size, Format::R16_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.5f, 0.25f});
     }
 
@@ -299,7 +285,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 32, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32A32_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint4");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint4");
         compareComputeResult(
             device,
             uintResults,
@@ -314,7 +300,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 24, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint3");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint3");
         compareComputeResult(
             device,
             uintResults,
@@ -327,7 +313,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R32G32_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint2");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint2");
         compareComputeResult(device, uintResults, std::array{255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u});
     }
 
@@ -336,7 +322,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R32_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint");
         compareComputeResult(device, uintResults, std::array{255u, 0u, 127u, 73u});
     }
 
@@ -345,7 +331,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint4");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint4");
         compareComputeResult(
             device,
             uintResults,
@@ -358,7 +344,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint2");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint2");
         compareComputeResult(device, uintResults, std::array{255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u});
     }
 
@@ -367,7 +353,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint");
         compareComputeResult(device, uintResults, std::array{255u, 0u, 127u, 73u});
     }
 
@@ -376,7 +362,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint4");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint4");
         compareComputeResult(
             device,
             uintResults,
@@ -389,7 +375,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint2");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint2");
         compareComputeResult(device, uintResults, std::array{255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u});
     }
 
@@ -398,7 +384,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint");
         compareComputeResult(device, uintResults, std::array{255u, 0u, 127u, 73u});
     }
 
@@ -407,7 +393,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 32, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32A32_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt4");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt4");
         compareComputeResult(
             device,
             intResults,
@@ -422,7 +408,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 24, 0};
 
         auto texView = createTexView(device, size, Format::R32G32B32_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt3");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt3");
         compareComputeResult(device, intResults, std::array{255, 0, 0, 0, 255, 0, 0, 0, 255, 127, 127, 127});
     }
 
@@ -431,7 +417,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R32G32_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt2");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt2");
         compareComputeResult(device, intResults, std::array{255, 0, 0, 255, 255, 255, 127, 127});
     }
 
@@ -440,7 +426,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R32_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt");
         compareComputeResult(device, intResults, std::array{255, 0, 127, 73});
     }
 
@@ -449,7 +435,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt4");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt4");
         compareComputeResult(
             device,
             intResults,
@@ -462,7 +448,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt2");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt2");
         compareComputeResult(device, intResults, std::array{255, 0, 0, 255, 255, 255, 127, 127});
     }
 
@@ -471,7 +457,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt");
         compareComputeResult(device, intResults, std::array{255, 0, 127, 73});
     }
 
@@ -480,7 +466,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt4");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt4");
         compareComputeResult(
             device,
             intResults,
@@ -493,7 +479,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt2");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt2");
         compareComputeResult(device, intResults, std::array{127, 0, 0, 127, 127, 127, 73, 73});
     }
 
@@ -502,7 +488,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_SINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, intBufferView, "copyTexInt");
+        setUpAndRunTest(device, transientHeap, texView, intResults, "copyTexInt");
         compareComputeResult(device, intResults, std::array{127, 0, 73, 25});
     }
 
@@ -512,7 +498,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -542,7 +528,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(
             device,
             floatResults,
@@ -555,7 +541,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.499992371f, 0.249988556f});
     }
 
@@ -566,7 +552,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -591,7 +577,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R8G8B8A8_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -616,7 +602,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R8G8B8A8_UNORM_SRGB, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -648,7 +634,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(
             device,
             floatResults,
@@ -656,7 +642,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R8G8_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(
             device,
             floatResults,
@@ -671,11 +657,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.498039216f, 0.247058824f});
 
         texView = createTexView(device, size, Format::R8_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.498039216f, 0.247058824f});
     }
 
@@ -686,7 +672,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::B8G8R8A8_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -711,7 +697,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::B8G8R8A8_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -736,7 +722,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::B8G8R8A8_UNORM_SRGB, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -766,7 +752,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, size, Format::R16G16B16A16_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -779,7 +765,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R16G16_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f});
     }
 
@@ -788,7 +774,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R16_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, -1.0f, 0.0f});
     }
 
@@ -797,7 +783,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R8G8B8A8_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -810,7 +796,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::R8G8_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat2");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat2");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f});
     }
 
@@ -819,7 +805,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 2, 0};
 
         auto texView = createTexView(device, size, Format::R8_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat");
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, -1.0f, 0.0f});
     }
 
@@ -830,7 +816,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::B4G4R4A4_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -862,7 +848,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 4, 0};
 
         auto texView = createTexView(device, size, Format::B5G6R5_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat3");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat3");
         compareComputeResult(
             device,
             floatResults,
@@ -870,7 +856,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::B5G5R5A1_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -900,7 +886,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R9G9B9E5_SHAREDEXP, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat3");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat3");
         compareComputeResult(
             device,
             floatResults,
@@ -915,7 +901,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R10G10B10A2_TYPELESS, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint4");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint4");
         compareComputeResult(
             device,
             uintResults,
@@ -923,7 +909,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R10G10B10A2_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat4");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat4");
         compareComputeResult(
             device,
             floatResults,
@@ -948,7 +934,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, size, Format::R10G10B10A2_UINT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, uintBufferView, "copyTexUint4");
+        setUpAndRunTest(device, transientHeap, texView, uintResults, "copyTexUint4");
         compareComputeResult(
             device,
             uintResults,
@@ -961,7 +947,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, size, Format::R11G11B10_FLOAT, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "copyTexFloat3");
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "copyTexFloat3");
         compareComputeResult(
             device,
             floatResults,
@@ -986,11 +972,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         size.depth = 1;
 
         auto texView = createTexView(device, size, Format::BC1_UNORM, subData, 2);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleMips", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleMips", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.0f, 0.517647088f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
         texView = createTexView(device, size, Format::BC1_UNORM_SRGB, subData, 2);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleMips", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleMips", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.0f, 0.230468750f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
     }
 
@@ -1001,11 +987,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC2_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.0f, 0.517647088f, 1.0f});
 
         texView = createTexView(device, bcSize, Format::BC2_UNORM_SRGB, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.0f, 0.230468750f, 1.0f});
     }
 
@@ -1016,11 +1002,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC3_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.0f, 0.517647088f, 1.0f});
 
         texView = createTexView(device, bcSize, Format::BC3_UNORM_SRGB, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.0f, 0.230468750f, 1.0f});
     }
 
@@ -1031,11 +1017,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 8, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC4_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.498039216f, 0.0f, 0.0f, 1.0f});
 
         texView = createTexView(device, bcSize, Format::BC4_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{1.0f, 0.0f, 0.0f, 1.0f});
     }
 
@@ -1046,7 +1032,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC5_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(
             device,
             floatResults,
@@ -1054,7 +1040,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         );
 
         texView = createTexView(device, bcSize, Format::BC5_SNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f});
     }
 
@@ -1066,7 +1052,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC6H_UF16, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.336669922f, 0.911132812f, 2.13867188f, 1.0f});
     }
 
@@ -1077,7 +1063,7 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC6H_SF16, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.336914062f, 0.910644531f, 2.14062500f, 1.0f});
     }
 
@@ -1088,11 +1074,11 @@ void testFormats(GpuTestContext* ctx, DeviceType deviceType)
         SubresourceData subData = {(void*)texData, 16, 0};
 
         auto texView = createTexView(device, bcSize, Format::BC7_UNORM, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.101960786f, 0.0f, 1.0f});
 
         texView = createTexView(device, bcSize, Format::BC7_UNORM_SRGB, &subData);
-        setUpAndRunTest(device, transientHeap, texView, floatBufferView, "sampleTex", sampler);
+        setUpAndRunTest(device, transientHeap, texView, floatResults, "sampleTex", sampler);
         compareComputeResult(device, floatResults, std::array{0.0f, 0.0103149414f, 0.0f, 1.0f});
     }
 }
@@ -1102,6 +1088,7 @@ TEST_CASE("formats")
     runGpuTests(
         testFormats,
         {
+            // DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
         }

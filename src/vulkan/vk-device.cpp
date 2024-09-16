@@ -4,7 +4,7 @@
 #include "vk-fence.h"
 #include "vk-helper-functions.h"
 #include "vk-query.h"
-#include "vk-resource-views.h"
+#include "vk-texture-view.h"
 #include "vk-sampler.h"
 #include "vk-shader-object-layout.h"
 #include "vk-shader-object.h"
@@ -1133,30 +1133,30 @@ Result DeviceImpl::readTexture(
     Size* outPixelSize
 )
 {
-    auto textureImpl = static_cast<TextureImpl*>(texture);
+    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
 
-    auto desc = textureImpl->getDesc();
-    auto width = desc->size.width;
-    auto height = desc->size.height;
+    const TextureDesc& desc = textureImpl->m_desc;
+    auto width = desc.size.width;
+    auto height = desc.size.height;
     FormatInfo sizeInfo;
-    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc->format, &sizeInfo));
+    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &sizeInfo));
     Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
 
     std::vector<Extents> mipSizes;
 
-    const int numMipMaps = desc->numMipLevels;
-    auto arraySize = calcEffectiveArraySize(*desc);
+    const int numMipMaps = desc.numMipLevels;
+    auto arraySize = calcEffectiveArraySize(desc);
 
     // Calculate how large the buffer has to be
     Size bufferSize = 0;
     // Calculate how large an array entry is
     for (int j = 0; j < numMipMaps; ++j)
     {
-        const Extents mipSize = calcMipSize(desc->size, j);
+        const Extents mipSize = calcMipSize(desc.size, j);
 
-        auto rowSizeInBytes = calcRowSize(desc->format, mipSize.width);
-        auto numRows = calcNumRows(desc->format, mipSize.height);
+        auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
+        auto numRows = calcNumRows(desc.format, mipSize.height);
 
         mipSizes.push_back(mipSize);
 
@@ -1184,8 +1184,8 @@ Result DeviceImpl::readTexture(
         {
             const auto& mipSize = mipSizes[j];
 
-            auto rowSizeInBytes = calcRowSize(desc->format, mipSize.width);
-            auto numRows = calcNumRows(desc->format, mipSize.height);
+            auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
+            auto numRows = calcNumRows(desc.format, mipSize.height);
 
             VkBufferImageCopy region = {};
 
@@ -1193,7 +1193,7 @@ Result DeviceImpl::readTexture(
             region.bufferRowLength = 0;
             region.bufferImageHeight = 0;
 
-            region.imageSubresource.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(desc->format));
+            region.imageSubresource.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(desc.format));
             region.imageSubresource.mipLevel = uint32_t(j);
             region.imageSubresource.baseArrayLayer = i;
             region.imageSubresource.layerCount = 1;
@@ -1295,12 +1295,11 @@ Result DeviceImpl::createAccelerationStructure(
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    RefPtr<AccelerationStructureImpl> resultAS = new AccelerationStructureImpl();
+    RefPtr<AccelerationStructureImpl> resultAS = new AccelerationStructureImpl(this, desc);
     resultAS->m_offset = desc.offset;
     resultAS->m_size = desc.size;
     resultAS->m_buffer = static_cast<BufferImpl*>(desc.buffer);
     resultAS->m_device = this;
-    resultAS->m_desc.type = IResourceView::Type::AccelerationStructure;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     createInfo.buffer = resultAS->m_buffer->m_buffer.m_buffer;
     createInfo.offset = desc.offset;
@@ -1492,7 +1491,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     const int arraySize = calcEffectiveArraySize(desc);
 
-    RefPtr<TextureImpl> texture(new TextureImpl(desc, this));
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
     texture->m_vkformat = format;
     // Create the image
 
@@ -1695,7 +1694,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         _transitionImageLayout(
             texture->m_image,
             format,
-            *texture->getDesc(),
+            texture->m_desc,
             VK_IMAGE_LAYOUT_UNDEFINED,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         );
@@ -1843,7 +1842,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         _transitionImageLayout(
             texture->m_image,
             format,
-            *texture->getDesc(),
+            texture->m_desc,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             defaultLayout
         );
@@ -1853,13 +1852,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         auto defaultLayout = VulkanUtil::getImageLayoutFromState(desc.defaultState);
         if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)
         {
-            _transitionImageLayout(
-                texture->m_image,
-                format,
-                *texture->getDesc(),
-                VK_IMAGE_LAYOUT_UNDEFINED,
-                defaultLayout
-            );
+            _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);
         }
     }
     m_deviceQueue.flushAndWait();
@@ -1900,7 +1893,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
         reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(desc, this));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
     if (desc.isShared)
     {
         VkExternalMemoryHandleTypeFlagsKHR extMemHandleType
@@ -1966,7 +1959,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc, this));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
 
     if (handle.type == NativeHandleType::VkBuffer)
     {
@@ -2014,93 +2007,19 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 
     _labelObject((uint64_t)sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, desc.label);
 
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this);
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_sampler = sampler;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
+Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    auto resourceImpl = static_cast<TextureImpl*>(texture);
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this);
-    view->m_texture = resourceImpl;
-    view->m_desc = desc;
-    if (!texture)
-    {
-        view->m_view = VK_NULL_HANDLE;
-        returnComPtr(outView, view);
-        return SLANG_OK;
-    }
-
-    bool isArray = resourceImpl->getDesc()->arraySize > 1;
-    VkImageViewCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    createInfo.flags = 0;
-    createInfo.format = rhiIsTypelessFormat(texture->getDesc()->format) ? VulkanUtil::getVkFormat(desc.format)
-                                                                        : resourceImpl->m_vkformat;
-    createInfo.image = resourceImpl->m_image;
-    createInfo.components = VkComponentMapping{
-        VK_COMPONENT_SWIZZLE_R,
-        VK_COMPONENT_SWIZZLE_G,
-        VK_COMPONENT_SWIZZLE_B,
-        VK_COMPONENT_SWIZZLE_A
-    };
-    switch (resourceImpl->getDesc()->type)
-    {
-    case TextureType::Texture1D:
-        createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
-        break;
-    case TextureType::Texture2D:
-        createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
-        break;
-    case TextureType::Texture3D:
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
-        break;
-    case TextureType::TextureCube:
-        createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
-        break;
-    default:
-        SLANG_RHI_UNIMPLEMENTED("Unknown Texture type.");
-        break;
-    }
-
-    createInfo.subresourceRange.aspectMask = getAspectMaskFromFormat(resourceImpl->m_vkformat);
-
-    createInfo.subresourceRange.baseArrayLayer = desc.subresourceRange.baseArrayLayer;
-    createInfo.subresourceRange.baseMipLevel = desc.subresourceRange.mipLevel;
-    createInfo.subresourceRange.layerCount = desc.subresourceRange.layerCount;
-    if (createInfo.subresourceRange.layerCount == 0)
-    {
-        createInfo.subresourceRange.layerCount = isArray ? VK_REMAINING_ARRAY_LAYERS : 1;
-        if (createInfo.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
-        {
-            createInfo.subresourceRange.layerCount = 6;
-        }
-    }
-    createInfo.subresourceRange.levelCount =
-        desc.subresourceRange.mipLevelCount == 0 ? VK_REMAINING_MIP_LEVELS : desc.subresourceRange.mipLevelCount;
-    switch (desc.type)
-    {
-    case IResourceView::Type::DepthStencil:
-        view->m_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        createInfo.subresourceRange.levelCount = 1;
-        break;
-    case IResourceView::Type::RenderTarget:
-        view->m_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        createInfo.subresourceRange.levelCount = 1;
-        break;
-    case IResourceView::Type::ShaderResource:
-        view->m_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        break;
-    case IResourceView::Type::UnorderedAccess:
-        view->m_layout = VK_IMAGE_LAYOUT_GENERAL;
-        break;
-    default:
-        SLANG_RHI_UNIMPLEMENTED("Unknown TextureViewDesc type.");
-        break;
-    }
-    m_api.vkCreateImageView(m_device, &createInfo, nullptr, &view->m_view);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    view->m_texture = static_cast<TextureImpl*>(texture);
+    if (view->m_desc.format == Format::Unknown)
+        view->m_desc.format = view->m_texture->m_desc.format;
+    view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
     returnComPtr(outView, view);
     return SLANG_OK;
 }
@@ -2146,110 +2065,6 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
 
     *outFormatSupport = support;
     return SLANG_OK;
-}
-
-Result DeviceImpl::createBufferView(
-    IBuffer* buffer,
-    IBuffer* counterBuffer,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
-{
-    auto resourceImpl = (BufferImpl*)buffer;
-
-    VkDeviceSize offset = (VkDeviceSize)desc.bufferRange.offset;
-    VkDeviceSize size =
-        desc.bufferRange.size == 0 ? (buffer ? resourceImpl->getDesc()->size : 0) : (VkDeviceSize)desc.bufferRange.size;
-
-    // There are two different cases we need to think about for buffers.
-    //
-    // One is when we have a "uniform texel buffer" or "storage texel buffer,"
-    // in which case we need to construct a `VkBufferView` to represent the
-    // formatting that is applied to the buffer. This case would correspond
-    // to a `textureBuffer` or `imageBuffer` in GLSL, and more or less to
-    // `Buffer<..>` or `RWBuffer<...>` in HLSL.
-    //
-    // The other case is a `storage buffer` which is the catch-all for any
-    // non-formatted R/W access to a buffer. In GLSL this is a `buffer { ... }`
-    // declaration, while in HLSL it covers a bunch of different `RW*Buffer`
-    // cases. In these cases we do *not* need a `VkBufferView`, but in
-    // order to be compatible with other APIs that require views for any
-    // potentially writable access, we will have to create one anyway.
-    //
-    // We will distinguish the two cases by looking at whether the view
-    // is being requested with a format or not.
-    //
-
-    switch (desc.type)
-    {
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unhandled");
-        return SLANG_FAIL;
-
-    case IResourceView::Type::UnorderedAccess:
-    case IResourceView::Type::ShaderResource:
-        // Is this a formatted view?
-        //
-        if (desc.format == Format::Unknown)
-        {
-            // Buffer usage that doesn't involve formatting doesn't
-            // require a view in Vulkan.
-            RefPtr<PlainBufferViewImpl> viewImpl = new PlainBufferViewImpl(this);
-            viewImpl->m_buffer = resourceImpl;
-            viewImpl->offset = offset;
-            viewImpl->size = size;
-            viewImpl->m_desc = desc;
-
-            returnComPtr(outView, viewImpl);
-            return SLANG_OK;
-        }
-        //
-        // If the view is formatted, then we need to handle
-        // it just like we would for a "sampled" buffer:
-        //
-        // FALLTHROUGH
-        {
-            VkBufferViewCreateInfo info = {VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO};
-
-            VkBufferView view = VK_NULL_HANDLE;
-
-            if (buffer)
-            {
-                info.format = VulkanUtil::getVkFormat(desc.format);
-                info.buffer = resourceImpl->m_buffer.m_buffer;
-                info.offset = offset;
-                info.range = size;
-                VkBufferUsageFlags2CreateInfoKHR bufferViewUsage{};
-                bufferViewUsage.sType = VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO_KHR;
-
-                if (desc.type == IResourceView::Type::UnorderedAccess)
-                {
-                    info.pNext = &bufferViewUsage;
-                    bufferViewUsage.usage = VK_BUFFER_USAGE_2_STORAGE_TEXEL_BUFFER_BIT_KHR;
-                }
-                else if (desc.type == IResourceView::Type::ShaderResource)
-                {
-                    info.pNext = &bufferViewUsage;
-                    bufferViewUsage.usage = VK_BUFFER_USAGE_2_UNIFORM_TEXEL_BUFFER_BIT_KHR;
-                }
-                else
-                {
-                    SLANG_RHI_ASSERT_FAILURE("Unhandled");
-                }
-
-                SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateBufferView(m_device, &info, nullptr, &view));
-            }
-
-            RefPtr<TexelBufferViewImpl> viewImpl = new TexelBufferViewImpl(this);
-            viewImpl->m_buffer = resourceImpl;
-            viewImpl->m_view = view;
-            viewImpl->m_desc = desc;
-
-            returnComPtr(outView, viewImpl);
-            return SLANG_OK;
-        }
-        break;
-    }
 }
 
 Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)

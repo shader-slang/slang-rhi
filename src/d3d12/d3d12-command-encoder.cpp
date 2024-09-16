@@ -10,7 +10,7 @@
 #include "d3d12-texture.h"
 #include "d3d12-transient-heap.h"
 #include "d3d12-vertex-layout.h"
-#include "d3d12-resource-views.h"
+#include "d3d12-texture-view.h"
 
 #include "core/short_vector.h"
 
@@ -25,8 +25,7 @@ void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* texture
     for (GfxIndex i = 0; i < count; i++)
     {
         auto textureImpl = static_cast<TextureImpl*>(textures[i]);
-        auto d3dFormat = D3DUtil::getMapFormat(textureImpl->getDesc()->format);
-        auto textureDesc = textureImpl->getDesc();
+        auto d3dFormat = D3DUtil::getMapFormat(textureImpl->m_desc.format);
         D3D12_RESOURCE_BARRIER barrier;
         barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
         if (src == dst && src == ResourceState::UnorderedAccess)
@@ -42,8 +41,8 @@ void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* texture
             if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
                 continue;
             barrier.Transition.pResource = textureImpl->m_resource.getResource();
-            auto planeCount = D3DUtil::getPlaneSliceCount(D3DUtil::getMapFormat(textureImpl->getDesc()->format));
-            auto arraySize = textureDesc->arraySize;
+            auto planeCount = D3DUtil::getPlaneSliceCount(D3DUtil::getMapFormat(textureImpl->m_desc.format));
+            auto arraySize = textureImpl->m_desc.arraySize;
             if (arraySize == 0)
                 arraySize = 1;
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -82,7 +81,7 @@ void CommandEncoderImpl::textureSubresourceBarrier(
         if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
             return;
         barrier.Transition.pResource = textureImpl->m_resource.getResource();
-        auto d3dFormat = D3DUtil::getMapFormat(textureImpl->getDesc()->format);
+        auto d3dFormat = D3DUtil::getMapFormat(textureImpl->m_desc.format);
         auto aspectMask = (int32_t)subresourceRange.aspectMask;
         if (subresourceRange.aspectMask == TextureAspect::Default)
             aspectMask = (int32_t)TextureAspect::Color;
@@ -99,8 +98,8 @@ void CommandEncoderImpl::textureSubresourceBarrier(
                         mip + subresourceRange.mipLevel,
                         layer + subresourceRange.baseArrayLayer,
                         planeIndex,
-                        textureImpl->getDesc()->numMipLevels,
-                        textureImpl->getDesc()->arraySize
+                        textureImpl->m_desc.numMipLevels,
+                        textureImpl->m_desc.arraySize
                     );
                     barriers.push_back(barrier);
                 }
@@ -314,7 +313,7 @@ void ResourceCommandEncoderImpl::copyTexture(
         return;
     }
 
-    auto d3dFormat = D3DUtil::getMapFormat(dstTexture->getDesc()->format);
+    auto d3dFormat = D3DUtil::getMapFormat(dstTexture->m_desc.format);
     auto aspectMask = (int32_t)dstSubresource.aspectMask;
     if (dstSubresource.aspectMask == TextureAspect::Default)
         aspectMask = (int32_t)TextureAspect::Color;
@@ -335,8 +334,8 @@ void ResourceCommandEncoderImpl::copyTexture(
                     dstSubresource.mipLevel + mipLevel,
                     dstSubresource.baseArrayLayer + layer,
                     planeIndex,
-                    dstTexture->getDesc()->numMipLevels,
-                    dstTexture->getDesc()->arraySize
+                    dstTexture->m_desc.numMipLevels,
+                    dstTexture->m_desc.arraySize
                 );
 
                 D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
@@ -346,8 +345,8 @@ void ResourceCommandEncoderImpl::copyTexture(
                     srcSubresource.mipLevel + mipLevel,
                     srcSubresource.baseArrayLayer + layer,
                     planeIndex,
-                    srcTexture->getDesc()->numMipLevels,
-                    srcTexture->getDesc()->arraySize
+                    srcTexture->m_desc.numMipLevels,
+                    srcTexture->m_desc.arraySize
                 );
 
                 D3D12_BOX srcBox = {};
@@ -379,12 +378,12 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         subResourceRange.mipLevel,
         subResourceRange.baseArrayLayer,
         0,
-        dstTexture->getDesc()->numMipLevels,
-        dstTexture->getDesc()->arraySize
+        dstTexture->m_desc.numMipLevels,
+        dstTexture->m_desc.arraySize
     );
-    auto textureSize = dstTexture->getDesc()->size;
+    auto textureSize = dstTexture->m_desc.size;
     FormatInfo formatInfo = {};
-    rhiGetFormatInfo(dstTexture->getDesc()->format, &formatInfo);
+    rhiGetFormatInfo(dstTexture->m_desc.format, &formatInfo);
     for (GfxCount i = 0; i < subResourceDataCount; i++)
     {
         auto subresourceIndex = baseSubresourceIndex + i;
@@ -402,7 +401,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = srcRegion.PlacedFootprint;
         footprint.Offset = 0;
         footprint.Footprint.Format = texDesc.Format;
-        uint32_t mipLevel = D3DUtil::getSubresourceMipLevel(subresourceIndex, dstTexture->getDesc()->numMipLevels);
+        uint32_t mipLevel = D3DUtil::getSubresourceMipLevel(subresourceIndex, dstTexture->m_desc.numMipLevels);
         if (extent.width != kRemainingTextureSize)
         {
             footprint.Footprint.Width = extent.width;
@@ -463,6 +462,24 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     }
 }
 
+void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+{
+    // TODO implement
+    SLANG_RHI_UNIMPLEMENTED("clearBuffer");
+}
+
+void ResourceCommandEncoderImpl::clearTexture(
+    ITexture* texture,
+    const ClearValue& clearValue,
+    const SubresourceRange* subresourceRange,
+    bool clearDepth,
+    bool clearStencil
+)
+{
+    SLANG_RHI_UNIMPLEMENTED("clearTexture");
+}
+
+#if 0
 void ResourceCommandEncoderImpl::clearResourceView(
     IResourceView* view,
     ClearValue* clearValue,
@@ -554,6 +571,7 @@ void ResourceCommandEncoderImpl::clearResourceView(
         break;
     }
 }
+#endif
 
 void ResourceCommandEncoderImpl::resolveResource(
     ITexture* source,
@@ -564,10 +582,10 @@ void ResourceCommandEncoderImpl::resolveResource(
     SubresourceRange destRange
 )
 {
-    auto srcTexture = static_cast<TextureImpl*>(source);
-    auto srcDesc = srcTexture->getDesc();
-    auto dstTexture = static_cast<TextureImpl*>(dest);
-    auto dstDesc = dstTexture->getDesc();
+    TextureImpl* srcTexture = static_cast<TextureImpl*>(source);
+    const TextureDesc& srcDesc = srcTexture->m_desc;
+    TextureImpl* dstTexture = static_cast<TextureImpl*>(dest);
+    const TextureDesc& dstDesc = dstTexture->m_desc;
 
     for (GfxIndex layer = 0; layer < sourceRange.layerCount; ++layer)
     {
@@ -577,18 +595,18 @@ void ResourceCommandEncoderImpl::resolveResource(
                 mip + sourceRange.mipLevel,
                 layer + sourceRange.baseArrayLayer,
                 0,
-                srcDesc->numMipLevels,
-                srcDesc->arraySize
+                srcDesc.numMipLevels,
+                srcDesc.arraySize
             );
             auto dstSubresourceIndex = D3DUtil::getSubresourceIndex(
                 mip + destRange.mipLevel,
                 layer + destRange.baseArrayLayer,
                 0,
-                dstDesc->numMipLevels,
-                dstDesc->arraySize
+                dstDesc.numMipLevels,
+                dstDesc.arraySize
             );
 
-            DXGI_FORMAT format = D3DUtil::getMapFormat(srcDesc->format);
+            DXGI_FORMAT format = D3DUtil::getMapFormat(srcDesc.format);
 
             m_commandBuffer->m_cmdList->ResolveSubresource(
                 dstTexture->m_resource.getResource(),
@@ -679,16 +697,16 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
         srcSubresource.mipLevel,
         srcSubresource.baseArrayLayer,
         0,
-        srcTexture->getDesc()->numMipLevels,
-        srcTexture->getDesc()->arraySize
+        srcTexture->m_desc.numMipLevels,
+        srcTexture->m_desc.arraySize
     );
-    auto textureSize = srcTexture->getDesc()->size;
+    auto textureSize = srcTexture->m_desc.size;
     FormatInfo formatInfo = {};
-    rhiGetFormatInfo(srcTexture->getDesc()->format, &formatInfo);
+    rhiGetFormatInfo(srcTexture->m_desc.format, &formatInfo);
     if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = srcTexture->getDesc()->numMipLevels;
+        srcSubresource.mipLevelCount = srcTexture->m_desc.numMipLevels;
     if (srcSubresource.layerCount == 0)
-        srcSubresource.layerCount = srcTexture->getDesc()->arraySize;
+        srcSubresource.layerCount = srcTexture->m_desc.arraySize;
 
     for (GfxCount layer = 0; layer < srcSubresource.layerCount; layer++)
     {
@@ -706,8 +724,8 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
             srcSubresource.mipLevel,
             layer + srcSubresource.baseArrayLayer,
             0,
-            srcTexture->getDesc()->numMipLevels,
-            srcTexture->getDesc()->arraySize
+            srcTexture->m_desc.numMipLevels,
+            srcTexture->m_desc.arraySize
         );
         srcRegion.pResource = srcTexture->m_resource.getResource();
 
@@ -807,13 +825,13 @@ void RenderCommandEncoderImpl::init(
     short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
     for (Index i = 0; i < desc.colorAttachmentCount; i++)
     {
-        m_renderTargetViews[i] = static_cast<ResourceViewImpl*>(desc.colorAttachments[i].view);
+        m_renderTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
         m_renderTargetFinalStates[i] = desc.colorAttachments[i].finalState;
-        renderTargetDescriptors.push_back(m_renderTargetViews[i]->m_descriptor.cpuHandle);
+        renderTargetDescriptors.push_back(m_renderTargetViews[i]->getRTV().cpuHandle);
     }
     if (desc.depthStencilAttachment)
     {
-        m_depthStencilView = static_cast<ResourceViewImpl*>(desc.depthStencilAttachment->view);
+        m_depthStencilView = static_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
         m_depthStencilFinalState = desc.depthStencilAttachment->finalState;
     }
 
@@ -821,7 +839,7 @@ void RenderCommandEncoderImpl::init(
         (UINT)m_renderTargetViews.size(),
         renderTargetDescriptors.data(),
         FALSE,
-        m_depthStencilView ? &m_depthStencilView->m_descriptor.cpuHandle : nullptr
+        m_depthStencilView ? &m_depthStencilView->getDSV().cpuHandle : nullptr
     );
 
     // Issue clear commands based on render pass set up.
@@ -835,7 +853,7 @@ void RenderCommandEncoderImpl::init(
             auto resourceViewImpl = m_renderTargetViews[i].get();
             if (resourceViewImpl)
             {
-                auto texture = static_cast<TextureImpl*>(resourceViewImpl->m_resource.Ptr());
+                auto texture = static_cast<TextureImpl*>(resourceViewImpl->m_texture.get());
                 if (texture)
                 {
                     D3D12_RESOURCE_STATES initialState;
@@ -865,7 +883,7 @@ void RenderCommandEncoderImpl::init(
         // Transit resource states.
         {
             D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_resource.get());
+            auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_texture.get());
             D3D12_RESOURCE_STATES initialState;
             if (attachment.initialState == ResourceState::Undefined)
             {
@@ -890,7 +908,7 @@ void RenderCommandEncoderImpl::init(
         if (clearFlags)
         {
             m_d3dCmdList->ClearDepthStencilView(
-                m_depthStencilView->m_descriptor.cpuHandle,
+                m_depthStencilView->getDSV().cpuHandle,
                 (D3D12_CLEAR_FLAGS)clearFlags,
                 attachment.depthClearValue,
                 attachment.stencilClearValue,
@@ -1020,7 +1038,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
                     D3D12_VERTEX_BUFFER_VIEW& vertexView = vertexViews[numVertexViews++];
                     vertexView.BufferLocation =
                         buffer->m_resource.getResource()->GetGPUVirtualAddress() + boundVertexBuffer.m_offset;
-                    vertexView.SizeInBytes = UINT(buffer->getDesc()->size - boundVertexBuffer.m_offset);
+                    vertexView.SizeInBytes = UINT(buffer->m_desc.size - boundVertexBuffer.m_offset);
                     vertexView.StrideInBytes = inputLayout->m_vertexStreamStrides[i];
                 }
             }
@@ -1033,7 +1051,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
         D3D12_INDEX_BUFFER_VIEW indexBufferView;
         indexBufferView.BufferLocation =
             m_boundIndexBuffer->m_resource.getResource()->GetGPUVirtualAddress() + m_boundIndexOffset;
-        indexBufferView.SizeInBytes = UINT(m_boundIndexBuffer->getDesc()->size - m_boundIndexOffset);
+        indexBufferView.SizeInBytes = UINT(m_boundIndexBuffer->m_desc.size - m_boundIndexOffset);
         indexBufferView.Format = m_boundIndexFormat;
 
         m_d3dCmdList->IASetIndexBuffer(&indexBufferView);
@@ -1064,7 +1082,7 @@ void RenderCommandEncoderImpl::endEncoding()
         if (m_renderTargetViews[i])
         {
             D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto texture = static_cast<TextureImpl*>(m_renderTargetViews[i]->m_resource.get());
+            auto texture = static_cast<TextureImpl*>(m_renderTargetViews[i]->m_texture.get());
             if (texture)
             {
                 texture->m_resource.transition(
@@ -1080,7 +1098,7 @@ void RenderCommandEncoderImpl::endEncoding()
     {
         // Transit resource states.
         D3D12BarrierSubmitter submitter(m_d3dCmdList);
-        auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_resource.get());
+        auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_texture.get());
         if (texture)
         {
             texture->m_resource.transition(

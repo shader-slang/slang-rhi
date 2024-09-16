@@ -11,6 +11,7 @@ static const Int kMaxNumRenderFrames = 4;
 class SwapchainImpl : public D3DSwapchainBase
 {
 public:
+    RefPtr<DeviceImpl> m_device;
     ComPtr<ID3D12CommandQueue> m_queue;
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<IDXGISwapChain3> m_swapChain3;

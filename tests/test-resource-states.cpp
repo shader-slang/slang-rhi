@@ -50,7 +50,7 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     auto commandBuffer = transientHeap->createCommandBuffer();
     auto encoder = commandBuffer->encodeResourceCommands();
 
-    ResourceState currentState = buffer->getDesc()->defaultState;
+    ResourceState currentState = buffer->getDesc().defaultState;
 
     for (ResourceState state : allowedStates)
     {
@@ -133,7 +133,7 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeResourceCommands();
 
-        ResourceState currentState = texture->getDesc()->defaultState;
+        ResourceState currentState = texture->getDesc().defaultState;
 
         for (ResourceState state : allowedStates)
         {

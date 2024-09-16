@@ -8,8 +8,6 @@ namespace rhi::metal {
 class TextureImpl : public Texture
 {
 public:
-    typedef Texture Parent;
-
     TextureImpl(const TextureDesc& desc, DeviceImpl* device);
     ~TextureImpl();
 

@@ -11,7 +11,6 @@ public:
     /// Any "ordinary" / uniform data for this object
     std::vector<uint8_t> m_ordinaryData;
     RefPtr<BufferImpl> m_buffer;
-    RefPtr<BufferViewImpl> m_bufferView;
 
     Index getCount();
     void setCount(Index count);
@@ -21,7 +20,7 @@ public:
 
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
-    ResourceViewBase* getResourceView(
+    Buffer* getBufferResource(
         RendererBase* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
@@ -33,7 +32,7 @@ class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObj
     typedef ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, CPUShaderObjectData> Super;
 
 public:
-    std::vector<RefPtr<ResourceViewImpl>> m_resources;
+    std::vector<RefPtr<Resource>> m_resources;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL init(IDevice* device, ShaderObjectLayoutImpl* typeLayout);
 
@@ -46,11 +45,8 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setData(ShaderOffset const& offset, void const* data, size_t size) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setResource(ShaderOffset const& offset, IResourceView* inView) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSampler(ShaderOffset const& offset, ISampler* sampler) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
 
     uint8_t* getDataBuffer();
 };

@@ -17,13 +17,13 @@ const Guid GUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
 const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
 const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
-const Guid GUID::IID_IResourceView = IResourceView::getTypeGuid();
 
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
 const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
 const Guid GUID::IID_IResource = IResource::getTypeGuid();
 const Guid GUID::IID_IBuffer = IBuffer::getTypeGuid();
 const Guid GUID::IID_ITexture = ITexture::getTypeGuid();
+const Guid GUID::IID_ITextureView = ITextureView::getTypeGuid();
 const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
@@ -59,9 +59,9 @@ IResource* Buffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
-SLANG_NO_THROW BufferDesc* SLANG_MCALL Buffer::getDesc()
+SLANG_NO_THROW BufferDesc& SLANG_MCALL Buffer::getDesc()
 {
-    return &m_desc;
+    return m_desc;
 }
 
 Result Buffer::getNativeHandle(NativeHandle* outHandle)
@@ -76,6 +76,14 @@ Result Buffer::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+BufferRange Buffer::resolveBufferRange(const BufferRange& range)
+{
+    BufferRange resolved = range;
+    resolved.offset = std::min(resolved.offset, m_desc.size);
+    resolved.size = std::min(resolved.size, m_desc.size - resolved.offset);
+    return resolved;
+}
+
 IResource* Texture::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITexture)
@@ -83,9 +91,9 @@ IResource* Texture::getInterface(const Guid& guid)
     return nullptr;
 }
 
-SLANG_NO_THROW TextureDesc* SLANG_MCALL Texture::getDesc()
+SLANG_NO_THROW TextureDesc& SLANG_MCALL Texture::getDesc()
 {
-    return &m_desc;
+    return m_desc;
 }
 
 Result Texture::getNativeHandle(NativeHandle* outHandle)
@@ -100,14 +108,24 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-IResourceView* ResourceViewBase::getInterface(const Guid& guid)
+SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResourceView)
-        return static_cast<IResourceView*>(this);
+    SubresourceRange resolved = range;
+    resolved.mipLevel = std::min(resolved.mipLevel, m_desc.numMipLevels);
+    resolved.mipLevelCount = std::min(resolved.mipLevelCount, m_desc.numMipLevels - resolved.mipLevel);
+    resolved.baseArrayLayer = std::min(resolved.baseArrayLayer, m_desc.arraySize);
+    resolved.layerCount = std::min(resolved.layerCount, m_desc.arraySize - resolved.baseArrayLayer);
+    return resolved;
+}
+
+ITextureView* TextureView::getInterface(const Guid& guid)
+{
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITextureView)
+        return static_cast<ITextureView*>(this);
     return nullptr;
 }
 
-Result ResourceViewBase::getNativeHandle(NativeHandle* outHandle)
+Result TextureView::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
@@ -115,9 +133,14 @@ Result ResourceViewBase::getNativeHandle(NativeHandle* outHandle)
 
 ISampler* SamplerBase::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISampler)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ISampler)
         return static_cast<ISampler*>(this);
     return nullptr;
+}
+
+const SamplerDesc& SamplerBase::getDesc()
+{
+    return m_desc;
 }
 
 Result SamplerBase::getNativeHandle(NativeHandle* outHandle)
@@ -128,7 +151,7 @@ Result SamplerBase::getNativeHandle(NativeHandle* outHandle)
 
 IAccelerationStructure* AccelerationStructureBase::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResourceView || guid == GUID::IID_IAccelerationStructure)
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IAccelerationStructure)
         return static_cast<IAccelerationStructure*>(this);
     return nullptr;
 }
@@ -749,7 +772,7 @@ Result ShaderObjectBase::setExistentialHeader(
     return SLANG_OK;
 }
 
-ResourceViewBase* SimpleShaderObjectData::getResourceView(
+Buffer* SimpleShaderObjectData::getBufferResource(
     RendererBase* device,
     slang::TypeLayoutReflection* elementLayout,
     slang::BindingType bindingType
@@ -767,29 +790,9 @@ ResourceViewBase* SimpleShaderObjectData::getResourceView(
         ComPtr<IBuffer> buffer;
         SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(desc, m_ordinaryData.data(), buffer.writeRef()));
         m_structuredBuffer = static_cast<Buffer*>(buffer.get());
-
-        // Create read-only (shader-resource) and mutable (unordered access) views.
-        ComPtr<IResourceView> resourceView;
-        IResourceView::Desc viewDesc = {};
-        viewDesc.format = Format::Unknown;
-        viewDesc.type = IResourceView::Type::ShaderResource;
-        SLANG_RETURN_NULL_ON_FAIL(device->createBufferView(buffer.get(), nullptr, viewDesc, resourceView.writeRef()));
-        m_structuredBufferView = static_cast<ResourceViewBase*>(resourceView.get());
-        viewDesc.type = IResourceView::Type::UnorderedAccess;
-        SLANG_RETURN_NULL_ON_FAIL(device->createBufferView(buffer.get(), nullptr, viewDesc, resourceView.writeRef()));
-        m_rwStructuredBufferView = static_cast<ResourceViewBase*>(resourceView.get());
     }
 
-    switch (bindingType)
-    {
-    case slang::BindingType::RawBuffer:
-        return m_structuredBufferView.Ptr();
-    case slang::BindingType::MutableRawBuffer:
-        return m_rwStructuredBufferView.Ptr();
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Invalid binding type.");
-        return nullptr;
-    }
+    return m_structuredBuffer;
 }
 
 void ShaderProgramBase::init(const ShaderProgramDesc& inDesc)
@@ -1059,13 +1062,9 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
             SLANG_RETURN_ON_FAIL(it.second->getCurrentVersion(transientHeap, subObject.writeRef()));
             setObject(it.first, subObject);
         }
-        for (auto it : srcObj->m_resources)
+        for (auto it : srcObj->m_bindings)
         {
-            setResource(it.first, it.second.Ptr());
-        }
-        for (auto it : srcObj->m_samplers)
-        {
-            setSampler(it.first, it.second.Ptr());
+            setBinding(it.first, it.second);
         }
         for (auto it : srcObj->m_specializationArgs)
         {

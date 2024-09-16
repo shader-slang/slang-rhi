@@ -7,6 +7,7 @@ namespace rhi::d3d12 {
 
 Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& swapchainDesc, WindowHandle window)
 {
+    m_device = renderer;
     m_queue = static_cast<CommandQueueImpl*>(swapchainDesc.queue)->m_d3dQueue;
     m_dxgiFactory = renderer->m_deviceInfo.m_dxgiFactory;
     SLANG_RETURN_ON_FAIL(D3DSwapchainBase::init(swapchainDesc, window, DXGI_SWAP_EFFECT_FLIP_DISCARD));
@@ -48,7 +49,7 @@ void SwapchainImpl::createSwapchainBufferImages()
         imageDesc.size.depth = 1;
         imageDesc.numMipLevels = 1;
         imageDesc.defaultState = ResourceState::Present;
-        RefPtr<TextureImpl> image = new TextureImpl(imageDesc);
+        RefPtr<TextureImpl> image = new TextureImpl(m_device, imageDesc);
         image->m_resource.setResource(d3dResource.get());
         image->m_defaultState = D3D12_RESOURCE_STATE_PRESENT;
         m_images.push_back(image);

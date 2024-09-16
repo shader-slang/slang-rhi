@@ -11,24 +11,14 @@ struct Shader
     ComPtr<IPipeline> pipeline;
 };
 
-struct Buffer
-{
-    BufferDesc desc;
-    ComPtr<IBuffer> buffer;
-    ComPtr<IResourceView> srv;
-    ComPtr<IResourceView> uav;
-};
-
-void createFloatBuffer(
+ComPtr<IBuffer> createFloatBuffer(
     IDevice* device,
-    Buffer& outBuffer,
     bool unorderedAccess,
-    float* initialData,
-    size_t elementCount
+    size_t elementCount,
+    float* initialData = nullptr
 )
 {
-    outBuffer = {};
-    BufferDesc& bufferDesc = outBuffer.desc;
+    BufferDesc bufferDesc = {};
     bufferDesc.size = elementCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
@@ -37,23 +27,9 @@ void createFloatBuffer(
     if (unorderedAccess)
         bufferDesc.usage |= BufferUsage::UnorderedAccess;
     bufferDesc.defaultState = unorderedAccess ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;
-
-    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, outBuffer.buffer.writeRef()));
-
-    {
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::ShaderResource;
-        viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(outBuffer.buffer, nullptr, viewDesc, outBuffer.srv.writeRef()));
-    }
-
-    if (unorderedAccess)
-    {
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::UnorderedAccess;
-        viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(outBuffer.buffer, nullptr, viewDesc, outBuffer.uav.writeRef()));
-    }
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
+    return buffer;
 }
 
 void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
@@ -75,14 +51,9 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(device->createComputePipeline(programB.pipelineDesc, programB.pipeline.writeRef()));
 
     float initialData[] = {1.0f, 2.0f, 3.0f, 4.0f};
-    Buffer inputBuffer;
-    createFloatBuffer(device, inputBuffer, false, initialData, 4);
-
-    Buffer intermediateBuffer;
-    createFloatBuffer(device, intermediateBuffer, true, nullptr, 4);
-
-    Buffer outputBuffer;
-    createFloatBuffer(device, outputBuffer, true, nullptr, 4);
+    ComPtr<IBuffer> inputBuffer = createFloatBuffer(device, false, 4, initialData);
+    ComPtr<IBuffer> intermediateBuffer = createFloatBuffer(device, true, 4);
+    ComPtr<IBuffer> outputBuffer = createFloatBuffer(device, true, 4);
 
     auto insertBarrier = [](ICommandEncoder* encoder, IBuffer* buffer, ResourceState before, ResourceState after)
     { encoder->bufferBarrier(1, &buffer, before, after); };
@@ -99,24 +70,19 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
         // Write inputBuffer data to intermediateBuffer
         auto rootObjectA = encoder->bindPipeline(programA.pipeline);
         ShaderCursor entryPointCursorA(rootObjectA->getEntryPoint(0));
-        entryPointCursorA.getPath("inBuffer").setResource(inputBuffer.srv);
-        entryPointCursorA.getPath("outBuffer").setResource(intermediateBuffer.uav);
+        entryPointCursorA.getPath("inBuffer").setBinding(inputBuffer);
+        entryPointCursorA.getPath("outBuffer").setBinding(intermediateBuffer);
 
         encoder->dispatchCompute(1, 1, 1);
 
         // Insert barrier to ensure writes to intermediateBuffer are complete before the next shader starts executing
-        insertBarrier(
-            encoder,
-            intermediateBuffer.buffer,
-            ResourceState::UnorderedAccess,
-            ResourceState::ShaderResource
-        );
+        insertBarrier(encoder, intermediateBuffer, ResourceState::UnorderedAccess, ResourceState::ShaderResource);
 
         // Write intermediateBuffer to outputBuffer
         auto rootObjectB = encoder->bindPipeline(programB.pipeline);
         ShaderCursor entryPointCursorB(rootObjectB->getEntryPoint(0));
-        entryPointCursorB.getPath("inBuffer").setResource(intermediateBuffer.srv);
-        entryPointCursorB.getPath("outBuffer").setResource(outputBuffer.uav);
+        entryPointCursorB.getPath("inBuffer").setBinding(intermediateBuffer);
+        entryPointCursorB.getPath("outBuffer").setBinding(outputBuffer);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();
@@ -125,7 +91,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, outputBuffer.buffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
+    compareComputeResult(device, outputBuffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
 }
 
 TEST_CASE("buffer-barrier")

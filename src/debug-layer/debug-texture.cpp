@@ -3,7 +3,7 @@
 
 namespace rhi::debug {
 
-TextureDesc* DebugTexture::getDesc()
+const TextureDesc& DebugTexture::getDesc()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getDesc();

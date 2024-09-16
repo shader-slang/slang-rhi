@@ -8,8 +8,8 @@ namespace rhi::cuda {
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(const BufferDesc& _desc)
-        : Buffer(_desc)
+    BufferImpl(RendererBase* device, const BufferDesc& desc)
+        : Buffer(device, desc)
     {
     }
 
@@ -20,7 +20,8 @@ public:
     void* m_cudaExternalMemory = nullptr;
     void* m_cudaMemory = nullptr;
 
-    RefPtr<CUDAContext> m_cudaContext;
+    // Hack: This is set when buffer represents a CPU buffer.
+    void* m_cpuBuffer = nullptr;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

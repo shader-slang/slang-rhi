@@ -3,10 +3,10 @@
 #include "cpu-buffer.h"
 #include "cpu-pipeline.h"
 #include "cpu-query.h"
-#include "cpu-resource-views.h"
 #include "cpu-shader-object.h"
 #include "cpu-shader-program.h"
 #include "cpu-texture.h"
+#include "cpu-texture-view.h"
 
 #include <chrono>
 
@@ -54,7 +54,7 @@ DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initDa
 {
     TextureDesc srcDesc = fixupTextureDesc(desc);
 
-    RefPtr<TextureImpl> texture = new TextureImpl(srcDesc);
+    RefPtr<TextureImpl> texture = new TextureImpl(this, srcDesc);
 
     SLANG_RETURN_ON_FAIL(texture->init(initData));
 
@@ -66,7 +66,7 @@ SLANG_NO_THROW Result SLANG_MCALL
 DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     SLANG_RETURN_ON_FAIL(buffer->init());
     if (initData)
     {
@@ -77,23 +77,13 @@ DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer
 }
 
 SLANG_NO_THROW Result SLANG_MCALL
-DeviceImpl::createTextureView(ITexture* inTexture, IResourceView::Desc const& desc, IResourceView** outView)
+DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    auto texture = static_cast<TextureImpl*>(inTexture);
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc, texture);
-    returnComPtr(outView, view);
-    return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL DeviceImpl::createBufferView(
-    IBuffer* inBuffer,
-    IBuffer* counterBuffer,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
-{
-    auto buffer = static_cast<BufferImpl*>(inBuffer);
-    RefPtr<BufferViewImpl> view = new BufferViewImpl(desc, buffer);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    view->m_texture = static_cast<TextureImpl*>(texture);
+    if (view->m_desc.format == Format::Unknown)
+        view->m_desc.format = view->m_texture->m_desc.format;
+    view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
     returnComPtr(outView, view);
     return SLANG_OK;
 }

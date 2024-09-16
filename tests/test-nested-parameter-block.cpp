@@ -49,27 +49,13 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IShaderObject> shaderObject;
     REQUIRE_CALL(device->createMutableRootShaderObject(shaderProgram, shaderObject.writeRef()));
 
-    std::vector<ComPtr<IBuffer>> srvBuffers;
-    std::vector<ComPtr<IResourceView>> srvs;
+    std::vector<ComPtr<IBuffer>> buffers;
 
     for (uint32_t i = 0; i < 6; i++)
     {
-        srvBuffers.push_back(createBuffer(device, i, ResourceState::ShaderResource));
-        IResourceView::Desc srvDesc = {};
-        srvDesc.type = IResourceView::Type::ShaderResource;
-        srvDesc.format = Format::Unknown;
-        srvDesc.bufferRange.offset = 0;
-        srvDesc.bufferRange.size = sizeof(uint32_t) * 4;
-        srvs.push_back(device->createBufferView(srvBuffers[i], nullptr, srvDesc));
+        buffers.push_back(createBuffer(device, i, ResourceState::ShaderResource));
     }
     ComPtr<IBuffer> resultBuffer = createBuffer(device, 0, ResourceState::UnorderedAccess);
-    IResourceView::Desc resultBufferViewDesc = {};
-    resultBufferViewDesc.type = IResourceView::Type::UnorderedAccess;
-    resultBufferViewDesc.format = Format::Unknown;
-    resultBufferViewDesc.bufferRange.offset = 0;
-    resultBufferViewDesc.bufferRange.size = sizeof(uint32_t) * 4;
-    ComPtr<IResourceView> resultBufferView;
-    REQUIRE_CALL(device->createBufferView(resultBuffer, nullptr, resultBufferViewDesc, resultBufferView.writeRef()));
 
     ComPtr<IShaderObject> materialObject;
     REQUIRE_CALL(device->createMutableShaderObject(
@@ -80,7 +66,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
     ShaderCursor materialCursor(materialObject);
     materialCursor["cb"].setData(uint4{1000, 1000, 1000, 1000});
-    materialCursor["data"].setResource(srvs[2]);
+    materialCursor["data"].setBinding(buffers[2]);
 
     ComPtr<IShaderObject> sceneObject;
     REQUIRE_CALL(device->createMutableShaderObject(
@@ -91,11 +77,11 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
     ShaderCursor sceneCursor(sceneObject);
     sceneCursor["sceneCb"].setData(uint4{100, 100, 100, 100});
-    sceneCursor["data"].setResource(srvs[1]);
+    sceneCursor["data"].setBinding(buffers[1]);
     sceneCursor["material"].setObject(materialObject);
 
     ShaderCursor cursor(shaderObject);
-    cursor["resultBuffer"].setResource(resultBufferView);
+    cursor["resultBuffer"].setBinding(resultBuffer);
     cursor["scene"].setObject(sceneObject);
 
     ComPtr<IShaderObject> globalCB;

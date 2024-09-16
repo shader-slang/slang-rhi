@@ -1,6 +1,6 @@
 #include "cpu-shader-object.h"
 #include "cpu-buffer.h"
-#include "cpu-resource-views.h"
+#include "cpu-texture-view.h"
 #include "cpu-shader-object-layout.h"
 
 namespace rhi::cpu {
@@ -30,7 +30,7 @@ CPUShaderObjectData::~CPUShaderObjectData()
 
 /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
 /// Creates a StructuredBuffer resource if it has not been created.
-ResourceViewBase* CPUShaderObjectData::getResourceView(
+Buffer* CPUShaderObjectData::getBufferResource(
     RendererBase* device,
     slang::TypeLayoutReflection* elementLayout,
     slang::BindingType bindingType
@@ -41,16 +41,10 @@ ResourceViewBase* CPUShaderObjectData::getResourceView(
     {
         BufferDesc desc = {};
         desc.elementSize = (int)elementLayout->getSize();
-        m_buffer = new BufferImpl(desc);
-
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::UnorderedAccess;
-        viewDesc.format = Format::Unknown;
-        m_bufferView = new BufferViewImpl(viewDesc, m_buffer);
+        m_buffer = new BufferImpl(device, desc);
     }
-    m_buffer->getDesc()->size = m_ordinaryData.size();
-    m_buffer->m_data = m_ordinaryData.data();
-    return m_bufferView.Ptr();
+    m_buffer->m_desc.size = m_ordinaryData.size();
+    return m_buffer.get();
 }
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
@@ -142,7 +136,7 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setData(ShaderOffset const& 
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* inView)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
     auto layout = getLayout();
 
@@ -153,28 +147,17 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
     auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
     auto viewIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
-    auto view = static_cast<ResourceViewImpl*>(inView);
-    m_resources[viewIndex] = view;
-
-    switch (view->getViewKind())
+    switch (binding.type)
     {
-    case ResourceViewImpl::Kind::Texture:
+    case BindingType::Buffer:
     {
-        auto textureView = static_cast<TextureViewImpl*>(view);
+        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        const BufferDesc& desc = buffer->m_desc;
+        BufferRange range = buffer->resolveBufferRange(binding.bufferRange);
+        m_resources[viewIndex] = buffer;
 
-        slang_prelude::IRWTexture* textureObj = textureView;
-        SLANG_RETURN_ON_FAIL(setData(offset, &textureObj, sizeof(textureObj)));
-    }
-    break;
-
-    case ResourceViewImpl::Kind::Buffer:
-    {
-        auto bufferView = static_cast<BufferViewImpl*>(view);
-        auto buffer = bufferView->getBuffer();
-        auto desc = *buffer->getDesc();
-
-        void* dataPtr = buffer->m_data;
-        size_t size = desc.size;
+        void* dataPtr = (uint8_t*)buffer->m_data + range.offset;
+        size_t size = range.size;
         if (desc.elementSize > 1)
             size /= desc.elementSize;
 
@@ -184,8 +167,33 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         auto sizeOffset = offset;
         sizeOffset.uniformOffset += sizeof(dataPtr);
         SLANG_RETURN_ON_FAIL(setData(sizeOffset, &size, sizeof(size)));
+        break;
     }
-    break;
+    case BindingType::Texture:
+    {
+        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        return setBinding(offset, m_device->createTextureView(texture, {}));
+    }
+    case BindingType::TextureView:
+    {
+        auto textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        m_resources[viewIndex] = textureView;
+        slang_prelude::IRWTexture* textureObj = textureView;
+        SLANG_RETURN_ON_FAIL(setData(offset, &textureObj, sizeof(textureObj)));
+        break;
+    }
+    case BindingType::Sampler:
+    {
+        break;
+    }
+    case BindingType::CombinedTextureSampler:
+    {
+        break;
+    }
+    case BindingType::AccelerationStructure:
+    {
+        break;
+    }
     }
 
     return SLANG_OK;
@@ -213,21 +221,6 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setObject(ShaderOffset const
     case slang::BindingType::MutableRawBuffer:
         break;
     }
-    return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
-{
-    SLANG_UNUSED(sampler);
-    SLANG_UNUSED(offset);
-    return SLANG_OK;
-}
-
-SLANG_NO_THROW Result SLANG_MCALL
-ShaderObjectImpl::setCombinedTextureSampler(ShaderOffset const& offset, IResourceView* textureView, ISampler* sampler)
-{
-    SLANG_UNUSED(sampler);
-    setResource(offset, textureView);
     return SLANG_OK;
 }
 

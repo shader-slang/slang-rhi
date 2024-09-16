@@ -107,7 +107,7 @@ public:
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IBuffer> instanceBuffer;
     ComPtr<ITexture> colorBuffer;
-    ComPtr<IResourceView> colorBufferView;
+    ComPtr<ITextureView> colorBufferView;
 
     void init(IDevice* device) { this->device = device; }
 
@@ -164,11 +164,8 @@ public:
         pipelineDesc.depthStencil.depthWriteEnable = false;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
-        IResourceView::Desc colorBufferViewDesc;
-        memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
+        TextureViewDesc colorBufferViewDesc = {};
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
-        colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         REQUIRE_CALL(device->createTextureView(colorBuffer, colorBufferViewDesc, colorBufferView.writeRef()));
     }
 

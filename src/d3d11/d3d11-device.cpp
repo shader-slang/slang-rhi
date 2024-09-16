@@ -3,7 +3,6 @@
 #include "d3d11-buffer.h"
 #include "d3d11-helper-functions.h"
 #include "d3d11-query.h"
-#include "d3d11-resource-views.h"
 #include "d3d11-sampler.h"
 #include "d3d11-scopeNVAPI.h"
 #include "d3d11-shader-object-layout.h"
@@ -11,6 +10,7 @@
 #include "d3d11-shader-program.h"
 #include "d3d11-swap-chain.h"
 #include "d3d11-texture.h"
+#include "d3d11-texture-view.h"
 #include "d3d11-vertex-layout.h"
 
 #include "core/string.h"
@@ -349,10 +349,10 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
     m_d3dRenderTargetViews.resize(desc.colorAttachmentCount);
     for (Index i = 0; i < desc.colorAttachmentCount; ++i)
     {
-        m_d3dRenderTargetViews[i] = static_cast<RenderTargetViewImpl*>(desc.colorAttachments[i].view)->m_rtv;
+        m_d3dRenderTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].view)->getRTV();
     }
     m_d3dDepthStencilView = desc.depthStencilAttachment
-                                ? static_cast<DepthStencilViewImpl*>(desc.depthStencilAttachment->view)->m_dsv
+                                ? static_cast<TextureViewImpl*>(desc.depthStencilAttachment->view)->getDSV()
                                 : nullptr;
 
     // Clear color attachments.
@@ -362,7 +362,7 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
         if (attachment.loadOp == LoadOp::Clear)
         {
             m_immediateContext->ClearRenderTargetView(
-                static_cast<RenderTargetViewImpl*>(attachment.view)->m_rtv,
+                static_cast<TextureViewImpl*>(attachment.view)->getRTV(),
                 attachment.clearValue
             );
         }
@@ -383,7 +383,7 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
         if (clearFlags)
         {
             m_immediateContext->ClearDepthStencilView(
-                static_cast<DepthStencilViewImpl*>(attachment.view)->m_dsv,
+                static_cast<TextureViewImpl*>(attachment.view)->getDSV(),
                 D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
                 attachment.depthClearValue,
                 attachment.stencilClearValue
@@ -416,17 +416,17 @@ Result DeviceImpl::readTexture(
 
     auto texture = static_cast<TextureImpl*>(resource);
     // Don't bother supporting MSAA for right now
-    if (texture->getDesc()->sampleCount > 1)
+    if (texture->m_desc.sampleCount > 1)
     {
         fprintf(stderr, "ERROR: cannot capture multi-sample texture\n");
         return E_INVALIDARG;
     }
 
     FormatInfo sizeInfo;
-    rhiGetFormatInfo(texture->getDesc()->format, &sizeInfo);
+    rhiGetFormatInfo(texture->m_desc.format, &sizeInfo);
     size_t bytesPerPixel = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
-    size_t rowPitch = int(texture->getDesc()->size.width) * bytesPerPixel;
-    size_t bufferSize = rowPitch * int(texture->getDesc()->size.height);
+    size_t rowPitch = int(texture->m_desc.size.width) * bytesPerPixel;
+    size_t bufferSize = rowPitch * int(texture->m_desc.size.height);
     if (outRowPitch)
         *outRowPitch = rowPitch;
     if (outPixelSize)
@@ -528,7 +528,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     const int accessFlags = _calcResourceAccessFlags(srcDesc.memoryType);
 
-    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
 
     switch (srcDesc.type)
     {
@@ -681,7 +681,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     D3D11_SUBRESOURCE_DATA subResourceData = {0};
     subResourceData.pSysMem = initData;
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
+    buffer->m_device = this;
 
     SLANG_RETURN_ON_FAIL(
         m_device->CreateBuffer(&bufferDesc, initData ? &subResourceData : nullptr, buffer->m_buffer.writeRef())
@@ -735,193 +736,21 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     ComPtr<ID3D11SamplerState> sampler;
     SLANG_RETURN_ON_FAIL(m_device->CreateSamplerState(&dxDesc, sampler.writeRef()));
 
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl();
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_sampler = sampler;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
+Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    auto resourceImpl = (TextureImpl*)texture;
-
-    switch (desc.type)
-    {
-    default:
-        return SLANG_FAIL;
-
-    case IResourceView::Type::RenderTarget:
-    {
-        ComPtr<ID3D11RenderTargetView> rtv;
-        SLANG_RETURN_ON_FAIL(m_device->CreateRenderTargetView(resourceImpl->m_resource, nullptr, rtv.writeRef()));
-
-        RefPtr<RenderTargetViewImpl> viewImpl = new RenderTargetViewImpl();
-        viewImpl->m_type = ResourceViewImpl::Type::RTV;
-        viewImpl->m_rtv = rtv;
-        viewImpl->m_desc = desc;
-        if (resourceImpl->getDesc()->optimalClearValue)
-        {
-            memcpy(viewImpl->m_clearValue, &resourceImpl->getDesc()->optimalClearValue->color, sizeof(float) * 4);
-        }
-        returnComPtr(outView, viewImpl);
-        return SLANG_OK;
-    }
-    break;
-
-    case IResourceView::Type::DepthStencil:
-    {
-        ComPtr<ID3D11DepthStencilView> dsv;
-        SLANG_RETURN_ON_FAIL(m_device->CreateDepthStencilView(resourceImpl->m_resource, nullptr, dsv.writeRef()));
-
-        RefPtr<DepthStencilViewImpl> viewImpl = new DepthStencilViewImpl();
-        viewImpl->m_type = ResourceViewImpl::Type::DSV;
-        viewImpl->m_dsv = dsv;
-        if (resourceImpl->getDesc()->optimalClearValue)
-            viewImpl->m_clearValue = resourceImpl->getDesc()->optimalClearValue->depthStencil;
-        viewImpl->m_desc = desc;
-
-        returnComPtr(outView, viewImpl);
-        return SLANG_OK;
-    }
-    break;
-
-    case IResourceView::Type::UnorderedAccess:
-    {
-        ComPtr<ID3D11UnorderedAccessView> uav;
-        SLANG_RETURN_ON_FAIL(m_device->CreateUnorderedAccessView(resourceImpl->m_resource, nullptr, uav.writeRef()));
-
-        RefPtr<UnorderedAccessViewImpl> viewImpl = new UnorderedAccessViewImpl();
-        viewImpl->m_type = ResourceViewImpl::Type::UAV;
-        viewImpl->m_uav = uav;
-        viewImpl->m_desc = desc;
-
-        returnComPtr(outView, viewImpl);
-        return SLANG_OK;
-    }
-    break;
-
-    case IResourceView::Type::ShaderResource:
-    {
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-        initSrvDesc(*resourceImpl->getDesc(), D3DUtil::getMapFormat(desc.format), srvDesc);
-
-        ComPtr<ID3D11ShaderResourceView> srv;
-        SLANG_RETURN_ON_FAIL(m_device->CreateShaderResourceView(resourceImpl->m_resource, &srvDesc, srv.writeRef()));
-
-        RefPtr<ShaderResourceViewImpl> viewImpl = new ShaderResourceViewImpl();
-        viewImpl->m_type = ResourceViewImpl::Type::SRV;
-        viewImpl->m_srv = srv;
-        viewImpl->m_desc = desc;
-
-        returnComPtr(outView, viewImpl);
-        return SLANG_OK;
-    }
-    break;
-    }
-}
-
-Result DeviceImpl::createBufferView(
-    IBuffer* buffer,
-    IBuffer* counterBuffer,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
-{
-    auto resourceImpl = (BufferImpl*)buffer;
-    auto resourceDesc = *resourceImpl->getDesc();
-
-    switch (desc.type)
-    {
-    default:
-        return SLANG_FAIL;
-
-    case IResourceView::Type::UnorderedAccess:
-    {
-        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-        uavDesc.Format = D3DUtil::getMapFormat(desc.format);
-        uavDesc.Buffer.FirstElement = 0;
-
-        if (resourceDesc.elementSize)
-        {
-            uavDesc.Buffer.NumElements = UINT(resourceDesc.size / resourceDesc.elementSize);
-        }
-        else if (desc.format == Format::Unknown)
-        {
-            uavDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
-            uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-            uavDesc.Buffer.NumElements = UINT(resourceDesc.size / 4);
-        }
-        else
-        {
-            FormatInfo sizeInfo;
-            rhiGetFormatInfo(desc.format, &sizeInfo);
-            uavDesc.Buffer.NumElements =
-                UINT(resourceDesc.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
-        }
-
-        ComPtr<ID3D11UnorderedAccessView> uav;
-        SLANG_RETURN_ON_FAIL(m_device->CreateUnorderedAccessView(resourceImpl->m_buffer, &uavDesc, uav.writeRef()));
-
-        RefPtr<UnorderedAccessViewImpl> viewImpl = new UnorderedAccessViewImpl();
-        viewImpl->m_type = ResourceViewImpl::Type::UAV;
-        viewImpl->m_uav = uav;
-        viewImpl->m_desc = desc;
-
-        returnComPtr(outView, viewImpl);
-        return SLANG_OK;
-    }
-    break;
-
-    case IResourceView::Type::ShaderResource:
-    {
-        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        srvDesc.Format = D3DUtil::getMapFormat(desc.format);
-        srvDesc.Buffer.FirstElement = 0;
-
-        if (resourceDesc.elementSize)
-        {
-            srvDesc.Buffer.NumElements = UINT(resourceDesc.size / resourceDesc.elementSize);
-        }
-        else if (desc.format == Format::Unknown)
-        {
-            // We need to switch to a different member of the `union`,
-            // so that we can set the `BufferEx.Flags` member.
-            //
-            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
-
-            // Because we've switched, we need to re-set the `FirstElement`
-            // field to be valid, since we can't count on all compilers
-            // to respect that `Buffer.FirstElement` and `BufferEx.FirstElement`
-            // alias in memory.
-            //
-            srvDesc.BufferEx.FirstElement = 0;
-
-            srvDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
-            srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-            srvDesc.BufferEx.NumElements = UINT(resourceDesc.size / 4);
-        }
-        else
-        {
-            FormatInfo sizeInfo;
-            rhiGetFormatInfo(desc.format, &sizeInfo);
-            srvDesc.Buffer.NumElements =
-                UINT(resourceDesc.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
-        }
-
-        ComPtr<ID3D11ShaderResourceView> srv;
-        SLANG_RETURN_ON_FAIL(m_device->CreateShaderResourceView(resourceImpl->m_buffer, &srvDesc, srv.writeRef()));
-
-        RefPtr<ShaderResourceViewImpl> viewImpl = new ShaderResourceViewImpl();
-        viewImpl->m_type = ResourceViewImpl::Type::SRV;
-        viewImpl->m_srv = srv;
-        viewImpl->m_desc = desc;
-        returnComPtr(outView, viewImpl);
-        return SLANG_OK;
-    }
-    break;
-    }
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    view->m_texture = static_cast<TextureImpl*>(texture);
+    if (view->m_desc.format == Format::Unknown)
+        view->m_desc.format = view->m_texture->m_desc.format;
+    view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
+    returnComPtr(outView, view);
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
@@ -1052,7 +881,7 @@ void* DeviceImpl::map(IBuffer* bufferIn, MapFlavor flavor)
         // If buffer is not dynamic, we need to use staging buffer.
         if (bufferImpl->m_d3dUsage != D3D11_USAGE_DYNAMIC)
         {
-            bufferImpl->m_uploadStagingBuffer.resize(bufferImpl->getDesc()->size);
+            bufferImpl->m_uploadStagingBuffer.resize(bufferImpl->m_desc.size);
             return bufferImpl->m_uploadStagingBuffer.data();
         }
         break;

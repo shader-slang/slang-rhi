@@ -123,7 +123,6 @@ struct ShaderCacheTest
     ComPtr<IDevice> device;
     ComPtr<IPipeline> pipeline;
     ComPtr<IBuffer> buffer;
-    ComPtr<IResourceView> bufferView;
 
     std::string computeShaderA = std::string(
         R"(
@@ -228,17 +227,11 @@ struct ShaderCacheTest
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
         REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
-
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::UnorderedAccess;
-        viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, bufferView.writeRef()));
     }
 
     void freeComputeResources()
     {
         buffer = nullptr;
-        bufferView = nullptr;
         pipeline = nullptr;
     }
 
@@ -280,7 +273,7 @@ struct ShaderCacheTest
 
         // Bind buffer view to the entry point.
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
-        entryPointCursor.getPath("buffer").setResource(bufferView);
+        entryPointCursor.getPath("buffer").setBinding(buffer);
 
         encoder->dispatchCompute(4, 1, 1);
         encoder->endEncoding();
@@ -586,7 +579,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
-        entryPointCursor.getPath("buffer").setResource(bufferView);
+        entryPointCursor.getPath("buffer").setBinding(buffer);
         entryPointCursor.getPath("transformer").setObject(transformer);
 
         encoder->dispatchCompute(1, 1, 1);
@@ -693,7 +686,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<ITexture> colorBuffer;
-    ComPtr<IResourceView> colorBufferView;
+    ComPtr<ITextureView> colorBufferView;
     ComPtr<IInputLayout> inputLayout;
 
     ComPtr<IBuffer> createVertexBuffer(IDevice* device)
@@ -750,11 +743,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         vertexBuffer = createVertexBuffer(device);
         colorBuffer = createColorBuffer(device);
 
-        IResourceView::Desc colorBufferViewDesc;
-        memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
+        TextureViewDesc colorBufferViewDesc = {};
         colorBufferViewDesc.format = format;
-        colorBufferViewDesc.renderTarget.shape = TextureType::Texture2D;
-        colorBufferViewDesc.type = IResourceView::Type::RenderTarget;
         REQUIRE_CALL(device->createTextureView(colorBuffer, colorBufferViewDesc, colorBufferView.writeRef()));
     }
 

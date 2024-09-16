@@ -42,7 +42,7 @@ ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t
     return SLANG_OK;
 }
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset const& offset, IResourceView* resourceView)
+SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -51,30 +51,54 @@ SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setResource(ShaderOffset con
         return SLANG_E_INVALID_ARG;
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    auto resourceViewImpl = static_cast<ResourceViewImpl*>(resourceView);
-    if (D3DUtil::isUAVBinding(bindingRange.bindingType))
-    {
-        SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::Type::UAV);
-        m_uavs[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<UnorderedAccessViewImpl*>(resourceView);
-    }
-    else
-    {
-        SLANG_RHI_ASSERT(resourceViewImpl->m_type == ResourceViewImpl::Type::SRV);
-        m_srvs[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<ShaderResourceViewImpl*>(resourceView);
-    }
-    return SLANG_OK;
-}
+    Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
-SLANG_NO_THROW Result SLANG_MCALL ShaderObjectImpl::setSampler(ShaderOffset const& offset, ISampler* sampler)
-{
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
-    auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
+    switch (binding.type)
+    {
+    case BindingType::Buffer:
+    {
+        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        m_resources.emplace(buffer);
+        if (D3DUtil::isUAVBinding(bindingRange.bindingType))
+        {
+            m_uavs[bindingIndex] = buffer->getUAV(buffer->m_desc.format, bufferRange);
+        }
+        else
+        {
+            m_srvs[bindingIndex] = buffer->getSRV(buffer->m_desc.format, bufferRange);
+        }
+        break;
+    }
+    case BindingType::Texture:
+    {
+        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        return setBinding(offset, m_device->createTextureView(texture, {}));
+    }
+    case BindingType::TextureView:
+    {
+        TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        m_resources.emplace(textureView);
+        if (D3DUtil::isUAVBinding(bindingRange.bindingType))
+        {
+            m_uavs[bindingIndex] = textureView->getUAV();
+            ;
+        }
+        else
+        {
+            m_srvs[bindingIndex] = textureView->getSRV();
+        }
+        break;
+    }
+    case BindingType::Sampler:
+        m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
+        break;
+    case BindingType::CombinedTextureSampler:
+        break;
+    case BindingType::AccelerationStructure:
+        break;
+    }
 
-    m_samplers[bindingRange.baseIndex + offset.bindingArrayIndex] = static_cast<SamplerImpl*>(sampler);
     return SLANG_OK;
 }
 
@@ -351,8 +375,8 @@ Result ShaderObjectImpl::bindAsValue(
         auto registerOffset = bindingRange.registerOffset + offset.srv;
         for (uint32_t i = 0; i < count; ++i)
         {
-            auto srv = m_srvs[baseIndex + i];
-            context->setSRV(registerOffset + i, srv ? srv->m_srv : nullptr);
+            ID3D11ShaderResourceView* srv = m_srvs[baseIndex + i];
+            context->setSRV(registerOffset + i, srv);
         }
     }
 
@@ -364,8 +388,8 @@ Result ShaderObjectImpl::bindAsValue(
         auto registerOffset = bindingRange.registerOffset + offset.uav;
         for (uint32_t i = 0; i < count; ++i)
         {
-            auto uav = m_uavs[baseIndex + i];
-            context->setUAV(registerOffset + i, uav ? uav->m_uav : nullptr);
+            ID3D11UnorderedAccessView* uav = m_uavs[baseIndex + i];
+            context->setUAV(registerOffset + i, uav);
         }
     }
 

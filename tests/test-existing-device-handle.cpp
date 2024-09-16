@@ -49,14 +49,8 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBuffer> numbersBuffer;
-    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
-
-    ComPtr<IResourceView> bufferView;
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
@@ -71,7 +65,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 
         ShaderCursor rootCursor(rootObject);
         // Bind buffer view to the root.
-        rootCursor.getPath("buffer").setResource(bufferView);
+        rootCursor.getPath("buffer").setBinding(buffer);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();
@@ -80,7 +74,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, numbersBuffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
+    compareComputeResult(device, buffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
 }
 
 TEST_CASE("existing-device-handle")

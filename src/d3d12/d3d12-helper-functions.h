@@ -51,13 +51,6 @@ D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode);
 D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
 
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc);
-void initSrvDesc(
-    const TextureDesc& textureDesc,
-    const D3D12_RESOURCE_DESC& desc,
-    DXGI_FORMAT pixelFormat,
-    SubresourceRange subresourceRange,
-    D3D12_SHADER_RESOURCE_VIEW_DESC& descOut
-);
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 Result uploadBufferDataImpl(

@@ -20,14 +20,7 @@ public:
     createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITexture* inTexture, IResourceView::Desc const& desc, IResourceView** outView) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferView(
-        IBuffer* inBuffer,
-        IBuffer* counterBuffer,
-        IResourceView::Desc const& desc,
-        IResourceView** outView
-    ) override;
+    createTextureView(ITexture* inTexture, const TextureViewDesc& desc, ITextureView** outView) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,

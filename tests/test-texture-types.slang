@@ -5,13 +5,13 @@ typedef uint4 Element;
 // UNORDERED ACCESS VIEW
 [shader("compute")]
 [numthreads(1,1,1)]
-void resourceViewTest3DUnordered(
+void testRWTexture3D(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform uint width,
     uniform uint height,
     uniform uint depth,
-    uniform RWTexture3D<Element> resourceView,
-    uniform RWStructuredBuffer<Element> testResults)
+    uniform RWTexture3D<Element> texture,
+    uniform RWStructuredBuffer<Element> results)
 {
     uint tid = sv_dispatchThreadID.x;
 
@@ -22,25 +22,25 @@ void resourceViewTest3DUnordered(
 
     uint3 coord = uint3(x, y, z);
 
-    // Read from resourceView
-    Element elem = resourceView[coord];
+    // Read from texture
+    Element elem = texture[coord];
 
-    // Write to resourceView (if possible)
-    resourceView[coord] = Element(1);
+    // Write to texture (if possible)
+    texture[coord] = Element(1);
 
-    // Write something to testResults
-    testResults[tid] = elem;
+    // Write something to results
+    results[tid] = elem;
 }
 
 [shader("compute")]
 [numthreads(1,1,1)]
-void resourceViewTest2DUnordered(
+void testRWTexture2D(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform uint width,
     uniform uint height,
     uniform uint depth,
-    uniform RWTexture2D<Element> resourceView,
-    uniform RWStructuredBuffer<Element> testResults)
+    uniform RWTexture2D<Element> texture,
+    uniform RWStructuredBuffer<Element> results)
 {
     uint tid = sv_dispatchThreadID.x;
 
@@ -51,25 +51,25 @@ void resourceViewTest2DUnordered(
 
     uint3 coord = uint3(x, y, z);
 
-    // Read from resourceView
-    Element elem = resourceView[coord.xy];
+    // Read from texture
+    Element elem = texture[coord.xy];
 
-    // Write to resourceView (if possible)
-    resourceView[coord.xy] = Element(1);
+    // Write to texture (if possible)
+    texture[coord.xy] = Element(1);
 
-    // Write something to testResults
-    testResults[tid] = elem;
+    // Write something to results
+    results[tid] = elem;
 }
 
 [shader("compute")]
 [numthreads(1,1,1)]
-void resourceViewTest1DUnordered(
+void testRWTexture1D(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform uint width,
     uniform uint height,
     uniform uint depth,
-    uniform RWTexture1D<Element> resourceView,
-    uniform RWStructuredBuffer<Element> testResults)
+    uniform RWTexture1D<Element> texture,
+    uniform RWStructuredBuffer<Element> results)
 {
     uint tid = sv_dispatchThreadID.x;
 
@@ -80,26 +80,26 @@ void resourceViewTest1DUnordered(
 
     uint3 coord = uint3(x, y, z);
 
-    // Read from resourceView
-    Element elem = resourceView[coord.x];
+    // Read from texture
+    Element elem = texture[coord.x];
 
-    // Write to resourceView (if possible)
-    resourceView[coord.x] = Element(1);
+    // Write to texture (if possible)
+    texture[coord.x] = Element(1);
 
-    // Write something to testResults
-    testResults[tid] = elem;
+    // Write something to results
+    results[tid] = elem;
 }
 
 // SHADER RESOURCE VIEW
 [shader("compute")]
 [numthreads(1,1,1)]
-void resourceViewTest3DShader(
+void testTexture3D(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform uint width,
     uniform uint height,
     uniform uint depth,
-    uniform Texture3D<Element> resourceView,
-    uniform RWStructuredBuffer<Element> testResults)
+    uniform Texture3D<Element> texture,
+    uniform RWStructuredBuffer<Element> results)
 {
     uint tid = sv_dispatchThreadID.x;
 
@@ -110,22 +110,22 @@ void resourceViewTest3DShader(
 
     uint3 coord = uint3(x, y, z);
 
-    // Read from resourceView
-    Element elem = resourceView[coord];
+    // Read from texture
+    Element elem = texture[coord];
 
-    // Write something to testResults
-    testResults[tid] = elem;
+    // Write something to results
+    results[tid] = elem;
 }
 
 [shader("compute")]
 [numthreads(1,1,1)]
-void resourceViewTest2DShader(
+void testTexture2D(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform uint width,
     uniform uint height,
     uniform uint depth,
-    uniform Texture2D<Element> resourceView,
-    uniform RWStructuredBuffer<Element> testResults)
+    uniform Texture2D<Element> texture,
+    uniform RWStructuredBuffer<Element> results)
 {
     uint tid = sv_dispatchThreadID.x;
 
@@ -136,22 +136,22 @@ void resourceViewTest2DShader(
 
     uint3 coord = uint3(x, y, z);
 
-    // Read from resourceView
-    Element elem = resourceView[coord.xy];
+    // Read from texture
+    Element elem = texture[coord.xy];
 
-    // Write something to testResults
-    testResults[tid] = elem;
+    // Write something to results
+    results[tid] = elem;
 }
 
 [shader("compute")]
 [numthreads(1,1,1)]
-void resourceViewTest1DShader(
+void testTexture1D(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform uint width,
     uniform uint height,
     uniform uint depth,
-    uniform Texture1D<Element> resourceView,
-    uniform RWStructuredBuffer<Element> testResults)
+    uniform Texture1D<Element> texture,
+    uniform RWStructuredBuffer<Element> results)
 {
     uint tid = sv_dispatchThreadID.x;
 
@@ -162,11 +162,11 @@ void resourceViewTest1DShader(
 
     uint3 coord = uint3(x, y, z);
 
-    // Read from resourceView
-    Element elem = resourceView[coord.x];
+    // Read from texture
+    Element elem = texture[coord.x];
 
-    // Write something to testResults
-    testResults[tid] = elem;
+    // Write something to results
+    results[tid] = elem;
 }
 
 // RENDER TARGET AND DEPTH STENCIL VIEWS
@@ -219,85 +219,3 @@ float4 fragmentMain() : SV_Target
 {
     return float4(1.0, 2.0, 3.0, 4.0);
 }
-
-
-#if 0
-typedef uint4 Element;
-
-interface ITestCase
-{
-    Element doTest(uint3 coord);
-}
-
-// 1D + array, 2D + array + multisample + multisample array, cube + array
-
-struct UAV_3D : ITestCase
-{
-    uniform RWTexture3D<Element> resourceView,
-
-    Element doTest(uint3 coord)
-    {
-        // Read from resourceView
-        Element elem = resourceView[coord];
-
-        // Write to resourceView (if possible)
-        resourceView[coord] = Element(1);
-
-        return elem;
-    }
-}
-
-struct UAV_2D : ITestCase
-{
-    uniform RWTexture2D<Element> resourceView,
-
-    Element doTest(uint3 coord)
-    {
-        // Read from resourceView
-        Element elem = resourceView[coord.xy];
-
-        // Write to resourceView (if possible)
-        resourceView[coord.xy] = Element(1);
-
-        return elem;
-    }
-}
-
-struct SRV_3D : ITestCase
-{
-    uniform Texture3D<Element> resourceView,
-
-    Element doTest(uint3 coord)
-    {
-        // Read from resourceView
-        Element elem = resourceView[coord];
-
-        return elem;
-    }
-}
-
-// Copy the contents of "src" into "dst". These are for 2D textures containing UINT data.
-[shader("compute")]
-[numthreads(1,1,1)]
-void resourceViewTest<T:ITestCase>(
-    uint3 sv_dispatchThreadID : SV_DispatchThreadID,
-    uniform uint width,
-    uniform uint height,
-    uniform uint depth,
-    uniform T testCase,
-    uniform RWStructuredBuffer<Element> testResults)
-{
-    uint tid = sv_dispatchThreadID.x;
-
-    uint tmp = tid;
-    uint x = tmp % width; tmp /= width;
-    uint y = tmp % height; tmp /= height;
-    uint z = tmp;
-
-    uint3 coord = uint3(x, y, z);
-    Element elem = testCase.doTest(coord);
-
-    // Write something to testResults
-    testResults[tid] = elem;
-}
-#endif

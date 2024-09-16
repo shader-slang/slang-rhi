@@ -4,8 +4,8 @@
 #include "debug-helper-functions.h"
 #include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-resource-views.h"
 #include "debug-texture.h"
+#include "debug-texture-view.h"
 
 #include <vector>
 
@@ -132,27 +132,22 @@ void DebugResourceCommandEncoder::uploadTextureData(
         ->uploadTextureData(getInnerObj(dst), subResourceRange, offset, extent, subResourceData, subResourceDataCount);
 }
 
-void DebugResourceCommandEncoder::clearResourceView(
-    IResourceView* view,
-    ClearValue* clearValue,
-    ClearResourceViewFlags::Enum flags
+void DebugResourceCommandEncoder::clearBuffer(IBuffer* buffer, const BufferRange* range)
+{
+    SLANG_RHI_API_FUNC;
+    baseObject->clearBuffer(getInnerObj(buffer), range);
+}
+
+void DebugResourceCommandEncoder::clearTexture(
+    ITexture* texture,
+    const ClearValue& clearValue,
+    const SubresourceRange* subresourceRange,
+    bool clearDepth,
+    bool clearStencil
 )
 {
     SLANG_RHI_API_FUNC;
-    switch (view->getViewDesc()->type)
-    {
-    case IResourceView::Type::DepthStencil:
-    case IResourceView::Type::RenderTarget:
-    case IResourceView::Type::UnorderedAccess:
-        break;
-    default:
-        RHI_VALIDATION_ERROR_FORMAT(
-            "Resource view %lld cannot be cleared. Only DepthStencil, "
-            "RenderTarget or UnorderedAccess views can be cleared.",
-            getDebugObj(view)->uid
-        );
-    }
-    baseObject->clearResourceView(getInnerObj(view), clearValue, flags);
+    baseObject->clearTexture(getInnerObj(texture), clearValue, subresourceRange, clearDepth, clearStencil);
 }
 
 void DebugResourceCommandEncoder::resolveResource(

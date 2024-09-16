@@ -56,7 +56,6 @@ struct BaseRayTracingTest
     ComPtr<IBuffer> TLASBuffer;
     ComPtr<IAccelerationStructure> TLAS;
     ComPtr<ITexture> resultTexture;
-    ComPtr<IResourceView> resultTextureUAV;
     ComPtr<IShaderTable> shaderTable;
 
     uint32_t width = 2;
@@ -119,10 +118,6 @@ struct BaseRayTracingTest
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
         resultTextureDesc.format = Format::R32G32B32A32_FLOAT;
         resultTexture = device->createTexture(resultTextureDesc);
-        IResourceView::Desc resultUAVDesc = {};
-        resultUAVDesc.format = resultTextureDesc.format;
-        resultUAVDesc.type = IResourceView::Type::UnorderedAccess;
-        resultTextureUAV = device->createTextureView(resultTexture, resultUAVDesc);
     }
 
     void createRequiredResources()
@@ -380,8 +375,8 @@ struct RayTracingTestA : BaseRayTracingTest
         IShaderObject* rootObject = nullptr;
         renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
-        cursor["resultTexture"].setResource(resultTextureUAV);
-        cursor["sceneBVH"].setResource(TLAS);
+        cursor["resultTexture"].setBinding(resultTexture);
+        cursor["sceneBVH"].setBinding(TLAS);
         renderEncoder->dispatchRays(0, shaderTable, width, height, 1);
         renderEncoder->endEncoding();
         renderCommandBuffer->close();
@@ -408,8 +403,8 @@ struct RayTracingTestB : BaseRayTracingTest
         IShaderObject* rootObject = nullptr;
         renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
-        cursor["resultTexture"].setResource(resultTextureUAV);
-        cursor["sceneBVH"].setResource(TLAS);
+        cursor["resultTexture"].setBinding(resultTexture);
+        cursor["sceneBVH"].setBinding(TLAS);
         renderEncoder->dispatchRays(1, shaderTable, width, height, 1);
         renderEncoder->endEncoding();
         renderCommandBuffer->close();

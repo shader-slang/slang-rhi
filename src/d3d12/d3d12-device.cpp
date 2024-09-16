@@ -5,7 +5,7 @@
 #include "d3d12-helper-functions.h"
 #include "d3d12-pipeline.h"
 #include "d3d12-query.h"
-#include "d3d12-resource-views.h"
+#include "d3d12-texture-view.h"
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object.h"
 #include "d3d12-shader-program.h"
@@ -176,7 +176,7 @@ Result DeviceImpl::captureTextureToSurface(
 
     const D3D12_RESOURCE_STATES initialState = D3DUtil::getResourceState(state);
 
-    const TextureDesc& rhiDesc = *resourceImpl->getDesc();
+    const TextureDesc& rhiDesc = resourceImpl->getDesc();
     const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
 
     // Don't bother supporting MSAA for right now
@@ -1021,7 +1021,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     const int arraySize = calcEffectiveArraySize(srcDesc);
     const int numMipMaps = srcDesc.numMipLevels;
 
-    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
 
     // Create the target resource
     {
@@ -1231,7 +1231,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
 Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
 {
-    RefPtr<TextureImpl> texture(new TextureImpl(srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
 
     if (handle.type == NativeHandleType::D3D12Resource)
     {
@@ -1250,7 +1250,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 {
     BufferDesc srcDesc = fixupBufferDesc(descIn);
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
 
     D3D12_RESOURCE_DESC bufferDesc;
     initBufferDesc(descIn.size, bufferDesc);
@@ -1279,7 +1279,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
 
     if (handle.type == NativeHandleType::D3D12Resource)
     {
@@ -1334,253 +1334,21 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     // entries that we check before we go to the heap, and then
     // when we are done with a sampler we simply add it to the free list.
     //
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl();
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_allocator = samplerHeap;
     samplerImpl->m_descriptor = cpuDescriptor;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureView(ITexture* texture, IResourceView::Desc const& desc, IResourceView** outView)
+Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    auto resourceImpl = (TextureImpl*)texture;
-
-    RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
-    viewImpl->m_isBufferView = false;
-    viewImpl->m_resource = resourceImpl;
-    viewImpl->m_desc = desc;
-    bool isArray = resourceImpl ? resourceImpl->getDesc()->arraySize > 1 : false;
-    bool isMultiSample = resourceImpl ? resourceImpl->getDesc()->sampleCount > 1 : false;
-    switch (desc.type)
-    {
-    default:
-        return SLANG_FAIL;
-
-    case IResourceView::Type::RenderTarget:
-    {
-        SLANG_RETURN_ON_FAIL(m_rtvAllocator->allocate(&viewImpl->m_descriptor));
-        viewImpl->m_allocator = m_rtvAllocator;
-        D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-        rtvDesc.Format = D3DUtil::getMapFormat(desc.format);
-        switch (desc.renderTarget.shape)
-        {
-        case TextureType::Texture1D:
-            rtvDesc.ViewDimension = isArray ? D3D12_RTV_DIMENSION_TEXTURE1DARRAY : D3D12_RTV_DIMENSION_TEXTURE1D;
-            if (isArray)
-            {
-                rtvDesc.Texture1DArray.MipSlice = desc.subresourceRange.mipLevel;
-                rtvDesc.Texture1DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-                rtvDesc.Texture1DArray.ArraySize = desc.subresourceRange.layerCount;
-            }
-            else
-            {
-                rtvDesc.Texture1D.MipSlice = desc.subresourceRange.mipLevel;
-            }
-
-            break;
-        case TextureType::Texture2D:
-            if (isMultiSample)
-            {
-                rtvDesc.ViewDimension =
-                    isArray ? D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY : D3D12_RTV_DIMENSION_TEXTURE2DMS;
-                rtvDesc.Texture2DMSArray.ArraySize = desc.subresourceRange.layerCount;
-                rtvDesc.Texture2DMSArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-            }
-            else
-            {
-                rtvDesc.ViewDimension = isArray ? D3D12_RTV_DIMENSION_TEXTURE2DARRAY : D3D12_RTV_DIMENSION_TEXTURE2D;
-                if (isArray)
-                {
-                    rtvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
-                    rtvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
-                    rtvDesc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-                    rtvDesc.Texture2DArray.PlaneSlice =
-                        resourceImpl ? D3DUtil::getPlaneSlice(
-                                           D3DUtil::getMapFormat(resourceImpl->getDesc()->format),
-                                           desc.subresourceRange.aspectMask
-                                       )
-                                     : 0;
-                }
-                else
-                {
-                    rtvDesc.Texture2D.MipSlice = desc.subresourceRange.mipLevel;
-                    rtvDesc.Texture2D.PlaneSlice = resourceImpl
-                                                       ? D3DUtil::getPlaneSlice(
-                                                             D3DUtil::getMapFormat(resourceImpl->getDesc()->format),
-                                                             desc.subresourceRange.aspectMask
-                                                         )
-                                                       : 0;
-                }
-            }
-            break;
-        case TextureType::TextureCube:
-            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-            rtvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
-            rtvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
-            rtvDesc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-            rtvDesc.Texture2DArray.PlaneSlice = resourceImpl
-                                                    ? D3DUtil::getPlaneSlice(
-                                                          D3DUtil::getMapFormat(resourceImpl->getDesc()->format),
-                                                          desc.subresourceRange.aspectMask
-                                                      )
-                                                    : 0;
-            break;
-        case TextureType::Texture3D:
-            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
-            rtvDesc.Texture3D.MipSlice = desc.subresourceRange.mipLevel;
-            rtvDesc.Texture3D.FirstWSlice = desc.subresourceRange.baseArrayLayer;
-            rtvDesc.Texture3D.WSize = (desc.subresourceRange.layerCount == 0) ? -1 : desc.subresourceRange.layerCount;
-            break;
-        default:
-            return SLANG_FAIL;
-        }
-        m_device->CreateRenderTargetView(
-            resourceImpl ? resourceImpl->m_resource.getResource() : nullptr,
-            &rtvDesc,
-            viewImpl->m_descriptor.cpuHandle
-        );
-    }
-    break;
-
-    case IResourceView::Type::DepthStencil:
-    {
-        SLANG_RETURN_ON_FAIL(m_dsvAllocator->allocate(&viewImpl->m_descriptor));
-        viewImpl->m_allocator = m_dsvAllocator;
-        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-        dsvDesc.Format = D3DUtil::getMapFormat(desc.format);
-        switch (desc.renderTarget.shape)
-        {
-        case TextureType::Texture1D:
-            dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1D;
-            dsvDesc.Texture1D.MipSlice = desc.subresourceRange.mipLevel;
-            break;
-        case TextureType::Texture2D:
-            if (isMultiSample)
-            {
-                dsvDesc.ViewDimension =
-                    isArray ? D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY : D3D12_DSV_DIMENSION_TEXTURE2DMS;
-                dsvDesc.Texture2DMSArray.ArraySize = desc.subresourceRange.layerCount;
-                dsvDesc.Texture2DMSArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-            }
-            else
-            {
-                dsvDesc.ViewDimension = isArray ? D3D12_DSV_DIMENSION_TEXTURE2DARRAY : D3D12_DSV_DIMENSION_TEXTURE2D;
-                dsvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
-                dsvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
-                dsvDesc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-            }
-            break;
-        case TextureType::TextureCube:
-            dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
-            dsvDesc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
-            dsvDesc.Texture2DArray.ArraySize = desc.subresourceRange.layerCount;
-            dsvDesc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-            break;
-        default:
-            return SLANG_FAIL;
-        }
-        m_device->CreateDepthStencilView(
-            resourceImpl ? resourceImpl->m_resource.getResource() : nullptr,
-            &dsvDesc,
-            viewImpl->m_descriptor.cpuHandle
-        );
-    }
-    break;
-
-    case IResourceView::Type::UnorderedAccess:
-    {
-        // TODO: need to support the separate "counter resource" for the case
-        // of append/consume buffers with attached counters.
-
-        SLANG_RETURN_ON_FAIL(m_cpuViewHeap->allocate(&viewImpl->m_descriptor));
-        viewImpl->m_allocator = m_cpuViewHeap;
-        D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12desc = {};
-        auto& resourceDesc = *resourceImpl->getDesc();
-        d3d12desc.Format = rhiIsTypelessFormat(texture->getDesc()->format)
-                               ? D3DUtil::getMapFormat(desc.format)
-                               : D3DUtil::getMapFormat(texture->getDesc()->format);
-        switch (resourceImpl->getDesc()->type)
-        {
-        case TextureType::Texture1D:
-            d3d12desc.ViewDimension = isArray ? D3D12_UAV_DIMENSION_TEXTURE1DARRAY : D3D12_UAV_DIMENSION_TEXTURE1D;
-            if (isArray)
-            {
-                d3d12desc.Texture1D.MipSlice = desc.subresourceRange.mipLevel;
-            }
-            else
-            {
-                d3d12desc.Texture1DArray.MipSlice = desc.subresourceRange.mipLevel;
-                d3d12desc.Texture1DArray.ArraySize =
-                    desc.subresourceRange.layerCount == 0 ? resourceDesc.arraySize : desc.subresourceRange.layerCount;
-                d3d12desc.Texture1DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-            }
-            break;
-        case TextureType::Texture2D:
-            d3d12desc.ViewDimension = isArray ? D3D12_UAV_DIMENSION_TEXTURE2DARRAY : D3D12_UAV_DIMENSION_TEXTURE2D;
-            if (isArray)
-            {
-                d3d12desc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
-                d3d12desc.Texture2DArray.ArraySize =
-                    desc.subresourceRange.layerCount == 0 ? resourceDesc.arraySize : desc.subresourceRange.layerCount;
-                d3d12desc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-                d3d12desc.Texture2DArray.PlaneSlice =
-                    D3DUtil::getPlaneSlice(d3d12desc.Format, desc.subresourceRange.aspectMask);
-            }
-            else
-            {
-                d3d12desc.Texture2D.MipSlice = desc.subresourceRange.mipLevel;
-                d3d12desc.Texture2D.PlaneSlice =
-                    D3DUtil::getPlaneSlice(d3d12desc.Format, desc.subresourceRange.aspectMask);
-            }
-            break;
-        case TextureType::TextureCube:
-            d3d12desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-            d3d12desc.Texture2DArray.MipSlice = desc.subresourceRange.mipLevel;
-            d3d12desc.Texture2DArray.ArraySize =
-                desc.subresourceRange.layerCount == 0 ? resourceDesc.arraySize : desc.subresourceRange.layerCount;
-            d3d12desc.Texture2DArray.FirstArraySlice = desc.subresourceRange.baseArrayLayer;
-            d3d12desc.Texture2DArray.PlaneSlice =
-                D3DUtil::getPlaneSlice(d3d12desc.Format, desc.subresourceRange.aspectMask);
-            break;
-        case TextureType::Texture3D:
-            d3d12desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-            d3d12desc.Texture3D.MipSlice = desc.subresourceRange.mipLevel;
-            d3d12desc.Texture3D.FirstWSlice = desc.subresourceRange.baseArrayLayer;
-            d3d12desc.Texture3D.WSize = resourceDesc.size.depth;
-            break;
-        default:
-            return SLANG_FAIL;
-        }
-        m_device->CreateUnorderedAccessView(
-            resourceImpl->m_resource,
-            nullptr,
-            &d3d12desc,
-            viewImpl->m_descriptor.cpuHandle
-        );
-    }
-    break;
-
-    case IResourceView::Type::ShaderResource:
-    {
-        SLANG_RETURN_ON_FAIL(m_cpuViewHeap->allocate(&viewImpl->m_descriptor));
-        viewImpl->m_allocator = m_cpuViewHeap;
-
-        // Need to construct the D3D12_SHADER_RESOURCE_VIEW_DESC because otherwise TextureCube
-        // is not accessed appropriately (rather than just passing nullptr to
-        // CreateShaderResourceView)
-        const D3D12_RESOURCE_DESC resourceDesc = resourceImpl->m_resource.getResource()->GetDesc();
-        const DXGI_FORMAT pixelFormat =
-            desc.format == Format::Unknown ? resourceDesc.Format : D3DUtil::getMapFormat(desc.format);
-
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-        initSrvDesc(*resourceImpl->getDesc(), resourceDesc, pixelFormat, desc.subresourceRange, srvDesc);
-
-        m_device->CreateShaderResourceView(resourceImpl->m_resource, &srvDesc, viewImpl->m_descriptor.cpuHandle);
-    }
-    break;
-    }
-
-    returnComPtr(outView, viewImpl);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    view->m_texture = static_cast<TextureImpl*>(texture);
+    if (view->m_desc.format == Format::Unknown)
+        view->m_desc.format = view->m_texture->m_desc.format;
+    view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
+    returnComPtr(outView, view);
     return SLANG_OK;
 }
 
@@ -1620,31 +1388,6 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
         support = support | FormatSupport::ShaderUavStore;
 
     *outFormatSupport = support;
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createBufferView(
-    IBuffer* buffer,
-    IBuffer* counterBuffer,
-    IResourceView::Desc const& desc,
-    IResourceView** outView
-)
-{
-    auto resourceImpl = (BufferImpl*)buffer;
-    auto resourceDesc = *resourceImpl->getDesc();
-    const auto counterResourceImpl = static_cast<BufferImpl*>(counterBuffer);
-
-    RefPtr<ResourceViewImpl> viewImpl = new ResourceViewImpl();
-    viewImpl->m_isBufferView = true;
-    viewImpl->m_resource = resourceImpl;
-    viewImpl->m_counterResource = counterResourceImpl;
-    viewImpl->m_desc = desc;
-
-    // Buffer view descriptors are created on demand.
-    viewImpl->m_descriptor = {0};
-    viewImpl->m_allocator = m_cpuViewHeap.get();
-
-    returnComPtr(outView, viewImpl);
     return SLANG_OK;
 }
 
@@ -1716,13 +1459,13 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
 
     BufferImpl* buffer = static_cast<BufferImpl*>(bufferIn);
 
-    const Size bufferSize = buffer->getDesc()->size;
+    const Size bufferSize = buffer->m_desc.size;
 
     // This will be slow!!! - it blocks CPU on GPU completion
     D3D12Resource& resource = buffer->m_resource;
 
     D3D12Resource stageBuf;
-    if (buffer->getDesc()->memoryType != MemoryType::ReadBack)
+    if (buffer->m_desc.memoryType != MemoryType::ReadBack)
     {
         auto encodeInfo = encodeResourceCommands();
 
@@ -1754,7 +1497,7 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
         submitResourceCommandsAndWait(encodeInfo);
     }
 
-    D3D12Resource& stageBufRef = buffer->getDesc()->memoryType != MemoryType::ReadBack ? stageBuf : resource;
+    D3D12Resource& stageBufRef = buffer->m_desc.memoryType != MemoryType::ReadBack ? stageBuf : resource;
 
     // Map and copy
     auto blob = OwnedBlob::create(size);
@@ -2016,13 +1759,11 @@ Result DeviceImpl::createAccelerationStructure(
 )
 {
 #if SLANG_RHI_DXR
-    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl();
+    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     result->m_device5 = m_device5;
     result->m_buffer = static_cast<BufferImpl*>(desc.buffer);
     result->m_size = desc.size;
     result->m_offset = desc.offset;
-    result->m_allocator = m_cpuViewHeap;
-    result->m_desc.type = IResourceView::Type::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(m_cpuViewHeap->allocate(&result->m_descriptor));
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;

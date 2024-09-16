@@ -3,11 +3,11 @@
 #include "metal-command-buffer.h"
 #include "metal-helper-functions.h"
 #include "metal-query.h"
-#include "metal-resource-views.h"
 #include "metal-shader-object.h"
 #include "metal-shader-program.h"
 #include "metal-shader-table.h"
 #include "metal-texture.h"
+#include "metal-texture-view.h"
 #include "metal-util.h"
 
 namespace rhi::metal {
@@ -180,13 +180,20 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
-void ResourceCommandEncoderImpl::clearResourceView(
-    IResourceView* view,
-    ClearValue* clearValue,
-    ClearResourceViewFlags::Enum flags
+void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+{
+    SLANG_RHI_UNIMPLEMENTED("clearBuffer");
+}
+
+void ResourceCommandEncoderImpl::clearTexture(
+    ITexture* texture,
+    const ClearValue& clearValue,
+    const SubresourceRange* subresourceRange,
+    bool clearDepth,
+    bool clearStencil
 )
 {
-    SLANG_RHI_UNIMPLEMENTED("clearResourceView");
+    SLANG_RHI_UNIMPLEMENTED("clearTexture");
 }
 
 void ResourceCommandEncoderImpl::resolveResource(
@@ -227,10 +234,10 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
 
     auto visitView = [&](TextureViewImpl* view)
     {
-        const TextureDesc* textureDesc = view->m_texture->getDesc();
-        const IResourceView::Desc* viewDesc = view->getViewDesc();
-        width = std::max(1u, uint32_t(textureDesc->size.width >> viewDesc->subresourceRange.mipLevel));
-        height = std::max(1u, uint32_t(textureDesc->size.height >> viewDesc->subresourceRange.mipLevel));
+        const TextureDesc& textureDesc = *view->m_texture->getDesc();
+        const TextureViewDesc& viewDesc = view->m_desc;
+        width = std::max(1u, uint32_t(textureDesc.size.width >> viewDesc.subresourceRange.mipLevel));
+        height = std::max(1u, uint32_t(textureDesc.size.height >> viewDesc.subresourceRange.mipLevel));
     };
 
     // Initialize render pass descriptor.

@@ -7,13 +7,13 @@
 #include "debug-fence.h"
 #include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-resource-views.h"
 #include "debug-sampler.h"
 #include "debug-shader-object.h"
 #include "debug-shader-program.h"
 #include "debug-shader-table.h"
 #include "debug-swap-chain.h"
 #include "debug-texture.h"
+#include "debug-texture-view.h"
 #include "debug-transient-heap.h"
 #include "debug-vertex-layout.h"
 
@@ -153,6 +153,7 @@ void _rhiDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Device)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Buffer)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Texture)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(TextureView)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandBuffer)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandQueue)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputeCommandEncoder)
@@ -161,7 +162,6 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ResourceCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RayTracingCommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(InputLayout)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Pipeline)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(ResourceView)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Sampler)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderObject)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderProgram)

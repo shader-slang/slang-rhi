@@ -1,6 +1,6 @@
 #include "debug-shader-object.h"
 #include "debug-helper-functions.h"
-#include "debug-resource-views.h"
+#include "debug-texture-view.h"
 #include "debug-sampler.h"
 
 namespace rhi::debug {
@@ -106,37 +106,38 @@ Result DebugShaderObject::setObject(ShaderOffset const& offset, IShaderObject* o
     return baseObject->setObject(offset, getInnerObj(object));
 }
 
-Result DebugShaderObject::setResource(ShaderOffset const& offset, IResourceView* resourceView)
+Result DebugShaderObject::setBinding(ShaderOffset const& offset, Binding binding)
 {
     SLANG_RHI_API_FUNC;
-    auto viewImpl = getDebugObj(resourceView);
-    m_resources[ShaderOffsetKey{offset}] = viewImpl;
+    Binding innerBinding = binding;
+    switch (binding.type)
+    {
+    case BindingType::Buffer:
+        innerBinding.resource = getInnerObj(static_cast<DebugBuffer*>(binding.resource.get()));
+        break;
+    case BindingType::Texture:
+        innerBinding.resource = getInnerObj(static_cast<DebugTexture*>(binding.resource.get()));
+        break;
+    case BindingType::TextureView:
+        innerBinding.resource = getInnerObj(static_cast<DebugTextureView*>(binding.resource.get()));
+        break;
+    case BindingType::Sampler:
+        innerBinding.resource = getInnerObj(static_cast<DebugSampler*>(binding.resource.get()));
+        break;
+    case BindingType::CombinedTextureSampler:
+        innerBinding.resource = getInnerObj(static_cast<DebugTexture*>(binding.resource.get()));
+        innerBinding.resource2 = getInnerObj(static_cast<DebugSampler*>(binding.resource2.get()));
+        break;
+    case BindingType::AccelerationStructure:
+        innerBinding.resource = getInnerObj(static_cast<DebugAccelerationStructure*>(binding.resource.get()));
+        break;
+    default:
+        // TODO better error message
+        return SLANG_FAIL;
+    }
+    m_bindings[ShaderOffsetKey{offset}] = binding;
     m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
-    return baseObject->setResource(offset, getInnerObj(resourceView));
-}
-
-Result DebugShaderObject::setSampler(ShaderOffset const& offset, ISampler* sampler)
-{
-    SLANG_RHI_API_FUNC;
-    auto samplerImpl = getDebugObj(sampler);
-    m_samplers[ShaderOffsetKey{offset}] = samplerImpl;
-    m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
-    return baseObject->setSampler(offset, getInnerObj(sampler));
-}
-
-Result DebugShaderObject::setCombinedTextureSampler(
-    ShaderOffset const& offset,
-    IResourceView* textureView,
-    ISampler* sampler
-)
-{
-    SLANG_RHI_API_FUNC;
-    auto samplerImpl = getDebugObj(sampler);
-    m_samplers[ShaderOffsetKey{offset}] = samplerImpl;
-    auto viewImpl = getDebugObj(textureView);
-    m_resources[ShaderOffsetKey{offset}] = viewImpl;
-    m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
-    return baseObject->setCombinedTextureSampler(offset, getInnerObj(viewImpl), getInnerObj(sampler));
+    return baseObject->setBinding(offset, innerBinding);
 }
 
 Result DebugShaderObject::setSpecializationArgs(
@@ -194,8 +195,7 @@ void DebugRootShaderObject::reset()
 {
     m_entryPoints.clear();
     m_objects.clear();
-    m_resources.clear();
-    m_samplers.clear();
+    m_bindings.clear();
     baseObject.detach();
 }
 

@@ -33,19 +33,13 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBuffer> numbersBuffer;
-    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
-
-    ComPtr<IResourceView> bufferView;
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
     ComPtr<IShaderObject> rootObject;
     device->createMutableRootShaderObject(shaderProgram, rootObject.writeRef());
     auto entryPointCursor = ShaderCursor(rootObject->getEntryPoint(0));
-    entryPointCursor.getPath("buffer").setResource(bufferView);
+    entryPointCursor.getPath("buffer").setBinding(buffer);
 
     slang::TypeReflection* addTransformerType = slangReflection->findTypeByName("AddTransformer");
     ComPtr<IShaderObject> transformer;
@@ -72,7 +66,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
         auto barrierEncoder = commandBuffer->encodeResourceCommands();
         barrierEncoder
-            ->bufferBarrier(1, numbersBuffer.readRef(), ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
+            ->bufferBarrier(1, buffer.readRef(), ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
         barrierEncoder->endEncoding();
 
         // Mutate `transformer` object and run again.
@@ -90,7 +84,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, numbersBuffer, makeArray<float>(3.0f, 4.0f, 5.0f, 6.0f));
+    compareComputeResult(device, buffer, makeArray<float>(3.0f, 4.0f, 5.0f, 6.0f));
 }
 
 TEST_CASE("root-mutable-shader-object")

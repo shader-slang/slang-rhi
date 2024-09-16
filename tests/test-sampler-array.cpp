@@ -42,17 +42,9 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     std::vector<ComPtr<ISampler>> samplers;
-    std::vector<ComPtr<IResourceView>> srvs;
-    ComPtr<IResourceView> uav;
     ComPtr<ITexture> texture;
     ComPtr<IBuffer> buffer = createBuffer(device, 0);
 
-    {
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::UnorderedAccess;
-        viewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(buffer, nullptr, viewDesc, uav.writeRef()));
-    }
     {
         TextureDesc textureDesc = {};
         textureDesc.type = TextureType::Texture2D;
@@ -67,17 +59,6 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         uint32_t data[] = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
         SubresourceData subResourceData[2] = {{data, 8, 16}, {data, 8, 16}};
         REQUIRE_CALL(device->createTexture(textureDesc, subResourceData, texture.writeRef()));
-    }
-    for (uint32_t i = 0; i < 32; i++)
-    {
-        ComPtr<IResourceView> srv;
-        IResourceView::Desc viewDesc = {};
-        viewDesc.type = IResourceView::Type::ShaderResource;
-        viewDesc.format = Format::R8G8B8A8_UNORM;
-        viewDesc.subresourceRange.layerCount = 1;
-        viewDesc.subresourceRange.mipLevelCount = 1;
-        REQUIRE_CALL(device->createTextureView(texture, viewDesc, srv.writeRef()));
-        srvs.push_back(srv);
     }
 
     for (uint32_t i = 0; i < 32; i++)
@@ -109,8 +90,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         auto cursor = ShaderCursor(s1);
         for (uint32_t i = 0; i < 32; i++)
         {
-            cursor["samplers"][i].setSampler(samplers[i]);
-            cursor["tex"][i].setResource(srvs[i]);
+            cursor["samplers"][i].setBinding(samplers[i]);
+            cursor["tex"][i].setBinding(texture);
         }
         cursor["data"].setData(1.0f);
     }
@@ -124,7 +105,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     {
         auto cursor = ShaderCursor(rootObject);
         cursor["g"].setObject(g);
-        cursor["buffer"].setResource(uav);
+        cursor["buffer"].setBinding(buffer);
     }
 
     {

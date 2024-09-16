@@ -138,14 +138,8 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBuffer> numbersBuffer;
-    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
-
-    ComPtr<IResourceView> bufferView;
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
     ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
     auto queue = device->createCommandQueue(queueDesc);
@@ -160,7 +154,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setResource(bufferView);
+        entryPointCursor.getPath("buffer").setBinding(buffer);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();
@@ -169,7 +163,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, numbersBuffer, makeArray<float>(8.f));
+    compareComputeResult(device, buffer, makeArray<float>(8.f));
 
     // Now run again with the overrided program.
     {
@@ -180,7 +174,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setResource(bufferView);
+        entryPointCursor.getPath("buffer").setBinding(buffer);
 
         encoder->dispatchCompute(1, 1, 1);
         encoder->endEncoding();
@@ -189,7 +183,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, numbersBuffer, makeArray<float>(10.f));
+    compareComputeResult(device, buffer, makeArray<float>(10.f));
 }
 
 TEST_CASE("link-time-default")

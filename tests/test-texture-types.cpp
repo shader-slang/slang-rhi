@@ -11,132 +11,75 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-struct BaseTextureViewTest
+struct TextureTest
 {
     IDevice* device;
 
-    IResourceView::Type viewType;
     size_t alignedRowStride;
 
     RefPtr<TextureInfo> textureInfo;
     RefPtr<ValidationTextureFormatBase> validationFormat;
 
     ComPtr<ITexture> texture;
-    ComPtr<IResourceView> textureView;
-    ComPtr<IBuffer> resultsBuffer;
-    ComPtr<IResourceView> bufferView;
-
     ComPtr<ISampler> sampler;
+    ComPtr<IBuffer> resultsBuffer;
 
     const void* expectedTextureData;
 
-    void init(
-        IDevice* device,
-        Format format,
-        RefPtr<ValidationTextureFormatBase> validationFormat,
-        IResourceView::Type viewType,
-        TextureType type
-    )
+    void init(IDevice* device, Format format, RefPtr<ValidationTextureFormatBase> validationFormat, TextureType type)
     {
         this->device = device;
         this->validationFormat = validationFormat;
-        this->viewType = viewType;
 
         this->textureInfo = new TextureInfo();
         this->textureInfo->format = format;
         this->textureInfo->textureType = type;
     }
+};
 
-    TextureUsage getTextureUsageForViewType(IResourceView::Type type)
-    {
-        switch (type)
-        {
-        case IResourceView::Type::RenderTarget:
-            return TextureUsage::RenderTarget;
-        case IResourceView::Type::DepthStencil:
-            return TextureUsage::DepthWrite;
-        case IResourceView::Type::ShaderResource:
-            return TextureUsage::ShaderResource;
-        case IResourceView::Type::UnorderedAccess:
-            return TextureUsage::UnorderedAccess;
-        default:
-            return TextureUsage::None;
-        }
-    }
+// used for shaderresource and unorderedaccess
+struct TextureAccessTest : TextureTest
+{
+    bool readWrite;
 
-    ResourceState getDefaultResourceStateForViewType(IResourceView::Type type)
+    void init(
+        IDevice* device,
+        Format format,
+        RefPtr<ValidationTextureFormatBase> validationFormat,
+        TextureType type,
+        bool readWrite
+    )
     {
-        switch (type)
-        {
-        case IResourceView::Type::RenderTarget:
-            return ResourceState::RenderTarget;
-        case IResourceView::Type::DepthStencil:
-            return ResourceState::DepthWrite;
-        case IResourceView::Type::ShaderResource:
-            return ResourceState::ShaderResource;
-        case IResourceView::Type::UnorderedAccess:
-            return ResourceState::UnorderedAccess;
-        case IResourceView::Type::AccelerationStructure:
-            return ResourceState::AccelerationStructure;
-        default:
-            return ResourceState::Undefined;
-        }
+        TextureTest::init(device, format, validationFormat, type);
+        this->readWrite = readWrite;
     }
 
     std::string getShaderEntryPoint()
     {
-        std::string base = "resourceViewTest";
-        std::string shape;
-        std::string view;
+        std::string name = "test";
+
+        name += readWrite ? "RWTexture" : "Texture";
 
         switch (textureInfo->textureType)
         {
         case TextureType::Texture1D:
-            shape = "1D";
+            name += "1D";
             break;
         case TextureType::Texture2D:
-            shape = "2D";
+            name += "2D";
             break;
         case TextureType::Texture3D:
-            shape = "3D";
+            name += "3D";
             break;
         case TextureType::TextureCube:
-            shape = "Cube";
+            name += "Cube";
             break;
-        default:
-            MESSAGE("Invalid texture shape");
-            REQUIRE(false);
         }
 
-        switch (viewType)
-        {
-        case IResourceView::Type::RenderTarget:
-            view = "Render";
-            break;
-        case IResourceView::Type::DepthStencil:
-            view = "Depth";
-            break;
-        case IResourceView::Type::ShaderResource:
-            view = "Shader";
-            break;
-        case IResourceView::Type::UnorderedAccess:
-            view = "Unordered";
-            break;
-        case IResourceView::Type::AccelerationStructure:
-            view = "Accel";
-            break;
-        default:
-            MESSAGE("Invalid resource view");
-            REQUIRE(false);
-        }
-
-        return base + shape + view;
+        return name;
     }
-};
 
-// used for shaderresource and unorderedaccess
-struct ShaderAndUnorderedTests : BaseTextureViewTest
-{
+
     void createRequiredResources()
     {
         TextureDesc textureDesc = {};
@@ -144,18 +87,11 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         textureDesc.numMipLevels = textureInfo->mipLevelCount;
         textureDesc.arraySize = textureInfo->arrayLayerCount;
         textureDesc.size = textureInfo->extents;
-        textureDesc.usage =
-            getTextureUsageForViewType(viewType) | TextureUsage::CopySource | TextureUsage::CopyDestination;
-        textureDesc.defaultState = getDefaultResourceStateForViewType(viewType);
+        textureDesc.usage = (readWrite ? TextureUsage::UnorderedAccess : TextureUsage::ShaderResource) |
+                            TextureUsage::CopySource | TextureUsage::CopyDestination;
+        textureDesc.defaultState = readWrite ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;
         textureDesc.format = textureInfo->format;
-
         REQUIRE_CALL(device->createTexture(textureDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
-
-        IResourceView::Desc textureViewDesc = {};
-        textureViewDesc.type = viewType;
-        textureViewDesc.format = textureDesc.format; // TODO: Handle typeless formats - rhiIsTypelessFormat(format) ?
-                                                     // convertTypelessFormat(format) : format;
-        REQUIRE_CALL(device->createTextureView(texture, textureViewDesc, textureView.writeRef()));
 
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
@@ -172,11 +108,6 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
         REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, resultsBuffer.writeRef()));
-
-        IResourceView::Desc bufferViewDesc = {};
-        bufferViewDesc.type = IResourceView::Type::UnorderedAccess;
-        bufferViewDesc.format = Format::Unknown;
-        REQUIRE_CALL(device->createBufferView(resultsBuffer, nullptr, bufferViewDesc, bufferView.writeRef()));
     }
 
     void submitShaderWork(const char* entryPoint)
@@ -217,17 +148,16 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
             entryPointCursor["depth"].setData(depth);
 
             // Bind texture view to the entry point
-            entryPointCursor["resourceView"].setResource(textureView); // TODO: Bind nullptr and make sure it doesn't
-                                                                       // splut - should be 0 everywhere
-            entryPointCursor["testResults"].setResource(bufferView);
+            entryPointCursor["texture"].setBinding(texture);
+            entryPointCursor["results"].setBinding(resultsBuffer);
 
             if (sampler)
-                entryPointCursor["sampler"].setSampler(sampler); // TODO: Bind nullptr and make sure it doesn't splut
+                entryPointCursor["sampler"].setBinding(sampler); // TODO: Bind nullptr and make sure it doesn't splut
 
             auto bufferElementCount = width * height * depth;
             encoder->dispatchCompute(bufferElementCount, 1, 1);
 
-            encoder->textureBarrier(texture, texture->getDesc()->defaultState, ResourceState::CopySource);
+            encoder->textureBarrier(texture, texture->getDesc().defaultState, ResourceState::CopySource);
 
             encoder->endEncoding();
             commandBuffer->close();
@@ -257,8 +187,8 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 
     void checkTestResults()
     {
-        // Shader resources are read-only, so we don't need to check that writes to the resource were correct.
-        if (viewType != IResourceView::Type::ShaderResource)
+        // Only check writes if the texture can be written to
+        if (readWrite)
         {
             ComPtr<ISlangBlob> textureBlob;
             size_t rowPitch;
@@ -286,7 +216,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
         }
 
         ComPtr<ISlangBlob> bufferBlob;
-        REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, resultsBuffer->getDesc()->size, bufferBlob.writeRef()));
+        REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, resultsBuffer->getDesc().size, bufferBlob.writeRef()));
         auto results = (uint32_t*)bufferBlob->getBufferPointer();
 
         auto elementCount = textureInfo->extents.width * textureInfo->extents.height * textureInfo->extents.depth * 4;
@@ -325,7 +255,7 @@ struct ShaderAndUnorderedTests : BaseTextureViewTest
 };
 
 // used for rendertarget and depthstencil
-struct RenderTargetTests : BaseTextureViewTest
+struct RenderTargetTests : TextureTest
 {
     struct Vertex
     {
@@ -361,8 +291,8 @@ struct RenderTargetTests : BaseTextureViewTest
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipeline> pipeline;
 
-    ComPtr<ITexture> sampledTexture;
-    ComPtr<IResourceView> sampledTextureView;
+    ComPtr<ITexture> renderTexture;
+    ComPtr<ITextureView> renderTextureView;
     ComPtr<IBuffer> vertexBuffer;
 
     void createRequiredResources()
@@ -384,31 +314,32 @@ struct RenderTargetTests : BaseTextureViewTest
             {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
         };
 
-        TextureDesc sampledTexDesc = {};
-        sampledTexDesc.type = textureInfo->textureType;
-        sampledTexDesc.numMipLevels = textureInfo->mipLevelCount;
-        sampledTexDesc.arraySize = textureInfo->arrayLayerCount;
-        sampledTexDesc.size = textureInfo->extents;
-        sampledTexDesc.usage =
-            getTextureUsageForViewType(viewType) | TextureUsage::ResolveSource | TextureUsage::CopySource;
-        sampledTexDesc.defaultState = getDefaultResourceStateForViewType(viewType);
-        sampledTexDesc.format = textureInfo->format;
-        sampledTexDesc.sampleCount = sampleCount;
+        TextureDesc renderTextureDesc = {};
+        renderTextureDesc.type = textureInfo->textureType;
+        renderTextureDesc.numMipLevels = textureInfo->mipLevelCount;
+        renderTextureDesc.arraySize = textureInfo->arrayLayerCount;
+        renderTextureDesc.size = textureInfo->extents;
+        renderTextureDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource | TextureUsage::CopySource;
+        renderTextureDesc.defaultState = ResourceState::RenderTarget;
+        renderTextureDesc.format = textureInfo->format;
+        renderTextureDesc.sampleCount = sampleCount;
 
         REQUIRE_CALL(
-            device->createTexture(sampledTexDesc, textureInfo->subresourceDatas.data(), sampledTexture.writeRef())
+            device->createTexture(renderTextureDesc, textureInfo->subresourceDatas.data(), renderTexture.writeRef())
         );
 
-        TextureDesc texDesc = {};
-        texDesc.type = textureInfo->textureType;
-        texDesc.numMipLevels = textureInfo->mipLevelCount;
-        texDesc.arraySize = textureInfo->arrayLayerCount;
-        texDesc.size = textureInfo->extents;
-        texDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
-        texDesc.defaultState = ResourceState::ResolveDestination;
-        texDesc.format = textureInfo->format;
+        REQUIRE_CALL(device->createTextureView(renderTexture, {}, renderTextureView.writeRef()));
 
-        REQUIRE_CALL(device->createTexture(texDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
+        TextureDesc textureDesc = {};
+        textureDesc.type = textureInfo->textureType;
+        textureDesc.numMipLevels = textureInfo->mipLevelCount;
+        textureDesc.arraySize = textureInfo->arrayLayerCount;
+        textureDesc.size = textureInfo->extents;
+        textureDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
+        textureDesc.defaultState = ResourceState::ResolveDestination;
+        textureDesc.format = textureInfo->format;
+
+        REQUIRE_CALL(device->createTexture(textureDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
 
         InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
@@ -445,20 +376,13 @@ struct RenderTargetTests : BaseTextureViewTest
         pipelineDesc.multisample.sampleCount = sampleCount;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
 
-        IResourceView::Desc colorBufferViewDesc;
-        memset(&colorBufferViewDesc, 0, sizeof(colorBufferViewDesc));
-        colorBufferViewDesc.format = textureInfo->format;
-        colorBufferViewDesc.renderTarget.shape = textureInfo->textureType; // TODO: TextureCube?
-        colorBufferViewDesc.type = viewType;
-        REQUIRE_CALL(device->createTextureView(sampledTexture, colorBufferViewDesc, sampledTextureView.writeRef()));
-
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
         alignedRowStride = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
     }
 
-    void submitShaderWork(const char* entryPointName)
+    void submitShaderWork()
     {
         ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
@@ -466,10 +390,10 @@ struct RenderTargetTests : BaseTextureViewTest
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         RenderPassColorAttachment colorAttachment;
-        colorAttachment.view = sampledTextureView;
+        colorAttachment.view = renderTextureView;
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = getDefaultResourceStateForViewType(viewType);
+        colorAttachment.initialState = ResourceState::RenderTarget;
         colorAttachment.finalState = ResourceState::ResolveSource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
@@ -508,7 +432,7 @@ struct RenderTargetTests : BaseTextureViewTest
             dstSubresource.layerCount = 1;
 
             resourceEncoder->resolveResource(
-                sampledTexture,
+                renderTexture,
                 ResourceState::ResolveSource,
                 msaaSubresource,
                 texture,
@@ -519,7 +443,7 @@ struct RenderTargetTests : BaseTextureViewTest
         }
         else
         {
-            resourceEncoder->textureBarrier(sampledTexture, ResourceState::ResolveSource, ResourceState::CopySource);
+            resourceEncoder->textureBarrier(renderTexture, ResourceState::ResolveSource, ResourceState::CopySource);
         }
         resourceEncoder->endEncoding();
         commandBuffer->close();
@@ -569,7 +493,7 @@ struct RenderTargetTests : BaseTextureViewTest
         else
         {
             REQUIRE_CALL(device->readTexture(
-                sampledTexture,
+                renderTexture,
                 ResourceState::CopySource,
                 textureBlob.writeRef(),
                 &rowPitch,
@@ -590,9 +514,6 @@ struct RenderTargetTests : BaseTextureViewTest
 
     void run()
     {
-        auto entryPointName = getShaderEntryPoint();
-        //             printf("%s\n", entryPointName.getBuffer());
-
         // TODO: Sampler state and null state?
         //             SamplerDesc samplerDesc;
         //             sampler = device->createSampler(samplerDesc);
@@ -609,29 +530,33 @@ struct RenderTargetTests : BaseTextureViewTest
         expectedTextureData = textureInfo->subresourceDatas[getSubresourceIndex(0, 1, 0)].data;
 
         createRequiredResources();
-        submitShaderWork(entryPointName.data());
+        submitShaderWork();
 
         checkTestResults();
     }
 };
 
-void testShaderAndUnordered(GpuTestContext* ctx, DeviceType deviceType)
+void testTextureShader(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    // TODO: Buffer and TextureCube
-    for (Int i = 2; i < (int32_t)TextureType::TextureCube; ++i)
+    TextureType textureTypes[] = {
+        TextureType::Texture1D,
+        TextureType::Texture2D,
+        TextureType::Texture3D,
+        // TextureType::TextureCube,
+    };
+
+    for (TextureType textureType : textureTypes)
     {
-        for (Int j = 3; j < (int32_t)IResourceView::Type::AccelerationStructure; ++j)
+        for (bool readWrite : {false, true})
         {
-            auto shape = (TextureType)i;
-            auto view = (IResourceView::Type)j;
             auto format = Format::R8G8B8A8_UINT;
             auto validationFormat = getValidationTextureFormat(format);
             REQUIRE(validationFormat != nullptr);
 
-            ShaderAndUnorderedTests test;
-            test.init(device, format, validationFormat, view, shape);
+            TextureAccessTest test;
+            test.init(device, format, validationFormat, textureType, readWrite);
             test.run();
         }
     }
@@ -641,25 +566,30 @@ void testRenderTarget(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
+    TextureType textureTypes[] = {
+        TextureType::Texture1D,
+        TextureType::Texture2D,
+        TextureType::Texture3D,
+        // TextureType::TextureCube,
+    };
+
     // TODO: Buffer and TextureCube
-    for (Int i = 2; i < (int32_t)TextureType::TextureCube; ++i)
+    for (TextureType textureType : textureTypes)
     {
-        auto shape = (TextureType)i;
-        auto view = IResourceView::Type::RenderTarget;
         auto format = Format::R32G32B32A32_FLOAT;
         auto validationFormat = getValidationTextureFormat(format);
         REQUIRE(validationFormat != nullptr);
 
         RenderTargetTests test;
-        test.init(device, format, validationFormat, view, shape);
+        test.init(device, format, validationFormat, textureType);
         test.run();
     }
 }
 
-TEST_CASE("texture-types-shader-and-unordered")
+TEST_CASE("texture-types-shader")
 {
     runGpuTests(
-        testShaderAndUnordered,
+        testTextureShader,
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,

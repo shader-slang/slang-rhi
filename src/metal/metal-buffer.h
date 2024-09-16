@@ -8,8 +8,6 @@ namespace rhi::metal {
 class BufferImpl : public Buffer
 {
 public:
-    typedef Buffer Parent;
-
     BreakableReference<DeviceImpl> m_device;
     NS::SharedPtr<MTL::Buffer> m_buffer;
 
