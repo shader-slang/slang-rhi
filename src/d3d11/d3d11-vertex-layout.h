@@ -4,7 +4,7 @@
 
 namespace rhi::d3d11 {
 
-class InputLayoutImpl : public InputLayoutBase
+class InputLayoutImpl : public InputLayout
 {
 public:
     ComPtr<ID3D11InputLayout> m_layout;

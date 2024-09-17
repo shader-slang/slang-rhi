@@ -6,7 +6,7 @@
 
 namespace rhi::metal {
 
-class InputLayoutImpl : public InputLayoutBase
+class InputLayoutImpl : public InputLayout
 {
 public:
     std::vector<InputElementDesc> m_inputElements;

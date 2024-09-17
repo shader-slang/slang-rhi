@@ -4,7 +4,7 @@
 
 namespace rhi::d3d12 {
 
-class InputLayoutImpl : public InputLayoutBase
+class InputLayoutImpl : public InputLayout
 {
 public:
     std::vector<D3D12_INPUT_ELEMENT_DESC> m_elements;

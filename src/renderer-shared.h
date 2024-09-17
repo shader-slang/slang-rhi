@@ -845,7 +845,7 @@ public:
     bool isMeshShaderProgram() const;
 };
 
-class InputLayoutBase : public IInputLayout, public ComObject
+class InputLayout : public IInputLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -902,7 +902,7 @@ public:
 
     // We need to hold inputLayout object alive, since we may use it to
     // create specialized pipeline states later.
-    RefPtr<InputLayoutBase> inputLayout;
+    RefPtr<InputLayout> inputLayout;
 
     // The pipeline state from which this pipeline state is specialized.
     // If null, this pipeline is either an unspecialized pipeline.

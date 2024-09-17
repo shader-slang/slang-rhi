@@ -223,7 +223,7 @@ IShaderProgram* ShaderProgramBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IInputLayout* InputLayoutBase::getInterface(const Guid& guid)
+IInputLayout* InputLayout::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IInputLayout)
         return static_cast<IInputLayout*>(this);
@@ -280,7 +280,7 @@ void Pipeline::initializeBase(const PipelineStateDesc& inDesc)
     // Hold a strong reference to inputLayout object to prevent it from destruction.
     if (inDesc.type == PipelineType::Graphics)
     {
-        inputLayout = static_cast<InputLayoutBase*>(inDesc.graphics.inputLayout);
+        inputLayout = static_cast<InputLayout*>(inDesc.graphics.inputLayout);
     }
 }
 
