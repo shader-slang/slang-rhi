@@ -52,9 +52,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
     TextureDesc srcDesc = fixupTextureDesc(desc);
-
-    RefPtr<TextureImpl> texture = new TextureImpl(this, srcDesc);
-
+    RefPtr<TextureImpl> texture = new TextureImpl(srcDesc);
     SLANG_RETURN_ON_FAIL(texture->init(initData));
 
     returnComPtr(outTexture, texture);
@@ -64,7 +62,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
     SLANG_RETURN_ON_FAIL(buffer->init());
     if (initData)
     {
@@ -76,7 +74,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
     view->m_texture = static_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;

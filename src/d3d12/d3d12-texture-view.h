@@ -12,8 +12,8 @@ namespace rhi::d3d12 {
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc)
-        : TextureView(device, desc)
+    TextureViewImpl(const TextureViewDesc& desc)
+        : TextureView(desc)
     {
     }
 
@@ -38,6 +38,7 @@ private:
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
+    DeviceImpl* m_device;
     RefPtr<BufferImpl> m_buffer;
     uint64_t m_offset;
     uint64_t m_size;
@@ -45,8 +46,9 @@ public:
     ComPtr<ID3D12Device5> m_device5;
 
 public:
-    AccelerationStructureImpl(Device* device, const IAccelerationStructure::CreateDesc& desc)
-        : AccelerationStructure(device, desc)
+    AccelerationStructureImpl(DeviceImpl* device, const IAccelerationStructure::CreateDesc& desc)
+        : AccelerationStructure(desc)
+        , m_device(device)
     {
     }
 

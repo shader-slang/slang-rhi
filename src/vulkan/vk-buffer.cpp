@@ -86,8 +86,9 @@ Result VKBufferHandleRAII::init(
     return SLANG_OK;
 }
 
-BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
-    : Buffer(device, desc)
+BufferImpl::BufferImpl(DeviceImpl* device, const BufferDesc& desc)
+    : Buffer(desc)
+    , m_device(device)
 {
 }
 

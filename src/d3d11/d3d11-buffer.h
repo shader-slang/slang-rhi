@@ -7,11 +7,13 @@ namespace rhi::d3d11 {
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(Device* device, const BufferDesc& desc)
-        : Buffer(device, desc)
+    BufferImpl(DeviceImpl* device, const BufferDesc& desc)
+        : Buffer(desc)
+        , m_device(device)
     {
     }
 
+    DeviceImpl* m_device;
     MapFlavor m_mapFlavor;
     D3D11_USAGE m_d3dUsage;
     ComPtr<ID3D11Buffer> m_buffer;

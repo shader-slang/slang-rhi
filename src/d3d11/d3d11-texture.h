@@ -7,11 +7,13 @@ namespace rhi::d3d11 {
 class TextureImpl : public Texture
 {
 public:
-    TextureImpl(Device* device, const TextureDesc& desc)
-        : Texture(device, desc)
+    TextureImpl(DeviceImpl* device, const TextureDesc& desc)
+        : Texture(desc)
+        , m_device(device)
     {
     }
 
+    DeviceImpl* m_device;
     ComPtr<ID3D11Resource> m_resource;
 
     struct ViewKey

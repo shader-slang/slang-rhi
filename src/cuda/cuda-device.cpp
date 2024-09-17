@@ -320,7 +320,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 {
     TextureDesc srcDesc = fixupTextureDesc(desc);
 
-    RefPtr<TextureImpl> tex = new TextureImpl(this, srcDesc);
+    RefPtr<TextureImpl> tex = new TextureImpl(srcDesc);
 
     CUresourcetype resourceType;
 
@@ -725,7 +725,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
     SLANG_CUDA_RETURN_ON_FAIL(cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL)
     );
     if (initData)
@@ -744,7 +744,7 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
         return SLANG_OK;
     }
 
-    RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship
@@ -808,7 +808,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
         return SLANG_OK;
     }
 
-    RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
+    RefPtr<TextureImpl> texture = new TextureImpl(desc);
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship
@@ -886,7 +886,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
     view->m_texture = static_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;

@@ -57,8 +57,7 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
         srvDesc.Buffer.NumElements = UINT(range.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
     }
 
-    ID3D11Device* device = static_cast<DeviceImpl*>(m_device.get())->m_device;
-    SLANG_RETURN_NULL_ON_FAIL(device->CreateShaderResourceView(m_buffer, &srvDesc, srv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateShaderResourceView(m_buffer, &srvDesc, srv.writeRef()));
 
     return srv.get();
 }
@@ -94,8 +93,7 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
         uavDesc.Buffer.NumElements = UINT(range.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
     }
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateUnorderedAccessView(m_buffer, &uavDesc, uav.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateUnorderedAccessView(m_buffer, &uavDesc, uav.writeRef()));
 
     return uav.get();
 }

@@ -3,8 +3,8 @@
 
 namespace rhi::metal {
 
-SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
-    : Sampler(device, desc)
+SamplerImpl::SamplerImpl(const SamplerDesc& desc)
+    : Sampler(desc)
 {
 }
 
@@ -12,8 +12,6 @@ SamplerImpl::~SamplerImpl() {}
 
 Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
 {
-    m_device = device;
-
     NS::SharedPtr<MTL::SamplerDescriptor> samplerDesc = NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
 
     samplerDesc->setMinFilter(MetalUtil::translateSamplerMinMagFilter(desc.minFilter));
@@ -44,7 +42,7 @@ Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
 
     // TODO: no support for reduction op
 
-    m_samplerState = NS::TransferPtr(m_device->m_device->newSamplerState(samplerDesc.get()));
+    m_samplerState = NS::TransferPtr(device->m_device->newSamplerState(samplerDesc.get()));
 
     return m_samplerState ? SLANG_OK : SLANG_FAIL;
 }

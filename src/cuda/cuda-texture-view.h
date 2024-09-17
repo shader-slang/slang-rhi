@@ -9,8 +9,8 @@ namespace rhi::cuda {
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc)
-        : TextureView(device, desc)
+    TextureViewImpl(const TextureViewDesc& desc)
+        : TextureView(desc)
     {
     }
 

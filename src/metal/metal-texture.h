@@ -8,7 +8,7 @@ namespace rhi::metal {
 class TextureImpl : public Texture
 {
 public:
-    TextureImpl(Device* device, const TextureDesc& desc);
+    TextureImpl(const TextureDesc& desc);
     ~TextureImpl();
 
     NS::SharedPtr<MTL::Texture> m_texture;

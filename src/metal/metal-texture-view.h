@@ -10,8 +10,8 @@ namespace rhi::metal {
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc)
-        : TextureView(device, desc)
+    TextureViewImpl(const TextureViewDesc& desc)
+        : TextureView(desc)
     {
     }
 
@@ -25,7 +25,6 @@ class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
     RefPtr<BufferImpl> m_buffer;
-    RefPtr<DeviceImpl> m_device;
 
 public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;

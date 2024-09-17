@@ -9,8 +9,8 @@ namespace rhi::cpu {
 class TextureViewImpl : public TextureView, public slang_prelude::IRWTexture
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc)
-        : TextureView(device, desc)
+    TextureViewImpl(const TextureViewDesc& desc)
+        : TextureView(desc)
     {
     }
 

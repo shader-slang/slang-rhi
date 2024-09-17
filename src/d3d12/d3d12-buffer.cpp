@@ -3,27 +3,27 @@
 
 namespace rhi::d3d12 {
 
-BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
-    : Buffer(device, desc)
+BufferImpl::BufferImpl(DeviceImpl* device, const BufferDesc& desc)
+    : Buffer(desc)
+    , m_device(device)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
 BufferImpl::~BufferImpl()
 {
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
     for (auto& srv : m_srvs)
     {
         if (srv.second)
         {
-            device->m_cpuViewHeap->free(srv.second);
+            m_device->m_cpuViewHeap->free(srv.second);
         }
     }
     for (auto& uav : m_uavs)
     {
         if (uav.second)
         {
-            device->m_cpuViewHeap->free(uav.second);
+            m_device->m_cpuViewHeap->free(uav.second);
         }
     }
 
@@ -127,9 +127,8 @@ D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferR
         viewDesc.Buffer.NumElements = UINT(range.size / sizeInfo.blockSizeInBytes);
     }
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    device->m_cpuViewHeap->allocate(&descriptor);
-    device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
+    m_device->m_cpuViewHeap->allocate(&descriptor);
+    m_device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
 }
@@ -166,9 +165,8 @@ D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferR
         viewDesc.Buffer.NumElements = UINT(range.size / sizeInfo.blockSizeInBytes);
     }
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    device->m_cpuViewHeap->allocate(&descriptor);
-    device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, descriptor.cpuHandle);
+    m_device->m_cpuViewHeap->allocate(&descriptor);
+    m_device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
 }
