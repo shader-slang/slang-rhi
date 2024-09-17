@@ -10,7 +10,7 @@ namespace rhi::metal {
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(RendererBase* device, const TextureViewDesc& desc)
+    TextureViewImpl(Device* device, const TextureViewDesc& desc)
         : TextureView(device, desc)
     {
     }

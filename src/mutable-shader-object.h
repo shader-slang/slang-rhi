@@ -65,7 +65,7 @@ public:
     // We don't actually create any GPU buffers here, since they will be handled
     // by the immutable shader objects once the user calls `getCurrentVersion`.
     Buffer* getBufferResource(
-        RendererBase* device,
+        Device* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
     )
@@ -101,7 +101,7 @@ protected:
     void markDirty() { m_dirty = true; }
 
 public:
-    Result init(RendererBase* device, ShaderObjectLayout* layout)
+    Result init(Device* device, ShaderObjectLayout* layout)
     {
         this->m_device = device;
         auto layoutImpl = static_cast<TShaderObjectLayoutImpl*>(layout);
@@ -212,7 +212,7 @@ public:
     RefPtr<Buffer> m_constantBufferOverride;
     slang::TypeLayoutReflection* m_elementTypeLayout;
 
-    MutableRootShaderObject(RendererBase* device, slang::TypeLayoutReflection* entryPointLayout)
+    MutableRootShaderObject(Device* device, slang::TypeLayoutReflection* entryPointLayout)
     {
         this->m_device = device;
         m_elementTypeLayout = entryPointLayout;
@@ -220,7 +220,7 @@ public:
         memset(m_data.data(), 0, m_data.size());
     }
 
-    MutableRootShaderObject(RendererBase* device, RefPtr<ShaderProgram> program)
+    MutableRootShaderObject(Device* device, RefPtr<ShaderProgram> program)
     {
         this->m_device = device;
         auto programLayout = program->slangGlobalScope->getLayout();

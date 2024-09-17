@@ -50,7 +50,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     m_desc = desc;
 
-    SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
     Result initDeviceResult = SLANG_OK;
 
     m_device = NS::TransferPtr(MTL::CreateSystemDefaultDevice());

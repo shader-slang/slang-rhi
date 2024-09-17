@@ -125,13 +125,13 @@ public:
     struct Builder
     {
     public:
-        Builder(RendererBase* renderer, slang::ISession* session)
+        Builder(Device* renderer, slang::ISession* session)
             : m_renderer(renderer)
             , m_session(session)
         {
         }
 
-        RendererBase* m_renderer;
+        Device* m_renderer;
         slang::ISession* m_session;
         slang::TypeLayoutReflection* m_elementTypeLayout;
         std::vector<BindingRangeInfo> m_bindingRanges;
@@ -168,7 +168,7 @@ public:
     };
 
     static Result createForElementType(
-        RendererBase* renderer,
+        Device* renderer,
         slang::ISession* session,
         slang::TypeLayoutReflection* elementType,
         ShaderObjectLayoutImpl** outLayout
@@ -205,7 +205,7 @@ public:
     SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
     std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
 
-    RendererBase* getRenderer() { return m_renderer; }
+    Device* getRenderer() { return m_renderer; }
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
@@ -240,7 +240,7 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(RendererBase* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+        Builder(Device* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
             : Super::Builder(renderer, program->getSession())
             , m_program(program)
             , m_programLayout(programLayout)

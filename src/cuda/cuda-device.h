@@ -7,7 +7,7 @@
 
 namespace rhi::cuda {
 
-class DeviceImpl : public RendererBase
+class DeviceImpl : public Device
 {
 private:
     static const CUDAReportStyle reportType = CUDAReportStyle::Normal;

@@ -8,7 +8,7 @@
 
 namespace rhi::vk {
 
-class DeviceImpl : public RendererBase
+class DeviceImpl : public Device
 {
 public:
     // Renderer    implementation
@@ -162,7 +162,7 @@ public:
     uint32_t m_queueAllocCount;
 
     // A list to hold objects that may have a strong back reference to the device
-    // instance. Because of the pipeline cache in `RendererBase`, there could be a reference
+    // instance. Because of the pipeline cache in `Device`, there could be a reference
     // cycle among `DeviceImpl`->`PipelineImpl`->`ShaderProgramImpl`->`DeviceImpl`.
     // Depending on whether a `Pipeline` objects gets stored in pipeline cache, there
     // may or may not be such a reference cycle.

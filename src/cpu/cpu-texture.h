@@ -96,7 +96,7 @@ class TextureImpl : public Texture
     };
 
 public:
-    TextureImpl(RendererBase* device, const TextureDesc& desc)
+    TextureImpl(Device* device, const TextureDesc& desc)
         : Texture(device, desc)
     {
     }

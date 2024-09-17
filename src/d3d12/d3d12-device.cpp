@@ -434,7 +434,7 @@ Result DeviceImpl::_createDevice(
 
 Result DeviceImpl::initialize(const Desc& desc)
 {
-    SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     // Rather than statically link against D3D, we load it dynamically.
 

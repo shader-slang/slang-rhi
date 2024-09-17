@@ -3,7 +3,7 @@
 namespace rhi::cpu {
 
 ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
-    RendererBase* renderer,
+    Device* renderer,
     slang::ISession* session,
     slang::TypeLayoutReflection* layout
 )
@@ -144,7 +144,7 @@ const char* EntryPointLayoutImpl::getEntryPointName()
 }
 
 RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
-    RendererBase* renderer,
+    Device* renderer,
     slang::ISession* session,
     slang::ProgramLayout* programLayout
 )

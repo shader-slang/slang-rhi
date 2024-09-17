@@ -32,7 +32,7 @@ public:
     virtual void comFree() override { breakStrongReferenceToDevice(); }
 
 public:
-    BreakableReference<RendererBase> m_renderer;
+    BreakableReference<Device> m_renderer;
     void breakStrongReferenceToDevice() { m_renderer.breakStrongReference(); }
     void establishStrongReferenceToDevice() { m_renderer.establishStrongReference(); }
 };
@@ -42,7 +42,7 @@ struct CommandBufferInfo
     bool hasWriteTimestamps;
 };
 
-class ImmediateRendererBase : public RendererBase
+class ImmediateRendererBase : public Device
 {
 public:
     // Immediate commands to be implemented by each target.

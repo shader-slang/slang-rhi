@@ -43,7 +43,7 @@ struct D3D12DeviceInfo
     DXGI_ADAPTER_DESC1 m_desc1;
 };
 
-class DeviceImpl : public RendererBase
+class DeviceImpl : public Device
 {
 public:
     Desc m_desc;

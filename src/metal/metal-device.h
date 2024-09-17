@@ -10,7 +10,7 @@
 
 namespace rhi::metal {
 
-class DeviceImpl : public RendererBase
+class DeviceImpl : public Device
 {
 public:
     // Renderer implementation
@@ -109,7 +109,7 @@ public:
     bool m_hasArgumentBufferTier2 = false;
 
     // A list to hold objects that may have a strong back reference to the device
-    // instance. Because of the pipeline cache in `RendererBase`, there could be a reference
+    // instance. Because of the pipeline cache in `Device`, there could be a reference
     // cycle among `DeviceImpl`->`PipelineImpl`->`ShaderProgramImpl`->`DeviceImpl`.
     // Depending on whether a `PipelineState` objects gets stored in pipeline cache, there
     // may or may not be such a reference cycle.

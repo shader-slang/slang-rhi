@@ -21,7 +21,7 @@ public:
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
     Buffer* getBufferResource(
-        RendererBase* device,
+        Device* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
     );

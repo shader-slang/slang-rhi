@@ -34,7 +34,7 @@ class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObj
 public:
     static Result create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
 
-    RendererBase* getDevice();
+    Device* getDevice();
 
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
 

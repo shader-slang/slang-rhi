@@ -14,7 +14,7 @@ Result ShaderObjectImpl::create(IDevice* device, ShaderObjectLayoutImpl* layout,
     return SLANG_OK;
 }
 
-RendererBase* ShaderObjectImpl::getDevice()
+Device* ShaderObjectImpl::getDevice()
 {
     return m_layout->getDevice();
 }

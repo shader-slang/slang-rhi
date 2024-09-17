@@ -215,7 +215,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
 }
 
 Result ShaderObjectLayoutImpl::createForElementType(
-    RendererBase* renderer,
+    Device* renderer,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementType,
     ShaderObjectLayoutImpl** outLayout
@@ -277,7 +277,7 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
 }
 
 Result RootShaderObjectLayoutImpl::create(
-    RendererBase* renderer,
+    Device* renderer,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
     RootShaderObjectLayoutImpl** outLayout

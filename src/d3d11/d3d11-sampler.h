@@ -7,7 +7,7 @@ namespace rhi::d3d11 {
 class SamplerImpl : public Sampler
 {
 public:
-    SamplerImpl(RendererBase* device, const SamplerDesc& desc)
+    SamplerImpl(Device* device, const SamplerDesc& desc)
         : Sampler(device, desc)
     {
     }

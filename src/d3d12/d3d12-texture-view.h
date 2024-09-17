@@ -12,7 +12,7 @@ namespace rhi::d3d12 {
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(RendererBase* device, const TextureViewDesc& desc)
+    TextureViewImpl(Device* device, const TextureViewDesc& desc)
         : TextureView(device, desc)
     {
     }
@@ -45,7 +45,7 @@ public:
     ComPtr<ID3D12Device5> m_device5;
 
 public:
-    AccelerationStructureImpl(RendererBase* device, const IAccelerationStructure::CreateDesc& desc)
+    AccelerationStructureImpl(Device* device, const IAccelerationStructure::CreateDesc& desc)
         : AccelerationStructure(device, desc)
     {
     }

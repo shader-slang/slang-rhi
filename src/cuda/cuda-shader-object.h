@@ -9,7 +9,7 @@ namespace rhi::cuda {
 class ShaderObjectData
 {
 public:
-    RendererBase* device = nullptr;
+    Device* device = nullptr;
     bool isHostOnly = false;
     RefPtr<BufferImpl> m_buffer;
     std::vector<uint8_t> m_cpuBuffer;
@@ -20,7 +20,7 @@ public:
 
     /// Returns a resource view for GPU access into the buffer content.
     Buffer* getBufferResource(
-        RendererBase* device,
+        Device* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
     );

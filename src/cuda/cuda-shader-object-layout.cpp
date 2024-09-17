@@ -3,7 +3,7 @@
 namespace rhi::cuda {
 
 ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
-    RendererBase* renderer,
+    Device* renderer,
     slang::ISession* session,
     slang::TypeLayoutReflection* layout
 )
@@ -129,7 +129,7 @@ Index ShaderObjectLayoutImpl::getBindingRangeCount() const
     return m_bindingRanges.size();
 }
 
-RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ProgramLayout* inProgramLayout)
+RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* renderer, slang::ProgramLayout* inProgramLayout)
     : ShaderObjectLayoutImpl(renderer, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout())
     , programLayout(inProgramLayout)
 {

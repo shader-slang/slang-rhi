@@ -34,7 +34,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         std::array{slang::PreprocessorMacroDesc{"__D3D11__", "1"}}
     ));
 
-    SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     // Initialize DeviceInfo
     {

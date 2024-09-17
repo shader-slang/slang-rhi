@@ -41,7 +41,7 @@ bool ShaderObjectLayoutImpl::isBindingRangeRootParameter(
 }
 
 Result ShaderObjectLayoutImpl::createForElementType(
-    RendererBase* renderer,
+    Device* renderer,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementType,
     ShaderObjectLayoutImpl** outLayout

@@ -51,7 +51,7 @@ struct GUID
     static const Guid IID_ITransientResourceHeapD3D12;
 };
 
-class RendererBase;
+class Device;
 
 bool isRhiDebugLayerEnabled();
 
@@ -203,13 +203,13 @@ protected:
 class Resource : public ComObject
 {
 public:
-    Resource(RendererBase* device)
+    Resource(Device* device)
         : m_device(device)
     {
         SLANG_RHI_ASSERT(device);
     }
 
-    RefPtr<RendererBase> m_device;
+    RefPtr<Device> m_device;
 };
 
 class Buffer : public IBuffer, public Resource
@@ -219,7 +219,7 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Buffer(RendererBase* device, const BufferDesc& desc)
+    Buffer(Device* device, const BufferDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -245,7 +245,7 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Texture(RendererBase* device, const TextureDesc& desc)
+    Texture(Device* device, const TextureDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -271,7 +271,7 @@ public:
     ITextureView* getInterface(const Guid& guid);
 
 public:
-    TextureView(RendererBase* device, const TextureViewDesc& desc)
+    TextureView(Device* device, const TextureViewDesc& desc)
         : Resource(device)
     {
         m_desc = desc;
@@ -292,7 +292,7 @@ public:
     ISampler* getInterface(const Guid& guid);
 
 public:
-    Sampler(RendererBase* device, const SamplerDesc& desc)
+    Sampler(Device* device, const SamplerDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -314,7 +314,7 @@ public:
     IAccelerationStructure* getInterface(const Guid& guid);
 
 public:
-    AccelerationStructure(RendererBase* device, const CreateDesc& desc)
+    AccelerationStructure(Device* device, const CreateDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -374,7 +374,7 @@ protected:
     // We always use a weak reference to the `IDevice` object here.
     // `ShaderObject` implementations will make sure to hold a strong reference to `IDevice`
     // while a `ShaderObjectLayout` may still be used.
-    RendererBase* m_renderer;
+    Device* m_renderer;
     slang::TypeLayoutReflection* m_elementTypeLayout = nullptr;
     ShaderComponentID m_componentID = 0;
 
@@ -427,13 +427,13 @@ public:
     }
 
 public:
-    RendererBase* getDevice() { return m_renderer; }
+    Device* getDevice() { return m_renderer; }
 
     slang::TypeLayoutReflection* getElementTypeLayout() { return m_elementTypeLayout; }
 
     ShaderComponentID getComponentID() { return m_componentID; }
 
-    void initBase(RendererBase* renderer, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
+    void initBase(Device* renderer, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };
 
 class SimpleShaderObjectData
@@ -451,7 +451,7 @@ public:
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
     Buffer* getBufferResource(
-        RendererBase* device,
+        Device* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
     );
@@ -476,7 +476,7 @@ public:
 protected:
     // A strong reference to `IDevice` to make sure the weak device reference in
     // `ShaderObjectLayout`s are valid whenever they might be used.
-    BreakableReference<RendererBase> m_device;
+    BreakableReference<Device> m_device;
 
     // The shader object layout used to create this shader object.
     RefPtr<ShaderObjectLayout> m_layout = nullptr;
@@ -499,7 +499,7 @@ public:
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) = 0;
 
-    RendererBase* getRenderer() { return m_layout->getDevice(); }
+    Device* getRenderer() { return m_layout->getDevice(); }
 
     ShaderObjectLayout* getLayoutBase() { return m_layout; }
 
@@ -834,7 +834,7 @@ public:
         return false;
     }
 
-    Result compileShaders(RendererBase* device);
+    Result compileShaders(Device* device);
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override
@@ -1087,7 +1087,7 @@ public:
 
 // Renderer implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
-class RendererBase : public IDevice, public ComObject
+class Device : public IDevice, public ComObject
 {
     friend class ShaderObjectBase;
 
@@ -1271,7 +1271,7 @@ inline IDebugCallback* getDebugCallback()
     }
 }
 
-// Implementations that have to come after RendererBase
+// Implementations that have to come after Device
 
 //--------------------------------------------------------------------------------
 template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
