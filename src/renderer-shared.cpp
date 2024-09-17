@@ -216,7 +216,7 @@ bool _doesValueFitInExistentialPayload(
     return true;
 }
 
-IShaderProgram* ShaderProgramBase::getInterface(const Guid& guid)
+IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderProgram)
         return static_cast<IShaderProgram*>(this);
@@ -797,7 +797,7 @@ Buffer* SimpleShaderObjectData::getBufferResource(
     return m_structuredBuffer;
 }
 
-void ShaderProgramBase::init(const ShaderProgramDesc& inDesc)
+void ShaderProgram::init(const ShaderProgramDesc& inDesc)
 {
     desc = inDesc;
 
@@ -845,7 +845,7 @@ void ShaderProgramBase::init(const ShaderProgramDesc& inDesc)
     }
 }
 
-Result ShaderProgramBase::compileShaders(RendererBase* device)
+Result ShaderProgram::compileShaders(RendererBase* device)
 {
     // For a fully specialized program, read and store its kernel code in `shaderProgram`.
     auto compileShader = [&](slang::EntryPointReflection* entryPointInfo,
@@ -897,14 +897,14 @@ Result ShaderProgramBase::compileShaders(RendererBase* device)
     return SLANG_OK;
 }
 
-Result ShaderProgramBase::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgram::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
     SLANG_UNUSED(entryPointInfo);
     SLANG_UNUSED(kernelCode);
     return SLANG_OK;
 }
 
-bool ShaderProgramBase::isMeshShaderProgram() const
+bool ShaderProgram::isMeshShaderProgram() const
 {
     // Similar to above, interrogate either explicity specified entry point
     // componenets or the ones in the linked program entry point array
@@ -954,7 +954,7 @@ Result RendererBase::maybeSpecializePipeline(
         // Try to find specialized pipeline from shader cache.
         if (!specializedPipeline)
         {
-            auto unspecializedProgram = static_cast<ShaderProgramBase*>(
+            auto unspecializedProgram = static_cast<ShaderProgram*>(
                 pipelineType == PipelineType::Compute ? currentPipeline->desc.compute.program
                                                       : currentPipeline->desc.graphics.program
             );
@@ -1006,14 +1006,14 @@ Result RendererBase::maybeSpecializePipeline(
             case PipelineType::Graphics:
             {
                 auto pipelineDesc = currentPipeline->desc.graphics;
-                pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
+                pipelineDesc.program = static_cast<ShaderProgram*>(specializedProgram.get());
                 SLANG_RETURN_ON_FAIL(createRenderPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             case PipelineType::RayTracing:
             {
                 auto pipelineDesc = currentPipeline->desc.rayTracing;
-                pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
+                pipelineDesc.program = static_cast<ShaderProgram*>(specializedProgram.get());
                 SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }

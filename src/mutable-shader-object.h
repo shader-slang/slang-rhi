@@ -220,7 +220,7 @@ public:
         memset(m_data.data(), 0, m_data.size());
     }
 
-    MutableRootShaderObject(RendererBase* device, RefPtr<ShaderProgramBase> program)
+    MutableRootShaderObject(RendererBase* device, RefPtr<ShaderProgram> program)
     {
         this->m_device = device;
         auto programLayout = program->slangGlobalScope->getLayout();

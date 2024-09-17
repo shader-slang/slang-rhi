@@ -7,7 +7,7 @@
 
 namespace rhi::vk {
 
-class ShaderProgramImpl : public ShaderProgramBase
+class ShaderProgramImpl : public ShaderProgram
 {
 public:
     ShaderProgramImpl(DeviceImpl* device);

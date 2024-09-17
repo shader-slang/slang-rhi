@@ -4,7 +4,7 @@
 
 namespace rhi::d3d11 {
 
-class ShaderProgramImpl : public ShaderProgramBase
+class ShaderProgramImpl : public ShaderProgram
 {
 public:
     ComPtr<ID3D11VertexShader> m_vertexShader;

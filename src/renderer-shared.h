@@ -798,7 +798,7 @@ public:
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 };
 
-class ShaderProgramBase : public IShaderProgram, public ComObject
+class ShaderProgram : public IShaderProgram, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -883,16 +883,16 @@ public:
         RenderPipelineDesc graphics;
         ComputePipelineDesc compute;
         RayTracingPipelineDesc rayTracing;
-        ShaderProgramBase* getProgram()
+        ShaderProgram* getProgram()
         {
             switch (type)
             {
             case PipelineType::Compute:
-                return static_cast<ShaderProgramBase*>(compute.program);
+                return static_cast<ShaderProgram*>(compute.program);
             case PipelineType::Graphics:
-                return static_cast<ShaderProgramBase*>(graphics.program);
+                return static_cast<ShaderProgram*>(graphics.program);
             case PipelineType::RayTracing:
-                return static_cast<ShaderProgramBase*>(rayTracing.program);
+                return static_cast<ShaderProgram*>(rayTracing.program);
             }
             return nullptr;
         }
@@ -911,7 +911,7 @@ public:
     // Indicates whether this is a specializable pipeline. A specializable
     // pipeline cannot be used directly and must be specialized first.
     bool isSpecializable = false;
-    RefPtr<ShaderProgramBase> m_program;
+    RefPtr<ShaderProgram> m_program;
     template<typename TProgram>
     TProgram* getProgram()
     {

@@ -5,7 +5,7 @@
 
 namespace rhi::cpu {
 
-class ShaderProgramImpl : public ShaderProgramBase
+class ShaderProgramImpl : public ShaderProgram
 {
 public:
     RefPtr<RootShaderObjectLayoutImpl> layout;
