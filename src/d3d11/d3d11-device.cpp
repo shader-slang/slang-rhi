@@ -48,7 +48,11 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     // Rather than statically link against D3D, we load it dynamically.
     SharedLibraryHandle d3dModule;
-    const char* libName = SLANG_ENABLE_DXVK ? "dxvk_d3d11" : "d3d11";
+#if SLANG_WINDOWS_FAMILY
+    const char* const libName = "d3d11";
+#else
+    const char* const libName = "libdxvk_d3d11.so";
+#endif
     if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
     {
         fprintf(stderr, "error: failed to load '%s'\n", libName);
