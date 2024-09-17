@@ -398,11 +398,7 @@ Result Device::getSlangSession(slang::ISession** outSlangSession)
     return SLANG_OK;
 }
 
-Result Device::createTextureFromNativeHandle(
-    NativeHandle handle,
-    const TextureDesc& srcDesc,
-    ITexture** outTexture
-)
+Result Device::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -482,10 +478,7 @@ Result Device::createMutableShaderObject2(
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
 
-Result Device::createShaderObjectFromTypeLayout(
-    slang::TypeLayoutReflection* typeLayout,
-    IShaderObject** outObject
-)
+Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangContext.session, typeLayout, shaderObjectLayout.writeRef()));

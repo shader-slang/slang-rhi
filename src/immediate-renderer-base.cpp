@@ -637,10 +637,7 @@ public:
                 );
                 break;
             case CommandName::WriteTimestamp:
-                m_renderer->writeTimestamp(
-                    m_writer.getObject<QueryPool>(cmd.operands[0]),
-                    (GfxIndex)cmd.operands[1]
-                );
+                m_renderer->writeTimestamp(m_writer.getObject<QueryPool>(cmd.operands[0]), (GfxIndex)cmd.operands[1]);
                 break;
             default:
                 SLANG_RHI_ASSERT_FAILURE("Unknown command");
