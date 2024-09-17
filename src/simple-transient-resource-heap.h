@@ -5,12 +5,12 @@
 
 #include <slang-rhi.h>
 
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 
 namespace rhi {
 
 template<typename TDevice, typename TCommandBuffer>
-class SimpleTransientResourceHeap : public TransientResourceHeapBase
+class SimpleTransientResourceHeap : public TransientResourceHeap
 {
 public:
     RefPtr<TDevice> m_device;

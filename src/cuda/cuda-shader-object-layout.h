@@ -35,7 +35,7 @@ struct SubObjectRangeInfo
     Index bindingRangeIndex;
 };
 
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     std::vector<SubObjectRangeInfo> subObjectRanges;
@@ -44,7 +44,7 @@ public:
     Index m_subObjectCount = 0;
     Index m_resourceCount = 0;
 
-    ShaderObjectLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::TypeLayoutReflection* layout);
+    ShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::TypeLayoutReflection* layout);
 
     Index getResourceCount() const;
     Index getSubObjectCount() const;
@@ -58,7 +58,7 @@ class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
 public:
     slang::ProgramLayout* programLayout = nullptr;
     std::vector<RefPtr<ShaderObjectLayoutImpl>> entryPointLayouts;
-    RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ProgramLayout* inProgramLayout);
+    RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* inProgramLayout);
 
     int getKernelIndex(std::string_view kernelName);
 

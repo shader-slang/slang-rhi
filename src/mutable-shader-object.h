@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 #include "core/common.h"
 
 #include <map>
@@ -11,7 +11,7 @@
 
 namespace rhi {
 
-class ShaderObjectLayoutBase;
+class ShaderObjectLayout;
 
 template<typename T>
 class VersionedObjectPool
@@ -20,13 +20,13 @@ public:
     struct ObjectVersion
     {
         RefPtr<T> object;
-        RefPtr<TransientResourceHeapBase> transientHeap;
+        RefPtr<TransientResourceHeap> transientHeap;
         uint64_t transientHeapVersion;
         bool canRecycle() { return (transientHeap->getVersion() != transientHeapVersion); }
     };
     std::vector<ObjectVersion> objects;
     SlangInt lastAllocationIndex = -1;
-    ObjectVersion& allocate(TransientResourceHeapBase* currentTransientHeap)
+    ObjectVersion& allocate(TransientResourceHeap* currentTransientHeap)
     {
         for (SlangInt i = 0; i < objects.size(); i++)
         {
@@ -65,7 +65,7 @@ public:
     // We don't actually create any GPU buffers here, since they will be handled
     // by the immutable shader objects once the user calls `getCurrentVersion`.
     Buffer* getBufferResource(
-        RendererBase* device,
+        Device* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
     )
@@ -101,7 +101,7 @@ protected:
     void markDirty() { m_dirty = true; }
 
 public:
-    Result init(RendererBase* device, ShaderObjectLayoutBase* layout)
+    Result init(Device* device, ShaderObjectLayout* layout)
     {
         this->m_device = device;
         auto layoutImpl = static_cast<TShaderObjectLayoutImpl*>(layout);
@@ -155,7 +155,7 @@ public:
             return SLANG_OK;
         }
 
-        RefPtr<ShaderObjectBase> object = allocateShaderObject(static_cast<TransientResourceHeapBase*>(transientHeap));
+        RefPtr<ShaderObjectBase> object = allocateShaderObject(static_cast<TransientResourceHeap*>(transientHeap));
         SLANG_RETURN_ON_FAIL(object->setData(ShaderOffset(), this->m_data.getBuffer(), this->m_data.getCount()));
         for (auto it : m_bindings)
             SLANG_RETURN_ON_FAIL(object->setBinding(it.first, it.second));
@@ -183,7 +183,7 @@ public:
     }
 
 public:
-    RefPtr<ShaderObjectBase> allocateShaderObject(TransientResourceHeapBase* transientHeap)
+    RefPtr<ShaderObjectBase> allocateShaderObject(TransientResourceHeap* transientHeap)
     {
         auto& version = m_shaderObjectVersions.allocate(transientHeap);
         if (!version.object)
@@ -212,7 +212,7 @@ public:
     RefPtr<Buffer> m_constantBufferOverride;
     slang::TypeLayoutReflection* m_elementTypeLayout;
 
-    MutableRootShaderObject(RendererBase* device, slang::TypeLayoutReflection* entryPointLayout)
+    MutableRootShaderObject(Device* device, slang::TypeLayoutReflection* entryPointLayout)
     {
         this->m_device = device;
         m_elementTypeLayout = entryPointLayout;
@@ -220,7 +220,7 @@ public:
         memset(m_data.data(), 0, m_data.size());
     }
 
-    MutableRootShaderObject(RendererBase* device, RefPtr<ShaderProgramBase> program)
+    MutableRootShaderObject(Device* device, RefPtr<ShaderProgram> program)
     {
         this->m_device = device;
         auto programLayout = program->slangGlobalScope->getLayout();

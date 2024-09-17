@@ -1,4 +1,4 @@
-#include "immediate-renderer-base.h"
+#include "immediate-device.h"
 #include "command-encoder-com-forward.h"
 #include "command-writer.h"
 #include "simple-transient-resource-heap.h"
@@ -24,13 +24,13 @@ public:
 public:
     CommandWriter m_writer;
     bool m_hasWriteTimestamps = false;
-    RefPtr<ImmediateRendererBase> m_renderer;
+    RefPtr<ImmediateDevice> m_device;
     RefPtr<ShaderObjectBase> m_rootShaderObject;
-    TransientResourceHeapBase* m_transientHeap;
+    TransientResourceHeap* m_transientHeap;
 
-    void init(ImmediateRendererBase* renderer, TransientResourceHeapBase* transientHeap)
+    void init(ImmediateDevice* device, TransientResourceHeap* transientHeap)
     {
-        m_renderer = renderer;
+        m_device = device;
         m_transientHeap = transientHeap;
     }
 
@@ -297,8 +297,8 @@ public:
         virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            auto stateImpl = static_cast<Pipeline*>(state);
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -310,8 +310,8 @@ public:
         bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            auto stateImpl = static_cast<Pipeline*>(state);
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -476,8 +476,8 @@ public:
         virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            auto stateImpl = static_cast<Pipeline*>(state);
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -489,8 +489,8 @@ public:
         bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<PipelineBase*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            auto stateImpl = static_cast<Pipeline*>(state);
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -541,10 +541,10 @@ public:
             switch (name)
             {
             case CommandName::SetPipeline:
-                m_renderer->setPipeline(m_writer.getObject<PipelineBase>(cmd.operands[0]));
+                m_device->setPipeline(m_writer.getObject<Pipeline>(cmd.operands[0]));
                 break;
             case CommandName::BindRootShaderObject:
-                m_renderer->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));
+                m_device->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));
                 break;
             case CommandName::BeginRenderPass:
             {
@@ -558,20 +558,20 @@ public:
                 {
                     desc.depthStencilAttachment = m_writer.getData<RenderPassDepthStencilAttachment>(cmd.operands[3]);
                 }
-                m_renderer->beginRenderPass(desc);
+                m_device->beginRenderPass(desc);
                 break;
             }
             case CommandName::EndRenderPass:
-                m_renderer->endRenderPass();
+                m_device->endRenderPass();
                 break;
             case CommandName::SetViewports:
-                m_renderer->setViewports((UInt)cmd.operands[0], m_writer.getData<Viewport>(cmd.operands[1]));
+                m_device->setViewports((UInt)cmd.operands[0], m_writer.getData<Viewport>(cmd.operands[1]));
                 break;
             case CommandName::SetScissorRects:
-                m_renderer->setScissorRects((UInt)cmd.operands[0], m_writer.getData<ScissorRect>(cmd.operands[1]));
+                m_device->setScissorRects((UInt)cmd.operands[0], m_writer.getData<ScissorRect>(cmd.operands[1]));
                 break;
             case CommandName::SetPrimitiveTopology:
-                m_renderer->setPrimitiveTopology((PrimitiveTopology)cmd.operands[0]);
+                m_device->setPrimitiveTopology((PrimitiveTopology)cmd.operands[0]);
                 break;
             case CommandName::SetVertexBuffers:
             {
@@ -580,7 +580,7 @@ public:
                 {
                     buffers.push_back(m_writer.getObject<Buffer>(cmd.operands[2] + i));
                 }
-                m_renderer->setVertexBuffers(
+                m_device->setVertexBuffers(
                     cmd.operands[0],
                     cmd.operands[1],
                     buffers.data(),
@@ -589,23 +589,23 @@ public:
             }
             break;
             case CommandName::SetIndexBuffer:
-                m_renderer->setIndexBuffer(
+                m_device->setIndexBuffer(
                     m_writer.getObject<Buffer>(cmd.operands[0]),
                     (Format)cmd.operands[1],
                     (UInt)cmd.operands[2]
                 );
                 break;
             case CommandName::Draw:
-                m_renderer->draw(cmd.operands[0], cmd.operands[1]);
+                m_device->draw(cmd.operands[0], cmd.operands[1]);
                 break;
             case CommandName::DrawIndexed:
-                m_renderer->drawIndexed(cmd.operands[0], cmd.operands[1], cmd.operands[2]);
+                m_device->drawIndexed(cmd.operands[0], cmd.operands[1], cmd.operands[2]);
                 break;
             case CommandName::DrawInstanced:
-                m_renderer->drawInstanced(cmd.operands[0], cmd.operands[1], cmd.operands[2], cmd.operands[3]);
+                m_device->drawInstanced(cmd.operands[0], cmd.operands[1], cmd.operands[2], cmd.operands[3]);
                 break;
             case CommandName::DrawIndexedInstanced:
-                m_renderer->drawIndexedInstanced(
+                m_device->drawIndexedInstanced(
                     cmd.operands[0],
                     cmd.operands[1],
                     cmd.operands[2],
@@ -614,13 +614,13 @@ public:
                 );
                 break;
             case CommandName::SetStencilReference:
-                m_renderer->setStencilReference(cmd.operands[0]);
+                m_device->setStencilReference(cmd.operands[0]);
                 break;
             case CommandName::DispatchCompute:
-                m_renderer->dispatchCompute(int(cmd.operands[0]), int(cmd.operands[1]), int(cmd.operands[2]));
+                m_device->dispatchCompute(int(cmd.operands[0]), int(cmd.operands[1]), int(cmd.operands[2]));
                 break;
             case CommandName::UploadBufferData:
-                m_renderer->uploadBufferData(
+                m_device->uploadBufferData(
                     m_writer.getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
                     cmd.operands[2],
@@ -628,7 +628,7 @@ public:
                 );
                 break;
             case CommandName::CopyBuffer:
-                m_renderer->copyBuffer(
+                m_device->copyBuffer(
                     m_writer.getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
                     m_writer.getObject<Buffer>(cmd.operands[2]),
@@ -637,10 +637,7 @@ public:
                 );
                 break;
             case CommandName::WriteTimestamp:
-                m_renderer->writeTimestamp(
-                    m_writer.getObject<QueryPoolBase>(cmd.operands[0]),
-                    (GfxIndex)cmd.operands[1]
-                );
+                m_device->writeTimestamp(m_writer.getObject<QueryPool>(cmd.operands[0]), (GfxIndex)cmd.operands[1]);
                 break;
             default:
                 SLANG_RHI_ASSERT_FAILURE("Unknown command");
@@ -656,19 +653,19 @@ class CommandQueueImpl : public ImmediateCommandQueueBase
 public:
     ICommandQueue::Desc m_desc;
 
-    ImmediateRendererBase* getRenderer() { return static_cast<ImmediateRendererBase*>(m_renderer.get()); }
+    ImmediateDevice* getDevice() { return static_cast<ImmediateDevice*>(m_device.get()); }
 
-    CommandQueueImpl(ImmediateRendererBase* renderer)
+    CommandQueueImpl(ImmediateDevice* device)
     {
         // Don't establish strong reference to `Device` at start, because
         // there will be only one instance of command queue and it will be
         // owned by `Device`. We should establish a strong reference only
         // when there are external references to the command queue.
-        m_renderer.setWeakReference(renderer);
+        m_device.setWeakReference(device);
         m_desc.type = ICommandQueue::QueueType::Graphics;
     }
 
-    ~CommandQueueImpl() { getRenderer()->m_queueCreateCount--; }
+    ~CommandQueueImpl() { getDevice()->m_queueCreateCount--; }
 
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
 
@@ -685,15 +682,15 @@ public:
             info.hasWriteTimestamps |=
                 static_cast<CommandBufferImpl*>(commandBuffers[i])->m_writer.m_hasWriteTimestamps;
         }
-        static_cast<ImmediateRendererBase*>(m_renderer.get())->beginCommandBuffer(info);
+        static_cast<ImmediateDevice*>(m_device.get())->beginCommandBuffer(info);
         for (GfxIndex i = 0; i < count; i++)
         {
             static_cast<CommandBufferImpl*>(commandBuffers[i])->execute();
         }
-        static_cast<ImmediateRendererBase*>(m_renderer.get())->endCommandBuffer(info);
+        static_cast<ImmediateDevice*>(m_device.get())->endCommandBuffer(info);
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { getRenderer()->waitForGpu(); }
+    virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { getDevice()->waitForGpu(); }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override
@@ -703,20 +700,20 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override
     {
-        return getRenderer()->m_queue->getNativeHandle(outHandle);
+        return getDevice()->m_queue->getNativeHandle(outHandle);
     }
 };
 
-using TransientResourceHeapImpl = SimpleTransientResourceHeap<ImmediateRendererBase, CommandBufferImpl>;
+using TransientResourceHeapImpl = SimpleTransientResourceHeap<ImmediateDevice, CommandBufferImpl>;
 
 } // namespace
 
-ImmediateRendererBase::ImmediateRendererBase()
+ImmediateDevice::ImmediateDevice()
 {
     m_queue = new CommandQueueImpl(this);
 }
 
-Result ImmediateRendererBase::createTransientResourceHeap(
+Result ImmediateDevice::createTransientResourceHeap(
     const ITransientResourceHeap::Desc& desc,
     ITransientResourceHeap** outHeap
 )
@@ -727,7 +724,7 @@ Result ImmediateRendererBase::createTransientResourceHeap(
     return SLANG_OK;
 }
 
-Result ImmediateRendererBase::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result ImmediateDevice::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
 {
     SLANG_UNUSED(desc);
     // Only one queue is supported.
@@ -738,14 +735,14 @@ Result ImmediateRendererBase::createCommandQueue(const ICommandQueue::Desc& desc
     return SLANG_OK;
 }
 
-void ImmediateRendererBase::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
+void ImmediateDevice::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
 {
     auto buffer = map(dst, MapFlavor::WriteDiscard);
     memcpy((uint8_t*)buffer + offset, data, size);
     unmap(dst, offset, size);
 }
 
-Result ImmediateRendererBase::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+Result ImmediateDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     auto blob = OwnedBlob::create(size);
     auto content = (uint8_t*)map(buffer, MapFlavor::HostRead);

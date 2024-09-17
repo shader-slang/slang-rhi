@@ -4,7 +4,7 @@
 
 namespace rhi::metal {
 
-class FenceImpl : public FenceBase
+class FenceImpl : public Fence
 {
 public:
     RefPtr<DeviceImpl> m_device;

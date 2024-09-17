@@ -5,12 +5,11 @@
 
 namespace rhi::d3d11 {
 
-class DeviceImpl : public ImmediateRendererBase
+class DeviceImpl : public ImmediateDevice
 {
 public:
     ~DeviceImpl() {}
 
-    // Renderer    implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
@@ -35,10 +34,10 @@ public:
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     ) override;
-    virtual Result createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
-    virtual Result createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
+    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
+    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
     virtual Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject) override;
     virtual void bindRootShaderObject(IShaderObject* shaderObject) override;
 

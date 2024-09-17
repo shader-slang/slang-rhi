@@ -54,13 +54,13 @@ public:
     bool m_bindingDirty = true;
     CommandBufferImpl* m_commandBuffer;
     TransientResourceHeapImpl* m_transientHeap;
-    DeviceImpl* m_renderer;
-    ID3D12Device* m_device;
+    DeviceImpl* m_device;
+    ID3D12Device* m_d3dDevice;
     ID3D12GraphicsCommandList* m_d3dCmdList;
     ID3D12GraphicsCommandList6* m_d3dCmdList6;
     ID3D12GraphicsCommandList* m_preCmdList = nullptr;
 
-    RefPtr<PipelineBase> m_currentPipeline;
+    RefPtr<Pipeline> m_currentPipeline;
 
 
     static int getBindPointIndex(PipelineType type);
@@ -77,7 +77,7 @@ public:
     /// applys the root object bindings and binds the pipeline state.
     /// The newly specialized pipeline is held alive by the pipeline cache so users of
     /// `newPipeline` do not need to maintain its lifespan.
-    Result _bindRenderState(Submitter* submitter, RefPtr<PipelineBase>& newPipeline);
+    Result _bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline);
 };
 
 class ResourceCommandEncoderImpl : public IResourceCommandEncoder, public CommandEncoderImpl
@@ -192,7 +192,7 @@ public:
     D3D12_PRIMITIVE_TOPOLOGY m_primitiveTopology;
 
     void init(
-        DeviceImpl* renderer,
+        DeviceImpl* device,
         TransientResourceHeapImpl* transientHeap,
         CommandBufferImpl* cmdBuffer,
         const RenderPassDesc& desc
@@ -267,7 +267,7 @@ public:
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
-    void init(DeviceImpl* renderer, TransientResourceHeapImpl* transientHeap, CommandBufferImpl* cmdBuffer);
+    void init(DeviceImpl* device, TransientResourceHeapImpl* transientHeap, CommandBufferImpl* cmdBuffer);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;
 

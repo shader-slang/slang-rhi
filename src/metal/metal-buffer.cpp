@@ -3,7 +3,7 @@
 
 namespace rhi::metal {
 
-BufferImpl::BufferImpl(RendererBase* device, const BufferDesc& desc)
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
     : Buffer(device, desc)
 {
 }

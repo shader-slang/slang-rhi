@@ -2,8 +2,8 @@
 
 namespace rhi::vk {
 
-SamplerImpl::SamplerImpl(RendererBase* device, const SamplerDesc& desc)
-    : SamplerBase(device, desc)
+SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
+    : Sampler(device, desc)
 {
 }
 

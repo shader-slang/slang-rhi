@@ -4,7 +4,7 @@
 
 namespace rhi::vk {
 
-class FenceImpl : public FenceBase
+class FenceImpl : public Fence
 {
 public:
     VkSemaphore m_semaphore = VK_NULL_HANDLE;

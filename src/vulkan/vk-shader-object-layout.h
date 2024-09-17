@@ -16,7 +16,7 @@ enum
     kMaxDescriptorSets = 32,
 };
 
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     // A shader object comprises three main kinds of state:
@@ -131,13 +131,13 @@ public:
     struct Builder
     {
     public:
-        Builder(DeviceImpl* renderer, slang::ISession* session)
-            : m_renderer(renderer)
+        Builder(DeviceImpl* device, slang::ISession* session)
+            : m_device(device)
             , m_session(session)
         {
         }
 
-        DeviceImpl* m_renderer;
+        DeviceImpl* m_device;
         slang::ISession* m_session;
         slang::TypeLayoutReflection* m_elementTypeLayout;
 
@@ -214,7 +214,7 @@ public:
     };
 
     static Result createForElementType(
-        DeviceImpl* renderer,
+        DeviceImpl* device,
         slang::ISession* session,
         slang::TypeLayoutReflection* elementType,
         ShaderObjectLayoutImpl** outLayout
@@ -361,8 +361,8 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(DeviceImpl* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
-            : Super::Builder(renderer, program->getSession())
+        Builder(DeviceImpl* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+            : Super::Builder(device, program->getSession())
             , m_program(program)
             , m_programLayout(programLayout)
         {
@@ -389,7 +389,7 @@ public:
     std::vector<EntryPointInfo> const& getEntryPoints() const { return m_entryPoints; }
 
     static Result create(
-        DeviceImpl* renderer,
+        DeviceImpl* device,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
         RootShaderObjectLayout** outLayout
@@ -435,7 +435,7 @@ public:
     uint32_t m_totalPushConstantSize = 0;
 
     SimpleBindingOffset m_pendingDataOffset;
-    DeviceImpl* m_renderer = nullptr;
+    DeviceImpl* m_device = nullptr;
 };
 
 } // namespace rhi::vk

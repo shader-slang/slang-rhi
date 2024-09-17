@@ -21,7 +21,7 @@ public:
     VkCommandBuffer m_commandBuffer;
     VkCommandBuffer m_preCommandBuffer = VK_NULL_HANDLE;
     VkCommandPool m_pool;
-    DeviceImpl* m_renderer;
+    DeviceImpl* m_device;
     BreakableReference<TransientResourceHeapImpl> m_transientHeap;
     bool m_isPreCommandBufferEmpty = true;
     RootShaderObjectImpl m_rootObject;
@@ -36,7 +36,7 @@ public:
     // so no need to free individually.
     ~CommandBufferImpl() = default;
 
-    Result init(DeviceImpl* renderer, VkCommandPool pool, TransientResourceHeapImpl* transientHeap);
+    Result init(DeviceImpl* device, VkCommandPool pool, TransientResourceHeapImpl* transientHeap);
 
     void beginCommandBuffer();
 

@@ -14,7 +14,7 @@ class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObj
 public:
     static Result create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
 
-    RendererBase* getDevice() { return m_layout->getDevice(); }
+    Device* getDevice() { return m_layout->getDevice(); }
 
     SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() SLANG_OVERRIDE { return 0; }
 

@@ -50,7 +50,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     m_desc = desc;
 
-    SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
     Result initDeviceResult = SLANG_OK;
 
     m_device = NS::TransferPtr(MTL::CreateSystemDefaultDevice());
@@ -648,7 +648,7 @@ Result DeviceImpl::createShaderProgram(
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     AUTORELEASEPOOL
@@ -659,7 +659,7 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     AUTORELEASEPOOL
 
@@ -671,7 +671,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObj
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     AUTORELEASEPOOL
 

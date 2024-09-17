@@ -5,7 +5,7 @@
 
 namespace rhi::d3d11 {
 
-class QueryPoolImpl : public QueryPoolBase
+class QueryPoolImpl : public QueryPool
 {
 public:
     std::vector<ComPtr<ID3D11Query>> m_queries;

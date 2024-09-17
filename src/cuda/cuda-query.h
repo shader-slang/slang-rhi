@@ -4,7 +4,7 @@
 
 namespace rhi::cuda {
 
-class QueryPoolImpl : public QueryPoolBase
+class QueryPoolImpl : public QueryPool
 {
 public:
     /// The event object for each query. Owned by the pool.

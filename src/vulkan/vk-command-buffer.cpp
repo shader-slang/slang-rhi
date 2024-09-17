@@ -21,13 +21,13 @@ void CommandBufferImpl::comFree()
     m_transientHeap.breakStrongReference();
 }
 
-Result CommandBufferImpl::init(DeviceImpl* renderer, VkCommandPool pool, TransientResourceHeapImpl* transientHeap)
+Result CommandBufferImpl::init(DeviceImpl* device, VkCommandPool pool, TransientResourceHeapImpl* transientHeap)
 {
-    m_renderer = renderer;
+    m_device = device;
     m_transientHeap = transientHeap;
     m_pool = pool;
 
-    auto& api = renderer->m_api;
+    auto& api = device->m_api;
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = pool;
@@ -41,7 +41,7 @@ Result CommandBufferImpl::init(DeviceImpl* renderer, VkCommandPool pool, Transie
 
 void CommandBufferImpl::beginCommandBuffer()
 {
-    auto& api = m_renderer->m_api;
+    auto& api = m_device->m_api;
     VkCommandBufferBeginInfo beginInfo =
         {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
     api.vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
@@ -59,7 +59,7 @@ Result CommandBufferImpl::createPreCommandBuffer()
     allocInfo.commandPool = m_pool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    auto& api = m_renderer->m_api;
+    auto& api = m_device->m_api;
     SLANG_VK_RETURN_ON_FAIL(api.vkAllocateCommandBuffers(api.m_device, &allocInfo, &m_preCommandBuffer));
     VkCommandBufferBeginInfo beginInfo =
         {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
@@ -100,7 +100,7 @@ Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEnco
 
 Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
 {
-    if (!m_renderer->m_api.vkCmdBuildAccelerationStructuresKHR)
+    if (!m_device->m_api.vkCmdBuildAccelerationStructuresKHR)
         return SLANG_E_NOT_AVAILABLE;
     m_rayTracingCommandEncoder.init(this);
     *outEncoder = &m_rayTracingCommandEncoder;
@@ -109,7 +109,7 @@ Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** o
 
 void CommandBufferImpl::close()
 {
-    auto& vkAPI = m_renderer->m_api;
+    auto& vkAPI = m_device->m_api;
     if (!m_isPreCommandBufferEmpty)
     {
         // `preCmdBuffer` contains buffer transfer commands for shader object

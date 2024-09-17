@@ -498,13 +498,13 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
     ExtendedShaderObjectType extendedType;
     SLANG_RETURN_ON_FAIL(getSpecializedShaderObjectType(&extendedType));
 
-    auto renderer = getRenderer();
+    auto device = getDevice();
     RefPtr<ShaderObjectLayoutImpl> layout;
-    SLANG_RETURN_ON_FAIL(renderer->getShaderObjectLayout(
+    SLANG_RETURN_ON_FAIL(device->getShaderObjectLayout(
         m_layout->m_slangSession,
         extendedType.slangType,
         m_layout->getContainerType(),
-        (ShaderObjectLayoutBase**)layout.writeRef()
+        (ShaderObjectLayout**)layout.writeRef()
     ));
 
     returnRefPtrMove(outLayout, layout);
@@ -664,7 +664,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     auto slangSpecializedLayout = specializedComponentType->getLayout();
     RefPtr<RootShaderObjectLayoutImpl> specializedLayout;
     RootShaderObjectLayoutImpl::create(
-        getRenderer(),
+        getDevice(),
         specializedComponentType,
         slangSpecializedLayout,
         specializedLayout.writeRef()

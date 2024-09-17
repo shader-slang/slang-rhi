@@ -86,7 +86,7 @@ Result VKBufferHandleRAII::init(
     return SLANG_OK;
 }
 
-BufferImpl::BufferImpl(RendererBase* device, const BufferDesc& desc)
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
     : Buffer(device, desc)
 {
 }

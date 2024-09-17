@@ -7,7 +7,7 @@
 
 namespace rhi::vk {
 
-class PipelineImpl : public PipelineBase
+class PipelineImpl : public Pipeline
 {
 public:
     PipelineImpl(DeviceImpl* device);

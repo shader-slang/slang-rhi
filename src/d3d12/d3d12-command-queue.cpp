@@ -10,12 +10,12 @@ namespace rhi::d3d12 {
 Result CommandQueueImpl::init(DeviceImpl* device, uint32_t queueIndex)
 {
     m_queueIndex = queueIndex;
-    m_renderer = device;
-    m_device = device->m_device;
+    m_device = device;
+    m_d3dDevice = device->m_device;
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    SLANG_RETURN_ON_FAIL(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
-    SLANG_RETURN_ON_FAIL(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
+    SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
+    SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
     globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
     return SLANG_OK;
@@ -25,7 +25,7 @@ CommandQueueImpl::~CommandQueueImpl()
 {
     waitOnHost();
     CloseHandle(globalWaitHandle);
-    m_renderer->m_queueIndexAllocator.free((int)m_queueIndex, 1);
+    m_device->m_queueIndexAllocator.free((int)m_queueIndex, 1);
 }
 
 void CommandQueueImpl::executeCommandBuffers(

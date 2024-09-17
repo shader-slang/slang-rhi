@@ -6,7 +6,7 @@
 
 namespace rhi::d3d12 {
 
-class QueryPoolImpl : public QueryPoolBase
+class QueryPoolImpl : public QueryPool
 {
 public:
     Result init(const QueryPoolDesc& desc, DeviceImpl* device);
@@ -30,7 +30,7 @@ public:
 /// Implements the IQueryPool interface with a plain buffer.
 /// Used for query types that does not correspond to a D3D query,
 /// such as ray-tracing acceleration structure post-build info.
-class PlainBufferProxyQueryPoolImpl : public QueryPoolBase
+class PlainBufferProxyQueryPoolImpl : public QueryPool
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL

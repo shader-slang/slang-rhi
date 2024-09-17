@@ -1,4 +1,4 @@
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 #include "mutable-shader-object.h"
 
 #include "core/common.h"
@@ -45,7 +45,7 @@ const Guid GUID::IID_IShaderTable = IShaderTable::getTypeGuid();
 const Guid GUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
-IFence* FenceBase::getInterface(const Guid& guid)
+IFence* Fence::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFence)
         return static_cast<IFence*>(this);
@@ -131,25 +131,25 @@ Result TextureView::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-ISampler* SamplerBase::getInterface(const Guid& guid)
+ISampler* Sampler::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ISampler)
         return static_cast<ISampler*>(this);
     return nullptr;
 }
 
-const SamplerDesc& SamplerBase::getDesc()
+const SamplerDesc& Sampler::getDesc()
 {
     return m_desc;
 }
 
-Result SamplerBase::getNativeHandle(NativeHandle* outHandle)
+Result Sampler::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-IAccelerationStructure* AccelerationStructureBase::getInterface(const Guid& guid)
+IAccelerationStructure* AccelerationStructure::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IAccelerationStructure)
         return static_cast<IAccelerationStructure*>(this);
@@ -216,41 +216,41 @@ bool _doesValueFitInExistentialPayload(
     return true;
 }
 
-IShaderProgram* ShaderProgramBase::getInterface(const Guid& guid)
+IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderProgram)
         return static_cast<IShaderProgram*>(this);
     return nullptr;
 }
 
-IInputLayout* InputLayoutBase::getInterface(const Guid& guid)
+IInputLayout* InputLayout::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IInputLayout)
         return static_cast<IInputLayout*>(this);
     return nullptr;
 }
 
-IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
+IQueryPool* QueryPool::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
         return static_cast<IQueryPool*>(this);
     return nullptr;
 }
 
-IPipeline* PipelineBase::getInterface(const Guid& guid)
+IPipeline* Pipeline::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline)
         return static_cast<IPipeline*>(this);
     return nullptr;
 }
 
-Result PipelineBase::getNativeHandle(NativeHandle* outHandle)
+Result Pipeline::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
+void Pipeline::initializeBase(const PipelineStateDesc& inDesc)
 {
     desc = inDesc;
 
@@ -280,11 +280,11 @@ void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
     // Hold a strong reference to inputLayout object to prevent it from destruction.
     if (inDesc.type == PipelineType::Graphics)
     {
-        inputLayout = static_cast<InputLayoutBase*>(inDesc.graphics.inputLayout);
+        inputLayout = static_cast<InputLayout*>(inDesc.graphics.inputLayout);
     }
 }
 
-Result RendererBase::getEntryPointCodeFromShaderCache(
+Result Device::getEntryPointCodeFromShaderCache(
     slang::IComponentType* program,
     SlangInt entryPointIndex,
     SlangInt targetIndex,
@@ -318,18 +318,18 @@ Result RendererBase::getEntryPointCodeFromShaderCache(
     return SLANG_OK;
 }
 
-Result RendererBase::queryInterface(SlangUUID const& uuid, void** outObject)
+Result Device::queryInterface(SlangUUID const& uuid, void** outObject)
 {
     *outObject = getInterface(uuid);
     return SLANG_OK;
 }
 
-IDevice* RendererBase::getInterface(const Guid& guid)
+IDevice* Device::getInterface(const Guid& guid)
 {
     return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IDevice) ? static_cast<IDevice*>(this) : nullptr;
 }
 
-Result RendererBase::initialize(const Desc& desc)
+Result Device::initialize(const Desc& desc)
 {
     persistentShaderCache = desc.persistentShaderCache;
 
@@ -343,12 +343,12 @@ Result RendererBase::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-Result RendererBase::getNativeDeviceHandles(NativeHandles* outHandles)
+Result Device::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     return SLANG_OK;
 }
 
-Result RendererBase::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
+Result Device::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
 {
     if (bufferSize >= (UInt)m_features.size())
     {
@@ -362,7 +362,7 @@ Result RendererBase::getFeatures(const char** outFeatures, Size bufferSize, GfxC
     return SLANG_OK;
 }
 
-bool RendererBase::hasFeature(const char* featureName)
+bool Device::hasFeature(const char* featureName)
 {
     return std::any_of(
         m_features.begin(),
@@ -371,7 +371,7 @@ bool RendererBase::hasFeature(const char* featureName)
     );
 }
 
-Result RendererBase::getFormatSupport(Format format, FormatSupport* outFormatSupport)
+Result Device::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
     SLANG_UNUSED(format);
     FormatSupport support = FormatSupport::None;
@@ -391,18 +391,14 @@ Result RendererBase::getFormatSupport(Format format, FormatSupport* outFormatSup
     return SLANG_OK;
 }
 
-Result RendererBase::getSlangSession(slang::ISession** outSlangSession)
+Result Device::getSlangSession(slang::ISession** outSlangSession)
 {
     *outSlangSession = slangContext.session.get();
     slangContext.session->addRef();
     return SLANG_OK;
 }
 
-Result RendererBase::createTextureFromNativeHandle(
-    NativeHandle handle,
-    const TextureDesc& srcDesc,
-    ITexture** outTexture
-)
+Result Device::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -410,7 +406,7 @@ Result RendererBase::createTextureFromNativeHandle(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createTextureFromSharedHandle(
+Result Device::createTextureFromSharedHandle(
     NativeHandle handle,
     const TextureDesc& srcDesc,
     const Size size,
@@ -424,7 +420,7 @@ Result RendererBase::createTextureFromSharedHandle(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result Device::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -432,7 +428,7 @@ Result RendererBase::createBufferFromNativeHandle(NativeHandle handle, const Buf
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result Device::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
     SLANG_UNUSED(srcDesc);
@@ -440,7 +436,7 @@ Result RendererBase::createBufferFromSharedHandle(NativeHandle handle, const Buf
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createShaderObject(
+Result Device::createShaderObject(
     slang::TypeReflection* type,
     ShaderObjectContainerType container,
     IShaderObject** outObject
@@ -449,19 +445,19 @@ Result RendererBase::createShaderObject(
     return createShaderObject2(slangContext.session, type, container, outObject);
 }
 
-Result RendererBase::createShaderObject2(
+Result Device::createShaderObject2(
     slang::ISession* slangSession,
     slang::TypeReflection* type,
     ShaderObjectContainerType container,
     IShaderObject** outObject
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, container, shaderObjectLayout.writeRef()));
     return createShaderObject(shaderObjectLayout, outObject);
 }
 
-Result RendererBase::createMutableShaderObject(
+Result Device::createMutableShaderObject(
     slang::TypeReflection* type,
     ShaderObjectContainerType containerType,
     IShaderObject** outObject
@@ -470,39 +466,36 @@ Result RendererBase::createMutableShaderObject(
     return createMutableShaderObject2(slangContext.session, type, containerType, outObject);
 }
 
-Result RendererBase::createMutableShaderObject2(
+Result Device::createMutableShaderObject2(
     slang::ISession* slangSession,
     slang::TypeReflection* type,
     ShaderObjectContainerType containerType,
     IShaderObject** outObject
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, containerType, shaderObjectLayout.writeRef()));
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
 
-Result RendererBase::createShaderObjectFromTypeLayout(
-    slang::TypeLayoutReflection* typeLayout,
-    IShaderObject** outObject
-)
+Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     return createShaderObject(shaderObjectLayout, outObject);
 }
 
-Result RendererBase::createMutableShaderObjectFromTypeLayout(
+Result Device::createMutableShaderObjectFromTypeLayout(
     slang::TypeLayoutReflection* typeLayout,
     IShaderObject** outObject
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
 
-Result RendererBase::getAccelerationStructurePrebuildInfo(
+Result Device::getAccelerationStructurePrebuildInfo(
     const IAccelerationStructure::BuildInputs& buildInputs,
     IAccelerationStructure::PrebuildInfo* outPrebuildInfo
 )
@@ -512,7 +505,7 @@ Result RendererBase::getAccelerationStructurePrebuildInfo(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createAccelerationStructure(
+Result Device::createAccelerationStructure(
     const IAccelerationStructure::CreateDesc& desc,
     IAccelerationStructure** outView
 )
@@ -522,35 +515,35 @@ Result RendererBase::createAccelerationStructure(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable)
+Result Device::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outTable);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
+Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outPipeline);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
+Result Device::createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
     SLANG_UNUSED(program);
     SLANG_UNUSED(outObject);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::createFence(const FenceDesc& desc, IFence** outFence)
+Result Device::createFence(const FenceDesc& desc, IFence** outFence)
 {
     SLANG_UNUSED(desc);
     *outFence = nullptr;
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::waitForFences(
+Result Device::waitForFences(
     GfxCount fenceCount,
     IFence** fences,
     uint64_t* fenceValues,
@@ -566,7 +559,7 @@ Result RendererBase::waitForFences(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
+Result Device::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
 {
     SLANG_UNUSED(desc);
     *outSize = 0;
@@ -574,17 +567,17 @@ Result RendererBase::getTextureAllocationInfo(const TextureDesc& desc, Size* out
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::getTextureRowAlignment(Size* outAlignment)
+Result Device::getTextureRowAlignment(Size* outAlignment)
 {
     *outAlignment = 0;
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RendererBase::getShaderObjectLayout(
+Result Device::getShaderObjectLayout(
     slang::ISession* session,
     slang::TypeReflection* type,
     ShaderObjectContainerType container,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     switch (container)
@@ -605,13 +598,13 @@ Result RendererBase::getShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result RendererBase::getShaderObjectLayout(
+Result Device::getShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     auto it = m_shaderObjectLayoutCache.find(typeLayout);
     if (it != m_shaderObjectLayoutCache.end())
     {
@@ -685,21 +678,21 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
-void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<PipelineBase> specializedPipeline)
+void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline)
 {
     specializedPipelines[key] = specializedPipeline;
 }
 
-void ShaderObjectLayoutBase::initBase(
-    RendererBase* renderer,
+void ShaderObjectLayout::initBase(
+    Device* device,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementTypeLayout
 )
 {
-    m_renderer = renderer;
+    m_device = device;
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
-    m_componentID = m_renderer->shaderCache.getComponentId(m_elementTypeLayout->getType());
+    m_componentID = m_device->shaderCache.getComponentId(m_elementTypeLayout->getType());
 }
 
 // Get the final type this shader object represents. If the shader object's type has existential fields,
@@ -722,12 +715,12 @@ Result ShaderObjectBase::_getSpecializedShaderObjectType(ExtendedShaderObjectTyp
     }
     else
     {
-        shaderObjectType.slangType = getRenderer()->slangContext.session->specializeType(
+        shaderObjectType.slangType = getDevice()->slangContext.session->specializeType(
             _getElementTypeLayout()->getType(),
             specializationArgs.components.data(),
             specializationArgs.getCount()
         );
-        shaderObjectType.componentID = getRenderer()->shaderCache.getComponentId(shaderObjectType.slangType);
+        shaderObjectType.componentID = getDevice()->shaderCache.getComponentId(shaderObjectType.slangType);
     }
     *outType = shaderObjectType;
     return SLANG_OK;
@@ -775,7 +768,7 @@ Result ShaderObjectBase::setExistentialHeader(
 }
 
 Buffer* SimpleShaderObjectData::getBufferResource(
-    RendererBase* device,
+    Device* device,
     slang::TypeLayoutReflection* elementLayout,
     slang::BindingType bindingType
 )
@@ -797,7 +790,7 @@ Buffer* SimpleShaderObjectData::getBufferResource(
     return m_structuredBuffer;
 }
 
-void ShaderProgramBase::init(const ShaderProgramDesc& inDesc)
+void ShaderProgram::init(const ShaderProgramDesc& inDesc)
 {
     desc = inDesc;
 
@@ -845,7 +838,7 @@ void ShaderProgramBase::init(const ShaderProgramDesc& inDesc)
     }
 }
 
-Result ShaderProgramBase::compileShaders(RendererBase* device)
+Result ShaderProgram::compileShaders(Device* device)
 {
     // For a fully specialized program, read and store its kernel code in `shaderProgram`.
     auto compileShader = [&](slang::EntryPointReflection* entryPointInfo,
@@ -897,14 +890,14 @@ Result ShaderProgramBase::compileShaders(RendererBase* device)
     return SLANG_OK;
 }
 
-Result ShaderProgramBase::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgram::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
     SLANG_UNUSED(entryPointInfo);
     SLANG_UNUSED(kernelCode);
     return SLANG_OK;
 }
 
-bool ShaderProgramBase::isMeshShaderProgram() const
+bool ShaderProgram::isMeshShaderProgram() const
 {
     // Similar to above, interrogate either explicity specified entry point
     // componenets or the ones in the linked program entry point array
@@ -924,13 +917,13 @@ bool ShaderProgramBase::isMeshShaderProgram() const
     return false;
 }
 
-Result RendererBase::maybeSpecializePipeline(
-    PipelineBase* currentPipeline,
+Result Device::maybeSpecializePipeline(
+    Pipeline* currentPipeline,
     ShaderObjectBase* rootObject,
-    RefPtr<PipelineBase>& outNewPipeline
+    RefPtr<Pipeline>& outNewPipeline
 )
 {
-    outNewPipeline = static_cast<PipelineBase*>(currentPipeline);
+    outNewPipeline = static_cast<Pipeline*>(currentPipeline);
 
     auto pipelineType = currentPipeline->desc.type;
     if (currentPipeline->unspecializedPipeline)
@@ -950,11 +943,11 @@ Result RendererBase::maybeSpecializePipeline(
         }
         pipelineKey.updateHash();
 
-        RefPtr<PipelineBase> specializedPipeline = shaderCache.getSpecializedPipeline(pipelineKey);
+        RefPtr<Pipeline> specializedPipeline = shaderCache.getSpecializedPipeline(pipelineKey);
         // Try to find specialized pipeline from shader cache.
         if (!specializedPipeline)
         {
-            auto unspecializedProgram = static_cast<ShaderProgramBase*>(
+            auto unspecializedProgram = static_cast<ShaderProgram*>(
                 pipelineType == PipelineType::Compute ? currentPipeline->desc.compute.program
                                                       : currentPipeline->desc.graphics.program
             );
@@ -1006,25 +999,25 @@ Result RendererBase::maybeSpecializePipeline(
             case PipelineType::Graphics:
             {
                 auto pipelineDesc = currentPipeline->desc.graphics;
-                pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
+                pipelineDesc.program = static_cast<ShaderProgram*>(specializedProgram.get());
                 SLANG_RETURN_ON_FAIL(createRenderPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             case PipelineType::RayTracing:
             {
                 auto pipelineDesc = currentPipeline->desc.rayTracing;
-                pipelineDesc.program = static_cast<ShaderProgramBase*>(specializedProgram.get());
+                pipelineDesc.program = static_cast<ShaderProgram*>(specializedProgram.get());
                 SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             default:
                 break;
             }
-            specializedPipeline = static_cast<PipelineBase*>(specializedPipelineComPtr.get());
+            specializedPipeline = static_cast<Pipeline*>(specializedPipelineComPtr.get());
             specializedPipeline->unspecializedPipeline = currentPipeline;
             shaderCache.addSpecializedPipeline(pipelineKey, specializedPipeline);
         }
-        auto specializedPipelineBase = static_cast<PipelineBase*>(specializedPipeline.Ptr());
+        auto specializedPipelineBase = static_cast<Pipeline*>(specializedPipeline.Ptr());
         outNewPipeline = specializedPipelineBase;
     }
     return SLANG_OK;
@@ -1076,7 +1069,7 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
     return SLANG_FAIL;
 }
 
-Result ShaderTableBase::init(const IShaderTable::Desc& desc)
+Result ShaderTable::init(const IShaderTable::Desc& desc)
 {
     m_rayGenShaderCount = desc.rayGenShaderCount;
     m_missShaderCount = desc.missShaderCount;

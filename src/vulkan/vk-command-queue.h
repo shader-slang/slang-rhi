@@ -15,7 +15,7 @@ public:
 
 public:
     Desc m_desc;
-    RefPtr<DeviceImpl> m_renderer;
+    RefPtr<DeviceImpl> m_device;
     VkQueue m_queue;
     uint32_t m_queueFamilyIndex;
     struct FenceWaitInfo
@@ -29,7 +29,7 @@ public:
     VkSemaphore m_semaphore;
     ~CommandQueueImpl();
 
-    void init(DeviceImpl* renderer, VkQueue queue, uint32_t queueFamilyIndex);
+    void init(DeviceImpl* device, VkQueue queue, uint32_t queueFamilyIndex);
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override;
 

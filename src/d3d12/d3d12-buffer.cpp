@@ -3,7 +3,7 @@
 
 namespace rhi::d3d12 {
 
-BufferImpl::BufferImpl(RendererBase* device, const BufferDesc& desc)
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
     : Buffer(device, desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {

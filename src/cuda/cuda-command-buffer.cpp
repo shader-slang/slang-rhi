@@ -9,7 +9,7 @@ ICommandBuffer* CommandBufferImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapBase* transientHeap)
+void CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeap* transientHeap)
 {
     m_device = device;
     m_transientHeap = transientHeap;

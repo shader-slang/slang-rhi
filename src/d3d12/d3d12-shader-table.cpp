@@ -8,8 +8,8 @@
 namespace rhi::d3d12 {
 
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
-    PipelineBase* pipeline,
-    TransientResourceHeapBase* transientHeap,
+    Pipeline* pipeline,
+    TransientResourceHeap* transientHeap,
     IRayTracingCommandEncoder* encoder
 )
 {

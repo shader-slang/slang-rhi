@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 
 #include "core/common.h"
 
@@ -129,7 +129,7 @@ public:
 
     void setPipeline(IPipeline* state)
     {
-        auto offset = encodeObject(static_cast<PipelineBase*>(state));
+        auto offset = encodeObject(static_cast<Pipeline*>(state));
         m_commands.push_back(Command(CommandName::SetPipeline, (uint32_t)offset));
     }
 
@@ -301,7 +301,7 @@ public:
 
     void writeTimestamp(IQueryPool* pool, GfxIndex index)
     {
-        auto poolOffset = encodeObject(static_cast<QueryPoolBase*>(pool));
+        auto poolOffset = encodeObject(static_cast<QueryPool*>(pool));
         m_commands.push_back(Command(CommandName::WriteTimestamp, (uint32_t)poolOffset, (uint32_t)index));
         m_hasWriteTimestamps = true;
     }

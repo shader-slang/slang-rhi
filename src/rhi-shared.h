@@ -51,7 +51,7 @@ struct GUID
     static const Guid IID_ITransientResourceHeapD3D12;
 };
 
-class RendererBase;
+class Device;
 
 bool isRhiDebugLayerEnabled();
 
@@ -190,7 +190,7 @@ void returnRefPtrMove(TDest** outPtr, RefPtr<TImpl>& refPtr)
     *outPtr = refPtr.detach();
 }
 
-class FenceBase : public IFence, public ComObject
+class Fence : public IFence, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -203,13 +203,13 @@ protected:
 class Resource : public ComObject
 {
 public:
-    Resource(RendererBase* device)
+    Resource(Device* device)
         : m_device(device)
     {
         SLANG_RHI_ASSERT(device);
     }
 
-    RefPtr<RendererBase> m_device;
+    RefPtr<Device> m_device;
 };
 
 class Buffer : public IBuffer, public Resource
@@ -219,7 +219,7 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Buffer(RendererBase* device, const BufferDesc& desc)
+    Buffer(Device* device, const BufferDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -245,7 +245,7 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Texture(RendererBase* device, const TextureDesc& desc)
+    Texture(Device* device, const TextureDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -271,7 +271,7 @@ public:
     ITextureView* getInterface(const Guid& guid);
 
 public:
-    TextureView(RendererBase* device, const TextureViewDesc& desc)
+    TextureView(Device* device, const TextureViewDesc& desc)
         : Resource(device)
     {
         m_desc = desc;
@@ -285,14 +285,14 @@ public:
     StructHolder m_descHolder;
 };
 
-class SamplerBase : public ISampler, public Resource
+class Sampler : public ISampler, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ISampler* getInterface(const Guid& guid);
 
 public:
-    SamplerBase(RendererBase* device, const SamplerDesc& desc)
+    Sampler(Device* device, const SamplerDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -307,14 +307,14 @@ public:
     StructHolder m_descHolder;
 };
 
-class AccelerationStructureBase : public IAccelerationStructure, public Resource
+class AccelerationStructure : public IAccelerationStructure, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IAccelerationStructure* getInterface(const Guid& guid);
 
 public:
-    AccelerationStructureBase(RendererBase* device, const CreateDesc& desc)
+    AccelerationStructure(Device* device, const CreateDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
@@ -368,13 +368,13 @@ struct ExtendedShaderObjectTypeList
 struct ExtendedShaderObjectTypeListObject : public ExtendedShaderObjectTypeList, public RefObject
 {};
 
-class ShaderObjectLayoutBase : public RefObject
+class ShaderObjectLayout : public RefObject
 {
 protected:
     // We always use a weak reference to the `IDevice` object here.
     // `ShaderObject` implementations will make sure to hold a strong reference to `IDevice`
     // while a `ShaderObjectLayout` may still be used.
-    RendererBase* m_renderer;
+    Device* m_device;
     slang::TypeLayoutReflection* m_elementTypeLayout = nullptr;
     ShaderComponentID m_componentID = 0;
 
@@ -427,13 +427,13 @@ public:
     }
 
 public:
-    RendererBase* getDevice() { return m_renderer; }
+    Device* getDevice() { return m_device; }
 
     slang::TypeLayoutReflection* getElementTypeLayout() { return m_elementTypeLayout; }
 
     ShaderComponentID getComponentID() { return m_componentID; }
 
-    void initBase(RendererBase* renderer, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
+    void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };
 
 class SimpleShaderObjectData
@@ -451,7 +451,7 @@ public:
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
     Buffer* getBufferResource(
-        RendererBase* device,
+        Device* device,
         slang::TypeLayoutReflection* elementLayout,
         slang::BindingType bindingType
     );
@@ -476,10 +476,10 @@ public:
 protected:
     // A strong reference to `IDevice` to make sure the weak device reference in
     // `ShaderObjectLayout`s are valid whenever they might be used.
-    BreakableReference<RendererBase> m_device;
+    BreakableReference<Device> m_device;
 
     // The shader object layout used to create this shader object.
-    RefPtr<ShaderObjectLayoutBase> m_layout = nullptr;
+    RefPtr<ShaderObjectLayout> m_layout = nullptr;
 
     // The specialized shader object type.
     ExtendedShaderObjectType shaderObjectType = {nullptr, kInvalidComponentID};
@@ -499,9 +499,9 @@ public:
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) = 0;
 
-    RendererBase* getRenderer() { return m_layout->getDevice(); }
+    Device* getDevice() { return m_layout->getDevice(); }
 
-    ShaderObjectLayoutBase* getLayoutBase() { return m_layout; }
+    ShaderObjectLayout* getLayoutBase() { return m_layout; }
 
     /// Sets the RTTI ID and RTTI witness table fields of an existential value.
     Result setExistentialHeader(
@@ -736,7 +736,7 @@ public:
             // If we are setting into a `StructuredBuffer` field, make sure we create and set
             // the StructuredBuffer resource as well.
             auto buffer = subObject->m_data.getBufferResource(
-                getRenderer(),
+                getDevice(),
                 subObject->getElementTypeLayout(),
                 bindingRange.bindingType
             );
@@ -798,7 +798,7 @@ public:
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 };
 
-class ShaderProgramBase : public IShaderProgram, public ComObject
+class ShaderProgram : public IShaderProgram, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -834,7 +834,7 @@ public:
         return false;
     }
 
-    Result compileShaders(RendererBase* device);
+    Result compileShaders(Device* device);
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override
@@ -845,14 +845,14 @@ public:
     bool isMeshShaderProgram() const;
 };
 
-class InputLayoutBase : public IInputLayout, public ComObject
+class InputLayout : public IInputLayout, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IInputLayout* getInterface(const Guid& guid);
 };
 
-class QueryPoolBase : public IQueryPool, public ComObject
+class QueryPool : public IQueryPool, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -871,7 +871,7 @@ enum class PipelineType
     CountOf,
 };
 
-class PipelineBase : public IPipeline, public ComObject
+class Pipeline : public IPipeline, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -883,16 +883,16 @@ public:
         RenderPipelineDesc graphics;
         ComputePipelineDesc compute;
         RayTracingPipelineDesc rayTracing;
-        ShaderProgramBase* getProgram()
+        ShaderProgram* getProgram()
         {
             switch (type)
             {
             case PipelineType::Compute:
-                return static_cast<ShaderProgramBase*>(compute.program);
+                return static_cast<ShaderProgram*>(compute.program);
             case PipelineType::Graphics:
-                return static_cast<ShaderProgramBase*>(graphics.program);
+                return static_cast<ShaderProgram*>(graphics.program);
             case PipelineType::RayTracing:
-                return static_cast<ShaderProgramBase*>(rayTracing.program);
+                return static_cast<ShaderProgram*>(rayTracing.program);
             }
             return nullptr;
         }
@@ -902,16 +902,16 @@ public:
 
     // We need to hold inputLayout object alive, since we may use it to
     // create specialized pipeline states later.
-    RefPtr<InputLayoutBase> inputLayout;
+    RefPtr<InputLayout> inputLayout;
 
     // The pipeline state from which this pipeline state is specialized.
     // If null, this pipeline is either an unspecialized pipeline.
-    RefPtr<PipelineBase> unspecializedPipeline = nullptr;
+    RefPtr<Pipeline> unspecializedPipeline = nullptr;
 
     // Indicates whether this is a specializable pipeline. A specializable
     // pipeline cannot be used directly and must be specialized first.
     bool isSpecializable = false;
-    RefPtr<ShaderProgramBase> m_program;
+    RefPtr<ShaderProgram> m_program;
     template<typename TProgram>
     TProgram* getProgram()
     {
@@ -954,7 +954,7 @@ struct ComponentKey
 
 struct PipelineKey
 {
-    PipelineBase* pipeline;
+    Pipeline* pipeline;
     short_vector<ShaderComponentID> specializationArgs;
     size_t hash;
     void updateHash()
@@ -986,14 +986,14 @@ public:
     ShaderComponentID getComponentId(std::string_view name);
     ShaderComponentID getComponentId(ComponentKey key);
 
-    RefPtr<PipelineBase> getSpecializedPipeline(PipelineKey programKey)
+    RefPtr<Pipeline> getSpecializedPipeline(PipelineKey programKey)
     {
         auto it = specializedPipelines.find(programKey);
         if (it != specializedPipelines.end())
             return it->second;
         return nullptr;
     }
-    void addSpecializedPipeline(PipelineKey key, RefPtr<PipelineBase> specializedPipeline);
+    void addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline);
     void free()
     {
         specializedPipelines = decltype(specializedPipelines)();
@@ -1011,10 +1011,10 @@ protected:
     };
 
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, RefPtr<PipelineBase>, PipelineKeyHasher> specializedPipelines;
+    std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
 
-class TransientResourceHeapBase : public ITransientResourceHeap, public ComObject
+class TransientResourceHeap : public ITransientResourceHeap, public ComObject
 {
 public:
     uint64_t m_version = 0;
@@ -1024,8 +1024,8 @@ public:
         static uint64_t version = 1;
         return version;
     }
-    TransientResourceHeapBase() { m_version = getVersionCounter()++; }
-    virtual ~TransientResourceHeapBase() {}
+    TransientResourceHeap() { m_version = getVersionCounter()++; }
+    virtual ~TransientResourceHeap() {}
 
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -1041,7 +1041,7 @@ public:
 
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
-class ShaderTableBase : public IShaderTable, public ComObject
+class ShaderTable : public IShaderTable, public ComObject
 {
 public:
     std::vector<std::string> m_shaderGroupNames;
@@ -1052,7 +1052,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::map<PipelineBase*, RefPtr<Buffer>> m_deviceBuffers;
+    std::map<Pipeline*, RefPtr<Buffer>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
@@ -1063,14 +1063,14 @@ public:
     }
 
     virtual RefPtr<Buffer> createDeviceBuffer(
-        PipelineBase* pipeline,
-        TransientResourceHeapBase* transientHeap,
+        Pipeline* pipeline,
+        TransientResourceHeap* transientHeap,
         IRayTracingCommandEncoder* encoder
     ) = 0;
 
     Buffer* getOrCreateBuffer(
-        PipelineBase* pipeline,
-        TransientResourceHeapBase* transientHeap,
+        Pipeline* pipeline,
+        TransientResourceHeap* transientHeap,
         IRayTracingCommandEncoder* encoder
     )
     {
@@ -1085,9 +1085,9 @@ public:
     Result init(const IShaderTable::Desc& desc);
 };
 
-// Renderer implementation shared by all platforms.
+// Device implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
-class RendererBase : public IDevice, public ComObject
+class Device : public IDevice, public ComObject
 {
     friend class ShaderObjectBase;
 
@@ -1208,13 +1208,13 @@ public:
         slang::ISession* session,
         slang::TypeReflection* type,
         ShaderObjectContainerType container,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     );
 
     Result getShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     );
 
 public:
@@ -1223,20 +1223,20 @@ public:
     // The newly specialized pipeline is held alive by the pipeline cache so users of `outNewPipeline` do not
     // need to maintain its lifespan.
     Result maybeSpecializePipeline(
-        PipelineBase* currentPipeline,
+        Pipeline* currentPipeline,
         ShaderObjectBase* rootObject,
-        RefPtr<PipelineBase>& outNewPipeline
+        RefPtr<Pipeline>& outNewPipeline
     );
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     ) = 0;
 
-    virtual Result createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) = 0;
+    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
 
-    virtual Result createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) = 0;
+    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
 
 protected:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc);
@@ -1250,7 +1250,7 @@ public:
 
     ComPtr<IPersistentShaderCache> persistentShaderCache;
 
-    std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
+    std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
     ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
 };
 
@@ -1271,7 +1271,7 @@ inline IDebugCallback* getDebugCallback()
     }
 }
 
-// Implementations that have to come after RendererBase
+// Implementations that have to come after Device
 
 //--------------------------------------------------------------------------------
 template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
@@ -1292,7 +1292,7 @@ void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObj
         // anything that is different with `__Dynamic` because we cannot specialize the
         // buffer type if the element types are not the same.
         SLANG_RHI_ASSERT(m_structuredBufferSpecializationArgs.getCount() == specializationArgs.getCount());
-        auto device = getRenderer();
+        auto device = getDevice();
         for (Index i = 0; i < m_structuredBufferSpecializationArgs.getCount(); i++)
         {
             if (m_structuredBufferSpecializationArgs[i].componentID != specializationArgs[i].componentID)
@@ -1314,7 +1314,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
         uint32_t count
     )
 {
-    auto device = getRenderer();
+    auto device = getDevice();
     for (uint32_t i = 0; i < count; i++)
     {
         ExtendedShaderObjectType extendedType;
@@ -1345,7 +1345,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
         return SLANG_OK;
     }
 
-    auto device = getRenderer();
+    auto device = getDevice();
     auto& subObjectRanges = getLayout()->getSubObjectRanges();
     // The following logic is built on the assumption that all fields that involve
     // existential types (and therefore require specialization) will results in a sub-object

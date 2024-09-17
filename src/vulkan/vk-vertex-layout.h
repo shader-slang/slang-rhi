@@ -6,7 +6,7 @@
 
 namespace rhi::vk {
 
-class InputLayoutImpl : public InputLayoutBase
+class InputLayoutImpl : public InputLayout
 {
 public:
     std::vector<VkVertexInputAttributeDescription> m_attributeDescs;

@@ -47,7 +47,7 @@ void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* texture
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
     VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
 
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
         srcStage,
@@ -90,7 +90,7 @@ void CommandEncoderImpl::textureSubresourceBarrier(
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
     VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
 
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
         srcStage,
@@ -129,7 +129,7 @@ void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, 
     VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
     VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
 
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
         srcStage,
@@ -146,7 +146,7 @@ void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, 
 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     if (api.vkCmdDebugMarkerBeginEXT)
     {
         VkDebugMarkerMarkerInfoEXT eventInfo = {};
@@ -162,7 +162,7 @@ void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 
 void CommandEncoderImpl::endDebugEvent()
 {
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     if (api.vkCmdDebugMarkerEndEXT)
     {
         api.vkCmdDebugMarkerEndEXT(m_commandBuffer->m_commandBuffer);
@@ -171,7 +171,7 @@ void CommandEncoderImpl::endDebugEvent()
 
 void CommandEncoderImpl::writeTimestamp(IQueryPool* queryPool, GfxIndex index)
 {
-    _writeTimestamp(&m_commandBuffer->m_renderer->m_api, m_commandBuffer->m_commandBuffer, queryPool, index);
+    _writeTimestamp(&m_commandBuffer->m_device->m_api, m_commandBuffer->m_commandBuffer, queryPool, index);
 }
 
 int CommandEncoderImpl::getBindPointIndex(VkPipelineBindPoint bindPoint)
@@ -193,9 +193,9 @@ int CommandEncoderImpl::getBindPointIndex(VkPipelineBindPoint bindPoint)
 void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer;
-    m_device = commandBuffer->m_renderer;
+    m_device = commandBuffer->m_device;
     m_vkCommandBuffer = m_commandBuffer->m_commandBuffer;
-    m_api = &m_commandBuffer->m_renderer->m_api;
+    m_api = &m_commandBuffer->m_device->m_api;
 }
 
 void CommandEncoderImpl::endEncodingImpl()
@@ -319,7 +319,7 @@ Result CommandEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** out
     m_currentPipeline = static_cast<PipelineImpl*>(state);
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
-        m_commandBuffer->m_renderer,
+        m_commandBuffer->m_device,
         m_currentPipeline->getProgram<ShaderProgramImpl>()->m_rootObjectLayout
     ));
     *outRootObject = &m_commandBuffer->m_rootObject;
@@ -342,7 +342,7 @@ Result CommandEncoderImpl::bindRenderState(VkPipelineBindPoint pipelineBindPoint
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
                                                ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
                                                : &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineBase> newPipeline;
+    RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
     PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
 
@@ -365,7 +365,7 @@ Result CommandEncoderImpl::bindRenderState(VkPipelineBindPoint pipelineBindPoint
 
 void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    auto& vkAPI = m_commandBuffer->m_renderer->m_api;
+    auto& vkAPI = m_commandBuffer->m_device->m_api;
 
     auto dstBuffer = static_cast<BufferImpl*>(dst);
     auto srcBuffer = static_cast<BufferImpl*>(src);
@@ -405,7 +405,7 @@ void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset
 void ResourceCommandEncoderImpl::endEncoding()
 {
     // Insert memory barrier to ensure transfers are visible to the GPU.
-    auto& vkAPI = m_commandBuffer->m_renderer->m_api;
+    auto& vkAPI = m_commandBuffer->m_device->m_api;
 
     VkMemoryBarrier memBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
     memBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -471,7 +471,7 @@ void ResourceCommandEncoderImpl::copyTexture(
     region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
     region.extent = {(uint32_t)extent.width, (uint32_t)extent.height, (uint32_t)extent.depth};
 
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     api.vkCmdCopyImage(
         m_commandBuffer->m_commandBuffer,
         srcImage->m_image,
@@ -494,7 +494,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
 {
     // VALIDATION: dst must be in TransferDst state.
 
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     auto dstImpl = static_cast<TextureImpl*>(dst);
     std::vector<Extents> mipSizes;
 
@@ -626,12 +626,12 @@ void ResourceCommandEncoderImpl::uploadTextureData(
 #if 0
 void ResourceCommandEncoderImpl::_clearColorImage(TextureViewImpl* viewImpl, ClearValue* clearValue)
 {
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     auto layout = viewImpl->m_layout;
     if (layout != VK_IMAGE_LAYOUT_GENERAL && layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
         layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        m_commandBuffer->m_renderer->_transitionImageLayout(
+        m_commandBuffer->m_device->_transitionImageLayout(
             m_commandBuffer->m_commandBuffer,
             viewImpl->m_texture->m_image,
             viewImpl->m_texture->m_vkformat,
@@ -662,7 +662,7 @@ void ResourceCommandEncoderImpl::_clearColorImage(TextureViewImpl* viewImpl, Cle
 
     if (layout != viewImpl->m_layout)
     {
-        m_commandBuffer->m_renderer->_transitionImageLayout(
+        m_commandBuffer->m_device->_transitionImageLayout(
             m_commandBuffer->m_commandBuffer,
             viewImpl->m_texture->m_image,
             viewImpl->m_texture->m_vkformat,
@@ -679,12 +679,12 @@ void ResourceCommandEncoderImpl::_clearDepthImage(
     ClearResourceViewFlags::Enum flags
 )
 {
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     auto layout = viewImpl->m_layout;
     if (layout != VK_IMAGE_LAYOUT_GENERAL && layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
         layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        m_commandBuffer->m_renderer->_transitionImageLayout(
+        m_commandBuffer->m_device->_transitionImageLayout(
             m_commandBuffer->m_commandBuffer,
             viewImpl->m_texture->m_image,
             viewImpl->m_texture->m_vkformat,
@@ -729,7 +729,7 @@ void ResourceCommandEncoderImpl::_clearDepthImage(
 
     if (layout != viewImpl->m_layout)
     {
-        m_commandBuffer->m_renderer->_transitionImageLayout(
+        m_commandBuffer->m_device->_transitionImageLayout(
             m_commandBuffer->m_commandBuffer,
             viewImpl->m_texture->m_image,
             viewImpl->m_texture->m_vkformat,
@@ -747,7 +747,7 @@ void ResourceCommandEncoderImpl::_clearBuffer(
     uint32_t clearValue
 )
 {
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     auto clearOffset = desc.bufferRange.offset;
     auto clearSize = desc.bufferRange.size == 0 ? bufferSize - clearOffset : desc.bufferRange.size;
     api.vkCmdFillBuffer(m_commandBuffer->m_commandBuffer, buffer, clearOffset, clearSize, clearValue);
@@ -759,7 +759,7 @@ void ResourceCommandEncoderImpl::clearResourceView(
     ClearResourceViewFlags::Enum flags
 )
 {
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     switch (view->getViewDesc()->type)
     {
     case IResourceView::Type::RenderTarget:
@@ -839,7 +839,7 @@ void ResourceCommandEncoderImpl::clearResourceView(
 void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
     // TODO(skallweit) transition to copy destination
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
     uint64_t offset = range ? range->offset : 0;
     uint64_t size = range ? range->size : bufferImpl->m_desc.size;
@@ -894,7 +894,7 @@ void ResourceCommandEncoderImpl::resolveResource(
             region.dstOffset = {0, 0, 0};
             region.extent = {(uint32_t)srcExtent.width, (uint32_t)srcExtent.height, (uint32_t)srcExtent.depth};
 
-            auto& api = m_commandBuffer->m_renderer->m_api;
+            auto& api = m_commandBuffer->m_device->m_api;
             api.vkCmdResolveImage(
                 m_commandBuffer->m_commandBuffer,
                 srcImage,
@@ -916,7 +916,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
     Offset offset
 )
 {
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     auto poolImpl = static_cast<QueryPoolImpl*>(queryPool);
     auto bufferImpl = static_cast<BufferImpl*>(buffer);
     api.vkCmdCopyQueryPoolResults(
@@ -961,7 +961,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
     region.imageExtent = {uint32_t(extent.width), uint32_t(extent.height), uint32_t(extent.depth)};
 
-    auto& api = m_commandBuffer->m_renderer->m_api;
+    auto& api = m_commandBuffer->m_device->m_api;
     api.vkCmdCopyImageToBuffer(
         m_commandBuffer->m_commandBuffer,
         image->m_image,
@@ -1429,15 +1429,15 @@ void RayTracingCommandEncoderImpl::_memoryBarrier(
         memBarriers[i].pNext = nullptr;
         memBarriers[i].dstAccessMask = translateAccelerationStructureAccessFlag(destAccess);
         memBarriers[i].srcAccessMask = translateAccelerationStructureAccessFlag(srcAccess);
-        memBarriers[i].srcQueueFamilyIndex = m_commandBuffer->m_renderer->m_queueFamilyIndex;
-        memBarriers[i].dstQueueFamilyIndex = m_commandBuffer->m_renderer->m_queueFamilyIndex;
+        memBarriers[i].srcQueueFamilyIndex = m_commandBuffer->m_device->m_queueFamilyIndex;
+        memBarriers[i].dstQueueFamilyIndex = m_commandBuffer->m_device->m_queueFamilyIndex;
 
         auto asImpl = static_cast<AccelerationStructureImpl*>(structures[i]);
         memBarriers[i].buffer = asImpl->m_buffer->m_buffer.m_buffer;
         memBarriers[i].offset = asImpl->m_offset;
         memBarriers[i].size = asImpl->m_size;
     }
-    m_commandBuffer->m_renderer->m_api.vkCmdPipelineBarrier(
+    m_commandBuffer->m_device->m_api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
         VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
         VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT |
@@ -1489,13 +1489,13 @@ void RayTracingCommandEncoderImpl::_queryAccelerationStructureProperties(
             return;
         }
         auto queryPool = static_cast<QueryPoolImpl*>(queryDescs[i].queryPool)->m_pool;
-        m_commandBuffer->m_renderer->m_api.vkCmdResetQueryPool(
+        m_commandBuffer->m_device->m_api.vkCmdResetQueryPool(
             m_commandBuffer->m_commandBuffer,
             queryPool,
             (uint32_t)queryDescs[i].firstQueryIndex,
             1
         );
-        m_commandBuffer->m_renderer->m_api.vkCmdWriteAccelerationStructuresPropertiesKHR(
+        m_commandBuffer->m_device->m_api.vkCmdWriteAccelerationStructuresPropertiesKHR(
             m_commandBuffer->m_commandBuffer,
             accelerationStructureCount,
             vkHandles.data(),
@@ -1540,7 +1540,7 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
     }
 
     auto rangeInfoPtr = rangeInfos.data();
-    m_commandBuffer->m_renderer->m_api.vkCmdBuildAccelerationStructuresKHR(
+    m_commandBuffer->m_device->m_api.vkCmdBuildAccelerationStructuresKHR(
         m_commandBuffer->m_commandBuffer,
         1,
         &geomInfoBuilder.buildInfo,
@@ -1579,7 +1579,7 @@ void RayTracingCommandEncoderImpl::copyAccelerationStructure(
         );
         return;
     }
-    m_commandBuffer->m_renderer->m_api.vkCmdCopyAccelerationStructureKHR(m_commandBuffer->m_commandBuffer, &copyInfo);
+    m_commandBuffer->m_device->m_api.vkCmdCopyAccelerationStructureKHR(m_commandBuffer->m_commandBuffer, &copyInfo);
 }
 
 void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
@@ -1600,7 +1600,7 @@ void RayTracingCommandEncoderImpl::serializeAccelerationStructure(DeviceAddress 
     copyInfo.src = static_cast<AccelerationStructureImpl*>(source)->m_vkHandle;
     copyInfo.dst.deviceAddress = dest;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR;
-    m_commandBuffer->m_renderer->m_api.vkCmdCopyAccelerationStructureToMemoryKHR(
+    m_commandBuffer->m_device->m_api.vkCmdCopyAccelerationStructureToMemoryKHR(
         m_commandBuffer->m_commandBuffer,
         &copyInfo
     );
@@ -1614,7 +1614,7 @@ void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAcceleratio
     copyInfo.src.deviceAddress = source;
     copyInfo.dst = static_cast<AccelerationStructureImpl*>(dest)->m_vkHandle;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
-    m_commandBuffer->m_renderer->m_api.vkCmdCopyMemoryToAccelerationStructureKHR(
+    m_commandBuffer->m_device->m_api.vkCmdCopyMemoryToAccelerationStructureKHR(
         m_commandBuffer->m_commandBuffer,
         &copyInfo
     );
@@ -1638,7 +1638,7 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
     GfxCount depth
 )
 {
-    auto api = m_commandBuffer->m_renderer->m_api;
+    auto api = m_commandBuffer->m_device->m_api;
     auto vkCommandBuffer = m_commandBuffer->m_commandBuffer;
 
     SLANG_RETURN_ON_FAIL(bindRenderState(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR));

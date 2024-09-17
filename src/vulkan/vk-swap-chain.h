@@ -26,7 +26,7 @@ public:
     VkFormat m_vkformat;
     RefPtr<CommandQueueImpl> m_queue;
     short_vector<RefPtr<TextureImpl>> m_images;
-    RefPtr<DeviceImpl> m_renderer;
+    RefPtr<DeviceImpl> m_device;
     VulkanApi* m_api;
     uint32_t m_currentImageIndex = 0;
     WindowHandle m_windowHandle;
@@ -45,7 +45,7 @@ public:
 
     static Index _indexOfFormat(std::vector<VkSurfaceFormatKHR>& formatsIn, VkFormat format);
 
-    Result init(DeviceImpl* renderer, const ISwapchain::Desc& desc, WindowHandle window);
+    Result init(DeviceImpl* device, const ISwapchain::Desc& desc, WindowHandle window);
 
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITexture** outTexture) override;

@@ -3,14 +3,14 @@
 namespace rhi::cuda {
 
 ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
-    RendererBase* renderer,
+    Device* device,
     slang::ISession* session,
     slang::TypeLayoutReflection* layout
 )
 {
     m_elementTypeLayout = _unwrapParameterGroups(layout, m_containerType);
 
-    initBase(renderer, session, m_elementTypeLayout);
+    initBase(device, session, m_elementTypeLayout);
 
     // Compute the binding ranges that are used to store
     // the logical contents of the object in memory. These will relate
@@ -97,8 +97,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
         RefPtr<ShaderObjectLayoutImpl> subObjectLayout;
         if (slangBindingType != slang::BindingType::ExistentialValue)
         {
-            subObjectLayout =
-                new ShaderObjectLayoutImpl(renderer, session, slangLeafTypeLayout->getElementTypeLayout());
+            subObjectLayout = new ShaderObjectLayoutImpl(device, session, slangLeafTypeLayout->getElementTypeLayout());
         }
 
         SubObjectRangeInfo subObjectRange;
@@ -129,14 +128,14 @@ Index ShaderObjectLayoutImpl::getBindingRangeCount() const
     return m_bindingRanges.size();
 }
 
-RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ProgramLayout* inProgramLayout)
-    : ShaderObjectLayoutImpl(renderer, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout())
+RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* inProgramLayout)
+    : ShaderObjectLayoutImpl(device, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout())
     , programLayout(inProgramLayout)
 {
     for (UInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
         entryPointLayouts.push_back(new ShaderObjectLayoutImpl(
-            renderer,
+            device,
             programLayout->getSession(),
             programLayout->getEntryPointByIndex(i)->getTypeLayout()
         ));

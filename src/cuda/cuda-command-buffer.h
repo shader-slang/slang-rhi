@@ -13,11 +13,11 @@ public:
 
 public:
     DeviceImpl* m_device;
-    TransientResourceHeapBase* m_transientHeap;
+    TransientResourceHeap* m_transientHeap;
     ResourceCommandEncoderImpl m_resourceCommandEncoder;
     ComputeCommandEncoderImpl m_computeCommandEncoder;
 
-    void init(DeviceImpl* device, TransientResourceHeapBase* transientHeap);
+    void init(DeviceImpl* device, TransientResourceHeap* transientHeap);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

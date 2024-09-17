@@ -6,7 +6,7 @@
 
 namespace rhi::cuda {
 
-class ShaderProgramImpl : public ShaderProgramBase
+class ShaderProgramImpl : public ShaderProgram
 {
 public:
     CUmodule cudaModule = nullptr;

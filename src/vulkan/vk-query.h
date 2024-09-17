@@ -5,7 +5,7 @@
 
 namespace rhi::vk {
 
-class QueryPoolImpl : public QueryPoolBase
+class QueryPoolImpl : public QueryPool
 {
 public:
     Result init(const QueryPoolDesc& desc, DeviceImpl* device);

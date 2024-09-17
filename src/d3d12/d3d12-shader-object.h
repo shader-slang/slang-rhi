@@ -87,7 +87,7 @@ public:
 
     ~ShaderObjectImpl();
 
-    RendererBase* getDevice() { return m_device.get(); }
+    Device* getDevice() { return m_device.get(); }
 
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
 

@@ -78,7 +78,7 @@ void* ShaderObjectData::getBuffer()
 
 /// Returns a resource view for GPU access into the buffer content.
 Buffer* ShaderObjectData::getBufferResource(
-    RendererBase* device,
+    Device* device,
     slang::TypeLayoutReflection* elementLayout,
     slang::BindingType bindingType
 )
@@ -90,7 +90,7 @@ Buffer* ShaderObjectData::getBufferResource(
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
-    m_data.device = static_cast<RendererBase*>(device);
+    m_data.device = static_cast<Device*>(device);
 
     m_layout = typeLayout;
 

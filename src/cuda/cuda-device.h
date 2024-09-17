@@ -7,7 +7,7 @@
 
 namespace rhi::cuda {
 
-class DeviceImpl : public RendererBase
+class DeviceImpl : public Device
 {
 private:
     static const CUDAReportStyle reportType = CUDAReportStyle::Normal;
@@ -55,12 +55,12 @@ public:
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     ) override;
 
-    virtual Result createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
+    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
 
-    virtual Result createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
+    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
 
     Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject);
 

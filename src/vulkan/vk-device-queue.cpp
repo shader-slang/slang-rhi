@@ -64,7 +64,7 @@ Result VulkanDeviceQueue::init(const VulkanApi& api, VkQueue queue, int queueInd
         VkFenceCreateInfo fenceCreateInfo = {};
         fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceCreateInfo.flags = 0; // VK_FENCE_CREATE_SIGNALED_BIT;
-        Fence& fence = m_fences[i];
+        FenceInfo& fence = m_fences[i];
 
         api.vkAllocateCommandBuffers(api.m_device, &commandInfo, &m_commandBuffers[i]);
 
@@ -117,7 +117,7 @@ void VulkanDeviceQueue::flushStepA()
         submitInfo.pSignalSemaphores = &m_currentSemaphores[int(EventType::EndFrame)];
     }
 
-    Fence& fence = m_fences[m_commandBufferIndex];
+    FenceInfo& fence = m_fences[m_commandBufferIndex];
 
     m_api->vkQueueSubmit(m_queue, 1, &submitInfo, fence.fence);
 
@@ -135,7 +135,7 @@ void VulkanDeviceQueue::flushStepA()
 
 void VulkanDeviceQueue::_updateFenceAtIndex(int fenceIndex, bool blocking)
 {
-    Fence& fence = m_fences[fenceIndex];
+    FenceInfo& fence = m_fences[fenceIndex];
 
     if (fence.active)
     {

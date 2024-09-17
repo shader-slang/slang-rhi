@@ -10,7 +10,7 @@ namespace rhi::metal {
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(RendererBase* device, const TextureViewDesc& desc)
+    TextureViewImpl(Device* device, const TextureViewDesc& desc)
         : TextureView(device, desc)
     {
     }
@@ -21,7 +21,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
-class AccelerationStructureImpl : public AccelerationStructureBase
+class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
     RefPtr<BufferImpl> m_buffer;

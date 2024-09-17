@@ -10,7 +10,7 @@ namespace rhi::vk {
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(RendererBase* device, const TextureViewDesc& desc)
+    TextureViewImpl(Device* device, const TextureViewDesc& desc)
         : TextureView(device, desc)
     {
     }
@@ -22,7 +22,7 @@ public:
     TextureSubresourceView getView();
 };
 
-class AccelerationStructureImpl : public AccelerationStructureBase
+class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
@@ -32,8 +32,8 @@ public:
     RefPtr<DeviceImpl> m_device;
 
 public:
-    AccelerationStructureImpl(RendererBase* device, const IAccelerationStructure::CreateDesc& desc)
-        : AccelerationStructureBase(device, desc)
+    AccelerationStructureImpl(Device* device, const IAccelerationStructure::CreateDesc& desc)
+        : AccelerationStructure(device, desc)
     {
     }
 

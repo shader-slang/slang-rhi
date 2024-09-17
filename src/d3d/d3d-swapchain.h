@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 
-#include "../renderer-shared.h"
+#include "../rhi-shared.h"
 #include "d3d-util.h"
 #include "core/common.h"
 #include "core/short_vector.h"

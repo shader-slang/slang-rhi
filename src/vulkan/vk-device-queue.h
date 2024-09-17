@@ -68,7 +68,7 @@ struct VulkanDeviceQueue
     ~VulkanDeviceQueue();
 
 protected:
-    struct Fence
+    struct FenceInfo
     {
         VkFence fence;
         bool active;
@@ -85,7 +85,7 @@ protected:
     VkCommandPool m_commandPools[kMaxCommandBuffers] = {VK_NULL_HANDLE};
     VkCommandBuffer m_commandBuffers[kMaxCommandBuffers] = {VK_NULL_HANDLE};
 
-    Fence m_fences[kMaxCommandBuffers] = {{VK_NULL_HANDLE, 0, 0u}};
+    FenceInfo m_fences[kMaxCommandBuffers] = {{VK_NULL_HANDLE, 0, 0u}};
 
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;

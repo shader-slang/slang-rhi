@@ -14,7 +14,7 @@ Result ShaderObjectImpl::create(IDevice* device, ShaderObjectLayoutImpl* layout,
     return SLANG_OK;
 }
 
-RendererBase* ShaderObjectImpl::getDevice()
+Device* ShaderObjectImpl::getDevice()
 {
     return m_layout->getDevice();
 }
@@ -161,7 +161,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
         for(auto descriptorSetInfo : layout->getDescriptorSets())
         {
             RefPtr<DescriptorSet> descriptorSet;
-            SLANG_RETURN_ON_FAIL(renderer->createDescriptorSet(descriptorSetInfo->layout, descriptorSet.writeRef()));
+            SLANG_RETURN_ON_FAIL(device->createDescriptorSet(descriptorSetInfo->layout, descriptorSet.writeRef()));
             m_descriptorSets.add(descriptorSet);
         }
 #endif
@@ -996,7 +996,7 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
         m_layout->m_slangSession,
         extendedType.slangType,
         m_layout->getContainerType(),
-        (ShaderObjectLayoutBase**)layout.writeRef()
+        (ShaderObjectLayout**)layout.writeRef()
     ));
 
     returnRefPtrMove(outLayout, layout);
@@ -1259,7 +1259,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     auto slangSpecializedLayout = specializedComponentType->getLayout();
     RefPtr<RootShaderObjectLayout> specializedLayout;
     RootShaderObjectLayout::create(
-        static_cast<DeviceImpl*>(getRenderer()),
+        static_cast<DeviceImpl*>(getDevice()),
         specializedComponentType,
         slangSpecializedLayout,
         specializedLayout.writeRef()

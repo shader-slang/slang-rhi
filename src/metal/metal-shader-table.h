@@ -4,7 +4,7 @@
 
 namespace rhi::metal {
 
-class ShaderTableImpl : public ShaderTableBase
+class ShaderTableImpl : public ShaderTable
 {
 public:
     uint32_t m_raygenTableSize;
@@ -15,8 +15,8 @@ public:
     DeviceImpl* m_device;
 
     virtual RefPtr<Buffer> createDeviceBuffer(
-        PipelineBase* pipeline,
-        TransientResourceHeapBase* transientHeap,
+        Pipeline* pipeline,
+        TransientResourceHeap* transientHeap,
         IRayTracingCommandEncoder* encoder
     ) override;
 };

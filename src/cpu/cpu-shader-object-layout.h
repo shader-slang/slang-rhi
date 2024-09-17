@@ -35,7 +35,7 @@ struct SubObjectRangeInfo
     Index bindingRangeIndex;
 };
 
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     // TODO: Once memory lifetime stuff is handled, there is
@@ -49,7 +49,7 @@ public:
     Index m_subObjectCount = 0;
     Index m_resourceCount = 0;
 
-    ShaderObjectLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::TypeLayoutReflection* layout);
+    ShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::TypeLayoutReflection* layout);
 
     size_t getSize();
     Index getResourceCount() const;
@@ -65,8 +65,8 @@ private:
     slang::EntryPointLayout* m_entryPointLayout = nullptr;
 
 public:
-    EntryPointLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::EntryPointLayout* entryPointLayout)
-        : ShaderObjectLayoutImpl(renderer, session, entryPointLayout->getTypeLayout())
+    EntryPointLayoutImpl(Device* device, slang::ISession* session, slang::EntryPointLayout* entryPointLayout)
+        : ShaderObjectLayoutImpl(device, session, entryPointLayout->getTypeLayout())
         , m_entryPointLayout(entryPointLayout)
     {
     }
@@ -80,7 +80,7 @@ public:
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<RefPtr<EntryPointLayoutImpl>> m_entryPointLayouts;
 
-    RootShaderObjectLayoutImpl(RendererBase* renderer, slang::ISession* session, slang::ProgramLayout* programLayout);
+    RootShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::ProgramLayout* programLayout);
 
     int getKernelIndex(std::string_view kernelName);
     void getKernelThreadGroupSize(int kernelIndex, UInt* threadGroupSizes);

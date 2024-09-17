@@ -145,7 +145,7 @@ void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, 
 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
-    auto beginEvent = m_commandBuffer->m_renderer->m_BeginEventOnCommandList;
+    auto beginEvent = m_commandBuffer->m_device->m_BeginEventOnCommandList;
     if (beginEvent)
     {
         beginEvent(
@@ -159,7 +159,7 @@ void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 
 void CommandEncoderImpl::endDebugEvent()
 {
-    auto endEvent = m_commandBuffer->m_renderer->m_EndEventOnCommandList;
+    auto endEvent = m_commandBuffer->m_device->m_EndEventOnCommandList;
     if (endEvent)
     {
         endEvent(m_commandBuffer->m_cmdList);
@@ -193,18 +193,18 @@ void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
     m_commandBuffer = commandBuffer;
     m_d3dCmdList = m_commandBuffer->m_cmdList;
     m_d3dCmdList6 = m_commandBuffer->m_cmdList6;
-    m_renderer = commandBuffer->m_renderer;
+    m_device = commandBuffer->m_device;
     m_transientHeap = commandBuffer->m_transientHeap;
-    m_device = commandBuffer->m_renderer->m_device;
+    m_d3dDevice = commandBuffer->m_device->m_device;
 }
 
 Result CommandEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineBase*>(pipeline);
+    m_currentPipeline = static_cast<Pipeline*>(pipeline);
     auto rootObject = &m_commandBuffer->m_rootShaderObject;
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->reset(
-        m_renderer,
+        m_device,
         m_currentPipeline->getProgram<ShaderProgramImpl>()->m_rootObjectLayout,
         m_commandBuffer->m_transientHeap
     ));
@@ -215,19 +215,19 @@ Result CommandEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject**
 
 Result CommandEncoderImpl::bindPipelineWithRootObjectImpl(IPipeline* pipeline, IShaderObject* rootObject)
 {
-    m_currentPipeline = static_cast<PipelineBase*>(pipeline);
+    m_currentPipeline = static_cast<Pipeline*>(pipeline);
     m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
     m_bindingDirty = true;
     return SLANG_OK;
 }
 
-Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<PipelineBase>& newPipeline)
+Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline)
 {
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
                                                ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
                                                : &m_commandBuffer->m_rootShaderObject;
-    SLANG_RETURN_ON_FAIL(m_renderer->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineBase* newPipelineImpl = static_cast<PipelineBase*>(newPipeline.Ptr());
+    SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
+    Pipeline* newPipelineImpl = static_cast<Pipeline*>(newPipeline.Ptr());
     auto commandList = m_d3dCmdList;
     auto pipelineTypeIndex = (int)newPipelineImpl->desc.type;
     auto programImpl = static_cast<ShaderProgramImpl*>(newPipelineImpl->m_program.Ptr());
@@ -244,7 +244,7 @@ Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipelin
     BindingContext context = {};
     context.encoder = this;
     context.submitter = submitter;
-    context.device = m_renderer;
+    context.device = m_device;
     context.transientHeap = m_transientHeap;
     context.outOfMemoryHeap = (D3D12_DESCRIPTOR_HEAP_TYPE)(-1);
     // We kick off binding of shader objects at the root object, and the objects
@@ -265,12 +265,12 @@ Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipelin
         switch (context.outOfMemoryHeap)
         {
         case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-            SLANG_RETURN_ON_FAIL(m_transientHeap->allocateNewViewDescriptorHeap(m_renderer));
+            SLANG_RETURN_ON_FAIL(m_transientHeap->allocateNewViewDescriptorHeap(m_device));
             d3dheap = m_transientHeap->getCurrentViewHeap().getHeap();
             m_commandBuffer->bindDescriptorHeaps();
             break;
         case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
-            SLANG_RETURN_ON_FAIL(m_transientHeap->allocateNewSamplerDescriptorHeap(m_renderer));
+            SLANG_RETURN_ON_FAIL(m_transientHeap->allocateNewSamplerDescriptorHeap(m_device));
             d3dheap = m_transientHeap->getCurrentSamplerHeap().getHeap();
             m_commandBuffer->bindDescriptorHeaps();
             break;
@@ -523,7 +523,7 @@ void ResourceCommandEncoderImpl::clearResourceView(
         {
             d3dResource = static_cast<BufferImpl*>(viewImpl->m_resource.Ptr())->m_resource.getResource();
             // D3D12 requires a UAV descriptor with zero buffer stride for calling ClearUnorderedAccessViewUint/Float.
-            viewImpl->getBufferDescriptorForBinding(m_commandBuffer->m_renderer, viewImpl, 0, descriptor);
+            viewImpl->getBufferDescriptorForBinding(m_commandBuffer->m_device, viewImpl, 0, descriptor);
         }
         else
         {
@@ -532,11 +532,11 @@ void ResourceCommandEncoderImpl::clearResourceView(
         auto gpuHandleIndex = m_commandBuffer->m_transientHeap->getCurrentViewHeap().allocate(1);
         if (gpuHandleIndex == -1)
         {
-            m_commandBuffer->m_transientHeap->allocateNewViewDescriptorHeap(m_commandBuffer->m_renderer);
+            m_commandBuffer->m_transientHeap->allocateNewViewDescriptorHeap(m_commandBuffer->m_device);
             gpuHandleIndex = m_commandBuffer->m_transientHeap->getCurrentViewHeap().allocate(1);
             m_commandBuffer->bindDescriptorHeaps();
         }
-        this->m_commandBuffer->m_renderer->m_device->CopyDescriptorsSimple(
+        this->m_commandBuffer->m_device->m_device->CopyDescriptorsSimple(
             1,
             m_commandBuffer->m_transientHeap->getCurrentViewHeap().getCpuHandle(gpuHandleIndex),
             descriptor.cpuHandle,
@@ -627,7 +627,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
     Offset offset
 )
 {
-    auto queryBase = static_cast<QueryPoolBase*>(queryPool);
+    auto queryBase = static_cast<QueryPool*>(queryPool);
     switch (queryBase->m_desc.type)
     {
     case QueryType::AccelerationStructureCompactedSize:
@@ -790,7 +790,7 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
 void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     uploadBufferDataImpl(
-        m_commandBuffer->m_renderer->m_device,
+        m_commandBuffer->m_device->m_device,
         m_commandBuffer->m_cmdList,
         m_commandBuffer->m_transientHeap,
         static_cast<BufferImpl*>(dst),
@@ -803,7 +803,7 @@ void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, S
 // RenderCommandEncoderImpl
 
 void RenderCommandEncoderImpl::init(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     TransientResourceHeapImpl* transientHeap,
     CommandBufferImpl* cmdBuffer,
     const RenderPassDesc& desc
@@ -1016,7 +1016,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
     // Submit - setting for graphics
     {
         GraphicsSubmitter submitter(m_d3dCmdList);
-        RefPtr<PipelineBase> newPipeline;
+        RefPtr<Pipeline> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
 
@@ -1134,7 +1134,7 @@ Result RenderCommandEncoderImpl::drawIndirect(
     auto countBufferImpl = static_cast<BufferImpl*>(countBuffer);
 
     m_d3dCmdList->ExecuteIndirect(
-        m_renderer->drawIndirectCmdSignature,
+        m_device->drawIndirectCmdSignature,
         (uint32_t)maxDrawCount,
         argBufferImpl->m_resource,
         (uint64_t)argOffset,
@@ -1158,7 +1158,7 @@ Result RenderCommandEncoderImpl::drawIndexedIndirect(
     auto countBufferImpl = static_cast<BufferImpl*>(countBuffer);
 
     m_d3dCmdList->ExecuteIndirect(
-        m_renderer->drawIndexedIndirectCmdSignature,
+        m_device->drawIndexedIndirectCmdSignature,
         (uint32_t)maxDrawCount,
         argBufferImpl->m_resource,
         (uint64_t)argOffset,
@@ -1238,7 +1238,7 @@ void ComputeCommandEncoderImpl::endEncoding()
 }
 
 void ComputeCommandEncoderImpl::init(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     TransientResourceHeapImpl* transientHeap,
     CommandBufferImpl* cmdBuffer
 )
@@ -1264,7 +1264,7 @@ Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
     // Submit binding for compute
     {
         ComputeSubmitter submitter(m_d3dCmdList);
-        RefPtr<PipelineBase> newPipeline;
+        RefPtr<Pipeline> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
     m_d3dCmdList->Dispatch(x, y, z);
@@ -1276,13 +1276,13 @@ Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Of
     // Submit binding for compute
     {
         ComputeSubmitter submitter(m_d3dCmdList);
-        RefPtr<PipelineBase> newPipeline;
+        RefPtr<Pipeline> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
     auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
 
     m_d3dCmdList->ExecuteIndirect(
-        m_renderer->dispatchIndirectCmdSignature,
+        m_device->dispatchIndirectCmdSignature,
         1,
         argBufferImpl->m_resource,
         (uint64_t)offset,
@@ -1414,8 +1414,8 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
     GfxCount depth
 )
 {
-    RefPtr<PipelineBase> newPipeline;
-    PipelineBase* pipeline = m_currentPipeline.Ptr();
+    RefPtr<Pipeline> newPipeline;
+    Pipeline* pipeline = m_currentPipeline.Ptr();
     {
         struct RayTracingSubmitter : public ComputeSubmitter
         {
@@ -1425,7 +1425,7 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
                 , m_cmdList4(cmdList4)
             {
             }
-            virtual void setPipeline(PipelineBase* pipeline) override
+            virtual void setPipeline(Pipeline* pipeline) override
             {
                 auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
                 m_cmdList4->SetPipelineState1(pipelineImpl->m_stateObject.get());

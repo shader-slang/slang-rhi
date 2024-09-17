@@ -7,7 +7,7 @@
 
 namespace rhi::metal {
 
-class PipelineImpl : public PipelineBase
+class PipelineImpl : public Pipeline
 {
 public:
     DeviceImpl* m_device;

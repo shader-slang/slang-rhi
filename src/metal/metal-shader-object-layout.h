@@ -7,7 +7,7 @@
 
 namespace rhi::metal {
 
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     // A shader object comprises three main kinds of state:
@@ -96,13 +96,13 @@ public:
     struct Builder
     {
     public:
-        Builder(RendererBase* renderer, slang::ISession* session)
-            : m_renderer(renderer)
+        Builder(Device* device, slang::ISession* session)
+            : m_device(device)
             , m_session(session)
         {
         }
 
-        RendererBase* m_renderer;
+        Device* m_device;
         slang::ISession* m_session;
         slang::TypeLayoutReflection* m_elementTypeLayout;
 
@@ -135,7 +135,7 @@ public:
     };
 
     static Result createForElementType(
-        RendererBase* renderer,
+        Device* device,
         slang::ISession* session,
         slang::TypeLayoutReflection* elementType,
         ShaderObjectLayoutImpl** outLayout
@@ -155,7 +155,7 @@ public:
     SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
     std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
 
-    RendererBase* getRenderer() { return m_renderer; }
+    Device* getDevice() { return m_device; }
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
@@ -204,8 +204,8 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(RendererBase* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
-            : Super::Builder(renderer, program->getSession())
+        Builder(Device* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+            : Super::Builder(device, program->getSession())
             , m_program(program)
             , m_programLayout(programLayout)
         {
@@ -229,7 +229,7 @@ public:
     std::vector<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
 
     static Result create(
-        RendererBase* renderer,
+        Device* device,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
         RootShaderObjectLayoutImpl** outLayout

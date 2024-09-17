@@ -29,7 +29,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         make_array(slang::PreprocessorMacroDesc{"__CPU__", "1"})
     ));
 
-    SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     // Initialize DeviceInfo
     {
@@ -88,7 +88,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     RefPtr<ShaderObjectLayoutImpl> cpuLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
@@ -97,7 +97,7 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     auto cpuLayout = static_cast<ShaderObjectLayoutImpl*>(layout);
 
@@ -108,7 +108,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObj
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     auto cpuLayout = static_cast<ShaderObjectLayoutImpl*>(layout);
 
@@ -220,7 +220,7 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     int targetIndex = 0;
 
     // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineBase> newPipeline;
+    RefPtr<Pipeline> newPipeline;
     maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
     m_currentPipeline = static_cast<PipelineImpl*>(newPipeline.Ptr());
 

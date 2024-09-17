@@ -2,7 +2,7 @@
 
 #include "../command-encoder-com-forward.h"
 #include "../mutable-shader-object.h"
-#include "../renderer-shared.h"
+#include "../rhi-shared.h"
 #include "../transient-resource-heap-base.h"
 #include "metal-api.h"
 

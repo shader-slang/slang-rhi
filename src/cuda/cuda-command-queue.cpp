@@ -13,9 +13,9 @@ ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void CommandQueueImpl::init(DeviceImpl* inRenderer)
+void CommandQueueImpl::init(DeviceImpl* device)
 {
-    renderer = inRenderer;
+    m_device = device;
     m_desc.type = ICommandQueue::QueueType::Graphics;
     cuStreamCreate(&stream, 0);
 }
@@ -78,8 +78,8 @@ Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
 void CommandQueueImpl::dispatchCompute(int x, int y, int z)
 {
     // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineBase> newPipeline;
-    renderer->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
+    RefPtr<Pipeline> newPipeline;
+    m_device->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
     currentPipeline = static_cast<ComputePipelineImpl*>(newPipeline.Ptr());
 
     // Find out thread group size from program reflection.
@@ -169,7 +169,7 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
         switch (cmd.name)
         {
         case CommandName::SetPipeline:
-            setPipeline(commandBuffer->getObject<PipelineBase>(cmd.operands[0]));
+            setPipeline(commandBuffer->getObject<Pipeline>(cmd.operands[0]));
             break;
         case CommandName::BindRootShaderObject:
             bindRootShaderObject(commandBuffer->getObject<ShaderObjectBase>(cmd.operands[0]));
@@ -195,7 +195,7 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
             );
             break;
         case CommandName::WriteTimestamp:
-            writeTimestamp(commandBuffer->getObject<QueryPoolBase>(cmd.operands[0]), (SlangInt)cmd.operands[1]);
+            writeTimestamp(commandBuffer->getObject<QueryPool>(cmd.operands[0]), (SlangInt)cmd.operands[1]);
         }
     }
 }

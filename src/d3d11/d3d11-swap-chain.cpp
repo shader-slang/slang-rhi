@@ -4,11 +4,11 @@
 
 namespace rhi::d3d11 {
 
-Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& swapchainDesc, WindowHandle window)
+Result SwapchainImpl::init(DeviceImpl* device, const ISwapchain::Desc& swapchainDesc, WindowHandle window)
 {
-    m_renderer = renderer;
-    m_device = renderer->m_device;
-    m_dxgiFactory = renderer->m_dxgiFactory;
+    m_device = device;
+    m_d3dDevice = device->m_device;
+    m_dxgiFactory = device->m_dxgiFactory;
     return D3DSwapchainBase::init(swapchainDesc, window, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL);
 }
 
@@ -29,7 +29,7 @@ void SwapchainImpl::createSwapchainBufferImages()
     imageDesc.format = m_desc.format;
     imageDesc.usage = TextureUsage::Present | TextureUsage::CopyDestination | TextureUsage::RenderTarget;
     imageDesc.defaultState = ResourceState::Present;
-    RefPtr<TextureImpl> image = new TextureImpl(m_renderer, imageDesc);
+    RefPtr<TextureImpl> image = new TextureImpl(m_device, imageDesc);
     image->m_resource = d3dResource;
     for (GfxIndex i = 0; i < m_desc.imageCount; i++)
     {
@@ -39,7 +39,7 @@ void SwapchainImpl::createSwapchainBufferImages()
 
 Result SwapchainImpl::resize(GfxCount width, GfxCount height)
 {
-    m_renderer->m_immediateContext->ClearState();
+    m_device->m_immediateContext->ClearState();
     return D3DSwapchainBase::resize(width, height);
 }
 

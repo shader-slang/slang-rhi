@@ -7,7 +7,7 @@ namespace rhi::d3d12 {
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(RendererBase* device, const BufferDesc& desc);
+    BufferImpl(Device* device, const BufferDesc& desc);
 
     ~BufferImpl();
 

@@ -34,7 +34,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         std::array{slang::PreprocessorMacroDesc{"__D3D11__", "1"}}
     ));
 
-    SLANG_RETURN_ON_FAIL(RendererBase::initialize(desc));
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     // Initialize DeviceInfo
     {
@@ -1030,7 +1030,7 @@ void DeviceImpl::setScissorRects(GfxCount count, ScissorRect const* rects)
 
 void DeviceImpl::setPipeline(IPipeline* state)
 {
-    auto pipelineType = static_cast<PipelineBase*>(state)->desc.type;
+    auto pipelineType = static_cast<Pipeline*>(state)->desc.type;
 
     switch (pipelineType)
     {
@@ -1238,7 +1238,7 @@ Result DeviceImpl::createShaderProgram(
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
@@ -1247,7 +1247,7 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectImpl> shaderObject;
     SLANG_RETURN_ON_FAIL(
@@ -1257,7 +1257,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObj
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     auto layoutImpl = static_cast<ShaderObjectLayoutImpl*>(layout);
 
@@ -1287,7 +1287,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
 void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
 {
     RootShaderObjectImpl* rootShaderObjectImpl = static_cast<RootShaderObjectImpl*>(shaderObject);
-    RefPtr<PipelineBase> specializedPipeline;
+    RefPtr<Pipeline> specializedPipeline;
     maybeSpecializePipeline(m_currentPipeline, rootShaderObjectImpl, specializedPipeline);
     PipelineImpl* specializedPipelineImpl = static_cast<PipelineImpl*>(specializedPipeline.Ptr());
     setPipeline(specializedPipelineImpl);

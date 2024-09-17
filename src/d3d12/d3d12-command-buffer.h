@@ -34,7 +34,7 @@ public:
     BreakableReference<TransientResourceHeapImpl> m_transientHeap;
     // Weak reference is fine here since `m_transientHeap` already holds strong reference to
     // device.
-    DeviceImpl* m_renderer;
+    DeviceImpl* m_device;
     RootShaderObjectImpl m_rootShaderObject;
     RefPtr<MutableRootShaderObjectImpl> m_mutableRootShaderObject;
     bool m_descriptorHeapsBound = false;
@@ -49,11 +49,7 @@ public:
 
     void reinit();
 
-    void init(
-        DeviceImpl* renderer,
-        ID3D12GraphicsCommandList* d3dCommandList,
-        TransientResourceHeapImpl* transientHeap
-    );
+    void init(DeviceImpl* device, ID3D12GraphicsCommandList* d3dCommandList, TransientResourceHeapImpl* transientHeap);
 
     ResourceCommandEncoderImpl m_resourceCommandEncoder;
 

@@ -37,17 +37,17 @@ void CommandBufferImpl::bindDescriptorHeaps()
 void CommandBufferImpl::reinit()
 {
     invalidateDescriptorHeapBinding();
-    m_rootShaderObject.init(m_renderer);
+    m_rootShaderObject.init(m_device);
 }
 
 void CommandBufferImpl::init(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     ID3D12GraphicsCommandList* d3dCommandList,
     TransientResourceHeapImpl* transientHeap
 )
 {
     m_transientHeap = transientHeap;
-    m_renderer = renderer;
+    m_device = device;
     m_cmdList = d3dCommandList;
 
     reinit();
@@ -79,14 +79,14 @@ Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEn
 
 Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
-    m_renderCommandEncoder.init(m_renderer, m_transientHeap, this, desc);
+    m_renderCommandEncoder.init(m_device, m_transientHeap, this, desc);
     *outEncoder = &m_renderCommandEncoder;
     return SLANG_OK;
 }
 
 Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
 {
-    m_computeCommandEncoder.init(m_renderer, m_transientHeap, this);
+    m_computeCommandEncoder.init(m_device, m_transientHeap, this);
     *outEncoder = &m_computeCommandEncoder;
     return SLANG_OK;
 }

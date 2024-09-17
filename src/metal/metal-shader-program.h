@@ -7,7 +7,7 @@
 
 namespace rhi::metal {
 
-class ShaderProgramImpl : public ShaderProgramBase
+class ShaderProgramImpl : public ShaderProgram
 {
 public:
     DeviceImpl* m_device;

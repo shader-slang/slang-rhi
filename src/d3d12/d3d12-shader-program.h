@@ -16,7 +16,7 @@ struct ShaderBinary
     std::vector<uint8_t> code;
 };
 
-class ShaderProgramImpl : public ShaderProgramBase
+class ShaderProgramImpl : public ShaderProgram
 {
 public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;

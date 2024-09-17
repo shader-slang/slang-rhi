@@ -1,4 +1,4 @@
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 
 #include "core/common.h"
 
@@ -124,7 +124,7 @@ public:
 };
 
 template<typename TDevice, typename TBuffer>
-class TransientResourceHeapBaseImpl : public TransientResourceHeapBase
+class TransientResourceHeapBaseImpl : public TransientResourceHeap
 {
 public:
     void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }

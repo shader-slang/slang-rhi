@@ -10,10 +10,9 @@
 
 namespace rhi::metal {
 
-class DeviceImpl : public RendererBase
+class DeviceImpl : public Device
 {
 public:
-    // Renderer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -39,10 +38,10 @@ public:
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     ) override;
-    virtual Result createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
-    virtual Result createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
+    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
+    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 
@@ -109,7 +108,7 @@ public:
     bool m_hasArgumentBufferTier2 = false;
 
     // A list to hold objects that may have a strong back reference to the device
-    // instance. Because of the pipeline cache in `RendererBase`, there could be a reference
+    // instance. Because of the pipeline cache in `Device`, there could be a reference
     // cycle among `DeviceImpl`->`PipelineImpl`->`ShaderProgramImpl`->`DeviceImpl`.
     // Depending on whether a `PipelineState` objects gets stored in pipeline cache, there
     // may or may not be such a reference cycle.

@@ -3,7 +3,7 @@
 // Provides shared implementation of public API objects for targets with
 // an immediate mode execution context.
 
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 
 namespace rhi {
 
@@ -32,9 +32,9 @@ public:
     virtual void comFree() override { breakStrongReferenceToDevice(); }
 
 public:
-    BreakableReference<RendererBase> m_renderer;
-    void breakStrongReferenceToDevice() { m_renderer.breakStrongReference(); }
-    void establishStrongReferenceToDevice() { m_renderer.establishStrongReference(); }
+    BreakableReference<Device> m_device;
+    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
+    void establishStrongReferenceToDevice() { m_device.establishStrongReference(); }
 };
 
 struct CommandBufferInfo
@@ -42,7 +42,7 @@ struct CommandBufferInfo
     bool hasWriteTimestamps;
 };
 
-class ImmediateRendererBase : public RendererBase
+class ImmediateDevice : public Device
 {
 public:
     // Immediate commands to be implemented by each target.
@@ -91,7 +91,7 @@ public:
     RefPtr<ImmediateCommandQueueBase> m_queue;
     uint32_t m_queueCreateCount = 0;
 
-    ImmediateRendererBase();
+    ImmediateDevice();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
@@ -104,7 +104,7 @@ public:
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 };
 
-class ImmediateComputeDeviceBase : public ImmediateRendererBase
+class ImmediateComputeDeviceBase : public ImmediateDevice
 {
 public:
     // Provide empty implementation for devices without graphics support.

@@ -1,7 +1,7 @@
 #include <slang-rhi.h>
 
 #include "debug-layer/debug-device.h"
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 #if SLANG_RHI_ENABLE_CUDA
 #include "cuda/cuda-api.h"
 #endif
@@ -34,7 +34,7 @@ bool isRhiDebugLayerEnabled()
     return debugLayerEnabled;
 }
 
-/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Renderer Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
 struct FormatInfoMap
 {

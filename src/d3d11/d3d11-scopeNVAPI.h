@@ -8,14 +8,14 @@ class ScopeNVAPI
 {
 public:
     ScopeNVAPI()
-        : m_renderer(nullptr)
+        : m_device(nullptr)
     {
     }
-    Result init(DeviceImpl* renderer, Index regIndex);
+    Result init(DeviceImpl* device, Index regIndex);
     ~ScopeNVAPI();
 
 protected:
-    DeviceImpl* m_renderer;
+    DeviceImpl* m_device;
 };
 
 } // namespace rhi::d3d11

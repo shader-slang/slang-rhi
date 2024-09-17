@@ -4,7 +4,7 @@ namespace rhi::d3d11 {
 
 void GraphicsPipelineImpl::init(const RenderPipelineDesc& inDesc)
 {
-    PipelineBase::PipelineStateDesc pipelineDesc;
+    Pipeline::PipelineStateDesc pipelineDesc;
     pipelineDesc.graphics = inDesc;
     pipelineDesc.type = PipelineType::Graphics;
     initializeBase(pipelineDesc);
@@ -12,7 +12,7 @@ void GraphicsPipelineImpl::init(const RenderPipelineDesc& inDesc)
 
 void ComputePipelineImpl::init(const ComputePipelineDesc& inDesc)
 {
-    PipelineBase::PipelineStateDesc pipelineDesc;
+    Pipeline::PipelineStateDesc pipelineDesc;
     pipelineDesc.compute = inDesc;
     pipelineDesc.type = PipelineType::Compute;
     initializeBase(pipelineDesc);

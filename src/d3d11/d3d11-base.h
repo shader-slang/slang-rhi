@@ -3,7 +3,7 @@
 #include "../d3d/d3d-swapchain.h"
 #include "../d3d/d3d-util.h"
 #include "../flag-combiner.h"
-#include "../immediate-renderer-base.h"
+#include "../immediate-device.h"
 #include "../mutable-shader-object.h"
 #include "../nvapi/nvapi-util.h"
 
