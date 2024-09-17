@@ -35,7 +35,7 @@ private:
 
 #if SLANG_RHI_DXR
 
-class AccelerationStructureImpl : public AccelerationStructureBase
+class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
     RefPtr<BufferImpl> m_buffer;
@@ -46,7 +46,7 @@ public:
 
 public:
     AccelerationStructureImpl(RendererBase* device, const IAccelerationStructure::CreateDesc& desc)
-        : AccelerationStructureBase(device, desc)
+        : AccelerationStructure(device, desc)
     {
     }
 

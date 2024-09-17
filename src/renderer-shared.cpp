@@ -149,7 +149,7 @@ Result Sampler::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-IAccelerationStructure* AccelerationStructureBase::getInterface(const Guid& guid)
+IAccelerationStructure* AccelerationStructure::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IAccelerationStructure)
         return static_cast<IAccelerationStructure*>(this);

@@ -22,7 +22,7 @@ public:
     TextureSubresourceView getView();
 };
 
-class AccelerationStructureImpl : public AccelerationStructureBase
+class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
@@ -33,7 +33,7 @@ public:
 
 public:
     AccelerationStructureImpl(RendererBase* device, const IAccelerationStructure::CreateDesc& desc)
-        : AccelerationStructureBase(device, desc)
+        : AccelerationStructure(device, desc)
     {
     }
 

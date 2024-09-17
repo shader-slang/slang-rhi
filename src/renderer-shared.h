@@ -307,14 +307,14 @@ public:
     StructHolder m_descHolder;
 };
 
-class AccelerationStructureBase : public IAccelerationStructure, public Resource
+class AccelerationStructure : public IAccelerationStructure, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IAccelerationStructure* getInterface(const Guid& guid);
 
 public:
-    AccelerationStructureBase(RendererBase* device, const CreateDesc& desc)
+    AccelerationStructure(RendererBase* device, const CreateDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {
