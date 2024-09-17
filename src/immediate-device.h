@@ -3,7 +3,7 @@
 // Provides shared implementation of public API objects for targets with
 // an immediate mode execution context.
 
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 
 namespace rhi {
 

@@ -5,7 +5,7 @@
 #include "../command-encoder-com-forward.h"
 #include "../command-writer.h"
 #include "../mutable-shader-object.h"
-#include "../renderer-shared.h"
+#include "../rhi-shared.h"
 #include "../simple-transient-resource-heap.h"
 #include "../slang-context.h"
 

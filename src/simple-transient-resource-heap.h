@@ -5,7 +5,7 @@
 
 #include <slang-rhi.h>
 
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 
 namespace rhi {
 

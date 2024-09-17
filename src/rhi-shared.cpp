@@ -1,4 +1,4 @@
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 #include "mutable-shader-object.h"
 
 #include "core/common.h"

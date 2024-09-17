@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 
-#include "renderer-shared.h"
+#include "rhi-shared.h"
 #include "core/common.h"
 
 #include <map>

@@ -10,7 +10,7 @@
 #include <dlfcn.h>
 #endif
 
-#include "../renderer-shared.h"
+#include "../rhi-shared.h"
 
 namespace rhi::vk {
 

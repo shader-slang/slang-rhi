@@ -4,7 +4,7 @@
 #include <slang-rhi.h>
 
 #include "../command-encoder-com-forward.h"
-#include "../renderer-shared.h"
+#include "../rhi-shared.h"
 
 #include "core/common.h"
 
