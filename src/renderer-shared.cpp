@@ -715,12 +715,12 @@ Result ShaderObjectBase::_getSpecializedShaderObjectType(ExtendedShaderObjectTyp
     }
     else
     {
-        shaderObjectType.slangType = getRenderer()->slangContext.session->specializeType(
+        shaderObjectType.slangType = getDevice()->slangContext.session->specializeType(
             _getElementTypeLayout()->getType(),
             specializationArgs.components.data(),
             specializationArgs.getCount()
         );
-        shaderObjectType.componentID = getRenderer()->shaderCache.getComponentId(shaderObjectType.slangType);
+        shaderObjectType.componentID = getDevice()->shaderCache.getComponentId(shaderObjectType.slangType);
     }
     *outType = shaderObjectType;
     return SLANG_OK;

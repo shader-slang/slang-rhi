@@ -158,7 +158,7 @@ public:
     SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
     std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
 
-    Device* getRenderer() { return m_renderer; }
+    Device* getDevice() { return m_renderer; }
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 

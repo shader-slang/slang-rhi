@@ -1259,7 +1259,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     auto slangSpecializedLayout = specializedComponentType->getLayout();
     RefPtr<RootShaderObjectLayout> specializedLayout;
     RootShaderObjectLayout::create(
-        static_cast<DeviceImpl*>(getRenderer()),
+        static_cast<DeviceImpl*>(getDevice()),
         specializedComponentType,
         slangSpecializedLayout,
         specializedLayout.writeRef()

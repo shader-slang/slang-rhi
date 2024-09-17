@@ -499,7 +499,7 @@ public:
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) = 0;
 
-    Device* getRenderer() { return m_layout->getDevice(); }
+    Device* getDevice() { return m_layout->getDevice(); }
 
     ShaderObjectLayout* getLayoutBase() { return m_layout; }
 
@@ -736,7 +736,7 @@ public:
             // If we are setting into a `StructuredBuffer` field, make sure we create and set
             // the StructuredBuffer resource as well.
             auto buffer = subObject->m_data.getBufferResource(
-                getRenderer(),
+                getDevice(),
                 subObject->getElementTypeLayout(),
                 bindingRange.bindingType
             );
@@ -1292,7 +1292,7 @@ void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObj
         // anything that is different with `__Dynamic` because we cannot specialize the
         // buffer type if the element types are not the same.
         SLANG_RHI_ASSERT(m_structuredBufferSpecializationArgs.getCount() == specializationArgs.getCount());
-        auto device = getRenderer();
+        auto device = getDevice();
         for (Index i = 0; i < m_structuredBufferSpecializationArgs.getCount(); i++)
         {
             if (m_structuredBufferSpecializationArgs[i].componentID != specializationArgs[i].componentID)
@@ -1314,7 +1314,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
         uint32_t count
     )
 {
-    auto device = getRenderer();
+    auto device = getDevice();
     for (uint32_t i = 0; i < count; i++)
     {
         ExtendedShaderObjectType extendedType;
@@ -1345,7 +1345,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
         return SLANG_OK;
     }
 
-    auto device = getRenderer();
+    auto device = getDevice();
     auto& subObjectRanges = getLayout()->getSubObjectRanges();
     // The following logic is built on the assumption that all fields that involve
     // existential types (and therefore require specialization) will results in a sub-object

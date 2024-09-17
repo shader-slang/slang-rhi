@@ -653,7 +653,7 @@ class CommandQueueImpl : public ImmediateCommandQueueBase
 public:
     ICommandQueue::Desc m_desc;
 
-    ImmediateRendererBase* getRenderer() { return static_cast<ImmediateRendererBase*>(m_renderer.get()); }
+    ImmediateRendererBase* getDevice() { return static_cast<ImmediateRendererBase*>(m_renderer.get()); }
 
     CommandQueueImpl(ImmediateRendererBase* renderer)
     {
@@ -665,7 +665,7 @@ public:
         m_desc.type = ICommandQueue::QueueType::Graphics;
     }
 
-    ~CommandQueueImpl() { getRenderer()->m_queueCreateCount--; }
+    ~CommandQueueImpl() { getDevice()->m_queueCreateCount--; }
 
     virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
 
@@ -690,7 +690,7 @@ public:
         static_cast<ImmediateRendererBase*>(m_renderer.get())->endCommandBuffer(info);
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { getRenderer()->waitForGpu(); }
+    virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { getDevice()->waitForGpu(); }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override
@@ -700,7 +700,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override
     {
-        return getRenderer()->m_queue->getNativeHandle(outHandle);
+        return getDevice()->m_queue->getNativeHandle(outHandle);
     }
 };
 
