@@ -627,7 +627,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
     Offset offset
 )
 {
-    auto queryBase = static_cast<QueryPoolBase*>(queryPool);
+    auto queryBase = static_cast<QueryPool*>(queryPool);
     switch (queryBase->m_desc.type)
     {
     case QueryType::AccelerationStructureCompactedSize:

@@ -638,7 +638,7 @@ public:
                 break;
             case CommandName::WriteTimestamp:
                 m_renderer->writeTimestamp(
-                    m_writer.getObject<QueryPoolBase>(cmd.operands[0]),
+                    m_writer.getObject<QueryPool>(cmd.operands[0]),
                     (GfxIndex)cmd.operands[1]
                 );
                 break;

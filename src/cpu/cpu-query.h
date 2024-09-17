@@ -4,7 +4,7 @@
 
 namespace rhi::cpu {
 
-class QueryPoolImpl : public QueryPoolBase
+class QueryPoolImpl : public QueryPool
 {
 public:
     std::vector<uint64_t> m_queries;

@@ -301,7 +301,7 @@ public:
 
     void writeTimestamp(IQueryPool* pool, GfxIndex index)
     {
-        auto poolOffset = encodeObject(static_cast<QueryPoolBase*>(pool));
+        auto poolOffset = encodeObject(static_cast<QueryPool*>(pool));
         m_commands.push_back(Command(CommandName::WriteTimestamp, (uint32_t)poolOffset, (uint32_t)index));
         m_hasWriteTimestamps = true;
     }

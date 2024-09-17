@@ -195,7 +195,7 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
             );
             break;
         case CommandName::WriteTimestamp:
-            writeTimestamp(commandBuffer->getObject<QueryPoolBase>(cmd.operands[0]), (SlangInt)cmd.operands[1]);
+            writeTimestamp(commandBuffer->getObject<QueryPool>(cmd.operands[0]), (SlangInt)cmd.operands[1]);
         }
     }
 }

@@ -5,7 +5,7 @@
 
 namespace rhi::metal {
 
-class QueryPoolImpl : public QueryPoolBase
+class QueryPoolImpl : public QueryPool
 {
 public:
     RefPtr<DeviceImpl> m_device;

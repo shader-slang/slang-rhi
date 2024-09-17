@@ -230,7 +230,7 @@ IInputLayout* InputLayout::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
+IQueryPool* QueryPool::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
         return static_cast<IQueryPool*>(this);

@@ -852,7 +852,7 @@ public:
     IInputLayout* getInterface(const Guid& guid);
 };
 
-class QueryPoolBase : public IQueryPool, public ComObject
+class QueryPool : public IQueryPool, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
