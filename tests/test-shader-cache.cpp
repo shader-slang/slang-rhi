@@ -754,6 +754,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         vertexBuffer = nullptr;
         colorBuffer = nullptr;
         pipeline = nullptr;
+        colorBufferView = nullptr;
     }
 
     void createGraphicsPipeline()
