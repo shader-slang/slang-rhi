@@ -45,7 +45,7 @@ const Guid GUID::IID_IShaderTable = IShaderTable::getTypeGuid();
 const Guid GUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
-IFence* FenceBase::getInterface(const Guid& guid)
+IFence* Fence::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFence)
         return static_cast<IFence*>(this);

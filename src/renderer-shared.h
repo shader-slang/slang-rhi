@@ -190,7 +190,7 @@ void returnRefPtrMove(TDest** outPtr, RefPtr<TImpl>& refPtr)
     *outPtr = refPtr.detach();
 }
 
-class FenceBase : public IFence, public ComObject
+class Fence : public IFence, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL

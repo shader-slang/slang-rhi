@@ -4,7 +4,7 @@
 
 namespace rhi::d3d12 {
 
-class FenceImpl : public FenceBase
+class FenceImpl : public Fence
 {
 public:
     ComPtr<ID3D12Fence> m_fence;
