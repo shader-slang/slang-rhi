@@ -34,7 +34,7 @@ bool isRhiDebugLayerEnabled()
     return debugLayerEnabled;
 }
 
-/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Renderer Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
 struct FormatInfoMap
 {

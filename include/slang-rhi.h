@@ -2182,7 +2182,7 @@ public:
 
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
 
-    /// Returns a list of features supported by the renderer.
+    /// Returns a list of features supported by the device.
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) = 0;
 
@@ -2426,7 +2426,7 @@ public:
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;
 
-    /// Get the type of this renderer
+    /// Get information about the device.
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;

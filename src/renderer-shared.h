@@ -1085,7 +1085,7 @@ public:
     Result init(const IShaderTable::Desc& desc);
 };
 
-// Renderer implementation shared by all platforms.
+// Device implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
 class Device : public IDevice, public ComObject
 {

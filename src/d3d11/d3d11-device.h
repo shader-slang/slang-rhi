@@ -10,7 +10,6 @@ class DeviceImpl : public ImmediateRendererBase
 public:
     ~DeviceImpl() {}
 
-    // Renderer    implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;

@@ -13,7 +13,6 @@ namespace rhi::metal {
 class DeviceImpl : public Device
 {
 public:
-    // Renderer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
