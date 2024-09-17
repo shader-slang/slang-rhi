@@ -153,8 +153,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
 {
     for (UInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
-        m_entryPointLayouts.push_back(
-            new EntryPointLayoutImpl(device, session, programLayout->getEntryPointByIndex(i))
+        m_entryPointLayouts.push_back(new EntryPointLayoutImpl(device, session, programLayout->getEntryPointByIndex(i))
         );
     }
 }

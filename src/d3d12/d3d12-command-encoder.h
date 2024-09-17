@@ -54,8 +54,8 @@ public:
     bool m_bindingDirty = true;
     CommandBufferImpl* m_commandBuffer;
     TransientResourceHeapImpl* m_transientHeap;
-    DeviceImpl* m_renderer;
-    ID3D12Device* m_device;
+    DeviceImpl* m_device;
+    ID3D12Device* m_d3dDevice;
     ID3D12GraphicsCommandList* m_d3dCmdList;
     ID3D12GraphicsCommandList6* m_d3dCmdList6;
     ID3D12GraphicsCommandList* m_preCmdList = nullptr;

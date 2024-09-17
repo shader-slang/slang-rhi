@@ -16,26 +16,26 @@ ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
 
 CommandQueueImpl::~CommandQueueImpl()
 {
-    m_renderer->m_api.vkQueueWaitIdle(m_queue);
+    m_device->m_api.vkQueueWaitIdle(m_queue);
 
-    m_renderer->m_queueAllocCount--;
-    m_renderer->m_api.vkDestroySemaphore(m_renderer->m_api.m_device, m_semaphore, nullptr);
+    m_device->m_queueAllocCount--;
+    m_device->m_api.vkDestroySemaphore(m_device->m_api.m_device, m_semaphore, nullptr);
 }
 
 void CommandQueueImpl::init(DeviceImpl* device, VkQueue queue, uint32_t queueFamilyIndex)
 {
-    m_renderer = device;
+    m_device = device;
     m_queue = queue;
     m_queueFamilyIndex = queueFamilyIndex;
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     semaphoreCreateInfo.flags = 0;
-    m_renderer->m_api.vkCreateSemaphore(m_renderer->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_semaphore);
+    m_device->m_api.vkCreateSemaphore(m_device->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_semaphore);
 }
 
 void CommandQueueImpl::waitOnHost()
 {
-    auto& vkAPI = m_renderer->m_api;
+    auto& vkAPI = m_device->m_api;
     vkAPI.vkQueueWaitIdle(m_queue);
 }
 
@@ -70,7 +70,7 @@ void CommandQueueImpl::queueSubmitImpl(
     uint64_t valueToSignal
 )
 {
-    auto& vkAPI = m_renderer->m_api;
+    auto& vkAPI = m_device->m_api;
     m_submitCommandBuffers.clear();
     for (uint32_t i = 0; i < count; i++)
     {

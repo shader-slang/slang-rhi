@@ -26,7 +26,7 @@ public:
     VkFormat m_vkformat;
     RefPtr<CommandQueueImpl> m_queue;
     short_vector<RefPtr<TextureImpl>> m_images;
-    RefPtr<DeviceImpl> m_renderer;
+    RefPtr<DeviceImpl> m_device;
     VulkanApi* m_api;
     uint32_t m_currentImageIndex = 0;
     WindowHandle m_windowHandle;

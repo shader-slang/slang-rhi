@@ -97,8 +97,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
         RefPtr<ShaderObjectLayoutImpl> subObjectLayout;
         if (slangBindingType != slang::BindingType::ExistentialValue)
         {
-            subObjectLayout =
-                new ShaderObjectLayoutImpl(device, session, slangLeafTypeLayout->getElementTypeLayout());
+            subObjectLayout = new ShaderObjectLayoutImpl(device, session, slangLeafTypeLayout->getElementTypeLayout());
         }
 
         SubObjectRangeInfo subObjectRange;

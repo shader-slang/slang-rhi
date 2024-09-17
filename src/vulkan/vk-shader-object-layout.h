@@ -132,12 +132,12 @@ public:
     {
     public:
         Builder(DeviceImpl* device, slang::ISession* session)
-            : m_renderer(device)
+            : m_device(device)
             , m_session(session)
         {
         }
 
-        DeviceImpl* m_renderer;
+        DeviceImpl* m_device;
         slang::ISession* m_session;
         slang::TypeLayoutReflection* m_elementTypeLayout;
 
@@ -435,7 +435,7 @@ public:
     uint32_t m_totalPushConstantSize = 0;
 
     SimpleBindingOffset m_pendingDataOffset;
-    DeviceImpl* m_renderer = nullptr;
+    DeviceImpl* m_device = nullptr;
 };
 
 } // namespace rhi::vk

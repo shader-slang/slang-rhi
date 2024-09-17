@@ -9,13 +9,13 @@ class CommandQueueImpl : public ICommandQueue, public ComObject
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ICommandQueue* getInterface(const Guid& guid);
-    void breakStrongReferenceToDevice() { m_renderer.breakStrongReference(); }
+    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
-    BreakableReference<DeviceImpl> m_renderer;
-    ComPtr<ID3D12Device> m_device;
+    BreakableReference<DeviceImpl> m_device;
+    ComPtr<ID3D12Device> m_d3dDevice;
     ComPtr<ID3D12CommandQueue> m_d3dQueue;
     ComPtr<ID3D12Fence> m_fence;
     uint64_t m_fenceValue = 0;

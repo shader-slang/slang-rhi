@@ -32,9 +32,9 @@ public:
     virtual void comFree() override { breakStrongReferenceToDevice(); }
 
 public:
-    BreakableReference<Device> m_renderer;
-    void breakStrongReferenceToDevice() { m_renderer.breakStrongReference(); }
-    void establishStrongReferenceToDevice() { m_renderer.establishStrongReference(); }
+    BreakableReference<Device> m_device;
+    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
+    void establishStrongReferenceToDevice() { m_device.establishStrongReference(); }
 };
 
 struct CommandBufferInfo

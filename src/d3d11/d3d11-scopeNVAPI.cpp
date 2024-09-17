@@ -20,18 +20,18 @@ Result ScopeNVAPI::init(DeviceImpl* device, Index regIndex)
 #endif
 
     // Record the device so it can be freed
-    m_renderer = device;
+    m_device = device;
     return SLANG_OK;
 }
 
 ScopeNVAPI::~ScopeNVAPI()
 {
-    // If the m_renderer is not set, it must not have been set up
-    if (m_renderer)
+    // If the m_device is not set, it must not have been set up
+    if (m_device)
     {
 #if SLANG_RHI_ENABLE_NVAPI
         // Disable the slot used
-        NvAPI_Status nvapiStatus = NvAPI_D3D11_SetNvShaderExtnSlot(m_renderer->m_device, ~0);
+        NvAPI_Status nvapiStatus = NvAPI_D3D11_SetNvShaderExtnSlot(m_device->m_device, ~0);
         SLANG_RHI_ASSERT(nvapiStatus == NVAPI_OK);
 #endif
     }

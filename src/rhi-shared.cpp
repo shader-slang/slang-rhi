@@ -689,10 +689,10 @@ void ShaderObjectLayout::initBase(
     slang::TypeLayoutReflection* elementTypeLayout
 )
 {
-    m_renderer = device;
+    m_device = device;
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
-    m_componentID = m_renderer->shaderCache.getComponentId(m_elementTypeLayout->getType());
+    m_componentID = m_device->shaderCache.getComponentId(m_elementTypeLayout->getType());
 }
 
 // Get the final type this shader object represents. If the shader object's type has existential fields,

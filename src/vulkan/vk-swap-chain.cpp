@@ -158,7 +158,7 @@ Result SwapchainImpl::createSwapchainAndImages()
         imageDesc.size.depth = 1;
         imageDesc.numMipLevels = 1;
         imageDesc.defaultState = ResourceState::Present;
-        RefPtr<TextureImpl> image = new TextureImpl(m_renderer, imageDesc);
+        RefPtr<TextureImpl> image = new TextureImpl(m_device, imageDesc);
         image->m_image = vkImages[i];
         image->m_imageMemory = 0;
         image->m_vkformat = m_vkformat;
@@ -176,7 +176,7 @@ SwapchainImpl::~SwapchainImpl()
         m_api->vkDestroySurfaceKHR(m_api->m_instance, m_surface, nullptr);
         m_surface = VK_NULL_HANDLE;
     }
-    m_renderer->m_api.vkDestroySemaphore(m_renderer->m_api.m_device, m_nextImageSemaphore, nullptr);
+    m_device->m_api.vkDestroySemaphore(m_device->m_api.m_device, m_nextImageSemaphore, nullptr);
 #if SLANG_APPLE_FAMILY
     CocoaUtil::destroyMetalLayer(m_metalLayer);
 #endif
@@ -200,7 +200,7 @@ Index SwapchainImpl::_indexOfFormat(std::vector<VkSurfaceFormatKHR>& formatsIn, 
 Result SwapchainImpl::init(DeviceImpl* device, const ISwapchain::Desc& desc, WindowHandle window)
 {
     m_desc = desc;
-    m_renderer = device;
+    m_device = device;
     m_api = &device->m_api;
     m_queue = static_cast<CommandQueueImpl*>(desc.queue);
     m_windowHandle = window;
@@ -208,8 +208,7 @@ Result SwapchainImpl::init(DeviceImpl* device, const ISwapchain::Desc& desc, Win
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     SLANG_VK_RETURN_ON_FAIL(
-        device->m_api
-            .vkCreateSemaphore(device->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore)
+        device->m_api.vkCreateSemaphore(device->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore)
     );
 
     m_queue = static_cast<CommandQueueImpl*>(desc.queue);

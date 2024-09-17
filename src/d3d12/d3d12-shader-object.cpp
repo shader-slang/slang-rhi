@@ -189,7 +189,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
     SLANG_RHI_ASSERT(srcSize <= destSize);
 
     uploadBufferDataImpl(
-        encoder->m_device,
+        encoder->m_d3dDevice,
         encoder->m_d3dCmdList,
         encoder->m_transientHeap,
         buffer,
@@ -364,7 +364,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
             static_cast<BufferImpl*>(m_constantBufferWeakPtr)->m_resource.getResource()->GetGPUVirtualAddress() +
             m_constantBufferOffset;
         viewDesc.SizeInBytes = (UINT)alignedConstantBufferSize;
-        encoder->m_device->CreateConstantBufferView(&viewDesc, descriptorTable.getCpuHandle());
+        encoder->m_d3dDevice->CreateConstantBufferView(&viewDesc, descriptorTable.getCpuHandle());
     }
 
     return SLANG_OK;

@@ -24,13 +24,13 @@ public:
 public:
     CommandWriter m_writer;
     bool m_hasWriteTimestamps = false;
-    RefPtr<ImmediateDevice> m_renderer;
+    RefPtr<ImmediateDevice> m_device;
     RefPtr<ShaderObjectBase> m_rootShaderObject;
     TransientResourceHeap* m_transientHeap;
 
     void init(ImmediateDevice* device, TransientResourceHeap* transientHeap)
     {
-        m_renderer = device;
+        m_device = device;
         m_transientHeap = transientHeap;
     }
 
@@ -298,7 +298,7 @@ public:
         {
             m_writer->setPipeline(state);
             auto stateImpl = static_cast<Pipeline*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -311,7 +311,7 @@ public:
         {
             m_writer->setPipeline(state);
             auto stateImpl = static_cast<Pipeline*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -477,7 +477,7 @@ public:
         {
             m_writer->setPipeline(state);
             auto stateImpl = static_cast<Pipeline*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -490,7 +490,7 @@ public:
         {
             m_writer->setPipeline(state);
             auto stateImpl = static_cast<Pipeline*>(state);
-            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_renderer->createRootShaderObject(
+            SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
             ));
@@ -541,10 +541,10 @@ public:
             switch (name)
             {
             case CommandName::SetPipeline:
-                m_renderer->setPipeline(m_writer.getObject<Pipeline>(cmd.operands[0]));
+                m_device->setPipeline(m_writer.getObject<Pipeline>(cmd.operands[0]));
                 break;
             case CommandName::BindRootShaderObject:
-                m_renderer->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));
+                m_device->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));
                 break;
             case CommandName::BeginRenderPass:
             {
@@ -558,20 +558,20 @@ public:
                 {
                     desc.depthStencilAttachment = m_writer.getData<RenderPassDepthStencilAttachment>(cmd.operands[3]);
                 }
-                m_renderer->beginRenderPass(desc);
+                m_device->beginRenderPass(desc);
                 break;
             }
             case CommandName::EndRenderPass:
-                m_renderer->endRenderPass();
+                m_device->endRenderPass();
                 break;
             case CommandName::SetViewports:
-                m_renderer->setViewports((UInt)cmd.operands[0], m_writer.getData<Viewport>(cmd.operands[1]));
+                m_device->setViewports((UInt)cmd.operands[0], m_writer.getData<Viewport>(cmd.operands[1]));
                 break;
             case CommandName::SetScissorRects:
-                m_renderer->setScissorRects((UInt)cmd.operands[0], m_writer.getData<ScissorRect>(cmd.operands[1]));
+                m_device->setScissorRects((UInt)cmd.operands[0], m_writer.getData<ScissorRect>(cmd.operands[1]));
                 break;
             case CommandName::SetPrimitiveTopology:
-                m_renderer->setPrimitiveTopology((PrimitiveTopology)cmd.operands[0]);
+                m_device->setPrimitiveTopology((PrimitiveTopology)cmd.operands[0]);
                 break;
             case CommandName::SetVertexBuffers:
             {
@@ -580,7 +580,7 @@ public:
                 {
                     buffers.push_back(m_writer.getObject<Buffer>(cmd.operands[2] + i));
                 }
-                m_renderer->setVertexBuffers(
+                m_device->setVertexBuffers(
                     cmd.operands[0],
                     cmd.operands[1],
                     buffers.data(),
@@ -589,23 +589,23 @@ public:
             }
             break;
             case CommandName::SetIndexBuffer:
-                m_renderer->setIndexBuffer(
+                m_device->setIndexBuffer(
                     m_writer.getObject<Buffer>(cmd.operands[0]),
                     (Format)cmd.operands[1],
                     (UInt)cmd.operands[2]
                 );
                 break;
             case CommandName::Draw:
-                m_renderer->draw(cmd.operands[0], cmd.operands[1]);
+                m_device->draw(cmd.operands[0], cmd.operands[1]);
                 break;
             case CommandName::DrawIndexed:
-                m_renderer->drawIndexed(cmd.operands[0], cmd.operands[1], cmd.operands[2]);
+                m_device->drawIndexed(cmd.operands[0], cmd.operands[1], cmd.operands[2]);
                 break;
             case CommandName::DrawInstanced:
-                m_renderer->drawInstanced(cmd.operands[0], cmd.operands[1], cmd.operands[2], cmd.operands[3]);
+                m_device->drawInstanced(cmd.operands[0], cmd.operands[1], cmd.operands[2], cmd.operands[3]);
                 break;
             case CommandName::DrawIndexedInstanced:
-                m_renderer->drawIndexedInstanced(
+                m_device->drawIndexedInstanced(
                     cmd.operands[0],
                     cmd.operands[1],
                     cmd.operands[2],
@@ -614,13 +614,13 @@ public:
                 );
                 break;
             case CommandName::SetStencilReference:
-                m_renderer->setStencilReference(cmd.operands[0]);
+                m_device->setStencilReference(cmd.operands[0]);
                 break;
             case CommandName::DispatchCompute:
-                m_renderer->dispatchCompute(int(cmd.operands[0]), int(cmd.operands[1]), int(cmd.operands[2]));
+                m_device->dispatchCompute(int(cmd.operands[0]), int(cmd.operands[1]), int(cmd.operands[2]));
                 break;
             case CommandName::UploadBufferData:
-                m_renderer->uploadBufferData(
+                m_device->uploadBufferData(
                     m_writer.getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
                     cmd.operands[2],
@@ -628,7 +628,7 @@ public:
                 );
                 break;
             case CommandName::CopyBuffer:
-                m_renderer->copyBuffer(
+                m_device->copyBuffer(
                     m_writer.getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
                     m_writer.getObject<Buffer>(cmd.operands[2]),
@@ -637,7 +637,7 @@ public:
                 );
                 break;
             case CommandName::WriteTimestamp:
-                m_renderer->writeTimestamp(m_writer.getObject<QueryPool>(cmd.operands[0]), (GfxIndex)cmd.operands[1]);
+                m_device->writeTimestamp(m_writer.getObject<QueryPool>(cmd.operands[0]), (GfxIndex)cmd.operands[1]);
                 break;
             default:
                 SLANG_RHI_ASSERT_FAILURE("Unknown command");
@@ -653,7 +653,7 @@ class CommandQueueImpl : public ImmediateCommandQueueBase
 public:
     ICommandQueue::Desc m_desc;
 
-    ImmediateDevice* getDevice() { return static_cast<ImmediateDevice*>(m_renderer.get()); }
+    ImmediateDevice* getDevice() { return static_cast<ImmediateDevice*>(m_device.get()); }
 
     CommandQueueImpl(ImmediateDevice* device)
     {
@@ -661,7 +661,7 @@ public:
         // there will be only one instance of command queue and it will be
         // owned by `Device`. We should establish a strong reference only
         // when there are external references to the command queue.
-        m_renderer.setWeakReference(device);
+        m_device.setWeakReference(device);
         m_desc.type = ICommandQueue::QueueType::Graphics;
     }
 
@@ -682,12 +682,12 @@ public:
             info.hasWriteTimestamps |=
                 static_cast<CommandBufferImpl*>(commandBuffers[i])->m_writer.m_hasWriteTimestamps;
         }
-        static_cast<ImmediateDevice*>(m_renderer.get())->beginCommandBuffer(info);
+        static_cast<ImmediateDevice*>(m_device.get())->beginCommandBuffer(info);
         for (GfxIndex i = 0; i < count; i++)
         {
             static_cast<CommandBufferImpl*>(commandBuffers[i])->execute();
         }
-        static_cast<ImmediateDevice*>(m_renderer.get())->endCommandBuffer(info);
+        static_cast<ImmediateDevice*>(m_device.get())->endCommandBuffer(info);
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { getDevice()->waitForGpu(); }

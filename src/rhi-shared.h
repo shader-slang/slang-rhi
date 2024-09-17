@@ -374,7 +374,7 @@ protected:
     // We always use a weak reference to the `IDevice` object here.
     // `ShaderObject` implementations will make sure to hold a strong reference to `IDevice`
     // while a `ShaderObjectLayout` may still be used.
-    Device* m_renderer;
+    Device* m_device;
     slang::TypeLayoutReflection* m_elementTypeLayout = nullptr;
     ShaderComponentID m_componentID = 0;
 
@@ -427,7 +427,7 @@ public:
     }
 
 public:
-    Device* getDevice() { return m_renderer; }
+    Device* getDevice() { return m_device; }
 
     slang::TypeLayoutReflection* getElementTypeLayout() { return m_elementTypeLayout; }
 

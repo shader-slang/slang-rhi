@@ -15,7 +15,7 @@ public:
 
 public:
     Desc m_desc;
-    RefPtr<DeviceImpl> m_renderer;
+    RefPtr<DeviceImpl> m_device;
     VkQueue m_queue;
     uint32_t m_queueFamilyIndex;
     struct FenceWaitInfo

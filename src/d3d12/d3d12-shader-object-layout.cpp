@@ -54,7 +54,7 @@ Result ShaderObjectLayoutImpl::createForElementType(
 
 Result ShaderObjectLayoutImpl::init(Builder* builder)
 {
-    auto device = builder->m_renderer;
+    auto device = builder->m_device;
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
@@ -113,8 +113,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         bindingRangeInfo.resourceShape = slangLeafTypeLayout->getResourceShape();
         bindingRangeInfo.count = count;
         bindingRangeInfo.isRootParameter = isBindingRangeRootParameter(
-            m_renderer->slangContext.globalSession,
-            static_cast<DeviceImpl*>(m_renderer)->m_extendedDesc.rootParameterShaderAttributeName,
+            m_device->slangContext.globalSession,
+            static_cast<DeviceImpl*>(m_device)->m_extendedDesc.rootParameterShaderAttributeName,
             typeLayout,
             r
         );
@@ -224,13 +224,13 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         {
             if (auto pendingTypeLayout = slangLeafTypeLayout->getPendingDataTypeLayout())
             {
-                createForElementType(m_renderer, m_session, pendingTypeLayout, subObjectLayout.writeRef());
+                createForElementType(m_device, m_session, pendingTypeLayout, subObjectLayout.writeRef());
             }
         }
         else
         {
             createForElementType(
-                m_renderer,
+                m_device,
                 m_session,
                 slangLeafTypeLayout->getElementTypeLayout(),
                 subObjectLayout.writeRef()
@@ -1016,7 +1016,7 @@ Result RootShaderObjectLayoutImpl::create(
 
 Result RootShaderObjectLayoutImpl::init(Builder* builder)
 {
-    auto device = builder->m_renderer;
+    auto device = builder->m_device;
 
     SLANG_RETURN_ON_FAIL(Super::init(builder));
 

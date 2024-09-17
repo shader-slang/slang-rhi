@@ -15,7 +15,7 @@ ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
 
 void CommandQueueImpl::init(DeviceImpl* device)
 {
-    m_renderer = device;
+    m_device = device;
     m_desc.type = ICommandQueue::QueueType::Graphics;
     cuStreamCreate(&stream, 0);
 }
@@ -79,7 +79,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
 {
     // Specialize the compute kernel based on the shader object bindings.
     RefPtr<Pipeline> newPipeline;
-    m_renderer->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
+    m_device->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
     currentPipeline = static_cast<ComputePipelineImpl*>(newPipeline.Ptr());
 
     // Find out thread group size from program reflection.

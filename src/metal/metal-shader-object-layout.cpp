@@ -155,7 +155,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             // we can construct a layout from the element type directly.
             //
             auto elementTypeLayout = slangLeafTypeLayout->getElementTypeLayout();
-            createForElementType(m_renderer, m_session, elementTypeLayout, subObjectLayout.writeRef());
+            createForElementType(m_device, m_session, elementTypeLayout, subObjectLayout.writeRef());
         }
         break;
         case slang::BindingType::ExistentialValue:
@@ -169,7 +169,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             //
             if (auto pendingTypeLayout = slangLeafTypeLayout->getPendingDataTypeLayout())
             {
-                createForElementType(m_renderer, m_session, pendingTypeLayout, subObjectLayout.writeRef());
+                createForElementType(m_device, m_session, pendingTypeLayout, subObjectLayout.writeRef());
 
                 // An interface-type range that includes ordinary data can
                 // increase the size of the ordinary data buffer we need to
@@ -227,7 +227,7 @@ Result ShaderObjectLayoutImpl::createForElementType(
 
 Result ShaderObjectLayoutImpl::_init(Builder const* builder)
 {
-    auto device = builder->m_renderer;
+    auto device = builder->m_device;
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
@@ -305,7 +305,7 @@ Result RootShaderObjectLayoutImpl::create(
 
 Result RootShaderObjectLayoutImpl::_init(Builder const* builder)
 {
-    auto device = builder->m_renderer;
+    auto device = builder->m_device;
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
