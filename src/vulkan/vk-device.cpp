@@ -58,7 +58,7 @@ DeviceImpl::~DeviceImpl()
             m_api.vkDestroyDevice(m_device, nullptr);
         m_device = VK_NULL_HANDLE;
         if (m_debugReportCallback != VK_NULL_HANDLE)
-            m_api.vkDestroyDebugReportCallbackEXT(m_api.m_instance, m_debugReportCallback, nullptr);
+            m_api.vkDestroyDebugUtilsMessengerEXT(m_api.m_instance, m_debugReportCallback, nullptr);
         if (m_api.m_instance != VK_NULL_HANDLE && !m_desc.existingDeviceHandles.handles[0])
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
@@ -66,55 +66,54 @@ DeviceImpl::~DeviceImpl()
 
 // TODO: Is "location" still needed for this function?
 VkBool32 DeviceImpl::handleDebugMessage(
-    VkDebugReportFlagsEXT flags,
-    VkDebugReportObjectTypeEXT objType,
-    uint64_t srcObject,
-    Size location,
-    int32_t msgCode,
-    const char* pLayerPrefix,
-    const char* pMsg
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData
 )
 {
     DebugMessageType msgType = DebugMessageType::Info;
 
     char const* severity = "message";
-    if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {
         severity = "warning";
         msgType = DebugMessageType::Warning;
     }
-    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
     {
         severity = "error";
         msgType = DebugMessageType::Error;
     }
 
-    // pMsg can be really big (it can be assembler dump for example)
+    // Message can be really big (it can be assembler dump for example)
     // Use a dynamic buffer to store
-    Size bufferSize = strlen(pMsg) + 1 + 1024;
+    Size bufferSize = strlen(pCallbackData->pMessage) + 1024;
     std::vector<char> bufferArray;
     bufferArray.resize(bufferSize);
     char* buffer = bufferArray.data();
 
-    snprintf(buffer, bufferSize, "%s: %s %d: %s\n", pLayerPrefix, severity, msgCode, pMsg);
+    snprintf(
+        buffer,
+        bufferSize,
+        "%s: %d - %s:\n%s\n",
+        severity,
+        pCallbackData->messageIdNumber,
+        pCallbackData->pMessageIdName,
+        pCallbackData->pMessage
+    );
 
     getDebugCallback()->handleMessage(msgType, DebugMessageSource::Driver, buffer);
     return VK_FALSE;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
-    VkDebugReportFlagsEXT flags,
-    VkDebugReportObjectTypeEXT objType,
-    uint64_t srcObject,
-    Size location,
-    int32_t msgCode,
-    const char* pLayerPrefix,
-    const char* pMsg,
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData
 )
 {
-    return ((DeviceImpl*)pUserData)
-        ->handleDebugMessage(flags, objType, srcObject, location, msgCode, pLayerPrefix, pMsg);
+    return ((DeviceImpl*)pUserData)->handleDebugMessage(messageSeverity, messageTypes, pCallbackData);
 }
 
 Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
@@ -170,7 +169,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
-        static_vector<const char*, 7> instanceExtensions;
+        static_vector<const char*, 16> instanceExtensions;
 
 #if SLANG_APPLE_FAMILY
         instanceExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
@@ -196,7 +195,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         }
 
         if (ENABLE_VALIDATION_LAYER || isRhiDebugLayerEnabled())
+        {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+            instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        }
 
         VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
 #if SLANG_APPLE_FAMILY
@@ -290,17 +292,21 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         return SLANG_FAIL;
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((enableRayTracingValidation || useValidationLayer) && m_api.vkCreateDebugReportCallbackEXT)
+    if ((enableRayTracingValidation || useValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
     {
-        VkDebugReportFlagsEXT debugFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-
-        VkDebugReportCallbackCreateInfoEXT debugCreateInfo = {VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT};
-        debugCreateInfo.pfnCallback = &debugMessageCallback;
-        debugCreateInfo.pUserData = this;
-        debugCreateInfo.flags = debugFlags;
+        VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
+            VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
+        };
+        messengerCreateInfo.messageSeverity =
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+        messengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                          VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                                          VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        messengerCreateInfo.pfnUserCallback = &debugMessageCallback;
+        messengerCreateInfo.pUserData = this;
 
         SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateDebugReportCallbackEXT(instance, &debugCreateInfo, nullptr, &m_debugReportCallback)
+            m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
         );
     }
 
@@ -829,14 +835,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
             m_features.push_back("conservative-rasterization-3");
             m_features.push_back("conservative-rasterization-2");
             m_features.push_back("conservative-rasterization-1");
-        }
-        if (extensionNames.count(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-            if (extensionNames.count(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
-            {
-                deviceExtensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-            }
         }
         if (extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
         {
@@ -1385,15 +1383,15 @@ void DeviceImpl::_transitionImageLayout(
     _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
-void DeviceImpl::_labelObject(uint64_t object, VkDebugReportObjectTypeEXT objectType, const char* label)
+void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const char* label)
 {
-    if (label && m_api.vkDebugMarkerSetObjectNameEXT)
+    if (label && m_api.vkSetDebugUtilsObjectNameEXT)
     {
-        VkDebugMarkerObjectNameInfoEXT nameDesc = {VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT};
-        nameDesc.object = object;
-        nameDesc.objectType = objectType;
-        nameDesc.pObjectName = label;
-        m_api.vkDebugMarkerSetObjectNameEXT(m_api.m_device, &nameDesc);
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
+        nameInfo.objectHandle = object;
+        nameInfo.objectType = objectType;
+        nameInfo.pObjectName = label;
+        m_api.vkSetDebugUtilsObjectNameEXT(m_api.m_device, &nameInfo);
     }
 }
 
@@ -1600,7 +1598,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
 
-    _labelObject((uint64_t)texture->m_image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, desc.label);
+    _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
     VKBufferHandleRAII uploadBuffer;
     if (initData)
@@ -1911,7 +1909,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
         SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
     }
 
-    _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, desc.label);
+    _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
 
     if (initData)
     {
@@ -2005,7 +2003,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     VkSampler sampler;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &sampler));
 
-    _labelObject((uint64_t)sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, desc.label);
+    _labelObject((uint64_t)sampler, VK_OBJECT_TYPE_SAMPLER, desc.label);
 
     RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_sampler = sampler;

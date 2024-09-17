@@ -147,25 +147,24 @@ void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
     auto& api = m_commandBuffer->m_device->m_api;
-    if (api.vkCmdDebugMarkerBeginEXT)
+    if (api.vkCmdBeginDebugUtilsLabelEXT)
     {
-        VkDebugMarkerMarkerInfoEXT eventInfo = {};
-        eventInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
-        eventInfo.pMarkerName = name;
-        eventInfo.color[0] = rgbColor[0];
-        eventInfo.color[1] = rgbColor[1];
-        eventInfo.color[2] = rgbColor[2];
-        eventInfo.color[3] = 1.0f;
-        api.vkCmdDebugMarkerBeginEXT(m_commandBuffer->m_commandBuffer, &eventInfo);
+        VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+        label.pLabelName = name;
+        label.color[0] = rgbColor[0];
+        label.color[1] = rgbColor[1];
+        label.color[2] = rgbColor[2];
+        label.color[3] = 1.0f;
+        api.vkCmdBeginDebugUtilsLabelEXT(m_commandBuffer->m_commandBuffer, &label);
     }
 }
 
 void CommandEncoderImpl::endDebugEvent()
 {
     auto& api = m_commandBuffer->m_device->m_api;
-    if (api.vkCmdDebugMarkerEndEXT)
+    if (api.vkCmdEndDebugUtilsLabelEXT)
     {
-        api.vkCmdDebugMarkerEndEXT(m_commandBuffer->m_commandBuffer);
+        api.vkCmdEndDebugUtilsLabelEXT(m_commandBuffer->m_commandBuffer);
     }
 }
 

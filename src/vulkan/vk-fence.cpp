@@ -61,7 +61,7 @@ Result FenceImpl::init(const FenceDesc& desc)
         m_device->m_api.vkCreateSemaphore(m_device->m_api.m_device, &createInfo, nullptr, &m_semaphore)
     );
 
-    m_device->_labelObject((uint64_t)m_semaphore, VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT, desc.label);
+    m_device->_labelObject((uint64_t)m_semaphore, VK_OBJECT_TYPE_FENCE, desc.label);
 
     return SLANG_OK;
 }
