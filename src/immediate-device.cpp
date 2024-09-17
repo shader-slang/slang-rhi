@@ -1,4 +1,4 @@
-#include "immediate-renderer-base.h"
+#include "immediate-device.h"
 #include "command-encoder-com-forward.h"
 #include "command-writer.h"
 #include "simple-transient-resource-heap.h"
@@ -24,11 +24,11 @@ public:
 public:
     CommandWriter m_writer;
     bool m_hasWriteTimestamps = false;
-    RefPtr<ImmediateRendererBase> m_renderer;
+    RefPtr<ImmediateDevice> m_renderer;
     RefPtr<ShaderObjectBase> m_rootShaderObject;
     TransientResourceHeap* m_transientHeap;
 
-    void init(ImmediateRendererBase* renderer, TransientResourceHeap* transientHeap)
+    void init(ImmediateDevice* renderer, TransientResourceHeap* transientHeap)
     {
         m_renderer = renderer;
         m_transientHeap = transientHeap;
@@ -653,9 +653,9 @@ class CommandQueueImpl : public ImmediateCommandQueueBase
 public:
     ICommandQueue::Desc m_desc;
 
-    ImmediateRendererBase* getDevice() { return static_cast<ImmediateRendererBase*>(m_renderer.get()); }
+    ImmediateDevice* getDevice() { return static_cast<ImmediateDevice*>(m_renderer.get()); }
 
-    CommandQueueImpl(ImmediateRendererBase* renderer)
+    CommandQueueImpl(ImmediateDevice* renderer)
     {
         // Don't establish strong reference to `Device` at start, because
         // there will be only one instance of command queue and it will be
@@ -682,12 +682,12 @@ public:
             info.hasWriteTimestamps |=
                 static_cast<CommandBufferImpl*>(commandBuffers[i])->m_writer.m_hasWriteTimestamps;
         }
-        static_cast<ImmediateRendererBase*>(m_renderer.get())->beginCommandBuffer(info);
+        static_cast<ImmediateDevice*>(m_renderer.get())->beginCommandBuffer(info);
         for (GfxIndex i = 0; i < count; i++)
         {
             static_cast<CommandBufferImpl*>(commandBuffers[i])->execute();
         }
-        static_cast<ImmediateRendererBase*>(m_renderer.get())->endCommandBuffer(info);
+        static_cast<ImmediateDevice*>(m_renderer.get())->endCommandBuffer(info);
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { getDevice()->waitForGpu(); }
@@ -704,16 +704,16 @@ public:
     }
 };
 
-using TransientResourceHeapImpl = SimpleTransientResourceHeap<ImmediateRendererBase, CommandBufferImpl>;
+using TransientResourceHeapImpl = SimpleTransientResourceHeap<ImmediateDevice, CommandBufferImpl>;
 
 } // namespace
 
-ImmediateRendererBase::ImmediateRendererBase()
+ImmediateDevice::ImmediateDevice()
 {
     m_queue = new CommandQueueImpl(this);
 }
 
-Result ImmediateRendererBase::createTransientResourceHeap(
+Result ImmediateDevice::createTransientResourceHeap(
     const ITransientResourceHeap::Desc& desc,
     ITransientResourceHeap** outHeap
 )
@@ -724,7 +724,7 @@ Result ImmediateRendererBase::createTransientResourceHeap(
     return SLANG_OK;
 }
 
-Result ImmediateRendererBase::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result ImmediateDevice::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
 {
     SLANG_UNUSED(desc);
     // Only one queue is supported.
@@ -735,14 +735,14 @@ Result ImmediateRendererBase::createCommandQueue(const ICommandQueue::Desc& desc
     return SLANG_OK;
 }
 
-void ImmediateRendererBase::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
+void ImmediateDevice::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
 {
     auto buffer = map(dst, MapFlavor::WriteDiscard);
     memcpy((uint8_t*)buffer + offset, data, size);
     unmap(dst, offset, size);
 }
 
-Result ImmediateRendererBase::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+Result ImmediateDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     auto blob = OwnedBlob::create(size);
     auto content = (uint8_t*)map(buffer, MapFlavor::HostRead);

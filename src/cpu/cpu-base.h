@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../immediate-renderer-base.h"
+#include "../immediate-device.h"
 #include "../mutable-shader-object.h"
 #include "../slang-context.h"
 #define SLANG_PRELUDE_NAMESPACE slang_prelude

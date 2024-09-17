@@ -5,7 +5,7 @@
 
 namespace rhi::d3d11 {
 
-class DeviceImpl : public ImmediateRendererBase
+class DeviceImpl : public ImmediateDevice
 {
 public:
     ~DeviceImpl() {}
