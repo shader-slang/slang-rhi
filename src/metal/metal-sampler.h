@@ -5,7 +5,7 @@
 
 namespace rhi::metal {
 
-class SamplerImpl : public SamplerBase
+class SamplerImpl : public Sampler
 {
 public:
     RefPtr<DeviceImpl> m_device;

@@ -4,11 +4,11 @@
 
 namespace rhi::d3d12 {
 
-class SamplerImpl : public SamplerBase
+class SamplerImpl : public Sampler
 {
 public:
     SamplerImpl(RendererBase* device, const SamplerDesc& desc)
-        : SamplerBase(device, desc)
+        : Sampler(device, desc)
     {
     }
 

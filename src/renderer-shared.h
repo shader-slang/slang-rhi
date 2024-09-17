@@ -285,14 +285,14 @@ public:
     StructHolder m_descHolder;
 };
 
-class SamplerBase : public ISampler, public Resource
+class Sampler : public ISampler, public Resource
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ISampler* getInterface(const Guid& guid);
 
 public:
-    SamplerBase(RendererBase* device, const SamplerDesc& desc)
+    Sampler(RendererBase* device, const SamplerDesc& desc)
         : Resource(device)
         , m_desc(desc)
     {

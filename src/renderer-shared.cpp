@@ -131,19 +131,19 @@ Result TextureView::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-ISampler* SamplerBase::getInterface(const Guid& guid)
+ISampler* Sampler::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ISampler)
         return static_cast<ISampler*>(this);
     return nullptr;
 }
 
-const SamplerDesc& SamplerBase::getDesc()
+const SamplerDesc& Sampler::getDesc()
 {
     return m_desc;
 }
 
-Result SamplerBase::getNativeHandle(NativeHandle* outHandle)
+Result Sampler::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_IMPLEMENTED;

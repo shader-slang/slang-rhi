@@ -4,7 +4,7 @@
 namespace rhi::metal {
 
 SamplerImpl::SamplerImpl(RendererBase* device, const SamplerDesc& desc)
-    : SamplerBase(device, desc)
+    : Sampler(device, desc)
 {
 }
 

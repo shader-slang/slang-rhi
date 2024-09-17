@@ -5,7 +5,7 @@
 
 namespace rhi::vk {
 
-class SamplerImpl : public SamplerBase
+class SamplerImpl : public Sampler
 {
 public:
     SamplerImpl(RendererBase* device, const SamplerDesc& desc);
