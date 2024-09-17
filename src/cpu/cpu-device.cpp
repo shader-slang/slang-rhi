@@ -88,7 +88,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     RefPtr<ShaderObjectLayoutImpl> cpuLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
@@ -97,7 +97,7 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     auto cpuLayout = static_cast<ShaderObjectLayoutImpl*>(layout);
 
@@ -108,7 +108,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObj
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     auto cpuLayout = static_cast<ShaderObjectLayoutImpl*>(layout);
 

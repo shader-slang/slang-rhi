@@ -1555,7 +1555,7 @@ Result DeviceImpl::createShaderProgram(
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
@@ -1564,7 +1564,7 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectImpl> shaderObject;
     SLANG_RETURN_ON_FAIL(
@@ -1574,7 +1574,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObj
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     auto result = createShaderObject(layout, outObject);
     SLANG_RETURN_ON_FAIL(result);

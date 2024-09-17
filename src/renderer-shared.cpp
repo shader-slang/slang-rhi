@@ -456,7 +456,7 @@ Result RendererBase::createShaderObject2(
     IShaderObject** outObject
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, container, shaderObjectLayout.writeRef()));
     return createShaderObject(shaderObjectLayout, outObject);
 }
@@ -477,7 +477,7 @@ Result RendererBase::createMutableShaderObject2(
     IShaderObject** outObject
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, containerType, shaderObjectLayout.writeRef()));
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
@@ -487,7 +487,7 @@ Result RendererBase::createShaderObjectFromTypeLayout(
     IShaderObject** outObject
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     return createShaderObject(shaderObjectLayout, outObject);
 }
@@ -497,7 +497,7 @@ Result RendererBase::createMutableShaderObjectFromTypeLayout(
     IShaderObject** outObject
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
@@ -584,7 +584,7 @@ Result RendererBase::getShaderObjectLayout(
     slang::ISession* session,
     slang::TypeReflection* type,
     ShaderObjectContainerType container,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     switch (container)
@@ -608,10 +608,10 @@ Result RendererBase::getShaderObjectLayout(
 Result RendererBase::getShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
-    RefPtr<ShaderObjectLayoutBase> shaderObjectLayout;
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
     auto it = m_shaderObjectLayoutCache.find(typeLayout);
     if (it != m_shaderObjectLayoutCache.end())
     {
@@ -690,7 +690,7 @@ void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> speci
     specializedPipelines[key] = specializedPipeline;
 }
 
-void ShaderObjectLayoutBase::initBase(
+void ShaderObjectLayout::initBase(
     RendererBase* renderer,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementTypeLayout

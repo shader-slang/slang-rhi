@@ -906,7 +906,7 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayoutBase** outLayout
+    ShaderObjectLayout** outLayout
 )
 {
     RefPtr<ShaderObjectLayoutImpl> cudaLayout;
@@ -915,7 +915,7 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectImpl> result = new ShaderObjectImpl();
     SLANG_RETURN_ON_FAIL(result->init(this, dynamic_cast<ShaderObjectLayoutImpl*>(layout)));
@@ -923,7 +923,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayoutBase* layout, IShaderObj
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject)
+Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     RefPtr<MutableShaderObjectImpl> result = new MutableShaderObjectImpl();
     SLANG_RETURN_ON_FAIL(result->init(this, dynamic_cast<ShaderObjectLayoutImpl*>(layout)));

@@ -11,7 +11,7 @@
 
 namespace rhi {
 
-class ShaderObjectLayoutBase;
+class ShaderObjectLayout;
 
 template<typename T>
 class VersionedObjectPool
@@ -101,7 +101,7 @@ protected:
     void markDirty() { m_dirty = true; }
 
 public:
-    Result init(RendererBase* device, ShaderObjectLayoutBase* layout)
+    Result init(RendererBase* device, ShaderObjectLayout* layout)
     {
         this->m_device = device;
         auto layoutImpl = static_cast<TShaderObjectLayoutImpl*>(layout);

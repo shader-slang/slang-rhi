@@ -38,10 +38,10 @@ public:
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     ) override;
-    virtual Result createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
-    virtual Result createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) override;
+    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
+    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 

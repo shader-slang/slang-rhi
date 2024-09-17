@@ -368,7 +368,7 @@ struct ExtendedShaderObjectTypeList
 struct ExtendedShaderObjectTypeListObject : public ExtendedShaderObjectTypeList, public RefObject
 {};
 
-class ShaderObjectLayoutBase : public RefObject
+class ShaderObjectLayout : public RefObject
 {
 protected:
     // We always use a weak reference to the `IDevice` object here.
@@ -479,7 +479,7 @@ protected:
     BreakableReference<RendererBase> m_device;
 
     // The shader object layout used to create this shader object.
-    RefPtr<ShaderObjectLayoutBase> m_layout = nullptr;
+    RefPtr<ShaderObjectLayout> m_layout = nullptr;
 
     // The specialized shader object type.
     ExtendedShaderObjectType shaderObjectType = {nullptr, kInvalidComponentID};
@@ -501,7 +501,7 @@ public:
 
     RendererBase* getRenderer() { return m_layout->getDevice(); }
 
-    ShaderObjectLayoutBase* getLayoutBase() { return m_layout; }
+    ShaderObjectLayout* getLayoutBase() { return m_layout; }
 
     /// Sets the RTTI ID and RTTI witness table fields of an existential value.
     Result setExistentialHeader(
@@ -1208,13 +1208,13 @@ public:
         slang::ISession* session,
         slang::TypeReflection* type,
         ShaderObjectContainerType container,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     );
 
     Result getShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     );
 
 public:
@@ -1231,12 +1231,12 @@ public:
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,
-        ShaderObjectLayoutBase** outLayout
+        ShaderObjectLayout** outLayout
     ) = 0;
 
-    virtual Result createShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) = 0;
+    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
 
-    virtual Result createMutableShaderObject(ShaderObjectLayoutBase* layout, IShaderObject** outObject) = 0;
+    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
 
 protected:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc);
@@ -1250,7 +1250,7 @@ public:
 
     ComPtr<IPersistentShaderCache> persistentShaderCache;
 
-    std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayoutBase>> m_shaderObjectLayoutCache;
+    std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
     ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
 };
 

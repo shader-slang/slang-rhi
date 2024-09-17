@@ -16,7 +16,7 @@ enum
     kMaxDescriptorSets = 32,
 };
 
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     // A shader object comprises three main kinds of state:

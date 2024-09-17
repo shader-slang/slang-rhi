@@ -828,7 +828,7 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
         m_layout->m_slangSession,
         extendedType.slangType,
         m_layout->getContainerType(),
-        (ShaderObjectLayoutBase**)layout.writeRef()
+        (ShaderObjectLayout**)layout.writeRef()
     ));
 
     returnRefPtrMove(outLayout, layout);

@@ -5,7 +5,7 @@
 
 namespace rhi::d3d11 {
 
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     // A shader object comprises three main kinds of state:

@@ -36,7 +36,7 @@ struct BindingOffset
 // object. In `ShaderObjectLayoutImpl`, we store the offset into the descriptor tables
 // for each binding, so we know where to write the descriptor when the user sets
 // a resource or sampler binding.
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     /// Information about a single logical binding range

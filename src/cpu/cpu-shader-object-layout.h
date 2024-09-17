@@ -35,7 +35,7 @@ struct SubObjectRangeInfo
     Index bindingRangeIndex;
 };
 
-class ShaderObjectLayoutImpl : public ShaderObjectLayoutBase
+class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:
     // TODO: Once memory lifetime stuff is handled, there is
