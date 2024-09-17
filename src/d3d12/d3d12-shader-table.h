@@ -4,7 +4,7 @@
 
 namespace rhi::d3d12 {
 
-class ShaderTableImpl : public ShaderTableBase
+class ShaderTableImpl : public ShaderTable
 {
 public:
     uint32_t m_rayGenTableOffset;

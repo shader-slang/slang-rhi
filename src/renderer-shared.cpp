@@ -1076,7 +1076,7 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
     return SLANG_FAIL;
 }
 
-Result ShaderTableBase::init(const IShaderTable::Desc& desc)
+Result ShaderTable::init(const IShaderTable::Desc& desc)
 {
     m_rayGenShaderCount = desc.rayGenShaderCount;
     m_missShaderCount = desc.missShaderCount;

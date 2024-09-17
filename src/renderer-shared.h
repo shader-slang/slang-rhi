@@ -1041,7 +1041,7 @@ public:
 
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
-class ShaderTableBase : public IShaderTable, public ComObject
+class ShaderTable : public IShaderTable, public ComObject
 {
 public:
     std::vector<std::string> m_shaderGroupNames;

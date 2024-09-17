@@ -4,7 +4,7 @@
 
 namespace rhi::vk {
 
-class ShaderTableImpl : public ShaderTableBase
+class ShaderTableImpl : public ShaderTable
 {
 public:
     uint32_t m_raygenTableSize;
