@@ -111,11 +111,14 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
         break;
     case BindingType::CombinedTextureSampler:
+    {
+        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
         m_combinedTextureSamplers[bindingIndex] = CombinedTextureSamplerSlot{
-            static_cast<TextureViewImpl*>(binding.resource.get()),
+            static_cast<TextureViewImpl*>(m_device->createTextureView(texture, {}).get()),
             static_cast<SamplerImpl*>(binding.resource2.get())
         };
         break;
+    }
     case BindingType::AccelerationStructure:
         ResourceSlot slot;
         slot.type = BindingType::AccelerationStructure;
