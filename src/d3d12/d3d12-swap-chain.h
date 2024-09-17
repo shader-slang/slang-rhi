@@ -18,7 +18,7 @@ public:
     ComPtr<ID3D12Fence> m_fence;
     short_vector<HANDLE, kMaxNumRenderFrames> m_frameEvents;
     uint64_t fenceValue = 0;
-    Result init(DeviceImpl* renderer, const ISwapchain::Desc& swapchainDesc, WindowHandle window);
+    Result init(DeviceImpl* device, const ISwapchain::Desc& swapchainDesc, WindowHandle window);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL resize(GfxCount width, GfxCount height) override;
 

@@ -684,12 +684,12 @@ void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> speci
 }
 
 void ShaderObjectLayout::initBase(
-    Device* renderer,
+    Device* device,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementTypeLayout
 )
 {
-    m_renderer = renderer;
+    m_renderer = device;
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
     m_componentID = m_renderer->shaderCache.getComponentId(m_elementTypeLayout->getType());

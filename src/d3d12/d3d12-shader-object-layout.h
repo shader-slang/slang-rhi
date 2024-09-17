@@ -125,8 +125,8 @@ public:
     struct Builder
     {
     public:
-        Builder(Device* renderer, slang::ISession* session)
-            : m_renderer(renderer)
+        Builder(Device* device, slang::ISession* session)
+            : m_renderer(device)
             , m_session(session)
         {
         }
@@ -168,7 +168,7 @@ public:
     };
 
     static Result createForElementType(
-        Device* renderer,
+        Device* device,
         slang::ISession* session,
         slang::TypeLayoutReflection* elementType,
         ShaderObjectLayoutImpl** outLayout
@@ -240,8 +240,8 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(Device* renderer, slang::IComponentType* program, slang::ProgramLayout* programLayout)
-            : Super::Builder(renderer, program->getSession())
+        Builder(Device* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+            : Super::Builder(device, program->getSession())
             , m_program(program)
             , m_programLayout(programLayout)
         {

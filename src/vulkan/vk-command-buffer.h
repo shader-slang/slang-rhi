@@ -36,7 +36,7 @@ public:
     // so no need to free individually.
     ~CommandBufferImpl() = default;
 
-    Result init(DeviceImpl* renderer, VkCommandPool pool, TransientResourceHeapImpl* transientHeap);
+    Result init(DeviceImpl* device, VkCommandPool pool, TransientResourceHeapImpl* transientHeap);
 
     void beginCommandBuffer();
 

@@ -50,7 +50,7 @@ public:
     void reinit();
 
     void init(
-        DeviceImpl* renderer,
+        DeviceImpl* device,
         ID3D12GraphicsCommandList* d3dCommandList,
         TransientResourceHeapImpl* transientHeap
     );

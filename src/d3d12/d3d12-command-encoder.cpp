@@ -803,7 +803,7 @@ void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, S
 // RenderCommandEncoderImpl
 
 void RenderCommandEncoderImpl::init(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     TransientResourceHeapImpl* transientHeap,
     CommandBufferImpl* cmdBuffer,
     const RenderPassDesc& desc
@@ -1238,7 +1238,7 @@ void ComputeCommandEncoderImpl::endEncoding()
 }
 
 void ComputeCommandEncoderImpl::init(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     TransientResourceHeapImpl* transientHeap,
     CommandBufferImpl* cmdBuffer
 )

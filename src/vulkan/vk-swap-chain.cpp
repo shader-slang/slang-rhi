@@ -197,19 +197,19 @@ Index SwapchainImpl::_indexOfFormat(std::vector<VkSurfaceFormatKHR>& formatsIn, 
     return -1;
 }
 
-Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& desc, WindowHandle window)
+Result SwapchainImpl::init(DeviceImpl* device, const ISwapchain::Desc& desc, WindowHandle window)
 {
     m_desc = desc;
-    m_renderer = renderer;
-    m_api = &renderer->m_api;
+    m_renderer = device;
+    m_api = &device->m_api;
     m_queue = static_cast<CommandQueueImpl*>(desc.queue);
     m_windowHandle = window;
 
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     SLANG_VK_RETURN_ON_FAIL(
-        renderer->m_api
-            .vkCreateSemaphore(renderer->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore)
+        device->m_api
+            .vkCreateSemaphore(device->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore)
     );
 
     m_queue = static_cast<CommandQueueImpl*>(desc.queue);
@@ -242,7 +242,7 @@ Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& desc, W
     VkBool32 supported = false;
     m_api->vkGetPhysicalDeviceSurfaceSupportKHR(
         m_api->m_physicalDevice,
-        renderer->m_queueFamilyIndex,
+        device->m_queueFamilyIndex,
         m_surface,
         &supported
     );

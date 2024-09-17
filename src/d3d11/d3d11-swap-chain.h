@@ -10,7 +10,7 @@ public:
     ComPtr<ID3D11Device> m_device;
     ComPtr<IDXGIFactory> m_dxgiFactory;
     RefPtr<DeviceImpl> m_renderer;
-    Result init(DeviceImpl* renderer, const ISwapchain::Desc& swapchainDesc, WindowHandle window);
+    Result init(DeviceImpl* device, const ISwapchain::Desc& swapchainDesc, WindowHandle window);
 
     virtual void createSwapchainBufferImages() override;
     virtual IDXGIFactory* getDXGIFactory() override { return m_dxgiFactory; }

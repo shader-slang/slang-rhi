@@ -19,7 +19,7 @@ Result ScopeNVAPI::init(DeviceImpl* device, Index regIndex)
     }
 #endif
 
-    // Record the renderer so it can be freed
+    // Record the device so it can be freed
     m_renderer = device;
     return SLANG_OK;
 }

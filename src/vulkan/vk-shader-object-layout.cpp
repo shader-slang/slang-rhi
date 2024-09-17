@@ -542,13 +542,13 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
 }
 
 Result ShaderObjectLayoutImpl::createForElementType(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementType,
     ShaderObjectLayoutImpl** outLayout
 )
 {
-    Builder builder(renderer, session);
+    Builder builder(device, session);
     builder.setElementTypeLayout(elementType);
 
     // When constructing a shader object layout directly from a reflected
@@ -608,9 +608,9 @@ ShaderObjectLayoutImpl::~ShaderObjectLayoutImpl()
 
 Result ShaderObjectLayoutImpl::_init(Builder const* builder)
 {
-    auto renderer = builder->m_renderer;
+    auto device = builder->m_renderer;
 
-    initBase(renderer, builder->m_session, builder->m_elementTypeLayout);
+    initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
     m_bindingRanges = builder->m_bindingRanges;
 
@@ -636,8 +636,8 @@ Result ShaderObjectLayoutImpl::_init(Builder const* builder)
         createInfo.bindingCount = (uint32_t)descriptorSetInfo.vkBindings.size();
         VkDescriptorSetLayout vkDescSetLayout;
         SLANG_RETURN_ON_FAIL(
-            renderer->m_api
-                .vkCreateDescriptorSetLayout(renderer->m_api.m_device, &createInfo, nullptr, &vkDescSetLayout)
+            device->m_api
+                .vkCreateDescriptorSetLayout(device->m_api.m_device, &createInfo, nullptr, &vkDescSetLayout)
         );
         descriptorSetInfo.descriptorSetLayout = vkDescSetLayout;
     }
@@ -672,7 +672,7 @@ void EntryPointLayout::Builder::addEntryPointParams(slang::EntryPointLayout* ent
 
 Result EntryPointLayout::_init(Builder const* builder)
 {
-    auto renderer = builder->m_renderer;
+    auto device = builder->m_renderer;
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
@@ -702,13 +702,13 @@ Index RootShaderObjectLayout::findEntryPointIndex(VkShaderStageFlags stage)
 }
 
 Result RootShaderObjectLayout::create(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
     RootShaderObjectLayout** outLayout
 )
 {
-    RootShaderObjectLayout::Builder builder(renderer, program, programLayout);
+    RootShaderObjectLayout::Builder builder(device, program, programLayout);
     builder.addGlobalParams(programLayout->getGlobalParamsVarLayout());
 
     SlangInt entryPointCount = programLayout->getEntryPointCount();
@@ -716,7 +716,7 @@ Result RootShaderObjectLayout::create(
     {
         auto slangEntryPoint = programLayout->getEntryPointByIndex(e);
 
-        EntryPointLayout::Builder entryPointBuilder(renderer, program->getSession());
+        EntryPointLayout::Builder entryPointBuilder(device, program->getSession());
         entryPointBuilder.addEntryPointParams(slangEntryPoint);
 
         RefPtr<EntryPointLayout> entryPointLayout;
@@ -732,7 +732,7 @@ Result RootShaderObjectLayout::create(
 
 Result RootShaderObjectLayout::_init(Builder const* builder)
 {
-    auto renderer = builder->m_renderer;
+    auto device = builder->m_renderer;
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
@@ -740,7 +740,7 @@ Result RootShaderObjectLayout::_init(Builder const* builder)
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
     m_pendingDataOffset = builder->m_pendingDataOffset;
-    m_renderer = renderer;
+    m_renderer = device;
 
     // If the program has unbound specialization parameters,
     // then we will avoid creating a final Vulkan pipeline layout.

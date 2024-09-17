@@ -433,7 +433,7 @@ public:
 
     ShaderComponentID getComponentID() { return m_componentID; }
 
-    void initBase(Device* renderer, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
+    void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };
 
 class SimpleShaderObjectData

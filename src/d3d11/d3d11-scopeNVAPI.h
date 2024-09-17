@@ -11,7 +11,7 @@ public:
         : m_renderer(nullptr)
     {
     }
-    Result init(DeviceImpl* renderer, Index regIndex);
+    Result init(DeviceImpl* device, Index regIndex);
     ~ScopeNVAPI();
 
 protected:

@@ -3,12 +3,12 @@
 namespace rhi::cpu {
 
 ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
-    Device* renderer,
+    Device* device,
     slang::ISession* session,
     slang::TypeLayoutReflection* layout
 )
 {
-    initBase(renderer, session, layout);
+    initBase(device, session, layout);
 
     m_subObjectCount = 0;
     m_resourceCount = 0;
@@ -102,7 +102,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
         if (slangBindingType != slang::BindingType::ExistentialValue)
         {
             subObjectLayout =
-                new ShaderObjectLayoutImpl(renderer, m_slangSession, slangLeafTypeLayout->getElementTypeLayout());
+                new ShaderObjectLayoutImpl(device, m_slangSession, slangLeafTypeLayout->getElementTypeLayout());
         }
 
         SubObjectRangeInfo subObjectRange;
@@ -144,17 +144,17 @@ const char* EntryPointLayoutImpl::getEntryPointName()
 }
 
 RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
-    Device* renderer,
+    Device* device,
     slang::ISession* session,
     slang::ProgramLayout* programLayout
 )
-    : ShaderObjectLayoutImpl(renderer, session, programLayout->getGlobalParamsTypeLayout())
+    : ShaderObjectLayoutImpl(device, session, programLayout->getGlobalParamsTypeLayout())
     , m_programLayout(programLayout)
 {
     for (UInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
         m_entryPointLayouts.push_back(
-            new EntryPointLayoutImpl(renderer, session, programLayout->getEntryPointByIndex(i))
+            new EntryPointLayoutImpl(device, session, programLayout->getEntryPointByIndex(i))
         );
     }
 }

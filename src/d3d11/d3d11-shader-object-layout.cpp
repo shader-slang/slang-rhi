@@ -215,22 +215,22 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
 }
 
 Result ShaderObjectLayoutImpl::createForElementType(
-    Device* renderer,
+    Device* device,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementType,
     ShaderObjectLayoutImpl** outLayout
 )
 {
-    Builder builder(renderer, session);
+    Builder builder(device, session);
     builder.setElementTypeLayout(elementType);
     return builder.build(outLayout);
 }
 
 Result ShaderObjectLayoutImpl::_init(Builder const* builder)
 {
-    auto renderer = builder->m_renderer;
+    auto device = builder->m_renderer;
 
-    initBase(renderer, builder->m_session, builder->m_elementTypeLayout);
+    initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
     m_bindingRanges = builder->m_bindingRanges;
     m_srvRanges = builder->m_srvRanges;
@@ -277,13 +277,13 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
 }
 
 Result RootShaderObjectLayoutImpl::create(
-    Device* renderer,
+    Device* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
-    RootShaderObjectLayoutImpl::Builder builder(renderer, program, programLayout);
+    RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout);
     builder.addGlobalParams(programLayout->getGlobalParamsVarLayout());
 
     SlangInt entryPointCount = programLayout->getEntryPointCount();
@@ -292,7 +292,7 @@ Result RootShaderObjectLayoutImpl::create(
         auto slangEntryPoint = programLayout->getEntryPointByIndex(e);
         RefPtr<ShaderObjectLayoutImpl> entryPointLayout;
         SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(
-            renderer,
+            device,
             program->getSession(),
             slangEntryPoint->getTypeLayout(),
             entryPointLayout.writeRef()
@@ -307,7 +307,7 @@ Result RootShaderObjectLayoutImpl::create(
 
 Result RootShaderObjectLayoutImpl::_init(Builder const* builder)
 {
-    auto renderer = builder->m_renderer;
+    auto device = builder->m_renderer;
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 

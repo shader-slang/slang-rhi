@@ -28,9 +28,9 @@ public:
     RefPtr<ShaderObjectBase> m_rootShaderObject;
     TransientResourceHeap* m_transientHeap;
 
-    void init(ImmediateDevice* renderer, TransientResourceHeap* transientHeap)
+    void init(ImmediateDevice* device, TransientResourceHeap* transientHeap)
     {
-        m_renderer = renderer;
+        m_renderer = device;
         m_transientHeap = transientHeap;
     }
 
@@ -655,13 +655,13 @@ public:
 
     ImmediateDevice* getDevice() { return static_cast<ImmediateDevice*>(m_renderer.get()); }
 
-    CommandQueueImpl(ImmediateDevice* renderer)
+    CommandQueueImpl(ImmediateDevice* device)
     {
         // Don't establish strong reference to `Device` at start, because
         // there will be only one instance of command queue and it will be
         // owned by `Device`. We should establish a strong reference only
         // when there are external references to the command queue.
-        m_renderer.setWeakReference(renderer);
+        m_renderer.setWeakReference(device);
         m_desc.type = ICommandQueue::QueueType::Graphics;
     }
 

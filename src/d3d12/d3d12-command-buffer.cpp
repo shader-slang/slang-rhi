@@ -41,13 +41,13 @@ void CommandBufferImpl::reinit()
 }
 
 void CommandBufferImpl::init(
-    DeviceImpl* renderer,
+    DeviceImpl* device,
     ID3D12GraphicsCommandList* d3dCommandList,
     TransientResourceHeapImpl* transientHeap
 )
 {
     m_transientHeap = transientHeap;
-    m_renderer = renderer;
+    m_renderer = device;
     m_cmdList = d3dCommandList;
 
     reinit();

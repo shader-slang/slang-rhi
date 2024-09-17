@@ -17,7 +17,7 @@ public:
 
     RefPtr<ComputePipelineImpl> currentPipeline;
     RefPtr<RootShaderObjectImpl> currentRootObject;
-    RefPtr<DeviceImpl> renderer;
+    RefPtr<DeviceImpl> m_renderer;
     CUstream stream;
     Desc m_desc;
 

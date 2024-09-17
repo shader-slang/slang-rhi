@@ -22,9 +22,9 @@ CommandQueueImpl::~CommandQueueImpl()
     m_renderer->m_api.vkDestroySemaphore(m_renderer->m_api.m_device, m_semaphore, nullptr);
 }
 
-void CommandQueueImpl::init(DeviceImpl* renderer, VkQueue queue, uint32_t queueFamilyIndex)
+void CommandQueueImpl::init(DeviceImpl* device, VkQueue queue, uint32_t queueFamilyIndex)
 {
-    m_renderer = renderer;
+    m_renderer = device;
     m_queue = queue;
     m_queueFamilyIndex = queueFamilyIndex;
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};

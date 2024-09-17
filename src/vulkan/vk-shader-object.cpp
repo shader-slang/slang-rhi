@@ -161,7 +161,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
         for(auto descriptorSetInfo : layout->getDescriptorSets())
         {
             RefPtr<DescriptorSet> descriptorSet;
-            SLANG_RETURN_ON_FAIL(renderer->createDescriptorSet(descriptorSetInfo->layout, descriptorSet.writeRef()));
+            SLANG_RETURN_ON_FAIL(device->createDescriptorSet(descriptorSetInfo->layout, descriptorSet.writeRef()));
             m_descriptorSets.add(descriptorSet);
         }
 #endif

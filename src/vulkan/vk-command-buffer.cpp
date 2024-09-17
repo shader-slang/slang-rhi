@@ -21,13 +21,13 @@ void CommandBufferImpl::comFree()
     m_transientHeap.breakStrongReference();
 }
 
-Result CommandBufferImpl::init(DeviceImpl* renderer, VkCommandPool pool, TransientResourceHeapImpl* transientHeap)
+Result CommandBufferImpl::init(DeviceImpl* device, VkCommandPool pool, TransientResourceHeapImpl* transientHeap)
 {
-    m_renderer = renderer;
+    m_renderer = device;
     m_transientHeap = transientHeap;
     m_pool = pool;
 
-    auto& api = renderer->m_api;
+    auto& api = device->m_api;
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = pool;

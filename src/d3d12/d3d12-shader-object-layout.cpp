@@ -41,22 +41,22 @@ bool ShaderObjectLayoutImpl::isBindingRangeRootParameter(
 }
 
 Result ShaderObjectLayoutImpl::createForElementType(
-    Device* renderer,
+    Device* device,
     slang::ISession* session,
     slang::TypeLayoutReflection* elementType,
     ShaderObjectLayoutImpl** outLayout
 )
 {
-    Builder builder(renderer, session);
+    Builder builder(device, session);
     builder.setElementTypeLayout(elementType);
     return builder.build(outLayout);
 }
 
 Result ShaderObjectLayoutImpl::init(Builder* builder)
 {
-    auto renderer = builder->m_renderer;
+    auto device = builder->m_renderer;
 
-    initBase(renderer, builder->m_session, builder->m_elementTypeLayout);
+    initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
     m_containerType = builder->m_containerType;
 
@@ -1016,7 +1016,7 @@ Result RootShaderObjectLayoutImpl::create(
 
 Result RootShaderObjectLayoutImpl::init(Builder* builder)
 {
-    auto renderer = builder->m_renderer;
+    auto device = builder->m_renderer;
 
     SLANG_RETURN_ON_FAIL(Super::init(builder));
 

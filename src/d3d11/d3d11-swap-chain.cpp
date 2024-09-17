@@ -4,11 +4,11 @@
 
 namespace rhi::d3d11 {
 
-Result SwapchainImpl::init(DeviceImpl* renderer, const ISwapchain::Desc& swapchainDesc, WindowHandle window)
+Result SwapchainImpl::init(DeviceImpl* device, const ISwapchain::Desc& swapchainDesc, WindowHandle window)
 {
-    m_renderer = renderer;
-    m_device = renderer->m_device;
-    m_dxgiFactory = renderer->m_dxgiFactory;
+    m_renderer = device;
+    m_device = device->m_device;
+    m_dxgiFactory = device->m_dxgiFactory;
     return D3DSwapchainBase::init(swapchainDesc, window, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL);
 }
 

@@ -192,7 +192,7 @@ public:
     D3D12_PRIMITIVE_TOPOLOGY m_primitiveTopology;
 
     void init(
-        DeviceImpl* renderer,
+        DeviceImpl* device,
         TransientResourceHeapImpl* transientHeap,
         CommandBufferImpl* cmdBuffer,
         const RenderPassDesc& desc
@@ -267,7 +267,7 @@ public:
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
-    void init(DeviceImpl* renderer, TransientResourceHeapImpl* transientHeap, CommandBufferImpl* cmdBuffer);
+    void init(DeviceImpl* device, TransientResourceHeapImpl* transientHeap, CommandBufferImpl* cmdBuffer);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;
 
