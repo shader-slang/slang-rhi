@@ -1014,7 +1014,7 @@ protected:
     std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
 
-class TransientResourceHeapBase : public ITransientResourceHeap, public ComObject
+class TransientResourceHeap : public ITransientResourceHeap, public ComObject
 {
 public:
     uint64_t m_version = 0;
@@ -1024,8 +1024,8 @@ public:
         static uint64_t version = 1;
         return version;
     }
-    TransientResourceHeapBase() { m_version = getVersionCounter()++; }
-    virtual ~TransientResourceHeapBase() {}
+    TransientResourceHeap() { m_version = getVersionCounter()++; }
+    virtual ~TransientResourceHeap() {}
 
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -1064,13 +1064,13 @@ public:
 
     virtual RefPtr<Buffer> createDeviceBuffer(
         Pipeline* pipeline,
-        TransientResourceHeapBase* transientHeap,
+        TransientResourceHeap* transientHeap,
         IRayTracingCommandEncoder* encoder
     ) = 0;
 
     Buffer* getOrCreateBuffer(
         Pipeline* pipeline,
-        TransientResourceHeapBase* transientHeap,
+        TransientResourceHeap* transientHeap,
         IRayTracingCommandEncoder* encoder
     )
     {

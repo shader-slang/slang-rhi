@@ -124,7 +124,7 @@ public:
 };
 
 template<typename TDevice, typename TBuffer>
-class TransientResourceHeapBaseImpl : public TransientResourceHeapBase
+class TransientResourceHeapBaseImpl : public TransientResourceHeap
 {
 public:
     void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }

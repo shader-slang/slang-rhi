@@ -20,13 +20,13 @@ public:
     struct ObjectVersion
     {
         RefPtr<T> object;
-        RefPtr<TransientResourceHeapBase> transientHeap;
+        RefPtr<TransientResourceHeap> transientHeap;
         uint64_t transientHeapVersion;
         bool canRecycle() { return (transientHeap->getVersion() != transientHeapVersion); }
     };
     std::vector<ObjectVersion> objects;
     SlangInt lastAllocationIndex = -1;
-    ObjectVersion& allocate(TransientResourceHeapBase* currentTransientHeap)
+    ObjectVersion& allocate(TransientResourceHeap* currentTransientHeap)
     {
         for (SlangInt i = 0; i < objects.size(); i++)
         {
@@ -155,7 +155,7 @@ public:
             return SLANG_OK;
         }
 
-        RefPtr<ShaderObjectBase> object = allocateShaderObject(static_cast<TransientResourceHeapBase*>(transientHeap));
+        RefPtr<ShaderObjectBase> object = allocateShaderObject(static_cast<TransientResourceHeap*>(transientHeap));
         SLANG_RETURN_ON_FAIL(object->setData(ShaderOffset(), this->m_data.getBuffer(), this->m_data.getCount()));
         for (auto it : m_bindings)
             SLANG_RETURN_ON_FAIL(object->setBinding(it.first, it.second));
@@ -183,7 +183,7 @@ public:
     }
 
 public:
-    RefPtr<ShaderObjectBase> allocateShaderObject(TransientResourceHeapBase* transientHeap)
+    RefPtr<ShaderObjectBase> allocateShaderObject(TransientResourceHeap* transientHeap)
     {
         auto& version = m_shaderObjectVersions.allocate(transientHeap);
         if (!version.object)

@@ -10,7 +10,7 @@
 namespace rhi {
 
 template<typename TDevice, typename TCommandBuffer>
-class SimpleTransientResourceHeap : public TransientResourceHeapBase
+class SimpleTransientResourceHeap : public TransientResourceHeap
 {
 public:
     RefPtr<TDevice> m_device;

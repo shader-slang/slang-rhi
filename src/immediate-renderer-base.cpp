@@ -26,9 +26,9 @@ public:
     bool m_hasWriteTimestamps = false;
     RefPtr<ImmediateRendererBase> m_renderer;
     RefPtr<ShaderObjectBase> m_rootShaderObject;
-    TransientResourceHeapBase* m_transientHeap;
+    TransientResourceHeap* m_transientHeap;
 
-    void init(ImmediateRendererBase* renderer, TransientResourceHeapBase* transientHeap)
+    void init(ImmediateRendererBase* renderer, TransientResourceHeap* transientHeap)
     {
         m_renderer = renderer;
         m_transientHeap = transientHeap;
