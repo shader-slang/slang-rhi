@@ -78,7 +78,7 @@ Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
 void CommandQueueImpl::dispatchCompute(int x, int y, int z)
 {
     // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineBase> newPipeline;
+    RefPtr<Pipeline> newPipeline;
     renderer->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
     currentPipeline = static_cast<ComputePipelineImpl*>(newPipeline.Ptr());
 
@@ -169,7 +169,7 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
         switch (cmd.name)
         {
         case CommandName::SetPipeline:
-            setPipeline(commandBuffer->getObject<PipelineBase>(cmd.operands[0]));
+            setPipeline(commandBuffer->getObject<Pipeline>(cmd.operands[0]));
             break;
         case CommandName::BindRootShaderObject:
             bindRootShaderObject(commandBuffer->getObject<ShaderObjectBase>(cmd.operands[0]));

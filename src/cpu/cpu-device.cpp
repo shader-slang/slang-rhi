@@ -220,7 +220,7 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     int targetIndex = 0;
 
     // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<PipelineBase> newPipeline;
+    RefPtr<Pipeline> newPipeline;
     maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
     m_currentPipeline = static_cast<PipelineImpl*>(newPipeline.Ptr());
 

@@ -5,7 +5,7 @@
 
 namespace rhi::cuda {
 
-class PipelineImpl : public PipelineBase
+class PipelineImpl : public Pipeline
 {
 public:
 };

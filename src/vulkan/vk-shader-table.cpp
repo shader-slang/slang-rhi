@@ -8,7 +8,7 @@
 namespace rhi::vk {
 
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
-    PipelineBase* pipeline,
+    Pipeline* pipeline,
     TransientResourceHeapBase* transientHeap,
     IRayTracingCommandEncoder* encoder
 )

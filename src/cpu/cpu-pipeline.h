@@ -4,7 +4,7 @@
 
 namespace rhi::cpu {
 
-class PipelineImpl : public PipelineBase
+class PipelineImpl : public Pipeline
 {
 public:
     ShaderProgramImpl* getProgram();

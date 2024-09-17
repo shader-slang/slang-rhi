@@ -129,7 +129,7 @@ public:
 
     void setPipeline(IPipeline* state)
     {
-        auto offset = encodeObject(static_cast<PipelineBase*>(state));
+        auto offset = encodeObject(static_cast<Pipeline*>(state));
         m_commands.push_back(Command(CommandName::SetPipeline, (uint32_t)offset));
     }
 

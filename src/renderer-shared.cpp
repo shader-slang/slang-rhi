@@ -237,20 +237,20 @@ IQueryPool* QueryPoolBase::getInterface(const Guid& guid)
     return nullptr;
 }
 
-IPipeline* PipelineBase::getInterface(const Guid& guid)
+IPipeline* Pipeline::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline)
         return static_cast<IPipeline*>(this);
     return nullptr;
 }
 
-Result PipelineBase::getNativeHandle(NativeHandle* outHandle)
+Result Pipeline::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void PipelineBase::initializeBase(const PipelineStateDesc& inDesc)
+void Pipeline::initializeBase(const PipelineStateDesc& inDesc)
 {
     desc = inDesc;
 
@@ -685,7 +685,7 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
-void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<PipelineBase> specializedPipeline)
+void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline)
 {
     specializedPipelines[key] = specializedPipeline;
 }
@@ -925,12 +925,12 @@ bool ShaderProgramBase::isMeshShaderProgram() const
 }
 
 Result RendererBase::maybeSpecializePipeline(
-    PipelineBase* currentPipeline,
+    Pipeline* currentPipeline,
     ShaderObjectBase* rootObject,
-    RefPtr<PipelineBase>& outNewPipeline
+    RefPtr<Pipeline>& outNewPipeline
 )
 {
-    outNewPipeline = static_cast<PipelineBase*>(currentPipeline);
+    outNewPipeline = static_cast<Pipeline*>(currentPipeline);
 
     auto pipelineType = currentPipeline->desc.type;
     if (currentPipeline->unspecializedPipeline)
@@ -950,7 +950,7 @@ Result RendererBase::maybeSpecializePipeline(
         }
         pipelineKey.updateHash();
 
-        RefPtr<PipelineBase> specializedPipeline = shaderCache.getSpecializedPipeline(pipelineKey);
+        RefPtr<Pipeline> specializedPipeline = shaderCache.getSpecializedPipeline(pipelineKey);
         // Try to find specialized pipeline from shader cache.
         if (!specializedPipeline)
         {
@@ -1020,11 +1020,11 @@ Result RendererBase::maybeSpecializePipeline(
             default:
                 break;
             }
-            specializedPipeline = static_cast<PipelineBase*>(specializedPipelineComPtr.get());
+            specializedPipeline = static_cast<Pipeline*>(specializedPipelineComPtr.get());
             specializedPipeline->unspecializedPipeline = currentPipeline;
             shaderCache.addSpecializedPipeline(pipelineKey, specializedPipeline);
         }
-        auto specializedPipelineBase = static_cast<PipelineBase*>(specializedPipeline.Ptr());
+        auto specializedPipelineBase = static_cast<Pipeline*>(specializedPipeline.Ptr());
         outNewPipeline = specializedPipelineBase;
     }
     return SLANG_OK;

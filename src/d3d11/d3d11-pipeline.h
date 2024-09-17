@@ -4,7 +4,7 @@
 
 namespace rhi::d3d11 {
 
-class PipelineImpl : public PipelineBase
+class PipelineImpl : public Pipeline
 {
 public:
 };

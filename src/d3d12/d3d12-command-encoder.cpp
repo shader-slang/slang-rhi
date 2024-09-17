@@ -200,7 +200,7 @@ void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
 
 Result CommandEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineBase*>(pipeline);
+    m_currentPipeline = static_cast<Pipeline*>(pipeline);
     auto rootObject = &m_commandBuffer->m_rootShaderObject;
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->reset(
@@ -215,19 +215,19 @@ Result CommandEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject**
 
 Result CommandEncoderImpl::bindPipelineWithRootObjectImpl(IPipeline* pipeline, IShaderObject* rootObject)
 {
-    m_currentPipeline = static_cast<PipelineBase*>(pipeline);
+    m_currentPipeline = static_cast<Pipeline*>(pipeline);
     m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
     m_bindingDirty = true;
     return SLANG_OK;
 }
 
-Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<PipelineBase>& newPipeline)
+Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline)
 {
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
                                                ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
                                                : &m_commandBuffer->m_rootShaderObject;
     SLANG_RETURN_ON_FAIL(m_renderer->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineBase* newPipelineImpl = static_cast<PipelineBase*>(newPipeline.Ptr());
+    Pipeline* newPipelineImpl = static_cast<Pipeline*>(newPipeline.Ptr());
     auto commandList = m_d3dCmdList;
     auto pipelineTypeIndex = (int)newPipelineImpl->desc.type;
     auto programImpl = static_cast<ShaderProgramImpl*>(newPipelineImpl->m_program.Ptr());
@@ -1016,7 +1016,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
     // Submit - setting for graphics
     {
         GraphicsSubmitter submitter(m_d3dCmdList);
-        RefPtr<PipelineBase> newPipeline;
+        RefPtr<Pipeline> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
 
@@ -1264,7 +1264,7 @@ Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
     // Submit binding for compute
     {
         ComputeSubmitter submitter(m_d3dCmdList);
-        RefPtr<PipelineBase> newPipeline;
+        RefPtr<Pipeline> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
     m_d3dCmdList->Dispatch(x, y, z);
@@ -1276,7 +1276,7 @@ Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Of
     // Submit binding for compute
     {
         ComputeSubmitter submitter(m_d3dCmdList);
-        RefPtr<PipelineBase> newPipeline;
+        RefPtr<Pipeline> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
     auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
@@ -1414,8 +1414,8 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
     GfxCount depth
 )
 {
-    RefPtr<PipelineBase> newPipeline;
-    PipelineBase* pipeline = m_currentPipeline.Ptr();
+    RefPtr<Pipeline> newPipeline;
+    Pipeline* pipeline = m_currentPipeline.Ptr();
     {
         struct RayTracingSubmitter : public ComputeSubmitter
         {
@@ -1425,7 +1425,7 @@ Result RayTracingCommandEncoderImpl::dispatchRays(
                 , m_cmdList4(cmdList4)
             {
             }
-            virtual void setPipeline(PipelineBase* pipeline) override
+            virtual void setPipeline(Pipeline* pipeline) override
             {
                 auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
                 m_cmdList4->SetPipelineState1(pipelineImpl->m_stateObject.get());

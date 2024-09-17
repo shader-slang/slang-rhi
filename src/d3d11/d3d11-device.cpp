@@ -1030,7 +1030,7 @@ void DeviceImpl::setScissorRects(GfxCount count, ScissorRect const* rects)
 
 void DeviceImpl::setPipeline(IPipeline* state)
 {
-    auto pipelineType = static_cast<PipelineBase*>(state)->desc.type;
+    auto pipelineType = static_cast<Pipeline*>(state)->desc.type;
 
     switch (pipelineType)
     {
@@ -1287,7 +1287,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
 void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
 {
     RootShaderObjectImpl* rootShaderObjectImpl = static_cast<RootShaderObjectImpl*>(shaderObject);
-    RefPtr<PipelineBase> specializedPipeline;
+    RefPtr<Pipeline> specializedPipeline;
     maybeSpecializePipeline(m_currentPipeline, rootShaderObjectImpl, specializedPipeline);
     PipelineImpl* specializedPipelineImpl = static_cast<PipelineImpl*>(specializedPipeline.Ptr());
     setPipeline(specializedPipelineImpl);

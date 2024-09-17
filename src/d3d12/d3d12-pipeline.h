@@ -4,7 +4,7 @@
 
 namespace rhi::d3d12 {
 
-class PipelineImpl : public PipelineBase
+class PipelineImpl : public Pipeline
 {
 public:
     PipelineImpl(DeviceImpl* device)
@@ -20,7 +20,7 @@ public:
 };
 
 #if SLANG_RHI_DXR
-class RayTracingPipelineImpl : public PipelineBase
+class RayTracingPipelineImpl : public Pipeline
 {
 public:
     ComPtr<ID3D12StateObject> m_stateObject;

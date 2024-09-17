@@ -572,7 +572,7 @@ Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
 
     auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     RootShaderObjectImpl* rootObjectImpl = &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineBase> newPipeline;
+    RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline)
     );

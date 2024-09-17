@@ -871,7 +871,7 @@ enum class PipelineType
     CountOf,
 };
 
-class PipelineBase : public IPipeline, public ComObject
+class Pipeline : public IPipeline, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -906,7 +906,7 @@ public:
 
     // The pipeline state from which this pipeline state is specialized.
     // If null, this pipeline is either an unspecialized pipeline.
-    RefPtr<PipelineBase> unspecializedPipeline = nullptr;
+    RefPtr<Pipeline> unspecializedPipeline = nullptr;
 
     // Indicates whether this is a specializable pipeline. A specializable
     // pipeline cannot be used directly and must be specialized first.
@@ -954,7 +954,7 @@ struct ComponentKey
 
 struct PipelineKey
 {
-    PipelineBase* pipeline;
+    Pipeline* pipeline;
     short_vector<ShaderComponentID> specializationArgs;
     size_t hash;
     void updateHash()
@@ -986,14 +986,14 @@ public:
     ShaderComponentID getComponentId(std::string_view name);
     ShaderComponentID getComponentId(ComponentKey key);
 
-    RefPtr<PipelineBase> getSpecializedPipeline(PipelineKey programKey)
+    RefPtr<Pipeline> getSpecializedPipeline(PipelineKey programKey)
     {
         auto it = specializedPipelines.find(programKey);
         if (it != specializedPipelines.end())
             return it->second;
         return nullptr;
     }
-    void addSpecializedPipeline(PipelineKey key, RefPtr<PipelineBase> specializedPipeline);
+    void addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline);
     void free()
     {
         specializedPipelines = decltype(specializedPipelines)();
@@ -1011,7 +1011,7 @@ protected:
     };
 
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, RefPtr<PipelineBase>, PipelineKeyHasher> specializedPipelines;
+    std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
 
 class TransientResourceHeapBase : public ITransientResourceHeap, public ComObject
@@ -1052,7 +1052,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::map<PipelineBase*, RefPtr<Buffer>> m_deviceBuffers;
+    std::map<Pipeline*, RefPtr<Buffer>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
@@ -1063,13 +1063,13 @@ public:
     }
 
     virtual RefPtr<Buffer> createDeviceBuffer(
-        PipelineBase* pipeline,
+        Pipeline* pipeline,
         TransientResourceHeapBase* transientHeap,
         IRayTracingCommandEncoder* encoder
     ) = 0;
 
     Buffer* getOrCreateBuffer(
-        PipelineBase* pipeline,
+        Pipeline* pipeline,
         TransientResourceHeapBase* transientHeap,
         IRayTracingCommandEncoder* encoder
     )
@@ -1223,9 +1223,9 @@ public:
     // The newly specialized pipeline is held alive by the pipeline cache so users of `outNewPipeline` do not
     // need to maintain its lifespan.
     Result maybeSpecializePipeline(
-        PipelineBase* currentPipeline,
+        Pipeline* currentPipeline,
         ShaderObjectBase* rootObject,
-        RefPtr<PipelineBase>& outNewPipeline
+        RefPtr<Pipeline>& outNewPipeline
     );
 
     virtual Result createShaderObjectLayout(

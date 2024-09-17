@@ -60,7 +60,7 @@ public:
     ID3D12GraphicsCommandList6* m_d3dCmdList6;
     ID3D12GraphicsCommandList* m_preCmdList = nullptr;
 
-    RefPtr<PipelineBase> m_currentPipeline;
+    RefPtr<Pipeline> m_currentPipeline;
 
 
     static int getBindPointIndex(PipelineType type);
@@ -77,7 +77,7 @@ public:
     /// applys the root object bindings and binds the pipeline state.
     /// The newly specialized pipeline is held alive by the pipeline cache so users of
     /// `newPipeline` do not need to maintain its lifespan.
-    Result _bindRenderState(Submitter* submitter, RefPtr<PipelineBase>& newPipeline);
+    Result _bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline);
 };
 
 class ResourceCommandEncoderImpl : public IResourceCommandEncoder, public CommandEncoderImpl

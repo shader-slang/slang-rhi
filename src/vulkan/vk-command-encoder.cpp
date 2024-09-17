@@ -342,7 +342,7 @@ Result CommandEncoderImpl::bindRenderState(VkPipelineBindPoint pipelineBindPoint
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
                                                ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
                                                : &m_commandBuffer->m_rootObject;
-    RefPtr<PipelineBase> newPipeline;
+    RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
     PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
 

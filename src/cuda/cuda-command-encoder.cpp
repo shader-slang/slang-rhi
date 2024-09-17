@@ -199,7 +199,7 @@ void ComputeCommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     m_writer->setPipeline(state);
-    PipelineBase* pipelineImpl = static_cast<PipelineBase*>(state);
+    Pipeline* pipelineImpl = static_cast<Pipeline*>(state);
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );
@@ -210,7 +210,7 @@ Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject**
 Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     m_writer->setPipeline(state);
-    PipelineBase* pipelineImpl = static_cast<PipelineBase*>(state);
+    Pipeline* pipelineImpl = static_cast<Pipeline*>(state);
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );
