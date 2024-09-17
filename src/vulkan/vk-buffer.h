@@ -43,10 +43,11 @@ public:
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(Device* device, const BufferDesc& desc);
+    BufferImpl(DeviceImpl* device, const BufferDesc& desc);
 
     ~BufferImpl();
 
+    DeviceImpl* m_device;
     VKBufferHandleRAII m_buffer;
     VKBufferHandleRAII m_uploadBuffer;
 

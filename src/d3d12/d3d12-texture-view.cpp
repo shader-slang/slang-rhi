@@ -212,9 +212,8 @@ Result ResourceViewImpl::getNativeHandle(NativeHandle* outHandle)
 
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
     if (m_descriptor)
-        device->m_cpuViewHeap->free(m_descriptor);
+        m_device->m_cpuViewHeap->free(m_descriptor);
 }
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()

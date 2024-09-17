@@ -2,15 +2,15 @@
 
 namespace rhi::vk {
 
-SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
-    : Sampler(device, desc)
+SamplerImpl::SamplerImpl(DeviceImpl* device, const SamplerDesc& desc)
+    : Sampler(desc)
+    , m_device(device)
 {
 }
 
 SamplerImpl::~SamplerImpl()
 {
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    device->m_api.vkDestroySampler(device->m_api.m_device, m_sampler, nullptr);
+    m_device->m_api.vkDestroySampler(m_device->m_api.m_device, m_sampler, nullptr);
 }
 
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)

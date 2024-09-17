@@ -14,9 +14,10 @@ struct TextureSubresourceView
 class TextureImpl : public Texture
 {
 public:
-    TextureImpl(Device* device, const TextureDesc& desc);
+    TextureImpl(DeviceImpl* device, const TextureDesc& desc);
     ~TextureImpl();
 
+    DeviceImpl* m_device;
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_R8G8B8A8_UNORM;
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;

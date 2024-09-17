@@ -96,10 +96,11 @@ class TextureImpl : public Texture
     };
 
 public:
-    TextureImpl(Device* device, const TextureDesc& desc)
-        : Texture(device, desc)
+    TextureImpl(const TextureDesc& desc)
+        : Texture(desc)
     {
     }
+
     ~TextureImpl();
 
     Result init(SubresourceData const* initData);

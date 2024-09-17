@@ -2015,7 +2015,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
     view->m_texture = static_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;

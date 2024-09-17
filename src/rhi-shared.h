@@ -201,16 +201,7 @@ protected:
 };
 
 class Resource : public ComObject
-{
-public:
-    Resource(Device* device)
-        : m_device(device)
-    {
-        SLANG_RHI_ASSERT(device);
-    }
-
-    RefPtr<Device> m_device;
-};
+{};
 
 class Buffer : public IBuffer, public Resource
 {
@@ -219,9 +210,8 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Buffer(Device* device, const BufferDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
+    Buffer(const BufferDesc& desc)
+        : m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -245,9 +235,8 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Texture(Device* device, const TextureDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
+    Texture(const TextureDesc& desc)
+        : m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -271,10 +260,9 @@ public:
     ITextureView* getInterface(const Guid& guid);
 
 public:
-    TextureView(Device* device, const TextureViewDesc& desc)
-        : Resource(device)
+    TextureView(const TextureViewDesc& desc)
+        : m_desc(desc)
     {
-        m_desc = desc;
         m_descHolder.holdString(m_desc.label);
     }
 
@@ -292,9 +280,8 @@ public:
     ISampler* getInterface(const Guid& guid);
 
 public:
-    Sampler(Device* device, const SamplerDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
+    Sampler(const SamplerDesc& desc)
+        : m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -314,9 +301,8 @@ public:
     IAccelerationStructure* getInterface(const Guid& guid);
 
 public:
-    AccelerationStructure(Device* device, const CreateDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
+    AccelerationStructure(const CreateDesc& desc)
+        : m_desc(desc)
     {
         // m_descHolder.holdString(m_desc.label);
     }

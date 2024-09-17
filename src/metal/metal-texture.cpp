@@ -3,8 +3,8 @@
 
 namespace rhi::metal {
 
-TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
-    : Texture(device, desc)
+TextureImpl::TextureImpl(const TextureDesc& desc)
+    : Texture(desc)
 {
 }
 

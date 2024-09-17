@@ -14,7 +14,7 @@ Result ShaderObjectData::setCount(Index count)
         {
             BufferDesc desc;
             desc.size = count;
-            m_buffer = new BufferImpl(device, desc);
+            m_buffer = new BufferImpl(desc);
         }
         m_buffer->m_cpuBuffer = m_cpuBuffer.data();
         m_buffer->m_desc.size = count;
@@ -25,7 +25,7 @@ Result ShaderObjectData::setCount(Index count)
         {
             BufferDesc desc;
             desc.size = count;
-            m_buffer = new BufferImpl(device, desc);
+            m_buffer = new BufferImpl(desc);
             if (count)
             {
                 SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc((CUdeviceptr*)&m_buffer->m_cudaMemory, (size_t)count));

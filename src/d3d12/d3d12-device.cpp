@@ -1334,7 +1334,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     // entries that we check before we go to the heap, and then
     // when we are done with a sampler we simply add it to the free list.
     //
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(desc);
     samplerImpl->m_allocator = samplerHeap;
     samplerImpl->m_descriptor = cpuDescriptor;
     returnComPtr(outSampler, samplerImpl);
@@ -1343,7 +1343,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
     view->m_texture = static_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;

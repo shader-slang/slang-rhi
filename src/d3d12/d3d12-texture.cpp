@@ -3,41 +3,41 @@
 
 namespace rhi::d3d12 {
 
-TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
-    : Texture(device, desc)
+TextureImpl::TextureImpl(DeviceImpl* device, const TextureDesc& desc)
+    : Texture(desc)
+    , m_device(device)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
 TextureImpl::~TextureImpl()
 {
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
     for (auto& srv : m_srvs)
     {
         if (srv.second)
         {
-            device->m_cpuViewHeap->free(srv.second);
+            m_device->m_cpuViewHeap->free(srv.second);
         }
     }
     for (auto& uav : m_uavs)
     {
         if (uav.second)
         {
-            device->m_cpuViewHeap->free(uav.second);
+            m_device->m_cpuViewHeap->free(uav.second);
         }
     }
     for (auto& rtv : m_rtvs)
     {
         if (rtv.second)
         {
-            device->m_rtvAllocator->free(rtv.second);
+            m_device->m_rtvAllocator->free(rtv.second);
         }
     }
     for (auto& dsv : m_dsvs)
     {
         if (dsv.second)
         {
-            device->m_dsvAllocator->free(dsv.second);
+            m_device->m_dsvAllocator->free(dsv.second);
         }
     }
 
@@ -167,9 +167,8 @@ D3D12Descriptor TextureImpl::getSRV(Format format, TextureType type, const Subre
         break;
     }
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    device->m_cpuViewHeap->allocate(&descriptor);
-    device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
+    m_device->m_cpuViewHeap->allocate(&descriptor);
+    m_device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
 }
@@ -231,9 +230,8 @@ D3D12Descriptor TextureImpl::getUAV(Format format, TextureType type, const Subre
         break;
     }
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    device->m_cpuViewHeap->allocate(&descriptor);
-    device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, descriptor.cpuHandle);
+    m_device->m_cpuViewHeap->allocate(&descriptor);
+    m_device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
 }
@@ -306,9 +304,8 @@ D3D12Descriptor TextureImpl::getRTV(Format format, TextureType type, const Subre
         break;
     }
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    device->m_rtvAllocator->allocate(&descriptor);
-    device->m_device->CreateRenderTargetView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
+    m_device->m_rtvAllocator->allocate(&descriptor);
+    m_device->m_device->CreateRenderTargetView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
 }
@@ -363,9 +360,8 @@ D3D12Descriptor TextureImpl::getDSV(Format format, TextureType type, const Subre
         break;
     }
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    device->m_dsvAllocator->allocate(&descriptor);
-    device->m_device->CreateDepthStencilView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
+    m_device->m_dsvAllocator->allocate(&descriptor);
+    m_device->m_device->CreateDepthStencilView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
 }

@@ -8,8 +8,8 @@ namespace rhi::cuda {
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(Device* device, const BufferDesc& desc)
-        : Buffer(device, desc)
+    BufferImpl(const BufferDesc& desc)
+        : Buffer(desc)
     {
     }
 

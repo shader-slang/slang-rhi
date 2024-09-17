@@ -8,10 +8,9 @@ namespace rhi::metal {
 class SamplerImpl : public Sampler
 {
 public:
-    RefPtr<DeviceImpl> m_device;
     NS::SharedPtr<MTL::SamplerState> m_samplerState;
 
-    SamplerImpl(Device* device, const SamplerDesc& desc);
+    SamplerImpl(const SamplerDesc& desc);
     ~SamplerImpl();
 
     Result init(DeviceImpl* device, const SamplerDesc& desc);

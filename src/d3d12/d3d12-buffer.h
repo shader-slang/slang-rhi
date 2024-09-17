@@ -7,10 +7,11 @@ namespace rhi::d3d12 {
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(Device* device, const BufferDesc& desc);
+    BufferImpl(DeviceImpl* device, const BufferDesc& desc);
 
     ~BufferImpl();
 
+    DeviceImpl* m_device;
     /// The resource in gpu memory, allocated on the correct heap relative to the cpu access flag
     D3D12Resource m_resource;
     D3D12_RESOURCE_STATES m_defaultState;

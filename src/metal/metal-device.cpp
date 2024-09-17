@@ -318,7 +318,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         return SLANG_FAIL;
     }
 
-    RefPtr<TextureImpl> textureImpl(new TextureImpl(this, desc));
+    RefPtr<TextureImpl> textureImpl(new TextureImpl(desc));
 
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
     switch (desc.memoryType)
@@ -497,7 +497,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     resourceOptions |=
         (desc.memoryType == MemoryType::DeviceLocal) ? MTL::ResourceStorageModePrivate : MTL::ResourceStorageModeShared;
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(desc));
     buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
     if (!buffer->m_buffer)
     {
@@ -539,7 +539,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     AUTORELEASEPOOL
 
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(desc);
     SLANG_RETURN_ON_FAIL(samplerImpl->init(this, desc));
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
@@ -550,7 +550,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     AUTORELEASEPOOL
 
     auto textureImpl = static_cast<TextureImpl*>(texture);
-    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(this, desc);
+    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(desc);
     viewImpl->m_texture = textureImpl;
     if (viewImpl->m_desc.format == Format::Unknown)
         viewImpl->m_desc.format = viewImpl->m_texture->m_desc.format;

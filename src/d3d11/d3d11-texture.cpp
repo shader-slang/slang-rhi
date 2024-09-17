@@ -13,8 +13,7 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
     if (rtv)
         return rtv;
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateRenderTargetView(m_resource, nullptr, rtv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateRenderTargetView(m_resource, nullptr, rtv.writeRef()));
 
     return rtv;
 }
@@ -28,8 +27,7 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     if (dsv)
         return dsv;
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateDepthStencilView(m_resource, nullptr, dsv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateDepthStencilView(m_resource, nullptr, dsv.writeRef()));
 
     return dsv;
 }
@@ -47,8 +45,7 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
     initSrvDesc(m_desc, D3DUtil::getMapFormat(format), srvDesc);
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateShaderResourceView(m_resource, &srvDesc, srv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateShaderResourceView(m_resource, &srvDesc, srv.writeRef()));
 
     return srv;
 }
@@ -62,8 +59,7 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
     if (uav)
         return uav;
 
-    DeviceImpl* device = static_cast<DeviceImpl*>(m_device.get());
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateUnorderedAccessView(m_resource, nullptr, uav.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateUnorderedAccessView(m_resource, nullptr, uav.writeRef()));
 
     return uav;
 }
