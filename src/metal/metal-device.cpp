@@ -432,7 +432,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             return SLANG_FAIL;
         }
 
-        Count sliceCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+        GfxCount sliceCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
         for (Index slice = 0; slice < sliceCount; ++slice)
         {
