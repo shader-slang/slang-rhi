@@ -16,7 +16,6 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     TextureDesc srcTexDesc = {};
     srcTexDesc.type = TextureType::Texture2D;
     srcTexDesc.numMipLevels = 1;
-    srcTexDesc.arraySize = 1;
     srcTexDesc.size.width = 4;
     srcTexDesc.size.height = 4;
     srcTexDesc.size.depth = 1;
