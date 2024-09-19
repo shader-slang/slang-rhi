@@ -406,13 +406,13 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
             arrayDesc.NumChannels = numChannels;
             arrayDesc.Flags = 0;
 
-            if (desc.arraySize > 1)
+            if (desc.arrayLength > 1)
             {
                 if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
                     desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Flags |= CUDA_ARRAY3D_LAYERED;
-                    arrayDesc.Depth = desc.arraySize;
+                    arrayDesc.Depth = desc.arrayLength;
                 }
                 else
                 {
@@ -434,7 +434,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
         {
             resourceType = CU_RESOURCE_TYPE_ARRAY;
 
-            if (desc.arraySize > 1)
+            if (desc.arrayLength > 1)
             {
                 if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
                     desc.type == TextureType::TextureCube)
@@ -447,7 +447,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 memset(&arrayDesc, 0, sizeof(arrayDesc));
 
                 // Set the depth as the array length
-                arrayDesc.Depth = desc.arraySize;
+                arrayDesc.Depth = desc.arrayLength;
                 if (desc.type == TextureType::TextureCube)
                 {
                     arrayDesc.Depth *= 6;
@@ -542,7 +542,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 
             const void* srcDataPtr = nullptr;
 
-            if (desc.arraySize > 1)
+            if (desc.arrayLength > 1)
             {
                 SLANG_RHI_ASSERT(
                     desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
@@ -553,7 +553,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 // 'face' This seems reasonable and works with the Copy3D.
                 const size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
 
-                Index faceCount = desc.arraySize;
+                Index faceCount = desc.arrayLength;
                 if (desc.type == TextureType::TextureCube)
                 {
                     faceCount *= 6;
@@ -595,7 +595,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 }
             }
 
-            if (desc.arraySize > 1)
+            if (desc.arrayLength > 1)
             {
                 SLANG_RHI_ASSERT(
                     desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
@@ -614,7 +614,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 copyParam.WidthInBytes = copyParam.srcPitch;
                 copyParam.Height = mipHeight;
                 // Set the depth to the array length
-                copyParam.Depth = desc.arraySize;
+                copyParam.Depth = desc.arrayLength;
 
                 if (desc.type == TextureType::TextureCube)
                 {

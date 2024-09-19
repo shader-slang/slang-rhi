@@ -282,20 +282,16 @@ VkImageViewType _calcImageViewType(TextureType type, const TextureDesc& desc)
     switch (type)
     {
     case TextureType::Texture1D:
-        return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
+        return desc.arrayLength > 1 ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
     case TextureType::Texture2D:
-        return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+        return desc.arrayLength > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
     case TextureType::TextureCube:
-        return desc.arraySize > 1 ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
+        return desc.arrayLength > 1 ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
     case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
-        SLANG_RHI_ASSERT(desc.arraySize <= 1);
-        if (desc.arraySize <= 1)
-        {
-            return VK_IMAGE_VIEW_TYPE_3D;
-        }
-        break;
+        SLANG_RHI_ASSERT(desc.arrayLength <= 1);
+        return VK_IMAGE_VIEW_TYPE_3D;
     }
     default:
         break;

@@ -501,10 +501,11 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     D3D11_SUBRESOURCE_DATA* subResourcesPtr = nullptr;
     if (initData)
     {
-        subRes.resize(srcDesc.numMipLevels * srcDesc.arraySize);
+        int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+        subRes.resize(srcDesc.numMipLevels * arrayLayerCount);
         {
             int subResourceIndex = 0;
-            for (int i = 0; i < srcDesc.arraySize; i++)
+            for (int i = 0; i < arrayLayerCount; i++)
             {
                 for (int j = 0; j < srcDesc.numMipLevels; j++)
                 {
@@ -538,7 +539,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.Format = format;
         desc.MiscFlags = 0;
         desc.MipLevels = srcDesc.numMipLevels;
-        desc.ArraySize = srcDesc.arraySize;
+        desc.ArraySize = srcDesc.arrayLength;
         desc.Width = srcDesc.size.width;
         desc.Usage = D3D11_USAGE_DEFAULT;
 
@@ -557,7 +558,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.Format = format;
         desc.MiscFlags = 0;
         desc.MipLevels = srcDesc.numMipLevels;
-        desc.ArraySize = srcDesc.arraySize;
+        desc.ArraySize = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
 
         desc.Width = srcDesc.size.width;
         desc.Height = srcDesc.size.height;

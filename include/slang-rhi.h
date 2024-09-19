@@ -680,8 +680,8 @@ struct TextureDesc
     bool isShared = false;
 
     Extents size;
-    /// Array size.
-    GfxCount arraySize = 0;
+    /// Array length.
+    GfxCount arrayLength = 0;
     /// Number of mip levels - if 0 will create all mip levels.
     GfxCount numMipLevels = 0;
     /// The resources format.

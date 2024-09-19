@@ -93,7 +93,6 @@ ComPtr<ITextureView> createTexView(IDevice* device, Extents size, Format format,
     TextureDesc texDesc = {};
     texDesc.type = TextureType::Texture2D;
     texDesc.numMipLevels = mips;
-    texDesc.arraySize = 1;
     texDesc.size = size;
     texDesc.usage = TextureUsage::ShaderResource;
     texDesc.defaultState = ResourceState::ShaderResource;

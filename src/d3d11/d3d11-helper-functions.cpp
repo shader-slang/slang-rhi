@@ -295,13 +295,13 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
     switch (textureDesc.type)
     {
     case TextureType::Texture1D:
-        if (textureDesc.arraySize > 1)
+        if (textureDesc.arrayLength > 1)
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
             descOut.Texture1DArray.MostDetailedMip = 0;
             descOut.Texture1DArray.MipLevels = textureDesc.numMipLevels;
             descOut.Texture1DArray.FirstArraySlice = 0;
-            descOut.Texture1DArray.ArraySize = textureDesc.arraySize;
+            descOut.Texture1DArray.ArraySize = textureDesc.arrayLength;
         }
         else
         {
@@ -311,13 +311,13 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
         }
         break;
     case TextureType::Texture2D:
-        if (textureDesc.arraySize > 1)
+        if (textureDesc.arrayLength > 1)
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
             descOut.Texture2DArray.MostDetailedMip = 0;
             descOut.Texture2DArray.MipLevels = textureDesc.numMipLevels;
             descOut.Texture2DArray.FirstArraySlice = 0;
-            descOut.Texture2DArray.ArraySize = textureDesc.arraySize;
+            descOut.Texture2DArray.ArraySize = textureDesc.arrayLength;
         }
         else
         {
@@ -332,13 +332,13 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
         descOut.Texture3D.MipLevels = textureDesc.numMipLevels;
         break;
     case TextureType::TextureCube:
-        if (textureDesc.arraySize > 6)
+        if (textureDesc.arrayLength > 1)
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
             descOut.TextureCubeArray.MostDetailedMip = 0;
             descOut.TextureCubeArray.MipLevels = textureDesc.numMipLevels;
             descOut.TextureCubeArray.First2DArrayFace = 0;
-            descOut.TextureCubeArray.NumCubes = textureDesc.arraySize / 6;
+            descOut.TextureCubeArray.NumCubes = textureDesc.arrayLength;
         }
         else
         {

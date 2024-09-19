@@ -21,7 +21,7 @@ void SwapchainImpl::createSwapchainBufferImages()
     m_swapChain->GetBuffer(0, IID_PPV_ARGS(d3dResource.writeRef()));
     TextureDesc imageDesc = {};
     imageDesc.type = TextureType::Texture2D;
-    imageDesc.arraySize = 0;
+    imageDesc.arrayLength = 1;
     imageDesc.numMipLevels = 1;
     imageDesc.size.width = m_desc.width;
     imageDesc.size.height = m_desc.height;

@@ -113,8 +113,9 @@ SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
     SubresourceRange resolved = range;
     resolved.mipLevel = std::min(resolved.mipLevel, m_desc.numMipLevels);
     resolved.mipLevelCount = std::min(resolved.mipLevelCount, m_desc.numMipLevels - resolved.mipLevel);
-    resolved.baseArrayLayer = std::min(resolved.baseArrayLayer, m_desc.arraySize);
-    resolved.layerCount = std::min(resolved.layerCount, m_desc.arraySize - resolved.baseArrayLayer);
+    GfxCount arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
+    resolved.baseArrayLayer = std::min(resolved.baseArrayLayer, arrayLayerCount);
+    resolved.layerCount = std::min(resolved.layerCount, arrayLayerCount - resolved.baseArrayLayer);
     return resolved;
 }
 

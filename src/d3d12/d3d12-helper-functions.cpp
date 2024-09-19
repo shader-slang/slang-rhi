@@ -218,7 +218,14 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
     resourceDesc.Format = pixelFormat;
     resourceDesc.Width = srcDesc.size.width;
     resourceDesc.Height = srcDesc.size.height;
-    resourceDesc.DepthOrArraySize = srcDesc.type == TextureType::Texture3D ? srcDesc.size.depth : srcDesc.arraySize;
+    if (srcDesc.type == TextureType::Texture3D)
+    {
+        resourceDesc.DepthOrArraySize = srcDesc.size.depth;
+    }
+    else
+    {
+        resourceDesc.DepthOrArraySize = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+    }
 
     resourceDesc.MipLevels = numMipMaps;
     resourceDesc.SampleDesc.Count = srcDesc.sampleCount;
