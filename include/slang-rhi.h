@@ -1024,16 +1024,27 @@ struct Binding
 
     // clang-format off
     Binding() : type(BindingType::Unknown) {}
+    // Buffer
     Binding(ComPtr<IBuffer> buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer), bufferRange(range) {}
-    Binding(IBuffer* buffer, const BufferRange& range = kEntireBuffer) : Binding(ComPtr<IBuffer>(buffer), range) {}
+    Binding(IBuffer* buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer), bufferRange(range) {}
+    // BufferWithCounter
     Binding(ComPtr<IBuffer> buffer, ComPtr<IBuffer> counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
+    Binding(IBuffer* buffer, IBuffer* counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
+    // Texture
     Binding(ComPtr<ITexture> texture) : type(BindingType::Texture), resource(texture) {}
+    Binding(ITexture* texture) : type(BindingType::Texture), resource(texture) {}
+    // TextureView
     Binding(ComPtr<ITextureView> textureView) : type(BindingType::TextureView), resource(textureView) {}
+    Binding(ITextureView* textureView) : type(BindingType::TextureView), resource(textureView) {}
+    // Sampler
     Binding(ComPtr<ISampler> sampler) : type(BindingType::Sampler) , resource(sampler) {}
-    Binding(ComPtr<ITextureView> textureView, ComPtr<ISampler> sampler) : type(BindingType::CombinedTextureSampler), resource(textureView), resource2(sampler) {}
+    Binding(ISampler* sampler) : type(BindingType::Sampler) , resource(sampler) {}
+    // CombinedTextureSampler
     Binding(ComPtr<ITexture> texture, ComPtr<ISampler> sampler) : type(BindingType::CombinedTextureSampler) , resource(texture) {}
+    Binding(ComPtr<ITextureView> textureView, ComPtr<ISampler> sampler) : type(BindingType::CombinedTextureSampler), resource(textureView), resource2(sampler) {}
+    // AccelerationStructure
     Binding(ComPtr<IAccelerationStructure> as) : type(BindingType::AccelerationStructure) , resource(as) {}
-    Binding(IAccelerationStructure* as) : Binding(ComPtr<IAccelerationStructure>(as)) {}
+    Binding(IAccelerationStructure* as) : type(BindingType::AccelerationStructure) , resource(as) {}
     // clang-format on
 };
 
