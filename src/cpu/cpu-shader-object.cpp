@@ -45,6 +45,7 @@ Buffer* CPUShaderObjectData::getBufferResource(
         m_buffer = new BufferImpl(desc);
     }
     m_buffer->m_desc.size = m_ordinaryData.size();
+    m_buffer->m_data = m_ordinaryData.data();
     return m_buffer.get();
 }
 
