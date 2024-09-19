@@ -854,10 +854,13 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     switch (binding.type)
     {
     case BindingType::Buffer:
+    case BindingType::BufferWithCounter:
     {
         BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* counterBuffer = static_cast<BufferImpl*>(binding.resource2.get());
         BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         m_boundResources[bindingIndex] = buffer;
+        m_boundCounterResources[bindingIndex] = counterBuffer;
         if (bindingRange.isRootParameter)
         {
             m_rootArguments[bindingRange.baseIndex] = buffer->getDeviceAddress() + bufferRange.offset;
@@ -877,7 +880,8 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
                 descriptor = buffer->getUAV(buffer->m_desc.format, 0, bufferRange);
                 break;
             case slang::BindingType::MutableRawBuffer:
-                descriptor = buffer->getUAV(Format::Unknown, bindingRange.bufferElementStride, bufferRange);
+                descriptor =
+                    buffer->getUAV(Format::Unknown, bindingRange.bufferElementStride, bufferRange, counterBuffer);
                 break;
             default:
                 return SLANG_FAIL;
@@ -890,10 +894,6 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
             );
         }
         break;
-    }
-    case BindingType::BufferWithCounter:
-    {
-        return SLANG_FAIL;
     }
     case BindingType::Texture:
     {

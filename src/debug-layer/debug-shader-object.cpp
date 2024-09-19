@@ -115,6 +115,10 @@ Result DebugShaderObject::setBinding(ShaderOffset const& offset, Binding binding
     case BindingType::Buffer:
         innerBinding.resource = getInnerObj(static_cast<DebugBuffer*>(binding.resource.get()));
         break;
+    case BindingType::BufferWithCounter:
+        innerBinding.resource = getInnerObj(static_cast<DebugBuffer*>(binding.resource.get()));
+        innerBinding.resource2 = getInnerObj(static_cast<DebugBuffer*>(binding.resource2.get()));
+        break;
     case BindingType::Texture:
         innerBinding.resource = getInnerObj(static_cast<DebugTexture*>(binding.resource.get()));
         break;

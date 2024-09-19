@@ -32,9 +32,10 @@ public:
         Format format;
         uint32_t stride;
         BufferRange range;
+        BufferImpl* counter;
         bool operator==(const ViewKey& other) const
         {
-            return format == other.format && stride == other.stride && range == other.range;
+            return format == other.format && stride == other.stride && range == other.range && counter == other.counter;
         }
     };
 
@@ -47,6 +48,7 @@ public:
             hash_combine(hash, key.stride);
             hash_combine(hash, key.range.offset);
             hash_combine(hash, key.range.size);
+            hash_combine(hash, key.counter);
             return hash;
         }
     };
@@ -55,7 +57,7 @@ public:
     std::unordered_map<ViewKey, D3D12Descriptor, ViewKeyHasher> m_uavs;
 
     D3D12Descriptor getSRV(Format format, uint32_t stride, const BufferRange& range);
-    D3D12Descriptor getUAV(Format format, uint32_t stride, const BufferRange& range);
+    D3D12Descriptor getUAV(Format format, uint32_t stride, const BufferRange& range, BufferImpl* counter = nullptr);
 };
 
 } // namespace rhi::d3d12

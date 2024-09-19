@@ -96,7 +96,7 @@ Result BufferImpl::unmap(MemoryRange* writtenRange)
 
 D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
 {
-    ViewKey key = {format, stride, range};
+    ViewKey key = {format, stride, range, nullptr};
     D3D12Descriptor& descriptor = m_srvs[key];
     if (descriptor)
         return descriptor;
@@ -133,9 +133,9 @@ D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferR
     return descriptor;
 }
 
-D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferRange& range)
+D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferRange& range, BufferImpl* counter)
 {
-    ViewKey key = {format, stride, range};
+    ViewKey key = {format, stride, range, counter};
     D3D12Descriptor& descriptor = m_uavs[key];
     if (descriptor)
         return descriptor;
@@ -166,7 +166,9 @@ D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferR
     }
 
     m_device->m_cpuViewHeap->allocate(&descriptor);
-    m_device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, descriptor.cpuHandle);
+    ID3D12Resource* counterResource = counter ? counter->m_resource.getResource() : nullptr;
+    m_device->m_device
+        ->CreateUnorderedAccessView(m_resource.getResource(), counterResource, &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
 }
