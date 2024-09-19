@@ -615,7 +615,11 @@ Result D3DUtil::compileHLSLShader(
 
 SharedLibraryHandle D3DUtil::getDxgiModule()
 {
-    const char* const libName = SLANG_ENABLE_DXVK ? "dxvk_dxgi" : "dxgi";
+#if SLANG_WINDOWS_FAMILY
+    const char* const libName = "dxgi";
+#else
+    const char* const libName = "libdxvk_dxgi.so";
+#endif
 
     static SharedLibraryHandle s_dxgiModule = [&]()
     {

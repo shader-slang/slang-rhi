@@ -442,7 +442,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 #if SLANG_WINDOWS_FAMILY
     const char* libName = "d3d12";
 #else
-    const char* libName = "vkd3d-proton-d3d12";
+    const char* libName = "libvkd3d-proton-d3d12.so";
 #endif
     if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
     {
