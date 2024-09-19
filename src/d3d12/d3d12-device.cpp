@@ -1018,7 +1018,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
-    const int arraySize = srcDesc.arrayLength;
     const int numMipMaps = srcDesc.numMipLevels;
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
@@ -1133,7 +1132,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         ID3D12Resource* uploadResource = uploadTexture;
 
         int subResourceIndex = 0;
-        for (int arrayIndex = 0; arrayIndex < arraySize; arrayIndex++)
+        int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+        for (int arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
         {
             uint8_t* p;
             uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));
