@@ -222,10 +222,10 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::Texture:
-            setData(offset, &texture->m_cudaSurfObj, sizeof(texture->m_cudaSurfObj));
+            setData(offset, &texture->m_cudaTexObj, sizeof(texture->m_cudaTexObj));
             break;
         case slang::BindingType::MutableTexture:
-            setData(offset, &texture->m_cudaTexObj, sizeof(texture->m_cudaTexObj));
+            setData(offset, &texture->m_cudaSurfObj, sizeof(texture->m_cudaSurfObj));
             break;
         }
         break;
@@ -238,10 +238,10 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::Texture:
-            setData(offset, &texture->m_cudaSurfObj, sizeof(texture->m_cudaSurfObj));
+            setData(offset, &texture->m_cudaTexObj, sizeof(texture->m_cudaTexObj));
             break;
         case slang::BindingType::MutableTexture:
-            setData(offset, &texture->m_cudaTexObj, sizeof(texture->m_cudaTexObj));
+            setData(offset, &texture->m_cudaSurfObj, sizeof(texture->m_cudaSurfObj));
             break;
         }
         break;
