@@ -11,8 +11,8 @@ BufferDesc fixupBufferDesc(const BufferDesc& desc)
 TextureDesc fixupTextureDesc(const TextureDesc& desc)
 {
     TextureDesc rs = desc;
-    if (desc.arraySize == 0)
-        rs.arraySize = desc.type == TextureType::TextureCube ? 6 : 1;
+    if (desc.arrayLength == 0)
+        rs.arrayLength = 1;
     if (desc.numMipLevels == 0)
         rs.numMipLevels = calcNumMipLevels(desc.type, desc.size);
     return rs;

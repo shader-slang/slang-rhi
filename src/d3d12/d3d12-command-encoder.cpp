@@ -42,9 +42,6 @@ void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* texture
                 continue;
             barrier.Transition.pResource = textureImpl->m_resource.getResource();
             auto planeCount = D3DUtil::getPlaneSliceCount(D3DUtil::getMapFormat(textureImpl->m_desc.format));
-            auto arraySize = textureImpl->m_desc.arraySize;
-            if (arraySize == 0)
-                arraySize = 1;
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
         }
         barriers.push_back(barrier);
@@ -99,7 +96,7 @@ void CommandEncoderImpl::textureSubresourceBarrier(
                         layer + subresourceRange.baseArrayLayer,
                         planeIndex,
                         textureImpl->m_desc.numMipLevels,
-                        textureImpl->m_desc.arraySize
+                        textureImpl->m_desc.arrayLength
                     );
                     barriers.push_back(barrier);
                 }
@@ -335,7 +332,7 @@ void ResourceCommandEncoderImpl::copyTexture(
                     dstSubresource.baseArrayLayer + layer,
                     planeIndex,
                     dstTexture->m_desc.numMipLevels,
-                    dstTexture->m_desc.arraySize
+                    dstTexture->m_desc.arrayLength
                 );
 
                 D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
@@ -346,7 +343,7 @@ void ResourceCommandEncoderImpl::copyTexture(
                     srcSubresource.baseArrayLayer + layer,
                     planeIndex,
                     srcTexture->m_desc.numMipLevels,
-                    srcTexture->m_desc.arraySize
+                    srcTexture->m_desc.arrayLength
                 );
 
                 D3D12_BOX srcBox = {};
@@ -379,7 +376,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         subResourceRange.baseArrayLayer,
         0,
         dstTexture->m_desc.numMipLevels,
-        dstTexture->m_desc.arraySize
+        dstTexture->m_desc.arrayLength
     );
     auto textureSize = dstTexture->m_desc.size;
     FormatInfo formatInfo = {};
@@ -596,14 +593,14 @@ void ResourceCommandEncoderImpl::resolveResource(
                 layer + sourceRange.baseArrayLayer,
                 0,
                 srcDesc.numMipLevels,
-                srcDesc.arraySize
+                srcDesc.arrayLength
             );
             auto dstSubresourceIndex = D3DUtil::getSubresourceIndex(
                 mip + destRange.mipLevel,
                 layer + destRange.baseArrayLayer,
                 0,
                 dstDesc.numMipLevels,
-                dstDesc.arraySize
+                dstDesc.arrayLength
             );
 
             DXGI_FORMAT format = D3DUtil::getMapFormat(srcDesc.format);
@@ -698,7 +695,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
         srcSubresource.baseArrayLayer,
         0,
         srcTexture->m_desc.numMipLevels,
-        srcTexture->m_desc.arraySize
+        srcTexture->m_desc.arrayLength
     );
     auto textureSize = srcTexture->m_desc.size;
     FormatInfo formatInfo = {};
@@ -706,7 +703,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = srcTexture->m_desc.numMipLevels;
     if (srcSubresource.layerCount == 0)
-        srcSubresource.layerCount = srcTexture->m_desc.arraySize;
+        srcSubresource.layerCount = srcTexture->m_desc.arrayLength;
 
     for (GfxCount layer = 0; layer < srcSubresource.layerCount; layer++)
     {
@@ -725,7 +722,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
             layer + srcSubresource.baseArrayLayer,
             0,
             srcTexture->m_desc.numMipLevels,
-            srcTexture->m_desc.arraySize
+            srcTexture->m_desc.arrayLength
         );
         srcRegion.pResource = srcTexture->m_resource.getResource();
 

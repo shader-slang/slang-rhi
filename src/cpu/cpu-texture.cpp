@@ -124,8 +124,7 @@ Result TextureImpl::init(SubresourceData const* initData)
         return SLANG_FAIL;
 
     int32_t rank = baseShapeInfo->rank;
-    int32_t effectiveArrayElementCount = desc.arraySize ? desc.arraySize : 1;
-    effectiveArrayElementCount *= baseShapeInfo->implicitArrayElementCount;
+    int32_t effectiveArrayElementCount = desc.arrayLength * baseShapeInfo->implicitArrayElementCount;
     m_effectiveArrayElementCount = effectiveArrayElementCount;
 
     int32_t extents[kMaxRank];

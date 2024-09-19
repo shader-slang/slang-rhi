@@ -10,7 +10,7 @@ slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mipLevel)
     auto& desc = texture->_getDesc();
     auto baseShape = texture->m_baseShape;
 
-    dimensions.arrayElementCount = desc.arraySize;
+    dimensions.arrayElementCount = desc.arrayLength;
     dimensions.numberOfLevels = desc.numMipLevels;
     dimensions.shape = baseShape->rank;
     dimensions.width = desc.size.width;
@@ -64,7 +64,7 @@ void TextureViewImpl::SampleLevel(
 
     auto& mipLevelInfo = texture->m_mipLevels[integerMipLevel];
 
-    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::TextureType::TextureCube);
+    bool isArray = (desc.arrayLength > 1) || (desc.type == rhi::TextureType::TextureCube);
     int32_t effectiveArrayElementCount = texture->m_effectiveArrayElementCount;
     int32_t coordIndex = baseCoordCount;
     int32_t elementIndex = 0;
@@ -116,7 +116,7 @@ void* TextureViewImpl::_getTexelPtr(int32_t const* texelCoords)
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
-    bool isArray = (desc.arraySize != 0) || (desc.type == rhi::TextureType::TextureCube);
+    bool isArray = (desc.arrayLength > 1) || (desc.type == rhi::TextureType::TextureCube);
     bool isMultisample = desc.sampleCount > 1;
     bool hasMipLevels = !isMultisample;
 

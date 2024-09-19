@@ -151,7 +151,7 @@ Result SwapchainImpl::createSwapchainAndImages()
         TextureDesc imageDesc = {};
         imageDesc.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
         imageDesc.type = TextureType::Texture2D;
-        imageDesc.arraySize = 0;
+        imageDesc.arrayLength = 1;
         imageDesc.format = m_desc.format;
         imageDesc.size.width = m_desc.width;
         imageDesc.size.height = m_desc.height;

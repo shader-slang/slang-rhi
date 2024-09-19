@@ -86,7 +86,7 @@ D3D12Descriptor TextureImpl::getSRV(Format format, TextureType type, const Subre
     if (descriptor)
         return descriptor;
 
-    bool isArray = m_desc.arraySize > 1;
+    bool isArray = m_desc.arrayLength > 1;
     bool isMultiSample = m_desc.sampleCount > 1;
     D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
     viewDesc.Format = D3DUtil::getMapFormat(format);
@@ -180,7 +180,7 @@ D3D12Descriptor TextureImpl::getUAV(Format format, TextureType type, const Subre
     if (descriptor)
         return descriptor;
 
-    bool isArray = m_desc.arraySize > 1;
+    bool isArray = m_desc.arrayLength > 1;
     bool isMultiSample = m_desc.sampleCount > 1;
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
     viewDesc.Format =
@@ -243,7 +243,7 @@ D3D12Descriptor TextureImpl::getRTV(Format format, TextureType type, const Subre
     if (descriptor)
         return descriptor;
 
-    bool isArray = m_desc.arraySize > 1;
+    bool isArray = m_desc.arrayLength > 1;
     bool isMultiSample = m_desc.sampleCount > 1;
     D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
     viewDesc.Format = D3DUtil::getMapFormat(format);
@@ -317,7 +317,7 @@ D3D12Descriptor TextureImpl::getDSV(Format format, TextureType type, const Subre
     if (descriptor)
         return descriptor;
 
-    bool isArray = m_desc.arraySize > 1;
+    bool isArray = m_desc.arrayLength > 1;
     bool isMultiSample = m_desc.sampleCount > 1;
     D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc = {};
     viewDesc.Format = D3DUtil::getMapFormat(format);

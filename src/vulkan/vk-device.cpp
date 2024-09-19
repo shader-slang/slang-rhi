@@ -1140,6 +1140,7 @@ Result DeviceImpl::readTexture(
     SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &sizeInfo));
     Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
+    int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
     std::vector<Extents> mipSizes;
 
@@ -1158,7 +1159,7 @@ Result DeviceImpl::readTexture(
         bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
     }
     // Calculate the total size taking into account the array
-    bufferSize *= desc.arraySize;
+    bufferSize *= arrayLayerCount;
 
     VKBufferHandleRAII staging;
     SLANG_RETURN_ON_FAIL(staging.init(
@@ -1173,7 +1174,7 @@ Result DeviceImpl::readTexture(
     VkImageLayout srcImageLayout = VulkanUtil::getImageLayoutFromState(state);
 
     Offset dstOffset = 0;
-    for (int i = 0; i < desc.arraySize; ++i)
+    for (int i = 0; i < arrayLayerCount; ++i)
     {
         for (Index j = 0; j < mipSizes.size(); ++j)
         {
@@ -1427,8 +1428,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
-        SLANG_RHI_ASSERT(desc.arraySize <= 1);
-
+        SLANG_RHI_ASSERT(desc.arrayLength <= 1);
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
         imageInfo.extent =
             VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
@@ -1442,7 +1442,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     }
 
     imageInfo.mipLevels = desc.numMipLevels;
-    imageInfo.arrayLayers = desc.arraySize;
+    imageInfo.arrayLayers = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
     imageInfo.format = format;
 
@@ -1511,8 +1511,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     case TextureType::Texture3D:
     {
         // Can't have an array and 3d texture
-        SLANG_RHI_ASSERT(desc.arraySize <= 1);
-
+        SLANG_RHI_ASSERT(desc.arrayLength <= 1);
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
         imageInfo.extent =
             VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
@@ -1525,8 +1524,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
     }
 
+    int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+
     imageInfo.mipLevels = desc.numMipLevels;
-    imageInfo.arrayLayers = desc.arraySize;
+    imageInfo.arrayLayers = arrayLayerCount;
 
     imageInfo.format = format;
 
@@ -1618,7 +1619,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
 
         // Calculate the total size taking into account the array
-        bufferSize *= desc.arraySize;
+        bufferSize *= arrayLayerCount;
 
         SLANG_RETURN_ON_FAIL(uploadBuffer.init(
             m_api,
@@ -1639,7 +1640,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             dstDataStart = dstData;
 
             Offset dstSubresourceOffset = 0;
-            for (int i = 0; i < desc.arraySize; ++i)
+            for (int i = 0; i < arrayLayerCount; ++i)
             {
                 for (Index j = 0; j < mipSizes.size(); ++j)
                 {
@@ -1785,7 +1786,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         else
         {
             Offset srcOffset = 0;
-            for (int i = 0; i < desc.arraySize; ++i)
+            for (int i = 0; i < arrayLayerCount; ++i)
             {
                 for (Index j = 0; j < mipSizes.size(); ++j)
                 {

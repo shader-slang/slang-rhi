@@ -92,7 +92,7 @@ TextureSubresourceView TextureImpl::getView(Format format, const SubresourceRang
     if (view.imageView)
         return view;
 
-    bool isArray = m_desc.arraySize > 1;
+    bool isArray = m_desc.arrayLength > 1;
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;

@@ -71,7 +71,7 @@ struct BaseCopyTextureTest
         TextureDesc srcTexDesc = {};
         srcTexDesc.type = srcTextureInfo->textureType;
         srcTexDesc.numMipLevels = srcTextureInfo->mipLevelCount;
-        srcTexDesc.arraySize = srcTextureInfo->arrayLayerCount;
+        srcTexDesc.arrayLength = srcTextureInfo->arrayLayerCount;
         srcTexDesc.size = srcTextureInfo->extents;
         srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
         if (srcTextureInfo->format == Format::D32_FLOAT || srcTextureInfo->format == Format::D16_UNORM)
@@ -86,7 +86,7 @@ struct BaseCopyTextureTest
         TextureDesc dstTexDesc = {};
         dstTexDesc.type = dstTextureInfo->textureType;
         dstTexDesc.numMipLevels = dstTextureInfo->mipLevelCount;
-        dstTexDesc.arraySize = dstTextureInfo->arrayLayerCount;
+        dstTexDesc.arrayLength = dstTextureInfo->arrayLayerCount;
         dstTexDesc.size = dstTextureInfo->extents;
         dstTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;
         if (dstTextureInfo->format == Format::D32_FLOAT || dstTextureInfo->format == Format::D16_UNORM)

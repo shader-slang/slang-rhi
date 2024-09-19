@@ -63,7 +63,6 @@ static ComPtr<ITexture> createTexture(IDevice* device, Extents extents, Format f
     TextureDesc texDesc = {};
     texDesc.type = TextureType::Texture2D;
     texDesc.numMipLevels = 1;
-    texDesc.arraySize = 1;
     texDesc.size = extents;
     texDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination |
                     TextureUsage::CopySource;

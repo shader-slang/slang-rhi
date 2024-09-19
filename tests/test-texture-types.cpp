@@ -85,7 +85,7 @@ struct TextureAccessTest : TextureTest
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
         textureDesc.numMipLevels = textureInfo->mipLevelCount;
-        textureDesc.arraySize = textureInfo->arrayLayerCount;
+        textureDesc.arrayLength = textureInfo->arrayLayerCount;
         textureDesc.size = textureInfo->extents;
         textureDesc.usage = (readWrite ? TextureUsage::UnorderedAccess : TextureUsage::ShaderResource) |
                             TextureUsage::CopySource | TextureUsage::CopyDestination;
@@ -317,7 +317,7 @@ struct RenderTargetTests : TextureTest
         TextureDesc renderTextureDesc = {};
         renderTextureDesc.type = textureInfo->textureType;
         renderTextureDesc.numMipLevels = textureInfo->mipLevelCount;
-        renderTextureDesc.arraySize = textureInfo->arrayLayerCount;
+        renderTextureDesc.arrayLength = textureInfo->arrayLayerCount;
         renderTextureDesc.size = textureInfo->extents;
         renderTextureDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource | TextureUsage::CopySource;
         renderTextureDesc.defaultState = ResourceState::RenderTarget;
@@ -333,7 +333,7 @@ struct RenderTargetTests : TextureTest
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
         textureDesc.numMipLevels = textureInfo->mipLevelCount;
-        textureDesc.arraySize = textureInfo->arrayLayerCount;
+        textureDesc.arrayLength = textureInfo->arrayLayerCount;
         textureDesc.size = textureInfo->extents;
         textureDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
         textureDesc.defaultState = ResourceState::ResolveDestination;

@@ -444,7 +444,7 @@ void ResourceCommandEncoderImpl::copyTexture(
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0)
     {
         extent = dstDesc.size;
-        dstSubresource.layerCount = dstDesc.arraySize;
+        dstSubresource.layerCount = dstDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
         if (dstSubresource.layerCount == 0)
             dstSubresource.layerCount = 1;
         dstSubresource.mipLevelCount = dstDesc.numMipLevels;
@@ -452,7 +452,7 @@ void ResourceCommandEncoderImpl::copyTexture(
     if (srcSubresource.layerCount == 0 && srcSubresource.mipLevelCount == 0)
     {
         extent = srcDesc.size;
-        srcSubresource.layerCount = srcDesc.arraySize;
+        srcSubresource.layerCount = srcDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
         if (srcSubresource.layerCount == 0)
             srcSubresource.layerCount = 1;
         srcSubresource.mipLevelCount = dstDesc.numMipLevels;

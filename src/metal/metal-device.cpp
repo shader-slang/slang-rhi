@@ -284,7 +284,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
         extents.height = std::max(1, extents.height / 2);
         extents.depth = std::max(1, extents.depth / 2);
     }
-    size *= desc.arraySize ? desc.arraySize : 1;
+    size *= desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
     *outSize = size;
     *outAlignment = alignment;
@@ -335,8 +335,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         break;
     }
 
-    GfxCount arrayLength = desc.arraySize / (desc.type == TextureType::TextureCube ? 6 : 1);
-    bool isArray = arrayLength > 1;
+    bool isArray = desc.arrayLength > 1;
 
     switch (desc.type)
     {
@@ -400,7 +399,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
 
     textureDesc->setMipmapLevelCount(desc.numMipLevels);
-    textureDesc->setArrayLength(arrayLength);
+    textureDesc->setArrayLength(desc.arrayLength);
     textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setUsage(textureUsage);
     textureDesc->setSampleCount(desc.sampleCount);
@@ -433,7 +432,9 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             return SLANG_FAIL;
         }
 
-        for (Index slice = 0; slice < desc.arraySize; ++slice)
+        GfxCount sliceCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+
+        for (Index slice = 0; slice < sliceCount; ++slice)
         {
             MTL::Region region;
             region.origin = MTL::Origin(0, 0, 0);
@@ -552,9 +553,10 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     viewImpl->m_desc.subresourceRange = viewImpl->m_texture->resolveSubresourceRange(desc.subresourceRange);
 
     const TextureDesc& textureDesc = textureImpl->m_desc;
+    GfxCount layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
     if (sr.mipLevel == 0 && sr.mipLevelCount == textureDesc.numMipLevels && sr.baseArrayLayer == 0 &&
-        sr.layerCount == textureDesc.arraySize)
+        sr.layerCount == layerCount)
     {
         viewImpl->m_textureView = textureImpl->m_texture;
         returnComPtr(outView, viewImpl);
