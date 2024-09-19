@@ -335,7 +335,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         break;
     }
 
-    bool isArray = desc.arraySize > 0;
+    GfxCount arrayLength = desc.arraySize / (desc.type == TextureType::TextureCube ? 6 : 1);
+    bool isArray = arrayLength > 1;
 
     switch (desc.type)
     {
@@ -399,7 +400,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
 
     textureDesc->setMipmapLevelCount(desc.numMipLevels);
-    textureDesc->setArrayLength(isArray ? desc.arraySize : 1);
+    textureDesc->setArrayLength(arrayLength);
     textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setUsage(textureUsage);
     textureDesc->setSampleCount(desc.sampleCount);
@@ -432,13 +433,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             return SLANG_FAIL;
         }
 
-        GfxCount sliceCount = isArray ? desc.arraySize : 1;
-        if (desc.type == TextureType::TextureCube)
-        {
-            sliceCount *= 6;
-        }
-
-        for (Index slice = 0; slice < sliceCount; ++slice)
+        for (Index slice = 0; slice < desc.arraySize; ++slice)
         {
             MTL::Region region;
             region.origin = MTL::Origin(0, 0, 0);
@@ -558,8 +553,6 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 
     const TextureDesc& textureDesc = textureImpl->m_desc;
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
-    sr.mipLevelCount = sr.mipLevelCount == 0 ? textureDesc.numMipLevels - sr.mipLevel : sr.mipLevelCount;
-    sr.layerCount = sr.layerCount == 0 ? textureDesc.arraySize - sr.baseArrayLayer : sr.layerCount;
     if (sr.mipLevel == 0 && sr.mipLevelCount == textureDesc.numMipLevels && sr.baseArrayLayer == 0 &&
         sr.layerCount == textureDesc.arraySize)
     {

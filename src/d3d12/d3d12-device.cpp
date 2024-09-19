@@ -1018,7 +1018,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
-    const int arraySize = calcEffectiveArraySize(srcDesc);
+    const int arraySize = srcDesc.arraySize;
     const int numMipMaps = srcDesc.numMipLevels;
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));

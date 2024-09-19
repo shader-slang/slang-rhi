@@ -291,70 +291,62 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
     descOut.Format = (pixelFormat == DXGI_FORMAT_UNKNOWN)
                          ? D3DUtil::calcFormat(D3DUtil::USAGE_SRV, D3DUtil::getMapFormat(textureDesc.format))
                          : pixelFormat;
-    const int arraySize = calcEffectiveArraySize(textureDesc);
-    if (arraySize <= 1)
-    {
-        switch (textureDesc.type)
-        {
-        case TextureType::Texture1D:
-            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
-            break;
-        case TextureType::Texture2D:
-            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-            break;
-        case TextureType::Texture3D:
-            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-            break;
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
-        }
 
-        descOut.Texture2D.MipLevels = textureDesc.numMipLevels;
-        descOut.Texture2D.MostDetailedMip = 0;
-    }
-    else if (textureDesc.type == TextureType::TextureCube)
+    switch(textureDesc.type)
     {
+    case TextureType::Texture1D:
         if (textureDesc.arraySize > 1)
         {
+            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
+            descOut.Texture1DArray.MostDetailedMip = 0;
+            descOut.Texture1DArray.MipLevels = textureDesc.numMipLevels;
+            descOut.Texture1DArray.FirstArraySlice = 0;
+            descOut.Texture1DArray.ArraySize = textureDesc.arraySize;
+        }
+        else
+        {
+            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+            descOut.Texture1D.MostDetailedMip = 0;
+            descOut.Texture1D.MipLevels = textureDesc.numMipLevels;
+        }
+        break;
+    case TextureType::Texture2D:
+        if (textureDesc.arraySize > 1)
+        {
+            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+            descOut.Texture2DArray.MostDetailedMip = 0;
+            descOut.Texture2DArray.MipLevels = textureDesc.numMipLevels;
+            descOut.Texture2DArray.FirstArraySlice = 0;
+            descOut.Texture2DArray.ArraySize = textureDesc.arraySize;
+        }
+        else
+        {
+            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+            descOut.Texture2D.MostDetailedMip = 0;
+            descOut.Texture2D.MipLevels = textureDesc.numMipLevels;
+        }
+        break;
+    case TextureType::Texture3D:
+        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+        descOut.Texture3D.MostDetailedMip = 0;
+        descOut.Texture3D.MipLevels = textureDesc.numMipLevels;
+        break;
+    case TextureType::TextureCube:
+        if (textureDesc.arraySize > 6)
+        {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
-
-            descOut.TextureCubeArray.NumCubes = textureDesc.arraySize;
-            descOut.TextureCubeArray.First2DArrayFace = 0;
-            descOut.TextureCubeArray.MipLevels = textureDesc.numMipLevels;
             descOut.TextureCubeArray.MostDetailedMip = 0;
+            descOut.TextureCubeArray.MipLevels = textureDesc.numMipLevels;
+            descOut.TextureCubeArray.First2DArrayFace = 0;
+            descOut.TextureCubeArray.NumCubes = textureDesc.arraySize / 6;
         }
         else
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-
-            descOut.TextureCube.MipLevels = textureDesc.numMipLevels;
             descOut.TextureCube.MostDetailedMip = 0;
+            descOut.TextureCube.MipLevels = textureDesc.numMipLevels;
         }
-    }
-    else
-    {
-        SLANG_RHI_ASSERT(textureDesc.size.depth > 1 || arraySize > 1);
-
-        switch (textureDesc.type)
-        {
-        case TextureType::Texture1D:
-            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
-            break;
-        case TextureType::Texture2D:
-            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-            break;
-        case TextureType::Texture3D:
-            descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-            break;
-
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Unknown dimension");
-        }
-
-        descOut.Texture2DArray.ArraySize = std::max(textureDesc.size.depth, arraySize);
-        descOut.Texture2DArray.MostDetailedMip = 0;
-        descOut.Texture2DArray.MipLevels = textureDesc.numMipLevels;
-        descOut.Texture2DArray.FirstArraySlice = 0;
+        break;
     }
 }
 } // namespace rhi::d3d11

@@ -1143,13 +1143,10 @@ Result DeviceImpl::readTexture(
 
     std::vector<Extents> mipSizes;
 
-    const int numMipMaps = desc.numMipLevels;
-    auto arraySize = calcEffectiveArraySize(desc);
-
     // Calculate how large the buffer has to be
     Size bufferSize = 0;
     // Calculate how large an array entry is
-    for (int j = 0; j < numMipMaps; ++j)
+    for (int j = 0; j < desc.numMipLevels; ++j)
     {
         const Extents mipSize = calcMipSize(desc.size, j);
 
@@ -1161,7 +1158,7 @@ Result DeviceImpl::readTexture(
         bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
     }
     // Calculate the total size taking into account the array
-    bufferSize *= arraySize;
+    bufferSize *= desc.arraySize;
 
     VKBufferHandleRAII staging;
     SLANG_RETURN_ON_FAIL(staging.init(
@@ -1176,7 +1173,7 @@ Result DeviceImpl::readTexture(
     VkImageLayout srcImageLayout = VulkanUtil::getImageLayoutFromState(state);
 
     Offset dstOffset = 0;
-    for (int i = 0; i < arraySize; ++i)
+    for (int i = 0; i < desc.arraySize; ++i)
     {
         for (Index j = 0; j < mipSizes.size(); ++j)
         {
@@ -1405,8 +1402,6 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
         SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
         return SLANG_FAIL;
     }
-    const int arraySize = calcEffectiveArraySize(desc);
-
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {
@@ -1447,7 +1442,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     }
 
     imageInfo.mipLevels = desc.numMipLevels;
-    imageInfo.arrayLayers = arraySize;
+    imageInfo.arrayLayers = desc.arraySize;
 
     imageInfo.format = format;
 
@@ -1486,8 +1481,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
         return SLANG_FAIL;
     }
-
-    const int arraySize = calcEffectiveArraySize(desc);
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
     texture->m_vkformat = format;
@@ -1533,7 +1526,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
 
     imageInfo.mipLevels = desc.numMipLevels;
-    imageInfo.arrayLayers = arraySize;
+    imageInfo.arrayLayers = desc.arraySize;
 
     imageInfo.format = format;
 
@@ -1625,7 +1618,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
 
         // Calculate the total size taking into account the array
-        bufferSize *= arraySize;
+        bufferSize *= desc.arraySize;
 
         SLANG_RETURN_ON_FAIL(uploadBuffer.init(
             m_api,
@@ -1646,7 +1639,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             dstDataStart = dstData;
 
             Offset dstSubresourceOffset = 0;
-            for (int i = 0; i < arraySize; ++i)
+            for (int i = 0; i < desc.arraySize; ++i)
             {
                 for (Index j = 0; j < mipSizes.size(); ++j)
                 {
@@ -1792,7 +1785,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         else
         {
             Offset srcOffset = 0;
-            for (int i = 0; i < arraySize; ++i)
+            for (int i = 0; i < desc.arraySize; ++i)
             {
                 for (Index j = 0; j < mipSizes.size(); ++j)
                 {
