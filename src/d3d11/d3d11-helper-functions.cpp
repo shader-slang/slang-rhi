@@ -292,7 +292,7 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
                          ? D3DUtil::calcFormat(D3DUtil::USAGE_SRV, D3DUtil::getMapFormat(textureDesc.format))
                          : pixelFormat;
 
-    switch(textureDesc.type)
+    switch (textureDesc.type)
     {
     case TextureType::Texture1D:
         if (textureDesc.arraySize > 1)
