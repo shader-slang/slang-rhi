@@ -17,9 +17,8 @@ namespace rhi::vk {
 #define VK_API_INSTANCE_PROCS_OPT(x) \
     x(vkGetPhysicalDeviceFeatures2) \
     x(vkGetPhysicalDeviceProperties2) \
-    x(vkCreateDebugReportCallbackEXT) \
-    x(vkDestroyDebugReportCallbackEXT) \
-    x(vkDebugReportMessageEXT) \
+    x(vkCreateDebugUtilsMessengerEXT) \
+    x(vkDestroyDebugUtilsMessengerEXT) \
     /* */
 
 #define VK_API_INSTANCE_PROCS(x) \
@@ -211,9 +210,9 @@ namespace rhi::vk {
     x(vkWaitSemaphores) \
     x(vkWaitSemaphoresKHR) \
     x(vkCmdSetSampleLocationsEXT) \
-    x(vkCmdDebugMarkerBeginEXT) \
-    x(vkCmdDebugMarkerEndEXT) \
-    x(vkDebugMarkerSetObjectNameEXT) \
+    x(vkCmdBeginDebugUtilsLabelEXT) \
+    x(vkCmdEndDebugUtilsLabelEXT) \
+    x(vkSetDebugUtilsObjectNameEXT) \
     x(vkCmdDrawMeshTasksEXT) \
     /* */
 

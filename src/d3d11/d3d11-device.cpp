@@ -488,8 +488,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 {
     TextureDesc srcDesc = fixupTextureDesc(descIn);
 
-    const int effectiveArraySize = calcEffectiveArraySize(srcDesc);
-
     const DXGI_FORMAT format = D3DUtil::getMapFormat(srcDesc.format);
     if (format == DXGI_FORMAT_UNKNOWN)
     {
@@ -503,10 +501,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     D3D11_SUBRESOURCE_DATA* subResourcesPtr = nullptr;
     if (initData)
     {
-        subRes.resize(srcDesc.numMipLevels * effectiveArraySize);
+        subRes.resize(srcDesc.numMipLevels * srcDesc.arraySize);
         {
             int subResourceIndex = 0;
-            for (int i = 0; i < effectiveArraySize; i++)
+            for (int i = 0; i < srcDesc.arraySize; i++)
             {
                 for (int j = 0; j < srcDesc.numMipLevels; j++)
                 {
@@ -540,7 +538,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.Format = format;
         desc.MiscFlags = 0;
         desc.MipLevels = srcDesc.numMipLevels;
-        desc.ArraySize = effectiveArraySize;
+        desc.ArraySize = srcDesc.arraySize;
         desc.Width = srcDesc.size.width;
         desc.Usage = D3D11_USAGE_DEFAULT;
 
@@ -559,7 +557,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.Format = format;
         desc.MiscFlags = 0;
         desc.MipLevels = srcDesc.numMipLevels;
-        desc.ArraySize = effectiveArraySize;
+        desc.ArraySize = srcDesc.arraySize;
 
         desc.Width = srcDesc.size.width;
         desc.Height = srcDesc.size.height;

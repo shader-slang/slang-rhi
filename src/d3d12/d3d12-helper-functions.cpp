@@ -207,8 +207,6 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
         return SLANG_FAIL;
     }
 
-    const int arraySize = calcEffectiveArraySize(srcDesc);
-
     const D3D12_RESOURCE_DIMENSION dimension = calcResourceDimension(srcDesc.type);
     if (dimension == D3D12_RESOURCE_DIMENSION_UNKNOWN)
     {
@@ -220,7 +218,7 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
     resourceDesc.Format = pixelFormat;
     resourceDesc.Width = srcDesc.size.width;
     resourceDesc.Height = srcDesc.size.height;
-    resourceDesc.DepthOrArraySize = (srcDesc.size.depth > 1) ? srcDesc.size.depth : arraySize;
+    resourceDesc.DepthOrArraySize = srcDesc.type == TextureType::Texture3D ? srcDesc.size.depth : srcDesc.arraySize;
 
     resourceDesc.MipLevels = numMipMaps;
     resourceDesc.SampleDesc.Count = srcDesc.sampleCount;

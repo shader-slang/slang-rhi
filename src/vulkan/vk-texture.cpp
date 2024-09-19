@@ -125,15 +125,7 @@ TextureSubresourceView TextureImpl::getView(Format format, const SubresourceRang
     createInfo.subresourceRange.baseArrayLayer = range.baseArrayLayer;
     createInfo.subresourceRange.baseMipLevel = range.mipLevel;
     createInfo.subresourceRange.layerCount = range.layerCount;
-    if (createInfo.subresourceRange.layerCount == 0)
-    {
-        createInfo.subresourceRange.layerCount = isArray ? VK_REMAINING_ARRAY_LAYERS : 1;
-        if (createInfo.viewType == VK_IMAGE_VIEW_TYPE_CUBE)
-        {
-            createInfo.subresourceRange.layerCount = 6;
-        }
-    }
-    createInfo.subresourceRange.levelCount = range.mipLevelCount == 0 ? VK_REMAINING_MIP_LEVELS : range.mipLevelCount;
+    createInfo.subresourceRange.levelCount = range.mipLevelCount;
 
     VkResult result =
         m_device->m_api.vkCreateImageView(m_device->m_api.m_device, &createInfo, nullptr, &view.imageView);

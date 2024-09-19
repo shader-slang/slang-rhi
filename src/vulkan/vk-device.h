@@ -97,27 +97,19 @@ public:
 
 public:
     VkBool32 handleDebugMessage(
-        VkDebugReportFlagsEXT flags,
-        VkDebugReportObjectTypeEXT objType,
-        uint64_t srcObject,
-        Size location, // TODO: Is "location" still needed for this function?
-        int32_t msgCode,
-        const char* pLayerPrefix,
-        const char* pMsg
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData
     );
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugMessageCallback(
-        VkDebugReportFlagsEXT flags,
-        VkDebugReportObjectTypeEXT objType,
-        uint64_t srcObject,
-        Size location, // TODO: Is "location" still needed? Calls handleDebugMessage() which doesn't use it
-        int32_t msgCode,
-        const char* pLayerPrefix,
-        const char* pMsg,
+        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData
     );
 
-    void _labelObject(uint64_t object, VkDebugReportObjectTypeEXT objectType, const char* label);
+    void _labelObject(uint64_t object, VkObjectType objectType, const char* label);
 
     void _transitionImageLayout(
         VkImage image,
@@ -144,7 +136,7 @@ public:
     DeviceInfo m_info;
     std::string m_adapterName;
 
-    VkDebugReportCallbackEXT m_debugReportCallback = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT m_debugReportCallback = VK_NULL_HANDLE;
 
     VkDevice m_device = VK_NULL_HANDLE;
 

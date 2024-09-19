@@ -29,7 +29,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     }
     SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkCreateQueryPool(m_device->m_api.m_device, &createInfo, nullptr, &m_pool));
 
-    m_device->_labelObject((uint64_t)m_pool, VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT, desc.label);
+    m_device->_labelObject((uint64_t)m_pool, VK_OBJECT_TYPE_QUERY_POOL, desc.label);
 
     return SLANG_OK;
 }
