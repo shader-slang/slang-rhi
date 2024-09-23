@@ -70,6 +70,7 @@ TEST_CASE("compute-trivial")
             DeviceType::Metal,
             DeviceType::CUDA,
             DeviceType::CPU,
+            DeviceType::WGPU,
         }
     );
 }
