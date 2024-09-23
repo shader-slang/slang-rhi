@@ -38,7 +38,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA ON)
-    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
         set(SLANG_RHI_HAS_WGPU ON)
     else()
         set(SLANG_RHI_HAS_WGPU OFF)
@@ -49,7 +49,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA ON)
-    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
         set(SLANG_RHI_HAS_WGPU ON)
     else()
         set(SLANG_RHI_HAS_WGPU OFF)
@@ -97,7 +97,6 @@ if(SLANG_RHI_MASTER_PROJECT)
     set(SLANG_RHI_SLANG_BINARY_DIR ${slang_SOURCE_DIR})
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-
         # Fetch dxc
         # set(DXC_VERSION "1.8.2407")
         # set(DXC_TAG "2024_07_31")
@@ -114,6 +113,29 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 # Use the variables from the cache.
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
+
+# Fetch and setup Agility SDK library
+if((CMAKE_SYSTEM_NAME STREQUAL "Windows") AND SLANG_RHI_ENABLE_D3D12)
+    set(AGILITY_SDK_VERSION "1.614.1")
+    FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
+    set(SLANG_RHI_AGILITY_SDK_ROOT_DIR ${agility_sdk_SOURCE_DIR}/build/native CACHE STRING "Agility SDK root directory")
+    set(SLANG_RHI_AGILITY_SDK_D3D12SDKVersion "614" CACHE STRING "Agility SDK D3D12 SDK Version")
+    add_library(slang-rhi-agility-sdk INTERFACE)
+    target_include_directories(slang-rhi-agility-sdk INTERFACE ${SLANG_RHI_AGILITY_SDK_ROOT_DIR}/include)
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-agility-sdk)
+    add_custom_command(
+        OUTPUT ${SLANG_RHI_BINARY_DIR}/D3D12/D3D12Core.dll
+        DEPENDS ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
+        COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll ${SLANG_RHI_BINARY_DIR}/
+        COMMENT "Copy Dawn DLLs"
+    )
+    add_custom_target(slang-rhi-copy-dawn ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/dawn.dll)
+    add_dependencies(slang-rhi slang-rhi-copy-dawn)
+
+    set(SLANG_RHI_ENABLE_AGILITY_SDK ON)
+else()
+    set(SLANG_RHI_ENABLE_AGILITY_SDK OFF)
+endif()
 
 # Fetch and setup NVAPI library
 if((CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64") AND (SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12))
@@ -289,6 +311,7 @@ target_compile_definitions(slang-rhi
         SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
         SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
         SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
+        SLANG_RHI_ENABLE_AGILITY_SDK=$<BOOL:${SLANG_RHI_ENABLE_AGILITY_SDK}>
         SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
