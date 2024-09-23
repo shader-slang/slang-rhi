@@ -28,14 +28,14 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     SLANG_UNUSED(outPointer);
     return SLANG_FAIL;
 }
 
-Result BufferImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(BufferRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     return SLANG_FAIL;

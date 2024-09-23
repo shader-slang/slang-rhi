@@ -43,8 +43,8 @@ public:
     std::unordered_map<ViewKey, ComPtr<ID3D11UnorderedAccessView>, ViewKeyHasher> m_uavs;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL map(BufferRange* rangeToRead, void** outPointer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unmap(BufferRange* writtenRange) override;
 
     ID3D11ShaderResourceView* getSRV(Format format, const BufferRange& range);
     ID3D11UnorderedAccessView* getUAV(Format format, const BufferRange& range);

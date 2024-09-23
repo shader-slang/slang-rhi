@@ -29,7 +29,7 @@ DeviceAddress BufferImpl::getDeviceAddress()
     return (DeviceAddress)m_data;
 }
 
-Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     if (outPointer)
@@ -37,7 +37,7 @@ Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
     return SLANG_OK;
 }
 
-Result BufferImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(BufferRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     return SLANG_OK;

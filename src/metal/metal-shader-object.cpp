@@ -259,7 +259,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* de
         // don't need or want to inline it into this call site.
         //
 
-        MemoryRange range = {0, ordinaryDataSize};
+        BufferRange range = {0, ordinaryDataSize};
         void* ordinaryData;
         SLANG_RETURN_ON_FAIL(m_ordinaryDataBuffer->map(&range, &ordinaryData));
         auto result = _writeOrdinaryData(ordinaryData, ordinaryDataSize, layout);
@@ -352,7 +352,7 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
         // the offsets for each field.
         //
         auto dataSize = typeLayout->getSize();
-        MemoryRange range = {0, dataSize};
+        BufferRange range = {0, dataSize};
         void* argumentData;
         SLANG_RETURN_NULL_ON_FAIL(m_argumentBuffer->map(&range, &argumentData));
 

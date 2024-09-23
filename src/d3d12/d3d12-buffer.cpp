@@ -70,7 +70,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
-Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
 {
     D3D12_RANGE range = {};
     if (rangeToRead)
@@ -82,7 +82,7 @@ Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
     return SLANG_OK;
 }
 
-Result BufferImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(BufferRange* writtenRange)
 {
     D3D12_RANGE range = {};
     if (writtenRange)

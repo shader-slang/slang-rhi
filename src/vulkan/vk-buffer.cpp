@@ -171,7 +171,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
 {
     SLANG_UNUSED(rangeToRead);
     auto api = m_buffer.m_api;
@@ -179,7 +179,7 @@ Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
     return SLANG_OK;
 }
 
-Result BufferImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(BufferRange* writtenRange)
 {
     SLANG_UNUSED(writtenRange);
     auto api = m_buffer.m_api;

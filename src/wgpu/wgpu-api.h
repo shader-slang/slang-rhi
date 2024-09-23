@@ -341,7 +341,7 @@
     x(TextureViewSetLabel) \
     x(TextureViewSetLabel2) \
     x(TextureViewAddRef) \
-    x(TextureViewRelease) \
+    x(TextureViewRelease)
 
 // clang-format on
 

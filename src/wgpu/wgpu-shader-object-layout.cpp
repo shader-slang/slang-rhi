@@ -173,8 +173,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             case slang::BindingType::Texture:
                 entry.texture.sampleType = getSampleType(leafType->getResourceResultType());
                 entry.texture.viewDimension = getViewDimension(leafType->getResourceShape());
-                entry.texture.multisampled =
-                    (leafType->getResourceShape() & SLANG_TEXTURE_MULTISAMPLE_FLAG) ? 1 : 0;
+                entry.texture.multisampled = (leafType->getResourceShape() & SLANG_TEXTURE_MULTISAMPLE_FLAG) ? 1 : 0;
                 break;
             case slang::BindingType::MutableTexture:
                 // WGPUStorageTextureAccess_Undefined = 0x00000000,

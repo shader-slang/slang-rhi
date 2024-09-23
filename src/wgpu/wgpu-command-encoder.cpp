@@ -95,7 +95,7 @@ void CommandEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Si
     m_commandBuffer->m_transientHeap
         ->allocateStagingBuffer(size, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
     BufferImpl* stagingBufferImpl = static_cast<BufferImpl*>(stagingBuffer);
-    MemoryRange range = {stagingBufferOffset, size};
+    BufferRange range = {stagingBufferOffset, size};
     void* mappedData;
     if (stagingBufferImpl->map(&range, &mappedData) == SLANG_OK)
     {

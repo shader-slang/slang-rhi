@@ -28,13 +28,13 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result BufferImpl::map(MemoryRange* rangeToRead, void** outPointer)
+Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
 {
     *outPointer = m_buffer->contents();
     return SLANG_OK;
 }
 
-Result BufferImpl::unmap(MemoryRange* writtenRange)
+Result BufferImpl::unmap(BufferRange* writtenRange)
 {
     return SLANG_OK;
 }

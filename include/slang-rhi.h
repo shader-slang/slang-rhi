@@ -467,12 +467,18 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
-struct MemoryRange
+struct BufferRange
 {
-    // TODO: Change to Offset/Size?
-    uint64_t offset;
-    uint64_t size;
+    /// Offset in bytes.
+    Offset offset = 0;
+    /// Size in bytes.
+    Size size = 0;
+
+    bool operator==(const BufferRange& other) const { return offset == other.offset && size == other.size; }
+    bool operator!=(const BufferRange& other) const { return !(*this == other); }
 };
+
+static const BufferRange kEntireBuffer = BufferRange{0ull, ~0ull};
 
 enum class BufferUsage
 {
@@ -519,8 +525,8 @@ public:
     virtual SLANG_NO_THROW const BufferDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL map(MemoryRange* rangeToRead, void** outPointer) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL unmap(MemoryRange* writtenRange) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL map(BufferRange* rangeToRead, void** outPointer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unmap(BufferRange* writtenRange) = 0;
 };
 
 struct DepthStencilClearValue
@@ -541,19 +547,6 @@ struct ClearValue
     ColorClearValue color = {{0.0f, 0.0f, 0.0f, 0.0f}};
     DepthStencilClearValue depthStencil;
 };
-
-struct BufferRange
-{
-    /// Offset in bytes.
-    Offset offset = 0;
-    /// Size in bytes.
-    Size size = 0;
-
-    bool operator==(const BufferRange& other) const { return offset == other.offset && size == other.size; }
-    bool operator!=(const BufferRange& other) const { return !(*this == other); }
-};
-
-static const BufferRange kEntireBuffer = BufferRange{0ull, ~0ull};
 
 enum class TextureUsage
 {

@@ -367,7 +367,8 @@ WGPUTextureViewDimension translateTextureViewDimension(TextureType type, bool ar
 
 WGPUTextureAspect translateTextureAspect(TextureAspect aspect)
 {
-    switch (aspect) {
+    switch (aspect)
+    {
     case TextureAspect::Color:
         return WGPUTextureAspect_All;
     case TextureAspect::Depth:

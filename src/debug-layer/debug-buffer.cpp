@@ -27,13 +27,13 @@ Result DebugBuffer::getSharedHandle(NativeHandle* outHandle)
     return baseObject->getSharedHandle(outHandle);
 }
 
-Result DebugBuffer::map(MemoryRange* rangeToRead, void** outPointer)
+Result DebugBuffer::map(BufferRange* rangeToRead, void** outPointer)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->map(rangeToRead, outPointer);
 }
 
-Result DebugBuffer::unmap(MemoryRange* writtenRange)
+Result DebugBuffer::unmap(BufferRange* writtenRange)
 {
     return baseObject->unmap(writtenRange);
 }

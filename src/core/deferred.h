@@ -11,9 +11,7 @@ public:
     {
     }
 
-    ~Deferred() {
-        m_callback();
-    }
+    ~Deferred() { m_callback(); }
 
 private:
     Callback m_callback;
