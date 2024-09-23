@@ -165,6 +165,7 @@ TEST_CASE("link-time-type")
             DeviceType::Vulkan,
             DeviceType::Metal,
             DeviceType::CPU,
+            // DeviceType::WGPU,
         }
     );
 }

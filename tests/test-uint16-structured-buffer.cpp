@@ -66,8 +66,13 @@ TEST_CASE("uint16-structured-buffer")
     runGpuTests(
         testUint16StructuredBuffer,
         {
+            // DeviceType::D3D11, // fxc doesn't support uint16_t
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal,
+            DeviceType::CPU,
+            DeviceType::CUDA,
+            DeviceType::WGPU, // crashes
         }
     );
 }

@@ -104,6 +104,7 @@ TEST_CASE("buffer-barrier")
             DeviceType::Vulkan,
             DeviceType::CUDA,
             DeviceType::CPU,
+            DeviceType::WGPU,
         }
     );
 }

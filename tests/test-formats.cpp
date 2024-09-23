@@ -1087,9 +1087,13 @@ TEST_CASE("formats")
     runGpuTests(
         testFormats,
         {
-            // DeviceType::D3D11,
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal,
+            // DeviceType::CPU, // Vector types not implemented
+            // DeviceType::CUDA, // GetDimensions not implemented
+            // DeviceType::WGPU,
         }
     );
 }

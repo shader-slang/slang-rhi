@@ -85,6 +85,7 @@ enum class DeviceType
     Metal,
     CPU,
     CUDA,
+    WGPU,
 };
 
 // TODO: Is this actually a flag when there are no bit fields?
@@ -399,6 +400,16 @@ enum class NativeHandleType
     CUdevice = 0x00050001,
     CUdeviceptr = 0x00050002,
     CUtexObject = 0x00050003,
+
+    WGPUDevice = 0x00060001,
+    WGPUBuffer = 0x00060002,
+    WGPUTexture = 0x00060003,
+    WGPUSampler = 0x00060004,
+    WGPURenderPipeline = 0x00060005,
+    WGPUComputePipeline = 0x00060006,
+    WGPUQueue = 0x00060007,
+    WGPUCommandBuffer = 0x00060008,
+    WGPUTextureView = 0x00060009,
 };
 
 struct NativeHandle
@@ -767,8 +778,8 @@ struct SamplerDesc
     uint32_t maxAnisotropy = 1;
     ComparisonFunc comparisonFunc = ComparisonFunc::Never;
     float borderColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-    float minLOD = -FLT_MAX;
-    float maxLOD = FLT_MAX;
+    float minLOD = 0.0f;
+    float maxLOD = 1000.0f;
 
     const char* label = nullptr;
 };
@@ -1871,6 +1882,7 @@ public:
         IFence* fenceToSignal,
         uint64_t newFenceValue
     ) = 0;
+
     inline void executeCommandBuffer(
         ICommandBuffer* commandBuffer,
         IFence* fenceToSignal = nullptr,

@@ -19,6 +19,7 @@ Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outDevice
 Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
+Result SLANG_MCALL createWGPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
 
 Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
@@ -329,7 +330,12 @@ extern "C"
         {
             return createCPUDevice(desc, outDevice);
         }
-        break;
+#if SLANG_RHI_ENABLE_WGPU
+        case DeviceType::WGPU:
+        {
+            return createWGPUDevice(desc, outDevice);
+        }
+#endif
 
         default:
             return SLANG_FAIL;
@@ -390,6 +396,8 @@ extern "C"
             return "CPU";
         case DeviceType::CUDA:
             return "CUDA";
+        case DeviceType::WGPU:
+            return "WGPU";
         default:
             return "?";
         }
@@ -415,6 +423,8 @@ extern "C"
 #else
             return false;
 #endif
+        case DeviceType::WGPU:
+            return SLANG_RHI_ENABLE_WGPU;
         default:
             return false;
         }

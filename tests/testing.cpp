@@ -101,7 +101,7 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
 {
     if (diagnosticsBlob != nullptr)
     {
-        MESSAGE((const char*)diagnosticsBlob->getBufferPointer());
+        MESSAGE(doctest::String((const char*)diagnosticsBlob->getBufferPointer()));
     }
 }
 
@@ -518,6 +518,8 @@ inline const char* deviceTypeToString(DeviceType deviceType)
         return "cpu";
     case DeviceType::CUDA:
         return "cuda";
+    case DeviceType::WGPU:
+        return "wgpu";
     default:
         return "unknown";
     }

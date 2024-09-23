@@ -2,15 +2,22 @@ cmake_minimum_required(VERSION 3.20)
 
 project(slang-rhi)
 
-include(CMakeDependentOption)
-
 # Add the cmake directory to the module path.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(CMakeDependentOption)
+include(FetchPackage)
 
 # Check if this project is the master cmake project (i.e. not included via add_subdirectory).
 set(SLANG_RHI_MASTER_PROJECT OFF)
 if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
   set(SLANG_RHI_MASTER_PROJECT ON)
+endif()
+
+if(CMAKE_CONFIGURATION_TYPES)
+    set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>)
+else()
+    set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 # Configuration options
@@ -24,32 +31,40 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA ON)
+    set(SLANG_RHI_HAS_WGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA ON)
+    set(SLANG_RHI_HAS_WGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL ON)
-    set(SLANG_RHI_HAS_CUDA OFF)
+    set(SLANG_RHI_HAS_WGPU ON)
 endif()
 
 # Backend options
+option(SLANG_RHI_ENABLE_CPU "Enable CPU backend" ON)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D11 "Enable D3D11 backend" ON "SLANG_RHI_HAS_D3D11" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D12 "Enable D3D12 backend" ON "SLANG_RHI_HAS_D3D12" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG_RHI_HAS_VULKAN" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
+cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
 
-# If this is the master project, fetch binary dependencies.
+if(SLANG_RHI_BUILD_SHARED)
+    add_library(slang-rhi SHARED)
+else()
+    add_library(slang-rhi STATIC)
+endif()
+
+# Fetch slang binary release if this is the master project
 if(SLANG_RHI_MASTER_PROJECT)
-    include(FetchPackage)
-    # Fetch slang
-    set(SLANG_VERSION "2024.10")
+    set(SLANG_VERSION "2024.11.1")
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(SLANG_URL "${SLANG_URL}-windows-x86_64.zip")
@@ -89,20 +104,57 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
 
+# Fetch and setup Google Dawn library (WebGPU implementation)
+if(SLANG_RHI_ENABLE_WGPU)
+    set(DAWN_VERSION "129.0.6728")
+    set(DAWN_URL "https://github.com/skallweitNV/webgpu-dawn-binaries/releases/download/v${DAWN_VERSION}.0/webgpu-dawn-${DAWN_VERSION}")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set(DAWN_URL "${DAWN_URL}-win64.zip")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(DAWN_URL "${DAWN_URL}-Linux.zip")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set(DAWN_URL "${DAWN_URL}-Darwin.zip")
+    endif()
+    FetchPackage(dawn URL ${DAWN_URL})
+    set(SLANG_RHI_DAWN_INCLUDE_DIR ${dawn_SOURCE_DIR}/include CACHE STRING "Dawn include directory")
+    set(SLANG_RHI_DAWN_LIB_DIR ${dawn_SOURCE_DIR}/lib CACHE STRING "Dawn lib directory")
+    set(SLANG_RHI_DAWN_BIN_DIR ${dawn_SOURCE_DIR}/bin CACHE STRING "Dawn bin directory")
+    # Use the variables from the cache.
+    unset(SLANG_RHI_DAWN_INCLUDE_DIR)
+    unset(SLANG_RHI_DAWN_LIB_DIR)
+    unset(SLANG_RHI_DAWN_BIN_DIR)
+
+    add_library(slang-rhi-dawn SHARED IMPORTED GLOBAL)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set_target_properties(slang-rhi-dawn PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
+            IMPORTED_IMPLIB ${SLANG_RHI_DAWN_LIB_DIR}/dawn.lib
+            IMPORTED_LOCATION ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
+        )
+        add_custom_command(
+            OUTPUT ${SLANG_RHI_OUTPUT_DIRECTORY}/dawn.dll
+            DEPENDS ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
+            COMMENT "Copy Dawn DLLs"
+        )
+        add_custom_target(slang-rhi-copy-dawn ALL DEPENDS ${SLANG_RHI_OUTPUT_DIRECTORY}/dawn.dll)
+        add_dependencies(slang-rhi slang-rhi-copy-dawn)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set_target_properties(slang-rhi-dawn PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
+            IMPORTED_LOCATION ${SLANG_RHI_DAWN_LIB_DIR}64/libdawn.so
+        )
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set_target_properties(slang-rhi-dawn PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
+            IMPORTED_LOCATION ${SLANG_RHI_DAWN_LIB_DIR}/libdawn.dylib
+        )
+    endif()
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-dawn)
+endif()
+
 if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
-endif()
-
-if(CMAKE_CONFIGURATION_TYPES)
-    set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>)
-else()
-    set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-endif()
-
-if(SLANG_RHI_BUILD_SHARED)
-    add_library(slang-rhi SHARED)
-else()
-    add_library(slang-rhi STATIC)
 endif()
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
@@ -137,7 +189,7 @@ if(SLANG_RHI_MASTER_PROJECT)
             COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
             COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
             COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
-            COMMENT "Copying DLLs"
+            COMMENT "Copy Slang DLLs"
         )
         add_custom_target(slang-rhi-copy-binaries ALL DEPENDS ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll)
         add_dependencies(slang slang-rhi-copy-binaries)
@@ -149,7 +201,6 @@ endif()
 file(GLOB RHI_SOURCES
     src/*.cpp
     src/core/*.cpp
-    src/cpu/*.cpp
     src/debug-layer/*.cpp
 )
 target_sources(slang-rhi PRIVATE ${RHI_SOURCES})
@@ -157,6 +208,10 @@ target_sources(slang-rhi PRIVATE ${RHI_SOURCES})
 if(APPLE)
     file(GLOB OBJC_SOURCES src/*.mm)
     target_sources(slang-rhi PRIVATE ${OBJC_SOURCES})
+endif()
+if(SLANG_RHI_ENABLE_CPU)
+    file(GLOB CPU_SOURCES src/cpu/*.cpp)
+    target_sources(slang-rhi PRIVATE ${CPU_SOURCES})
 endif()
 if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
     file(GLOB D3D_SOURCES src/d3d/*.cpp src/nvapi/*.cpp)
@@ -191,16 +246,22 @@ if(SLANG_RHI_ENABLE_CUDA)
     file(GLOB CUDA_SOURCES src/cuda/*.cpp)
     target_sources(slang-rhi PRIVATE ${CUDA_SOURCES})
 endif()
+if(SLANG_RHI_ENABLE_WGPU)
+    file(GLOB WGPU_SOURCES src/wgpu/*.cpp)
+    target_sources(slang-rhi PRIVATE ${WGPU_SOURCES})
+endif()
 
 target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
 target_compile_definitions(slang-rhi
     PRIVATE
+        SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
         SLANG_RHI_ENABLE_D3D11=$<BOOL:${SLANG_RHI_ENABLE_D3D11}>
         SLANG_RHI_ENABLE_D3D12=$<BOOL:${SLANG_RHI_ENABLE_D3D12}>
         SLANG_RHI_ENABLE_VULKAN=$<BOOL:${SLANG_RHI_ENABLE_VULKAN}>
         SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
         SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
+        SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )

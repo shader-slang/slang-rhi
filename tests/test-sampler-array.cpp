@@ -135,6 +135,7 @@ TEST_CASE("sampler-array")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::WGPU,
         }
     );
 }
