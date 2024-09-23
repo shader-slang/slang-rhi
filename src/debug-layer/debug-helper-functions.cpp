@@ -1,4 +1,6 @@
 #include "debug-helper-functions.h"
+#include "../enum-strings.h"
+#include "core/string.h"
 
 #include <string>
 
@@ -33,6 +35,64 @@ std::string _rhiGetFuncName(const char* input)
         endIndex = str.length();
     auto startIndex = prefixIndex + 5;
     return 'I' + std::string(str.substr(startIndex, endIndex - startIndex));
+}
+
+std::string createBufferLabel(const BufferDesc& desc)
+{
+    return string::printf(
+        "Unnamed buffer (size=%zu, elementSize=%zu, format=%s, memoryType=%s, usage=%s, defaultState=%s)",
+        desc.size,
+        desc.elementSize,
+        enumToString(desc.format),
+        enumToString(desc.memoryType),
+        flagsToString(desc.usage),
+        enumToString(desc.defaultState)
+    );
+}
+
+std::string createTextureLabel(const TextureDesc& desc)
+{
+    return string::printf(
+        "Unnamed texture (type=%s, size=%dx%dx%d, arrayLength=%d, numMipLevels=%d, sampleCount=%d, sampleQuality=%d, "
+        "format=%s, memoryType=%s, usage=%s, defaultState=%s)",
+        enumToString(desc.type),
+        desc.size.width,
+        desc.size.height,
+        desc.size.depth,
+        desc.arrayLength,
+        desc.numMipLevels,
+        desc.sampleCount,
+        desc.sampleQuality,
+        enumToString(desc.format),
+        enumToString(desc.memoryType),
+        flagsToString(desc.usage),
+        enumToString(desc.defaultState)
+    );
+}
+
+std::string createSamplerLabel(const SamplerDesc& desc)
+{
+    return string::printf(
+        "Unnamed sampler (minFilter=%s, magFilter=%s, mipFilter=%s, reductionOp=%s, addressU=%s, addressV=%s, "
+        "addressW=%s, mipLODBias=%.1f, maxAnisotropy=%u, comparisonFunc=%s, borderColor=[%.1f, %.1f, %.1f, %.1f], "
+        "minLOD=%.1f, maxLOD=%.1f)",
+        enumToString(desc.minFilter),
+        enumToString(desc.magFilter),
+        enumToString(desc.mipFilter),
+        enumToString(desc.reductionOp),
+        enumToString(desc.addressU),
+        enumToString(desc.addressV),
+        enumToString(desc.addressW),
+        desc.mipLODBias,
+        desc.maxAnisotropy,
+        enumToString(desc.comparisonFunc),
+        desc.borderColor[0],
+        desc.borderColor[1],
+        desc.borderColor[2],
+        desc.borderColor[3],
+        desc.minLOD,
+        desc.maxLOD
+    );
 }
 
 void validateAccelerationStructureBuildInputs(const IAccelerationStructure::BuildInputs& buildInputs)

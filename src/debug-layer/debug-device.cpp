@@ -92,8 +92,16 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
 {
     SLANG_RHI_API_FUNC;
 
+    TextureDesc patchedDesc = fixupTextureDesc(desc);
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createTextureLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugTexture> outObject = new DebugTexture();
-    auto result = baseObject->createTexture(desc, initData, outObject->baseObject.writeRef());
+    auto result = baseObject->createTexture(patchedDesc, initData, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outTexture, outObject);
@@ -137,8 +145,16 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
 {
     SLANG_RHI_API_FUNC;
 
+    BufferDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createBufferLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugBuffer> outObject = new DebugBuffer();
-    auto result = baseObject->createBuffer(desc, initData, outObject->baseObject.writeRef());
+    auto result = baseObject->createBuffer(patchedDesc, initData, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outBuffer, outObject);
@@ -173,8 +189,16 @@ Result DebugDevice::createSampler(SamplerDesc const& desc, ISampler** outSampler
 {
     SLANG_RHI_API_FUNC;
 
+    SamplerDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createSamplerLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugSampler> outObject = new DebugSampler();
-    auto result = baseObject->createSampler(desc, outObject->baseObject.writeRef());
+    auto result = baseObject->createSampler(patchedDesc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outSampler, outObject);

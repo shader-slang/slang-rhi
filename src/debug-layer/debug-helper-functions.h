@@ -172,6 +172,10 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(AccelerationStructure)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderTable)
 
+std::string createBufferLabel(const BufferDesc& desc);
+std::string createTextureLabel(const TextureDesc& desc);
+std::string createSamplerLabel(const SamplerDesc& desc);
+
 void validateAccelerationStructureBuildInputs(const IAccelerationStructure::BuildInputs& buildInputs);
 
 } // namespace rhi::debug
