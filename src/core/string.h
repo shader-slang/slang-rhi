@@ -42,7 +42,6 @@ inline To convertArg(const From& arg)
 {
     return arg;
 }
-template<>
 inline const char* convertArg(const std::string& arg)
 {
     return arg.c_str();
