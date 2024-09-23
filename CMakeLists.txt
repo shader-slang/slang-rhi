@@ -97,10 +97,6 @@ if(SLANG_RHI_MASTER_PROJECT)
     set(SLANG_RHI_SLANG_BINARY_DIR ${slang_SOURCE_DIR})
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        # Fetch nvapi
-        # set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
-        # FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
-        # set(NVAPI_ROOT_DIR ${nvapi_SOURCE_DIR})
 
         # Fetch dxc
         # set(DXC_VERSION "1.8.2407")
@@ -118,6 +114,22 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 # Use the variables from the cache.
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
+
+# Fetch and setup NVAPI library
+if((CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64") AND (SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12))
+    set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
+    FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
+    set(SLANG_RHI_NVAPI_ROOT_DIR ${nvapi_SOURCE_DIR} CACHE STRING "NVAPI root directory")
+    add_library(slang-rhi-nvapi STATIC IMPORTED GLOBAL)
+    set_target_properties(slang-rhi-nvapi PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_NVAPI_ROOT_DIR}
+        IMPORTED_LOCATION ${SLANG_RHI_NVAPI_ROOT_DIR}/amd64/nvapi64.lib
+    )
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-nvapi)
+    set(SLANG_RHI_ENABLE_NVAPI ON)
+else()
+    set(SLANG_RHI_ENABLE_NVAPI OFF)
+endif()
 
 # Fetch and setup Google Dawn library (WebGPU implementation)
 if(SLANG_RHI_ENABLE_WGPU)
@@ -277,6 +289,7 @@ target_compile_definitions(slang-rhi
         SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
         SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
         SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
+        SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
 )

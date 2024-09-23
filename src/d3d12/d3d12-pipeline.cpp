@@ -4,7 +4,7 @@
 #include "d3d12-shader-program.h"
 #include "d3d12-vertex-layout.h"
 
-#ifdef SLANG_RHI_NVAPI
+#ifdef SLANG_RHI_ENABLE_NVAPI
 #include "../nvapi/nvapi-include.h"
 #endif
 
@@ -282,7 +282,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                     : programImpl->m_rootObjectLayout->m_rootSignature;
             computeDesc.CS = {programImpl->m_shaders[0].code.data(), SIZE_T(programImpl->m_shaders[0].code.size())};
 
-#ifdef SLANG_RHI_NVAPI
+#ifdef SLANG_RHI_ENABLE_NVAPI
             if (m_device->m_nvapi)
             {
                 // Also fill the extension structure.

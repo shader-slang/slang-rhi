@@ -2,7 +2,7 @@
 
 // A helper that makes the NVAPI available across targets
 
-#ifdef SLANG_RHI_NVAPI
+#ifdef SLANG_RHI_ENABLE_NVAPI
 // On windows if we include NVAPI, we must include windows.h first
 
 #ifdef _WIN32
