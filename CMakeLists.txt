@@ -19,10 +19,12 @@ if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
   set(SLANG_RHI_MASTER_PROJECT ON)
 endif()
 
-if(CMAKE_CONFIGURATION_TYPES)
-    set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>)
-else()
-    set(SLANG_RHI_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+if(NOT DEFINED SLANG_RHI_BINARY_DIR)
+    if(CMAKE_CONFIGURATION_TYPES)
+        set(SLANG_RHI_BINARY_DIR ${CMAKE_BINARY_DIR}/$<CONFIG>)
+    else()
+        set(SLANG_RHI_BINARY_DIR ${CMAKE_BINARY_DIR})
+    endif()
 endif()
 
 # Configuration options
@@ -137,12 +139,12 @@ if(SLANG_RHI_ENABLE_WGPU)
             IMPORTED_LOCATION ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
         )
         add_custom_command(
-            OUTPUT ${SLANG_RHI_OUTPUT_DIRECTORY}/dawn.dll
+            OUTPUT ${SLANG_RHI_BINARY_DIR}/dawn.dll
             DEPENDS ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll ${SLANG_RHI_BINARY_DIR}/
             COMMENT "Copy Dawn DLLs"
         )
-        add_custom_target(slang-rhi-copy-dawn ALL DEPENDS ${SLANG_RHI_OUTPUT_DIRECTORY}/dawn.dll)
+        add_custom_target(slang-rhi-copy-dawn ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/dawn.dll)
         add_dependencies(slang-rhi slang-rhi-copy-dawn)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set_target_properties(slang-rhi-dawn PROPERTIES
@@ -188,15 +190,15 @@ if(SLANG_RHI_MASTER_PROJECT)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         add_custom_command(
-            OUTPUT ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll
+            OUTPUT ${SLANG_RHI_BINARY_DIR}/slang.dll
             DEPENDS ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll ${SLANG_RHI_OUTPUT_DIRECTORY}/
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll ${SLANG_RHI_BINARY_DIR}/
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll ${SLANG_RHI_BINARY_DIR}/
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll ${SLANG_RHI_BINARY_DIR}/
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll ${SLANG_RHI_BINARY_DIR}/
             COMMENT "Copy Slang DLLs"
         )
-        add_custom_target(slang-rhi-copy-binaries ALL DEPENDS ${SLANG_RHI_OUTPUT_DIRECTORY}/slang.dll)
+        add_custom_target(slang-rhi-copy-binaries ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/slang.dll)
         add_dependencies(slang slang-rhi-copy-binaries)
     endif()
 else()
