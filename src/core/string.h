@@ -52,7 +52,7 @@ inline const char* convertArg(const std::string& arg)
 template<typename... Args>
 std::string printf(const char* format, Args&&... args)
 {
-    size_t size = snprintf(nullptr, 0, format, args...) + 1;
+    size_t size = snprintf(nullptr, 0, format, detail::convertArg(args)...) + 1;
     std::string str;
     str.resize(size);
     snprintf(str.data(), size, format, detail::convertArg(args)...);
