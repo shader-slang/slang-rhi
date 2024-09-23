@@ -36,4 +36,27 @@ inline std::string from_cstr(const char* str)
     return str ? str : "";
 }
 
+namespace detail {
+template<typename From, typename To = From>
+inline To convertArg(const From& arg)
+{
+    return arg;
+}
+template<>
+inline const char* convertArg(const std::string& arg)
+{
+    return arg.c_str();
+}
+} // namespace detail
+
+template<typename... Args>
+std::string printf(const char* format, Args&&... args)
+{
+    size_t size = snprintf(nullptr, 0, format, args...) + 1;
+    std::string str;
+    str.resize(size);
+    snprintf(str.data(), size, format, detail::convertArg(args)...);
+    return str;
+}
+
 } // namespace rhi::string
