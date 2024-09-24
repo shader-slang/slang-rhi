@@ -136,7 +136,121 @@ Result DeviceImpl::readTexture(
     Size* outPixelSize
 )
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+
+    if (textureImpl->m_desc.sampleCount > 1)
+    {
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+
+    const TextureDesc& desc = textureImpl->m_desc;
+    GfxCount width = std::max(desc.size.width, 1);
+    GfxCount height = std::max(desc.size.height, 1);
+    GfxCount depth = std::max(desc.size.depth, 1);
+    FormatInfo formatInfo;
+    rhiGetFormatInfo(desc.format, &formatInfo);
+    Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
+    Size bytesPerRow = Size(width) * bytesPerPixel;
+    Size bytesPerSlice = Size(height) * bytesPerRow;
+    Size bufferSize = Size(depth) * bytesPerSlice;
+    if (outRowPitch)
+        *outRowPitch = bytesPerRow;
+    if (outPixelSize)
+        *outPixelSize = bytesPerPixel;
+
+    // create staging buffer
+    WGPUBufferDescriptor stagingBufferDesc = {};
+    stagingBufferDesc.size = bufferSize;
+    stagingBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
+    WGPUBuffer stagingBuffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &stagingBufferDesc);
+    if (!stagingBuffer)
+    {
+        return SLANG_FAIL;
+    }
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferRelease(stagingBuffer); });
+
+    WGPUCommandEncoder encoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr);
+    if (!encoder)
+    {
+        return SLANG_FAIL;
+    }
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(encoder); });
+
+    WGPUImageCopyTexture source = {};
+    source.texture = textureImpl->m_texture;
+    source.mipLevel = 0;
+    source.origin = {0, 0, 0};
+    source.aspect = WGPUTextureAspect_All;
+    WGPUImageCopyBuffer destination = {};
+    destination.layout.offset = 0;
+    destination.layout.bytesPerRow = bytesPerRow;
+    destination.layout.rowsPerImage = height;
+    destination.buffer = stagingBuffer;
+    WGPUExtent3D copySize = {(uint32_t)width, (uint32_t)height, (uint32_t)depth};
+    m_ctx.api.wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &copySize);
+    WGPUCommandBuffer commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr);
+    if (!commandBuffer)
+    {
+        return SLANG_FAIL;
+    }
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
+
+    WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
+    m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
+
+    // Wait for the command buffer to finish executing
+    // TODO: we should switch to the new async API
+    {
+        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
+        m_ctx.api.wgpuQueueOnSubmittedWorkDone(
+            queue,
+            [](WGPUQueueWorkDoneStatus status, void* userdata) { *(WGPUQueueWorkDoneStatus*)userdata = status; },
+            &status
+        );
+        while (status == WGPUQueueWorkDoneStatus_Unknown)
+        {
+            m_ctx.api.wgpuDeviceTick(m_ctx.device);
+        }
+        if (status != WGPUQueueWorkDoneStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+    }
+
+    // Map the staging buffer
+    // TODO: we should switch to the new async API
+    {
+        WGPUBufferMapAsyncStatus status = WGPUBufferMapAsyncStatus_Unknown;
+        m_ctx.api.wgpuBufferMapAsync(
+            stagingBuffer,
+            WGPUMapMode_Read,
+            0,
+            bufferSize,
+            [](WGPUBufferMapAsyncStatus status, void* userdata) { *(WGPUBufferMapAsyncStatus*)userdata = status; },
+            &status
+        );
+        while (status == WGPUBufferMapAsyncStatus_Unknown)
+        {
+            m_ctx.api.wgpuDeviceTick(m_ctx.device);
+        }
+        if (status != WGPUBufferMapAsyncStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+    }
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferUnmap(stagingBuffer); });
+
+    const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, bufferSize);
+    if (!data)
+    {
+        return SLANG_FAIL;
+    }
+
+    auto blob = OwnedBlob::create(bufferSize);
+    ::memcpy((void*)blob->getBufferPointer(), data, bufferSize);
+
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
 }
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)

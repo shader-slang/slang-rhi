@@ -34,6 +34,16 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     return SLANG_OK;
 }
 
+ShaderProgramImpl::Module* ShaderProgramImpl::findModule(SlangStage stage)
+{
+    for (Module& module : m_modules)
+    {
+        if (module.stage == stage)
+            return &module;
+    }
+    return nullptr;
+}
+
 Result DeviceImpl::createShaderProgram(
     const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
