@@ -158,7 +158,7 @@ public:
     setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) override;
+    setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset = 0) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setStencilReference(uint32_t referenceValue) override;
 

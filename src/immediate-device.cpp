@@ -339,7 +339,7 @@ public:
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
-        setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset) override
+        setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset) override
         {
             m_writer->setIndexBuffer(buffer, indexFormat, offset);
         }
@@ -591,7 +591,7 @@ public:
             case CommandName::SetIndexBuffer:
                 m_device->setIndexBuffer(
                     m_writer.getObject<Buffer>(cmd.operands[0]),
-                    (Format)cmd.operands[1],
+                    (IndexFormat)cmd.operands[1],
                     (UInt)cmd.operands[2]
                 );
                 break;

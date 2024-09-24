@@ -257,6 +257,12 @@ enum class Format
     _Count,
 };
 
+enum class IndexFormat
+{
+    UInt16,
+    UInt32,
+};
+
 // TODO: Aspect = Color, Depth, Stencil, etc.
 // TODO: Channel = R, G, B, A, D, S, etc.
 // TODO: Pick : pixel or texel
@@ -1656,7 +1662,8 @@ public:
         setVertexBuffers(slot, 1, &buffer, &offset);
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset = 0) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex = 0) = 0;
 

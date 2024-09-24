@@ -995,10 +995,10 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
+void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     m_boundIndexBuffer = (BufferImpl*)buffer;
-    m_boundIndexFormat = D3DUtil::getMapFormat(indexFormat);
+    m_boundIndexFormat = D3DUtil::getIndexFormat(indexFormat);
     m_boundIndexOffset = (UINT)offset;
 }
 
