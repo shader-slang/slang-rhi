@@ -264,7 +264,7 @@ void DebugRenderCommandEncoder::setVertexBuffers(
     baseObject->setVertexBuffers(startSlot, slotCount, innerBuffers.data(), offsets);
 }
 
-void DebugRenderCommandEncoder::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
+void DebugRenderCommandEncoder::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     SLANG_RHI_API_FUNC;
     auto innerBuffer = static_cast<DebugBuffer*>(buffer)->baseObject.get();

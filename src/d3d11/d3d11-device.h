@@ -66,7 +66,7 @@ public:
         IBuffer* const* buffers,
         const Offset* offsets
     ) override;
-    virtual void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset) override;
+    virtual void setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset) override;
     virtual void setViewports(GfxCount count, Viewport const* viewports) override;
     virtual void setScissorRects(GfxCount count, ScissorRect const* rects) override;
     virtual void setPipeline(IPipeline* state) override;

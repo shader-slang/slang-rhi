@@ -1211,15 +1211,15 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
+void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     VkIndexType indexType = VK_INDEX_TYPE_UINT16;
     switch (indexFormat)
     {
-    case Format::R16_UINT:
+    case IndexFormat::UInt16:
         indexType = VK_INDEX_TYPE_UINT16;
         break;
-    case Format::R32_UINT:
+    case IndexFormat::UInt32:
         indexType = VK_INDEX_TYPE_UINT32;
         break;
     default:

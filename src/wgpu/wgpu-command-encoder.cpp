@@ -436,13 +436,13 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
+void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
     m_device->m_ctx.api.wgpuRenderPassEncoderSetIndexBuffer(
         m_renderPassEncoder,
         bufferImpl->m_buffer,
-        indexFormat == Format::R32_UINT ? WGPUIndexFormat_Uint32 : WGPUIndexFormat_Uint16,
+        indexFormat == IndexFormat::UInt32 ? WGPUIndexFormat_Uint32 : WGPUIndexFormat_Uint16,
         offset,
         bufferImpl->m_desc.size - offset
     );

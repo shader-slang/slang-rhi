@@ -983,9 +983,9 @@ void DeviceImpl::setVertexBuffers(
         ->IASetVertexBuffers((UINT)startSlot, (UINT)slotCount, dxBuffers, &vertexStrides[0], &vertexOffsets[0]);
 }
 
-void DeviceImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
+void DeviceImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
-    DXGI_FORMAT dxFormat = D3DUtil::getMapFormat(indexFormat);
+    DXGI_FORMAT dxFormat = D3DUtil::getIndexFormat(indexFormat);
     m_immediateContext->IASetIndexBuffer(((BufferImpl*)buffer)->m_buffer, dxFormat, UINT(offset));
 }
 

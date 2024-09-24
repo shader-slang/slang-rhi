@@ -332,6 +332,19 @@ DXGI_FORMAT D3DUtil::getMapFormat(Format format)
     }
 }
 
+DXGI_FORMAT D3DUtil::getIndexFormat(IndexFormat indexFormat)
+{
+    switch (indexFormat)
+    {
+    case IndexFormat::UInt16:
+        return DXGI_FORMAT_R16_UINT;
+    case IndexFormat::UInt32:
+        return DXGI_FORMAT_R32_UINT;
+    default:
+        return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
 DXGI_FORMAT D3DUtil::calcResourceFormat(UsageType usage, Int usageFlags, DXGI_FORMAT format)
 {
     SLANG_UNUSED(usage);

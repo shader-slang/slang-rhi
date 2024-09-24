@@ -76,6 +76,8 @@ public:
     /// DXGI_FORMAT_UNKNOWN
     static DXGI_FORMAT getMapFormat(Format format);
 
+    static DXGI_FORMAT getIndexFormat(IndexFormat indexFormat);
+
     /// Given the usage, flags, and format will return the most suitable format. Will return DXGI_UNKNOWN if combination
     /// is not possible
     static DXGI_FORMAT calcFormat(UsageType usage, DXGI_FORMAT format);

@@ -389,17 +389,17 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
+void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     m_indexBuffer = static_cast<BufferImpl*>(buffer)->m_buffer.get();
     m_indexBufferOffset = offset;
 
     switch (indexFormat)
     {
-    case Format::R16_UINT:
+    case IndexFormat::UInt16:
         m_indexBufferType = MTL::IndexTypeUInt16;
         break;
-    case Format::R32_UINT:
+    case IndexFormat::UInt32:
         m_indexBufferType = MTL::IndexTypeUInt32;
         break;
     default:

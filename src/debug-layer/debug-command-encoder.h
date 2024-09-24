@@ -159,7 +159,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) override;
+    setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset = 0) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex = 0) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) override;

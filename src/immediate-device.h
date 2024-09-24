@@ -60,7 +60,7 @@ public:
         IBuffer* const* buffers,
         const Offset* offsets
     ) = 0;
-    virtual void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) = 0;
+    virtual void setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset = 0) = 0;
     virtual void draw(GfxCount vertexCount, GfxIndex startVertex = 0) = 0;
     virtual void drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) = 0;
     virtual void drawInstanced(
@@ -133,7 +133,7 @@ public:
         SLANG_UNUSED(buffers);
         SLANG_UNUSED(offsets);
     }
-    virtual void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset = 0) override
+    virtual void setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset = 0) override
     {
         SLANG_UNUSED(buffer);
         SLANG_UNUSED(indexFormat);

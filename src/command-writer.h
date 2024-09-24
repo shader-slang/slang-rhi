@@ -235,7 +235,7 @@ public:
         ));
     }
 
-    void setIndexBuffer(IBuffer* buffer, Format indexFormat, Offset offset)
+    void setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
     {
         auto bufferOffset = encodeObject(static_cast<Buffer*>(buffer));
         m_commands.push_back(

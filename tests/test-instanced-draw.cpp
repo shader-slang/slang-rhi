@@ -301,7 +301,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
 
         encoder->setVertexBuffer(0, vertexBuffer);
         encoder->setVertexBuffer(1, instanceBuffer);
-        encoder->setIndexBuffer(indexBuffer, Format::R32_UINT);
+        encoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
         encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         encoder->drawIndexedInstanced(kIndexCount, kInstanceCount, startIndex, startVertex, startInstanceLocation);
@@ -466,7 +466,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 
         encoder->setVertexBuffer(0, vertexBuffer);
         encoder->setVertexBuffer(1, instanceBuffer);
-        encoder->setIndexBuffer(indexBuffer, Format::R32_UINT);
+        encoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
         encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         uint32_t maxDrawCount = 1;
