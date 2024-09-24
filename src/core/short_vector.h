@@ -100,8 +100,8 @@ public:
 
     /// Size constructor.
     short_vector(size_type size, const value_type& value)
-        : m_data(m_short_data)
-        , m_size(size)
+        : m_data((value_type*)m_short_data)
+        , m_size(0)
         , m_capacity(N)
     {
         if (size > m_capacity)
@@ -112,7 +112,7 @@ public:
 
     /// Initializer list constructor.
     short_vector(std::initializer_list<value_type> list)
-        : m_data(m_short_data)
+        : m_data((value_type*)m_short_data)
         , m_size(0)
         , m_capacity(N)
     {
