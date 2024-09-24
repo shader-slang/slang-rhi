@@ -137,6 +137,8 @@ public:
 
     Result init(CommandBufferImpl* commandBuffer, const RenderPassDesc& renderPass);
 
+    Result prepareDraw();
+
     // IRenderCommandEncoder implementation
 
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;

@@ -23,7 +23,7 @@ Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout**
         vertexAttribute.format = translateVertexFormat(elementDesc.format);
         vertexAttribute.offset = elementDesc.offset;
         // TODO determine shader location from name
-        vertexAttribute.shaderLocation = 0;
+        vertexAttribute.shaderLocation = i;
 
         layout->m_vertexAttributes[elementDesc.bufferSlotIndex].push_back(vertexAttribute);
     }

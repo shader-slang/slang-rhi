@@ -458,4 +458,165 @@ WGPUCompareFunction translateCompareFunction(ComparisonFunc func)
     }
 }
 
+WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveType type)
+{
+    switch (type)
+    {
+    case PrimitiveType::Point:
+        return WGPUPrimitiveTopology_PointList;
+    case PrimitiveType::Line:
+        return WGPUPrimitiveTopology_LineList;
+    case PrimitiveType::Triangle:
+        return WGPUPrimitiveTopology_TriangleList;
+    case PrimitiveType::Patch:
+        SLANG_RHI_ASSERT_FAILURE("Patch topology not supported.");
+    default:
+        return WGPUPrimitiveTopology_Undefined;
+    }
+}
+
+WGPUFrontFace translateFrontFace(FrontFaceMode mode)
+{
+    switch (mode)
+    {
+    case FrontFaceMode::CounterClockwise:
+        return WGPUFrontFace_CCW;
+    case FrontFaceMode::Clockwise:
+        return WGPUFrontFace_CW;
+    default:
+        return WGPUFrontFace_Undefined;
+    }
+}
+
+WGPUCullMode translateCullMode(CullMode mode)
+{
+    switch (mode)
+    {
+    case CullMode::None:
+        return WGPUCullMode_None;
+    case CullMode::Front:
+        return WGPUCullMode_Front;
+    case CullMode::Back:
+        return WGPUCullMode_Back;
+    default:
+        return WGPUCullMode_Undefined;
+    }
+}
+
+WGPUStencilOperation translateStencilOp(StencilOp op)
+{
+    switch (op)
+    {
+    case StencilOp::Keep:
+        return WGPUStencilOperation_Keep;
+    case StencilOp::Zero:
+        return WGPUStencilOperation_Zero;
+    case StencilOp::Replace:
+        return WGPUStencilOperation_Replace;
+    case StencilOp::IncrementSaturate:
+        return WGPUStencilOperation_IncrementClamp;
+    case StencilOp::DecrementSaturate:
+        return WGPUStencilOperation_DecrementClamp;
+    case StencilOp::Invert:
+        return WGPUStencilOperation_Invert;
+    case StencilOp::IncrementWrap:
+        return WGPUStencilOperation_IncrementWrap;
+    case StencilOp::DecrementWrap:
+        return WGPUStencilOperation_DecrementWrap;
+    default:
+        return WGPUStencilOperation_Undefined;
+    }
+}
+
+WGPUBlendFactor translateBlendFactor(BlendFactor factor)
+{
+    switch (factor)
+    {
+    case BlendFactor::Zero:
+        return WGPUBlendFactor_Zero;
+    case BlendFactor::One:
+        return WGPUBlendFactor_One;
+    case BlendFactor::SrcColor:
+        return WGPUBlendFactor_Src;
+    case BlendFactor::InvSrcColor:
+        return WGPUBlendFactor_OneMinusSrc;
+    case BlendFactor::SrcAlpha:
+        return WGPUBlendFactor_SrcAlpha;
+    case BlendFactor::InvSrcAlpha:
+        return WGPUBlendFactor_OneMinusSrcAlpha;
+    case BlendFactor::DestAlpha:
+        return WGPUBlendFactor_DstAlpha;
+    case BlendFactor::InvDestAlpha:
+        return WGPUBlendFactor_OneMinusDstAlpha;
+    case BlendFactor::DestColor:
+        return WGPUBlendFactor_Dst;
+    case BlendFactor::InvDestColor:
+        return WGPUBlendFactor_OneMinusDst;
+    case BlendFactor::SrcAlphaSaturate:
+        return WGPUBlendFactor_SrcAlphaSaturated;
+    case BlendFactor::BlendColor:
+        return WGPUBlendFactor_Constant;
+    case BlendFactor::InvBlendColor:
+        return WGPUBlendFactor_OneMinusConstant;
+    case BlendFactor::SecondarySrcColor:
+        return WGPUBlendFactor_Src1;
+    case BlendFactor::InvSecondarySrcColor:
+        return WGPUBlendFactor_OneMinusSrc1;
+    case BlendFactor::SecondarySrcAlpha:
+        return WGPUBlendFactor_Src1Alpha;
+    case BlendFactor::InvSecondarySrcAlpha:
+        return WGPUBlendFactor_OneMinusSrc1Alpha;
+    default:
+        return WGPUBlendFactor_Undefined;
+    }
+}
+
+WGPUBlendOperation translateBlendOperation(BlendOp op)
+{
+    switch (op)
+    {
+    case BlendOp::Add:
+        return WGPUBlendOperation_Add;
+    case BlendOp::Subtract:
+        return WGPUBlendOperation_Subtract;
+    case BlendOp::ReverseSubtract:
+        return WGPUBlendOperation_ReverseSubtract;
+    case BlendOp::Min:
+        return WGPUBlendOperation_Min;
+    case BlendOp::Max:
+        return WGPUBlendOperation_Max;
+    default:
+        return WGPUBlendOperation_Undefined;
+    }
+}
+
+WGPULoadOp translateLoadOp(LoadOp op)
+{
+    switch (op)
+    {
+    case LoadOp::Load:
+        return WGPULoadOp_Load;
+    case LoadOp::Clear:
+        return WGPULoadOp_Clear;
+    case LoadOp::DontCare:
+        return WGPULoadOp_Undefined;
+    default:
+        return WGPULoadOp_Undefined;
+    }
+}
+
+WGPUStoreOp translateStoreOp(StoreOp op)
+{
+    switch (op)
+    {
+    case StoreOp::Store:
+        return WGPUStoreOp_Store;
+    case StoreOp::DontCare:
+        return WGPUStoreOp_Undefined;
+    default:
+        return WGPUStoreOp_Undefined;
+    }
+}
+
+
 } // namespace rhi::wgpu

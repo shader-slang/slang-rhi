@@ -6,6 +6,7 @@
 #include "wgpu-texture.h"
 #include "wgpu-device.h"
 #include "wgpu-transient-resource-heap.h"
+#include "wgpu-util.h"
 
 namespace rhi::wgpu {
 
@@ -295,10 +296,74 @@ void* RenderCommandEncoderImpl::getInterface(SlangUUID const& uuid)
 Result RenderCommandEncoderImpl::init(CommandBufferImpl* commandBuffer, const RenderPassDesc& desc)
 {
     CommandEncoderImpl::init(commandBuffer);
+
+    short_vector<WGPURenderPassColorAttachment, 8> colorAttachments(desc.colorAttachmentCount, {});
+    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        const RenderPassColorAttachment& attachmentIn = desc.colorAttachments[i];
+        WGPURenderPassColorAttachment& attachment = colorAttachments[i];
+        attachment.view = static_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
+        attachment.depthSlice = -1;         // TODO not provided
+        attachment.resolveTarget = nullptr; // TODO not provided
+        attachment.loadOp = translateLoadOp(attachmentIn.loadOp);
+        attachment.storeOp = translateStoreOp(attachmentIn.storeOp);
+        attachment.clearValue.r = attachmentIn.clearValue[0];
+        attachment.clearValue.g = attachmentIn.clearValue[1];
+        attachment.clearValue.b = attachmentIn.clearValue[2];
+        attachment.clearValue.a = attachmentIn.clearValue[3];
+    }
+
+    WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
+    if (desc.depthStencilAttachment)
+    {
+        const RenderPassDepthStencilAttachment& attachmentIn = *desc.depthStencilAttachment;
+        WGPURenderPassDepthStencilAttachment& attachment = depthStencilAttachment;
+        attachment.view = static_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
+        attachment.depthLoadOp = translateLoadOp(attachmentIn.depthLoadOp);
+        attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
+        attachment.depthClearValue = attachmentIn.depthClearValue;
+        attachment.depthReadOnly = attachmentIn.depthReadOnly;
+        attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
+        attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
+        attachment.stencilClearValue = attachmentIn.stencilClearValue;
+        attachment.stencilReadOnly = attachmentIn.stencilReadOnly;
+    }
+
     WGPURenderPassDescriptor passDesc = {};
+    passDesc.colorAttachmentCount = desc.colorAttachmentCount;
+    passDesc.colorAttachments = colorAttachments.data();
+    passDesc.depthStencilAttachment = desc.depthStencilAttachment ? &depthStencilAttachment : nullptr;
+    // passDesc.occlusionQuerySet not supported
+    // passDesc.timestampWrites not supported
+
     m_renderPassEncoder =
         m_device->m_ctx.api.wgpuCommandEncoderBeginRenderPass(m_commandBuffer->m_commandEncoder, &passDesc);
     return m_renderPassEncoder ? SLANG_OK : SLANG_FAIL;
+}
+
+Result RenderCommandEncoderImpl::prepareDraw()
+{
+    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    if (!pipeline)
+    {
+        return SLANG_FAIL;
+    }
+
+    RootBindingContext context;
+    SLANG_RETURN_ON_FAIL(bindPipelineImpl(context));
+
+    m_device->m_ctx.api.wgpuRenderPassEncoderSetPipeline(m_renderPassEncoder, m_currentPipeline->m_renderPipeline);
+    for (uint32_t groupIndex = 0; groupIndex < context.bindGroups.size(); groupIndex++)
+    {
+        m_device->m_ctx.api.wgpuRenderPassEncoderSetBindGroup(
+            m_renderPassEncoder,
+            groupIndex,
+            context.bindGroups[groupIndex],
+            0,
+            nullptr
+        );
+    }
+    return SLANG_OK;
 }
 
 void RenderCommandEncoderImpl::endEncoding()
@@ -319,9 +384,35 @@ Result RenderCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline,
     return setPipelineWithRootObjectImpl(pipeline, rootObject);
 }
 
-void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* viewports) {}
+void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
+{
+    if (count < 1)
+        return;
 
-void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects) {}
+    m_device->m_ctx.api.wgpuRenderPassEncoderSetViewport(
+        m_renderPassEncoder,
+        viewports[0].originX,
+        viewports[0].originY,
+        viewports[0].extentX,
+        viewports[0].extentY,
+        viewports[0].minZ,
+        viewports[0].maxZ
+    );
+}
+
+void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
+{
+    if (count < 1)
+        return;
+
+    m_device->m_ctx.api.wgpuRenderPassEncoderSetScissorRect(
+        m_renderPassEncoder,
+        rects[0].minX,
+        rects[0].minY,
+        rects[0].maxX - rects[0].minX,
+        rects[0].maxY - rects[0].minY
+    );
+}
 
 void RenderCommandEncoderImpl::setPrimitiveTopology(PrimitiveTopology topology) {}
 
@@ -373,12 +464,14 @@ Result RenderCommandEncoderImpl::setSamplePositions(
 
 Result RenderCommandEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
 {
+    SLANG_RETURN_ON_FAIL(prepareDraw());
     m_device->m_ctx.api.wgpuRenderPassEncoderDraw(m_renderPassEncoder, vertexCount, 1, startVertex, 0);
     return SLANG_OK;
 }
 
 Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
 {
+    SLANG_RETURN_ON_FAIL(prepareDraw());
     m_device->m_ctx.api.wgpuRenderPassEncoderDrawIndexed(m_renderPassEncoder, indexCount, 1, startIndex, baseVertex, 0);
     return SLANG_OK;
 }
@@ -422,6 +515,7 @@ Result RenderCommandEncoderImpl::drawInstanced(
     GfxIndex startInstanceLocation
 )
 {
+    SLANG_RETURN_ON_FAIL(prepareDraw());
     m_device->m_ctx.api
         .wgpuRenderPassEncoderDraw(m_renderPassEncoder, vertexCount, instanceCount, startVertex, startInstanceLocation);
     return SLANG_OK;
@@ -435,6 +529,7 @@ Result RenderCommandEncoderImpl::drawIndexedInstanced(
     GfxIndex startInstanceLocation
 )
 {
+    SLANG_RETURN_ON_FAIL(prepareDraw());
     m_device->m_ctx.api.wgpuRenderPassEncoderDrawIndexed(
         m_renderPassEncoder,
         indexCount,

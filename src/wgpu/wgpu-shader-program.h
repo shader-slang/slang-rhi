@@ -25,6 +25,8 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;
+
+    Module* findModule(SlangStage stage);
 };
 
 } // namespace rhi::wgpu
