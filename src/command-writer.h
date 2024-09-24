@@ -211,11 +211,6 @@ public:
         m_commands.push_back(Command(CommandName::SetScissorRects, (uint32_t)count, (uint32_t)offset));
     }
 
-    void setPrimitiveTopology(PrimitiveTopology topology)
-    {
-        m_commands.push_back(Command(CommandName::SetPrimitiveTopology, (uint32_t)topology));
-    }
-
     void setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)
     {
         Offset bufferOffset = 0;

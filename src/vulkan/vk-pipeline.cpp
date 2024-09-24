@@ -93,7 +93,7 @@ Result PipelineImpl::createVKGraphicsPipeline()
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     // All other forms of primitive toplogies are specified via dynamic state.
-    inputAssembly.topology = VulkanUtil::translatePrimitiveTypeToListTopology(desc.graphics.primitiveType);
+    inputAssembly.topology = VulkanUtil::translatePrimitiveListTopology(desc.graphics.primitiveTopology);
     inputAssembly.primitiveRestartEnable = VK_FALSE; // TODO: Currently unsupported
 
     VkViewport viewport = {};

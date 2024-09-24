@@ -21,6 +21,6 @@ const char* enumToString(TextureAddressingMode value);
 const char* enumToString(ComparisonFunc value);
 const char* enumToString(TextureReductionOp value);
 const char* enumToString(InputSlotClass value);
-const char* enumToString(PrimitiveType value);
+const char* enumToString(PrimitiveTopology value);
 
 } // namespace rhi

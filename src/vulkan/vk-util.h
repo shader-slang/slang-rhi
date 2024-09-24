@@ -113,7 +113,7 @@ struct VulkanUtil
 
     static VkBlendOp translateBlendOp(BlendOp op);
 
-    static VkPrimitiveTopology translatePrimitiveTypeToListTopology(PrimitiveType primitiveType);
+    static VkPrimitiveTopology translatePrimitiveListTopology(PrimitiveTopology topology);
 
     static VkStencilOp translateStencilOp(StencilOp op);
 

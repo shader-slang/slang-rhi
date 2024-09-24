@@ -41,7 +41,7 @@ struct MetalUtil
     static MTL::VertexStepFunction translateVertexStepFunction(InputSlotClass slotClass);
 
     static MTL::PrimitiveType translatePrimitiveType(PrimitiveTopology topology);
-    static MTL::PrimitiveTopologyClass translatePrimitiveTopologyClass(PrimitiveType type);
+    static MTL::PrimitiveTopologyClass translatePrimitiveTopologyClass(PrimitiveTopology topology);
 
     static MTL::BlendFactor translateBlendFactor(BlendFactor factor);
     static MTL::BlendOperation translateBlendOperation(BlendOp op);

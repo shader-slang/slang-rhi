@@ -58,8 +58,6 @@ public:
     readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
         override;
 
-    virtual void setPrimitiveTopology(PrimitiveTopology topology) override;
-
     virtual void setVertexBuffers(
         GfxIndex startSlot,
         GfxCount slotCount,

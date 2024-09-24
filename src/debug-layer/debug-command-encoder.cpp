@@ -241,12 +241,6 @@ void DebugRenderCommandEncoder::setScissorRects(GfxCount count, const ScissorRec
     baseObject->setScissorRects(count, scissors);
 }
 
-void DebugRenderCommandEncoder::setPrimitiveTopology(PrimitiveTopology topology)
-{
-    SLANG_RHI_API_FUNC;
-    baseObject->setPrimitiveTopology(topology);
-}
-
 void DebugRenderCommandEncoder::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,

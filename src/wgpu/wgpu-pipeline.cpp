@@ -63,7 +63,7 @@ Result PipelineImpl::createRenderPipeline()
     pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
     pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
 
-    pipelineDesc.primitive.topology = translatePrimitiveTopology(desc.graphics.primitiveType);
+    pipelineDesc.primitive.topology = translatePrimitiveTopology(desc.graphics.primitiveTopology);
     // TODO support strip topologies
     pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     pipelineDesc.primitive.frontFace = translateFrontFace(desc.graphics.rasterizer.frontFace);

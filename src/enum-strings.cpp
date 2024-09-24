@@ -325,18 +325,22 @@ const char* enumToString(InputSlotClass value)
     return kInvalid;
 }
 
-const char* enumToString(PrimitiveType value)
+const char* enumToString(PrimitiveTopology value)
 {
     switch (value)
     {
-    case PrimitiveType::Point:
-        return "Point";
-    case PrimitiveType::Line:
-        return "Line";
-    case PrimitiveType::Triangle:
-        return "Triangle";
-    case PrimitiveType::Patch:
-        return "Patch";
+    case PrimitiveTopology::PointList:
+        return "PointList";
+    case PrimitiveTopology::LineList:
+        return "LineList";
+    case PrimitiveTopology::LineStrip:
+        return "LineStrip";
+    case PrimitiveTopology::TriangleList:
+        return "TriangleList";
+    case PrimitiveTopology::TriangleStrip:
+        return "TriangleStrip";
+    case PrimitiveTopology::PatchList:
+        return "PatchList";
     }
     return kInvalid;
 }

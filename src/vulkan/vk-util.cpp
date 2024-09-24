@@ -456,17 +456,21 @@ VkBlendOp VulkanUtil::translateBlendOp(BlendOp op)
     }
 }
 
-VkPrimitiveTopology VulkanUtil::translatePrimitiveTypeToListTopology(PrimitiveType primitiveType)
+VkPrimitiveTopology VulkanUtil::translatePrimitiveListTopology(PrimitiveTopology topology)
 {
-    switch (primitiveType)
+    switch (topology)
     {
-    case PrimitiveType::Point:
+    case PrimitiveTopology::PointList:
         return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-    case PrimitiveType::Line:
+    case PrimitiveTopology::LineList:
         return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    case PrimitiveType::Triangle:
+    case PrimitiveTopology::LineStrip:
+        return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+    case PrimitiveTopology::TriangleList:
         return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    case PrimitiveType::Patch:
+    case PrimitiveTopology::TriangleStrip:
+        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    case PrimitiveTopology::PatchList:
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
     default:
         SLANG_RHI_ASSERT_FAILURE("Unknown topology type.");

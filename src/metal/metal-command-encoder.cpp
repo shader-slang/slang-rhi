@@ -327,6 +327,8 @@ void RenderCommandEncoderImpl::endEncoding()
 
 Result RenderCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
+    m_primitiveType =
+        MetalUtil::translatePrimitiveType(static_cast<PipelineImpl*>(pipeline)->desc.graphics.primitiveTopology);
     return setPipelineImpl(pipeline, outRootObject);
 }
 
@@ -363,11 +365,6 @@ void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect
         mtlRect.width = rect.maxX - rect.minX;
         mtlRect.height = rect.maxY - rect.minY;
     }
-}
-
-void RenderCommandEncoderImpl::setPrimitiveTopology(PrimitiveTopology topology)
-{
-    m_primitiveType = MetalUtil::translatePrimitiveType(topology);
 }
 
 void RenderCommandEncoderImpl::setVertexBuffers(

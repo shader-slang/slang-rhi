@@ -442,34 +442,37 @@ MTL::PrimitiveType MetalUtil::translatePrimitiveType(PrimitiveTopology topology)
 {
     switch (topology)
     {
-    case PrimitiveTopology::TriangleList:
-        return MTL::PrimitiveTypeTriangle;
-    case PrimitiveTopology::TriangleStrip:
-        return MTL::PrimitiveTypeTriangleStrip;
     case PrimitiveTopology::PointList:
         return MTL::PrimitiveTypePoint;
     case PrimitiveTopology::LineList:
         return MTL::PrimitiveTypeLine;
     case PrimitiveTopology::LineStrip:
         return MTL::PrimitiveTypeLineStrip;
+    case PrimitiveTopology::TriangleList:
+        return MTL::PrimitiveTypeTriangle;
+    case PrimitiveTopology::TriangleStrip:
+        return MTL::PrimitiveTypeTriangleStrip;
+    case PrimitiveTopology::PatchList:
     default:
         return MTL::PrimitiveType(0);
     }
 }
 
-MTL::PrimitiveTopologyClass MetalUtil::translatePrimitiveTopologyClass(PrimitiveType type)
+MTL::PrimitiveTopologyClass MetalUtil::translatePrimitiveTopologyClass(PrimitiveTopology topology)
 {
-    switch (type)
+    switch (topology)
     {
-    case PrimitiveType::Point:
+    case PrimitiveTopology::PointList:
         return MTL::PrimitiveTopologyClassPoint;
-    case PrimitiveType::Line:
+    case PrimitiveTopology::LineList:
+    case PrimitiveTopology::LineStrip:
         return MTL::PrimitiveTopologyClassLine;
-    case PrimitiveType::Triangle:
+    case PrimitiveTopology::TriangleList:
+    case PrimitiveTopology::TriangleStrip:
         return MTL::PrimitiveTopologyClassTriangle;
-    case PrimitiveType::Patch:
+    case PrimitiveTopology::PatchList:
     default:
-        return MTL::PrimitiveTopologyClassUnspecified;
+        return MTL::PrimitiveTopologyClass(0);
     }
 }
 

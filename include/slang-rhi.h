@@ -312,21 +312,14 @@ enum class InputSlotClass
     PerInstance
 };
 
-enum class PrimitiveType
-{
-    Point,
-    Line,
-    Triangle,
-    Patch
-};
-
 enum class PrimitiveTopology
 {
-    TriangleList,
-    TriangleStrip,
     PointList,
     LineList,
-    LineStrip
+    LineStrip,
+    TriangleList,
+    TriangleStrip,
+    PatchList,
 };
 
 enum class ResourceState
@@ -1242,7 +1235,7 @@ struct RenderPipelineDesc
     IShaderProgram* program = nullptr;
 
     IInputLayout* inputLayout = nullptr;
-    PrimitiveType primitiveType = PrimitiveType::Triangle;
+    PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
     ColorTargetState* targets = nullptr;
     GfxCount targetCount = 0;
     DepthStencilState depthStencil;
@@ -1651,8 +1644,6 @@ public:
         rect.maxY = static_cast<Int>(viewport.extentY);
         setScissorRects(1, &rect);
     }
-
-    virtual SLANG_NO_THROW void SLANG_MCALL setPrimitiveTopology(PrimitiveTopology topology) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets) = 0;

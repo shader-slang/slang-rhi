@@ -24,16 +24,16 @@ D3D_PRIMITIVE_TOPOLOGY D3DUtil::getPrimitiveTopology(PrimitiveTopology topology)
 {
     switch (topology)
     {
-    case PrimitiveTopology::TriangleList:
-        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-    case PrimitiveTopology::TriangleStrip:
-        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    case PrimitiveTopology::PointList:
+        return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
     case PrimitiveTopology::LineList:
         return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
     case PrimitiveTopology::LineStrip:
         return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-    case PrimitiveTopology::PointList:
-        return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+    case PrimitiveTopology::TriangleList:
+        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    case PrimitiveTopology::TriangleStrip:
+        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
     default:
         break;
     }
@@ -44,31 +44,35 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE D3DUtil::getPrimitiveType(PrimitiveTopology topolo
 {
     switch (topology)
     {
-    case PrimitiveTopology::TriangleList:
-    case PrimitiveTopology::TriangleStrip:
-        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    case PrimitiveTopology::PointList:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
     case PrimitiveTopology::LineList:
     case PrimitiveTopology::LineStrip:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-    case PrimitiveTopology::PointList:
-        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+    case PrimitiveTopology::TriangleList:
+    case PrimitiveTopology::TriangleStrip:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    case PrimitiveTopology::PatchList:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
     default:
         break;
     }
     return D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED;
 }
 
-D3D12_PRIMITIVE_TOPOLOGY_TYPE D3DUtil::getPrimitiveType(PrimitiveType type)
+D3D12_PRIMITIVE_TOPOLOGY_TYPE D3DUtil::getPrimitiveTopologyType(PrimitiveTopology topology)
 {
-    switch (type)
+    switch (topology)
     {
-    case PrimitiveType::Point:
+    case PrimitiveTopology::PointList:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-    case PrimitiveType::Line:
+    case PrimitiveTopology::LineList:
+    case PrimitiveTopology::LineStrip:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-    case PrimitiveType::Triangle:
+    case PrimitiveTopology::TriangleList:
+    case PrimitiveTopology::TriangleStrip:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    case PrimitiveType::Patch:
+    case PrimitiveTopology::PatchList:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
     default:
         break;

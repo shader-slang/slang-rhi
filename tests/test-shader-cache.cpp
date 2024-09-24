@@ -813,7 +813,6 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         encoder->setViewportAndScissor(viewport);
 
         encoder->setVertexBuffer(0, vertexBuffer);
-        encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         encoder->draw(3);
         encoder->endEncoding();

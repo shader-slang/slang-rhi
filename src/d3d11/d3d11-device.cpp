@@ -949,11 +949,6 @@ void D3D11Device::setInputLayout(InputLayout* inputLayoutIn)
 }
 #endif
 
-void DeviceImpl::setPrimitiveTopology(PrimitiveTopology topology)
-{
-    m_immediateContext->IASetPrimitiveTopology(D3DUtil::getPrimitiveTopology(topology));
-}
-
 void DeviceImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
@@ -1055,6 +1050,10 @@ void DeviceImpl::setPipeline(IPipeline* state)
         // IA
 
         m_immediateContext->IASetInputLayout(stateImpl->m_inputLayout->m_layout);
+
+        m_immediateContext->IASetPrimitiveTopology(
+            D3DUtil::getPrimitiveTopology(stateImpl->desc.graphics.primitiveTopology)
+        );
 
         // VS
 
