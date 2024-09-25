@@ -63,7 +63,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
         {
             psoDesc.pRootSignature = programImpl->m_rootObjectLayout->m_rootSignature;
 
-            psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveTopology);
+            psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveTopologyType(desc.graphics.primitiveTopology);
 
             const int numRenderTargets = desc.graphics.targetCount;
 

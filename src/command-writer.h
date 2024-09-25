@@ -18,7 +18,6 @@ enum class CommandName
     EndRenderPass,
     SetViewports,
     SetScissorRects,
-    SetPrimitiveTopology,
     SetVertexBuffers,
     SetIndexBuffer,
     Draw,
