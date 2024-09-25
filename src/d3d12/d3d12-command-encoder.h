@@ -188,9 +188,6 @@ public:
     DXGI_FORMAT m_boundIndexFormat;
     UINT m_boundIndexOffset;
 
-    D3D12_PRIMITIVE_TOPOLOGY_TYPE m_primitiveTopologyType;
-    D3D12_PRIMITIVE_TOPOLOGY m_primitiveTopology;
-
     void init(
         DeviceImpl* device,
         TransientResourceHeapImpl* transientHeap,
@@ -206,8 +203,6 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setViewports(GfxCount count, const Viewport* viewports) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setScissorRects(GfxCount count, const ScissorRect* rects) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL setPrimitiveTopology(PrimitiveTopology topology) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets) override;

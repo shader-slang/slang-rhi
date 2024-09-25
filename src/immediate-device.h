@@ -53,7 +53,6 @@ public:
     virtual void endRenderPass() = 0;
     virtual void setViewports(GfxCount count, const Viewport* viewports) = 0;
     virtual void setScissorRects(GfxCount count, const ScissorRect* scissors) = 0;
-    virtual void setPrimitiveTopology(PrimitiveTopology topology) = 0;
     virtual void setVertexBuffers(
         GfxIndex startSlot,
         GfxCount slotCount,
@@ -120,7 +119,6 @@ public:
         SLANG_UNUSED(count);
         SLANG_UNUSED(scissors);
     }
-    virtual void setPrimitiveTopology(PrimitiveTopology topology) override { SLANG_UNUSED(topology); }
     virtual void setVertexBuffers(
         GfxIndex startSlot,
         GfxCount slotCount,

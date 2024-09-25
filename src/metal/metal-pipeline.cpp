@@ -74,7 +74,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
     NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor =
         inputLayoutImpl->createVertexDescriptor(m_vertexBufferOffset);
     pd->setVertexDescriptor(vertexDescriptor.get());
-    pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveType));
+    pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveTopology));
 
     pd->setAlphaToCoverageEnabled(desc.graphics.multisample.alphaToCoverageEnable);
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi

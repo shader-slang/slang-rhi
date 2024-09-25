@@ -409,7 +409,6 @@ struct RenderTargetTests : TextureTest
         renderEncoder->setViewportAndScissor(viewport);
 
         renderEncoder->setVertexBuffer(0, vertexBuffer);
-        renderEncoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
         renderEncoder->draw(kVertexCount, 0);
         renderEncoder->endEncoding();
 

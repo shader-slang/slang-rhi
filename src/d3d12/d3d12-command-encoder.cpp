@@ -811,8 +811,6 @@ void RenderCommandEncoderImpl::init(
     m_transientHeap = transientHeap;
     m_boundVertexBuffers.clear();
     m_boundIndexBuffer = nullptr;
-    m_primitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    m_primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     m_boundIndexFormat = DXGI_FORMAT_UNKNOWN;
     m_boundIndexOffset = 0;
     m_currentPipeline = nullptr;
@@ -964,12 +962,6 @@ void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect
     m_d3dCmdList->RSSetScissorRects(UINT(count), m_scissorRects);
 }
 
-void RenderCommandEncoderImpl::setPrimitiveTopology(PrimitiveTopology topology)
-{
-    m_primitiveTopologyType = D3DUtil::getPrimitiveType(topology);
-    m_primitiveTopology = D3DUtil::getPrimitiveTopology(topology);
-}
-
 void RenderCommandEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
@@ -1017,7 +1009,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
 
-    m_d3dCmdList->IASetPrimitiveTopology(m_primitiveTopology);
+    m_d3dCmdList->IASetPrimitiveTopology(D3DUtil::getPrimitiveTopology(pipeline->desc.graphics.primitiveTopology));
 
     // Set up vertex buffer views
     {

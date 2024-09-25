@@ -458,18 +458,22 @@ WGPUCompareFunction translateCompareFunction(ComparisonFunc func)
     }
 }
 
-WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveType type)
+WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveTopology topology)
 {
-    switch (type)
+    switch (topology)
     {
-    case PrimitiveType::Point:
+    case PrimitiveTopology::PointList:
         return WGPUPrimitiveTopology_PointList;
-    case PrimitiveType::Line:
+    case PrimitiveTopology::LineList:
         return WGPUPrimitiveTopology_LineList;
-    case PrimitiveType::Triangle:
+    case PrimitiveTopology::LineStrip:
+        return WGPUPrimitiveTopology_LineStrip;
+    case PrimitiveTopology::TriangleList:
         return WGPUPrimitiveTopology_TriangleList;
-    case PrimitiveType::Patch:
-        SLANG_RHI_ASSERT_FAILURE("Patch topology not supported.");
+    case PrimitiveTopology::TriangleStrip:
+        return WGPUPrimitiveTopology_TriangleStrip;
+    case PrimitiveTopology::PatchList:
+        SLANG_RHI_ASSERT_FAILURE("Patch tlist opology not supported.");
     default:
         return WGPUPrimitiveTopology_Undefined;
     }

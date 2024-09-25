@@ -241,7 +241,6 @@ struct DrawInstancedTest : BaseDrawTest
 
         encoder->setVertexBuffer(0, vertexBuffer);
         encoder->setVertexBuffer(1, instanceBuffer);
-        encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         encoder->drawInstanced(kVertexCount, kInstanceCount, startVertex, startInstanceLocation);
         encoder->endEncoding();
@@ -302,7 +301,6 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         encoder->setVertexBuffer(0, vertexBuffer);
         encoder->setVertexBuffer(1, instanceBuffer);
         encoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
-        encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         encoder->drawIndexedInstanced(kIndexCount, kInstanceCount, startIndex, startVertex, startInstanceLocation);
         encoder->endEncoding();
@@ -382,7 +380,6 @@ struct DrawIndirectTest : BaseDrawTest
 
         encoder->setVertexBuffer(0, vertexBuffer);
         encoder->setVertexBuffer(1, instanceBuffer);
-        encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndirectArgData, args);
@@ -467,7 +464,6 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         encoder->setVertexBuffer(0, vertexBuffer);
         encoder->setVertexBuffer(1, instanceBuffer);
         encoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
-        encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndexedIndirectArgData, args);
@@ -514,6 +510,7 @@ TEST_CASE("draw-instanced")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }

@@ -18,7 +18,7 @@ WGPUFilterMode translateFilterMode(TextureFilteringMode mode);
 WGPUMipmapFilterMode translateMipmapFilterMode(TextureFilteringMode mode);
 WGPUCompareFunction translateCompareFunction(ComparisonFunc func);
 
-WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveType type);
+WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveTopology topology);
 WGPUFrontFace translateFrontFace(FrontFaceMode mode);
 WGPUCullMode translateCullMode(CullMode mode);
 WGPUStencilOperation translateStencilOp(StencilOp op);

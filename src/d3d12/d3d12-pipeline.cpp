@@ -63,7 +63,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
         {
             psoDesc.pRootSignature = programImpl->m_rootObjectLayout->m_rootSignature;
 
-            psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveType);
+            psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveTopologyType(desc.graphics.primitiveTopology);
 
             const int numRenderTargets = desc.graphics.targetCount;
 
@@ -159,7 +159,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                 ds.BackFace = D3DUtil::translateStencilOpDesc(desc.graphics.depthStencil.backFace);
             }
 
-            psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveType(desc.graphics.primitiveType);
+            psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveTopologyType(desc.graphics.primitiveTopology);
         };
 
         if (m_program->isMeshShaderProgram())

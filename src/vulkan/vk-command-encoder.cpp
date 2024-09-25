@@ -1167,29 +1167,6 @@ void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect
     api.vkCmdSetScissor(m_vkCommandBuffer, 0, uint32_t(m_scissorRects.size()), m_scissorRects.data());
 }
 
-void RenderCommandEncoderImpl::setPrimitiveTopology(PrimitiveTopology topology)
-{
-    auto& api = *m_api;
-    if (api.vkCmdSetPrimitiveTopologyEXT)
-    {
-        api.vkCmdSetPrimitiveTopologyEXT(m_vkCommandBuffer, VulkanUtil::getVkPrimitiveTopology(topology));
-    }
-    else
-    {
-        switch (topology)
-        {
-        case PrimitiveTopology::TriangleList:
-            break;
-        default:
-            // We are using a non-list topology, but we don't have dynmaic state
-            // extension, error out.
-            SLANG_RHI_ASSERT_FAILURE("Non-list topology requires VK_EXT_extended_dynamic_states, which is not present."
-            );
-            break;
-        }
-    }
-}
-
 void RenderCommandEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,

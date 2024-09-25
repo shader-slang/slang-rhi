@@ -414,8 +414,6 @@ void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect
     );
 }
 
-void RenderCommandEncoderImpl::setPrimitiveTopology(PrimitiveTopology topology) {}
-
 void RenderCommandEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,

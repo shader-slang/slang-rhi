@@ -18,7 +18,6 @@ enum class CommandName
     EndRenderPass,
     SetViewports,
     SetScissorRects,
-    SetPrimitiveTopology,
     SetVertexBuffers,
     SetIndexBuffer,
     Draw,
@@ -209,11 +208,6 @@ public:
     {
         auto offset = encodeData(scissors, sizeof(ScissorRect) * count);
         m_commands.push_back(Command(CommandName::SetScissorRects, (uint32_t)count, (uint32_t)offset));
-    }
-
-    void setPrimitiveTopology(PrimitiveTopology topology)
-    {
-        m_commands.push_back(Command(CommandName::SetPrimitiveTopology, (uint32_t)topology));
     }
 
     void setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)

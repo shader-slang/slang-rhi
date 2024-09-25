@@ -327,10 +327,6 @@ public:
         {
             m_writer->setScissorRects(count, scissors);
         }
-        virtual SLANG_NO_THROW void SLANG_MCALL setPrimitiveTopology(PrimitiveTopology topology) override
-        {
-            m_writer->setPrimitiveTopology(topology);
-        }
         virtual SLANG_NO_THROW void SLANG_MCALL
         setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)
             override
@@ -569,9 +565,6 @@ public:
                 break;
             case CommandName::SetScissorRects:
                 m_device->setScissorRects((UInt)cmd.operands[0], m_writer.getData<ScissorRect>(cmd.operands[1]));
-                break;
-            case CommandName::SetPrimitiveTopology:
-                m_device->setPrimitiveTopology((PrimitiveTopology)cmd.operands[0]);
                 break;
             case CommandName::SetVertexBuffers:
             {
