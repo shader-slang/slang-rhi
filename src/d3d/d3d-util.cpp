@@ -40,26 +40,6 @@ D3D_PRIMITIVE_TOPOLOGY D3DUtil::getPrimitiveTopology(PrimitiveTopology topology)
     return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 }
 
-D3D12_PRIMITIVE_TOPOLOGY_TYPE D3DUtil::getPrimitiveType(PrimitiveTopology topology)
-{
-    switch (topology)
-    {
-    case PrimitiveTopology::PointList:
-        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-    case PrimitiveTopology::LineList:
-    case PrimitiveTopology::LineStrip:
-        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-    case PrimitiveTopology::TriangleList:
-    case PrimitiveTopology::TriangleStrip:
-        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    case PrimitiveTopology::PatchList:
-        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-    default:
-        break;
-    }
-    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED;
-}
-
 D3D12_PRIMITIVE_TOPOLOGY_TYPE D3DUtil::getPrimitiveTopologyType(PrimitiveTopology topology)
 {
     switch (topology)

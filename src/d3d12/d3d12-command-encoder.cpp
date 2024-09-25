@@ -1009,7 +1009,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
 
-    m_d3dCmdList->IASetPrimitiveTopology(D3DUtil::getPrimitiveTopology(pipeline->desc.graphics.primitiveTopology));
+    m_d3dCmdList->IASetPrimitiveTopology(D3DUtil::getPrimitiveTopologyType(pipeline->desc.graphics.primitiveTopology));
 
     // Set up vertex buffer views
     {
