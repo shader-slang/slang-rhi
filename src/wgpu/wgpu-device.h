@@ -2,6 +2,8 @@
 
 #include "wgpu-base.h"
 
+#include <unordered_set>
+
 namespace rhi::wgpu {
 
 struct Context
@@ -10,6 +12,8 @@ struct Context
     WGPUInstance instance = nullptr;
     WGPUAdapter adapter = nullptr;
     WGPUDevice device = nullptr;
+    WGPULimits limits = {};
+    std::unordered_set<WGPUFeatureName> features;
 
     ~Context();
 };

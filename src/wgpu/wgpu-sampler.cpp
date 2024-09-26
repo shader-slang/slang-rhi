@@ -37,7 +37,10 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     samplerDesc.mipmapFilter = translateMipmapFilterMode(desc.mipFilter);
     samplerDesc.lodMinClamp = desc.minLOD;
     samplerDesc.lodMaxClamp = desc.maxLOD;
-    samplerDesc.compare = translateCompareFunction(desc.comparisonFunc);
+    if (desc.reductionOp == TextureReductionOp::Comparison)
+    {
+        samplerDesc.compare = translateCompareFunction(desc.comparisonFunc);
+    }
     samplerDesc.maxAnisotropy = desc.maxAnisotropy;
     samplerDesc.label = desc.label;
     sampler->m_sampler = m_ctx.api.wgpuDeviceCreateSampler(m_ctx.device, &samplerDesc);

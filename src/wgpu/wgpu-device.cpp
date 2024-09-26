@@ -91,6 +91,15 @@ Result DeviceImpl::initialize(const Desc& desc)
         return SLANG_FAIL;
     }
 
+    // Query adapter limits.
+    WGPUSupportedLimits adapterLimits = {};
+    api.wgpuAdapterGetLimits(m_ctx.adapter, &adapterLimits);
+
+    // Query adapter features.
+    size_t adapterFeatureCount = api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, nullptr);
+    std::vector<WGPUFeatureName> adapterFeatures(adapterFeatureCount);
+    api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, adapterFeatures.data());
+
     auto requestDeviceCallback =
         [](WGPURequestDeviceStatus status, WGPUDevice device, char const* message, void* userdata)
     {
@@ -101,7 +110,13 @@ Result DeviceImpl::initialize(const Desc& desc)
         }
     };
 
+    // We request a device with the maximum available limits and feature set.
+    WGPURequiredLimits requiredLimits = {};
+    requiredLimits.limits = adapterLimits.limits;
     WGPUDeviceDescriptor deviceDesc = {};
+    deviceDesc.requiredFeatures = adapterFeatures.data();
+    deviceDesc.requiredFeatureCount = adapterFeatures.size();
+    deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.uncapturedErrorCallbackInfo.callback = errorCallback;
     deviceDesc.uncapturedErrorCallbackInfo.userdata = this;
     api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, requestDeviceCallback, &m_ctx);
@@ -110,10 +125,18 @@ Result DeviceImpl::initialize(const Desc& desc)
         return SLANG_FAIL;
     }
 
-    WGPUSupportedLimits limits = {};
-    api.wgpuDeviceGetLimits(m_ctx.device, &limits);
+    // Query device limits.
+    WGPUSupportedLimits supportedLimits = {};
+    api.wgpuDeviceGetLimits(m_ctx.device, &supportedLimits);
+    m_ctx.limits = supportedLimits.limits;
 
-    m_info.limits.maxComputeDispatchThreadGroups[0] = limits.limits.maxComputeWorkgroupSizeX;
+    m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
+
+    // Query device features.
+    size_t deviceFeatureCount = api.wgpuDeviceEnumerateFeatures(m_ctx.device, nullptr);
+    std::vector<WGPUFeatureName> deviceFeatures(deviceFeatureCount);
+    api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
+    m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
 
     return SLANG_OK;
 }
@@ -196,6 +219,7 @@ Result DeviceImpl::readTexture(
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
 
     WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
     m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
 
     // Wait for the command buffer to finish executing
@@ -283,6 +307,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
 
     WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
     m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
 
     // Wait for the command buffer to finish executing
