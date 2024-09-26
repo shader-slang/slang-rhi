@@ -41,6 +41,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureDesc.size.height = desc.size.height;
     textureDesc.size.depthOrArrayLayers = desc.size.depth;
     textureDesc.usage = translateTextureUsage(desc.usage);
+    if (initData)
+    {
+        textureDesc.usage |= WGPUTextureUsage_CopyDst;
+    }
     textureDesc.dimension = translateTextureDimension(desc.type);
     textureDesc.format = translateTextureFormat(desc.format);
     textureDesc.mipLevelCount = desc.numMipLevels;
@@ -51,6 +55,68 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     {
         return SLANG_FAIL;
     }
+
+    if (initData)
+    {
+        FormatInfo formatInfo;
+        rhiGetFormatInfo(desc.format, &formatInfo);
+
+        WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
+        int mipLevelCount = desc.numMipLevels;
+        int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+
+        for (int arrayLayer = 0; arrayLayer < arrayLayerCount; ++arrayLayer)
+        {
+            for (int mipLevel = 0; mipLevel < mipLevelCount; ++mipLevel)
+            {
+                Extents mipSize = calcMipSize(desc.size, mipLevel);
+                int subresourceIndex = arrayLayer * mipLevelCount + mipLevel;
+                const SubresourceData& data = initData[subresourceIndex];
+
+                WGPUImageCopyTexture imageCopyTexture = {};
+                imageCopyTexture.texture = texture->m_texture;
+                imageCopyTexture.mipLevel = mipLevel;
+                imageCopyTexture.origin = {0, 0, 0};
+                imageCopyTexture.aspect = WGPUTextureAspect_All;
+
+                WGPUExtent3D writeSize = {};
+                writeSize.width =
+                    ((mipSize.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockWidth;
+                writeSize.height =
+                    ((mipSize.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight) * formatInfo.blockHeight;
+                writeSize.depthOrArrayLayers = mipSize.depth;
+
+                WGPUTextureDataLayout dataLayout = {};
+                dataLayout.offset = 0;
+                dataLayout.bytesPerRow = data.strideY;
+                dataLayout.rowsPerImage = writeSize.height / formatInfo.blockHeight;
+
+                size_t dataSize = dataLayout.bytesPerRow * dataLayout.rowsPerImage * mipSize.depth;
+
+                m_ctx.api.wgpuQueueWriteTexture(queue, &imageCopyTexture, data.data, dataSize, &dataLayout, &writeSize);
+            }
+        }
+
+        // Wait for queue to finish.
+        // TODO: we should switch to the new async API
+        {
+            WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
+            m_ctx.api.wgpuQueueOnSubmittedWorkDone(
+                queue,
+                [](WGPUQueueWorkDoneStatus status, void* userdata) { *(WGPUQueueWorkDoneStatus*)userdata = status; },
+                &status
+            );
+            while (status == WGPUQueueWorkDoneStatus_Unknown)
+            {
+                m_ctx.api.wgpuDeviceTick(m_ctx.device);
+            }
+            if (status != WGPUQueueWorkDoneStatus_Success)
+            {
+                return SLANG_FAIL;
+            }
+        }
+    }
+
     returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
