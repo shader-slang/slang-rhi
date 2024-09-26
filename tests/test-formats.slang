@@ -51,7 +51,7 @@ void copyTexUint2(
 
 [shader("compute")]
 [numthreads(4,1,1)]
-void copyTexUint(
+void copyTexUint1(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform Texture2D<uint> tex,
     uniform RWStructuredBuffer<uint> buffer)
@@ -113,7 +113,7 @@ void copyTexInt2(
 
 [shader("compute")]
 [numthreads(4,1,1)]
-void copyTexInt(
+void copyTexInt1(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform Texture2D<int> tex,
     uniform RWStructuredBuffer<int> buffer)
@@ -175,7 +175,7 @@ void copyTexFloat2(
 
 [shader("compute")]
 [numthreads(4,1,1)]
-void copyTexFloat(
+void copyTexFloat1(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID,
     uniform Texture2D<float> tex,
     uniform RWStructuredBuffer<float> buffer)
@@ -186,6 +186,7 @@ void copyTexFloat(
     buffer[sv_dispatchThreadID.x] = tex[uint2(sv_dispatchThreadID.x % width, sv_dispatchThreadID.x / width)];
 }
 
+#if 0
 // Sample from "tex" at texture coordinates (0.5, 0.5) and save the results in "buffer".
 [shader("compute")]
 [numthreads(4,1,1)]
@@ -218,3 +219,4 @@ void sampleMips(
     buffer[sv_dispatchThreadID.x * 4 + 2] = result.b;
     buffer[sv_dispatchThreadID.x * 4 + 3] = result.a;
 }
+#endif
