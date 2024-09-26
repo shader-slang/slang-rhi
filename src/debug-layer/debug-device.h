@@ -98,8 +98,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* resource, ResourceState state, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
-        override;
+    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;

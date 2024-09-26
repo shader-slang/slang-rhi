@@ -11,33 +11,29 @@ void CommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
     m_writer = cmdBuffer;
 }
 
-void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst)
+void CommandEncoderImpl::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
 {
     SLANG_UNUSED(count);
     SLANG_UNUSED(textures);
-    SLANG_UNUSED(src);
-    SLANG_UNUSED(dst);
+    SLANG_UNUSED(state);
 }
 
-void CommandEncoderImpl::textureSubresourceBarrier(
+void CommandEncoderImpl::setTextureSubresourceState(
     ITexture* texture,
     SubresourceRange subresourceRange,
-    ResourceState src,
-    ResourceState dst
+    ResourceState state
 )
 {
     SLANG_UNUSED(texture);
     SLANG_UNUSED(subresourceRange);
-    SLANG_UNUSED(src);
-    SLANG_UNUSED(dst);
+    SLANG_UNUSED(state);
 }
 
-void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst)
+void CommandEncoderImpl::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
 {
     SLANG_UNUSED(count);
     SLANG_UNUSED(buffers);
-    SLANG_UNUSED(src);
-    SLANG_UNUSED(dst);
+    SLANG_UNUSED(state);
 }
 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
@@ -67,22 +63,18 @@ void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, S
 
 void ResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
-    ResourceState dstState,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
 )
 {
     SLANG_UNUSED(dst);
-    SLANG_UNUSED(dstState);
     SLANG_UNUSED(dstSubresource);
     SLANG_UNUSED(dstOffset);
     SLANG_UNUSED(src);
-    SLANG_UNUSED(srcState);
     SLANG_UNUSED(srcSubresource);
     SLANG_UNUSED(srcOffset);
     SLANG_UNUSED(extent);
@@ -130,24 +122,6 @@ void ResourceCommandEncoderImpl::clearTexture(
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-void ResourceCommandEncoderImpl::resolveResource(
-    ITexture* source,
-    ResourceState sourceState,
-    SubresourceRange sourceRange,
-    ITexture* dest,
-    ResourceState destState,
-    SubresourceRange destRange
-)
-{
-    SLANG_UNUSED(source);
-    SLANG_UNUSED(sourceState);
-    SLANG_UNUSED(sourceRange);
-    SLANG_UNUSED(dest);
-    SLANG_UNUSED(destState);
-    SLANG_UNUSED(destRange);
-    SLANG_RHI_UNIMPLEMENTED("resolveResource");
-}
-
 void ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
@@ -170,7 +144,6 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     Size dstSize,
     Size dstRowStride,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
@@ -181,7 +154,6 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     SLANG_UNUSED(dstSize);
     SLANG_UNUSED(dstRowStride);
     SLANG_UNUSED(src);
-    SLANG_UNUSED(srcState);
     SLANG_UNUSED(srcSubresource);
     SLANG_UNUSED(srcOffset);
     SLANG_UNUSED(extent);

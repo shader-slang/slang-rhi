@@ -81,7 +81,6 @@ void compareComputeResult(
 void compareComputeResult(
     IDevice* device,
     ITexture* texture,
-    ResourceState state,
     void* expectedResult,
     size_t expectedResultRowPitch,
     size_t rowCount

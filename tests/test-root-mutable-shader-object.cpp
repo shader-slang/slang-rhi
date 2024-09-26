@@ -64,11 +64,6 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
             encoder->endEncoding();
         }
 
-        auto barrierEncoder = commandBuffer->encodeResourceCommands();
-        barrierEncoder
-            ->bufferBarrier(1, buffer.readRef(), ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
-        barrierEncoder->endEncoding();
-
         // Mutate `transformer` object and run again.
         c = 2.0f;
         ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));

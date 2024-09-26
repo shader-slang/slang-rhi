@@ -183,9 +183,7 @@ public:
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(
-            device->readTexture(colorBuffer, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
-        );
+        REQUIRE_CALL(device->readTexture(colorBuffer, resultBlob.writeRef(), &rowPitch, &pixelSize));
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -221,8 +219,6 @@ struct DrawInstancedTest : BaseDrawTest
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = ResourceState::RenderTarget;
-        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
@@ -279,8 +275,6 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = ResourceState::RenderTarget;
-        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
@@ -363,8 +357,6 @@ struct DrawIndirectTest : BaseDrawTest
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = ResourceState::RenderTarget;
-        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
@@ -446,8 +438,6 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = ResourceState::RenderTarget;
-        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;

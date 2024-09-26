@@ -13,12 +13,7 @@ namespace rhi::debug {
 
 // DebugCommandEncoder
 
-void DebugCommandEncoder::textureBarrier(
-    GfxCount count,
-    ITexture* const* textures,
-    ResourceState src,
-    ResourceState dst
-)
+void DebugCommandEncoder::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
 {
     SLANG_RHI_API_FUNC;
     std::vector<ITexture*> innerTextures;
@@ -26,21 +21,20 @@ void DebugCommandEncoder::textureBarrier(
     {
         innerTextures.push_back(static_cast<DebugTexture*>(textures[i])->baseObject.get());
     }
-    getBaseObject()->textureBarrier(count, innerTextures.data(), src, dst);
+    getBaseObject()->setTextureState(count, innerTextures.data(), state);
 }
 
-void DebugCommandEncoder::textureSubresourceBarrier(
+void DebugCommandEncoder::setTextureSubresourceState(
     ITexture* texture,
     SubresourceRange subresourceRange,
-    ResourceState src,
-    ResourceState dst
+    ResourceState state
 )
 {
     SLANG_RHI_API_FUNC;
-    getBaseObject()->textureSubresourceBarrier(getInnerObj(texture), subresourceRange, src, dst);
+    getBaseObject()->setTextureSubresourceState(getInnerObj(texture), subresourceRange, state);
 }
 
-void DebugCommandEncoder::bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst)
+void DebugCommandEncoder::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
 {
     SLANG_RHI_API_FUNC;
     std::vector<IBuffer*> innerBuffers;
@@ -48,7 +42,7 @@ void DebugCommandEncoder::bufferBarrier(GfxCount count, IBuffer* const* buffers,
     {
         innerBuffers.push_back(static_cast<DebugBuffer*>(buffers[i])->baseObject.get());
     }
-    getBaseObject()->bufferBarrier(count, innerBuffers.data(), src, dst);
+    getBaseObject()->setBufferState(count, innerBuffers.data(), state);
 }
 
 void DebugCommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
@@ -94,28 +88,17 @@ void DebugResourceCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, 
 
 void DebugResourceCommandEncoder::copyTexture(
     ITexture* dst,
-    ResourceState dstState,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
 )
 {
     SLANG_RHI_API_FUNC;
-    baseObject->copyTexture(
-        getInnerObj(dst),
-        dstState,
-        dstSubresource,
-        dstOffset,
-        getInnerObj(src),
-        srcState,
-        srcSubresource,
-        srcOffset,
-        extent
-    );
+    baseObject
+        ->copyTexture(getInnerObj(dst), dstSubresource, dstOffset, getInnerObj(src), srcSubresource, srcOffset, extent);
 }
 
 void DebugResourceCommandEncoder::uploadTextureData(
@@ -150,19 +133,6 @@ void DebugResourceCommandEncoder::clearTexture(
     baseObject->clearTexture(getInnerObj(texture), clearValue, subresourceRange, clearDepth, clearStencil);
 }
 
-void DebugResourceCommandEncoder::resolveResource(
-    ITexture* source,
-    ResourceState sourceState,
-    SubresourceRange sourceRange,
-    ITexture* dest,
-    ResourceState destState,
-    SubresourceRange destRange
-)
-{
-    SLANG_RHI_API_FUNC;
-    baseObject->resolveResource(getInnerObj(source), sourceState, sourceRange, getInnerObj(dest), destState, destRange);
-}
-
 void DebugResourceCommandEncoder::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
@@ -181,7 +151,6 @@ void DebugResourceCommandEncoder::copyTextureToBuffer(
     Size dstSize,
     Size dstRowStride,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
@@ -194,7 +163,6 @@ void DebugResourceCommandEncoder::copyTextureToBuffer(
         dstSize,
         dstRowStride,
         getInnerObj(src),
-        srcState,
         srcSubresource,
         srcOffset,
         extent

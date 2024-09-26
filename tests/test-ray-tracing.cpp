@@ -346,17 +346,7 @@ struct BaseRayTracingTest
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        auto cmdBuffer = transientHeap->createCommandBuffer();
-        auto encoder = cmdBuffer->encodeResourceCommands();
-        encoder->textureBarrier(resultTexture.get(), ResourceState::UnorderedAccess, ResourceState::CopySource);
-        encoder->endEncoding();
-        cmdBuffer->close();
-        queue->executeCommandBuffer(cmdBuffer.get());
-        queue->waitOnHost();
-
-        REQUIRE_CALL(
-            device->readTexture(resultTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
-        );
+        REQUIRE_CALL(device->readTexture(resultTexture, resultBlob.writeRef(), &rowPitch, &pixelSize));
 #if 0 // for debugging only
         writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);
 #endif

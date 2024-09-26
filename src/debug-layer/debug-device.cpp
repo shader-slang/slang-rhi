@@ -474,16 +474,10 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
     return result;
 }
 
-Result DebugDevice::readTexture(
-    ITexture* resource,
-    ResourceState state,
-    ISlangBlob** outBlob,
-    size_t* outRowPitch,
-    size_t* outPixelSize
-)
+Result DebugDevice::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->readTexture(getInnerObj(resource), state, outBlob, outRowPitch, outPixelSize);
+    return baseObject->readTexture(getInnerObj(texture), outBlob, outRowPitch, outPixelSize);
 }
 
 Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)

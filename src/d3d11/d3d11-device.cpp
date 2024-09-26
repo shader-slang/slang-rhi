@@ -408,36 +408,28 @@ void DeviceImpl::setStencilReference(uint32_t referenceValue)
     m_depthStencilStateDirty = true;
 }
 
-Result DeviceImpl::readTexture(
-    ITexture* resource,
-    ResourceState state,
-    ISlangBlob** outBlob,
-    size_t* outRowPitch,
-    size_t* outPixelSize
-)
+Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
-    SLANG_UNUSED(state);
-
-    auto texture = static_cast<TextureImpl*>(resource);
+    auto textureImpl = static_cast<TextureImpl*>(texture);
     // Don't bother supporting MSAA for right now
-    if (texture->m_desc.sampleCount > 1)
+    if (textureImpl->m_desc.sampleCount > 1)
     {
         fprintf(stderr, "ERROR: cannot capture multi-sample texture\n");
         return E_INVALIDARG;
     }
 
     FormatInfo sizeInfo;
-    rhiGetFormatInfo(texture->m_desc.format, &sizeInfo);
+    rhiGetFormatInfo(textureImpl->m_desc.format, &sizeInfo);
     size_t bytesPerPixel = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
-    size_t rowPitch = int(texture->m_desc.size.width) * bytesPerPixel;
-    size_t bufferSize = rowPitch * int(texture->m_desc.size.height);
+    size_t rowPitch = int(textureImpl->m_desc.size.width) * bytesPerPixel;
+    size_t bufferSize = rowPitch * int(textureImpl->m_desc.size.height);
     if (outRowPitch)
         *outRowPitch = rowPitch;
     if (outPixelSize)
         *outPixelSize = bytesPerPixel;
 
     D3D11_TEXTURE2D_DESC textureDesc;
-    auto d3d11Texture = ((ID3D11Texture2D*)texture->m_resource.get());
+    auto d3d11Texture = ((ID3D11Texture2D*)textureImpl->m_resource.get());
     d3d11Texture->GetDesc(&textureDesc);
 
     HRESULT hr = S_OK;

@@ -1079,13 +1079,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipelin
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result DeviceImpl::readTexture(
-    ITexture* texture,
-    ResourceState state,
-    ISlangBlob** outBlob,
-    size_t* outRowPitch,
-    size_t* outPixelSize
-)
+Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
     auto textureImpl = static_cast<TextureImpl*>(texture);
 

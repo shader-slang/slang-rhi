@@ -100,8 +100,7 @@ public:
     createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
-        override;
+    readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;

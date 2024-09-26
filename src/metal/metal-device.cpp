@@ -146,13 +146,7 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(
-    ITexture* texture,
-    ResourceState state,
-    ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
-)
+Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
 {
     AUTORELEASEPOOL
 

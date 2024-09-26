@@ -58,6 +58,7 @@ struct BaseResolveResourceTest
     ComPtr<ITexture> msaaTexture;
     ComPtr<ITextureView> msaaTextureView;
     ComPtr<ITexture> dstTexture;
+    ComPtr<ITextureView> dstTextureView;
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipeline> pipeline;
@@ -150,6 +151,8 @@ struct BaseResolveResourceTest
         TextureViewDesc textureViewDesc = {};
         textureViewDesc.format = format;
         REQUIRE_CALL(device->createTextureView(msaaTexture, textureViewDesc, msaaTextureView.writeRef()));
+        textureViewDesc.format = format;
+        REQUIRE_CALL(device->createTextureView(dstTexture, textureViewDesc, dstTextureView.writeRef()));
     }
 
     void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
@@ -166,10 +169,9 @@ struct BaseResolveResourceTest
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = msaaTextureView;
+        colorAttachment.resolveTarget = dstTextureView;
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = ResourceState::RenderTarget;
-        colorAttachment.finalState = ResourceState::ResolveSource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
@@ -187,23 +189,6 @@ struct BaseResolveResourceTest
         renderEncoder->draw(kVertexCount, 0);
         renderEncoder->endEncoding();
 
-        auto resourceEncoder = commandBuffer->encodeResourceCommands();
-
-        resourceEncoder->resolveResource(
-            msaaTexture,
-            ResourceState::ResolveSource,
-            msaaSubresource,
-            dstTexture,
-            ResourceState::ResolveDestination,
-            dstSubresource
-        );
-        resourceEncoder->textureSubresourceBarrier(
-            dstTexture,
-            dstSubresource,
-            ResourceState::ResolveDestination,
-            ResourceState::CopySource
-        );
-        resourceEncoder->endEncoding();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -223,9 +208,7 @@ struct BaseResolveResourceTest
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(
-            device->readTexture(dstTexture, ResourceState::CopySource, resultBlob.writeRef(), &rowPitch, &pixelSize)
-        );
+        REQUIRE_CALL(device->readTexture(dstTexture, resultBlob.writeRef(), &rowPitch, &pixelSize));
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;

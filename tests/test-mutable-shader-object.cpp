@@ -67,14 +67,6 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         entryPointCursor.getPath("transformer").setObject(transformerVersion);
 
         encoder->dispatchCompute(1, 1, 1);
-        encoder->endEncoding();
-
-        auto barrierEncoder = commandBuffer->encodeResourceCommands();
-        barrierEncoder
-            ->bufferBarrier(1, buffer.readRef(), ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
-        barrierEncoder->endEncoding();
-
-        encoder = commandBuffer->encodeComputeCommands();
 
         rootObject = encoder->bindPipeline(pipeline);
         entryPointCursor = ShaderCursor(rootObject->getEntryPoint(0));
