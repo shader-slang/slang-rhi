@@ -115,64 +115,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc, const void* initData, IB
 
     if (initData)
     {
-        WGPUBufferDescriptor stagingBufferDesc = {};
-        stagingBufferDesc.size = desc.size;
-        stagingBufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
-        WGPUBuffer stagingBuffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &stagingBufferDesc);
-        if (!stagingBuffer)
-        {
-            return SLANG_FAIL;
-        }
-        SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferRelease(stagingBuffer); });
-
-        // Map the staging buffer
-        // TODO: we should switch to the new async API
-        {
-            WGPUBufferMapAsyncStatus status = WGPUBufferMapAsyncStatus_Unknown;
-            m_ctx.api.wgpuBufferMapAsync(
-                stagingBuffer,
-                WGPUMapMode_Write,
-                0,
-                desc.size,
-                [](WGPUBufferMapAsyncStatus status, void* userdata) { *(WGPUBufferMapAsyncStatus*)userdata = status; },
-                &status
-            );
-            while (status == WGPUBufferMapAsyncStatus_Unknown)
-            {
-                m_ctx.api.wgpuDeviceTick(m_ctx.device);
-            }
-            if (status != WGPUBufferMapAsyncStatus_Success)
-            {
-                return SLANG_FAIL;
-            }
-        }
-
-        void* data = m_ctx.api.wgpuBufferGetMappedRange(stagingBuffer, 0, desc.size);
-        if (!data)
-        {
-            m_ctx.api.wgpuBufferUnmap(stagingBuffer);
-            return SLANG_FAIL;
-        }
-        ::memcpy(data, initData, desc.size);
-        m_ctx.api.wgpuBufferUnmap(stagingBuffer);
-
-        WGPUCommandEncoder encoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr);
-        if (!encoder)
-        {
-            return SLANG_FAIL;
-        }
-        SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(encoder); });
-
-        m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(encoder, stagingBuffer, 0, buffer->m_buffer, 0, desc.size);
-        WGPUCommandBuffer commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr);
-        if (!commandBuffer)
-        {
-            return SLANG_FAIL;
-        }
-        SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
-
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
-        m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
+        m_ctx.api.wgpuQueueWriteBuffer(queue, buffer->m_buffer, 0, initData, desc.size);
 
         // Wait for the command buffer to finish executing
         // TODO: we should switch to the new async API
