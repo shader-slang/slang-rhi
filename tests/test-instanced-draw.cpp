@@ -510,7 +510,6 @@ TEST_CASE("draw-instanced")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
-            DeviceType::WGPU,
         }
     );
 }

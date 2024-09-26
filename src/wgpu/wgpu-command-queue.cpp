@@ -33,7 +33,20 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 void CommandQueueImpl::waitOnHost()
 {
-    // m_device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(m_queue, nullptr, nullptr);
+    // Wait for the command buffer to finish executing
+    // TODO: we should switch to the new async API
+    {
+        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
+        m_device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(
+            m_queue,
+            [](WGPUQueueWorkDoneStatus status, void* userdata) { *(WGPUQueueWorkDoneStatus*)userdata = status; },
+            &status
+        );
+        while (status == WGPUQueueWorkDoneStatus_Unknown)
+        {
+            m_device->m_ctx.api.wgpuDeviceTick(m_device->m_ctx.device);
+        }
+    }
 }
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)

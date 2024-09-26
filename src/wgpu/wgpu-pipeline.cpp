@@ -135,7 +135,7 @@ Result PipelineImpl::createRenderPipeline()
 Result PipelineImpl::createComputePipeline()
 {
     ShaderProgramImpl* program = static_cast<ShaderProgramImpl*>(m_program.get());
-    ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_FRAGMENT);
+    ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_COMPUTE);
     if (!computeModule)
     {
         return SLANG_FAIL;
