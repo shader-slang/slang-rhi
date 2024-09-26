@@ -219,6 +219,7 @@ Result DeviceImpl::readTexture(
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
 
     WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
     m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
 
     // Wait for the command buffer to finish executing
@@ -306,6 +307,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
 
     WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
     m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
 
     // Wait for the command buffer to finish executing

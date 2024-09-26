@@ -117,6 +117,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc, const void* initData, IB
     {
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
         m_ctx.api.wgpuQueueWriteBuffer(queue, buffer->m_buffer, 0, initData, desc.size);
+        SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
 
         // Wait for the command buffer to finish executing
         // TODO: we should switch to the new async API

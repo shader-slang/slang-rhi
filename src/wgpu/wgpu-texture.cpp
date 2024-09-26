@@ -2,6 +2,8 @@
 #include "wgpu-device.h"
 #include "wgpu-util.h"
 
+#include "core/deferred.h"
+
 namespace rhi::wgpu {
 
 TextureImpl::TextureImpl(DeviceImpl* device, const TextureDesc& desc)
@@ -62,6 +64,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         rhiGetFormatInfo(desc.format, &formatInfo);
 
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
+        SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
         int mipLevelCount = desc.numMipLevels;
         int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
