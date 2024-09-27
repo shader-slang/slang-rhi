@@ -48,6 +48,8 @@ struct FormatInfoMap
             info.channelType = SLANG_SCALAR_TYPE_NONE;
         }
 
+        m_infos[0].name = "Unknown";
+
         set(Format::R32G32B32A32_TYPELESS, "R32G32B32A32_TYPELESS", SLANG_SCALAR_TYPE_UINT32, 4, 16);
         set(Format::R32G32B32_TYPELESS, "R32G32B32_TYPELESS", SLANG_SCALAR_TYPE_UINT32, 3, 12);
         set(Format::R32G32_TYPELESS, "R32G32_TYPELESS", SLANG_SCALAR_TYPE_UINT32, 2, 8);
