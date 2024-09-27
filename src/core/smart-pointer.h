@@ -6,6 +6,45 @@
 
 #include <type_traits>
 
+#define SLANG_RHI_ENABLE_REF_OBJECT_TRACKING 0
+
+#if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
+#include <mutex>
+#include <set>
+namespace rhi {
+class RefObject;
+struct RefObjectTracker
+{
+    std::mutex mutex;
+    std::set<RefObject*> objects;
+
+    void trackObject(RefObject* obj)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        objects.insert(obj);
+    }
+
+    void untrackObject(RefObject* obj)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        objects.erase(obj);
+    }
+
+    static RefObjectTracker& instance()
+    {
+        static RefObjectTracker tracker;
+        return tracker;
+    }
+};
+#define SLANG_RHI_TRACK_OBJECT(obj) RefObjectTracker::instance().trackObject(obj)
+#define SLANG_RHI_UNTRACK_OBJECT(obj) RefObjectTracker::instance().untrackObject(obj)
+} // namespace rhi
+#else
+#define SLANG_RHI_TRACK_OBJECT(obj)
+#define SLANG_RHI_UNTRACK_OBJECT(obj)
+#endif
+
+
 namespace rhi {
 
 // Base class for all reference-counted objects
@@ -18,16 +57,18 @@ public:
     RefObject()
         : referenceCount(0)
     {
+        SLANG_RHI_TRACK_OBJECT(this);
     }
 
     RefObject(const RefObject&)
         : referenceCount(0)
     {
+        SLANG_RHI_TRACK_OBJECT(this);
     }
 
     RefObject& operator=(const RefObject&) { return *this; }
 
-    virtual ~RefObject() {}
+    virtual ~RefObject() { SLANG_RHI_UNTRACK_OBJECT(this); }
 
     UInt addReference() { return ++referenceCount; }
 

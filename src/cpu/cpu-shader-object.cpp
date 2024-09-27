@@ -52,6 +52,7 @@ Buffer* CPUShaderObjectData::getBufferResource(
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
     m_device = static_cast<DeviceImpl*>(device);
+    m_device.breakStrongReference();
 
     m_layout = typeLayout;
 

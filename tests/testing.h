@@ -108,6 +108,8 @@ ComPtr<IDevice> createTestingDevice(
     std::vector<const char*> additionalSearchPaths = {}
 );
 
+void releaseCachedDevices();
+
 ComPtr<slang::ISession> createTestingSession(
     GpuTestContext* ctx,
     DeviceType deviceType,

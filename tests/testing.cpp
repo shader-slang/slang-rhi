@@ -410,6 +410,11 @@ ComPtr<IDevice> createTestingDevice(
     return device;
 }
 
+void releaseCachedDevices()
+{
+    gCachedDevices.clear();
+}
+
 ComPtr<slang::ISession> createTestingSession(
     GpuTestContext* ctx,
     DeviceType deviceType,
