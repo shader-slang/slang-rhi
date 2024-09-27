@@ -130,7 +130,6 @@ Result ShaderObjectImpl::init(
         // have a counter buffer associated with it, which we
         // also need to ensure isn't destroyed prematurely.
         m_boundResources.resize(resourceCount);
-        m_boundCounterResources.resize(resourceCount);
     }
     if (auto samplerCount = layout->getSamplerSlotCount())
     {
@@ -796,6 +795,39 @@ Result ShaderObjectImpl::bindRootArguments(BindingContext* context, uint32_t& in
     return SLANG_OK;
 }
 
+void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
+{
+    for (const BoundResource& boundResource : m_boundResources)
+    {
+        switch (boundResource.type)
+        {
+        case BoundResourceType::Buffer:
+            stateTracking.setBufferState(
+                static_cast<BufferImpl*>(boundResource.resource.get()),
+                boundResource.requiredState
+            );
+            break;
+        case BoundResourceType::TextureView:
+            stateTracking.setTextureState(
+                static_cast<TextureViewImpl*>(boundResource.resource.get())->m_texture,
+                boundResource.requiredState
+            );
+            break;
+        case BoundResourceType::AccelerationStructure:
+            // TODO STATE_TRACKING need state transition?
+            break;
+        }
+    }
+
+    for (auto& subObject : m_objects)
+    {
+        if (subObject)
+        {
+            subObject->setResourceStates(stateTracking);
+        }
+    }
+}
+
 /// Get the layout of this shader object with specialization arguments considered
 ///
 /// This operation should only be called after the shader object has been
@@ -851,6 +883,8 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
     Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
+    BoundResource& boundResource = m_boundResources[bindingIndex];
+
     switch (binding.type)
     {
     case BindingType::Buffer:
@@ -859,8 +893,9 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
         BufferImpl* counterBuffer = static_cast<BufferImpl*>(binding.resource2.get());
         BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
-        m_boundResources[bindingIndex] = buffer;
-        m_boundCounterResources[bindingIndex] = counterBuffer;
+        boundResource.type = BoundResourceType::Buffer;
+        boundResource.resource = buffer;
+        boundResource.counterResource = counterBuffer;
         if (bindingRange.isRootParameter)
         {
             m_rootArguments[bindingRange.baseIndex] = buffer->getDeviceAddress() + bufferRange.offset;
@@ -872,16 +907,20 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
             {
             case slang::BindingType::TypedBuffer:
                 descriptor = buffer->getSRV(buffer->m_desc.format, 0, bufferRange);
+                boundResource.requiredState = ResourceState::ShaderResource;
                 break;
             case slang::BindingType::RawBuffer:
                 descriptor = buffer->getSRV(Format::Unknown, bindingRange.bufferElementStride, bufferRange);
+                boundResource.requiredState = ResourceState::ShaderResource;
                 break;
             case slang::BindingType::MutableTypedBuffer:
                 descriptor = buffer->getUAV(buffer->m_desc.format, 0, bufferRange);
+                boundResource.requiredState = ResourceState::UnorderedAccess;
                 break;
             case slang::BindingType::MutableRawBuffer:
                 descriptor =
                     buffer->getUAV(Format::Unknown, bindingRange.bufferElementStride, bufferRange, counterBuffer);
+                boundResource.requiredState = ResourceState::UnorderedAccess;
                 break;
             default:
                 return SLANG_FAIL;
@@ -903,15 +942,18 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     case BindingType::TextureView:
     {
         TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
-        m_boundResources[bindingIndex] = textureView;
+        boundResource.type = BoundResourceType::TextureView;
+        boundResource.resource = textureView;
         D3D12Descriptor descriptor;
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::Texture:
             descriptor = textureView->getSRV();
+            boundResource.requiredState = ResourceState::ShaderResource;
             break;
         case slang::BindingType::MutableTexture:
             descriptor = textureView->getUAV();
+            boundResource.requiredState = ResourceState::UnorderedAccess;
             break;
         default:
             return SLANG_FAIL;
@@ -939,6 +981,9 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
         TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
         SamplerImpl* sampler = static_cast<SamplerImpl*>(binding.resource2.get());
+        boundResource.type = BoundResourceType::TextureView;
+        boundResource.resource = textureView;
+        boundResource.requiredState = ResourceState::ShaderResource;
         d3dDevice->CopyDescriptorsSimple(
             1,
             m_descriptorSet.resourceTable.getCpuHandle(bindingIndex),
@@ -956,7 +1001,8 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     case BindingType::AccelerationStructure:
     {
         AccelerationStructureImpl* as = static_cast<AccelerationStructureImpl*>(binding.resource.get());
-        m_boundResources[bindingIndex] = as;
+        boundResource.type = BoundResourceType::AccelerationStructure;
+        boundResource.resource = as;
         if (bindingRange.isRootParameter)
         {
             m_rootArguments[bindingRange.baseIndex] = as->getDeviceAddress();
@@ -1124,6 +1170,15 @@ Result RootShaderObjectImpl::copyFrom(IShaderObject* object, ITransientResourceH
         return SLANG_OK;
     }
     return SLANG_FAIL;
+}
+
+void RootShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
+{
+    ShaderObjectImpl::setResourceStates(stateTracking);
+    for (auto& entryPoint : m_entryPoints)
+    {
+        entryPoint->setResourceStates(stateTracking);
+    }
 }
 
 Result RootShaderObjectImpl::bindAsRoot(BindingContext* context, RootShaderObjectLayoutImpl* specializedLayout)

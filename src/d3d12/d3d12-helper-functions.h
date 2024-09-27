@@ -31,8 +31,8 @@ struct BindingContext
     Submitter* submitter;
     TransientResourceHeapImpl* transientHeap;
     DeviceImpl* device;
-    D3D12_DESCRIPTOR_HEAP_TYPE
-    outOfMemoryHeap; // The type of descriptor heap that is OOM during binding.
+    /// The type of descriptor heap that is OOM during binding.
+    D3D12_DESCRIPTOR_HEAP_TYPE outOfMemoryHeap;
     short_vector<PendingDescriptorTableBinding>* pendingTableBindings;
 };
 

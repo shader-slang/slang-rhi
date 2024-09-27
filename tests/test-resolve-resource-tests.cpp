@@ -151,7 +151,6 @@ struct BaseResolveResourceTest
         TextureViewDesc textureViewDesc = {};
         textureViewDesc.format = format;
         REQUIRE_CALL(device->createTextureView(msaaTexture, textureViewDesc, msaaTextureView.writeRef()));
-        textureViewDesc.format = format;
         REQUIRE_CALL(device->createTextureView(dstTexture, textureViewDesc, dstTextureView.writeRef()));
     }
 

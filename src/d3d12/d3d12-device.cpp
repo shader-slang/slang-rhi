@@ -164,115 +164,6 @@ Result DeviceImpl::createBuffer(
     return SLANG_OK;
 }
 
-Result DeviceImpl::captureTextureToSurface(
-    TextureImpl* resourceImpl,
-    ResourceState state,
-    ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
-)
-{
-    auto& resource = resourceImpl->m_resource;
-
-    const D3D12_RESOURCE_STATES initialState = D3DUtil::getResourceState(state);
-
-    const TextureDesc& rhiDesc = resourceImpl->getDesc();
-    const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
-
-    // Don't bother supporting MSAA for right now
-    if (desc.SampleDesc.Count > 1)
-    {
-        fprintf(stderr, "ERROR: cannot capture multi-sample texture\n");
-        return SLANG_FAIL;
-    }
-
-    FormatInfo formatInfo;
-    rhiGetFormatInfo(rhiDesc.format, &formatInfo);
-    Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    Size rowPitch = int(desc.Width) * bytesPerPixel;
-    static const Size align = 256;                    // D3D requires minimum 256 byte alignment for texture data.
-    rowPitch = (rowPitch + align - 1) & ~(align - 1); // Bit trick for rounding up
-    Size bufferSize = rowPitch * int(desc.Height) * int(desc.DepthOrArraySize);
-    if (outRowPitch)
-        *outRowPitch = rowPitch;
-    if (outPixelSize)
-        *outPixelSize = bytesPerPixel;
-
-    D3D12Resource stagingResource;
-    {
-        D3D12_RESOURCE_DESC stagingDesc;
-        initBufferDesc(bufferSize, stagingDesc);
-
-        D3D12_HEAP_PROPERTIES heapProps;
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
-
-        SLANG_RETURN_ON_FAIL(stagingResource.initCommitted(
-            m_device,
-            heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            stagingDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr
-        ));
-    }
-
-    auto encodeInfo = encodeResourceCommands();
-    auto currentState = D3DUtil::getResourceState(state);
-
-    {
-        D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
-        resource.transition(currentState, D3D12_RESOURCE_STATE_COPY_SOURCE, submitter);
-    }
-
-    // Do the copy
-    {
-        D3D12_TEXTURE_COPY_LOCATION srcLoc;
-        srcLoc.pResource = resource;
-        srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        srcLoc.SubresourceIndex = 0;
-
-        D3D12_TEXTURE_COPY_LOCATION dstLoc;
-        dstLoc.pResource = stagingResource;
-        dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-        dstLoc.PlacedFootprint.Offset = 0;
-        dstLoc.PlacedFootprint.Footprint.Format = desc.Format;
-        dstLoc.PlacedFootprint.Footprint.Width = UINT(desc.Width);
-        dstLoc.PlacedFootprint.Footprint.Height = UINT(desc.Height);
-        dstLoc.PlacedFootprint.Footprint.Depth = UINT(desc.DepthOrArraySize);
-        dstLoc.PlacedFootprint.Footprint.RowPitch = UINT(rowPitch);
-
-        encodeInfo.d3dCommandList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
-    }
-
-    {
-        D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
-        resource.transition(D3D12_RESOURCE_STATE_COPY_SOURCE, currentState, submitter);
-    }
-
-    // Submit the copy, and wait for copy to complete
-    submitResourceCommandsAndWait(encodeInfo);
-
-    {
-        ID3D12Resource* dxResource = stagingResource;
-
-        UINT8* data;
-        D3D12_RANGE readRange = {0, bufferSize};
-
-        SLANG_RETURN_ON_FAIL(dxResource->Map(0, &readRange, reinterpret_cast<void**>(&data)));
-
-        auto blob = OwnedBlob::create(bufferSize);
-        memcpy((void*)blob->getBufferPointer(), data, bufferSize);
-        dxResource->Unmap(0, nullptr);
-
-        returnComPtr(outBlob, blob);
-        return SLANG_OK;
-    }
-}
-
 Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::D3D12Device;
@@ -981,15 +872,109 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(
-    ITexture* resource,
-    ResourceState state,
-    ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
-)
+Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
 {
-    return captureTextureToSurface(static_cast<TextureImpl*>(resource), state, outBlob, outRowPitch, outPixelSize);
+    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+
+    auto& resource = textureImpl->m_resource;
+
+    const TextureDesc& rhiDesc = textureImpl->getDesc();
+    const D3D12_RESOURCE_DESC desc = resource.getResource()->GetDesc();
+
+    // Don't bother supporting MSAA for right now
+    if (desc.SampleDesc.Count > 1)
+    {
+        fprintf(stderr, "ERROR: cannot capture multi-sample texture\n");
+        return SLANG_FAIL;
+    }
+
+    FormatInfo formatInfo;
+    rhiGetFormatInfo(rhiDesc.format, &formatInfo);
+    Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
+    Size rowPitch = int(desc.Width) * bytesPerPixel;
+    static const Size align = 256;                    // D3D requires minimum 256 byte alignment for texture data.
+    rowPitch = (rowPitch + align - 1) & ~(align - 1); // Bit trick for rounding up
+    Size bufferSize = rowPitch * int(desc.Height) * int(desc.DepthOrArraySize);
+    if (outRowPitch)
+        *outRowPitch = rowPitch;
+    if (outPixelSize)
+        *outPixelSize = bytesPerPixel;
+
+    D3D12Resource stagingResource;
+    {
+        D3D12_RESOURCE_DESC stagingDesc;
+        initBufferDesc(bufferSize, stagingDesc);
+
+        D3D12_HEAP_PROPERTIES heapProps;
+        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        heapProps.CreationNodeMask = 1;
+        heapProps.VisibleNodeMask = 1;
+
+        SLANG_RETURN_ON_FAIL(stagingResource.initCommitted(
+            m_device,
+            heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            stagingDesc,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr
+        ));
+    }
+
+    auto encodeInfo = encodeResourceCommands();
+
+    // TODO STATE_TRACKING
+    auto defaultState = D3DUtil::getResourceState(rhiDesc.defaultState);
+    {
+        D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
+        resource.transition(defaultState, D3D12_RESOURCE_STATE_COPY_SOURCE, submitter);
+    }
+
+    // Do the copy
+    {
+        D3D12_TEXTURE_COPY_LOCATION srcLoc;
+        srcLoc.pResource = resource;
+        srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        srcLoc.SubresourceIndex = 0;
+
+        D3D12_TEXTURE_COPY_LOCATION dstLoc;
+        dstLoc.pResource = stagingResource;
+        dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        dstLoc.PlacedFootprint.Offset = 0;
+        dstLoc.PlacedFootprint.Footprint.Format = desc.Format;
+        dstLoc.PlacedFootprint.Footprint.Width = UINT(desc.Width);
+        dstLoc.PlacedFootprint.Footprint.Height = UINT(desc.Height);
+        dstLoc.PlacedFootprint.Footprint.Depth = UINT(desc.DepthOrArraySize);
+        dstLoc.PlacedFootprint.Footprint.RowPitch = UINT(rowPitch);
+
+        encodeInfo.d3dCommandList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+    }
+
+    // TODO STATE_TRACKING
+    {
+        D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
+        resource.transition(D3D12_RESOURCE_STATE_COPY_SOURCE, defaultState, submitter);
+    }
+
+    // Submit the copy, and wait for copy to complete
+    submitResourceCommandsAndWait(encodeInfo);
+
+    {
+        ID3D12Resource* dxResource = stagingResource;
+
+        UINT8* data;
+        D3D12_RANGE readRange = {0, bufferSize};
+
+        SLANG_RETURN_ON_FAIL(dxResource->Map(0, &readRange, reinterpret_cast<void**>(&data)));
+
+        auto blob = OwnedBlob::create(bufferSize);
+        memcpy((void*)blob->getBufferPointer(), data, bufferSize);
+        dxResource->Unmap(0, nullptr);
+
+        returnComPtr(outBlob, blob);
+        return SLANG_OK;
+    }
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)

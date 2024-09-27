@@ -326,7 +326,6 @@ enum class ResourceState
 {
     Undefined,
     General,
-    PreInitialized,
     VertexBuffer,
     IndexBuffer,
     ConstantBuffer,
@@ -344,8 +343,6 @@ enum class ResourceState
     ResolveDestination,
     AccelerationStructure,
     AccelerationStructureBuildInput,
-    PixelShaderResource,
-    NonPixelShaderResource,
 };
 
 /// Describes how memory for the resource should be allocated for CPU access.

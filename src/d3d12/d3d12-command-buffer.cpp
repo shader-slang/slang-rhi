@@ -21,6 +21,74 @@ Result CommandBufferImpl::getNativeHandle(NativeHandle* handle)
     return SLANG_OK;
 }
 
+void CommandBufferImpl::requireBufferState(BufferImpl* buffer, ResourceState state)
+{
+    m_stateTracking.setBufferState(buffer, state);
+}
+
+void CommandBufferImpl::requireTextureState(TextureImpl* texture, ResourceState state)
+{
+    m_stateTracking.setTextureState(texture, state);
+}
+
+void CommandBufferImpl::commitBarriers()
+{
+    short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;
+
+    for (const auto& bufferBarrier : m_stateTracking.getBufferBarriers())
+    {
+        BufferImpl* buffer = static_cast<BufferImpl*>(bufferBarrier.buffer);
+        D3D12_RESOURCE_BARRIER barrier = {};
+        bool isUAVBarrier =
+            (bufferBarrier.stateBefore == bufferBarrier.stateAfter &&
+             bufferBarrier.stateAfter == ResourceState::UnorderedAccess);
+        if (isUAVBarrier)
+        {
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barrier.UAV.pResource = buffer->m_resource;
+        }
+        else
+        {
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Transition.pResource = buffer->m_resource;
+            barrier.Transition.StateBefore = D3DUtil::getResourceState(bufferBarrier.stateBefore);
+            barrier.Transition.StateAfter = D3DUtil::getResourceState(bufferBarrier.stateAfter);
+            barrier.Transition.Subresource = 0;
+        }
+        barriers.push_back(barrier);
+    }
+
+    for (const auto& textureBarrier : m_stateTracking.getTextureBarriers())
+    {
+        TextureImpl* texture = static_cast<TextureImpl*>(textureBarrier.texture);
+        D3D12_RESOURCE_BARRIER barrier = {};
+        bool isUAVBarrier =
+            (textureBarrier.stateBefore == textureBarrier.stateAfter &&
+             textureBarrier.stateAfter == ResourceState::UnorderedAccess);
+        if (isUAVBarrier)
+        {
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barrier.UAV.pResource = texture->m_resource;
+        }
+        else
+        {
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Transition.pResource = texture->m_resource;
+            barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
+            barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        }
+        barriers.push_back(barrier);
+    }
+
+    if (!barriers.empty())
+    {
+        m_cmdList->ResourceBarrier((UINT)barriers.size(), barriers.data());
+    }
+
+    m_stateTracking.clearBarriers();
+}
+
 void CommandBufferImpl::bindDescriptorHeaps()
 {
     if (!m_descriptorHeapsBound)
@@ -105,6 +173,11 @@ Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** o
 
 void CommandBufferImpl::close()
 {
+    // Transition all resources back to their default states.
+    m_stateTracking.requireDefaultStates();
+    commitBarriers();
+    m_stateTracking.clear();
+
     m_cmdList->Close();
 }
 

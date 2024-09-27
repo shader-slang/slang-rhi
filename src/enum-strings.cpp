@@ -199,8 +199,6 @@ const char* enumToString(ResourceState value)
         return "Undefined";
     case ResourceState::General:
         return "General";
-    case ResourceState::PreInitialized:
-        return "PreInitialized";
     case ResourceState::VertexBuffer:
         return "VertexBuffer";
     case ResourceState::IndexBuffer:
@@ -235,10 +233,6 @@ const char* enumToString(ResourceState value)
         return "AccelerationStructure";
     case ResourceState::AccelerationStructureBuildInput:
         return "AccelerationStructureBuildInput";
-    case ResourceState::PixelShaderResource:
-        return "PixelShaderResource";
-    case ResourceState::NonPixelShaderResource:
-        return "NonPixelShaderResource";
     }
     return kInvalid;
 }

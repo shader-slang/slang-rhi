@@ -34,8 +34,6 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
         ResourceState::CopyDestination,
         // ResourceState::AccelerationStructure,
         // ResourceState::AccelerationStructureBuildInput,
-        ResourceState::PixelShaderResource,
-        ResourceState::NonPixelShaderResource,
     };
 
     BufferDesc bufferDesc = {};
@@ -47,17 +45,16 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IBuffer> buffer;
     REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
 
-    auto commandBuffer = transientHeap->createCommandBuffer();
-    auto encoder = commandBuffer->encodeResourceCommands();
-
     for (ResourceState state : allowedStates)
     {
+        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto encoder = commandBuffer->encodeResourceCommands();
         encoder->setBufferState(buffer, state);
+        encoder->endEncoding();
+        commandBuffer->close();
+        queue->executeCommandBuffer(commandBuffer);
     }
 
-    encoder->endEncoding();
-    commandBuffer->close();
-    queue->executeCommandBuffer(commandBuffer);
     queue->waitOnHost();
 }
 
@@ -126,17 +123,16 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
         ComPtr<ITexture> texture;
         REQUIRE_CALL(device->createTexture(texDesc, nullptr, texture.writeRef()));
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeResourceCommands();
-
         for (ResourceState state : allowedStates)
         {
+            auto commandBuffer = transientHeap->createCommandBuffer();
+            auto encoder = commandBuffer->encodeResourceCommands();
             encoder->setTextureState(texture, state);
+            encoder->endEncoding();
+            commandBuffer->close();
+            queue->executeCommandBuffer(commandBuffer);
         }
 
-        encoder->endEncoding();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
     }
 }

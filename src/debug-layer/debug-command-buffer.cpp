@@ -43,6 +43,7 @@ Result DebugCommandBuffer::encodeRenderCommands(const RenderPassDesc& desc, IRen
     {
         innerColorAttachments.push_back(desc.colorAttachments[i]);
         innerColorAttachments[i].view = getInnerObj(desc.colorAttachments[i].view);
+        innerColorAttachments[i].resolveTarget = getInnerObj(desc.colorAttachments[i].resolveTarget);
     }
     innerDesc.colorAttachments = innerColorAttachments.data();
     RenderPassDepthStencilAttachment innerDepthStencilAttachment;
