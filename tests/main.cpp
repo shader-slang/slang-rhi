@@ -40,6 +40,8 @@ int main(int argc, char** argv)
         // context.setOption("success", true);
 
         result = context.run();
+
+        rhi::testing::releaseCachedDevices();
     }
 
     rhi::testing::cleanupTestTempDirectories();
