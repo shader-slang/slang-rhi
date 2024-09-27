@@ -63,6 +63,7 @@ struct TestFormats
 
         BufferDesc bufferDesc = {};
         bufferDesc.size = 64;
+        bufferDesc.elementSize = 4; // for D3D11
         bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource;
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
