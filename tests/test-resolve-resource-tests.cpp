@@ -104,7 +104,7 @@ struct BaseResolveResourceTest
         dstTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
         dstTexDesc.arrayLength = dstTextureInfo.arrayLength;
         dstTexDesc.size = dstTextureInfo.extent;
-        dstTexDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
+        dstTexDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource | TextureUsage::RenderTarget;
         dstTexDesc.defaultState = ResourceState::ResolveDestination;
         dstTexDesc.format = format;
 

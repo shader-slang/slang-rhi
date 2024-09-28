@@ -3,6 +3,8 @@
 #include "vk-command-encoder.h"
 #include "vk-transient-heap.h"
 
+#include "../state-tracking.h"
+
 namespace rhi::vk {
 
 Result ShaderObjectImpl::create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject)
@@ -81,17 +83,28 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
     Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
+    ResourceSlot& slot = m_resources[bindingIndex];
+
     switch (binding.type)
     {
     case BindingType::Buffer:
     {
         BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
-        ResourceSlot slot;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
         slot.format = slot.format != Format::Unknown ? slot.format : buffer->m_desc.format;
         slot.bufferRange = buffer->resolveBufferRange(slot.bufferRange);
-        m_resources[bindingIndex] = slot;
+        switch (bindingRange.bindingType)
+        {
+        case slang::BindingType::TypedBuffer:
+        case slang::BindingType::RawBuffer:
+            slot.requiredState = ResourceState::ShaderResource;
+            break;
+        case slang::BindingType::MutableTypedBuffer:
+        case slang::BindingType::MutableRawBuffer:
+            slot.requiredState = ResourceState::UnorderedAccess;
+            break;
+        }
         break;
     }
     case BindingType::Texture:
@@ -101,10 +114,17 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::TextureView:
     {
-        ResourceSlot slot;
         slot.type = BindingType::TextureView;
         slot.resource = static_cast<TextureViewImpl*>(binding.resource.get());
-        m_resources[bindingIndex] = slot;
+        switch (bindingRange.bindingType)
+        {
+        case slang::BindingType::Texture:
+            slot.requiredState = ResourceState::ShaderResource;
+            break;
+        case slang::BindingType::MutableTexture:
+            slot.requiredState = ResourceState::UnorderedAccess;
+            break;
+        }
         break;
     }
     case BindingType::Sampler:
@@ -120,10 +140,8 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         break;
     }
     case BindingType::AccelerationStructure:
-        ResourceSlot slot;
         slot.type = BindingType::AccelerationStructure;
         slot.resource = static_cast<AccelerationStructureImpl*>(binding.resource.get());
-        m_resources[bindingIndex] = slot;
         break;
     }
 
@@ -978,6 +996,44 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
     return SLANG_OK;
 }
 
+void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
+{
+    for (const ResourceSlot& slot : m_resources)
+    {
+        switch (slot.type)
+        {
+        case BindingType::Buffer:
+            stateTracking.setBufferState(static_cast<BufferImpl*>(slot.resource.get()), slot.requiredState);
+            break;
+        case BindingType::TextureView:
+            stateTracking.setTextureState(
+                static_cast<TextureViewImpl*>(slot.resource.get())->m_texture,
+                slot.requiredState
+            );
+            break;
+        case BindingType::AccelerationStructure:
+            // TODO STATE_TRACKING need state transition?
+            break;
+        }
+    }
+
+    for (const CombinedTextureSamplerSlot& slot : m_combinedTextureSamplers)
+    {
+        if (slot.textureView)
+        {
+            stateTracking.setTextureState(slot.textureView->m_texture, ResourceState::ShaderResource);
+        }
+    }
+
+    for (auto& subObject : m_objects)
+    {
+        if (subObject)
+        {
+            subObject->setResourceStates(stateTracking);
+        }
+    }
+}
+
 Result ShaderObjectImpl::_getSpecializedLayout(ShaderObjectLayoutImpl** outLayout)
 {
     if (!m_specializedLayout)
@@ -1128,6 +1184,15 @@ Result RootShaderObjectImpl::copyFrom(IShaderObject* object, ITransientResourceH
         return SLANG_OK;
     }
     return SLANG_FAIL;
+}
+
+void RootShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
+{
+    ShaderObjectImpl::setResourceStates(stateTracking);
+    for (auto& entryPoint : m_entryPoints)
+    {
+        entryPoint->setResourceStates(stateTracking);
+    }
 }
 
 Result RootShaderObjectImpl::bindAsRoot(

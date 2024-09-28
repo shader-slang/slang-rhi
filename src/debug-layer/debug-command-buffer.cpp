@@ -34,6 +34,8 @@ Result DebugCommandBuffer::encodeResourceCommands(IResourceCommandEncoder** outE
 
 Result DebugCommandBuffer::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
 {
+    // TODO VALIDATION: resolveTarget must have usage RenderTarget (Vulkan, WGPU)
+
     SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();

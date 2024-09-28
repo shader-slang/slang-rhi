@@ -66,8 +66,6 @@ VkImageLayout translateImageLayout(ResourceState state)
     {
     case ResourceState::Undefined:
         return VK_IMAGE_LAYOUT_UNDEFINED;
-    case ResourceState::PreInitialized:
-        return VK_IMAGE_LAYOUT_PREINITIALIZED;
     case ResourceState::UnorderedAccess:
         return VK_IMAGE_LAYOUT_GENERAL;
     case ResourceState::RenderTarget:
@@ -77,8 +75,6 @@ VkImageLayout translateImageLayout(ResourceState state)
     case ResourceState::DepthWrite:
         return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     case ResourceState::ShaderResource:
-    case ResourceState::NonPixelShaderResource:
-    case ResourceState::PixelShaderResource:
         return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     case ResourceState::ResolveDestination:
     case ResourceState::CopyDestination:
@@ -100,7 +96,6 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     {
     case ResourceState::Undefined:
     case ResourceState::Present:
-    case ResourceState::PreInitialized:
         return VkAccessFlagBits(0);
     case ResourceState::VertexBuffer:
         return VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
@@ -111,8 +106,6 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::RenderTarget:
         return VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
     case ResourceState::ShaderResource:
-    case ResourceState::NonPixelShaderResource:
-    case ResourceState::PixelShaderResource:
         return VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
     case ResourceState::UnorderedAccess:
         return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
@@ -149,7 +142,6 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
     switch (state)
     {
     case ResourceState::Undefined:
-    case ResourceState::PreInitialized:
         SLANG_RHI_ASSERT(src);
         return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     case ResourceState::VertexBuffer:
@@ -164,8 +156,6 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
             VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
         );
     case ResourceState::ShaderResource:
-    case ResourceState::NonPixelShaderResource:
-    case ResourceState::PixelShaderResource:
         return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     case ResourceState::RenderTarget:
         return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -251,8 +241,6 @@ VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
     case ResourceState::DepthRead:
         return VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     case ResourceState::ShaderResource:
-    case ResourceState::NonPixelShaderResource:
-    case ResourceState::PixelShaderResource:
         return VK_IMAGE_USAGE_SAMPLED_BIT;
     case ResourceState::UnorderedAccess:
         return VK_IMAGE_USAGE_STORAGE_BIT;

@@ -129,7 +129,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
         /* regionCount: */ 1,
         &copyRegion
     );
-    encoder->bufferBarrier(1, buffer.readRef(), ResourceState::CopyDestination, ResourceState::ShaderResource);
+    encoder->setBufferState(buffer, ResourceState::ShaderResource);
     RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);
 }

@@ -32,15 +32,11 @@ public:
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL
-    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
-        ITexture* texture,
-        SubresourceRange subresourceRange,
-        ResourceState src,
-        ResourceState dst
-    ) override;
+    setTextureState(GfxCount count, ITexture* const* textures, ResourceState state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) override;
+    setTextureSubresourceState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;
@@ -108,11 +104,9 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
         ITexture* dst,
-        ResourceState dstState,
         SubresourceRange dstSubresource,
         Offset3D dstOffset,
         ITexture* src,
-        ResourceState srcState,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
@@ -137,15 +131,6 @@ public:
         bool clearStencil
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
-        ITexture* source,
-        ResourceState sourceState,
-        SubresourceRange sourceRange,
-        ITexture* dest,
-        ResourceState destState,
-        SubresourceRange destRange
-    ) override;
-
     virtual SLANG_NO_THROW void SLANG_MCALL
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
 
@@ -155,7 +140,6 @@ public:
         Size dstSize,
         Size dstRowStride,
         ITexture* src,
-        ResourceState srcState,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
@@ -178,10 +162,8 @@ public:
 
 public:
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
-    short_vector<ResourceState> m_renderTargetFinalStates;
+    short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
     RefPtr<TextureViewImpl> m_depthStencilView;
-    ResourceState m_depthStencilCurrentState;
-    ResourceState m_depthStencilFinalState;
 
     std::vector<VkViewport> m_viewports;
     std::vector<VkRect2D> m_scissorRects;
