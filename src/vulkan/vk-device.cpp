@@ -1123,13 +1123,7 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(
-    ITexture* texture,
-    ResourceState state,
-    ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
-)
+Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
 {
     TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
 
@@ -1171,7 +1165,37 @@ Result DeviceImpl::readTexture(
 
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
     VkImage srcImage = textureImpl->m_image;
-    VkImageLayout srcImageLayout = VulkanUtil::getImageLayoutFromState(state);
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.image = srcImage;
+    barrier.oldLayout = translateImageLayout(textureImpl->m_desc.defaultState);
+    barrier.newLayout = translateImageLayout(ResourceState::CopySource);
+    barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(textureImpl->m_desc.format));
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+    barrier.srcAccessMask = calcAccessFlags(textureImpl->m_desc.defaultState);
+    barrier.dstAccessMask = calcAccessFlags(ResourceState::CopySource);
+
+    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(textureImpl->m_desc.defaultState, true);
+    VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(ResourceState::CopySource, false);
+
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        srcStageFlags,
+        dstStageFlags,
+        VkDependencyFlags(0),
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier
+    );
+
+    VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
     Offset dstOffset = 0;
     for (int i = 0; i < arrayLayerCount; ++i)
@@ -1201,6 +1225,23 @@ Result DeviceImpl::readTexture(
             dstOffset += rowSizeInBytes * numRows * mipSize.depth;
         }
     }
+
+    std::swap(barrier.oldLayout, barrier.newLayout);
+    std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
+    std::swap(srcStageFlags, dstStageFlags);
+
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        srcStageFlags,
+        dstStageFlags,
+        VkDependencyFlags(0),
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier
+    );
 
     m_deviceQueue.flushAndWait();
 
@@ -1237,10 +1278,50 @@ Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlan
     // Copy from real buffer to staging buffer
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
+    VkBufferMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    barrier.srcAccessMask = calcAccessFlags(buffer->m_desc.defaultState);
+    barrier.dstAccessMask = calcAccessFlags(ResourceState::CopyDestination);
+    barrier.buffer = buffer->m_buffer.m_buffer;
+    barrier.offset = 0;
+    barrier.size = buffer->m_desc.size;
+
+    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(buffer->m_desc.defaultState, true);
+    VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(ResourceState::CopySource, false);
+
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        srcStageFlags,
+        dstStageFlags,
+        VkDependencyFlags(0),
+        0,
+        nullptr,
+        1,
+        &barrier,
+        0,
+        nullptr
+    );
+
     VkBufferCopy copyInfo = {};
     copyInfo.size = size;
     copyInfo.srcOffset = offset;
     m_api.vkCmdCopyBuffer(commandBuffer, buffer->m_buffer.m_buffer, staging.m_buffer, 1, &copyInfo);
+
+    std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
+    std::swap(srcStageFlags, dstStageFlags);
+
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        srcStageFlags,
+        dstStageFlags,
+        VkDependencyFlags(0),
+        0,
+        nullptr,
+        1,
+        &barrier,
+        0,
+        nullptr
+    );
 
     m_deviceQueue.flushAndWait();
 

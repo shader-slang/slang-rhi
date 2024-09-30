@@ -326,7 +326,6 @@ enum class ResourceState
 {
     Undefined,
     General,
-    PreInitialized,
     VertexBuffer,
     IndexBuffer,
     ConstantBuffer,
@@ -344,8 +343,6 @@ enum class ResourceState
     ResolveDestination,
     AccelerationStructure,
     AccelerationStructureBuildInput,
-    PixelShaderResource,
-    NonPixelShaderResource,
 };
 
 /// Describes how memory for the resource should be allocated for CPU access.
@@ -1399,12 +1396,10 @@ enum class StoreOp
 struct RenderPassColorAttachment
 {
     ITextureView* view = nullptr;
+    ITextureView* resolveTarget = nullptr;
     LoadOp loadOp = LoadOp::DontCare;
     StoreOp storeOp = StoreOp::Store;
     float clearValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    // TODO: remove with automatic resource tracking
-    ResourceState initialState = ResourceState::Undefined;
-    ResourceState finalState = ResourceState::Undefined;
 };
 
 struct RenderPassDepthStencilAttachment
@@ -1418,9 +1413,6 @@ struct RenderPassDepthStencilAttachment
     StoreOp stencilStoreOp = StoreOp::DontCare;
     uint8_t stencilClearValue = 0;
     bool stencilReadOnly = false;
-    // TODO: remove with automatic resource tracking
-    ResourceState initialState = ResourceState::Undefined;
-    ResourceState finalState = ResourceState::Undefined;
 };
 
 struct RenderPassDesc
@@ -1503,27 +1495,14 @@ class ICommandEncoder : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) = 0;
-
-    inline void textureBarrier(ITexture* texture, ResourceState src, ResourceState dst)
-    {
-        textureBarrier(1, &texture, src, dst);
-    }
-
-    virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
-        ITexture* texture,
-        SubresourceRange subresourceRange,
-        ResourceState src,
-        ResourceState dst
-    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) = 0;
+    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) = 0;
 
-    inline void bufferBarrier(IBuffer* buffer, ResourceState src, ResourceState dst)
+    inline void setTextureState(ITexture* texture, ResourceState state)
     {
-        bufferBarrier(1, &buffer, src, dst);
+        setTextureState(texture, kEntireTexture, state);
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) = 0;
@@ -1545,11 +1524,9 @@ public:
     /// arguments are ignored.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
         ITexture* dst,
-        ResourceState dstState,
         SubresourceRange dstSubresource,
         Offset3D dstOffset,
         ITexture* src,
-        ResourceState srcState,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
@@ -1562,7 +1539,6 @@ public:
         Size dstSize,
         Size dstRowStride,
         ITexture* src,
-        ResourceState srcState,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
@@ -1593,15 +1569,6 @@ public:
         const SubresourceRange* subresourceRange = nullptr,
         bool clearDepth = true,
         bool clearStencil = true
-    ) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
-        ITexture* source,
-        ResourceState sourceState,
-        SubresourceRange sourceRange,
-        ITexture* dest,
-        ResourceState destState,
-        SubresourceRange destRange
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
@@ -2418,13 +2385,8 @@ public:
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) = 0;
 
     /// Read back texture resource and stores the result in `outBlob`.
-    virtual SLANG_NO_THROW SlangResult SLANG_MCALL readTexture(
-        ITexture* resource,
-        ResourceState state,
-        ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize
-    ) = 0;
+    virtual SLANG_NO_THROW SlangResult SLANG_MCALL
+    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) = 0;
 
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;

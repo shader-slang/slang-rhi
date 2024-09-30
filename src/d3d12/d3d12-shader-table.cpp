@@ -29,7 +29,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
-    bufferDesc.defaultState = ResourceState::General;
+    bufferDesc.defaultState = ResourceState::ShaderResource;
     bufferDesc.usage = BufferUsage::ShaderTable;
     bufferDesc.size = tableSize;
     m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef());
@@ -104,7 +104,13 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
         stagingBufferOffset,
         tableSize
     );
-    encoder->bufferBarrier(1, buffer.readRef(), ResourceState::CopyDestination, ResourceState::NonPixelShaderResource);
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = static_cast<BufferImpl*>(buffer.get())->m_resource.getResource();
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    static_cast<RayTracingCommandEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->ResourceBarrier(1, &barrier);
+
     RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);
 }

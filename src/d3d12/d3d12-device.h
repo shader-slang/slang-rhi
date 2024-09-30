@@ -160,11 +160,10 @@ public:
         override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* resource, ResourceState state, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
-        override;
+    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* resource, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
@@ -204,14 +203,6 @@ public:
         D3D12Resource& resourceOut,
         bool isShared,
         MemoryType access = MemoryType::DeviceLocal
-    );
-
-    Result captureTextureToSurface(
-        TextureImpl* resource,
-        ResourceState state,
-        ISlangBlob** blob,
-        Size* outRowPitch,
-        Size* outPixelSize
     );
 
     Result _createDevice(

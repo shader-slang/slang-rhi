@@ -55,9 +55,6 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IBuffer> intermediateBuffer = createFloatBuffer(device, true, 4);
     ComPtr<IBuffer> outputBuffer = createFloatBuffer(device, true, 4);
 
-    auto insertBarrier = [](ICommandEncoder* encoder, IBuffer* buffer, ResourceState before, ResourceState after)
-    { encoder->bufferBarrier(1, &buffer, before, after); };
-
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
@@ -75,8 +72,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
         encoder->dispatchCompute(1, 1, 1);
 
-        // Insert barrier to ensure writes to intermediateBuffer are complete before the next shader starts executing
-        insertBarrier(encoder, intermediateBuffer, ResourceState::UnorderedAccess, ResourceState::ShaderResource);
+        // Resource transition is automatically handled.
 
         // Write intermediateBuffer to outputBuffer
         auto rootObjectB = encoder->bindPipeline(programB.pipeline);

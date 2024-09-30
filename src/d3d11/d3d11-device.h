@@ -55,8 +55,7 @@ public:
     virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
     virtual void copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ResourceState state, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
-        override;
+    readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize) override;
 
     virtual void setVertexBuffers(
         GfxIndex startSlot,

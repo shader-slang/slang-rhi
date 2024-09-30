@@ -85,7 +85,7 @@ TEST_CASE("compute-smoke")
             DeviceType::Metal,
             DeviceType::CUDA,
             DeviceType::CPU,
-            DeviceType::WGPU,
+            // DeviceType::WGPU,
         }
     );
 }

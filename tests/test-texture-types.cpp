@@ -21,6 +21,7 @@ struct TextureTest
     RefPtr<ValidationTextureFormatBase> validationFormat;
 
     ComPtr<ITexture> texture;
+    ComPtr<ITextureView> textureView;
     ComPtr<ISampler> sampler;
     ComPtr<IBuffer> resultsBuffer;
 
@@ -156,9 +157,6 @@ struct TextureAccessTest : TextureTest
 
             auto bufferElementCount = width * height * depth;
             encoder->dispatchCompute(bufferElementCount, 1, 1);
-
-            encoder->textureBarrier(texture, texture->getDesc().defaultState, ResourceState::CopySource);
-
             encoder->endEncoding();
             commandBuffer->close();
             queue->executeCommandBuffer(commandBuffer);
@@ -193,9 +191,7 @@ struct TextureAccessTest : TextureTest
             ComPtr<ISlangBlob> textureBlob;
             size_t rowPitch;
             size_t pixelSize;
-            REQUIRE_CALL(
-                device->readTexture(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize)
-            );
+            REQUIRE_CALL(device->readTexture(texture, textureBlob.writeRef(), &rowPitch, &pixelSize));
             auto textureValues = (uint8_t*)textureBlob->getBufferPointer();
 
             ValidationTextureData textureResults;
@@ -341,6 +337,8 @@ struct RenderTargetTests : TextureTest
 
         REQUIRE_CALL(device->createTexture(textureDesc, textureInfo->subresourceDatas.data(), texture.writeRef()));
 
+        REQUIRE_CALL(device->createTextureView(texture, {}, textureView.writeRef()));
+
         InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.inputElements = inputElements;
@@ -391,10 +389,12 @@ struct RenderTargetTests : TextureTest
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = renderTextureView;
+        if (sampleCount > 1)
+        {
+            colorAttachment.resolveTarget = textureView;
+        }
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = ResourceState::RenderTarget;
-        colorAttachment.finalState = ResourceState::ResolveSource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
@@ -412,39 +412,6 @@ struct RenderTargetTests : TextureTest
         renderEncoder->draw(kVertexCount, 0);
         renderEncoder->endEncoding();
 
-        auto resourceEncoder = commandBuffer->encodeResourceCommands();
-
-        if (sampleCount > 1)
-        {
-            SubresourceRange msaaSubresource = {};
-            msaaSubresource.aspectMask = TextureAspect::Color;
-            msaaSubresource.mipLevel = 0;
-            msaaSubresource.mipLevelCount = 1;
-            msaaSubresource.baseArrayLayer = 0;
-            msaaSubresource.layerCount = 1;
-
-            SubresourceRange dstSubresource = {};
-            dstSubresource.aspectMask = TextureAspect::Color;
-            dstSubresource.mipLevel = 0;
-            dstSubresource.mipLevelCount = 1;
-            dstSubresource.baseArrayLayer = 0;
-            dstSubresource.layerCount = 1;
-
-            resourceEncoder->resolveResource(
-                renderTexture,
-                ResourceState::ResolveSource,
-                msaaSubresource,
-                texture,
-                ResourceState::ResolveDestination,
-                dstSubresource
-            );
-            resourceEncoder->textureBarrier(texture, ResourceState::ResolveDestination, ResourceState::CopySource);
-        }
-        else
-        {
-            resourceEncoder->textureBarrier(renderTexture, ResourceState::ResolveSource, ResourceState::CopySource);
-        }
-        resourceEncoder->endEncoding();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -485,19 +452,11 @@ struct RenderTargetTests : TextureTest
         size_t pixelSize;
         if (sampleCount > 1)
         {
-            REQUIRE_CALL(
-                device->readTexture(texture, ResourceState::CopySource, textureBlob.writeRef(), &rowPitch, &pixelSize)
-            );
+            REQUIRE_CALL(device->readTexture(texture, textureBlob.writeRef(), &rowPitch, &pixelSize));
         }
         else
         {
-            REQUIRE_CALL(device->readTexture(
-                renderTexture,
-                ResourceState::CopySource,
-                textureBlob.writeRef(),
-                &rowPitch,
-                &pixelSize
-            ));
+            REQUIRE_CALL(device->readTexture(renderTexture, textureBlob.writeRef(), &rowPitch, &pixelSize));
         }
         auto textureValues = (float*)textureBlob->getBufferPointer();
 

@@ -69,35 +69,18 @@ public:
         virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
         virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-        virtual SLANG_NO_THROW void SLANG_MCALL
-        textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) override
+        virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override
         {
-            SLANG_UNUSED(count);
-            SLANG_UNUSED(textures);
-            SLANG_UNUSED(src);
-            SLANG_UNUSED(dst);
+            SLANG_UNUSED(buffer);
+            SLANG_UNUSED(state);
         }
 
-        virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
-            ITexture* texture,
-            SubresourceRange subresourceRange,
-            ResourceState src,
-            ResourceState dst
-        ) override
+        virtual SLANG_NO_THROW void SLANG_MCALL
+        setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override
         {
             SLANG_UNUSED(texture);
             SLANG_UNUSED(subresourceRange);
-            SLANG_UNUSED(src);
-            SLANG_UNUSED(dst);
-        }
-
-        virtual SLANG_NO_THROW void SLANG_MCALL
-        bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) override
-        {
-            SLANG_UNUSED(count);
-            SLANG_UNUSED(buffers);
-            SLANG_UNUSED(src);
-            SLANG_UNUSED(dst);
+            SLANG_UNUSED(state);
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override
@@ -145,22 +128,18 @@ public:
 
         virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
             ITexture* dst,
-            ResourceState dstState,
             SubresourceRange dstSubresource,
             Offset3D dstOffset,
             ITexture* src,
-            ResourceState srcState,
             SubresourceRange srcSubresource,
             Offset3D srcOffset,
             Extents extent
         ) override
         {
             SLANG_UNUSED(dst);
-            SLANG_UNUSED(dstState);
             SLANG_UNUSED(dstSubresource);
             SLANG_UNUSED(dstOffset);
             SLANG_UNUSED(src);
-            SLANG_UNUSED(srcState);
             SLANG_UNUSED(srcSubresource);
             SLANG_UNUSED(srcOffset);
             SLANG_UNUSED(extent);
@@ -208,24 +187,6 @@ public:
             SLANG_RHI_UNIMPLEMENTED("clearTexture");
         }
 
-        virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
-            ITexture* source,
-            ResourceState sourceState,
-            SubresourceRange sourceRange,
-            ITexture* dest,
-            ResourceState destState,
-            SubresourceRange destRange
-        ) override
-        {
-            SLANG_UNUSED(source);
-            SLANG_UNUSED(sourceState);
-            SLANG_UNUSED(sourceRange);
-            SLANG_UNUSED(dest);
-            SLANG_UNUSED(destState);
-            SLANG_UNUSED(destRange);
-            SLANG_RHI_UNIMPLEMENTED("resolveResource");
-        }
-
         virtual SLANG_NO_THROW void SLANG_MCALL
         resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override
         {
@@ -243,7 +204,6 @@ public:
             Size dstSize,
             Size dstRowStride,
             ITexture* src,
-            ResourceState srcState,
             SubresourceRange srcSubresource,
             Offset3D srcOffset,
             Extents extent
@@ -254,7 +214,6 @@ public:
             SLANG_UNUSED(dstSize);
             SLANG_UNUSED(dstRowStride);
             SLANG_UNUSED(src);
-            SLANG_UNUSED(srcState);
             SLANG_UNUSED(srcSubresource);
             SLANG_UNUSED(srcOffset);
             SLANG_UNUSED(extent);

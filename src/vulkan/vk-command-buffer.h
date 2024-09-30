@@ -5,6 +5,8 @@
 #include "vk-shader-object.h"
 #include "vk-transient-heap.h"
 
+#include "../state-tracking.h"
+
 namespace rhi::vk {
 
 class CommandBufferImpl : public ICommandBuffer, public ComObject
@@ -27,6 +29,8 @@ public:
     RootShaderObjectImpl m_rootObject;
     RefPtr<MutableRootShaderObjectImpl> m_mutableRootShaderObject;
 
+    StateTracking m_stateTracking;
+
     ResourceCommandEncoderImpl m_resourceCommandEncoder;
     RenderCommandEncoderImpl m_renderCommandEncoder;
     ComputeCommandEncoderImpl m_computeCommandEncoder;
@@ -43,6 +47,10 @@ public:
     Result createPreCommandBuffer();
 
     VkCommandBuffer getPreCommandBuffer();
+
+    void requireBufferState(BufferImpl* buffer, ResourceState state);
+    void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
+    void commitBarriers();
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;

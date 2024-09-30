@@ -295,8 +295,6 @@ VkImageLayout VulkanUtil::getImageLayoutFromState(ResourceState state)
     switch (state)
     {
     case ResourceState::ShaderResource:
-    case ResourceState::PixelShaderResource:
-    case ResourceState::NonPixelShaderResource:
         return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     case ResourceState::UnorderedAccess:
     case ResourceState::General:
@@ -653,8 +651,6 @@ VkImageLayout VulkanUtil::mapResourceStateToLayout(ResourceState state)
     case ResourceState::Undefined:
         return VK_IMAGE_LAYOUT_UNDEFINED;
     case ResourceState::ShaderResource:
-    case ResourceState::PixelShaderResource:
-    case ResourceState::NonPixelShaderResource:
         return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     case ResourceState::UnorderedAccess:
         return VK_IMAGE_LAYOUT_GENERAL;

@@ -38,7 +38,6 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
         clearValue.color.floatValues[2] = 0.2f;
         clearValue.color.floatValues[3] = 0.1f;
         resourceEncoder->clearResourceView(rtv, &clearValue, ClearResourceViewFlags::FloatClearValues);
-        resourceEncoder->textureBarrier(srcTexture, ResourceState::RenderTarget, ResourceState::CopySource);
         resourceEncoder->endEncoding();
 
         commandBuffer->close();
@@ -48,7 +47,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 
         ComPtr<ISlangBlob> blob;
         size_t rowPitch, pixelSize;
-        device->readTexture(srcTexture, ResourceState::CopySource, blob.writeRef(), &rowPitch, &pixelSize);
+        device->readTexture(srcTexture, blob.writeRef(), &rowPitch, &pixelSize);
         float* data = (float*)blob->getBufferPointer();
         for (int i = 0; i < 4; i++)
         {

@@ -4,6 +4,8 @@
 #include "d3d12-helper-functions.h"
 #include "d3d12-submitter.h"
 
+#include "../state-tracking.h"
+
 #include "core/short_vector.h"
 
 #include <vector>
@@ -76,6 +78,22 @@ struct DescriptorSet
         resourceTable.freeIfSupported();
         samplerTable.freeIfSupported();
     }
+};
+
+enum class BoundResourceType
+{
+    None,
+    Buffer,
+    TextureView,
+    AccelerationStructure,
+};
+
+struct BoundResource
+{
+    BoundResourceType type = BoundResourceType::None;
+    RefPtr<Resource> resource;
+    RefPtr<Resource> counterResource;
+    ResourceState requiredState = ResourceState::Undefined;
 };
 
 class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
@@ -185,14 +203,16 @@ public:
     );
 
     Result bindRootArguments(BindingContext* context, uint32_t& index);
+
+    void setResourceStates(StateTracking& stateTracking);
+
     /// A CPU-memory descriptor set holding any descriptors used to represent the
     /// resources/samplers in this object's state
     DescriptorSet m_descriptorSet;
     /// A cached descriptor set on GPU heap.
     DescriptorSet m_cachedGPUDescriptorSet;
 
-    short_vector<RefPtr<Resource>, 8> m_boundResources;
-    short_vector<RefPtr<Resource>, 8> m_boundCounterResources;
+    short_vector<BoundResource, 16> m_boundResources;
     std::vector<D3D12_GPU_VIRTUAL_ADDRESS> m_rootArguments;
     /// A constant buffer used to stored ordinary data for this object
     /// and existential-type sub-objects.
@@ -255,6 +275,8 @@ public:
     copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;
 
 public:
+    void setResourceStates(StateTracking& stateTracking);
+
     Result bindAsRoot(BindingContext* context, RootShaderObjectLayoutImpl* specializedLayout);
 
 public:

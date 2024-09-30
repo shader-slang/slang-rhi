@@ -13,24 +13,14 @@
     {                                                                                                                  \
         return CommandEncoderBase::release();                                                                          \
     }                                                                                                                  \
-    virtual SLANG_NO_THROW void SLANG_MCALL                                                                            \
-    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) override           \
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override              \
     {                                                                                                                  \
-        CommandEncoderBase::textureBarrier(count, textures, src, dst);                                                 \
-    }                                                                                                                  \
-    virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(                                                 \
-        ITexture* texture,                                                                                             \
-        SubresourceRange subresourceRange,                                                                             \
-        ResourceState src,                                                                                             \
-        ResourceState dst                                                                                              \
-    ) override                                                                                                         \
-    {                                                                                                                  \
-        CommandEncoderBase::textureSubresourceBarrier(texture, subresourceRange, src, dst);                            \
+        CommandEncoderBase::setBufferState(buffer, state);                                                             \
     }                                                                                                                  \
     virtual SLANG_NO_THROW void SLANG_MCALL                                                                            \
-    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) override              \
+    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override                \
     {                                                                                                                  \
-        CommandEncoderBase::bufferBarrier(count, buffers, src, dst);                                                   \
+        CommandEncoderBase::setTextureState(texture, subresourceRange, state);                                         \
     }                                                                                                                  \
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* pool, GfxIndex index) override                  \
     {                                                                                                                  \

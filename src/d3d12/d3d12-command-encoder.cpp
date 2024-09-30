@@ -18,126 +18,14 @@ namespace rhi::d3d12 {
 
 // CommandEncoderImpl
 
-void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
-    short_vector<D3D12_RESOURCE_BARRIER> barriers;
-
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        auto textureImpl = static_cast<TextureImpl*>(textures[i]);
-        auto d3dFormat = D3DUtil::getMapFormat(textureImpl->m_desc.format);
-        D3D12_RESOURCE_BARRIER barrier;
-        barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-        if (src == dst && src == ResourceState::UnorderedAccess)
-        {
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-            barrier.UAV.pResource = textureImpl->m_resource.getResource();
-        }
-        else
-        {
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barrier.Transition.StateBefore = D3DUtil::getResourceState(src);
-            barrier.Transition.StateAfter = D3DUtil::getResourceState(dst);
-            if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
-                continue;
-            barrier.Transition.pResource = textureImpl->m_resource.getResource();
-            auto planeCount = D3DUtil::getPlaneSliceCount(D3DUtil::getMapFormat(textureImpl->m_desc.format));
-            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        }
-        barriers.push_back(barrier);
-    }
-    if (!barriers.empty())
-    {
-        m_commandBuffer->m_cmdList->ResourceBarrier((UINT)barriers.size(), barriers.data());
-    }
+    m_commandBuffer->m_stateTracking.setBufferState(static_cast<BufferImpl*>(buffer), state);
 }
 
-void CommandEncoderImpl::textureSubresourceBarrier(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState src,
-    ResourceState dst
-)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
-    auto textureImpl = static_cast<TextureImpl*>(texture);
-
-    short_vector<D3D12_RESOURCE_BARRIER> barriers;
-    D3D12_RESOURCE_BARRIER barrier;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    if (src == dst && src == ResourceState::UnorderedAccess)
-    {
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-        barrier.UAV.pResource = textureImpl->m_resource.getResource();
-        barriers.push_back(barrier);
-    }
-    else
-    {
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Transition.StateBefore = D3DUtil::getResourceState(src);
-        barrier.Transition.StateAfter = D3DUtil::getResourceState(dst);
-        if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
-            return;
-        barrier.Transition.pResource = textureImpl->m_resource.getResource();
-        auto d3dFormat = D3DUtil::getMapFormat(textureImpl->m_desc.format);
-        auto aspectMask = (int32_t)subresourceRange.aspectMask;
-        if (subresourceRange.aspectMask == TextureAspect::Default)
-            aspectMask = (int32_t)TextureAspect::Color;
-        while (aspectMask)
-        {
-            auto aspect = math::getLowestBit((int32_t)aspectMask);
-            aspectMask &= ~aspect;
-            auto planeIndex = D3DUtil::getPlaneSlice(d3dFormat, (TextureAspect)aspect);
-            for (GfxCount layer = 0; layer < subresourceRange.layerCount; layer++)
-            {
-                for (GfxCount mip = 0; mip < subresourceRange.mipLevelCount; mip++)
-                {
-                    barrier.Transition.Subresource = D3DUtil::getSubresourceIndex(
-                        mip + subresourceRange.mipLevel,
-                        layer + subresourceRange.baseArrayLayer,
-                        planeIndex,
-                        textureImpl->m_desc.numMipLevels,
-                        textureImpl->m_desc.arrayLength
-                    );
-                    barriers.push_back(barrier);
-                }
-            }
-        }
-    }
-    m_commandBuffer->m_cmdList->ResourceBarrier((UINT)barriers.size(), barriers.data());
-}
-
-void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst)
-{
-    short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        auto bufferImpl = static_cast<BufferImpl*>(buffers[i]);
-
-        D3D12_RESOURCE_BARRIER barrier = {};
-        // If the src == dst, it must be a UAV barrier.
-        barrier.Type = (src == dst && dst == ResourceState::UnorderedAccess) ? D3D12_RESOURCE_BARRIER_TYPE_UAV
-                                                                             : D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-        if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_UAV)
-        {
-            barrier.UAV.pResource = bufferImpl->m_resource;
-        }
-        else
-        {
-            barrier.Transition.pResource = bufferImpl->m_resource;
-            barrier.Transition.StateBefore = D3DUtil::getResourceState(src);
-            barrier.Transition.StateAfter = D3DUtil::getResourceState(dst);
-            barrier.Transition.Subresource = 0;
-            if (barrier.Transition.StateAfter == barrier.Transition.StateBefore)
-                continue;
-        }
-        barriers.push_back(barrier);
-    }
-    if (!barriers.empty())
-    {
-        m_commandBuffer->m_cmdList4->ResourceBarrier((UINT)barriers.size(), barriers.data());
-    }
+    m_commandBuffer->m_stateTracking.setTextureState(static_cast<TextureImpl*>(texture), subresourceRange, state);
 }
 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
@@ -244,6 +132,13 @@ Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipelin
     context.device = m_device;
     context.transientHeap = m_transientHeap;
     context.outOfMemoryHeap = (D3D12_DESCRIPTOR_HEAP_TYPE)(-1);
+
+    // Transition all resources to the appropriate state and commit the barriers.
+    // This needs to happen before binding descriptor tables, otherwise D3D12
+    // will report validation errors.
+    rootObjectImpl->setResourceStates(m_commandBuffer->m_stateTracking);
+    m_commandBuffer->commitBarriers();
+
     // We kick off binding of shader objects at the root object, and the objects
     // themselves will be responsible for allocating, binding, and filling in
     // any descriptor tables or other root parameters needed.
@@ -287,18 +182,20 @@ Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipelin
 
 void ResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
-    ResourceState dstState,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
 )
 {
-    auto dstTexture = static_cast<TextureImpl*>(dst);
-    auto srcTexture = static_cast<TextureImpl*>(src);
+    TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
+    TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
+
+    m_commandBuffer->requireTextureState(dstTexture, dstSubresource, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
+    m_commandBuffer->commitBarriers();
 
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
         srcSubresource.mipLevelCount == 0)
@@ -370,7 +267,11 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     GfxCount subResourceDataCount
 )
 {
-    auto dstTexture = static_cast<TextureImpl*>(dst);
+    TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
+
+    m_commandBuffer->requireTextureState(dstTexture, subResourceRange, ResourceState::CopyDestination);
+    m_commandBuffer->commitBarriers();
+
     auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
         subResourceRange.mipLevel,
         subResourceRange.baseArrayLayer,
@@ -570,52 +471,6 @@ void ResourceCommandEncoderImpl::clearResourceView(
 }
 #endif
 
-void ResourceCommandEncoderImpl::resolveResource(
-    ITexture* source,
-    ResourceState sourceState,
-    SubresourceRange sourceRange,
-    ITexture* dest,
-    ResourceState destState,
-    SubresourceRange destRange
-)
-{
-    TextureImpl* srcTexture = static_cast<TextureImpl*>(source);
-    const TextureDesc& srcDesc = srcTexture->m_desc;
-    TextureImpl* dstTexture = static_cast<TextureImpl*>(dest);
-    const TextureDesc& dstDesc = dstTexture->m_desc;
-
-    for (GfxIndex layer = 0; layer < sourceRange.layerCount; ++layer)
-    {
-        for (GfxIndex mip = 0; mip < sourceRange.mipLevelCount; ++mip)
-        {
-            auto srcSubresourceIndex = D3DUtil::getSubresourceIndex(
-                mip + sourceRange.mipLevel,
-                layer + sourceRange.baseArrayLayer,
-                0,
-                srcDesc.numMipLevels,
-                srcDesc.arrayLength
-            );
-            auto dstSubresourceIndex = D3DUtil::getSubresourceIndex(
-                mip + destRange.mipLevel,
-                layer + destRange.baseArrayLayer,
-                0,
-                dstDesc.numMipLevels,
-                dstDesc.arrayLength
-            );
-
-            DXGI_FORMAT format = D3DUtil::getMapFormat(srcDesc.format);
-
-            m_commandBuffer->m_cmdList->ResolveSubresource(
-                dstTexture->m_resource.getResource(),
-                dstSubresourceIndex,
-                srcTexture->m_resource.getResource(),
-                srcSubresourceIndex,
-                format
-            );
-        }
-    }
-}
-
 void ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
@@ -624,6 +479,11 @@ void ResourceCommandEncoderImpl::resolveQuery(
     Offset offset
 )
 {
+    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+
+    m_commandBuffer->requireBufferState(bufferImpl, ResourceState::CopyDestination);
+    m_commandBuffer->commitBarriers();
+
     auto queryBase = static_cast<QueryPool*>(queryPool);
     switch (queryBase->m_desc.type)
     {
@@ -632,7 +492,6 @@ void ResourceCommandEncoderImpl::resolveQuery(
     case QueryType::AccelerationStructureSerializedSize:
     {
         auto queryPoolImpl = static_cast<PlainBufferProxyQueryPoolImpl*>(queryPool);
-        auto bufferImpl = static_cast<BufferImpl*>(buffer);
         auto srcQueryBuffer = queryPoolImpl->m_buffer->m_resource.getResource();
 
         D3D12_RESOURCE_BARRIER barrier = {};
@@ -680,7 +539,6 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     Size dstSize,
     Size dstRowStride,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
@@ -688,8 +546,13 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
-    auto srcTexture = static_cast<TextureImpl*>(src);
-    auto dstBuffer = static_cast<BufferImpl*>(dst);
+    BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
+    TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
+
+    m_commandBuffer->requireBufferState(dstBuffer, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
+    m_commandBuffer->commitBarriers();
+
     auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
         srcSubresource.mipLevel,
         srcSubresource.baseArrayLayer,
@@ -772,8 +635,12 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
 
 void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    auto dstBuffer = static_cast<BufferImpl*>(dst);
-    auto srcBuffer = static_cast<BufferImpl*>(src);
+    BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
+    BufferImpl* srcBuffer = static_cast<BufferImpl*>(src);
+
+    m_commandBuffer->requireBufferState(dstBuffer, ResourceState::CopyDestination);
+    m_commandBuffer->requireBufferState(srcBuffer, ResourceState::CopySource);
+    m_commandBuffer->commitBarriers();
 
     m_commandBuffer->m_cmdList->CopyBufferRegion(
         dstBuffer->m_resource.getResource(),
@@ -786,11 +653,16 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
 
 void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
+    BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
+
+    m_commandBuffer->requireBufferState(dstBuffer, ResourceState::CopyDestination);
+    m_commandBuffer->commitBarriers();
+
     uploadBufferDataImpl(
         m_commandBuffer->m_device->m_device,
         m_commandBuffer->m_cmdList,
         m_commandBuffer->m_transientHeap,
-        static_cast<BufferImpl*>(dst),
+        dstBuffer,
         offset,
         size,
         data
@@ -816,19 +688,30 @@ void RenderCommandEncoderImpl::init(
     m_currentPipeline = nullptr;
 
     m_renderTargetViews.resize(desc.colorAttachmentCount);
-    m_renderTargetFinalStates.resize(desc.colorAttachmentCount);
+    m_resolveTargetViews.resize(desc.colorAttachmentCount);
     short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
     for (Index i = 0; i < desc.colorAttachmentCount; i++)
     {
         m_renderTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
-        m_renderTargetFinalStates[i] = desc.colorAttachments[i].finalState;
+        m_resolveTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].resolveTarget);
+        m_commandBuffer->requireTextureState(
+            m_renderTargetViews[i]->m_texture,
+            m_renderTargetViews[i]->m_desc.subresourceRange,
+            ResourceState::RenderTarget
+        );
         renderTargetDescriptors.push_back(m_renderTargetViews[i]->getRTV().cpuHandle);
     }
     if (desc.depthStencilAttachment)
     {
         m_depthStencilView = static_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
-        m_depthStencilFinalState = desc.depthStencilAttachment->finalState;
+        m_commandBuffer->requireTextureState(
+            m_depthStencilView->m_texture,
+            m_depthStencilView->m_desc.subresourceRange,
+            desc.depthStencilAttachment->depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite
+        );
     }
+
+    m_commandBuffer->commitBarriers();
 
     m_d3dCmdList->OMSetRenderTargets(
         (UINT)m_renderTargetViews.size(),
@@ -841,30 +724,6 @@ void RenderCommandEncoderImpl::init(
     for (Index i = 0; i < m_renderTargetViews.size(); i++)
     {
         const auto& attachment = desc.colorAttachments[i];
-
-        // Transit resource states.
-        {
-            D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto resourceViewImpl = m_renderTargetViews[i].get();
-            if (resourceViewImpl)
-            {
-                auto texture = static_cast<TextureImpl*>(resourceViewImpl->m_texture.get());
-                if (texture)
-                {
-                    D3D12_RESOURCE_STATES initialState;
-                    if (attachment.initialState == ResourceState::Undefined)
-                    {
-                        initialState = texture->m_defaultState;
-                    }
-                    else
-                    {
-                        initialState = D3DUtil::getResourceState(attachment.initialState);
-                    }
-                    texture->m_resource.transition(initialState, D3D12_RESOURCE_STATE_RENDER_TARGET, submitter);
-                }
-            }
-        }
-        // Clear.
         if (attachment.loadOp == LoadOp::Clear)
         {
             m_d3dCmdList->ClearRenderTargetView(renderTargetDescriptors[i], attachment.clearValue, 0, nullptr);
@@ -874,23 +733,6 @@ void RenderCommandEncoderImpl::init(
     if (desc.depthStencilAttachment)
     {
         const auto& attachment = *desc.depthStencilAttachment;
-
-        // Transit resource states.
-        {
-            D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_texture.get());
-            D3D12_RESOURCE_STATES initialState;
-            if (attachment.initialState == ResourceState::Undefined)
-            {
-                initialState = texture->m_defaultState;
-            }
-            else
-            {
-                initialState = D3DUtil::getResourceState(attachment.initialState);
-            }
-            texture->m_resource.transition(initialState, D3D12_RESOURCE_STATE_DEPTH_WRITE, submitter);
-        }
-        // Clear.
         uint32_t clearFlags = 0;
         if (attachment.depthLoadOp == LoadOp::Clear)
         {
@@ -979,27 +821,38 @@ void RenderCommandEncoderImpl::setVertexBuffers(
 
     for (GfxIndex i = 0; i < slotCount; i++)
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(buffers[i]);
-
         BoundVertexBuffer& boundBuffer = m_boundVertexBuffers[startSlot + i];
-        boundBuffer.m_buffer = buffer;
+        boundBuffer.m_buffer = static_cast<BufferImpl*>(buffers[i]);
         boundBuffer.m_offset = int(offsets[i]);
     }
 }
 
 void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
-    m_boundIndexBuffer = (BufferImpl*)buffer;
+    m_boundIndexBuffer = static_cast<BufferImpl*>(buffer);
     m_boundIndexFormat = D3DUtil::getIndexFormat(indexFormat);
     m_boundIndexOffset = (UINT)offset;
 }
 
 Result RenderCommandEncoderImpl::prepareDraw()
 {
-    auto pipeline = m_currentPipeline.Ptr();
+    Pipeline* pipeline = m_currentPipeline.get();
     if (!pipeline || (pipeline->desc.type != PipelineType::Graphics))
     {
         return SLANG_FAIL;
+    }
+    InputLayoutImpl* inputLayout = (InputLayoutImpl*)pipeline->inputLayout.get();
+
+    if (inputLayout)
+    {
+        for (Index i = 0; i < m_boundVertexBuffers.size(); i++)
+        {
+            m_commandBuffer->requireBufferState(m_boundVertexBuffers[i].m_buffer, ResourceState::VertexBuffer);
+        }
+    }
+    if (m_boundIndexBuffer)
+    {
+        m_commandBuffer->requireBufferState(m_boundIndexBuffer, ResourceState::IndexBuffer);
     }
 
     // Submit - setting for graphics
@@ -1013,7 +866,6 @@ Result RenderCommandEncoderImpl::prepareDraw()
 
     // Set up vertex buffer views
     {
-        auto inputLayout = (InputLayoutImpl*)pipeline->inputLayout.Ptr();
         if (inputLayout)
         {
             int numVertexViews = 0;
@@ -1045,6 +897,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
 
         m_d3dCmdList->IASetIndexBuffer(&indexBufferView);
     }
+
     return SLANG_OK;
 }
 
@@ -1064,41 +917,49 @@ Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex start
 
 void RenderCommandEncoderImpl::endEncoding()
 {
-    // Issue clear commands based on render pass set up.
-    for (Index i = 0; i < m_renderTargetViews.size(); i++)
+    bool needsResolve = false;
+    for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
     {
-        // Transit resource states.
-        if (m_renderTargetViews[i])
+        if (m_renderTargetViews[i] && m_resolveTargetViews[i])
         {
-            D3D12BarrierSubmitter submitter(m_d3dCmdList);
-            auto texture = static_cast<TextureImpl*>(m_renderTargetViews[i]->m_texture.get());
-            if (texture)
+            m_commandBuffer->requireTextureState(
+                m_renderTargetViews[i]->m_texture,
+                m_renderTargetViews[i]->m_desc.subresourceRange,
+                ResourceState::ResolveSource
+            );
+            m_commandBuffer->requireTextureState(
+                m_resolveTargetViews[i]->m_texture,
+                m_resolveTargetViews[i]->m_desc.subresourceRange,
+                ResourceState::ResolveDestination
+            );
+            needsResolve = true;
+        }
+    }
+
+    if (needsResolve)
+    {
+        m_commandBuffer->commitBarriers();
+
+        for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
+        {
+            if (m_renderTargetViews[i] && m_resolveTargetViews[i])
             {
-                texture->m_resource.transition(
-                    D3D12_RESOURCE_STATE_RENDER_TARGET,
-                    D3DUtil::getResourceState(m_renderTargetFinalStates[i]),
-                    submitter
+                TextureViewImpl* srcView = m_renderTargetViews[i].get();
+                TextureViewImpl* dstView = m_resolveTargetViews[i].get();
+                DXGI_FORMAT format = D3DUtil::getMapFormat(srcView->m_texture->m_desc.format);
+                m_commandBuffer->m_cmdList->ResolveSubresource(
+                    dstView->m_texture->m_resource.getResource(),
+                    0, // TODO iterate subresources
+                    srcView->m_texture->m_resource.getResource(),
+                    0, // TODO iterate subresources
+                    format
                 );
             }
         }
     }
 
-    if (m_depthStencilView)
-    {
-        // Transit resource states.
-        D3D12BarrierSubmitter submitter(m_d3dCmdList);
-        auto texture = static_cast<TextureImpl*>(m_depthStencilView->m_texture.get());
-        if (texture)
-        {
-            texture->m_resource.transition(
-                D3D12_RESOURCE_STATE_DEPTH_WRITE,
-                D3DUtil::getResourceState(m_depthStencilFinalState),
-                submitter
-            );
-        }
-    }
-
     m_renderTargetViews.clear();
+    m_resolveTargetViews.clear();
     m_depthStencilView = nullptr;
 
     CommandEncoderImpl::endEncodingImpl();
@@ -1117,10 +978,16 @@ Result RenderCommandEncoderImpl::drawIndirect(
     Offset countOffset
 )
 {
-    SLANG_RETURN_ON_FAIL(prepareDraw());
+    BufferImpl* argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+    BufferImpl* countBufferImpl = static_cast<BufferImpl*>(countBuffer);
 
-    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
-    auto countBufferImpl = static_cast<BufferImpl*>(countBuffer);
+    m_commandBuffer->requireBufferState(argBufferImpl, ResourceState::IndirectArgument);
+    if (countBufferImpl)
+    {
+        m_commandBuffer->requireBufferState(countBufferImpl, ResourceState::IndirectArgument);
+    }
+
+    SLANG_RETURN_ON_FAIL(prepareDraw());
 
     m_d3dCmdList->ExecuteIndirect(
         m_device->drawIndirectCmdSignature,
@@ -1141,10 +1008,16 @@ Result RenderCommandEncoderImpl::drawIndexedIndirect(
     Offset countOffset
 )
 {
-    SLANG_RETURN_ON_FAIL(prepareDraw());
+    BufferImpl* argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+    BufferImpl* countBufferImpl = static_cast<BufferImpl*>(countBuffer);
 
-    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
-    auto countBufferImpl = static_cast<BufferImpl*>(countBuffer);
+    m_commandBuffer->requireBufferState(argBufferImpl, ResourceState::IndirectArgument);
+    if (countBufferImpl)
+    {
+        m_commandBuffer->requireBufferState(countBufferImpl, ResourceState::IndirectArgument);
+    }
+
+    SLANG_RETURN_ON_FAIL(prepareDraw());
 
     m_d3dCmdList->ExecuteIndirect(
         m_device->drawIndexedIndirectCmdSignature,
@@ -1268,7 +1141,11 @@ Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Of
         RefPtr<Pipeline> newPipeline;
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
-    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+
+    BufferImpl* argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+
+    m_commandBuffer->requireBufferState(argBufferImpl, ResourceState::IndirectArgument);
+    m_commandBuffer->commitBarriers();
 
     m_d3dCmdList->ExecuteIndirect(
         m_device->dispatchIndirectCmdSignature,

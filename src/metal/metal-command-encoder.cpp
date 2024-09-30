@@ -14,22 +14,12 @@ namespace rhi::metal {
 
 // CommandEncoderImpl
 
-void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     // We use automatic hazard tracking for now, no need for barriers.
 }
 
-void CommandEncoderImpl::textureSubresourceBarrier(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState src,
-    ResourceState dst
-)
-{
-    // We use automatic hazard tracking for now, no need for barriers.
-}
-
-void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     // We use automatic hazard tracking for now, no need for barriers.
 }
@@ -96,11 +86,9 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
 
 void ResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
-    ResourceState dstState,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
@@ -141,7 +129,6 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     Size dstSize,
     Size dstRowStride,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
@@ -194,18 +181,6 @@ void ResourceCommandEncoderImpl::clearTexture(
 )
 {
     SLANG_RHI_UNIMPLEMENTED("clearTexture");
-}
-
-void ResourceCommandEncoderImpl::resolveResource(
-    ITexture* source,
-    ResourceState sourceState,
-    SubresourceRange sourceRange,
-    ITexture* dest,
-    ResourceState destState,
-    SubresourceRange destRange
-)
-{
-    SLANG_RHI_UNIMPLEMENTED("resolveResource");
 }
 
 void ResourceCommandEncoderImpl::resolveQuery(
@@ -268,6 +243,10 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
             ));
         }
         colorAttachment->setTexture(view->m_textureView.get());
+        colorAttachment->setResolveTexture(
+            attachment.resolveTarget ? static_cast<TextureViewImpl*>(attachment.resolveTarget)->m_textureView.get()
+                                     : nullptr
+        );
         colorAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
         colorAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
     }

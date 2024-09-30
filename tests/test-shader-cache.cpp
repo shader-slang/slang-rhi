@@ -797,8 +797,6 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
         colorAttachment.storeOp = StoreOp::Store;
-        colorAttachment.initialState = ResourceState::RenderTarget;
-        colorAttachment.finalState = ResourceState::CopySource;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;

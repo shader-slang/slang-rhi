@@ -4,6 +4,8 @@
 #include "d3d12-command-encoder.h"
 #include "d3d12-shader-object.h"
 
+#include "../state-tracking.h"
+
 #ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
 // If can't find a definition of CommandList1, just use an empty definition
 struct ID3D12GraphicsCommandList1
@@ -38,6 +40,12 @@ public:
     RootShaderObjectImpl m_rootShaderObject;
     RefPtr<MutableRootShaderObjectImpl> m_mutableRootShaderObject;
     bool m_descriptorHeapsBound = false;
+
+    StateTracking m_stateTracking;
+
+    void requireBufferState(BufferImpl* buffer, ResourceState state);
+    void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
+    void commitBarriers();
 
     void bindDescriptorHeaps();
 

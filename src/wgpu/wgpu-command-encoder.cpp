@@ -133,22 +133,12 @@ Result CommandEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShad
     return SLANG_OK;
 }
 
-void CommandEncoderImpl::textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     // WGPU doesn't have explicit barriers.
 }
 
-void CommandEncoderImpl::textureSubresourceBarrier(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState src,
-    ResourceState dst
-)
-{
-    // WGPU doesn't have explicit barriers.
-}
-
-void CommandEncoderImpl::bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     // WGPU doesn't have explicit barriers.
 }
@@ -197,11 +187,9 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
 
 void ResourceCommandEncoderImpl::copyTexture(
     ITexture* dst,
-    ResourceState dstState,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
@@ -217,7 +205,6 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     Size dstSize,
     Size dstRowStride,
     ITexture* src,
-    ResourceState srcState,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
     Extents extent
@@ -260,18 +247,6 @@ void ResourceCommandEncoderImpl::clearTexture(
 {
 }
 
-void ResourceCommandEncoderImpl::resolveResource(
-    ITexture* source,
-    ResourceState sourceState,
-    SubresourceRange sourceRange,
-    ITexture* dest,
-    ResourceState destState,
-    SubresourceRange destRange
-)
-{
-    SLANG_RHI_UNIMPLEMENTED("resolveResource");
-}
-
 void ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
@@ -303,6 +278,9 @@ Result RenderCommandEncoderImpl::init(CommandBufferImpl* commandBuffer, const Re
         const RenderPassColorAttachment& attachmentIn = desc.colorAttachments[i];
         WGPURenderPassColorAttachment& attachment = colorAttachments[i];
         attachment.view = static_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
+        attachment.resolveTarget = attachmentIn.resolveTarget
+                                       ? static_cast<TextureViewImpl*>(attachmentIn.resolveTarget)->m_textureView
+                                       : nullptr;
         attachment.depthSlice = -1;         // TODO not provided
         attachment.resolveTarget = nullptr; // TODO not provided
         attachment.loadOp = translateLoadOp(attachmentIn.loadOp);

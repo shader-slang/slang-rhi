@@ -33,16 +33,10 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
 public:
+    // ICommandEncoder implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    textureBarrier(GfxCount count, ITexture* const* textures, ResourceState src, ResourceState dst) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL textureSubresourceBarrier(
-        ITexture* texture,
-        SubresourceRange subresourceRange,
-        ResourceState src,
-        ResourceState dst
-    ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    bufferBarrier(GfxCount count, IBuffer* const* buffers, ResourceState src, ResourceState dst) override;
+    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;
@@ -100,11 +94,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
         ITexture* dst,
-        ResourceState dstState,
         SubresourceRange dstSubresource,
         Offset3D dstOffset,
         ITexture* src,
-        ResourceState srcState,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
@@ -129,15 +121,6 @@ public:
         bool clearStencil
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL resolveResource(
-        ITexture* source,
-        ResourceState sourceState,
-        SubresourceRange sourceRange,
-        ITexture* dest,
-        ResourceState destState,
-        SubresourceRange destRange
-    ) override;
-
     virtual SLANG_NO_THROW void SLANG_MCALL
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
 
@@ -147,7 +130,6 @@ public:
         Size dstSize,
         Size dstRowStride,
         ITexture* src,
-        ResourceState srcState,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
         Extents extent
@@ -174,12 +156,10 @@ public:
 
 public:
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
-    short_vector<ResourceState> m_renderTargetFinalStates;
+    short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
     RefPtr<TextureViewImpl> m_depthStencilView;
-    ResourceState m_depthStencilFinalState;
 
     std::vector<BoundVertexBuffer> m_boundVertexBuffers;
-
     RefPtr<BufferImpl> m_boundIndexBuffer;
 
     D3D12_VIEWPORT m_viewports[kMaxRTVCount];
@@ -211,6 +191,7 @@ public:
     setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset = 0) override;
 
     Result prepareDraw();
+
     virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex = 0) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) override;

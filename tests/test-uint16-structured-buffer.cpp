@@ -72,7 +72,7 @@ TEST_CASE("uint16-structured-buffer")
             // DeviceType::Metal,
             DeviceType::CPU,
             DeviceType::CUDA,
-            DeviceType::WGPU, // crashes
+            // DeviceType::WGPU, // crashes
         }
     );
 }

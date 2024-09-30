@@ -142,7 +142,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
         // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
         // dstDevice
         // TODO: Implement actual synchronization (and not this hacky solution)
-        compareComputeResult(dstDevice, dstTexture, ResourceState::ShaderResource, texData, 32, 2);
+        compareComputeResult(dstDevice, dstTexture, texData, 32, 2);
 
         setUpAndRunShader(dstDevice, dstTexture, floatResults, "copyTexFloat4");
         compareComputeResult(

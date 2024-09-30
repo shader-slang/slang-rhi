@@ -246,6 +246,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
 
     SubresourceRange resolveSubresourceRange(const SubresourceRange& range);
+    bool isEntireTexture(const SubresourceRange& range);
 
 public:
     TextureDesc m_desc;

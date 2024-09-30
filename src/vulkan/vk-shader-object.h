@@ -6,6 +6,8 @@
 #include "vk-sampler.h"
 #include "vk-shader-object-layout.h"
 
+#include "../state-tracking.h"
+
 #include <vector>
 
 namespace rhi::vk {
@@ -19,6 +21,7 @@ struct ResourceSlot
     {
         BufferRange bufferRange = kEntireBuffer;
     };
+    ResourceState requiredState = ResourceState::Undefined;
     operator bool() const { return type != BindingType::Unknown && resource; }
 };
 
@@ -182,6 +185,8 @@ public:
         ShaderObjectLayoutImpl* specializedLayout
     );
 
+    void setResourceStates(StateTracking& stateTracking);
+
     std::vector<ResourceSlot> m_resources;
     std::vector<RefPtr<SamplerImpl>> m_samplers;
     std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
@@ -260,6 +265,8 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;
+
+    void setResourceStates(StateTracking& stateTracking);
 
     /// Bind this object as a root shader object
     Result bindAsRoot(CommandEncoderImpl* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);

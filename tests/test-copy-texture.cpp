@@ -130,37 +130,22 @@ struct BaseCopyTextureTest
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto encoder = commandBuffer->encodeResourceCommands();
 
-        encoder->textureSubresourceBarrier(
-            srcTexture,
-            texCopyInfo.srcSubresource,
-            ResourceState::ShaderResource,
-            ResourceState::CopySource
-        );
         encoder->copyTexture(
             dstTexture,
-            ResourceState::CopyDestination,
             texCopyInfo.dstSubresource,
             texCopyInfo.dstOffset,
             srcTexture,
-            ResourceState::CopySource,
             texCopyInfo.srcSubresource,
             texCopyInfo.srcOffset,
             texCopyInfo.extent
         );
 
-        encoder->textureSubresourceBarrier(
-            dstTexture,
-            bufferCopyInfo.srcSubresource,
-            ResourceState::CopyDestination,
-            ResourceState::CopySource
-        );
         encoder->copyTextureToBuffer(
             resultsBuffer,
             bufferCopyInfo.bufferOffset,
             bufferCopyInfo.bufferSize,
             alignedRowStride,
             dstTexture,
-            ResourceState::CopySource,
             bufferCopyInfo.srcSubresource,
             bufferCopyInfo.textureOffset,
             bufferCopyInfo.extent
