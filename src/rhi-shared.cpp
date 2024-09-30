@@ -111,8 +111,8 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
 {
     SubresourceRange resolved = range;
-    resolved.mipLevel = std::min(resolved.mipLevel, m_desc.numMipLevels);
-    resolved.mipLevelCount = std::min(resolved.mipLevelCount, m_desc.numMipLevels - resolved.mipLevel);
+    resolved.mipLevel = std::min(resolved.mipLevel, m_desc.mipLevelCount);
+    resolved.mipLevelCount = std::min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
     GfxCount arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
     resolved.baseArrayLayer = std::min(resolved.baseArrayLayer, arrayLayerCount);
     resolved.layerCount = std::min(resolved.layerCount, arrayLayerCount - resolved.baseArrayLayer);
@@ -121,7 +121,7 @@ SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
 
 bool Texture::isEntireTexture(const SubresourceRange& range)
 {
-    if (range.mipLevel > 0 || range.mipLevelCount < m_desc.numMipLevels)
+    if (range.mipLevel > 0 || range.mipLevelCount < m_desc.mipLevelCount)
     {
         return false;
     }

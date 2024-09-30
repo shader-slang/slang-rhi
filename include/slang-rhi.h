@@ -683,7 +683,7 @@ struct TextureDesc
     /// Array length.
     GfxCount arrayLength = 0;
     /// Number of mip levels - if 0 will create all mip levels.
-    GfxCount numMipLevels = 0;
+    GfxCount mipLevelCount = 0;
     /// The resources format.
     Format format;
     /// Number of samples per pixel.
@@ -2517,7 +2517,7 @@ inline AdapterList rhiGetAdapters(DeviceType type)
 struct D3D12ExperimentalFeaturesDesc
 {
     StructType structType = StructType::D3D12ExperimentalFeaturesDesc;
-    uint32_t numFeatures;
+    uint32_t featureCount;
     const void* featureIIDs;
     void* configurationStructs;
     uint32_t* configurationStructSizes;

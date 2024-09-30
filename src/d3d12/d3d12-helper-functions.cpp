@@ -213,7 +213,6 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
         return SLANG_FAIL;
     }
 
-    const int numMipMaps = srcDesc.numMipLevels;
     resourceDesc.Dimension = dimension;
     resourceDesc.Format = pixelFormat;
     resourceDesc.Width = srcDesc.size.width;
@@ -227,7 +226,7 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
         resourceDesc.DepthOrArraySize = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
     }
 
-    resourceDesc.MipLevels = numMipMaps;
+    resourceDesc.MipLevels = srcDesc.mipLevelCount;
     resourceDesc.SampleDesc.Count = srcDesc.sampleCount;
     resourceDesc.SampleDesc.Quality = srcDesc.sampleQuality;
 

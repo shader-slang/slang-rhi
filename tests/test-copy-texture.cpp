@@ -70,7 +70,7 @@ struct BaseCopyTextureTest
     {
         TextureDesc srcTexDesc = {};
         srcTexDesc.type = srcTextureInfo->textureType;
-        srcTexDesc.numMipLevels = srcTextureInfo->mipLevelCount;
+        srcTexDesc.mipLevelCount = srcTextureInfo->mipLevelCount;
         srcTexDesc.arrayLength = srcTextureInfo->arrayLayerCount;
         srcTexDesc.size = srcTextureInfo->extents;
         srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
@@ -85,7 +85,7 @@ struct BaseCopyTextureTest
 
         TextureDesc dstTexDesc = {};
         dstTexDesc.type = dstTextureInfo->textureType;
-        dstTexDesc.numMipLevels = dstTextureInfo->mipLevelCount;
+        dstTexDesc.mipLevelCount = dstTextureInfo->mipLevelCount;
         dstTexDesc.arrayLength = dstTextureInfo->arrayLayerCount;
         dstTexDesc.size = dstTextureInfo->extents;
         dstTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;

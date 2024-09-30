@@ -392,7 +392,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
         }
         }
 
-        if (desc.numMipLevels > 1)
+        if (desc.mipLevelCount > 1)
         {
             resourceType = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
 
@@ -427,7 +427,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 arrayDesc.Depth *= 6;
             }
 
-            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.numMipLevels)
+            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
             );
         }
         else
@@ -507,7 +507,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
     if (initData)
     {
         std::vector<uint8_t> workspace;
-        for (int mipLevel = 0; mipLevel < desc.numMipLevels; ++mipLevel)
+        for (int mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
         {
             int mipWidth = width >> mipLevel;
             int mipHeight = height >> mipLevel;
@@ -566,7 +566,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 // We iterate over face count so we copy all of the cubemap faces
                 for (Index j = 0; j < faceCount; j++)
                 {
-                    const auto srcData = initData[mipLevel + j * desc.numMipLevels].data;
+                    const auto srcData = initData[mipLevel + j * desc.mipLevelCount].data;
                     // Copy over to the workspace to make contiguous
                     ::memcpy(workspace.data() + faceSizeInBytes * j, srcData, faceSizeInBytes);
                 }
@@ -583,7 +583,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                     // Copy the data over to make contiguous
                     for (Index j = 0; j < 6; j++)
                     {
-                        const auto srcData = initData[mipLevel + j * desc.numMipLevels].data;
+                        const auto srcData = initData[mipLevel + j * desc.mipLevelCount].data;
                         ::memcpy(workspace.data() + faceSizeInBytes * j, srcData, faceSizeInBytes);
                     }
                     srcDataPtr = workspace.data();
@@ -701,7 +701,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
         if (is_set(desc.usage, TextureUsage::UnorderedAccess))
         {
             // On CUDA surfaces only support a single MIP map
-            SLANG_RHI_ASSERT(desc.numMipLevels == 1);
+            SLANG_RHI_ASSERT(desc.mipLevelCount == 1);
 
             SLANG_CUDA_RETURN_ON_FAIL(cuSurfObjectCreate(&tex->m_cudaSurfObj, &resDesc));
         }
@@ -849,7 +849,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
     memset(&externalMemoryMipDesc, 0, sizeof(externalMemoryMipDesc));
     externalMemoryMipDesc.offset = 0;
     externalMemoryMipDesc.arrayDesc = arrayDesc;
-    externalMemoryMipDesc.numLevels = desc.numMipLevels;
+    externalMemoryMipDesc.numLevels = desc.mipLevelCount;
 
     CUmipmappedArray mipArray;
     SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedMipmappedArray(&mipArray, externalMemory, &externalMemoryMipDesc)

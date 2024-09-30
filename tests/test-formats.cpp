@@ -92,7 +92,7 @@ struct TestFormats
     {
         TextureDesc texDesc = {};
         texDesc.type = TextureType::Texture2D;
-        texDesc.numMipLevels = mips;
+        texDesc.mipLevelCount = mips;
         texDesc.size = size;
         texDesc.usage = TextureUsage::ShaderResource;
         texDesc.defaultState = ResourceState::ShaderResource;

@@ -68,7 +68,7 @@ struct BaseResolveResourceTest
     struct TextureInfo
     {
         Extents extent;
-        int numMipLevels;
+        int mipLevelCount;
         int arrayLength;
         SubresourceData const* initData;
     };
@@ -89,7 +89,7 @@ struct BaseResolveResourceTest
 
         TextureDesc msaaTexDesc = {};
         msaaTexDesc.type = TextureType::Texture2D;
-        msaaTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
+        msaaTexDesc.mipLevelCount = dstTextureInfo.mipLevelCount;
         msaaTexDesc.arrayLength = dstTextureInfo.arrayLength;
         msaaTexDesc.size = dstTextureInfo.extent;
         msaaTexDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource;
@@ -101,7 +101,7 @@ struct BaseResolveResourceTest
 
         TextureDesc dstTexDesc = {};
         dstTexDesc.type = TextureType::Texture2D;
-        dstTexDesc.numMipLevels = dstTextureInfo.numMipLevels;
+        dstTexDesc.mipLevelCount = dstTextureInfo.mipLevelCount;
         dstTexDesc.arrayLength = dstTextureInfo.arrayLength;
         dstTexDesc.size = dstTextureInfo.extent;
         dstTexDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource | TextureUsage::RenderTarget;

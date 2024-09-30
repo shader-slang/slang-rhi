@@ -83,16 +83,16 @@ void DebugResourceCommandEncoder::copyTexture(
 
 void DebugResourceCommandEncoder::uploadTextureData(
     ITexture* dst,
-    SubresourceRange subResourceRange,
+    SubresourceRange subresourceRange,
     Offset3D offset,
     Extents extent,
-    SubresourceData* subResourceData,
-    GfxCount subResourceDataCount
+    SubresourceData* subresourceData,
+    GfxCount subresourceDataCount
 )
 {
     SLANG_RHI_API_FUNC;
     baseObject
-        ->uploadTextureData(getInnerObj(dst), subResourceRange, offset, extent, subResourceData, subResourceDataCount);
+        ->uploadTextureData(getInnerObj(dst), subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
 void DebugResourceCommandEncoder::clearBuffer(IBuffer* buffer, const BufferRange* range)

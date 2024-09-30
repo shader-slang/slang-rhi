@@ -348,7 +348,7 @@ void ResourceCommandEncoderImpl::copyTexture(
         dstSubresource.layerCount = dstDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
         if (dstSubresource.layerCount == 0)
             dstSubresource.layerCount = 1;
-        dstSubresource.mipLevelCount = dstDesc.numMipLevels;
+        dstSubresource.mipLevelCount = dstDesc.mipLevelCount;
     }
     if (srcSubresource.layerCount == 0 && srcSubresource.mipLevelCount == 0)
     {
@@ -356,7 +356,7 @@ void ResourceCommandEncoderImpl::copyTexture(
         srcSubresource.layerCount = srcDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
         if (srcSubresource.layerCount == 0)
             srcSubresource.layerCount = 1;
-        srcSubresource.mipLevelCount = dstDesc.numMipLevels;
+        srcSubresource.mipLevelCount = dstDesc.mipLevelCount;
     }
     VkImageCopy region = {};
     region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(srcSubresource.aspectMask, srcTexture->m_vkformat);
@@ -385,16 +385,16 @@ void ResourceCommandEncoderImpl::copyTexture(
 
 void ResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
-    SubresourceRange subResourceRange,
+    SubresourceRange subresourceRange,
     Offset3D offset,
     Extents extend,
-    SubresourceData* subResourceData,
-    GfxCount subResourceDataCount
+    SubresourceData* subresourceData,
+    GfxCount subresourceDataCount
 )
 {
     TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
 
-    m_commandBuffer->requireTextureState(dstTexture, subResourceRange, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(dstTexture, subresourceRange, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
 
     auto& api = m_commandBuffer->m_device->m_api;
@@ -405,7 +405,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     // Calculate how large the buffer has to be
     Size bufferSize = 0;
     // Calculate how large an array entry is
-    for (GfxIndex j = subResourceRange.mipLevel; j < subResourceRange.mipLevel + subResourceRange.mipLevelCount; ++j)
+    for (GfxIndex j = subresourceRange.mipLevel; j < subresourceRange.mipLevel + subresourceRange.mipLevelCount; ++j)
     {
         const Extents mipSize = calcMipSize(desc.size, j);
 
@@ -418,7 +418,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     }
 
     // Calculate the total size taking into account the array
-    bufferSize *= subResourceRange.layerCount;
+    bufferSize *= subresourceRange.layerCount;
 
     IBuffer* uploadBuffer = nullptr;
     Offset uploadBufferOffset = 0;
@@ -427,7 +427,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
 
     // Copy into upload buffer
     {
-        int subResourceCounter = 0;
+        int subresourceCounter = 0;
 
         uint8_t* dstData;
         uploadBuffer->map(nullptr, (void**)&dstData);
@@ -436,14 +436,14 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         dstDataStart = dstData;
 
         Offset dstSubresourceOffset = 0;
-        for (GfxIndex i = 0; i < subResourceRange.layerCount; ++i)
+        for (GfxIndex i = 0; i < subresourceRange.layerCount; ++i)
         {
             for (GfxIndex j = 0; j < (GfxCount)mipSizes.size(); ++j)
             {
                 const auto& mipSize = mipSizes[j];
 
-                int subResourceIndex = subResourceCounter++;
-                auto initSubresource = subResourceData[subResourceIndex];
+                int subresourceIndex = subresourceCounter++;
+                auto initSubresource = subresourceData[subresourceIndex];
 
                 const ptrdiff_t srcRowStride = (ptrdiff_t)initSubresource.strideY;
                 const ptrdiff_t srcLayerStride = (ptrdiff_t)initSubresource.strideZ;
@@ -479,7 +479,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     }
     {
         Offset srcOffset = uploadBufferOffset;
-        for (GfxIndex i = 0; i < subResourceRange.layerCount; ++i)
+        for (GfxIndex i = 0; i < subresourceRange.layerCount; ++i)
         {
             for (GfxIndex j = 0; j < (GfxCount)mipSizes.size(); ++j)
             {
@@ -502,8 +502,8 @@ void ResourceCommandEncoderImpl::uploadTextureData(
                 region.bufferImageHeight = 0;
 
                 region.imageSubresource.aspectMask = getAspectMaskFromFormat(dstTexture->m_vkformat);
-                region.imageSubresource.mipLevel = subResourceRange.mipLevel + uint32_t(j);
-                region.imageSubresource.baseArrayLayer = subResourceRange.baseArrayLayer + i;
+                region.imageSubresource.mipLevel = subresourceRange.mipLevel + uint32_t(j);
+                region.imageSubresource.baseArrayLayer = subresourceRange.baseArrayLayer + i;
                 region.imageSubresource.layerCount = 1;
                 region.imageOffset = {0, 0, 0};
                 region.imageExtent = {uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth)};

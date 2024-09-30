@@ -71,19 +71,19 @@ void ResourceCommandEncoderImpl::copyTexture(
 
 void ResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
-    SubresourceRange subResourceRange,
+    SubresourceRange subresourceRange,
     Offset3D offset,
     Extents extent,
-    SubresourceData* subResourceData,
-    GfxCount subResourceDataCount
+    SubresourceData* subresourceData,
+    GfxCount subresourceDataCount
 )
 {
     SLANG_UNUSED(dst);
-    SLANG_UNUSED(subResourceRange);
+    SLANG_UNUSED(subresourceRange);
     SLANG_UNUSED(offset);
     SLANG_UNUSED(extent);
-    SLANG_UNUSED(subResourceData);
-    SLANG_UNUSED(subResourceDataCount);
+    SLANG_UNUSED(subresourceData);
+    SLANG_UNUSED(subresourceDataCount);
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 

@@ -1001,7 +1001,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
-    const int numMipMaps = srcDesc.numMipLevels;
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
 
@@ -1051,18 +1050,18 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     // Calculate the layout
     std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
-    layouts.resize(numMipMaps);
+    layouts.resize(srcDesc.mipLevelCount);
     std::vector<uint64_t> mipRowSizeInBytes;
-    mipRowSizeInBytes.resize(srcDesc.numMipLevels);
+    mipRowSizeInBytes.resize(srcDesc.mipLevelCount);
     std::vector<uint32_t> mipNumRows;
-    mipNumRows.resize(numMipMaps);
+    mipNumRows.resize(srcDesc.mipLevelCount);
 
     // NOTE! This is just the size for one array upload -> not for the whole texture
     uint64_t requiredSize = 0;
     m_device->GetCopyableFootprints(
         &resourceDesc,
         0,
-        srcDesc.numMipLevels,
+        srcDesc.mipLevelCount,
         0,
         layouts.data(),
         mipNumRows.data(),
@@ -1114,16 +1113,16 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         // Get the pointer to the upload resource
         ID3D12Resource* uploadResource = uploadTexture;
 
-        int subResourceIndex = 0;
+        int subresourceIndex = 0;
         int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
         for (int arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
         {
             uint8_t* p;
             uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));
 
-            for (int j = 0; j < numMipMaps; ++j)
+            for (int j = 0; j < srcDesc.mipLevelCount; ++j)
             {
-                auto srcSubresource = initData[subResourceIndex + j];
+                auto srcSubresource = initData[subresourceIndex + j];
 
                 const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[j];
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
@@ -1177,7 +1176,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             uploadResource->Unmap(0, nullptr);
 
             auto encodeInfo = encodeResourceCommands();
-            for (int mipIndex = 0; mipIndex < numMipMaps; ++mipIndex)
+            for (int mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
             {
                 // https://msdn.microsoft.com/en-us/library/windows/desktop/dn903862(v=vs.85).aspx
 
@@ -1189,10 +1188,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 D3D12_TEXTURE_COPY_LOCATION dst;
                 dst.pResource = texture->m_resource;
                 dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-                dst.SubresourceIndex = subResourceIndex;
+                dst.SubresourceIndex = subresourceIndex;
                 encodeInfo.d3dCommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
-                subResourceIndex++;
+                subresourceIndex++;
             }
 
             // Block - waiting for copy to complete (so can drop upload texture)
@@ -1640,7 +1639,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         return;
     }
     if (!SLANG_SUCCEEDED(enableExperimentalFeaturesFunc(
-            desc.numFeatures,
+            desc.featureCount,
             (IID*)desc.featureIIDs,
             desc.configurationStructs,
             desc.configurationStructSizes

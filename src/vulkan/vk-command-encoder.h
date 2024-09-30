@@ -111,11 +111,11 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITexture* dst,
-        SubresourceRange subResourceRange,
+        SubresourceRange subresourceRange,
         Offset3D offset,
         Extents extend,
-        SubresourceData* subResourceData,
-        GfxCount subResourceDataCount
+        SubresourceData* subresourceData,
+        GfxCount subresourceDataCount
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range) override;

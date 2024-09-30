@@ -117,7 +117,7 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
         texDesc.type = TextureType::Texture2D;
         texDesc.format = format;
         texDesc.size = Extents{4, 4, 1};
-        texDesc.numMipLevels = 1;
+        texDesc.mipLevelCount = 1;
         texDesc.usage = textureUsage;
         texDesc.memoryType = MemoryType::DeviceLocal;
         ComPtr<ITexture> texture;

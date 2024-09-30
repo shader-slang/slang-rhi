@@ -1141,7 +1141,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     // Calculate how large the buffer has to be
     Size bufferSize = 0;
     // Calculate how large an array entry is
-    for (int j = 0; j < desc.numMipLevels; ++j)
+    for (int j = 0; j < desc.mipLevelCount; ++j)
     {
         const Extents mipSize = calcMipSize(desc.size, j);
 
@@ -1428,7 +1428,7 @@ void DeviceImpl::_transitionImageLayout(
     barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(format);
 
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = desc.numMipLevels;
+    barrier.subresourceRange.levelCount = desc.mipLevelCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
     barrier.srcAccessMask = calcAccessFlagsFromImageLayout(oldLayout);
@@ -1522,7 +1522,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     }
     }
 
-    imageInfo.mipLevels = desc.numMipLevels;
+    imageInfo.mipLevels = desc.mipLevelCount;
     imageInfo.arrayLayers = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
     imageInfo.format = format;
@@ -1607,7 +1607,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
-    imageInfo.mipLevels = desc.numMipLevels;
+    imageInfo.mipLevels = desc.mipLevelCount;
     imageInfo.arrayLayers = arrayLayerCount;
 
     imageInfo.format = format;
@@ -1682,12 +1682,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
         VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
-        const int numMipMaps = desc.numMipLevels;
-
         // Calculate how large the buffer has to be
         Size bufferSize = 0;
         // Calculate how large an array entry is
-        for (int j = 0; j < numMipMaps; ++j)
+        for (int j = 0; j < desc.mipLevelCount; ++j)
         {
             const Extents mipSize = calcMipSize(desc.size, j);
 
@@ -1709,11 +1707,11 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         ));
 
-        SLANG_RHI_ASSERT(mipSizes.size() == numMipMaps);
+        SLANG_RHI_ASSERT(mipSizes.size() == desc.mipLevelCount);
 
         // Copy into upload buffer
         {
-            int subResourceCounter = 0;
+            int subresourceCounter = 0;
 
             uint8_t* dstData;
             m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, (void**)&dstData);
@@ -1727,8 +1725,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 {
                     const auto& mipSize = mipSizes[j];
 
-                    int subResourceIndex = subResourceCounter++;
-                    auto initSubresource = initData[subResourceIndex];
+                    int subresourceIndex = subresourceCounter++;
+                    auto initSubresource = initData[subresourceIndex];
 
                     const ptrdiff_t srcRowStride = (ptrdiff_t)initSubresource.strideY;
                     const ptrdiff_t srcLayerStride = (ptrdiff_t)initSubresource.strideZ;

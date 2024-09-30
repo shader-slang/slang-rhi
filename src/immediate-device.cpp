@@ -148,19 +148,19 @@ public:
 
         virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
             ITexture* dst,
-            SubresourceRange subResourceRange,
+            SubresourceRange subresourceRange,
             Offset3D offset,
             Extents extend,
-            SubresourceData* subResourceData,
-            GfxCount subResourceDataCount
+            SubresourceData* subresourceData,
+            GfxCount subresourceDataCount
         ) override
         {
             SLANG_UNUSED(dst);
-            SLANG_UNUSED(subResourceRange);
+            SLANG_UNUSED(subresourceRange);
             SLANG_UNUSED(offset);
             SLANG_UNUSED(extend);
-            SLANG_UNUSED(subResourceData);
-            SLANG_UNUSED(subResourceDataCount);
+            SLANG_UNUSED(subresourceData);
+            SLANG_UNUSED(subresourceDataCount);
             SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
         }
 
