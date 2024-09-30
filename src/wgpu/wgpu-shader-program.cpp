@@ -20,7 +20,8 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
 
     WGPUShaderModuleWGSLDescriptor wgslDesc = {};
     wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    wgslDesc.code = module.code.c_str();
+    wgslDesc.code.data = module.code.c_str();
+    wgslDesc.code.length = module.code.size();
     WGPUShaderModuleDescriptor desc = {};
     desc.nextInChain = (WGPUChainedStruct*)&wgslDesc;
 
