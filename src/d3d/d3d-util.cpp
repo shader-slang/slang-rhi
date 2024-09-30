@@ -764,12 +764,10 @@ uint32_t D3DUtil::getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect)
 {
     switch (aspect)
     {
-    case TextureAspect::Default:
-    case TextureAspect::Color:
+    case TextureAspect::All:
+    case TextureAspect::DepthOnly:
         return 0;
-    case TextureAspect::Depth:
-        return 0;
-    case TextureAspect::Stencil:
+    case TextureAspect::StencilOnly:
         switch (format)
         {
         case DXGI_FORMAT_D24_UNORM_S8_UINT:
@@ -778,12 +776,6 @@ uint32_t D3DUtil::getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect)
         default:
             return 0;
         }
-    case TextureAspect::Plane0:
-        return 0;
-    case TextureAspect::Plane1:
-        return 1;
-    case TextureAspect::Plane2:
-        return 2;
     default:
         SLANG_RHI_ASSERT_FAILURE("Unknown texture aspect.");
         return 0;

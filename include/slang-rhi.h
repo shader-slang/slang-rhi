@@ -570,35 +570,26 @@ enum class TextureType
 
 enum class TextureAspect : uint32_t
 {
-    Default = 0,
-    Color = 0x00000001,
-    Depth = 0x00000002,
-    Stencil = 0x00000004,
-    MetaData = 0x00000008,
-    Plane0 = 0x00000010,
-    Plane1 = 0x00000020,
-    Plane2 = 0x00000040,
-
-    DepthStencil = Depth | Stencil,
+    All = 0,
+    DepthOnly = 1,
+    StencilOnly = 2,
 };
 
 struct SubresourceRange
 {
-    TextureAspect aspectMask;
     GfxIndex mipLevel;
     GfxCount mipLevelCount;
     GfxIndex baseArrayLayer; // For Texture3D, this is WSlice.
     GfxCount layerCount;     // For cube maps, this is a multiple of 6.
     bool operator==(const SubresourceRange& other) const
     {
-        return aspectMask == other.aspectMask && mipLevel == other.mipLevel && mipLevelCount == other.mipLevelCount &&
+        return mipLevel == other.mipLevel && mipLevelCount == other.mipLevelCount &&
                baseArrayLayer == other.baseArrayLayer && layerCount == other.layerCount;
     }
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
 };
 
-static const SubresourceRange kEntireTexture =
-    SubresourceRange{TextureAspect::Default, 0l, 0x7fffffffl, 0l, 0x7fffffffl};
+static const SubresourceRange kEntireTexture = SubresourceRange{0l, 0x7fffffffl, 0l, 0x7fffffffl};
 
 /// Data for a single subresource of a texture.
 ///
@@ -709,7 +700,7 @@ public:
 struct TextureViewDesc
 {
     Format format = Format::Unknown;
-    TextureAspect aspect = TextureAspect::Default;
+    TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
     const char* label = nullptr;
 };

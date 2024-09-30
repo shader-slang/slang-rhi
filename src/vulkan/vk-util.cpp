@@ -207,7 +207,7 @@ VkImageAspectFlags VulkanUtil::getAspectMask(TextureAspect aspect, VkFormat form
 {
     switch (aspect)
     {
-    case TextureAspect::Default:
+    case TextureAspect::All:
         switch (format)
         {
         case VK_FORMAT_D16_UNORM_S8_UINT:
@@ -223,24 +223,10 @@ VkImageAspectFlags VulkanUtil::getAspectMask(TextureAspect aspect, VkFormat form
         default:
             return VK_IMAGE_ASPECT_COLOR_BIT;
         }
-    case TextureAspect::Color:
-        return VK_IMAGE_ASPECT_COLOR_BIT;
-    case TextureAspect::Depth:
+    case TextureAspect::DepthOnly:
         return VK_IMAGE_ASPECT_DEPTH_BIT;
-    case TextureAspect::DepthStencil:
-        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    case TextureAspect::Stencil:
+    case TextureAspect::StencilOnly:
         return VK_IMAGE_ASPECT_STENCIL_BIT;
-    case TextureAspect::Plane0:
-        return VK_IMAGE_ASPECT_PLANE_0_BIT;
-    case TextureAspect::Plane1:
-        return VK_IMAGE_ASPECT_PLANE_1_BIT;
-
-    case TextureAspect::Plane2:
-        return VK_IMAGE_ASPECT_PLANE_2_BIT;
-
-    case TextureAspect::MetaData:
-        return VK_IMAGE_ASPECT_METADATA_BIT;
     default:
         SLANG_RHI_UNREACHABLE("getAspectMask");
         return 0;

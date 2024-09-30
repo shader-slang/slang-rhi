@@ -91,17 +91,14 @@ void CommandBufferImpl::commitBarriers()
             uint32_t mipLevelCount = texture->m_desc.mipLevelCount;
             uint32_t arrayLayerCount =
                 texture->m_desc.arrayLength * (texture->m_desc.type == TextureType::TextureCube ? 6 : 1);
+            DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(texture->m_desc.format);
+            uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = texture->m_resource;
             barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
             barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
-            auto d3dFormat = D3DUtil::getMapFormat(texture->m_desc.format);
-            auto aspectMask = (int32_t)TextureAspect::Color;
-            while (aspectMask)
+            for (uint32_t planeIndex = 0; planeIndex < planeCount; ++planeIndex)
             {
-                auto aspect = math::getLowestBit((int32_t)aspectMask);
-                aspectMask &= ~aspect;
-                auto planeIndex = D3DUtil::getPlaneSlice(d3dFormat, (TextureAspect)aspect);
                 barrier.Transition.Subresource = D3DUtil::getSubresourceIndex(
                     textureBarrier.mipLevel,
                     textureBarrier.arrayLayer,

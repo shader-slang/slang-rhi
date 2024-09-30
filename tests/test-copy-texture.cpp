@@ -267,14 +267,12 @@ struct SimpleCopyTexture : BaseCopyTextureTest
         generateTextureData(srcTextureInfo, validationFormat);
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = 0;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;
@@ -319,14 +317,12 @@ struct CopyTextureSection : BaseCopyTextureTest
         generateTextureData(srcTextureInfo, validationFormat);
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = (textureType == TextureType::Texture3D) ? 0 : 1;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;
@@ -375,14 +371,12 @@ struct LargeSrcToSmallDst : BaseCopyTextureTest
         dstTextureInfo->arrayLayerCount = 1;
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = 0;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;
@@ -433,14 +427,12 @@ struct SmallSrcToLargeDst : BaseCopyTextureTest
         generateTextureData(dstTextureInfo, validationFormat);
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = 0;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;
@@ -494,14 +486,12 @@ struct CopyBetweenMips : BaseCopyTextureTest
         generateTextureData(dstTextureInfo, validationFormat);
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 2;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = 0;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 1;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;
@@ -550,14 +540,12 @@ struct CopyBetweenLayers : BaseCopyTextureTest
         dstTextureInfo = srcTextureInfo;
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = 0;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = (textureType == TextureType::Texture3D) ? 0 : 1;
@@ -611,14 +599,12 @@ struct CopyWithOffsets : BaseCopyTextureTest
         generateTextureData(dstTextureInfo, validationFormat);
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = 0;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;
@@ -679,14 +665,12 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
         dstTextureInfo = srcTextureInfo;
 
         SubresourceRange srcSubresource = {};
-        srcSubresource.aspectMask = getTextureAspect(format);
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
         srcSubresource.baseArrayLayer = 0;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = getTextureAspect(format);
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;

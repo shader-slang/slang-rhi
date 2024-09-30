@@ -12,28 +12,28 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 D3D12Descriptor TextureViewImpl::getSRV()
 {
     if (!m_srv)
-        m_srv = m_texture->getSRV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+        m_srv = m_texture->getSRV(m_desc.format, m_texture->m_desc.type, m_desc.aspect, m_desc.subresourceRange);
     return m_srv;
 }
 
 D3D12Descriptor TextureViewImpl::getUAV()
 {
     if (!m_uav)
-        m_uav = m_texture->getUAV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+        m_uav = m_texture->getUAV(m_desc.format, m_texture->m_desc.type, m_desc.aspect, m_desc.subresourceRange);
     return m_uav;
 }
 
 D3D12Descriptor TextureViewImpl::getRTV()
 {
     if (!m_rtv)
-        m_rtv = m_texture->getRTV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+        m_rtv = m_texture->getRTV(m_desc.format, m_texture->m_desc.type, m_desc.aspect, m_desc.subresourceRange);
     return m_rtv;
 }
 
 D3D12Descriptor TextureViewImpl::getDSV()
 {
     if (!m_dsv)
-        m_dsv = m_texture->getDSV(m_desc.format, m_texture->m_desc.type, m_desc.subresourceRange);
+        m_dsv = m_texture->getDSV(m_desc.format, m_texture->m_desc.type, m_desc.aspect, m_desc.subresourceRange);
     return m_dsv;
 }
 

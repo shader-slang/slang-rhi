@@ -30,8 +30,12 @@ public:
     struct ViewKey
     {
         Format format;
+        TextureAspect aspect;
         SubresourceRange range;
-        bool operator==(const ViewKey& other) const { return format == other.format && range == other.range; }
+        bool operator==(const ViewKey& other) const
+        {
+            return format == other.format && aspect == other.aspect && range == other.range;
+        }
     };
 
     struct ViewKeyHasher
@@ -40,7 +44,7 @@ public:
         {
             size_t hash = 0;
             hash_combine(hash, key.format);
-            hash_combine(hash, key.range.aspectMask);
+            hash_combine(hash, key.aspect);
             hash_combine(hash, key.range.baseArrayLayer);
             hash_combine(hash, key.range.layerCount);
             hash_combine(hash, key.range.mipLevel);
@@ -51,7 +55,7 @@ public:
 
     std::unordered_map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
 
-    TextureSubresourceView getView(Format format, const SubresourceRange& range);
+    TextureSubresourceView getView(Format format, TextureAspect aspect, const SubresourceRange& range);
 };
 
 } // namespace rhi::vk

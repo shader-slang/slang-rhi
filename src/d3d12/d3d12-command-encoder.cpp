@@ -207,15 +207,10 @@ void ResourceCommandEncoderImpl::copyTexture(
         return;
     }
 
-    auto d3dFormat = D3DUtil::getMapFormat(dstTexture->m_desc.format);
-    auto aspectMask = (int32_t)dstSubresource.aspectMask;
-    if (dstSubresource.aspectMask == TextureAspect::Default)
-        aspectMask = (int32_t)TextureAspect::Color;
-    while (aspectMask)
+    DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(dstTexture->m_desc.format);
+    uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
+    for (GfxIndex planeIndex = 0; planeIndex < planeCount; planeIndex++)
     {
-        auto aspect = math::getLowestBit((int32_t)aspectMask);
-        aspectMask &= ~aspect;
-        auto planeIndex = D3DUtil::getPlaneSlice(d3dFormat, (TextureAspect)aspect);
         for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
         {
             for (GfxIndex mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
