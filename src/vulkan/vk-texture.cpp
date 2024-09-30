@@ -85,9 +85,9 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-TextureSubresourceView TextureImpl::getView(Format format, const SubresourceRange& range)
+TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect, const SubresourceRange& range)
 {
-    ViewKey key = {format, range};
+    ViewKey key = {format, aspect, range};
     TextureSubresourceView& view = m_views[key];
     if (view.imageView)
         return view;
@@ -120,7 +120,7 @@ TextureSubresourceView TextureImpl::getView(Format format, const SubresourceRang
         break;
     }
 
-    createInfo.subresourceRange.aspectMask = getAspectMaskFromFormat(m_vkformat);
+    createInfo.subresourceRange.aspectMask = getAspectMaskFromFormat(m_vkformat, aspect);
 
     createInfo.subresourceRange.baseArrayLayer = range.baseArrayLayer;
     createInfo.subresourceRange.baseMipLevel = range.mipLevel;

@@ -9,7 +9,7 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 
 TextureSubresourceView TextureViewImpl::getView()
 {
-    return m_texture->getView(m_desc.format, m_desc.subresourceRange);
+    return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange);
 }
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()

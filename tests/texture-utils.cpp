@@ -17,18 +17,6 @@
 
 namespace rhi::testing {
 
-TextureAspect getTextureAspect(Format format)
-{
-    switch (format)
-    {
-    case Format::D16_UNORM:
-    case Format::D32_FLOAT:
-        return TextureAspect::Depth;
-    default:
-        return TextureAspect::Color;
-    }
-}
-
 Size getTexelSize(Format format)
 {
     FormatInfo info;

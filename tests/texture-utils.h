@@ -194,7 +194,6 @@ struct TextureInfo : RefObject
     std::vector<SubresourceData> subresourceDatas;
 };
 
-TextureAspect getTextureAspect(Format format);
 Size getTexelSize(Format format);
 GfxIndex getSubresourceIndex(GfxIndex mipLevel, GfxCount mipLevelCount, GfxIndex baseArrayLayer);
 RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);

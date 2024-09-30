@@ -29,7 +29,6 @@ public:
         {
             size_t hash = 0;
             hash_combine(hash, key.format);
-            hash_combine(hash, key.range.aspectMask);
             hash_combine(hash, key.range.baseArrayLayer);
             hash_combine(hash, key.range.layerCount);
             hash_combine(hash, key.range.mipLevel);

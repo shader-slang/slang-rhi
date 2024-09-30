@@ -164,7 +164,7 @@ VkImageUsageFlags _calcImageUsageFlags(TextureUsage usage, MemoryType memoryType
 VkAccessFlags calcAccessFlagsFromImageLayout(VkImageLayout layout);
 VkPipelineStageFlags calcPipelineStageFlagsFromImageLayout(VkImageLayout layout);
 
-VkImageAspectFlags getAspectMaskFromFormat(VkFormat format);
+VkImageAspectFlags getAspectMaskFromFormat(VkFormat format, TextureAspect aspect = TextureAspect::All);
 
 AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicaDevice);
 

@@ -247,14 +247,12 @@ struct ResolveResourceSimple : BaseResolveResourceTest
         createRequiredResources(msaaTextureInfo, dstTextureInfo, format);
 
         SubresourceRange msaaSubresource = {};
-        msaaSubresource.aspectMask = TextureAspect::Color;
         msaaSubresource.mipLevel = 0;
         msaaSubresource.mipLevelCount = 1;
         msaaSubresource.baseArrayLayer = 0;
         msaaSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.aspectMask = TextureAspect::Color;
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;

@@ -24,8 +24,12 @@ public:
     {
         Format format;
         TextureType type;
+        TextureAspect aspect;
         SubresourceRange range;
-        bool operator==(const ViewKey& other) const { return format == other.format && range == other.range; }
+        bool operator==(const ViewKey& other) const
+        {
+            return format == other.format && type == other.type && aspect == other.aspect && range == other.range;
+        }
     };
 
     struct ViewKeyHasher
@@ -35,7 +39,7 @@ public:
             size_t hash = 0;
             hash_combine(hash, key.format);
             hash_combine(hash, key.type);
-            hash_combine(hash, key.range.aspectMask);
+            hash_combine(hash, key.aspect);
             hash_combine(hash, key.range.baseArrayLayer);
             hash_combine(hash, key.range.layerCount);
             hash_combine(hash, key.range.mipLevel);
@@ -49,10 +53,10 @@ public:
     std::unordered_map<ViewKey, D3D12Descriptor, ViewKeyHasher> m_rtvs;
     std::unordered_map<ViewKey, D3D12Descriptor, ViewKeyHasher> m_dsvs;
 
-    D3D12Descriptor getSRV(Format format, TextureType type, const SubresourceRange& range);
-    D3D12Descriptor getUAV(Format format, TextureType type, const SubresourceRange& range);
-    D3D12Descriptor getRTV(Format format, TextureType type, const SubresourceRange& range);
-    D3D12Descriptor getDSV(Format format, TextureType type, const SubresourceRange& range);
+    D3D12Descriptor getSRV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
+    D3D12Descriptor getUAV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
+    D3D12Descriptor getRTV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
+    D3D12Descriptor getDSV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
 };
 
 } // namespace rhi::d3d12

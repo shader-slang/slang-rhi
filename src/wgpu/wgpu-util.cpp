@@ -369,20 +369,12 @@ WGPUTextureAspect translateTextureAspect(TextureAspect aspect)
 {
     switch (aspect)
     {
-    case TextureAspect::Color:
+    case TextureAspect::All:
         return WGPUTextureAspect_All;
-    case TextureAspect::Depth:
+    case TextureAspect::DepthOnly:
         return WGPUTextureAspect_DepthOnly;
-    case TextureAspect::Stencil:
+    case TextureAspect::StencilOnly:
         return WGPUTextureAspect_StencilOnly;
-    case TextureAspect::DepthStencil:
-        return WGPUTextureAspect_All;
-    case TextureAspect::Plane0:
-        return WGPUTextureAspect_Plane0Only;
-    case TextureAspect::Plane1:
-        return WGPUTextureAspect_Plane1Only;
-    case TextureAspect::Plane2:
-        return WGPUTextureAspect_Plane2Only;
     default:
         return WGPUTextureAspect_All;
     }

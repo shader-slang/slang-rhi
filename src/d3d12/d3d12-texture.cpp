@@ -79,9 +79,14 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
-D3D12Descriptor TextureImpl::getSRV(Format format, TextureType type, const SubresourceRange& range)
+D3D12Descriptor TextureImpl::getSRV(
+    Format format,
+    TextureType type,
+    TextureAspect aspect,
+    const SubresourceRange& range
+)
 {
-    ViewKey key = {format, type, range};
+    ViewKey key = {format, type, aspect, range};
     D3D12Descriptor& descriptor = m_srvs[key];
     if (descriptor)
         return descriptor;
@@ -126,7 +131,7 @@ D3D12Descriptor TextureImpl::getSRV(Format format, TextureType type, const Subre
                 viewDesc.Texture2DArray.MipLevels = range.mipLevelCount;
                 viewDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
                 viewDesc.Texture2DArray.ArraySize = range.layerCount;
-                viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+                viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
             }
         }
         else
@@ -140,7 +145,7 @@ D3D12Descriptor TextureImpl::getSRV(Format format, TextureType type, const Subre
                 viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
                 viewDesc.Texture2D.MostDetailedMip = range.mipLevel;
                 viewDesc.Texture2D.MipLevels = range.mipLevelCount;
-                viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+                viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
             }
         }
         break;
@@ -173,9 +178,14 @@ D3D12Descriptor TextureImpl::getSRV(Format format, TextureType type, const Subre
     return descriptor;
 }
 
-D3D12Descriptor TextureImpl::getUAV(Format format, TextureType type, const SubresourceRange& range)
+D3D12Descriptor TextureImpl::getUAV(
+    Format format,
+    TextureType type,
+    TextureAspect aspect,
+    const SubresourceRange& range
+)
 {
-    ViewKey key = {format, type, range};
+    ViewKey key = {format, type, aspect, range};
     D3D12Descriptor& descriptor = m_uavs[key];
     if (descriptor)
         return descriptor;
@@ -207,12 +217,12 @@ D3D12Descriptor TextureImpl::getUAV(Format format, TextureType type, const Subre
             viewDesc.Texture2DArray.MipSlice = range.mipLevel;
             viewDesc.Texture2DArray.ArraySize = range.layerCount;
             viewDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
-            viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+            viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         }
         else
         {
             viewDesc.Texture2D.MipSlice = range.mipLevel;
-            viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+            viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         }
         break;
     case TextureType::Texture3D:
@@ -226,7 +236,7 @@ D3D12Descriptor TextureImpl::getUAV(Format format, TextureType type, const Subre
         viewDesc.Texture2DArray.MipSlice = range.mipLevel;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
-        viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+        viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         break;
     }
 
@@ -236,9 +246,14 @@ D3D12Descriptor TextureImpl::getUAV(Format format, TextureType type, const Subre
     return descriptor;
 }
 
-D3D12Descriptor TextureImpl::getRTV(Format format, TextureType type, const SubresourceRange& range)
+D3D12Descriptor TextureImpl::getRTV(
+    Format format,
+    TextureType type,
+    TextureAspect aspect,
+    const SubresourceRange& range
+)
 {
-    ViewKey key = {format, type, range};
+    ViewKey key = {format, type, aspect, range};
     D3D12Descriptor& descriptor = m_rtvs[key];
     if (descriptor)
         return descriptor;
@@ -280,12 +295,12 @@ D3D12Descriptor TextureImpl::getRTV(Format format, TextureType type, const Subre
                 viewDesc.Texture2DArray.MipSlice = range.mipLevel;
                 viewDesc.Texture2DArray.ArraySize = range.layerCount;
                 viewDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
-                viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+                viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
             }
             else
             {
                 viewDesc.Texture2D.MipSlice = range.mipLevel;
-                viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+                viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
             }
         }
         break;
@@ -300,7 +315,7 @@ D3D12Descriptor TextureImpl::getRTV(Format format, TextureType type, const Subre
         viewDesc.Texture2DArray.MipSlice = range.mipLevel;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
-        viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, range.aspectMask);
+        viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         break;
     }
 
@@ -310,9 +325,14 @@ D3D12Descriptor TextureImpl::getRTV(Format format, TextureType type, const Subre
     return descriptor;
 }
 
-D3D12Descriptor TextureImpl::getDSV(Format format, TextureType type, const SubresourceRange& range)
+D3D12Descriptor TextureImpl::getDSV(
+    Format format,
+    TextureType type,
+    TextureAspect aspect,
+    const SubresourceRange& range
+)
 {
-    ViewKey key = {format, type, range};
+    ViewKey key = {format, type, aspect, range};
     D3D12Descriptor& descriptor = m_dsvs[key];
     if (descriptor)
         return descriptor;
