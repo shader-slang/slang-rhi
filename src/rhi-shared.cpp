@@ -119,6 +119,20 @@ SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
     return resolved;
 }
 
+bool Texture::isEntireTexture(const SubresourceRange& range)
+{
+    if (range.mipLevel > 0 || range.mipLevelCount < m_desc.numMipLevels)
+    {
+        return false;
+    }
+    GfxCount arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
+    if (range.baseArrayLayer > 0 || range.layerCount < arrayLayerCount)
+    {
+        return false;
+    }
+    return true;
+}
+
 ITextureView* TextureView::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITextureView)

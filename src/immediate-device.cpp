@@ -69,27 +69,17 @@ public:
         virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
         virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-        virtual SLANG_NO_THROW void SLANG_MCALL
-        setTextureState(GfxCount count, ITexture* const* textures, ResourceState state) override
+        virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override
         {
-            SLANG_UNUSED(count);
-            SLANG_UNUSED(textures);
+            SLANG_UNUSED(buffer);
             SLANG_UNUSED(state);
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
-        setTextureSubresourceState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override
+        setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override
         {
             SLANG_UNUSED(texture);
             SLANG_UNUSED(subresourceRange);
-            SLANG_UNUSED(state);
-        }
-
-        virtual SLANG_NO_THROW void SLANG_MCALL
-        setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state) override
-        {
-            SLANG_UNUSED(count);
-            SLANG_UNUSED(buffers);
             SLANG_UNUSED(state);
         }
 

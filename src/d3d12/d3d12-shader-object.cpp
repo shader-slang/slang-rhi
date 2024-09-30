@@ -808,11 +808,15 @@ void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
             );
             break;
         case BoundResourceType::TextureView:
+        {
+            TextureViewImpl* textureView = static_cast<TextureViewImpl*>(boundResource.resource.get());
             stateTracking.setTextureState(
-                static_cast<TextureViewImpl*>(boundResource.resource.get())->m_texture,
+                textureView->m_texture,
+                textureView->m_desc.subresourceRange,
                 boundResource.requiredState
             );
             break;
+        }
         case BoundResourceType::AccelerationStructure:
             // TODO STATE_TRACKING need state transition?
             break;

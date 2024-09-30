@@ -1006,11 +1006,12 @@ void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
             stateTracking.setBufferState(static_cast<BufferImpl*>(slot.resource.get()), slot.requiredState);
             break;
         case BindingType::TextureView:
-            stateTracking.setTextureState(
-                static_cast<TextureViewImpl*>(slot.resource.get())->m_texture,
-                slot.requiredState
-            );
+        {
+            TextureViewImpl* textureView = static_cast<TextureViewImpl*>(slot.resource.get());
+            stateTracking
+                .setTextureState(textureView->m_texture, textureView->m_desc.subresourceRange, slot.requiredState);
             break;
+        }
         case BindingType::AccelerationStructure:
             // TODO STATE_TRACKING need state transition?
             break;
@@ -1021,7 +1022,11 @@ void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
     {
         if (slot.textureView)
         {
-            stateTracking.setTextureState(slot.textureView->m_texture, ResourceState::ShaderResource);
+            stateTracking.setTextureState(
+                slot.textureView->m_texture,
+                slot.textureView->m_desc.subresourceRange,
+                ResourceState::ShaderResource
+            );
         }
     }
 

@@ -11,28 +11,16 @@ void CommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
     m_writer = cmdBuffer;
 }
 
-void CommandEncoderImpl::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
-    SLANG_UNUSED(count);
-    SLANG_UNUSED(textures);
+    SLANG_UNUSED(buffer);
     SLANG_UNUSED(state);
 }
 
-void CommandEncoderImpl::setTextureSubresourceState(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState state
-)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     SLANG_UNUSED(texture);
     SLANG_UNUSED(subresourceRange);
-    SLANG_UNUSED(state);
-}
-
-void CommandEncoderImpl::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
-{
-    SLANG_UNUSED(count);
-    SLANG_UNUSED(buffers);
     SLANG_UNUSED(state);
 }
 

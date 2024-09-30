@@ -14,21 +14,12 @@ namespace rhi::metal {
 
 // CommandEncoderImpl
 
-void CommandEncoderImpl::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     // We use automatic hazard tracking for now, no need for barriers.
 }
 
-void CommandEncoderImpl::setTextureSubresourceState(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState state
-)
-{
-    // We use automatic hazard tracking for now, no need for barriers.
-}
-
-void CommandEncoderImpl::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     // We use automatic hazard tracking for now, no need for barriers.
 }

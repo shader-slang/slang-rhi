@@ -1,7 +1,6 @@
 #pragma once
 
 #include "rhi-shared.h"
-// #include <slang-rhi.h>
 
 #include <vector>
 #include <map>
@@ -29,6 +28,9 @@ struct BufferBarrier
 struct TextureBarrier
 {
     Texture* texture;
+    bool entireTexture;
+    GfxIndex mipLevel;
+    GfxIndex arrayLayer;
     ResourceState stateBefore;
     ResourceState stateAfter;
 };
@@ -38,6 +40,7 @@ class StateTracking
 public:
     void setBufferState(Buffer* buffer, ResourceState state)
     {
+        // Cannot change state of upload/readback buffers.
         if (buffer->m_desc.memoryType != MemoryType::DeviceLocal)
         {
             return;
@@ -51,24 +54,81 @@ public:
         }
     }
 
-    void setTextureState(Texture* texture, ResourceState state)
+    void setTextureState(Texture* texture, SubresourceRange subresourceRange, ResourceState state)
     {
+        // Cannot change state of upload/readback buffers.
         if (texture->m_desc.memoryType != MemoryType::DeviceLocal)
         {
             return;
         }
 
+        subresourceRange = texture->resolveSubresourceRange(subresourceRange);
+        bool isEntireTexture = texture->isEntireTexture(subresourceRange);
         TextureState* textureState = getTextureState(texture);
-        if (state != textureState->state || state == ResourceState::UnorderedAccess)
-        {
-            m_textureBarriers.push_back({texture, textureState->state, state});
-            textureState->state = state;
-        }
-    }
 
-    void setTextureSubresourceState(Texture* texture, SubresourceRange subresourceRange, ResourceState state)
-    {
-        SLANG_RHI_ASSERT_FAILURE("Subresource state tracking not implemented");
+        if (isEntireTexture && textureState->subresourceStates.empty())
+        {
+            // Transition entire texture.
+            if (state != textureState->state || state == ResourceState::UnorderedAccess)
+            {
+                m_textureBarriers.push_back({texture, true, 0, 0, textureState->state, state});
+                textureState->state = state;
+            }
+        }
+        else
+        {
+            // Transition subresources.
+            GfxCount arrayLayerCount =
+                texture->m_desc.arrayLength * (texture->m_desc.type == TextureType::TextureCube ? 6 : 1);
+
+            if (textureState->subresourceStates.empty())
+            {
+                textureState->subresourceStates.resize(
+                    texture->m_desc.numMipLevels * arrayLayerCount,
+                    textureState->state
+                );
+                textureState->state = ResourceState::Undefined;
+            }
+            for (GfxIndex arrayLayer = subresourceRange.baseArrayLayer; arrayLayer < arrayLayerCount; arrayLayer++)
+            {
+                for (GfxIndex mipLevel = subresourceRange.mipLevel;
+                     mipLevel < subresourceRange.mipLevel + subresourceRange.mipLevelCount;
+                     mipLevel++)
+                {
+                    GfxIndex subresourceIndex = arrayLayer * texture->m_desc.numMipLevels + mipLevel;
+                    if (state != textureState->subresourceStates[subresourceIndex] ||
+                        state == ResourceState::UnorderedAccess)
+                    {
+                        m_textureBarriers.push_back({
+                            texture,
+                            false,
+                            mipLevel,
+                            arrayLayer,
+                            textureState->subresourceStates[subresourceIndex],
+                            state,
+                        });
+                        textureState->subresourceStates[subresourceIndex] = state;
+                    }
+                }
+            }
+
+            // Check if all subresource states are equal and we can represent them as a single texture state.
+            ResourceState commonState = textureState->subresourceStates[0];
+            bool allEqual = true;
+            for (ResourceState subresourceState : textureState->subresourceStates)
+            {
+                if (subresourceState != commonState)
+                {
+                    allEqual = false;
+                    break;
+                }
+            }
+            if (allEqual)
+            {
+                textureState->state = commonState;
+                textureState->subresourceStates.clear();
+            }
+        }
     }
 
     void requireDefaultStates()
@@ -84,7 +144,7 @@ public:
         {
             if (textureState.second.state != textureState.first->m_desc.defaultState)
             {
-                setTextureState(textureState.first, textureState.first->m_desc.defaultState);
+                setTextureState(textureState.first, kEntireTexture, textureState.first->m_desc.defaultState);
             }
         }
     }

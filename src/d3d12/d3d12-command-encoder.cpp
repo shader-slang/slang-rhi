@@ -18,33 +18,14 @@ namespace rhi::d3d12 {
 
 // CommandEncoderImpl
 
-void CommandEncoderImpl::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        auto textureImpl = static_cast<TextureImpl*>(textures[i]);
-        m_commandBuffer->m_stateTracking.setTextureState(textureImpl, state);
-    }
+    m_commandBuffer->m_stateTracking.setBufferState(static_cast<BufferImpl*>(buffer), state);
 }
 
-void CommandEncoderImpl::setTextureSubresourceState(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState state
-)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
-    // TODO STATE_TRACKING
-    auto textureImpl = static_cast<TextureImpl*>(texture);
-    m_commandBuffer->m_stateTracking.setTextureSubresourceState(textureImpl, subresourceRange, state);
-}
-
-void CommandEncoderImpl::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
-{
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        auto bufferImpl = static_cast<BufferImpl*>(buffers[i]);
-        m_commandBuffer->m_stateTracking.setBufferState(bufferImpl, state);
-    }
+    m_commandBuffer->m_stateTracking.setTextureState(static_cast<TextureImpl*>(texture), subresourceRange, state);
 }
 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
@@ -212,8 +193,8 @@ void ResourceCommandEncoderImpl::copyTexture(
     TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
     TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
 
-    m_commandBuffer->requireTextureState(dstTexture, ResourceState::CopyDestination);
-    m_commandBuffer->requireTextureState(srcTexture, ResourceState::CopySource);
+    m_commandBuffer->requireTextureState(dstTexture, dstSubresource, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
     m_commandBuffer->commitBarriers();
 
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
@@ -288,7 +269,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
 {
     TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
 
-    m_commandBuffer->requireTextureState(dstTexture, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(dstTexture, subResourceRange, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
 
     auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
@@ -569,7 +550,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
 
     m_commandBuffer->requireBufferState(dstBuffer, ResourceState::CopyDestination);
-    m_commandBuffer->requireTextureState(srcTexture, ResourceState::CopySource);
+    m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
     m_commandBuffer->commitBarriers();
 
     auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
@@ -713,7 +694,11 @@ void RenderCommandEncoderImpl::init(
     {
         m_renderTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
         m_resolveTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].resolveTarget);
-        m_commandBuffer->requireTextureState(m_renderTargetViews[i]->m_texture, ResourceState::RenderTarget);
+        m_commandBuffer->requireTextureState(
+            m_renderTargetViews[i]->m_texture,
+            m_renderTargetViews[i]->m_desc.subresourceRange,
+            ResourceState::RenderTarget
+        );
         renderTargetDescriptors.push_back(m_renderTargetViews[i]->getRTV().cpuHandle);
     }
     if (desc.depthStencilAttachment)
@@ -721,6 +706,7 @@ void RenderCommandEncoderImpl::init(
         m_depthStencilView = static_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
         m_commandBuffer->requireTextureState(
             m_depthStencilView->m_texture,
+            m_depthStencilView->m_desc.subresourceRange,
             desc.depthStencilAttachment->depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite
         );
     }
@@ -936,8 +922,16 @@ void RenderCommandEncoderImpl::endEncoding()
     {
         if (m_renderTargetViews[i] && m_resolveTargetViews[i])
         {
-            m_commandBuffer->requireTextureState(m_renderTargetViews[i]->m_texture, ResourceState::ResolveSource);
-            m_commandBuffer->requireTextureState(m_resolveTargetViews[i]->m_texture, ResourceState::ResolveDestination);
+            m_commandBuffer->requireTextureState(
+                m_renderTargetViews[i]->m_texture,
+                m_renderTargetViews[i]->m_desc.subresourceRange,
+                ResourceState::ResolveSource
+            );
+            m_commandBuffer->requireTextureState(
+                m_resolveTargetViews[i]->m_texture,
+                m_resolveTargetViews[i]->m_desc.subresourceRange,
+                ResourceState::ResolveDestination
+            );
             needsResolve = true;
         }
     }

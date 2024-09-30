@@ -13,36 +13,16 @@ namespace rhi::debug {
 
 // DebugCommandEncoder
 
-void DebugCommandEncoder::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
+void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
 {
     SLANG_RHI_API_FUNC;
-    std::vector<ITexture*> innerTextures;
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        innerTextures.push_back(static_cast<DebugTexture*>(textures[i])->baseObject.get());
-    }
-    getBaseObject()->setTextureState(count, innerTextures.data(), state);
+    getBaseObject()->setBufferState(getInnerObj(buffer), state);
 }
 
-void DebugCommandEncoder::setTextureSubresourceState(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState state
-)
+void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     SLANG_RHI_API_FUNC;
-    getBaseObject()->setTextureSubresourceState(getInnerObj(texture), subresourceRange, state);
-}
-
-void DebugCommandEncoder::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
-{
-    SLANG_RHI_API_FUNC;
-    std::vector<IBuffer*> innerBuffers;
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        innerBuffers.push_back(static_cast<DebugBuffer*>(buffers[i])->baseObject.get());
-    }
-    getBaseObject()->setBufferState(count, innerBuffers.data(), state);
+    getBaseObject()->setTextureState(getInnerObj(texture), subresourceRange, state);
 }
 
 void DebugCommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])

@@ -81,9 +81,13 @@ void CommandBufferImpl::requireBufferState(BufferImpl* buffer, ResourceState sta
     m_stateTracking.setBufferState(buffer, state);
 }
 
-void CommandBufferImpl::requireTextureState(TextureImpl* texture, ResourceState state)
+void CommandBufferImpl::requireTextureState(
+    TextureImpl* texture,
+    SubresourceRange subresourceRange,
+    ResourceState state
+)
 {
-    m_stateTracking.setTextureState(texture, state);
+    m_stateTracking.setTextureState(texture, subresourceRange, state);
 }
 
 void CommandBufferImpl::commitBarriers()
@@ -186,10 +190,10 @@ void CommandBufferImpl::commitBarriers()
         barrier.oldLayout = translateImageLayout(textureBarrier.stateBefore);
         barrier.newLayout = translateImageLayout(textureBarrier.stateAfter);
         barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(texture->m_desc.format));
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-        barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        barrier.subresourceRange.baseArrayLayer = textureBarrier.entireTexture ? 0 : textureBarrier.arrayLayer;
+        barrier.subresourceRange.baseMipLevel = textureBarrier.entireTexture ? 0 : textureBarrier.mipLevel;
+        barrier.subresourceRange.layerCount = textureBarrier.entireTexture ? VK_REMAINING_ARRAY_LAYERS : 1;
+        barrier.subresourceRange.levelCount = textureBarrier.entireTexture ? VK_REMAINING_MIP_LEVELS : 1;
         barrier.srcAccessMask = calcAccessFlags(textureBarrier.stateBefore);
         barrier.dstAccessMask = calcAccessFlags(textureBarrier.stateAfter);
         imageBarriers.push_back(barrier);

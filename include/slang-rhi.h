@@ -1495,18 +1495,15 @@ class ICommandEncoder : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setTextureState(GfxCount count, ITexture* const* textures, ResourceState state) = 0;
-
-    inline void setTextureState(ITexture* texture, ResourceState state) { setTextureState(1, &texture, state); }
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    setTextureSubresourceState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) = 0;
+    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state) = 0;
-
-    inline void setBufferState(IBuffer* buffer, ResourceState state) { setBufferState(1, &buffer, state); }
+    inline void setTextureState(ITexture* texture, ResourceState state)
+    {
+        setTextureState(texture, kEntireTexture, state);
+    }
 
     virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() = 0;

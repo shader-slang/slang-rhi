@@ -133,21 +133,12 @@ Result CommandEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShad
     return SLANG_OK;
 }
 
-void CommandEncoderImpl::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     // WGPU doesn't have explicit barriers.
 }
 
-void CommandEncoderImpl::setTextureSubresourceState(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState state
-)
-{
-    // WGPU doesn't have explicit barriers.
-}
-
-void CommandEncoderImpl::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     // WGPU doesn't have explicit barriers.
 }

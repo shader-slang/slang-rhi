@@ -32,14 +32,10 @@ public:
 public:
     void init(CommandBufferImpl* cmdBuffer);
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setTextureState(GfxCount count, ITexture* const* textures, ResourceState state) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    setTextureSubresourceState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state) override;
+    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;

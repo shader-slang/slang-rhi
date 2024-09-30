@@ -924,7 +924,6 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
 
     auto encodeInfo = encodeResourceCommands();
 
-    // TODO STATE_TRACKING
     auto defaultState = D3DUtil::getResourceState(rhiDesc.defaultState);
     {
         D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
@@ -951,7 +950,6 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         encodeInfo.d3dCommandList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
     }
 
-    // TODO STATE_TRACKING
     {
         D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
         resource.transition(D3D12_RESOURCE_STATE_COPY_SOURCE, defaultState, submitter);

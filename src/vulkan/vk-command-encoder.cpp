@@ -20,112 +20,14 @@ namespace rhi::vk {
 
 // CommandEncoderImpl
 
-void CommandEncoderImpl::setTextureState(GfxCount count, ITexture* const* textures, ResourceState state)
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        auto textureImpl = static_cast<TextureImpl*>(textures[i]);
-        m_commandBuffer->m_stateTracking.setTextureState(textureImpl, state);
-    }
-
-    // TODO STATE_TRACKING
-#if 0
-    short_vector<VkImageMemoryBarrier, 16> barriers;
-
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        TextureImpl* texture = static_cast<TextureImpl*>(textures[i]);
-        const TextureDesc& desc = texture->getDesc();
-
-        VkImageMemoryBarrier barrier = {};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.image = texture->m_image;
-        barrier.oldLayout = translateImageLayout(src);
-        barrier.newLayout = translateImageLayout(dst);
-        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(desc.format));
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-        barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-        barrier.srcAccessMask = calcAccessFlags(src);
-        barrier.dstAccessMask = calcAccessFlags(dst);
-        barriers.push_back(barrier);
-    }
-
-    VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
-    VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
-
-    auto& api = m_commandBuffer->m_device->m_api;
-    api.vkCmdPipelineBarrier(
-        m_commandBuffer->m_commandBuffer,
-        srcStage,
-        dstStage,
-        0,
-        0,
-        nullptr,
-        0,
-        nullptr,
-        (uint32_t)count,
-        barriers.data()
-    );
-#endif
+    m_commandBuffer->m_stateTracking.setBufferState(static_cast<BufferImpl*>(buffer), state);
 }
 
-void CommandEncoderImpl::setTextureSubresourceState(
-    ITexture* texture,
-    SubresourceRange subresourceRange,
-    ResourceState state
-)
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
-    // TODO STATE_TRACKING
-    auto textureImpl = static_cast<TextureImpl*>(texture);
-    m_commandBuffer->m_stateTracking.setTextureSubresourceState(textureImpl, subresourceRange, state);
-
-#if 0
-    short_vector<VkImageMemoryBarrier> barriers;
-    auto image = static_cast<TextureImpl*>(texture);
-    auto desc = image->getDesc();
-
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.image = image->m_image;
-    barrier.oldLayout = translateImageLayout(src);
-    barrier.newLayout = translateImageLayout(dst);
-    barrier.subresourceRange.aspectMask = VulkanUtil::getAspectMask(subresourceRange.aspectMask, image->m_vkformat);
-    barrier.subresourceRange.baseArrayLayer = subresourceRange.baseArrayLayer;
-    barrier.subresourceRange.baseMipLevel = subresourceRange.mipLevel;
-    barrier.subresourceRange.layerCount = subresourceRange.layerCount;
-    barrier.subresourceRange.levelCount = subresourceRange.mipLevelCount;
-    barrier.srcAccessMask = calcAccessFlags(src);
-    barrier.dstAccessMask = calcAccessFlags(dst);
-    barriers.push_back(barrier);
-
-    VkPipelineStageFlagBits srcStage = calcPipelineStageFlags(src, true);
-    VkPipelineStageFlagBits dstStage = calcPipelineStageFlags(dst, false);
-
-    auto& api = m_commandBuffer->m_device->m_api;
-    api.vkCmdPipelineBarrier(
-        m_commandBuffer->m_commandBuffer,
-        srcStage,
-        dstStage,
-        0,
-        0,
-        nullptr,
-        0,
-        nullptr,
-        (uint32_t)barriers.size(),
-        barriers.data()
-    );
-#endif
-}
-
-void CommandEncoderImpl::setBufferState(GfxCount count, IBuffer* const* buffers, ResourceState state)
-{
-    for (GfxIndex i = 0; i < count; i++)
-    {
-        auto bufferImpl = static_cast<BufferImpl*>(buffers[i]);
-        m_commandBuffer->m_stateTracking.setBufferState(bufferImpl, state);
-    }
+    m_commandBuffer->m_stateTracking.setTextureState(static_cast<TextureImpl*>(texture), subresourceRange, state);
 }
 
 void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
@@ -432,8 +334,8 @@ void ResourceCommandEncoderImpl::copyTexture(
     TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
     TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
 
-    m_commandBuffer->requireTextureState(dstTexture, ResourceState::CopyDestination);
-    m_commandBuffer->requireTextureState(srcTexture, ResourceState::CopySource);
+    m_commandBuffer->requireTextureState(dstTexture, dstSubresource, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
     m_commandBuffer->commitBarriers();
 
     const TextureDesc& srcDesc = srcTexture->m_desc;
@@ -492,7 +394,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
 {
     TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
 
-    m_commandBuffer->requireTextureState(dstTexture, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(dstTexture, subResourceRange, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
 
     auto& api = m_commandBuffer->m_device->m_api;
@@ -957,7 +859,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
 
     m_commandBuffer->requireBufferState(dstBuffer, ResourceState::CopyDestination);
-    m_commandBuffer->requireTextureState(srcTexture, ResourceState::CopySource);
+    m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
     m_commandBuffer->commitBarriers();
 
     VkBufferImageCopy region = {};
@@ -1015,9 +917,14 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
         m_resolveTargetViews[i] = resolveView;
 
         // Transition state
-        m_commandBuffer->requireTextureState(view->m_texture, ResourceState::RenderTarget);
+        m_commandBuffer
+            ->requireTextureState(view->m_texture, view->m_desc.subresourceRange, ResourceState::RenderTarget);
         if (resolveView)
-            m_commandBuffer->requireTextureState(resolveView->m_texture, ResourceState::ResolveDestination);
+            m_commandBuffer->requireTextureState(
+                resolveView->m_texture,
+                resolveView->m_desc.subresourceRange,
+                ResourceState::ResolveDestination
+            );
 
         // Determine render area
         const TextureViewDesc& viewDesc = view->m_desc;
@@ -1063,6 +970,7 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
         // Transition state
         m_commandBuffer->requireTextureState(
             view->m_texture,
+            view->m_desc.subresourceRange,
             attachment.depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite
         );
 

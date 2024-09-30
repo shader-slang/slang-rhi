@@ -49,7 +49,7 @@ public:
     VkCommandBuffer getPreCommandBuffer();
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
-    void requireTextureState(TextureImpl* texture, ResourceState state);
+    void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
 
 public:

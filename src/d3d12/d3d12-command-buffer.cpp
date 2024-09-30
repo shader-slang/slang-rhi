@@ -26,9 +26,13 @@ void CommandBufferImpl::requireBufferState(BufferImpl* buffer, ResourceState sta
     m_stateTracking.setBufferState(buffer, state);
 }
 
-void CommandBufferImpl::requireTextureState(TextureImpl* texture, ResourceState state)
+void CommandBufferImpl::requireTextureState(
+    TextureImpl* texture,
+    SubresourceRange subresourceRange,
+    ResourceState state
+)
 {
-    m_stateTracking.setTextureState(texture, state);
+    m_stateTracking.setTextureState(texture, subresourceRange, state);
 }
 
 void CommandBufferImpl::commitBarriers()
@@ -62,23 +66,52 @@ void CommandBufferImpl::commitBarriers()
     {
         TextureImpl* texture = static_cast<TextureImpl*>(textureBarrier.texture);
         D3D12_RESOURCE_BARRIER barrier = {};
-        bool isUAVBarrier =
-            (textureBarrier.stateBefore == textureBarrier.stateAfter &&
-             textureBarrier.stateAfter == ResourceState::UnorderedAccess);
-        if (isUAVBarrier)
+        if (textureBarrier.entireTexture)
         {
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-            barrier.UAV.pResource = texture->m_resource;
+            bool isUAVBarrier =
+                (textureBarrier.stateBefore == textureBarrier.stateAfter &&
+                 textureBarrier.stateAfter == ResourceState::UnorderedAccess);
+            if (isUAVBarrier)
+            {
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+                barrier.UAV.pResource = texture->m_resource;
+            }
+            else
+            {
+                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                barrier.Transition.pResource = texture->m_resource;
+                barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
+                barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            }
+            barriers.push_back(barrier);
         }
         else
         {
+            uint32_t mipLevelCount = texture->m_desc.numMipLevels;
+            uint32_t arrayLayerCount =
+                texture->m_desc.arrayLength * (texture->m_desc.type == TextureType::TextureCube ? 6 : 1);
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = texture->m_resource;
             barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
             barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
-            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            auto d3dFormat = D3DUtil::getMapFormat(texture->m_desc.format);
+            auto aspectMask = (int32_t)TextureAspect::Color;
+            while (aspectMask)
+            {
+                auto aspect = math::getLowestBit((int32_t)aspectMask);
+                aspectMask &= ~aspect;
+                auto planeIndex = D3DUtil::getPlaneSlice(d3dFormat, (TextureAspect)aspect);
+                barrier.Transition.Subresource = D3DUtil::getSubresourceIndex(
+                    textureBarrier.mipLevel,
+                    textureBarrier.arrayLayer,
+                    planeIndex,
+                    mipLevelCount,
+                    arrayLayerCount
+                );
+                barriers.push_back(barrier);
+            }
         }
-        barriers.push_back(barrier);
     }
 
     if (!barriers.empty())
