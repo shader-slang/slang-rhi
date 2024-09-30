@@ -172,12 +172,12 @@ Result TextureImpl::init(SubresourceData const* initData)
 
     if (initData)
     {
-        int32_t subResourceCounter = 0;
+        int32_t subresourceCounter = 0;
         for (int32_t arrayElementIndex = 0; arrayElementIndex < effectiveArrayElementCount; ++arrayElementIndex)
         {
             for (int32_t mipLevel = 0; mipLevel < m_desc.numMipLevels; ++mipLevel)
             {
-                int32_t subResourceIndex = subResourceCounter++;
+                int32_t subresourceIndex = subresourceCounter++;
 
                 auto dstRowStride = m_mipLevels[mipLevel].strides[1];
                 auto dstLayerStride = m_mipLevels[mipLevel].strides[2];
@@ -188,7 +188,7 @@ Result TextureImpl::init(SubresourceData const* initData)
                 auto rowCount = m_mipLevels[mipLevel].extents[1];
                 auto depthLayerCount = m_mipLevels[mipLevel].extents[2];
 
-                auto& srcImage = initData[subResourceIndex];
+                auto& srcImage = initData[subresourceIndex];
                 ptrdiff_t srcRowStride = ptrdiff_t(srcImage.strideY);
                 ptrdiff_t srcLayerStride = ptrdiff_t(srcImage.strideZ);
 

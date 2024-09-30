@@ -219,11 +219,11 @@ void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset
 
 void ResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
-    SubresourceRange subResourceRange,
+    SubresourceRange subresourceRange,
     Offset3D offset,
     Extents extend,
-    SubresourceData* subResourceData,
-    GfxCount subResourceDataCount
+    SubresourceData* subresourceData,
+    GfxCount subresourceDataCount
 )
 {
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");

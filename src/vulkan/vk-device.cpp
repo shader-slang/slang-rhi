@@ -1713,7 +1713,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
         // Copy into upload buffer
         {
-            int subResourceCounter = 0;
+            int subresourceCounter = 0;
 
             uint8_t* dstData;
             m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, (void**)&dstData);
@@ -1727,8 +1727,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 {
                     const auto& mipSize = mipSizes[j];
 
-                    int subResourceIndex = subResourceCounter++;
-                    auto initSubresource = initData[subResourceIndex];
+                    int subresourceIndex = subresourceCounter++;
+                    auto initSubresource = initData[subresourceIndex];
 
                     const ptrdiff_t srcRowStride = (ptrdiff_t)initSubresource.strideY;
                     const ptrdiff_t srcLayerStride = (ptrdiff_t)initSubresource.strideZ;

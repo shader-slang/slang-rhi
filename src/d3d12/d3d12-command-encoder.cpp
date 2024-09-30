@@ -260,21 +260,21 @@ void ResourceCommandEncoderImpl::copyTexture(
 
 void ResourceCommandEncoderImpl::uploadTextureData(
     ITexture* dst,
-    SubresourceRange subResourceRange,
+    SubresourceRange subresourceRange,
     Offset3D offset,
     Extents extent,
-    SubresourceData* subResourceData,
-    GfxCount subResourceDataCount
+    SubresourceData* subresourceData,
+    GfxCount subresourceDataCount
 )
 {
     TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
 
-    m_commandBuffer->requireTextureState(dstTexture, subResourceRange, ResourceState::CopyDestination);
+    m_commandBuffer->requireTextureState(dstTexture, subresourceRange, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
 
     auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
-        subResourceRange.mipLevel,
-        subResourceRange.baseArrayLayer,
+        subresourceRange.mipLevel,
+        subresourceRange.baseArrayLayer,
         0,
         dstTexture->m_desc.numMipLevels,
         dstTexture->m_desc.arrayLength
@@ -282,7 +282,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     auto textureSize = dstTexture->m_desc.size;
     FormatInfo formatInfo = {};
     rhiGetFormatInfo(dstTexture->m_desc.format, &formatInfo);
-    for (GfxCount i = 0; i < subResourceDataCount; i++)
+    for (GfxCount i = 0; i < subresourceDataCount; i++)
     {
         auto subresourceIndex = baseSubresourceIndex + i;
         // Get the footprint
@@ -344,12 +344,12 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         for (uint32_t z = 0; z < footprint.Footprint.Depth; z++)
         {
             auto imageStart = bufferData + footprint.Footprint.RowPitch * rowCount * (Size)z;
-            auto srcData = (uint8_t*)subResourceData->data + subResourceData->strideZ * z;
+            auto srcData = (uint8_t*)subresourceData->data + subresourceData->strideZ * z;
             for (uint32_t row = 0; row < rowCount; row++)
             {
                 memcpy(
                     imageStart + row * (Size)footprint.Footprint.RowPitch,
-                    srcData + subResourceData->strideY * row,
+                    srcData + subresourceData->strideY * row,
                     rowSize
                 );
             }

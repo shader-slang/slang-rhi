@@ -494,31 +494,31 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     // Set up the initialize data
     std::vector<D3D11_SUBRESOURCE_DATA> subRes;
-    D3D11_SUBRESOURCE_DATA* subResourcesPtr = nullptr;
+    D3D11_SUBRESOURCE_DATA* subresourcesPtr = nullptr;
     if (initData)
     {
         int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
         subRes.resize(srcDesc.numMipLevels * arrayLayerCount);
         {
-            int subResourceIndex = 0;
+            int subresourceIndex = 0;
             for (int i = 0; i < arrayLayerCount; i++)
             {
                 for (int j = 0; j < srcDesc.numMipLevels; j++)
                 {
                     const int mipHeight = calcMipSize(srcDesc.size.height, j);
 
-                    D3D11_SUBRESOURCE_DATA& data = subRes[subResourceIndex];
-                    auto& srcData = initData[subResourceIndex];
+                    D3D11_SUBRESOURCE_DATA& data = subRes[subresourceIndex];
+                    auto& srcData = initData[subresourceIndex];
 
                     data.pSysMem = srcData.data;
                     data.SysMemPitch = UINT(srcData.strideY);
                     data.SysMemSlicePitch = UINT(srcData.strideZ);
 
-                    subResourceIndex++;
+                    subresourceIndex++;
                 }
             }
         }
-        subResourcesPtr = subRes.data();
+        subresourcesPtr = subRes.data();
     }
 
     const int accessFlags = _calcResourceAccessFlags(srcDesc.memoryType);
@@ -540,7 +540,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.Usage = D3D11_USAGE_DEFAULT;
 
         ComPtr<ID3D11Texture1D> texture1D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture1D(&desc, subResourcesPtr, texture1D.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->CreateTexture1D(&desc, subresourcesPtr, texture1D.writeRef()));
 
         texture->m_resource = texture1D;
         break;
@@ -568,7 +568,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
 
         ComPtr<ID3D11Texture2D> texture2D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture2D(&desc, subResourcesPtr, texture2D.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->CreateTexture2D(&desc, subresourcesPtr, texture2D.writeRef()));
 
         texture->m_resource = texture2D;
         break;
@@ -587,7 +587,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.Usage = D3D11_USAGE_DEFAULT;
 
         ComPtr<ID3D11Texture3D> texture3D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture3D(&desc, subResourcesPtr, texture3D.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->CreateTexture3D(&desc, subresourcesPtr, texture3D.writeRef()));
 
         texture->m_resource = texture3D;
         break;
@@ -673,14 +673,14 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
         bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
     }
 
-    D3D11_SUBRESOURCE_DATA subResourceData = {0};
-    subResourceData.pSysMem = initData;
+    D3D11_SUBRESOURCE_DATA subresourceData = {0};
+    subresourceData.pSysMem = initData;
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
     buffer->m_device = this;
 
     SLANG_RETURN_ON_FAIL(
-        m_device->CreateBuffer(&bufferDesc, initData ? &subResourceData : nullptr, buffer->m_buffer.writeRef())
+        m_device->CreateBuffer(&bufferDesc, initData ? &subresourceData : nullptr, buffer->m_buffer.writeRef())
     );
     buffer->m_d3dUsage = bufferDesc.Usage;
 

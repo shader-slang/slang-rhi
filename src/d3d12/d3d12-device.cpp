@@ -1114,7 +1114,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         // Get the pointer to the upload resource
         ID3D12Resource* uploadResource = uploadTexture;
 
-        int subResourceIndex = 0;
+        int subresourceIndex = 0;
         int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
         for (int arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
         {
@@ -1123,7 +1123,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
             for (int j = 0; j < numMipMaps; ++j)
             {
-                auto srcSubresource = initData[subResourceIndex + j];
+                auto srcSubresource = initData[subresourceIndex + j];
 
                 const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[j];
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
@@ -1189,10 +1189,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 D3D12_TEXTURE_COPY_LOCATION dst;
                 dst.pResource = texture->m_resource;
                 dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-                dst.SubresourceIndex = subResourceIndex;
+                dst.SubresourceIndex = subresourceIndex;
                 encodeInfo.d3dCommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
-                subResourceIndex++;
+                subresourceIndex++;
             }
 
             // Block - waiting for copy to complete (so can drop upload texture)
