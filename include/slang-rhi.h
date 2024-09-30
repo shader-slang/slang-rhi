@@ -2517,7 +2517,7 @@ inline AdapterList rhiGetAdapters(DeviceType type)
 struct D3D12ExperimentalFeaturesDesc
 {
     StructType structType = StructType::D3D12ExperimentalFeaturesDesc;
-    uint32_t numFeatures;
+    uint32_t featureCount;
     const void* featureIIDs;
     void* configurationStructs;
     uint32_t* configurationStructSizes;

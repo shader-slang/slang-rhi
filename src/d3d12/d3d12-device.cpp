@@ -1639,7 +1639,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         return;
     }
     if (!SLANG_SUCCEEDED(enableExperimentalFeaturesFunc(
-            desc.numFeatures,
+            desc.featureCount,
             (IID*)desc.featureIIDs,
             desc.configurationStructs,
             desc.configurationStructSizes
