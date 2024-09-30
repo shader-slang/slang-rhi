@@ -228,7 +228,7 @@ void ResourceCommandEncoderImpl::copyTexture(
                     dstSubresource.mipLevel + mipLevel,
                     dstSubresource.baseArrayLayer + layer,
                     planeIndex,
-                    dstTexture->m_desc.numMipLevels,
+                    dstTexture->m_desc.mipLevelCount,
                     dstTexture->m_desc.arrayLength
                 );
 
@@ -239,7 +239,7 @@ void ResourceCommandEncoderImpl::copyTexture(
                     srcSubresource.mipLevel + mipLevel,
                     srcSubresource.baseArrayLayer + layer,
                     planeIndex,
-                    srcTexture->m_desc.numMipLevels,
+                    srcTexture->m_desc.mipLevelCount,
                     srcTexture->m_desc.arrayLength
                 );
 
@@ -276,7 +276,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         subresourceRange.mipLevel,
         subresourceRange.baseArrayLayer,
         0,
-        dstTexture->m_desc.numMipLevels,
+        dstTexture->m_desc.mipLevelCount,
         dstTexture->m_desc.arrayLength
     );
     auto textureSize = dstTexture->m_desc.size;
@@ -299,7 +299,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
         D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = srcRegion.PlacedFootprint;
         footprint.Offset = 0;
         footprint.Footprint.Format = texDesc.Format;
-        uint32_t mipLevel = D3DUtil::getSubresourceMipLevel(subresourceIndex, dstTexture->m_desc.numMipLevels);
+        uint32_t mipLevel = D3DUtil::getSubresourceMipLevel(subresourceIndex, dstTexture->m_desc.mipLevelCount);
         if (extent.width != kRemainingTextureSize)
         {
             footprint.Footprint.Width = extent.width;
@@ -557,14 +557,14 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
         srcSubresource.mipLevel,
         srcSubresource.baseArrayLayer,
         0,
-        srcTexture->m_desc.numMipLevels,
+        srcTexture->m_desc.mipLevelCount,
         srcTexture->m_desc.arrayLength
     );
     auto textureSize = srcTexture->m_desc.size;
     FormatInfo formatInfo = {};
     rhiGetFormatInfo(srcTexture->m_desc.format, &formatInfo);
     if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = srcTexture->m_desc.numMipLevels;
+        srcSubresource.mipLevelCount = srcTexture->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = srcTexture->m_desc.arrayLength;
 
@@ -584,7 +584,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
             srcSubresource.mipLevel,
             layer + srcSubresource.baseArrayLayer,
             0,
-            srcTexture->m_desc.numMipLevels,
+            srcTexture->m_desc.mipLevelCount,
             srcTexture->m_desc.arrayLength
         );
         srcRegion.pResource = srcTexture->m_resource.getResource();

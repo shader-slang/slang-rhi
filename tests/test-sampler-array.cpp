@@ -52,7 +52,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         textureDesc.size.width = 2;
         textureDesc.size.height = 2;
         textureDesc.size.depth = 1;
-        textureDesc.numMipLevels = 2;
+        textureDesc.mipLevelCount = 2;
         textureDesc.memoryType = MemoryType::DeviceLocal;
         textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination;
         textureDesc.defaultState = ResourceState::ShaderResource;

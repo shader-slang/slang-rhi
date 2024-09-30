@@ -267,7 +267,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     extents.height = extents.height ? extents.height : 1;
     extents.depth = extents.depth ? extents.depth : 1;
 
-    for (Int i = 0; i < desc.numMipLevels; ++i)
+    for (Int i = 0; i < desc.mipLevelCount; ++i)
     {
         Size rowSize =
             ((extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
@@ -302,8 +302,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     // Metal doesn't support mip-mapping for 1D textures
     // However, we still need to use the provided mip level count when initializing the texture
-    GfxCount initMipLevels = desc.numMipLevels;
-    desc.numMipLevels = desc.type == TextureType::Texture1D ? 1 : desc.numMipLevels;
+    GfxCount initMipLevels = desc.mipLevelCount;
+    desc.mipLevelCount = desc.type == TextureType::Texture1D ? 1 : desc.mipLevelCount;
 
     const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     if (pixelFormat == MTL::PixelFormat::PixelFormatInvalid)
@@ -392,7 +392,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
     }
 
-    textureDesc->setMipmapLevelCount(desc.numMipLevels);
+    textureDesc->setMipmapLevelCount(desc.mipLevelCount);
     textureDesc->setArrayLength(desc.arrayLength);
     textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setUsage(textureUsage);
@@ -435,7 +435,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             region.size = MTL::Size(desc.size.width, desc.size.height, desc.size.depth);
             for (Index level = 0; level < initMipLevels; ++level)
             {
-                if (level >= desc.numMipLevels)
+                if (level >= desc.mipLevelCount)
                     continue;
                 const SubresourceData& subresourceData = initData[slice * initMipLevels + level];
                 stagingTexture->replaceRegion(
@@ -549,7 +549,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     const TextureDesc& textureDesc = textureImpl->m_desc;
     GfxCount layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
-    if (sr.mipLevel == 0 && sr.mipLevelCount == textureDesc.numMipLevels && sr.baseArrayLayer == 0 &&
+    if (sr.mipLevel == 0 && sr.mipLevelCount == textureDesc.mipLevelCount && sr.baseArrayLayer == 0 &&
         sr.layerCount == layerCount)
     {
         viewImpl->m_textureView = textureImpl->m_texture;

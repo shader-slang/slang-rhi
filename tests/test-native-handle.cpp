@@ -55,7 +55,7 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 
     TextureDesc desc = {};
     desc.type = TextureType::Texture2D;
-    desc.numMipLevels = 1;
+    desc.mipLevelCount = 1;
     desc.size.width = 1;
     desc.size.height = 1;
     desc.size.depth = 1;

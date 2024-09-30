@@ -49,7 +49,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     }
     textureDesc.dimension = translateTextureDimension(desc.type);
     textureDesc.format = translateTextureFormat(desc.format);
-    textureDesc.mipLevelCount = desc.numMipLevels;
+    textureDesc.mipLevelCount = desc.mipLevelCount;
     textureDesc.sampleCount = desc.sampleCount;
     textureDesc.label = desc.label;
     texture->m_texture = m_ctx.api.wgpuDeviceCreateTexture(m_ctx.device, &textureDesc);
@@ -65,7 +65,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
         SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
-        int mipLevelCount = desc.numMipLevels;
+        int mipLevelCount = desc.mipLevelCount;
         int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
         for (int arrayLayer = 0; arrayLayer < arrayLayerCount; ++arrayLayer)

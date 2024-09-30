@@ -1001,7 +1001,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
-    const int numMipMaps = srcDesc.numMipLevels;
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
 
@@ -1051,18 +1050,18 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     // Calculate the layout
     std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
-    layouts.resize(numMipMaps);
+    layouts.resize(srcDesc.mipLevelCount);
     std::vector<uint64_t> mipRowSizeInBytes;
-    mipRowSizeInBytes.resize(srcDesc.numMipLevels);
+    mipRowSizeInBytes.resize(srcDesc.mipLevelCount);
     std::vector<uint32_t> mipNumRows;
-    mipNumRows.resize(numMipMaps);
+    mipNumRows.resize(srcDesc.mipLevelCount);
 
     // NOTE! This is just the size for one array upload -> not for the whole texture
     uint64_t requiredSize = 0;
     m_device->GetCopyableFootprints(
         &resourceDesc,
         0,
-        srcDesc.numMipLevels,
+        srcDesc.mipLevelCount,
         0,
         layouts.data(),
         mipNumRows.data(),
@@ -1121,7 +1120,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             uint8_t* p;
             uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));
 
-            for (int j = 0; j < numMipMaps; ++j)
+            for (int j = 0; j < srcDesc.mipLevelCount; ++j)
             {
                 auto srcSubresource = initData[subresourceIndex + j];
 
@@ -1177,7 +1176,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             uploadResource->Unmap(0, nullptr);
 
             auto encodeInfo = encodeResourceCommands();
-            for (int mipIndex = 0; mipIndex < numMipMaps; ++mipIndex)
+            for (int mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
             {
                 // https://msdn.microsoft.com/en-us/library/windows/desktop/dn903862(v=vs.85).aspx
 

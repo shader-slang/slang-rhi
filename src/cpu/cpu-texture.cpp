@@ -135,7 +135,7 @@ Result TextureImpl::init(SubresourceData const* initData)
     for (int32_t axis = rank; axis < kMaxRank; ++axis)
         extents[axis] = 1;
 
-    int32_t levelCount = desc.numMipLevels;
+    int32_t levelCount = desc.mipLevelCount;
 
     m_mipLevels.resize(levelCount);
 
@@ -175,7 +175,7 @@ Result TextureImpl::init(SubresourceData const* initData)
         int32_t subresourceCounter = 0;
         for (int32_t arrayElementIndex = 0; arrayElementIndex < effectiveArrayElementCount; ++arrayElementIndex)
         {
-            for (int32_t mipLevel = 0; mipLevel < m_desc.numMipLevels; ++mipLevel)
+            for (int32_t mipLevel = 0; mipLevel < m_desc.mipLevelCount; ++mipLevel)
             {
                 int32_t subresourceIndex = subresourceCounter++;
 

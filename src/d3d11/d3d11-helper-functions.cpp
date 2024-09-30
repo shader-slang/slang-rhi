@@ -299,7 +299,7 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
             descOut.Texture1DArray.MostDetailedMip = 0;
-            descOut.Texture1DArray.MipLevels = textureDesc.numMipLevels;
+            descOut.Texture1DArray.MipLevels = textureDesc.mipLevelCount;
             descOut.Texture1DArray.FirstArraySlice = 0;
             descOut.Texture1DArray.ArraySize = textureDesc.arrayLength;
         }
@@ -307,7 +307,7 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
             descOut.Texture1D.MostDetailedMip = 0;
-            descOut.Texture1D.MipLevels = textureDesc.numMipLevels;
+            descOut.Texture1D.MipLevels = textureDesc.mipLevelCount;
         }
         break;
     case TextureType::Texture2D:
@@ -315,7 +315,7 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
             descOut.Texture2DArray.MostDetailedMip = 0;
-            descOut.Texture2DArray.MipLevels = textureDesc.numMipLevels;
+            descOut.Texture2DArray.MipLevels = textureDesc.mipLevelCount;
             descOut.Texture2DArray.FirstArraySlice = 0;
             descOut.Texture2DArray.ArraySize = textureDesc.arrayLength;
         }
@@ -323,20 +323,20 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
             descOut.Texture2D.MostDetailedMip = 0;
-            descOut.Texture2D.MipLevels = textureDesc.numMipLevels;
+            descOut.Texture2D.MipLevels = textureDesc.mipLevelCount;
         }
         break;
     case TextureType::Texture3D:
         descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
         descOut.Texture3D.MostDetailedMip = 0;
-        descOut.Texture3D.MipLevels = textureDesc.numMipLevels;
+        descOut.Texture3D.MipLevels = textureDesc.mipLevelCount;
         break;
     case TextureType::TextureCube:
         if (textureDesc.arrayLength > 1)
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
             descOut.TextureCubeArray.MostDetailedMip = 0;
-            descOut.TextureCubeArray.MipLevels = textureDesc.numMipLevels;
+            descOut.TextureCubeArray.MipLevels = textureDesc.mipLevelCount;
             descOut.TextureCubeArray.First2DArrayFace = 0;
             descOut.TextureCubeArray.NumCubes = textureDesc.arrayLength;
         }
@@ -344,7 +344,7 @@ void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_
         {
             descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
             descOut.TextureCube.MostDetailedMip = 0;
-            descOut.TextureCube.MipLevels = textureDesc.numMipLevels;
+            descOut.TextureCube.MipLevels = textureDesc.mipLevelCount;
         }
         break;
     }

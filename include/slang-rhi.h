@@ -683,7 +683,7 @@ struct TextureDesc
     /// Array length.
     GfxCount arrayLength = 0;
     /// Number of mip levels - if 0 will create all mip levels.
-    GfxCount numMipLevels = 0;
+    GfxCount mipLevelCount = 0;
     /// The resources format.
     Format format;
     /// Number of samples per pixel.

@@ -11,7 +11,7 @@ slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mipLevel)
     auto baseShape = texture->m_baseShape;
 
     dimensions.arrayElementCount = desc.arrayLength;
-    dimensions.numberOfLevels = desc.numMipLevels;
+    dimensions.numberOfLevels = desc.mipLevelCount;
     dimensions.shape = baseShape->rank;
     dimensions.width = desc.size.width;
     dimensions.height = desc.size.height;
@@ -57,8 +57,8 @@ void TextureViewImpl::SampleLevel(
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
     int32_t integerMipLevel = int32_t(level + 0.5f);
-    if (integerMipLevel >= desc.numMipLevels)
-        integerMipLevel = desc.numMipLevels - 1;
+    if (integerMipLevel >= desc.mipLevelCount)
+        integerMipLevel = desc.mipLevelCount - 1;
     if (integerMipLevel < 0)
         integerMipLevel = 0;
 
@@ -134,8 +134,8 @@ void* TextureViewImpl::_getTexelPtr(int32_t const* texelCoords)
     int32_t mipLevel = 0;
     if (!hasMipLevels)
         mipLevel = texelCoords[coordIndex++];
-    if (mipLevel >= desc.numMipLevels)
-        mipLevel = desc.numMipLevels - 1;
+    if (mipLevel >= desc.mipLevelCount)
+        mipLevel = desc.mipLevelCount - 1;
     if (mipLevel < 0)
         mipLevel = 0;
 

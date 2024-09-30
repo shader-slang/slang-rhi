@@ -84,7 +84,7 @@ public:
             if (textureState->subresourceStates.empty())
             {
                 textureState->subresourceStates.resize(
-                    texture->m_desc.numMipLevels * arrayLayerCount,
+                    texture->m_desc.mipLevelCount * arrayLayerCount,
                     textureState->state
                 );
                 textureState->state = ResourceState::Undefined;
@@ -95,7 +95,7 @@ public:
                      mipLevel < subresourceRange.mipLevel + subresourceRange.mipLevelCount;
                      mipLevel++)
                 {
-                    GfxIndex subresourceIndex = arrayLayer * texture->m_desc.numMipLevels + mipLevel;
+                    GfxIndex subresourceIndex = arrayLayer * texture->m_desc.mipLevelCount + mipLevel;
                     if (state != textureState->subresourceStates[subresourceIndex] ||
                         state == ResourceState::UnorderedAccess)
                     {

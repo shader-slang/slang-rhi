@@ -348,7 +348,7 @@ void ResourceCommandEncoderImpl::copyTexture(
         dstSubresource.layerCount = dstDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
         if (dstSubresource.layerCount == 0)
             dstSubresource.layerCount = 1;
-        dstSubresource.mipLevelCount = dstDesc.numMipLevels;
+        dstSubresource.mipLevelCount = dstDesc.mipLevelCount;
     }
     if (srcSubresource.layerCount == 0 && srcSubresource.mipLevelCount == 0)
     {
@@ -356,7 +356,7 @@ void ResourceCommandEncoderImpl::copyTexture(
         srcSubresource.layerCount = srcDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
         if (srcSubresource.layerCount == 0)
             srcSubresource.layerCount = 1;
-        srcSubresource.mipLevelCount = dstDesc.numMipLevels;
+        srcSubresource.mipLevelCount = dstDesc.mipLevelCount;
     }
     VkImageCopy region = {};
     region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(srcSubresource.aspectMask, srcTexture->m_vkformat);

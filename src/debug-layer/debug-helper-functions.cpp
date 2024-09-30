@@ -53,14 +53,14 @@ std::string createBufferLabel(const BufferDesc& desc)
 std::string createTextureLabel(const TextureDesc& desc)
 {
     return string::printf(
-        "Unnamed texture (type=%s, size=%dx%dx%d, arrayLength=%d, numMipLevels=%d, sampleCount=%d, sampleQuality=%d, "
+        "Unnamed texture (type=%s, size=%dx%dx%d, arrayLength=%d, mipLevelCount=%d, sampleCount=%d, sampleQuality=%d, "
         "format=%s, memoryType=%s, usage=%s, defaultState=%s)",
         enumToString(desc.type),
         desc.size.width,
         desc.size.height,
         desc.size.depth,
         desc.arrayLength,
-        desc.numMipLevels,
+        desc.mipLevelCount,
         desc.sampleCount,
         desc.sampleQuality,
         enumToString(desc.format),

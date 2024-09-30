@@ -13,8 +13,8 @@ TextureDesc fixupTextureDesc(const TextureDesc& desc)
     TextureDesc rs = desc;
     if (desc.arrayLength == 0)
         rs.arrayLength = 1;
-    if (desc.numMipLevels == 0)
-        rs.numMipLevels = calcNumMipLevels(desc.type, desc.size);
+    if (desc.mipLevelCount == 0)
+        rs.mipLevelCount = calcNumMipLevels(desc.type, desc.size);
     return rs;
 }
 

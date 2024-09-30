@@ -498,12 +498,12 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     if (initData)
     {
         int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
-        subRes.resize(srcDesc.numMipLevels * arrayLayerCount);
+        subRes.resize(srcDesc.mipLevelCount * arrayLayerCount);
         {
             int subresourceIndex = 0;
             for (int i = 0; i < arrayLayerCount; i++)
             {
-                for (int j = 0; j < srcDesc.numMipLevels; j++)
+                for (int j = 0; j < srcDesc.mipLevelCount; j++)
                 {
                     const int mipHeight = calcMipSize(srcDesc.size.height, j);
 
@@ -534,7 +534,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.CPUAccessFlags = accessFlags;
         desc.Format = format;
         desc.MiscFlags = 0;
-        desc.MipLevels = srcDesc.numMipLevels;
+        desc.MipLevels = srcDesc.mipLevelCount;
         desc.ArraySize = srcDesc.arrayLength;
         desc.Width = srcDesc.size.width;
         desc.Usage = D3D11_USAGE_DEFAULT;
@@ -553,7 +553,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.CPUAccessFlags = accessFlags;
         desc.Format = format;
         desc.MiscFlags = 0;
-        desc.MipLevels = srcDesc.numMipLevels;
+        desc.MipLevels = srcDesc.mipLevelCount;
         desc.ArraySize = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
 
         desc.Width = srcDesc.size.width;
@@ -580,7 +580,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         desc.CPUAccessFlags = accessFlags;
         desc.Format = format;
         desc.MiscFlags = 0;
-        desc.MipLevels = srcDesc.numMipLevels;
+        desc.MipLevels = srcDesc.mipLevelCount;
         desc.Width = srcDesc.size.width;
         desc.Height = srcDesc.size.height;
         desc.Depth = srcDesc.size.depth;

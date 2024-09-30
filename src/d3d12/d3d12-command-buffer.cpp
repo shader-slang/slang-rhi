@@ -88,7 +88,7 @@ void CommandBufferImpl::commitBarriers()
         }
         else
         {
-            uint32_t mipLevelCount = texture->m_desc.numMipLevels;
+            uint32_t mipLevelCount = texture->m_desc.mipLevelCount;
             uint32_t arrayLayerCount =
                 texture->m_desc.arrayLength * (texture->m_desc.type == TextureType::TextureCube ? 6 : 1);
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

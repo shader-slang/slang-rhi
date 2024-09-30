@@ -22,7 +22,7 @@ void SwapchainImpl::createSwapchainBufferImages()
     TextureDesc imageDesc = {};
     imageDesc.type = TextureType::Texture2D;
     imageDesc.arrayLength = 1;
-    imageDesc.numMipLevels = 1;
+    imageDesc.mipLevelCount = 1;
     imageDesc.size.width = m_desc.width;
     imageDesc.size.height = m_desc.height;
     imageDesc.size.depth = 1;

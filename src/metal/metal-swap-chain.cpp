@@ -30,7 +30,7 @@ void SwapchainImpl::createImages()
         imageDesc.size.width = m_desc.width;
         imageDesc.size.height = m_desc.height;
         imageDesc.size.depth = 1;
-        imageDesc.numMipLevels = 1;
+        imageDesc.mipLevelCount = 1;
         imageDesc.defaultState = ResourceState::Present;
         m_device->createTexture(imageDesc, nullptr, (ITexture**)m_images[i].writeRef());
     }
