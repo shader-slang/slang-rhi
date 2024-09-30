@@ -762,59 +762,6 @@ void ResourceCommandEncoderImpl::clearTexture(
     SLANG_RHI_UNIMPLEMENTED("clearTexture");
 }
 
-#if 0
-void ResourceCommandEncoderImpl::resolveResource(
-    ITexture* source,
-    ResourceState sourceState,
-    SubresourceRange sourceRange,
-    ITexture* dest,
-    ResourceState destState,
-    SubresourceRange destRange
-)
-{
-    TextureImpl* srcTexture = static_cast<TextureImpl*>(source);
-    auto srcExtent = srcTexture->m_desc.size;
-    auto dstTexture = static_cast<TextureImpl*>(dest);
-
-    auto srcImage = srcTexture->m_image;
-    auto dstImage = dstTexture->m_image;
-
-    auto srcImageLayout = VulkanUtil::getImageLayoutFromState(sourceState);
-    auto dstImageLayout = VulkanUtil::getImageLayoutFromState(destState);
-
-    for (GfxIndex layer = 0; layer < sourceRange.layerCount; ++layer)
-    {
-        for (GfxIndex mip = 0; mip < sourceRange.mipLevelCount; ++mip)
-        {
-            VkImageResolve region = {};
-            region.srcSubresource.aspectMask =
-                VulkanUtil::getAspectMask(sourceRange.aspectMask, srcTexture->m_vkformat);
-            region.srcSubresource.baseArrayLayer = layer + sourceRange.baseArrayLayer;
-            region.srcSubresource.layerCount = 1;
-            region.srcSubresource.mipLevel = mip + sourceRange.mipLevel;
-            region.srcOffset = {0, 0, 0};
-            region.dstSubresource.aspectMask = VulkanUtil::getAspectMask(destRange.aspectMask, dstTexture->m_vkformat);
-            region.dstSubresource.baseArrayLayer = layer + destRange.baseArrayLayer;
-            region.dstSubresource.layerCount = 1;
-            region.dstSubresource.mipLevel = mip + destRange.mipLevel;
-            region.dstOffset = {0, 0, 0};
-            region.extent = {(uint32_t)srcExtent.width, (uint32_t)srcExtent.height, (uint32_t)srcExtent.depth};
-
-            auto& api = m_commandBuffer->m_device->m_api;
-            api.vkCmdResolveImage(
-                m_commandBuffer->m_commandBuffer,
-                srcImage,
-                srcImageLayout,
-                dstImage,
-                dstImageLayout,
-                1,
-                &region
-            );
-        }
-    }
-}
-#endif
-
 void ResourceCommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
