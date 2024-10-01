@@ -1537,11 +1537,11 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITexture* dst,
-        SubresourceRange subResourceRange,
+        SubresourceRange subresourceRange,
         Offset3D offset,
         Extents extent,
-        SubresourceData* subResourceData,
-        GfxCount subResourceDataCount
+        SubresourceData* subresourceData,
+        GfxCount subresourceDataCount
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
