@@ -5,6 +5,7 @@
 #include "vk-texture-view.h"
 #include "vk-sampler.h"
 #include "vk-shader-object-layout.h"
+#include "vk-acceleration-structure.h"
 
 #include "../state-tracking.h"
 

@@ -7,6 +7,7 @@
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-transient-heap.h"
+#include "d3d12-acceleration-structure.h"
 
 namespace rhi::d3d12 {
 

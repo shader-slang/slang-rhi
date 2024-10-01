@@ -352,15 +352,51 @@ void DebugRayTracingCommandEncoder::endEncoding()
 }
 
 void DebugRayTracingCommandEncoder::buildAccelerationStructure(
-    const IAccelerationStructure::BuildDesc& desc,
+    const AccelerationStructureBuildDesc& desc,
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    BufferWithOffset scratchBuffer,
     GfxCount propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
     SLANG_RHI_API_FUNC;
-    IAccelerationStructure::BuildDesc innerDesc = desc;
-    innerDesc.dest = getInnerObj(innerDesc.dest);
-    innerDesc.source = getInnerObj(innerDesc.source);
+    AccelerationStructureBuildDesc innerDesc = desc;
+    for (GfxIndex i = 0; i < innerDesc.inputCount; ++i)
+    {
+        switch ((AccelerationStructureBuildInputType&)(innerDesc.inputs[i]))
+        {
+        case AccelerationStructureBuildInputType::Instances:
+        {
+            AccelerationStructureBuildInputInstances& instances =
+                (AccelerationStructureBuildInputInstances&)innerDesc.inputs[i];
+            instances.instanceBuffer = getInnerObj(instances.instanceBuffer);
+            break;
+        }
+        case AccelerationStructureBuildInputType::Triangles:
+        {
+            AccelerationStructureBuildInputTriangles& triangles =
+                (AccelerationStructureBuildInputTriangles&)innerDesc.inputs[i];
+            for (GfxIndex j = 0; j < triangles.vertexBufferCount; ++j)
+            {
+                triangles.vertexBuffers[j] = getInnerObj(triangles.vertexBuffers[j]);
+            }
+            triangles.indexBuffer = getInnerObj(triangles.indexBuffer);
+            triangles.preTransformBuffer = getInnerObj(triangles.preTransformBuffer);
+            break;
+        }
+        case AccelerationStructureBuildInputType::ProceduralPrimitives:
+        {
+            AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
+                (AccelerationStructureBuildInputProceduralPrimitives&)innerDesc.inputs[i];
+            for (GfxIndex j = 0; j < proceduralPrimitives.aabbBufferCount; ++j)
+            {
+                proceduralPrimitives.aabbBuffers[j] = getInnerObj(proceduralPrimitives.aabbBuffers[j]);
+            }
+            break;
+        }
+        }
+    }
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (size_t i = 0; i < propertyQueryCount; ++i)
     {
@@ -370,20 +406,27 @@ void DebugRayTracingCommandEncoder::buildAccelerationStructure(
     {
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
-    validateAccelerationStructureBuildInputs(desc.inputs);
-    baseObject->buildAccelerationStructure(innerDesc, propertyQueryCount, innerQueryDescs.data());
+    validateAccelerationStructureBuildDesc(desc);
+    baseObject->buildAccelerationStructure(
+        innerDesc,
+        getInnerObj(dst),
+        getInnerObj(src),
+        getInnerObj(scratchBuffer),
+        propertyQueryCount,
+        innerQueryDescs.data()
+    );
 }
 
 void DebugRayTracingCommandEncoder::copyAccelerationStructure(
-    IAccelerationStructure* dest,
+    IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
 )
 {
     SLANG_RHI_API_FUNC;
-    auto innerDest = getInnerObj(dest);
+    auto innerDst = getInnerObj(dst);
     auto innerSrc = getInnerObj(src);
-    baseObject->copyAccelerationStructure(innerDest, innerSrc, mode);
+    baseObject->copyAccelerationStructure(innerDst, innerSrc, mode);
 }
 
 void DebugRayTracingCommandEncoder::queryAccelerationStructureProperties(
@@ -416,16 +459,16 @@ void DebugRayTracingCommandEncoder::queryAccelerationStructureProperties(
     );
 }
 
-void DebugRayTracingCommandEncoder::serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source)
+void DebugRayTracingCommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
 {
     SLANG_RHI_API_FUNC;
-    baseObject->serializeAccelerationStructure(dest, getInnerObj(source));
+    baseObject->serializeAccelerationStructure(getInnerObj(dst), getInnerObj(src));
 }
 
-void DebugRayTracingCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source)
+void DebugRayTracingCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
 {
     SLANG_RHI_API_FUNC;
-    baseObject->deserializeAccelerationStructure(getInnerObj(dest), source);
+    baseObject->deserializeAccelerationStructure(getInnerObj(dst), getInnerObj(src));
 }
 
 Result DebugRayTracingCommandEncoder::bindPipeline(IPipeline* state, IShaderObject** outRootObject)

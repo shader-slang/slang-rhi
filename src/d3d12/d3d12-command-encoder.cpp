@@ -11,6 +11,7 @@
 #include "d3d12-transient-heap.h"
 #include "d3d12-vertex-layout.h"
 #include "d3d12-texture-view.h"
+#include "d3d12-acceleration-structure.h"
 
 #include "core/short_vector.h"
 
@@ -1158,7 +1159,10 @@ Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Of
 // RayTracingCommandEncoderImpl
 
 void RayTracingCommandEncoderImpl::buildAccelerationStructure(
-    const IAccelerationStructure::BuildDesc& desc,
+    const AccelerationStructureBuildDesc& desc,
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    BufferWithOffset scratchBuffer,
     GfxCount propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
@@ -1172,19 +1176,15 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
         );
         return;
     }
-    AccelerationStructureImpl* destASImpl = nullptr;
-    if (desc.dest)
-        destASImpl = static_cast<AccelerationStructureImpl*>(desc.dest);
-    AccelerationStructureImpl* srcASImpl = nullptr;
-    if (desc.source)
-        srcASImpl = static_cast<AccelerationStructureImpl*>(desc.source);
+    AccelerationStructureImpl* dstImpl = static_cast<AccelerationStructureImpl*>(dst);
+    AccelerationStructureImpl* srcImpl = static_cast<AccelerationStructureImpl*>(src);
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
-    buildDesc.DestAccelerationStructureData = destASImpl->getDeviceAddress();
-    buildDesc.SourceAccelerationStructureData = srcASImpl ? srcASImpl->getDeviceAddress() : 0;
-    buildDesc.ScratchAccelerationStructureData = desc.scratchData;
+    buildDesc.DestAccelerationStructureData = dstImpl->getDeviceAddress();
+    buildDesc.SourceAccelerationStructureData = srcImpl ? srcImpl->getDeviceAddress() : 0;
+    buildDesc.ScratchAccelerationStructureData = scratchBuffer.buffer->getDeviceAddress() + scratchBuffer.offset;
     D3DAccelerationStructureInputsBuilder builder;
-    builder.build(desc.inputs, getDebugCallback());
+    builder.build(desc, getDebugCallback());
     buildDesc.Inputs = builder.desc;
 
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
@@ -1194,13 +1194,13 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
 }
 
 void RayTracingCommandEncoderImpl::copyAccelerationStructure(
-    IAccelerationStructure* dest,
+    IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
 )
 {
-    auto destASImpl = static_cast<AccelerationStructureImpl*>(dest);
-    auto srcASImpl = static_cast<AccelerationStructureImpl*>(src);
+    auto dstImpl = static_cast<AccelerationStructureImpl*>(dst);
+    auto srcImpl = static_cast<AccelerationStructureImpl*>(src);
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE copyMode;
     switch (mode)
     {
@@ -1219,7 +1219,7 @@ void RayTracingCommandEncoderImpl::copyAccelerationStructure(
         return;
     }
     m_commandBuffer->m_cmdList4
-        ->CopyRaytracingAccelerationStructure(destASImpl->getDeviceAddress(), srcASImpl->getDeviceAddress(), copyMode);
+        ->CopyRaytracingAccelerationStructure(dstImpl->getDeviceAddress(), srcImpl->getDeviceAddress(), copyMode);
 }
 
 void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
@@ -1242,22 +1242,22 @@ void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
     );
 }
 
-void RayTracingCommandEncoderImpl::serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* src)
+void RayTracingCommandEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
 {
-    auto srcASImpl = static_cast<AccelerationStructureImpl*>(src);
+    auto srcImpl = static_cast<AccelerationStructureImpl*>(src);
     m_commandBuffer->m_cmdList4->CopyRaytracingAccelerationStructure(
-        dest,
-        srcASImpl->getDeviceAddress(),
+        static_cast<BufferImpl*>(dst.buffer)->getDeviceAddress() + dst.offset,
+        srcImpl->getDeviceAddress(),
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_SERIALIZE
     );
 }
 
-void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source)
+void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
 {
-    auto destASImpl = static_cast<AccelerationStructureImpl*>(dest);
+    auto dstImpl = static_cast<AccelerationStructureImpl*>(dst);
     m_commandBuffer->m_cmdList4->CopyRaytracingAccelerationStructure(
-        dest->getDeviceAddress(),
-        source,
+        dstImpl->getDeviceAddress(),
+        static_cast<BufferImpl*>(src.buffer)->getDeviceAddress() + src.offset,
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_DESERIALIZE
     );
 }

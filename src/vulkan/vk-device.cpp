@@ -13,6 +13,7 @@
 #include "vk-swap-chain.h"
 #include "vk-transient-heap.h"
 #include "vk-vertex-layout.h"
+#include "vk-acceleration-structure.h"
 
 #include "core/common.h"
 #include "core/short_vector.h"
@@ -1338,9 +1339,9 @@ Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlan
     return SLANG_OK;
 }
 
-Result DeviceImpl::getAccelerationStructurePrebuildInfo(
-    const IAccelerationStructure::BuildInputs& buildInputs,
-    IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+Result DeviceImpl::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
 )
 {
     if (!m_api.vkGetAccelerationStructureBuildSizesKHR)
@@ -1349,7 +1350,7 @@ Result DeviceImpl::getAccelerationStructurePrebuildInfo(
     }
     VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
     AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
-    SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(buildInputs, getDebugCallback()));
+    SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(desc, getDebugCallback()));
     m_api.vkGetAccelerationStructureBuildSizesKHR(
         m_api.m_device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
@@ -1357,51 +1358,38 @@ Result DeviceImpl::getAccelerationStructurePrebuildInfo(
         geomInfoBuilder.primitiveCounts.data(),
         &sizeInfo
     );
-    outPrebuildInfo->resultDataMaxSize = (Size)sizeInfo.accelerationStructureSize;
-    outPrebuildInfo->scratchDataSize = (Size)sizeInfo.buildScratchSize;
-    outPrebuildInfo->updateScratchDataSize = (Size)sizeInfo.updateScratchSize;
+    outSizes->accelerationStructureSize = (Size)sizeInfo.accelerationStructureSize;
+    outSizes->scratchSize = (Size)sizeInfo.buildScratchSize;
+    outSizes->updateScratchSize = (Size)sizeInfo.updateScratchSize;
     return SLANG_OK;
 }
 
 Result DeviceImpl::createAccelerationStructure(
-    const IAccelerationStructure::CreateDesc& desc,
-    IAccelerationStructure** outAS
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
 )
 {
     if (!m_api.vkCreateAccelerationStructureKHR)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    RefPtr<AccelerationStructureImpl> resultAS = new AccelerationStructureImpl(this, desc);
-    resultAS->m_offset = desc.offset;
-    resultAS->m_size = desc.size;
-    resultAS->m_buffer = static_cast<BufferImpl*>(desc.buffer);
-    resultAS->m_device = this;
+    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = desc.size;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::AccelerationStructure;
+    bufferDesc.defaultState = ResourceState::AccelerationStructure;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    result->m_device = this;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
-    createInfo.buffer = resultAS->m_buffer->m_buffer.m_buffer;
-    createInfo.offset = desc.offset;
+    createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
+    createInfo.offset = 0;
     createInfo.size = desc.size;
-    switch (desc.kind)
-    {
-    case IAccelerationStructure::Kind::BottomLevel:
-        createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-        break;
-    case IAccelerationStructure::Kind::TopLevel:
-        createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-        break;
-    default:
-        getDebugCallback()->handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "invalid value of IAccelerationStructure::Kind encountered in desc.kind"
-        );
-        return SLANG_E_INVALID_ARG;
-    }
-
+    createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
     SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &resultAS->m_vkHandle)
+        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle)
     );
-    returnComPtr(outAS, resultAS);
+    returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
 }
 

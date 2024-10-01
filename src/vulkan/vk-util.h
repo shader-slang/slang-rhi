@@ -138,11 +138,41 @@ public:
     };
     std::vector<uint32_t> primitiveCounts;
 
-    Result build(const IAccelerationStructure::BuildInputs& buildInputs, IDebugCallback* debugCallback);
+    Result build(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
 
 private:
-    std::vector<VkAccelerationStructureGeometryKHR> m_geometryInfos;
-    VkAccelerationStructureGeometryKHR m_vkInstanceInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
+    std::vector<VkAccelerationStructureGeometryKHR> geometries;
+
+    VkBuildAccelerationStructureFlagsKHR translateBuildFlags(AccelerationStructureBuildFlags flags)
+    {
+        VkBuildAccelerationStructureFlagsKHR result = VkBuildAccelerationStructureFlagsKHR(0);
+        if (is_set(flags, AccelerationStructureBuildFlags::AllowCompaction))
+        {
+            result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+        }
+        if (is_set(flags, AccelerationStructureBuildFlags::AllowUpdate))
+        {
+            result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        }
+        if (is_set(flags, AccelerationStructureBuildFlags::MinimizeMemory))
+        {
+            result |= VK_BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR;
+        }
+        if (is_set(flags, AccelerationStructureBuildFlags::PreferFastBuild))
+        {
+            result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
+        }
+        if (is_set(flags, AccelerationStructureBuildFlags::PreferFastTrace))
+        {
+            result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        }
+        return result;
+    }
+    VkGeometryFlagsKHR translateGeometryFlags(AccelerationStructureGeometryFlags flags)
+    {
+        VkGeometryFlagsKHR result = VkGeometryFlagsKHR(0);
+        return result;
+    }
 };
 
 } // namespace rhi::vk

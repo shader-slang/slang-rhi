@@ -217,29 +217,27 @@ Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& 
     return result;
 }
 
-Result DebugDevice::getAccelerationStructurePrebuildInfo(
-    const IAccelerationStructure::BuildInputs& buildInputs,
-    IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+Result DebugDevice::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
 )
 {
     SLANG_RHI_API_FUNC;
-    validateAccelerationStructureBuildInputs(buildInputs);
-    return baseObject->getAccelerationStructurePrebuildInfo(buildInputs, outPrebuildInfo);
+    validateAccelerationStructureBuildDesc(desc);
+    return baseObject->getAccelerationStructureSizes(desc, outSizes);
 }
 
 Result DebugDevice::createAccelerationStructure(
-    const IAccelerationStructure::CreateDesc& desc,
-    IAccelerationStructure** outAS
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
 )
 {
     SLANG_RHI_API_FUNC;
-    auto innerDesc = desc;
-    innerDesc.buffer = getInnerObj(innerDesc.buffer);
     RefPtr<DebugAccelerationStructure> outObject = new DebugAccelerationStructure();
-    auto result = baseObject->createAccelerationStructure(innerDesc, outObject->baseObject.writeRef());
+    auto result = baseObject->createAccelerationStructure(desc, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    returnComPtr(outAS, outObject);
+    returnComPtr(outAccelerationStructure, outObject);
     return SLANG_OK;
 }
 

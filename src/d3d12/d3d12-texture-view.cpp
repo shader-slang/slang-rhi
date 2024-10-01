@@ -208,26 +208,4 @@ Result ResourceViewImpl::getNativeHandle(NativeHandle* outHandle)
 }
 #endif
 
-#if SLANG_RHI_DXR
-
-AccelerationStructureImpl::~AccelerationStructureImpl()
-{
-    if (m_descriptor)
-        m_device->m_cpuViewHeap->free(m_descriptor);
-}
-
-DeviceAddress AccelerationStructureImpl::getDeviceAddress()
-{
-    return m_buffer->getDeviceAddress() + m_offset;
-}
-
-Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    outHandle->type = NativeHandleType::D3D12DeviceAddress;
-    outHandle->value = getDeviceAddress();
-    return SLANG_OK;
-}
-
-#endif // SLANG_RHI_DXR
-
 } // namespace rhi::d3d12

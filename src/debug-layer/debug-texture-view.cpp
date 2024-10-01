@@ -10,6 +10,13 @@ Result DebugTextureView::getNativeHandle(NativeHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
+AccelerationStructureHandle DebugAccelerationStructure::getHandle()
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->getHandle();
+}
+
 DeviceAddress DebugAccelerationStructure::getDeviceAddress()
 {
     SLANG_RHI_API_FUNC;

@@ -33,31 +33,4 @@ private:
     D3D12Descriptor m_dsv = {};
 };
 
-#if SLANG_RHI_DXR
-
-class AccelerationStructureImpl : public AccelerationStructure
-{
-public:
-    DeviceImpl* m_device;
-    RefPtr<BufferImpl> m_buffer;
-    uint64_t m_offset;
-    uint64_t m_size;
-    D3D12Descriptor m_descriptor;
-    ComPtr<ID3D12Device5> m_device5;
-
-public:
-    AccelerationStructureImpl(DeviceImpl* device, const IAccelerationStructure::CreateDesc& desc)
-        : AccelerationStructure(desc)
-        , m_device(device)
-    {
-    }
-
-    ~AccelerationStructureImpl();
-
-    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-};
-
-#endif // SLANG_RHI_DXR
-
 } // namespace rhi::d3d12

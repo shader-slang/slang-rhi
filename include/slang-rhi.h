@@ -479,17 +479,17 @@ static const BufferRange kEntireBuffer = BufferRange{0ull, ~0ull};
 enum class BufferUsage
 {
     None = 0,
-    VertexBuffer = 0x1,
-    IndexBuffer = 0x2,
-    ConstantBuffer = 0x4,
-    ShaderResource = 0x8,
-    UnorderedAccess = 0x10,
-    IndirectArgument = 0x20,
-    CopySource = 0x40,
-    CopyDestination = 0x80,
-    AccelerationStructure = 0x100,
-    AccelerationStructureBuildInput = 0x200,
-    ShaderTable = 0x400,
+    VertexBuffer = (1 << 0),
+    IndexBuffer = (1 << 1),
+    ConstantBuffer = (1 << 2),
+    ShaderResource = (1 << 3),
+    UnorderedAccess = (1 << 4),
+    IndirectArgument = (1 << 5),
+    CopySource = (1 << 6),
+    CopyDestination = (1 << 7),
+    AccelerationStructure = (1 << 8),
+    AccelerationStructureBuildInput = (1 << 9),
+    ShaderTable = (1 << 10),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 
@@ -546,17 +546,17 @@ struct ClearValue
 
 enum class TextureUsage
 {
-    None = 0x0,
-    ShaderResource = 0x1,
-    UnorderedAccess = 0x2,
-    RenderTarget = 0x4,
-    DepthRead = 0x8,
-    DepthWrite = 0x10,
-    Present = 0x20,
-    CopySource = 0x40,
-    CopyDestination = 0x80,
-    ResolveSource = 0x100,
-    ResolveDestination = 0x200,
+    None = 0,
+    ShaderResource = (1 << 0),
+    UnorderedAccess = (1 << 1),
+    RenderTarget = (1 << 2),
+    DepthRead = (1 << 3),
+    DepthWrite = (1 << 4),
+    Present = (1 << 5),
+    CopySource = (1 << 6),
+    CopyDestination = (1 << 7),
+    ResolveSource = (1 << 8),
+    ResolveDestination = (1 << 9),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 
@@ -772,163 +772,185 @@ public:
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() = 0;
 };
 
+struct BufferWithOffset
+{
+    IBuffer* buffer = nullptr;
+    Offset offset = 0;
+
+    BufferWithOffset() = default;
+    BufferWithOffset(IBuffer* buffer, Offset offset = 0)
+        : buffer(buffer)
+        , offset(offset)
+    {
+    }
+    BufferWithOffset(ComPtr<IBuffer> buffer, Offset offset = 0)
+        : buffer(buffer.get())
+        , offset(offset)
+    {
+    }
+
+    operator bool() const { return buffer != nullptr; }
+
+    DeviceAddress getDeviceAddress() const { return buffer->getDeviceAddress() + offset; }
+};
+
+/// Opaque unique handle to an acceleration structure.
+struct AccelerationStructureHandle
+{
+    uint64_t value = {};
+};
+
+enum class AccelerationStructureGeometryFlags
+{
+    None = 0,
+    Opaque = (1 << 0),
+    NoDuplicateAnyHitInvocation = (1 << 1)
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureGeometryFlags);
+
+// The enum values are kept consistent with D3D12_RAYTRACING_INSTANCE_FLAGS
+// and VkGeometryInstanceFlagBitsKHR.
+enum class AccelerationStructureInstanceFlags : uint32_t
+{
+    None = 0,
+    TriangleFacingCullDisable = (1 << 0),
+    TriangleFrontCounterClockwise = (1 << 1),
+    ForceOpaque = (1 << 2),
+    NoOpaque = (1 << 3)
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureInstanceFlags);
+
+// The layout of this struct is intentionally consistent with D3D12_RAYTRACING_INSTANCE_DESC
+// and VkAccelerationStructureInstanceKHR.
+struct AccelerationStructureInstanceDesc
+{
+    float transform[3][4];
+    uint32_t instanceID : 24;
+    uint32_t instanceMask : 8;
+    uint32_t instanceContributionToHitGroupIndex : 24;
+    AccelerationStructureInstanceFlags flags : 8;
+    AccelerationStructureHandle accelerationStructure;
+};
+
+struct AccelerationStructureAABB
+{
+    float minX;
+    float minY;
+    float minZ;
+    float maxX;
+    float maxY;
+    float maxZ;
+};
+
+enum class AccelerationStructureBuildInputType
+{
+    Instances,
+    Triangles,
+    ProceduralPrimitives,
+};
+
+struct AccelerationStructureBuildInput
+{};
+
+struct AccelerationStructureBuildInputInstances : public AccelerationStructureBuildInput
+{
+    const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Instances;
+
+    BufferWithOffset instanceBuffer;
+    Size instanceStride;
+    GfxCount instanceCount;
+};
+
+struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBuildInput
+{
+    const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Triangles;
+
+    /// List of vertex buffers, one for each motion step.
+    BufferWithOffset* vertexBuffers = nullptr;
+    GfxCount vertexBufferCount = 0;
+    Format vertexFormat = Format::Unknown;
+    GfxCount vertexCount = 0;
+    Size vertexStride = 0;
+
+    BufferWithOffset indexBuffer;
+    IndexFormat indexFormat = IndexFormat::UInt32;
+    GfxCount indexCount = 0;
+
+    /// Optional buffer containing 3x4 transform matrix applied to each vertex.
+    BufferWithOffset preTransformBuffer;
+
+    AccelerationStructureGeometryFlags flags;
+};
+
+struct AccelerationStructureBuildInputProceduralPrimitives : public AccelerationStructureBuildInput
+{
+    const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::ProceduralPrimitives;
+
+    /// List of AABB buffers, one for each motion step.
+    BufferWithOffset* aabbBuffers = nullptr;
+    GfxCount aabbBufferCount = 0;
+    Size aabbStride = 0;
+    GfxCount primitiveCount = 0;
+
+    AccelerationStructureGeometryFlags flags;
+};
+
+struct AccelerationStructureBuildInputMotionOptions
+{
+    GfxCount keyCount = 1;
+    float timeStart = 0.f;
+    float timeEnd = 1.f;
+};
+
+enum class AccelerationStructureBuildMode
+{
+    Build,
+    Update
+};
+
+enum class AccelerationStructureBuildFlags
+{
+    None = 0,
+    AllowUpdate = (1 << 0),
+    AllowCompaction = (1 << 1),
+    PreferFastTrace = (1 << 2),
+    PreferFastBuild = (1 << 3),
+    MinimizeMemory = (1 << 4)
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
+
+struct AccelerationStructureBuildDesc
+{
+    /// List of build inputs. All inputs must be of the same type.
+    AccelerationStructureBuildInput* inputs = nullptr;
+    GfxCount inputCount = 0;
+
+    AccelerationStructureBuildInputMotionOptions motionOptions;
+
+    AccelerationStructureBuildMode mode = AccelerationStructureBuildMode::Build;
+    AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
+};
+
+struct AccelerationStructureSizes
+{
+    Size accelerationStructureSize = 0;
+    Size scratchSize = 0;
+    Size updateScratchSize = 0;
+};
+
+struct AccelerationStructureDesc
+{
+    Size size;
+
+    const char* label = nullptr;
+};
+
 class IAccelerationStructure : public IResource
 {
     SLANG_COM_INTERFACE(0x38b056d5, 0x63de, 0x49ca, {0xa0, 0xed, 0x62, 0xa1, 0xbe, 0xc3, 0xd4, 0x65});
 
 public:
-    enum class Kind
-    {
-        TopLevel,
-        BottomLevel
-    };
-
-    struct BuildFlags
-    {
-        // The enum values are intentionally consistent with
-        // D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS.
-        enum Enum
-        {
-            None,
-            AllowUpdate = 1,
-            AllowCompaction = 2,
-            PreferFastTrace = 4,
-            PreferFastBuild = 8,
-            MinimizeMemory = 16,
-            PerformUpdate = 32
-        };
-    };
-
-    enum class GeometryType
-    {
-        Triangles,
-        ProcedurePrimitives
-    };
-
-    struct GeometryFlags
-    {
-        // The enum values are intentionally consistent with
-        // D3D12_RAYTRACING_GEOMETRY_FLAGS.
-        enum Enum
-        {
-            None,
-            Opaque = 1,
-            NoDuplicateAnyHitInvocation = 2
-        };
-    };
-
-    struct TriangleDesc
-    {
-        DeviceAddress transform3x4;
-        Format indexFormat;
-        Format vertexFormat;
-        GfxCount indexCount;
-        GfxCount vertexCount;
-        DeviceAddress indexData;
-        DeviceAddress vertexData;
-        Size vertexStride;
-    };
-
-    struct ProceduralAABB
-    {
-        float minX;
-        float minY;
-        float minZ;
-        float maxX;
-        float maxY;
-        float maxZ;
-    };
-
-    struct ProceduralAABBDesc
-    {
-        /// Number of AABBs.
-        GfxCount count;
-
-        /// Pointer to an array of `ProceduralAABB` values in device memory.
-        DeviceAddress data;
-
-        /// Stride in bytes of the AABB values array.
-        Size stride;
-    };
-
-    struct GeometryDesc
-    {
-        GeometryType type;
-        GeometryFlags::Enum flags;
-        union
-        {
-            TriangleDesc triangles;
-            ProceduralAABBDesc proceduralAABBs;
-        } content;
-    };
-
-    struct GeometryInstanceFlags
-    {
-        // The enum values are kept consistent with D3D12_RAYTRACING_INSTANCE_FLAGS
-        // and VkGeometryInstanceFlagBitsKHR.
-        enum Enum : uint32_t
-        {
-            None = 0,
-            TriangleFacingCullDisable = 0x00000001,
-            TriangleFrontCounterClockwise = 0x00000002,
-            ForceOpaque = 0x00000004,
-            NoOpaque = 0x00000008
-        };
-    };
-
-    // TODO: Should any of these be changed?
-    // The layout of this struct is intentionally consistent with D3D12_RAYTRACING_INSTANCE_DESC
-    // and VkAccelerationStructureInstanceKHR.
-    struct InstanceDesc
-    {
-        float transform[3][4];
-        uint32_t instanceID : 24;
-        uint32_t instanceMask : 8;
-        uint32_t instanceContributionToHitGroupIndex : 24;
-        uint32_t flags : 8; // Combination of GeometryInstanceFlags::Enum values.
-        DeviceAddress accelerationStructure;
-    };
-
-    struct PrebuildInfo
-    {
-        Size resultDataMaxSize;
-        Size scratchDataSize;
-        Size updateScratchDataSize;
-    };
-
-    struct BuildInputs
-    {
-        Kind kind;
-
-        BuildFlags::Enum flags;
-
-        GfxCount descCount;
-
-        /// Array of `InstanceDesc` values in device memory.
-        /// Used when `kind` is `TopLevel`.
-        DeviceAddress instanceDescs;
-
-        /// Array of `GeometryDesc` values.
-        /// Used when `kind` is `BottomLevel`.
-        const GeometryDesc* geometryDescs;
-    };
-
-    struct CreateDesc
-    {
-        Kind kind;
-        IBuffer* buffer;
-        Offset offset;
-        Size size;
-    };
-
-    struct BuildDesc
-    {
-        BuildInputs inputs;
-        IAccelerationStructure* source;
-        IAccelerationStructure* dest;
-        DeviceAddress scratchData;
-    };
-
+    virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
 };
 
@@ -1237,15 +1259,13 @@ struct ComputePipelineDesc
     void* d3d12RootSignatureOverride = nullptr;
 };
 
-struct RayTracingPipelineFlags
+enum class RayTracingPipelineFlags
 {
-    enum Enum : uint32_t
-    {
-        None = 0,
-        SkipTriangles = 1,
-        SkipProcedurals = 2,
-    };
+    None = 0,
+    SkipTriangles = (1 << 0),
+    SkipProcedurals = (1 << 1),
 };
+SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 
 struct HitGroupDesc
 {
@@ -1263,7 +1283,7 @@ struct RayTracingPipelineDesc
     int maxRecursion = 0;
     Size maxRayPayloadSize = 0;
     Size maxAttributeSizeInBytes = 8;
-    RayTracingPipelineFlags::Enum flags = RayTracingPipelineFlags::None;
+    RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
 };
 
 class IShaderTable : public ISlangUnknown
@@ -1362,15 +1382,6 @@ struct WindowHandle
     }
 };
 
-struct FaceMask
-{
-    enum Enum
-    {
-        Front = 1,
-        Back = 2
-    };
-};
-
 enum class LoadOp
 {
     Load,
@@ -1466,17 +1477,6 @@ struct SamplePosition
 {
     int8_t x;
     int8_t y;
-};
-
-struct ClearResourceViewFlags
-{
-    enum Enum : uint32_t
-    {
-        None = 0,
-        ClearDepth = 1,
-        ClearStencil = 2,
-        FloatClearValues = 4
-    };
 };
 
 class ICommandEncoder : public ISlangUnknown
@@ -1707,13 +1707,16 @@ class IRayTracingCommandEncoder : public ICommandEncoder
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
-        const IAccelerationStructure::BuildDesc& desc,
+        const AccelerationStructureBuildDesc& desc,
+        IAccelerationStructure* dst,
+        IAccelerationStructure* src,
+        BufferWithOffset scratchBuffer,
         GfxCount propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
-        IAccelerationStructure* dest,
+        IAccelerationStructure* dst,
         IAccelerationStructure* src,
         AccelerationStructureCopyMode mode
     ) = 0;
@@ -1726,10 +1729,10 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) = 0;
+    serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) = 0;
+    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) = 0;
     // Sets the current pipeline state along with a pre-created mutable root shader object.
@@ -2387,13 +2390,13 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructurePrebuildInfo(
-        const IAccelerationStructure::BuildInputs& buildInputs,
-        IAccelerationStructure::PrebuildInfo* outPrebuildInfo
-    ) = 0;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createAccelerationStructure(const IAccelerationStructure::CreateDesc& desc, IAccelerationStructure** outView) = 0;
+    getAccelerationStructureSizes(const AccelerationStructureBuildDesc& desc, AccelerationStructureSizes* outSizes) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
+        const AccelerationStructureDesc& desc,
+        IAccelerationStructure** outAccelerationStructure
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) = 0;
 

@@ -95,117 +95,102 @@ std::string createSamplerLabel(const SamplerDesc& desc)
     );
 }
 
-void validateAccelerationStructureBuildInputs(const IAccelerationStructure::BuildInputs& buildInputs)
+void validateAccelerationStructureBuildDesc(const AccelerationStructureBuildDesc& buildDesc)
 {
-    switch (buildInputs.kind)
+    if (buildDesc.inputCount < 1)
     {
-    case IAccelerationStructure::Kind::TopLevel:
-        if (!buildInputs.instanceDescs)
+        RHI_VALIDATION_WARNING("AccelerationStructureBuildDesc::inputCount must be >= 1.");
+    }
+
+    AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
+    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    {
+        if (type != (AccelerationStructureBuildInputType&)buildDesc.inputs[i])
         {
-            RHI_VALIDATION_WARNING(
-                "IAccelerationStructure::BuildInputs::instanceDescs is null "
-                "when creating a top-level acceleration structure."
-            );
+            RHI_VALIDATION_WARNING("AccelerationStructureBuildDesc::inputs must have the same type.");
         }
-        break;
-    case IAccelerationStructure::Kind::BottomLevel:
-        if (!buildInputs.geometryDescs)
+    }
+
+    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    {
+        switch ((AccelerationStructureBuildInputType&)buildDesc.inputs[i])
         {
-            RHI_VALIDATION_WARNING(
-                "IAccelerationStructure::BuildInputs::geometryDescs is null "
-                "when creating a bottom-level acceleration structure."
-            );
-        }
-        for (int i = 0; i < buildInputs.descCount; i++)
+        case AccelerationStructureBuildInputType::Instances:
         {
-            switch (buildInputs.geometryDescs[i].type)
+            const AccelerationStructureBuildInputInstances& instances =
+                (const AccelerationStructureBuildInputInstances&)buildDesc.inputs[i];
+            if (instances.instanceCount < 1)
             {
-            case IAccelerationStructure::GeometryType::Triangles:
-                switch (buildInputs.geometryDescs[i].content.triangles.vertexFormat)
+                RHI_VALIDATION_ERROR("instanceCount must be >= 1.");
+            }
+            if (!instances.instanceBuffer.buffer)
+            {
+                RHI_VALIDATION_ERROR("instanceBuffer cannot be null.");
+            }
+            if (instances.instanceStride == 0)
+            {
+                RHI_VALIDATION_ERROR("instanceStride cannot be 0.");
+            }
+            break;
+        }
+        case AccelerationStructureBuildInputType::Triangles:
+        {
+            const AccelerationStructureBuildInputTriangles& triangles =
+                (const AccelerationStructureBuildInputTriangles&)buildDesc.inputs[i];
+
+            switch (triangles.vertexFormat)
+            {
+            case Format::R32G32B32_FLOAT:
+            case Format::R32G32_FLOAT:
+            case Format::R16G16B16A16_FLOAT:
+            case Format::R16G16_FLOAT:
+            case Format::R16G16B16A16_SNORM:
+            case Format::R16G16_SNORM:
+                break;
+            default:
+                RHI_VALIDATION_ERROR(
+                    "Unsupported vertexFormat. Valid values are R32G32B32_FLOAT, R32G32_FLOAT, R16G16B16A16_FLOAT, "
+                    "R16G16_FLOAT, R16G16B16A16_SNORM or R16G16_SNORM."
+                );
+            }
+            if (triangles.indexCount)
+            {
+                switch (triangles.indexFormat)
                 {
-                case Format::R32G32B32_FLOAT:
-                case Format::R32G32_FLOAT:
-                case Format::R16G16B16A16_FLOAT:
-                case Format::R16G16_FLOAT:
-                case Format::R16G16B16A16_SNORM:
-                case Format::R16G16_SNORM:
+                case IndexFormat::UInt16:
+                case IndexFormat::UInt32:
                     break;
                 default:
-                    RHI_VALIDATION_ERROR(
-                        "Unsupported IAccelerationStructure::TriangleDesc::vertexFormat. Valid "
-                        "values are R32G32B32_FLOAT, R32G32_FLOAT, R16G16B16A16_FLOAT, R16G16_FLOAT, "
-                        "R16G16B16A16_SNORM or R16G16_SNORM."
-                    );
+                    RHI_VALIDATION_ERROR("Unsupported indexFormat. Valid values are Uint16 and Uint32.");
                 }
-                if (buildInputs.geometryDescs[i].content.triangles.indexCount)
+                if (!triangles.indexBuffer.buffer)
                 {
-                    switch (buildInputs.geometryDescs[i].content.triangles.indexFormat)
-                    {
-                    case Format::R32_UINT:
-                    case Format::R16_UINT:
-                        break;
-                    default:
-                        RHI_VALIDATION_ERROR(
-                            "Unsupported IAccelerationStructure::TriangleDesc::indexFormat. Valid "
-                            "values are Unknown, R32_UINT or R16_UINT."
-                        );
-                    }
-                    if (!buildInputs.geometryDescs[i].content.triangles.indexData)
-                    {
-                        RHI_VALIDATION_ERROR(
-                            "IAccelerationStructure::TriangleDesc::indexData cannot be null if "
-                            "IAccelerationStructure::TriangleDesc::indexCount is not 0"
-                        );
-                    }
+                    RHI_VALIDATION_ERROR("indexBuffer cannot be null if indexCount is not 0.");
                 }
-                if (buildInputs.geometryDescs[i].content.triangles.indexFormat != Format::Unknown)
-                {
-                    if (buildInputs.geometryDescs[i].content.triangles.indexCount == 0)
-                    {
-                        RHI_VALIDATION_ERROR(
-                            "IAccelerationStructure::TriangleDesc::indexCount cannot be 0 if "
-                            "IAccelerationStructure::TriangleDesc::indexFormat is not Format::Unknown"
-                        );
-                    }
-                    if (buildInputs.geometryDescs[i].content.triangles.indexData == 0)
-                    {
-                        RHI_VALIDATION_ERROR(
-                            "IAccelerationStructure::TriangleDesc::indexData cannot be null if "
-                            "IAccelerationStructure::TriangleDesc::indexFormat is not "
-                            "Format::Unknown"
-                        );
-                    }
-                }
-                else
-                {
-                    if (buildInputs.geometryDescs[i].content.triangles.indexCount != 0)
-                    {
-                        RHI_VALIDATION_ERROR(
-                            "IAccelerationStructure::TriangleDesc::indexCount must be 0 if "
-                            "IAccelerationStructure::TriangleDesc::indexFormat is "
-                            "Format::Unknown"
-                        );
-                    }
-                    if (buildInputs.geometryDescs[i].content.triangles.indexData != 0)
-                    {
-                        RHI_VALIDATION_ERROR(
-                            "IAccelerationStructure::TriangleDesc::indexData must be null if "
-                            "IAccelerationStructure::TriangleDesc::indexFormat is "
-                            "Format::Unknown"
-                        );
-                    }
-                }
-                if (!buildInputs.geometryDescs[i].content.triangles.vertexData)
-                {
-                    RHI_VALIDATION_ERROR("IAccelerationStructure::TriangleDesc::vertexData cannot be null.");
-                }
-                break;
             }
+            if (triangles.vertexBufferCount < 1)
+            {
+                RHI_VALIDATION_ERROR("vertexBufferCount cannot be <= 1.");
+            }
+            for (GfxIndex j = 0; j < triangles.vertexBufferCount; ++j)
+            {
+                if (!triangles.vertexBuffers[j].buffer)
+                {
+                    RHI_VALIDATION_ERROR("vertexBuffers cannot be null.");
+                }
+            }
+            break;
         }
-        break;
-    default:
-        RHI_VALIDATION_ERROR("Invalid value of IAccelerationStructure::Kind.");
-        break;
+        case AccelerationStructureBuildInputType::ProceduralPrimitives:
+        {
+            const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
+                (const AccelerationStructureBuildInputProceduralPrimitives&)buildDesc.inputs[i];
+            break;
+        }
+        default:
+            RHI_VALIDATION_ERROR("Invalid AccelerationStructureBuildInputType.");
+            break;
+        }
     }
 }
 
