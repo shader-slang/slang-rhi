@@ -302,14 +302,17 @@ public:
     IAccelerationStructure* getInterface(const Guid& guid);
 
 public:
-    AccelerationStructure(const CreateDesc& desc)
+    AccelerationStructure(const AccelerationStructureDesc& desc)
         : m_desc(desc)
     {
-        // m_descHolder.holdString(m_desc.label);
+        m_descHolder.holdString(m_desc.label);
     }
 
+    virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
+
 public:
-    CreateDesc m_desc;
+    AccelerationStructureDesc m_desc;
+    StructHolder m_descHolder;
 };
 
 typedef uint32_t ShaderComponentID;
@@ -1142,16 +1145,16 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructurePrebuildInfo(
-        const IAccelerationStructure::BuildInputs& buildInputs,
-        IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
+        const AccelerationStructureBuildDesc& desc,
+        AccelerationStructureSizes* outSizes
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
-        const IAccelerationStructure::CreateDesc& desc,
-        IAccelerationStructure** outView
+        const AccelerationStructureDesc& desc,
+        IAccelerationStructure** outAccelerationStructure
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms

@@ -390,22 +390,6 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
     return SLANG_OK;
 }
 
-Result DeviceImpl::getAccelerationStructurePrebuildInfo(
-    const IAccelerationStructure::BuildInputs& buildInputs,
-    IAccelerationStructure::PrebuildInfo* outPrebuildInfo
-)
-{
-    return SLANG_E_NOT_IMPLEMENTED;
-}
-
-Result DeviceImpl::createAccelerationStructure(
-    const IAccelerationStructure::CreateDesc& desc,
-    IAccelerationStructure** outAS
-)
-{
-    return SLANG_E_NOT_IMPLEMENTED;
-}
-
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
 {
     return SLANG_E_NOT_IMPLEMENTED;

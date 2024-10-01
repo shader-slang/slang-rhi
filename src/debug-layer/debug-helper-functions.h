@@ -172,10 +172,15 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(AccelerationStructure)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderTable)
 
+inline BufferWithOffset getInnerObj(BufferWithOffset buffer)
+{
+    return BufferWithOffset{getInnerObj(buffer.buffer), buffer.offset};
+}
+
 std::string createBufferLabel(const BufferDesc& desc);
 std::string createTextureLabel(const TextureDesc& desc);
 std::string createSamplerLabel(const SamplerDesc& desc);
 
-void validateAccelerationStructureBuildInputs(const IAccelerationStructure::BuildInputs& buildInputs);
+void validateAccelerationStructureBuildDesc(const AccelerationStructureBuildDesc& buildDesc);
 
 } // namespace rhi::debug

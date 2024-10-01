@@ -44,12 +44,12 @@ VkAttachmentStoreOp translateStoreOp(StoreOp storeOp)
     }
 }
 
-VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags::Enum flags)
+VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags flags)
 {
     VkPipelineCreateFlags vkFlags = 0;
-    if (flags & RayTracingPipelineFlags::Enum::SkipTriangles)
+    if (is_set(flags, RayTracingPipelineFlags::SkipTriangles))
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR;
-    if (flags & RayTracingPipelineFlags::Enum::SkipProcedurals)
+    if (is_set(flags, RayTracingPipelineFlags::SkipProcedurals))
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR;
 
     return vkFlags;

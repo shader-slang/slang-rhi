@@ -85,16 +85,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructurePrebuildInfo(
-        const IAccelerationStructure::BuildInputs& buildInputs,
-        IAccelerationStructure::PrebuildInfo* outPrebuildInfo
-    ) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
-        const IAccelerationStructure::CreateDesc& desc,
-        IAccelerationStructure** outView
-    ) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
 

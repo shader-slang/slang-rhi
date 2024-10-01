@@ -387,9 +387,9 @@ Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
 
     D3D12_RAYTRACING_PIPELINE_CONFIG1 pipelineConfig = {};
     pipelineConfig.MaxTraceRecursionDepth = desc.rayTracing.maxRecursion;
-    if (desc.rayTracing.flags & RayTracingPipelineFlags::SkipTriangles)
+    if (is_set(desc.rayTracing.flags, RayTracingPipelineFlags::SkipTriangles))
         pipelineConfig.Flags |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES;
-    if (desc.rayTracing.flags & RayTracingPipelineFlags::SkipProcedurals)
+    if (is_set(desc.rayTracing.flags, RayTracingPipelineFlags::SkipProcedurals))
         pipelineConfig.Flags |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
 
     D3D12_STATE_SUBOBJECT pipelineConfigSubobject = {};

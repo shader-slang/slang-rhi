@@ -42,13 +42,13 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructurePrebuildInfo(
-        const IAccelerationStructure::BuildInputs& buildInputs,
-        IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
+        const AccelerationStructureBuildDesc& desc,
+        AccelerationStructureSizes* outSizes
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
-        const IAccelerationStructure::CreateDesc& desc,
-        IAccelerationStructure** outView
+        const AccelerationStructureDesc& desc,
+        IAccelerationStructure** outAccelerationStructure
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain) override;

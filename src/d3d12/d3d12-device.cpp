@@ -12,6 +12,7 @@
 #include "d3d12-shader-table.h"
 #include "d3d12-swap-chain.h"
 #include "d3d12-vertex-layout.h"
+#include "d3d12-acceleration-structure.h"
 
 #include "core/short_vector.h"
 #include "core/string.h"
@@ -1715,48 +1716,51 @@ Result DeviceImpl::waitForFences(
     return result == WAIT_FAILED ? SLANG_FAIL : SLANG_OK;
 }
 
-Result DeviceImpl::getAccelerationStructurePrebuildInfo(
-    const IAccelerationStructure::BuildInputs& buildInputs,
-    IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+Result DeviceImpl::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
 )
 {
     if (!m_device5)
         return SLANG_E_NOT_AVAILABLE;
 
     D3DAccelerationStructureInputsBuilder inputsBuilder;
-    SLANG_RETURN_ON_FAIL(inputsBuilder.build(buildInputs, getDebugCallback()));
+    SLANG_RETURN_ON_FAIL(inputsBuilder.build(desc, getDebugCallback()));
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
     m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&inputsBuilder.desc, &prebuildInfo);
 
-    outPrebuildInfo->resultDataMaxSize = (Size)prebuildInfo.ResultDataMaxSizeInBytes;
-    outPrebuildInfo->scratchDataSize = (Size)prebuildInfo.ScratchDataSizeInBytes;
-    outPrebuildInfo->updateScratchDataSize = (Size)prebuildInfo.UpdateScratchDataSizeInBytes;
+    outSizes->accelerationStructureSize = (Size)prebuildInfo.ResultDataMaxSizeInBytes;
+    outSizes->scratchSize = (Size)prebuildInfo.ScratchDataSizeInBytes;
+    outSizes->updateScratchSize = (Size)prebuildInfo.UpdateScratchDataSizeInBytes;
     return SLANG_OK;
 }
 
 Result DeviceImpl::createAccelerationStructure(
-    const IAccelerationStructure::CreateDesc& desc,
-    IAccelerationStructure** outAS
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
 )
 {
 #if SLANG_RHI_DXR
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = desc.size;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::AccelerationStructure;
+    bufferDesc.defaultState = ResourceState::AccelerationStructure;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     result->m_device5 = m_device5;
-    result->m_buffer = static_cast<BufferImpl*>(desc.buffer);
-    result->m_size = desc.size;
-    result->m_offset = desc.offset;
     SLANG_RETURN_ON_FAIL(m_cpuViewHeap->allocate(&result->m_descriptor));
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.RaytracingAccelerationStructure.Location = result->m_buffer->getDeviceAddress() + desc.offset;
+    srvDesc.RaytracingAccelerationStructure.Location = result->m_buffer->getDeviceAddress();
     m_device->CreateShaderResourceView(nullptr, &srvDesc, result->m_descriptor.cpuHandle);
-    returnComPtr(outAS, result);
+    returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
 #else
-    *outAS = nullptr;
+    *outAccelerationStructure = nullptr;
     return SLANG_FAIL;
 #endif
 }

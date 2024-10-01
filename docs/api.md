@@ -34,7 +34,7 @@
 | `readTexture`                             | :x: | yes  | yes   | yes   | yes    | yes     | yes  |
 | `readBuffer`                              | :x: | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createQueryPool`                         | yes | yes  | yes   | yes   | yes    | yes     | :x:  |
-| `getAccelerationStructurePrebuildInfo`    | :x: | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
+| `getAccelerationStructureSizes`           | :x: | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createAccelerationStructure`             | :x: | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createFence`                             | :x: | :x:  | :x:   | yes   | yes    | yes     | :x:  |
 | `waitForFences`                           | :x: | :x:  | :x:   | yes   | yes    | yes     | :x:  |

@@ -11,6 +11,7 @@
 #include "vk-transient-heap.h"
 #include "vk-device.h"
 #include "vk-api.h"
+#include "vk-acceleration-structure.h"
 
 #include "core/short_vector.h"
 
@@ -1274,8 +1275,8 @@ void RayTracingCommandEncoderImpl::_memoryBarrier(
 
         auto asImpl = static_cast<AccelerationStructureImpl*>(structures[i]);
         memBarriers[i].buffer = asImpl->m_buffer->m_buffer.m_buffer;
-        memBarriers[i].offset = asImpl->m_offset;
-        memBarriers[i].size = asImpl->m_size;
+        memBarriers[i].offset = 0;
+        memBarriers[i].size = asImpl->m_buffer->m_desc.size;
     }
     m_commandBuffer->m_device->m_api.vkCmdPipelineBarrier(
         m_commandBuffer->m_commandBuffer,
@@ -1347,26 +1348,24 @@ void RayTracingCommandEncoderImpl::_queryAccelerationStructureProperties(
 }
 
 void RayTracingCommandEncoderImpl::buildAccelerationStructure(
-    const IAccelerationStructure::BuildDesc& desc,
+    const AccelerationStructureBuildDesc& desc,
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    BufferWithOffset scratchBuffer,
     GfxCount propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
     AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
-    if (geomInfoBuilder.build(desc.inputs, getDebugCallback()) != SLANG_OK)
+    if (geomInfoBuilder.build(desc, getDebugCallback()) != SLANG_OK)
         return;
 
-    if (desc.dest)
+    geomInfoBuilder.buildInfo.dstAccelerationStructure = static_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
+    if (src)
     {
-        geomInfoBuilder.buildInfo.dstAccelerationStructure =
-            static_cast<AccelerationStructureImpl*>(desc.dest)->m_vkHandle;
+        geomInfoBuilder.buildInfo.srcAccelerationStructure = static_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
     }
-    if (desc.source)
-    {
-        geomInfoBuilder.buildInfo.srcAccelerationStructure =
-            static_cast<AccelerationStructureImpl*>(desc.source)->m_vkHandle;
-    }
-    geomInfoBuilder.buildInfo.scratchData.deviceAddress = desc.scratchData;
+    geomInfoBuilder.buildInfo.scratchData.deviceAddress = scratchBuffer.getDeviceAddress();
 
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
     rangeInfos.resize(geomInfoBuilder.primitiveCounts.size());
@@ -1389,20 +1388,20 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
 
     if (propertyQueryCount)
     {
-        _memoryBarrier(1, &desc.dest, AccessFlag::Write, AccessFlag::Read);
-        _queryAccelerationStructureProperties(1, &desc.dest, propertyQueryCount, queryDescs);
+        _memoryBarrier(1, &dst, AccessFlag::Write, AccessFlag::Read);
+        _queryAccelerationStructureProperties(1, &dst, propertyQueryCount, queryDescs);
     }
 }
 
 void RayTracingCommandEncoderImpl::copyAccelerationStructure(
-    IAccelerationStructure* dest,
+    IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
 )
 {
     VkCopyAccelerationStructureInfoKHR copyInfo = {VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
     copyInfo.src = static_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
-    copyInfo.dst = static_cast<AccelerationStructureImpl*>(dest)->m_vkHandle;
+    copyInfo.dst = static_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
     switch (mode)
     {
     case AccelerationStructureCopyMode::Clone:
@@ -1432,13 +1431,13 @@ void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
     _queryAccelerationStructureProperties(accelerationStructureCount, accelerationStructures, queryCount, queryDescs);
 }
 
-void RayTracingCommandEncoderImpl::serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source)
+void RayTracingCommandEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
 {
     VkCopyAccelerationStructureToMemoryInfoKHR copyInfo = {
         VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR
     };
-    copyInfo.src = static_cast<AccelerationStructureImpl*>(source)->m_vkHandle;
-    copyInfo.dst.deviceAddress = dest;
+    copyInfo.src = static_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
+    copyInfo.dst.deviceAddress = dst.getDeviceAddress();
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR;
     m_commandBuffer->m_device->m_api.vkCmdCopyAccelerationStructureToMemoryKHR(
         m_commandBuffer->m_commandBuffer,
@@ -1446,13 +1445,13 @@ void RayTracingCommandEncoderImpl::serializeAccelerationStructure(DeviceAddress 
     );
 }
 
-void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source)
+void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
 {
     VkCopyMemoryToAccelerationStructureInfoKHR copyInfo = {
         VK_STRUCTURE_TYPE_COPY_MEMORY_TO_ACCELERATION_STRUCTURE_INFO_KHR
     };
-    copyInfo.src.deviceAddress = source;
-    copyInfo.dst = static_cast<AccelerationStructureImpl*>(dest)->m_vkHandle;
+    copyInfo.src.deviceAddress = src.getDeviceAddress();
+    copyInfo.dst = static_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
     m_commandBuffer->m_device->m_api.vkCmdCopyMemoryToAccelerationStructureKHR(
         m_commandBuffer->m_commandBuffer,

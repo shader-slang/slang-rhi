@@ -171,6 +171,11 @@ IAccelerationStructure* AccelerationStructure::getInterface(const Guid& guid)
     return nullptr;
 }
 
+AccelerationStructureHandle AccelerationStructure::getHandle()
+{
+    return {};
+}
+
 bool _doesValueFitInExistentialPayload(
     slang::TypeLayoutReflection* concreteTypeLayout,
     slang::TypeLayoutReflection* existentialTypeLayout
@@ -510,23 +515,23 @@ Result Device::createMutableShaderObjectFromTypeLayout(
     return createMutableShaderObject(shaderObjectLayout, outObject);
 }
 
-Result Device::getAccelerationStructurePrebuildInfo(
-    const IAccelerationStructure::BuildInputs& buildInputs,
-    IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+Result Device::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
 )
 {
-    SLANG_UNUSED(buildInputs);
-    SLANG_UNUSED(outPrebuildInfo);
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outSizes);
     return SLANG_E_NOT_AVAILABLE;
 }
 
 Result Device::createAccelerationStructure(
-    const IAccelerationStructure::CreateDesc& desc,
-    IAccelerationStructure** outView
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
 )
 {
     SLANG_UNUSED(desc);
-    SLANG_UNUSED(outView);
+    SLANG_UNUSED(outAccelerationStructure);
     return SLANG_E_NOT_AVAILABLE;
 }
 

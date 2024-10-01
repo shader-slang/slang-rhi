@@ -578,7 +578,10 @@ void RayTracingCommandEncoderImpl::endEncoding()
 }
 
 void RayTracingCommandEncoderImpl::buildAccelerationStructure(
-    const IAccelerationStructure::BuildDesc& desc,
+    const AccelerationStructureBuildDesc& desc,
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    BufferWithOffset scratchBuffer,
     GfxCount propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
@@ -586,7 +589,7 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
 }
 
 void RayTracingCommandEncoderImpl::copyAccelerationStructure(
-    IAccelerationStructure* dest,
+    IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
 )
@@ -602,9 +605,9 @@ void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
 {
 }
 
-void RayTracingCommandEncoderImpl::serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) {}
+void RayTracingCommandEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) {}
 
-void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source)
+void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
 {
 }
 

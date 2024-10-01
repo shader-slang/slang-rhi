@@ -269,12 +269,15 @@ public:
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
-        const IAccelerationStructure::BuildDesc& desc,
+        const AccelerationStructureBuildDesc& desc,
+        IAccelerationStructure* dst,
+        IAccelerationStructure* src,
+        BufferWithOffset scratchBuffer,
         GfxCount propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
-        IAccelerationStructure* dest,
+        IAccelerationStructure* dst,
         IAccelerationStructure* src,
         AccelerationStructureCopyMode mode
     ) override;
@@ -285,9 +288,9 @@ public:
         AccelerationStructureQueryDesc* queryDescs
     ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    serializeAccelerationStructure(DeviceAddress dest, IAccelerationStructure* source) override;
+    serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    deserializeAccelerationStructure(IAccelerationStructure* dest, DeviceAddress source) override;
+    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override

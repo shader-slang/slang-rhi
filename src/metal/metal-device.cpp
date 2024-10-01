@@ -230,9 +230,9 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
     return SLANG_OK;
 }
 
-Result DeviceImpl::getAccelerationStructurePrebuildInfo(
-    const IAccelerationStructure::BuildInputs& buildInputs,
-    IAccelerationStructure::PrebuildInfo* outPrebuildInfo
+Result DeviceImpl::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
 )
 {
     AUTORELEASEPOOL
@@ -241,8 +241,8 @@ Result DeviceImpl::getAccelerationStructurePrebuildInfo(
 }
 
 Result DeviceImpl::createAccelerationStructure(
-    const IAccelerationStructure::CreateDesc& desc,
-    IAccelerationStructure** outAS
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
 )
 {
     AUTORELEASEPOOL
