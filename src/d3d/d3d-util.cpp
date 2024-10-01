@@ -1165,9 +1165,18 @@ Result D3DAccelerationStructureInputsBuilder::build(
             geomDesc.Triangles.VertexBuffer.StrideInBytes = triangles.vertexStride;
             geomDesc.Triangles.VertexCount = triangles.vertexCount;
             geomDesc.Triangles.VertexFormat = D3DUtil::getMapFormat(triangles.vertexFormat);
-            geomDesc.Triangles.IndexBuffer = triangles.indexBuffer.getDeviceAddress();
-            geomDesc.Triangles.IndexCount = triangles.indexCount;
-            geomDesc.Triangles.IndexFormat = D3DUtil::getIndexFormat(triangles.indexFormat);
+            if (triangles.indexBuffer)
+            {
+                geomDesc.Triangles.IndexBuffer = triangles.indexBuffer.getDeviceAddress();
+                geomDesc.Triangles.IndexCount = triangles.indexCount;
+                geomDesc.Triangles.IndexFormat = D3DUtil::getIndexFormat(triangles.indexFormat);
+            }
+            else
+            {
+                geomDesc.Triangles.IndexBuffer = 0;
+                geomDesc.Triangles.IndexCount = 0;
+                geomDesc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+            }
             geomDesc.Triangles.Transform3x4 =
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
         }

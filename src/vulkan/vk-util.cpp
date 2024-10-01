@@ -680,6 +680,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
         }
     }
 
+    buildInfo.dstAccelerationStructure = VK_NULL_HANDLE;
     switch (buildDesc.mode)
     {
     case AccelerationStructureBuildMode::Build:
@@ -740,9 +741,17 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
             geometry.geometry.triangles.vertexData.deviceAddress = triangles.vertexBuffers[0].getDeviceAddress();
             geometry.geometry.triangles.vertexStride = triangles.vertexStride;
             geometry.geometry.triangles.maxVertex = triangles.vertexCount - 1;
-            geometry.geometry.triangles.indexType =
-                triangles.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
-            geometry.geometry.triangles.indexData.deviceAddress = triangles.indexBuffer.getDeviceAddress();
+            if (triangles.indexBuffer)
+            {
+                geometry.geometry.triangles.indexType =
+                    triangles.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+                geometry.geometry.triangles.indexData.deviceAddress = triangles.indexBuffer.getDeviceAddress();
+            }
+            else
+            {
+                geometry.geometry.triangles.indexType = VK_INDEX_TYPE_NONE_KHR;
+                geometry.geometry.triangles.indexData.deviceAddress = 0;
+            }
             geometry.geometry.triangles.transformData.deviceAddress =
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
 
@@ -780,139 +789,6 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
         return SLANG_E_INVALID_ARG;
     }
 
-    buildInfo.dstAccelerationStructure = VK_NULL_HANDLE;
-
-
-#if 0
-    switch (buildInputs.kind)
-    {
-    case IAccelerationStructure::Kind::BottomLevel:
-        buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-        break;
-    case IAccelerationStructure::Kind::TopLevel:
-        buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-        break;
-    default:
-        debugCallback->handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "invalid value of IAccelerationStructure::Kind encountered in buildInputs.kind"
-        );
-        return SLANG_E_INVALID_ARG;
-    }
-    if (buildInputs.flags & IAccelerationStructure::BuildFlags::Enum::PerformUpdate)
-    {
-        buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
-    }
-    else
-    {
-        buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
-    }
-    if (buildInputs.flags & IAccelerationStructure::BuildFlags::Enum::AllowCompaction)
-    {
-        buildInfo.flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
-    }
-    if (buildInputs.flags & IAccelerationStructure::BuildFlags::Enum::AllowUpdate)
-    {
-        buildInfo.flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
-    }
-    if (buildInputs.flags & IAccelerationStructure::BuildFlags::Enum::MinimizeMemory)
-    {
-        buildInfo.flags |= VK_BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR;
-    }
-    if (buildInputs.flags & IAccelerationStructure::BuildFlags::Enum::PreferFastBuild)
-    {
-        buildInfo.flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
-    }
-    if (buildInputs.flags & IAccelerationStructure::BuildFlags::Enum::PreferFastTrace)
-    {
-        buildInfo.flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
-    }
-    if (buildInputs.kind == IAccelerationStructure::Kind::BottomLevel)
-    {
-        m_geometryInfos.resize(buildInputs.descCount);
-        primitiveCounts.resize(buildInputs.descCount);
-        memset(m_geometryInfos.data(), 0, sizeof(VkAccelerationStructureGeometryKHR) * buildInputs.descCount);
-        for (int i = 0; i < buildInputs.descCount; i++)
-        {
-            auto& geomDesc = buildInputs.geometryDescs[i];
-            m_geometryInfos[i].sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-            if (geomDesc.flags & IAccelerationStructure::GeometryFlags::NoDuplicateAnyHitInvocation)
-            {
-                m_geometryInfos[i].flags |= VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
-            }
-            else if (geomDesc.flags & IAccelerationStructure::GeometryFlags::Opaque)
-            {
-                m_geometryInfos[i].flags |= VK_GEOMETRY_OPAQUE_BIT_KHR;
-            }
-            auto& vkGeomData = m_geometryInfos[i].geometry;
-            switch (geomDesc.type)
-            {
-            case IAccelerationStructure::GeometryType::Triangles:
-                m_geometryInfos[i].geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
-                vkGeomData.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
-                vkGeomData.triangles.vertexFormat = VulkanUtil::getVkFormat(geomDesc.content.triangles.vertexFormat);
-                vkGeomData.triangles.vertexData.deviceAddress = geomDesc.content.triangles.vertexData;
-                vkGeomData.triangles.vertexStride = geomDesc.content.triangles.vertexStride;
-                vkGeomData.triangles.maxVertex = geomDesc.content.triangles.vertexCount - 1;
-                switch (geomDesc.content.triangles.indexFormat)
-                {
-                case Format::R32_UINT:
-                    vkGeomData.triangles.indexType = VK_INDEX_TYPE_UINT32;
-                    break;
-                case Format::R16_UINT:
-                    vkGeomData.triangles.indexType = VK_INDEX_TYPE_UINT16;
-                    break;
-                case Format::Unknown:
-                    vkGeomData.triangles.indexType = VK_INDEX_TYPE_NONE_KHR;
-                    break;
-                default:
-                    debugCallback->handleMessage(
-                        DebugMessageType::Error,
-                        DebugMessageSource::Layer,
-                        "unsupported value of Format encountered in "
-                        "GeometryDesc::content.triangles.indexFormat"
-                    );
-                    return SLANG_E_INVALID_ARG;
-                }
-                vkGeomData.triangles.indexData.deviceAddress = geomDesc.content.triangles.indexData;
-                vkGeomData.triangles.transformData.deviceAddress = geomDesc.content.triangles.transform3x4;
-                primitiveCounts[i] =
-                    std::max(geomDesc.content.triangles.vertexCount, geomDesc.content.triangles.indexCount) / 3;
-                break;
-            case IAccelerationStructure::GeometryType::ProcedurePrimitives:
-                m_geometryInfos[i].geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
-                vkGeomData.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
-                vkGeomData.aabbs.data.deviceAddress = geomDesc.content.proceduralAABBs.data;
-                vkGeomData.aabbs.stride = geomDesc.content.proceduralAABBs.stride;
-                primitiveCounts[i] = (uint32_t)buildInputs.geometryDescs[i].content.proceduralAABBs.count;
-                break;
-            default:
-                debugCallback->handleMessage(
-                    DebugMessageType::Error,
-                    DebugMessageSource::Layer,
-                    "invalid value of IAccelerationStructure::GeometryType encountered in "
-                    "buildInputs.geometryDescs"
-                );
-                return SLANG_E_INVALID_ARG;
-            }
-        }
-        buildInfo.geometryCount = buildInputs.descCount;
-        buildInfo.pGeometries = m_geometryInfos.data();
-    }
-    else
-    {
-        m_vkInstanceInfo.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-        m_vkInstanceInfo.geometry.instances.sType =
-            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-        m_vkInstanceInfo.geometry.instances.arrayOfPointers = 0;
-        m_vkInstanceInfo.geometry.instances.data.deviceAddress = buildInputs.instanceDescs;
-        buildInfo.pGeometries = &m_vkInstanceInfo;
-        buildInfo.geometryCount = 1;
-        primitiveCounts.resize(1);
-        primitiveCounts[0] = buildInputs.descCount;
-    }
-#endif
     return SLANG_OK;
 }
 

@@ -171,6 +171,10 @@ private:
     VkGeometryFlagsKHR translateGeometryFlags(AccelerationStructureGeometryFlags flags)
     {
         VkGeometryFlagsKHR result = VkGeometryFlagsKHR(0);
+        if (is_set(flags, AccelerationStructureGeometryFlags::Opaque))
+            result |= VK_GEOMETRY_OPAQUE_BIT_KHR;
+        if (is_set(flags, AccelerationStructureGeometryFlags::NoDuplicateAnyHitInvocation))
+            result |= VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
         return result;
     }
 };
