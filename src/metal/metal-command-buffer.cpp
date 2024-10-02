@@ -23,7 +23,8 @@ Result CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapImpl* tr
 Result CommandBufferImpl::beginResourcePass(IResourcePassEncoder** outEncoder)
 {
     m_resourcePassEncoder.init(this);
-    *outEncoder = &m_resourcePassEncoder return SLANG_OK;
+    *outEncoder = &m_resourcePassEncoder;
+    return SLANG_OK;
 }
 
 Result CommandBufferImpl::beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder)
