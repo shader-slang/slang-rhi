@@ -30,6 +30,7 @@ class MutableShaderObjectImpl;
 class RootShaderObjectImpl;
 class MutableRootShaderObjectImpl;
 class ShaderTableImpl;
+class CommandEncoderImpl;
 class ResourcePassEncoderImpl;
 class RenderPassEncoderImpl;
 class ComputePassEncoderImpl;

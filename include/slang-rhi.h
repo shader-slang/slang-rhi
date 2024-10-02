@@ -413,6 +413,7 @@ enum class NativeHandleType
     WGPUQueue = 0x00070007,
     WGPUCommandBuffer = 0x00070008,
     WGPUTextureView = 0x00070009,
+    WGPUCommandEncoder = 0x0007000a,
 };
 
 struct NativeHandle

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wgpu-base.h"
+#include "wgpu-shader-object.h"
 #include "../pass-encoder-com-forward.h"
 
 namespace rhi::wgpu {
@@ -17,13 +18,12 @@ public:
 
 public:
     DeviceImpl* m_device = nullptr;
-    CommandBufferImpl* m_commandBuffer = nullptr;
-    WGPUCommandEncoder m_commandEncoder = nullptr;
+    CommandEncoderImpl* m_commandEncoder = nullptr;
     RefPtr<PipelineImpl> m_currentPipeline;
 
     virtual ~PassEncoderImpl();
 
-    void init(CommandBufferImpl* commandBuffer);
+    void init(CommandEncoderImpl* commandEncoder);
 
     Result bindPipelineImpl(RootBindingContext& context);
     void endEncodingImpl();
@@ -51,8 +51,6 @@ public:
     virtual void* getInterface(SlangUUID const& uuid) override;
 
 public:
-    Result init(CommandBufferImpl* commandBuffer);
-
     // IResourcePassEncoder implementation
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
@@ -116,7 +114,7 @@ public:
 public:
     WGPURenderPassEncoder m_renderPassEncoder = nullptr;
 
-    Result init(CommandBufferImpl* commandBuffer, const RenderPassDesc& renderPass);
+    Result init(CommandEncoderImpl* commandEncoder, const RenderPassDesc& renderPass);
 
     Result prepareDraw();
 
@@ -184,7 +182,7 @@ public:
 public:
     WGPUComputePassEncoder m_computePassEncoder = nullptr;
 
-    Result init(CommandBufferImpl* commandBuffer);
+    Result init(CommandEncoderImpl* commandEncoder);
 
     // IComputePassEncoder implementation
 
@@ -198,6 +196,37 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
+};
+
+class CommandEncoderImpl : public ICommandEncoder, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    ICommandEncoder* getInterface(const Guid& guid);
+
+public:
+    RefPtr<DeviceImpl> m_device;
+    RefPtr<CommandQueueImpl> m_queue;
+    WGPUCommandEncoder m_commandEncoder = nullptr;
+    BreakableReference<TransientResourceHeapImpl> m_transientHeap;
+    RootShaderObjectImpl m_rootObject;
+    RefPtr<MutableRootShaderObjectImpl> m_mutableRootShaderObject;
+
+    ResourcePassEncoderImpl m_resourcePassEncoder;
+    RenderPassEncoderImpl m_renderPassEncoder;
+    ComputePassEncoderImpl m_computePassEncoder;
+
+    ~CommandEncoderImpl();
+
+    // ICommandEncoder implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finishAndSubmit(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::wgpu

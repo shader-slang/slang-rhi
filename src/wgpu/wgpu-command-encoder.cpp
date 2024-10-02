@@ -1,5 +1,6 @@
 #include "wgpu-command-encoder.h"
 #include "wgpu-command-buffer.h"
+#include "wgpu-command-queue.h"
 #include "wgpu-pipeline.h"
 #include "wgpu-shader-program.h"
 #include "wgpu-buffer.h"
@@ -39,19 +40,18 @@ uint32_t PassEncoderImpl::release()
 
 PassEncoderImpl::~PassEncoderImpl() {}
 
-void PassEncoderImpl::init(CommandBufferImpl* commandBuffer)
+void PassEncoderImpl::init(CommandEncoderImpl* commandEncoder)
 {
-    m_device = commandBuffer->m_device;
-    m_commandBuffer = commandBuffer;
-    m_commandEncoder = commandBuffer->m_commandEncoder;
+    m_device = commandEncoder->m_device;
+    m_commandEncoder = commandEncoder;
 }
 
 Result PassEncoderImpl::bindPipelineImpl(RootBindingContext& context)
 {
     // Get specialized pipeline state and bind it.
-    RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
-                                               ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
-                                               : &m_commandBuffer->m_rootObject;
+    RootShaderObjectImpl* rootObjectImpl = m_commandEncoder->m_mutableRootShaderObject
+                                               ? m_commandEncoder->m_mutableRootShaderObject.Ptr()
+                                               : &m_commandEncoder->m_rootObject;
     RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
     PipelineImpl* newPipelineImpl = checked_cast<PipelineImpl*>(newPipeline.Ptr());
@@ -70,7 +70,7 @@ Result PassEncoderImpl::bindPipelineImpl(RootBindingContext& context)
     // be dealt with in the complex recursive call chains.
     //
     context.bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
-    context.device = m_commandBuffer->m_device;
+    context.device = m_device;
 
     // We kick off recursive binding of shader objects to the pipeline (plus
     // the state in `context`).
@@ -93,7 +93,7 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
     // Copy to staging buffer
     IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
-    m_commandBuffer->m_transientHeap
+    m_commandEncoder->m_transientHeap
         ->allocateStagingBuffer(size, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
     BufferImpl* stagingBufferImpl = checked_cast<BufferImpl*>(stagingBuffer);
     BufferRange range = {stagingBufferOffset, size};
@@ -105,7 +105,7 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
     }
     // Copy from staging buffer to real buffer
     m_device->m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
-        m_commandBuffer->m_commandEncoder,
+        m_commandEncoder->m_commandEncoder,
         stagingBufferImpl->m_buffer,
         stagingBufferOffset,
         checked_cast<BufferImpl*>(buffer)->m_buffer,
@@ -117,19 +117,19 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
 Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
     m_currentPipeline = checked_cast<PipelineImpl*>(state);
-    m_commandBuffer->m_mutableRootShaderObject = nullptr;
-    SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
-        m_commandBuffer->m_device,
+    m_commandEncoder->m_mutableRootShaderObject = nullptr;
+    SLANG_RETURN_ON_FAIL(m_commandEncoder->m_rootObject.init(
+        m_commandEncoder->m_device,
         m_currentPipeline->getProgram<ShaderProgramImpl>()->m_rootObjectLayout
     ));
-    *outRootObject = &m_commandBuffer->m_rootObject;
+    *outRootObject = &m_commandEncoder->m_rootObject;
     return SLANG_OK;
 }
 
 Result PassEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
 {
     m_currentPipeline = checked_cast<PipelineImpl*>(state);
-    m_commandBuffer->m_mutableRootShaderObject = checked_cast<MutableRootShaderObjectImpl*>(rootObject);
+    m_commandEncoder->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
 
@@ -160,12 +160,6 @@ void* ResourcePassEncoderImpl::getInterface(SlangUUID const& uuid)
     return nullptr;
 }
 
-Result ResourcePassEncoderImpl::init(CommandBufferImpl* commandBuffer)
-{
-    PassEncoderImpl::init(commandBuffer);
-    return SLANG_OK;
-}
-
 void ResourcePassEncoderImpl::end()
 {
     endEncodingImpl();
@@ -176,7 +170,7 @@ void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer
     BufferImpl* dstBuffer = checked_cast<BufferImpl*>(dst);
     BufferImpl* srcBuffer = checked_cast<BufferImpl*>(src);
     m_device->m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
-        m_commandEncoder,
+        m_commandEncoder->m_commandEncoder,
         srcBuffer->m_buffer,
         srcOffset,
         dstBuffer->m_buffer,
@@ -234,7 +228,8 @@ void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* ra
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     uint64_t offset = range ? range->offset : 0;
     uint64_t size = range ? range->size : bufferImpl->m_desc.size;
-    m_device->m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, bufferImpl->m_buffer, offset, size);
+    m_device->m_ctx.api
+        .wgpuCommandEncoderClearBuffer(m_commandEncoder->m_commandEncoder, bufferImpl->m_buffer, offset, size);
 }
 
 void ResourcePassEncoderImpl::clearTexture(
@@ -267,9 +262,9 @@ void* RenderPassEncoderImpl::getInterface(SlangUUID const& uuid)
     return nullptr;
 }
 
-Result RenderPassEncoderImpl::init(CommandBufferImpl* commandBuffer, const RenderPassDesc& desc)
+Result RenderPassEncoderImpl::init(CommandEncoderImpl* commandEncoder, const RenderPassDesc& desc)
 {
-    PassEncoderImpl::init(commandBuffer);
+    PassEncoderImpl::init(commandEncoder);
 
     short_vector<WGPURenderPassColorAttachment, 8> colorAttachments(desc.colorAttachmentCount, {});
     for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
@@ -314,7 +309,7 @@ Result RenderPassEncoderImpl::init(CommandBufferImpl* commandBuffer, const Rende
     // passDesc.timestampWrites not supported
 
     m_renderPassEncoder =
-        m_device->m_ctx.api.wgpuCommandEncoderBeginRenderPass(m_commandBuffer->m_commandEncoder, &passDesc);
+        m_device->m_ctx.api.wgpuCommandEncoderBeginRenderPass(m_commandEncoder->m_commandEncoder, &passDesc);
     return m_renderPassEncoder ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -531,12 +526,12 @@ void* ComputePassEncoderImpl::getInterface(SlangUUID const& uuid)
     return nullptr;
 }
 
-Result ComputePassEncoderImpl::init(CommandBufferImpl* commandBuffer)
+Result ComputePassEncoderImpl::init(CommandEncoderImpl* commandEncoder)
 {
-    PassEncoderImpl::init(commandBuffer);
+    PassEncoderImpl::init(commandEncoder);
     WGPUComputePassDescriptor passDesc = {};
     m_computePassEncoder =
-        m_device->m_ctx.api.wgpuCommandEncoderBeginComputePass(m_commandBuffer->m_commandEncoder, &passDesc);
+        m_device->m_ctx.api.wgpuCommandEncoderBeginComputePass(m_commandEncoder->m_commandEncoder, &passDesc);
     return m_computePassEncoder ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -591,6 +586,64 @@ Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offse
         checked_cast<BufferImpl*>(argBuffer)->m_buffer,
         offset
     );
+    return SLANG_OK;
+}
+
+ICommandEncoder* CommandEncoderImpl::getInterface(const Guid& guid)
+{
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandEncoder)
+        return static_cast<ICommandEncoder*>(this);
+    return nullptr;
+}
+
+CommandEncoderImpl::~CommandEncoderImpl() {}
+
+Result CommandEncoderImpl::beginResourcePass(IResourcePassEncoder** outEncoder)
+{
+    m_resourcePassEncoder.init(this);
+    *outEncoder = &m_resourcePassEncoder;
+    return SLANG_OK;
+}
+
+Result CommandEncoderImpl::beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder)
+{
+    SLANG_RETURN_ON_FAIL(m_renderPassEncoder.init(this, desc));
+    *outEncoder = &m_renderPassEncoder;
+    return SLANG_OK;
+}
+
+Result CommandEncoderImpl::beginComputePass(IComputePassEncoder** outEncoder)
+{
+    SLANG_RETURN_ON_FAIL(m_computePassEncoder.init(this));
+    *outEncoder = &m_computePassEncoder;
+    return SLANG_OK;
+}
+
+Result CommandEncoderImpl::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
+{
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
+{
+    RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl();
+    commandBuffer->m_device = m_device;
+    commandBuffer->m_commandBuffer = m_device->m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, nullptr);
+    returnComPtr(outCommandBuffer, commandBuffer);
+    return SLANG_OK;
+}
+
+Result CommandEncoderImpl::finishAndSubmit(ICommandBuffer** outCommandBuffer)
+{
+    SLANG_RETURN_ON_FAIL(finish(outCommandBuffer));
+    m_queue->executeCommandBuffers(1, outCommandBuffer, nullptr, 0);
+    return SLANG_OK;
+}
+
+Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::WGPUCommandEncoder;
+    outHandle->value = (uint64_t)m_commandEncoder;
     return SLANG_OK;
 }
 

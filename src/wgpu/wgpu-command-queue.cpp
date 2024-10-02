@@ -1,4 +1,5 @@
 #include "wgpu-command-queue.h"
+#include "wgpu-command-encoder.h"
 #include "wgpu-command-buffer.h"
 #include "wgpu-device.h"
 
@@ -16,6 +17,24 @@ CommandQueueImpl::~CommandQueueImpl()
     {
         m_device->m_ctx.api.wgpuQueueRelease(m_queue);
     }
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
+    encoder->m_device = m_device.get();
+
+    WGPUCommandEncoderDescriptor desc = {};
+    desc.label = nullptr; // TODO assign label
+    encoder->m_commandEncoder = m_device->m_ctx.api.wgpuDeviceCreateCommandEncoder(m_device->m_ctx.device, nullptr);
+    if (!encoder->m_commandEncoder)
+    {
+        return SLANG_FAIL;
+    }
+    // TODO TRANSIENT_HEAP
+    // encoder->m_transientHeap = this;
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
