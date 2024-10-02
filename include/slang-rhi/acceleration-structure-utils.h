@@ -125,6 +125,14 @@ inline void convertAccelerationStructureInstanceDescs(
     Size srcStride
 )
 {
+    if (dstType == AccelerationStructureInstanceDescType::D3D12 ||
+        dstType == AccelerationStructureInstanceDescType::Vulkan)
+    {
+        // D3D12/Vulkan descriptor are compatible with the generic descriptor.
+        ::memcpy(dst, src, count * sizeof(AccelerationStructureInstanceDescGeneric));
+        return;
+    }
+
     for (GfxIndex i = 0; i < count; ++i)
     {
         convertAccelerationStructureInstanceDesc(dstType, dst, src);
