@@ -36,11 +36,6 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     Shader programA;
     Shader programB;
     REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
@@ -60,8 +55,8 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     {
         auto queue = device->getQueue(QueueType::Graphics);
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         // Write inputBuffer data to intermediateBuffer
         auto rootObjectA = passEncoder->bindPipeline(programA.pipeline);
@@ -81,8 +76,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

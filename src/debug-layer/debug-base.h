@@ -76,6 +76,7 @@ class DebugSampler;
 class DebugShaderObject;
 class DebugRootShaderObject;
 class DebugCommandBuffer;
+class DebugCommandEncoder;
 template<typename TEncoderInterface>
 class DebugPassEncoderImpl;
 class DebugResourcePassEncoder;

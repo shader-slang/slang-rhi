@@ -51,8 +51,8 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
         auto queue = device->getQueue(QueueType::Graphics);
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -79,8 +79,7 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

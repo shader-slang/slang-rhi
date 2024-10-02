@@ -1816,6 +1816,14 @@ public:
 
 class ICommandBuffer : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0x58e5d83f, 0xad31, 0x44ea, {0xa4, 0xd1, 0x5e, 0x65, 0x9c, 0xd9, 0xa7, 0x57});
+
+public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+};
+
+class ICommandEncoder : public ISlangUnknown
+{
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
 
 public:
@@ -1862,11 +1870,28 @@ public:
         return encoder;
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL close() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) = 0;
+
+    inline ComPtr<ICommandBuffer> finish()
+    {
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_NULL_ON_FAIL(finish(commandBuffer.writeRef()));
+        return commandBuffer;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL finishAndSubmit(ICommandBuffer** outCommandBuffer) = 0;
+
+    inline ComPtr<ICommandBuffer> finishAndSubmit()
+    {
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_NULL_ON_FAIL(finishAndSubmit(commandBuffer.writeRef()));
+        return commandBuffer;
+    }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
+#if 0
 class ICommandBufferD3D12 : public ICommandBuffer
 {
     SLANG_COM_INTERFACE(0xd0197946, 0xf266, 0x4638, {0x85, 0x16, 0x60, 0xdc, 0x35, 0x70, 0x8c, 0x0f});
@@ -1875,6 +1900,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL invalidateDescriptorHeapBinding() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL ensureInternalDescriptorHeapsBound() = 0;
 };
+#endif
 
 enum class QueueType
 {
@@ -1887,6 +1913,15 @@ class ICommandQueue : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) = 0;
+
+    inline ComPtr<ICommandEncoder> createCommandEncoder()
+    {
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_NULL_ON_FAIL(createCommandEncoder(encoder.writeRef()));
+        return encoder;
+    }
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeCommandBuffers(
         GfxCount count,
@@ -1947,6 +1982,7 @@ public:
     // this method should be called at the end of each frame.
     virtual SLANG_NO_THROW Result SLANG_MCALL finish() = 0;
 
+#if 0
     // Command buffers are one-time use. Once it is submitted to the queue via
     // `executeCommandBuffers` a command buffer is no longer valid to be used any more. Command
     // buffers must be closed before submission. The current D3D12 implementation has a limitation
@@ -1959,6 +1995,7 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(createCommandBuffer(result.writeRef()));
         return result;
     }
+#endif
 };
 
 class ITransientResourceHeapD3D12 : public ISlangUnknown

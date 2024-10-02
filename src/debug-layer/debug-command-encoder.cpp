@@ -164,10 +164,10 @@ Result DebugRenderPassEncoder::bindPipeline(IPipeline* state, IShaderObject** ou
 
     auto innerState = getInnerObj(state);
     IShaderObject* innerRootObject = nullptr;
-    commandBuffer->rootObject.reset();
+    commandEncoder->rootObject.reset();
     auto result = baseObject->bindPipeline(innerState, &innerRootObject);
-    commandBuffer->rootObject.baseObject.attach(innerRootObject);
-    *outRootShaderObject = &commandBuffer->rootObject;
+    commandEncoder->rootObject.baseObject.attach(innerRootObject);
+    *outRootShaderObject = &commandEncoder->rootObject;
     return result;
 }
 
@@ -317,10 +317,10 @@ Result DebugComputePassEncoder::bindPipeline(IPipeline* state, IShaderObject** o
 
     auto innerState = getInnerObj(state);
     IShaderObject* innerRootObject = nullptr;
-    commandBuffer->rootObject.reset();
+    commandEncoder->rootObject.reset();
     auto result = baseObject->bindPipeline(innerState, &innerRootObject);
-    commandBuffer->rootObject.baseObject.attach(innerRootObject);
-    *outRootShaderObject = &commandBuffer->rootObject;
+    commandEncoder->rootObject.baseObject.attach(innerRootObject);
+    *outRootShaderObject = &commandEncoder->rootObject;
     return result;
 }
 
@@ -476,10 +476,10 @@ Result DebugRayTracingPassEncoder::bindPipeline(IPipeline* state, IShaderObject*
     SLANG_RHI_API_FUNC;
     auto innerPipeline = getInnerObj(state);
     IShaderObject* innerRootObject = nullptr;
-    commandBuffer->rootObject.reset();
+    commandEncoder->rootObject.reset();
     Result result = baseObject->bindPipeline(innerPipeline, &innerRootObject);
-    commandBuffer->rootObject.baseObject.attach(innerRootObject);
-    *outRootObject = &commandBuffer->rootObject;
+    commandEncoder->rootObject.baseObject.attach(innerRootObject);
+    *outRootObject = &commandEncoder->rootObject;
     return result;
 }
 
@@ -499,6 +499,193 @@ Result DebugRayTracingPassEncoder::dispatchRays(
 {
     SLANG_RHI_API_FUNC;
     return baseObject->dispatchRays(rayGenShaderIndex, getInnerObj(shaderTable), width, height, depth);
+}
+
+DebugCommandEncoder::DebugCommandEncoder(DebugContext* ctx)
+    : DebugObject(ctx)
+    , m_renderPassEncoder(ctx)
+    , m_computePassEncoder(ctx)
+    , m_resourcePassEncoder(ctx)
+    , m_rayTracingPassEncoder(ctx)
+{
+    SLANG_RHI_API_FUNC;
+    m_renderPassEncoder.commandEncoder = this;
+    m_computePassEncoder.commandEncoder = this;
+    m_resourcePassEncoder.commandEncoder = this;
+    m_rayTracingPassEncoder.commandEncoder = this;
+}
+
+Result DebugCommandEncoder::beginResourcePass(IResourcePassEncoder** outEncoder)
+{
+    SLANG_RHI_API_FUNC;
+    checkCommandBufferOpenWhenCreatingEncoder();
+    checkEncodersClosedBeforeNewEncoder();
+    m_resourcePassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginResourcePass(&m_resourcePassEncoder.baseObject));
+    *outEncoder = &m_resourcePassEncoder;
+    return SLANG_OK;
+}
+
+Result DebugCommandEncoder::beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder)
+{
+    // TODO VALIDATION: resolveTarget must have usage RenderTarget (Vulkan, WGPU)
+
+    SLANG_RHI_API_FUNC;
+    checkCommandBufferOpenWhenCreatingEncoder();
+    checkEncodersClosedBeforeNewEncoder();
+    RenderPassDesc innerDesc = desc;
+    short_vector<RenderPassColorAttachment> innerColorAttachments;
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        innerColorAttachments.push_back(desc.colorAttachments[i]);
+        innerColorAttachments[i].view = getInnerObj(desc.colorAttachments[i].view);
+        innerColorAttachments[i].resolveTarget = getInnerObj(desc.colorAttachments[i].resolveTarget);
+    }
+    innerDesc.colorAttachments = innerColorAttachments.data();
+    RenderPassDepthStencilAttachment innerDepthStencilAttachment;
+    if (desc.depthStencilAttachment)
+    {
+        innerDepthStencilAttachment = *desc.depthStencilAttachment;
+        innerDepthStencilAttachment.view = getInnerObj(desc.depthStencilAttachment->view);
+        innerDesc.depthStencilAttachment = &innerDepthStencilAttachment;
+    }
+    m_renderPassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginRenderPass(innerDesc, &m_renderPassEncoder.baseObject));
+    *outEncoder = &m_renderPassEncoder;
+    return SLANG_OK;
+}
+
+Result DebugCommandEncoder::beginComputePass(IComputePassEncoder** outEncoder)
+{
+    SLANG_RHI_API_FUNC;
+    checkCommandBufferOpenWhenCreatingEncoder();
+    checkEncodersClosedBeforeNewEncoder();
+    m_computePassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginComputePass(&m_computePassEncoder.baseObject));
+    *outEncoder = &m_computePassEncoder;
+    return SLANG_OK;
+}
+
+Result DebugCommandEncoder::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
+{
+    SLANG_RHI_API_FUNC;
+    checkCommandBufferOpenWhenCreatingEncoder();
+    checkEncodersClosedBeforeNewEncoder();
+    m_rayTracingPassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginRayTracingPass(&m_rayTracingPassEncoder.baseObject));
+    *outEncoder = &m_rayTracingPassEncoder;
+    return SLANG_OK;
+}
+
+Result DebugCommandEncoder::finish(ICommandBuffer** outCommandBuffer)
+{
+    SLANG_RHI_API_FUNC;
+    checkEncodersClosedBeforeFinish();
+    RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
+    auto result = baseObject->finish(outObject->baseObject.writeRef());
+    if (SLANG_FAILED(result))
+        return result;
+    returnComPtr(outCommandBuffer, outObject);
+    return result;
+}
+
+Result DebugCommandEncoder::finishAndSubmit(ICommandBuffer** outCommandBuffer)
+{
+    SLANG_RHI_API_FUNC;
+    checkEncodersClosedBeforeFinish();
+    RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
+    auto result = baseObject->finishAndSubmit(outObject->baseObject.writeRef());
+    if (SLANG_FAILED(result))
+        return result;
+    returnComPtr(outCommandBuffer, outObject);
+    return result;
+}
+
+Result DebugCommandEncoder::getNativeHandle(NativeHandle* outHandle)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->getNativeHandle(outHandle);
+}
+
+#if 0
+void DebugCommandEncoder::invalidateDescriptorHeapBinding()
+{
+    SLANG_RHI_API_FUNC;
+    ComPtr<ICommandBufferD3D12> cmdBuf;
+    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
+    {
+        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface."
+        );
+        return;
+    }
+    return cmdBuf->invalidateDescriptorHeapBinding();
+}
+
+void DebugCommandEncoder::ensureInternalDescriptorHeapsBound()
+{
+    SLANG_RHI_API_FUNC;
+    ComPtr<ICommandBufferD3D12> cmdBuf;
+    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
+    {
+        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface."
+        );
+        return;
+    }
+    return cmdBuf->ensureInternalDescriptorHeapsBound();
+}
+#endif
+
+void DebugCommandEncoder::checkEncodersClosedBeforeFinish()
+{
+    if (!isOpen)
+    {
+        RHI_VALIDATION_ERROR("Command encoder is already finished.");
+    }
+    if (m_renderPassEncoder.isOpen)
+    {
+        RHI_VALIDATION_ERROR(
+            "A render pass encoder on this command encoder is still open. "
+            "IRenderPassEncoder::end() must be called before finishing a command encoder."
+        );
+    }
+    if (m_computePassEncoder.isOpen)
+    {
+        RHI_VALIDATION_ERROR(
+            "A compute pass encoder on this command encoder is still open. "
+            "IComputePassEncoder::end() must be called before finishing a command encoder."
+        );
+    }
+    if (m_resourcePassEncoder.isOpen)
+    {
+        RHI_VALIDATION_ERROR(
+            "A resource pass encoder on this command encoder is still open. "
+            "IResourcePassEncoder::end() must be called before finishing a command encoder."
+        );
+    }
+    isOpen = false;
+}
+
+void DebugCommandEncoder::checkEncodersClosedBeforeNewEncoder()
+{
+    if (m_resourcePassEncoder.isOpen || m_renderPassEncoder.isOpen || m_computePassEncoder.isOpen ||
+        m_rayTracingPassEncoder.isOpen)
+    {
+        RHI_VALIDATION_ERROR(
+            "A previous pass encoder created on this command encoder is still open. "
+            "end() must be called on the pass encoder before creating a new pass encoder."
+        );
+    }
+}
+
+void DebugCommandEncoder::checkCommandBufferOpenWhenCreatingEncoder()
+{
+    if (!isOpen)
+    {
+        RHI_VALIDATION_ERROR(
+            "The command encoder is already finished. Pass encoders can only be retrieved "
+            "while the command encoder is not finished."
+        );
+    }
 }
 
 } // namespace rhi::debug

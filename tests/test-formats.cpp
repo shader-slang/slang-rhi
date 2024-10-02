@@ -43,7 +43,6 @@ Format convertTypelessFormat(Format format)
 struct TestFormats
 {
     ComPtr<IDevice> device;
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ISampler> sampler;
     ComPtr<IBuffer> resultBuffer;
     std::map<std::string, ComPtr<IPipeline>> cachedPipelines;
@@ -51,12 +50,6 @@ struct TestFormats
     void init(GpuTestContext* ctx, DeviceType deviceType)
     {
         device = createTestingDevice(ctx, deviceType);
-
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
-        // bool isSwiftShader = isSwiftShaderDevice(device);
 
         SamplerDesc samplerDesc;
         sampler = device->createSampler(samplerDesc);
@@ -131,8 +124,8 @@ struct TestFormats
         {
             auto queue = device->getQueue(QueueType::Graphics);
 
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginComputePass();
+            auto commandEncoder = queue->createCommandEncoder();
+            auto passEncoder = commandEncoder->beginComputePass();
 
             auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -149,8 +142,7 @@ struct TestFormats
 
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
-            commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            commandEncoder->finishAndSubmit();
             queue->waitOnHost();
         }
     }

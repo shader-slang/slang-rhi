@@ -27,11 +27,6 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler-array", "computeMain", slangReflection));
@@ -110,17 +105,12 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         auto queue = device->getQueue(QueueType::Graphics);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        {
-            auto passEncoder = commandBuffer->beginComputePass();
-            passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
-            passEncoder->dispatchCompute(1, 1, 1);
-            passEncoder->end();
-        }
-
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
+        passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

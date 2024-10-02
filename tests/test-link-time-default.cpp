@@ -101,11 +101,6 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram;
@@ -146,8 +141,8 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -157,8 +152,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 
@@ -166,8 +160,8 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
     // Now run again with the overrided program.
     {
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         auto rootObject = passEncoder->bindPipeline(pipeline1);
 
@@ -177,8 +171,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

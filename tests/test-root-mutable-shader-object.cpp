@@ -7,11 +7,6 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
@@ -54,10 +49,10 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
         {
-            auto passEncoder = commandBuffer->beginComputePass();
+            auto passEncoder = commandEncoder->beginComputePass();
             passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
@@ -67,14 +62,13 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         c = 2.0f;
         ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
         {
-            auto passEncoder = commandBuffer->beginComputePass();
+            auto passEncoder = commandEncoder->beginComputePass();
             passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
         }
 
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

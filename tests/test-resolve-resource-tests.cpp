@@ -60,7 +60,6 @@ struct BaseResolveResourceTest
     ComPtr<ITexture> dstTexture;
     ComPtr<ITextureView> dstTextureView;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipeline> pipeline;
 
     ComPtr<IBuffer> vertexBuffer;
@@ -120,10 +119,6 @@ struct BaseResolveResourceTest
 
         vertexBuffer = createVertexBuffer(device);
 
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadGraphicsProgram(
@@ -156,14 +151,9 @@ struct BaseResolveResourceTest
 
     void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = msaaTextureView;
@@ -174,7 +164,7 @@ struct BaseResolveResourceTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -187,8 +177,7 @@ struct BaseResolveResourceTest
         passEncoder->draw(kVertexCount, 0);
         passEncoder->end();
 
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

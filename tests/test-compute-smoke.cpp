@@ -7,11 +7,6 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-smoke", "computeMain", slangReflection));
@@ -40,8 +35,8 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
     {
         auto queue = device->getQueue(QueueType::Graphics);
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -65,8 +60,7 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

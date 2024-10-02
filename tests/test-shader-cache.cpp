@@ -259,15 +259,9 @@ struct ShaderCacheTest
 
     void dispatchComputePipeline()
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -277,8 +271,7 @@ struct ShaderCacheTest
 
         passEncoder->dispatchCompute(4, 1, 1);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 
@@ -556,15 +549,9 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 
     void dispatchComputePipeline(const char* transformerTypeName)
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -583,8 +570,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 
@@ -783,13 +769,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
     void dispatchGraphicsPipeline()
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -799,7 +780,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -812,8 +793,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
         passEncoder->draw(3);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

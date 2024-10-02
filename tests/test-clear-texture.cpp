@@ -8,11 +8,6 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     TextureDesc srcTexDesc = {};
     srcTexDesc.type = TextureType::Texture2D;
     srcTexDesc.mipLevelCount = 1;
@@ -29,9 +24,8 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     {
         ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginResourcePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginResourcePass();
         ClearValue clearValue = {};
         clearValue.color.floatValues[0] = 0.5f;
         clearValue.color.floatValues[1] = 1.0f;
@@ -40,9 +34,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
         passEncoder->clearResourceView(rtv, &clearValue, ClearResourceViewFlags::FloatClearValues);
         passEncoder->end();
 
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
-
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
 
         ComPtr<ISlangBlob> blob;

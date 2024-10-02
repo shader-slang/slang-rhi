@@ -14,6 +14,17 @@ QueueType DebugCommandQueue::getType()
     return baseObject->getType();
 }
 
+Result DebugCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    SLANG_RHI_API_FUNC;
+    RefPtr<DebugCommandEncoder> encoder = new DebugCommandEncoder();
+    auto result = baseObject->createCommandEncoder(encoder->baseObject.writeRef());
+    if (SLANG_FAILED(result))
+        return result;
+    returnComPtr(outEncoder, encoder);
+    return result;
+}
+
 void DebugCommandQueue::executeCommandBuffers(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
@@ -29,24 +40,6 @@ void DebugCommandQueue::executeCommandBuffers(
         auto cmdBufferImpl = getDebugObj(cmdBufferIn);
         auto innerCmdBuffer = getInnerObj(cmdBufferIn);
         innerCommandBuffers.push_back(innerCmdBuffer);
-        if (cmdBufferImpl->isOpen)
-        {
-            RHI_VALIDATION_ERROR_FORMAT(
-                "Command buffer %lld is still open. A command buffer must be closed "
-                "before submitting to a command queue.",
-                cmdBufferImpl->uid
-            );
-        }
-        if (i > 0)
-        {
-            if (cmdBufferImpl->m_transientHeap != getDebugObj(commandBuffers[0])->m_transientHeap)
-            {
-                RHI_VALIDATION_ERROR(
-                    "Command buffers passed to a single executeCommandBuffers "
-                    "call must be allocated from the same transient heap."
-                );
-            }
-        }
     }
     baseObject->executeCommandBuffers(count, innerCommandBuffers.data(), getInnerObj(fence), valueToSignal);
     if (fence)

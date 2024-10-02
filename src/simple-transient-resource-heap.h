@@ -28,6 +28,8 @@ public:
         SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, m_constantBuffer.writeRef()));
         return SLANG_OK;
     }
+
+#if 0
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override
     {
         RefPtr<TCommandBuffer> newCmdBuffer = new TCommandBuffer();
@@ -35,6 +37,7 @@ public:
         returnComPtr(outCommandBuffer, newCmdBuffer);
         return SLANG_OK;
     }
+#endif
 
     virtual SLANG_NO_THROW Result SLANG_MCALL synchronizeAndReset() override
     {

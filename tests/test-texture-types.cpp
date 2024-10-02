@@ -113,11 +113,6 @@ struct TextureAccessTest : TextureTest
 
     void submitShaderWork(const char* entryPoint)
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-texture-types", entryPoint, slangReflection));
@@ -131,9 +126,8 @@ struct TextureAccessTest : TextureTest
         // GPU execution.
         {
             auto queue = device->getQueue(QueueType::Graphics);
-
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginComputePass();
+            auto commandEncoder = queue->createCommandEncoder();
+            auto passEncoder = commandEncoder->beginComputePass();
 
             auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -157,8 +151,7 @@ struct TextureAccessTest : TextureTest
             auto bufferElementCount = width * height * depth;
             passEncoder->dispatchCompute(bufferElementCount, 1, 1);
             passEncoder->end();
-            commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            commandEncoder->finishAndSubmit();
             queue->waitOnHost();
         }
     }
@@ -283,7 +276,6 @@ struct RenderTargetTests : TextureTest
 
     int sampleCount = 1;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipeline> pipeline;
 
     ComPtr<ITexture> renderTexture;
@@ -346,10 +338,6 @@ struct RenderTargetTests : TextureTest
         auto inputLayout = device->createInputLayout(inputLayoutDesc);
         REQUIRE(inputLayout != nullptr);
 
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadGraphicsProgram(
@@ -382,8 +370,7 @@ struct RenderTargetTests : TextureTest
     void submitShaderWork()
     {
         auto queue = device->getQueue(QueueType::Graphics);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = renderTextureView;
@@ -397,21 +384,20 @@ struct RenderTargetTests : TextureTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto renderEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = renderEncoder->bindPipeline(pipeline);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         // viewport.maxZ = (float)textureInfo->extents.depth;
         viewport.extentX = (float)textureInfo->extents.width;
         viewport.extentY = (float)textureInfo->extents.height;
-        renderEncoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
-        renderEncoder->setVertexBuffer(0, vertexBuffer);
-        renderEncoder->draw(kVertexCount, 0);
-        renderEncoder->end();
+        passEncoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->draw(kVertexCount, 0);
+        passEncoder->end();
 
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 

@@ -35,6 +35,7 @@ struct GUID
     static const Guid IID_IPersistentShaderCache;
     static const Guid IID_IShaderObjectLayout;
     static const Guid IID_IShaderObject;
+    static const Guid IID_ICommandEncoder;
     static const Guid IID_IPassEncoder;
     static const Guid IID_IRenderPassEncoder;
     static const Guid IID_IComputePassEncoder;

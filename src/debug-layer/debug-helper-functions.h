@@ -3,6 +3,7 @@
 #include "debug-buffer.h"
 #include "debug-command-buffer.h"
 #include "debug-command-queue.h"
+#include "debug-command-encoder.h"
 #include "debug-device.h"
 #include "debug-fence.h"
 #include "debug-pipeline.h"
@@ -160,6 +161,7 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(Texture)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(TextureView)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandBuffer)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandQueue)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ResourcePassEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RenderPassEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputePassEncoder)

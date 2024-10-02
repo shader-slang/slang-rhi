@@ -28,6 +28,7 @@ const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
+const Guid GUID::IID_ICommandEncoder = ICommandEncoder::getTypeGuid();
 const Guid GUID::IID_IPassEncoder = IPassEncoder::getTypeGuid();
 const Guid GUID::IID_IResourcePassEncoder = IResourcePassEncoder::getTypeGuid();
 const Guid GUID::IID_IRenderPassEncoder = IRenderPassEncoder::getTypeGuid();
@@ -35,7 +36,6 @@ const Guid GUID::IID_IComputePassEncoder = IComputePassEncoder::getTypeGuid();
 const Guid GUID::IID_IRayTracingPassEncoder = IRayTracingPassEncoder::getTypeGuid();
 
 const Guid GUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
-const Guid GUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
 
 const Guid GUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
 const Guid GUID::IID_IQueryPool = IQueryPool::getTypeGuid();

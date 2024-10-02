@@ -9,11 +9,6 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     auto queue = device->getQueue(QueueType::Graphics);
 
     BufferUsage bufferUsage = BufferUsage::VertexBuffer | BufferUsage::IndexBuffer | BufferUsage::ConstantBuffer |
@@ -46,12 +41,11 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 
     for (ResourceState state : allowedStates)
     {
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginResourcePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginResourcePass();
         passEncoder->setBufferState(buffer, state);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
     }
 
     queue->waitOnHost();
@@ -60,11 +54,6 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
     auto queue = device->getQueue(QueueType::Graphics);
 
@@ -122,12 +111,11 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 
         for (ResourceState state : allowedStates)
         {
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginResourcePass();
+            auto commandEncoder = queue->createCommandEncoder();
+            auto passEncoder = commandEncoder->beginResourcePass();
             passEncoder->setTextureState(texture, state);
             passEncoder->end();
-            commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            commandEncoder->finishAndSubmit();
         }
 
         queue->waitOnHost();

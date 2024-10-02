@@ -1,13 +1,14 @@
 #pragma once
 
 #include "debug-base.h"
+#include "debug-shader-object.h"
 
 namespace rhi::debug {
 
 class DebugPassEncoder : public IPassEncoder
 {
 public:
-    DebugCommandBuffer* getCommandBuffer() { return commandBuffer; }
+    DebugCommandEncoder* getCommandEncoder() { return commandEncoder; }
     bool getIsOpen() { return isOpen; }
     virtual IPassEncoder* getBaseObject() = 0;
 
@@ -36,7 +37,7 @@ public:
 
 
 public:
-    DebugCommandBuffer* commandBuffer;
+    DebugCommandEncoder* commandEncoder;
     bool isOpen = false;
 };
 
@@ -254,6 +255,39 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     dispatchRays(GfxIndex rayGenShaderIndex, IShaderTable* shaderTable, GfxCount width, GfxCount height, GfxCount depth)
         override;
+};
+
+class DebugCommandEncoder : public DebugObject<ICommandEncoder>
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL;
+
+private:
+    DebugRenderPassEncoder m_renderPassEncoder;
+    DebugComputePassEncoder m_computePassEncoder;
+    DebugResourcePassEncoder m_resourcePassEncoder;
+    DebugRayTracingPassEncoder m_rayTracingPassEncoder;
+
+public:
+    DebugCommandEncoder(DebugContext* ctx);
+    ICommandEncoder* getInterface(const Guid& guid);
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finishAndSubmit(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+private:
+    void checkEncodersClosedBeforeFinish();
+    void checkEncodersClosedBeforeNewEncoder();
+    void checkCommandBufferOpenWhenCreatingEncoder();
+
+public:
+    DebugRootShaderObject rootObject;
+    bool isOpen = true;
 };
 
 } // namespace rhi::debug

@@ -101,7 +101,6 @@ class BaseDrawTest
 public:
     ComPtr<IDevice> device;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<IPipeline> pipeline;
 
     ComPtr<IBuffer> vertexBuffer;
@@ -137,10 +136,6 @@ public:
         vertexBuffer = createVertexBuffer(device);
         instanceBuffer = createInstanceBuffer(device);
         colorBuffer = createColorBuffer(device);
-
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
@@ -212,7 +207,7 @@ struct DrawInstancedTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -222,7 +217,7 @@ struct DrawInstancedTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -239,8 +234,7 @@ struct DrawInstancedTest : BaseDrawTest
 
         passEncoder->drawInstanced(kVertexCount, kInstanceCount, startVertex, startInstanceLocation);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 
@@ -267,7 +261,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -277,7 +271,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -296,8 +290,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
 
         passEncoder->drawIndexedInstanced(kIndexCount, kInstanceCount, startIndex, startVertex, startInstanceLocation);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 
@@ -348,7 +341,7 @@ struct DrawIndirectTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -358,7 +351,7 @@ struct DrawIndirectTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -375,8 +368,7 @@ struct DrawIndirectTest : BaseDrawTest
 
         passEncoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 
@@ -428,7 +420,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -438,7 +430,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -456,8 +448,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 
         passEncoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
         passEncoder->end();
-        commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        commandEncoder->finishAndSubmit();
         queue->waitOnHost();
     }
 
