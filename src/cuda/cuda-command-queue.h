@@ -18,6 +18,10 @@ public:
     CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
 
+    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
         override;

@@ -7,7 +7,8 @@ namespace rhi::cuda {
 class PassEncoderImpl : public IPassEncoder
 {
 public:
-    CommandWriter* m_writer;
+    CommandEncoderImpl* m_commandEncoder;
+    CommandBufferImpl* m_commandBuffer;
 
     virtual void* getInterface(SlangUUID const& uuid)
     {
@@ -30,7 +31,7 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
 public:
-    void init(CommandBufferImpl* cmdBuffer);
+    void init(CommandEncoderImpl* commandEncoder, CommandBufferImpl* commandBuffer);
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
 
@@ -123,10 +124,7 @@ public:
     }
 
 public:
-    CommandBufferImpl* m_commandBuffer;
     RefPtr<ShaderObjectBase> m_rootObject;
-
-    void init(CommandBufferImpl* cmdBuffer);
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override {}
 
@@ -138,6 +136,34 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
+};
+
+class CommandEncoderImpl : public ICommandEncoder, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    ICommandEncoder* getInterface(const Guid& guid);
+
+public:
+    DeviceImpl* m_device;
+    CommandQueueImpl* m_queue;
+    TransientResourceHeap* m_transientHeap;
+    ResourcePassEncoderImpl m_resourcePassEncoder;
+    ComputePassEncoderImpl m_computePassEncoder;
+    RefPtr<CommandBufferImpl> m_commandBuffer;
+
+    void init(DeviceImpl* device, CommandQueueImpl* queue, TransientResourceHeap* transientHeap);
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finishAndSubmit(ICommandBuffer** outCommandBuffer) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 #if SLANG_RHI_HAS_OPTIX

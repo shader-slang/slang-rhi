@@ -10,7 +10,7 @@ namespace rhi {
 
 namespace {
 
-class CommandBufferImpl : public ICommandBuffer, public ComObject
+class CommandBufferImpl : public ICommandBuffer, public CommandWriter, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -28,32 +28,30 @@ public:
     }
 
 public:
-    CommandWriter m_writer;
-
     void execute(ImmediateDevice* device)
     {
-        for (auto& cmd : m_writer.m_commands)
+        for (auto& cmd : m_commands)
         {
             auto name = cmd.name;
             switch (name)
             {
             case CommandName::SetPipeline:
-                device->setPipeline(m_writer.getObject<Pipeline>(cmd.operands[0]));
+                device->setPipeline(getObject<Pipeline>(cmd.operands[0]));
                 break;
             case CommandName::BindRootShaderObject:
-                device->bindRootShaderObject(m_writer.getObject<ShaderObjectBase>(cmd.operands[0]));
+                device->bindRootShaderObject(getObject<ShaderObjectBase>(cmd.operands[0]));
                 break;
             case CommandName::BeginRenderPass:
             {
                 RenderPassDesc desc;
                 if (cmd.operands[0] > 0)
                 {
-                    desc.colorAttachments = m_writer.getData<RenderPassColorAttachment>(cmd.operands[2]);
+                    desc.colorAttachments = getData<RenderPassColorAttachment>(cmd.operands[2]);
                     desc.colorAttachmentCount = cmd.operands[0];
                 }
                 if (cmd.operands[1] > 0)
                 {
-                    desc.depthStencilAttachment = m_writer.getData<RenderPassDepthStencilAttachment>(cmd.operands[3]);
+                    desc.depthStencilAttachment = getData<RenderPassDepthStencilAttachment>(cmd.operands[3]);
                 }
                 device->beginRenderPass(desc);
                 break;
@@ -62,29 +60,29 @@ public:
                 device->endRenderPass();
                 break;
             case CommandName::SetViewports:
-                device->setViewports((UInt)cmd.operands[0], m_writer.getData<Viewport>(cmd.operands[1]));
+                device->setViewports((UInt)cmd.operands[0], getData<Viewport>(cmd.operands[1]));
                 break;
             case CommandName::SetScissorRects:
-                device->setScissorRects((UInt)cmd.operands[0], m_writer.getData<ScissorRect>(cmd.operands[1]));
+                device->setScissorRects((UInt)cmd.operands[0], getData<ScissorRect>(cmd.operands[1]));
                 break;
             case CommandName::SetVertexBuffers:
             {
                 short_vector<IBuffer*> buffers;
                 for (uint32_t i = 0; i < cmd.operands[1]; i++)
                 {
-                    buffers.push_back(m_writer.getObject<Buffer>(cmd.operands[2] + i));
+                    buffers.push_back(getObject<Buffer>(cmd.operands[2] + i));
                 }
                 device->setVertexBuffers(
                     cmd.operands[0],
                     cmd.operands[1],
                     buffers.data(),
-                    m_writer.getData<Offset>(cmd.operands[3])
+                    getData<Offset>(cmd.operands[3])
                 );
             }
             break;
             case CommandName::SetIndexBuffer:
                 device->setIndexBuffer(
-                    m_writer.getObject<Buffer>(cmd.operands[0]),
+                    getObject<Buffer>(cmd.operands[0]),
                     (IndexFormat)cmd.operands[1],
                     (UInt)cmd.operands[2]
                 );
@@ -115,30 +113,30 @@ public:
                 break;
             case CommandName::UploadBufferData:
                 device->uploadBufferData(
-                    m_writer.getObject<Buffer>(cmd.operands[0]),
+                    getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
                     cmd.operands[2],
-                    m_writer.getData<uint8_t>(cmd.operands[3])
+                    getData<uint8_t>(cmd.operands[3])
                 );
                 break;
             case CommandName::CopyBuffer:
                 device->copyBuffer(
-                    m_writer.getObject<Buffer>(cmd.operands[0]),
+                    getObject<Buffer>(cmd.operands[0]),
                     cmd.operands[1],
-                    m_writer.getObject<Buffer>(cmd.operands[2]),
+                    getObject<Buffer>(cmd.operands[2]),
                     cmd.operands[3],
                     cmd.operands[4]
                 );
                 break;
             case CommandName::WriteTimestamp:
-                device->writeTimestamp(m_writer.getObject<QueryPool>(cmd.operands[0]), (GfxIndex)cmd.operands[1]);
+                device->writeTimestamp(getObject<QueryPool>(cmd.operands[0]), (GfxIndex)cmd.operands[1]);
                 break;
             default:
                 SLANG_RHI_ASSERT_FAILURE("Unknown command");
                 break;
             }
         }
-        m_writer.clear();
+        clear();
     }
 };
 
@@ -154,28 +152,28 @@ public:
     }
 
 public:
-    CommandWriter m_writer;
     RefPtr<ImmediateDevice> m_device;
     RefPtr<ShaderObjectBase> m_rootShaderObject;
     TransientResourceHeap* m_transientHeap;
+    RefPtr<CommandBufferImpl> m_commandBuffer;
 
     void init(ImmediateDevice* device, TransientResourceHeap* transientHeap)
     {
         m_device = device;
         m_transientHeap = transientHeap;
+        m_commandBuffer = new CommandBufferImpl();
     }
-
-    void reset() { m_writer.clear(); }
 
     class PassEncoderImpl : public IPassEncoder
     {
     public:
-        CommandWriter* m_writer;
         CommandEncoderImpl* m_commandEncoder;
-        void init(CommandEncoderImpl* commandEncoder)
+        CommandBufferImpl* m_commandBuffer;
+
+        void init(CommandEncoderImpl* commandEncoder, CommandBufferImpl* commandBuffer)
         {
-            m_writer = &commandEncoder->m_writer;
             m_commandEncoder = commandEncoder;
+            m_commandBuffer = commandBuffer;
         }
 
         virtual void* getInterface(SlangUUID const& uuid)
@@ -224,7 +222,7 @@ public:
 
         virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* pool, GfxIndex index) override
         {
-            m_writer->writeTimestamp(pool, index);
+            m_commandBuffer->writeTimestamp(pool, index);
         }
     };
 
@@ -248,13 +246,13 @@ public:
         virtual SLANG_NO_THROW void SLANG_MCALL
         copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size) override
         {
-            m_writer->copyBuffer(dst, dstOffset, src, srcOffset, size);
+            m_commandBuffer->copyBuffer(dst, dstOffset, src, srcOffset, size);
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
         uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data) override
         {
-            m_writer->uploadBufferData(dst, offset, size, data);
+            m_commandBuffer->uploadBufferData(dst, offset, size, data);
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
@@ -356,7 +354,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override
     {
-        m_resourcePassEncoder.init(this);
+        m_resourcePassEncoder.init(this, m_commandBuffer);
         *outEncoder = &m_resourcePassEncoder;
         return SLANG_OK;
     }
@@ -378,15 +376,15 @@ public:
     public:
         void init(CommandEncoderImpl* commandEncoder, const RenderPassDesc& desc)
         {
-            PassEncoderImpl::init(commandEncoder);
-            m_writer->beginRenderPass(desc);
+            PassEncoderImpl::init(commandEncoder, m_commandBuffer);
+            m_commandBuffer->beginRenderPass(desc);
         }
 
-        virtual SLANG_NO_THROW void SLANG_MCALL end() override { m_writer->endRenderPass(); }
+        virtual SLANG_NO_THROW void SLANG_MCALL end() override { m_commandBuffer->endRenderPass(); }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
         {
-            m_writer->setPipeline(state);
+            m_commandBuffer->setPipeline(state);
             auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandEncoder->m_device->createRootShaderObject(
                 stateImpl->m_program,
@@ -399,7 +397,7 @@ public:
         virtual SLANG_NO_THROW Result SLANG_MCALL
         bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
         {
-            m_writer->setPipeline(state);
+            m_commandBuffer->setPipeline(state);
             auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandEncoder->m_device->createRootShaderObject(
                 stateImpl->m_program,
@@ -411,43 +409,43 @@ public:
 
         virtual SLANG_NO_THROW void SLANG_MCALL setViewports(GfxCount count, const Viewport* viewports) override
         {
-            m_writer->setViewports(count, viewports);
+            m_commandBuffer->setViewports(count, viewports);
         }
         virtual SLANG_NO_THROW void SLANG_MCALL setScissorRects(GfxCount count, const ScissorRect* scissors) override
         {
-            m_writer->setScissorRects(count, scissors);
+            m_commandBuffer->setScissorRects(count, scissors);
         }
         virtual SLANG_NO_THROW void SLANG_MCALL
         setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)
             override
         {
-            m_writer->setVertexBuffers(startSlot, slotCount, buffers, offsets);
+            m_commandBuffer->setVertexBuffers(startSlot, slotCount, buffers, offsets);
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL
         setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset) override
         {
-            m_writer->setIndexBuffer(buffer, indexFormat, offset);
+            m_commandBuffer->setIndexBuffer(buffer, indexFormat, offset);
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex) override
         {
-            m_writer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
-            m_writer->draw(vertexCount, startVertex);
+            m_commandBuffer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
+            m_commandBuffer->draw(vertexCount, startVertex);
             return SLANG_OK;
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL
         drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex) override
         {
-            m_writer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
-            m_writer->drawIndexed(indexCount, startIndex, baseVertex);
+            m_commandBuffer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
+            m_commandBuffer->drawIndexed(indexCount, startIndex, baseVertex);
             return SLANG_OK;
         }
 
         virtual SLANG_NO_THROW void SLANG_MCALL setStencilReference(uint32_t referenceValue) override
         {
-            m_writer->setStencilReference(referenceValue);
+            m_commandBuffer->setStencilReference(referenceValue);
         }
 
         virtual SLANG_NO_THROW Result SLANG_MCALL drawIndirect(
@@ -508,8 +506,8 @@ public:
             GfxIndex startInstanceLocation
         ) override
         {
-            m_writer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
-            m_writer->drawInstanced(vertexCount, instanceCount, startVertex, startInstanceLocation);
+            m_commandBuffer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
+            m_commandBuffer->drawInstanced(vertexCount, instanceCount, startVertex, startInstanceLocation);
             return SLANG_OK;
         }
 
@@ -521,8 +519,8 @@ public:
             GfxIndex startInstanceLocation
         ) override
         {
-            m_writer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
-            m_writer->drawIndexedInstanced(
+            m_commandBuffer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
+            m_commandBuffer->drawIndexedInstanced(
                 indexCount,
                 instanceCount,
                 startIndexLocation,
@@ -561,7 +559,7 @@ public:
 
         virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
         {
-            m_writer->setPipeline(state);
+            m_commandBuffer->setPipeline(state);
             auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandEncoder->m_device->createRootShaderObject(
                 stateImpl->m_program,
@@ -574,7 +572,7 @@ public:
         virtual SLANG_NO_THROW Result SLANG_MCALL
         bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
         {
-            m_writer->setPipeline(state);
+            m_commandBuffer->setPipeline(state);
             auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandEncoder->m_device->createRootShaderObject(
                 stateImpl->m_program,
@@ -586,8 +584,8 @@ public:
 
         virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override
         {
-            m_writer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
-            m_writer->dispatchCompute(x, y, z);
+            m_commandBuffer->bindRootShaderObject(m_commandEncoder->m_rootShaderObject);
+            m_commandBuffer->dispatchCompute(x, y, z);
             return SLANG_OK;
         }
 
@@ -600,7 +598,7 @@ public:
     ComputePassEncoderImpl m_computePassEncoder;
     virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override
     {
-        m_computePassEncoder.init(this);
+        m_computePassEncoder.init(this, m_commandBuffer);
         *outEncoder = &m_computePassEncoder;
         return SLANG_OK;
     }
@@ -613,9 +611,12 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override
     {
-        RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl();
-        commandBuffer->m_writer = std::move(m_writer);
-        returnComPtr(outCommandBuffer, commandBuffer);
+        if (!m_commandBuffer)
+        {
+            return SLANG_FAIL;
+        }
+        returnComPtr(outCommandBuffer, m_commandBuffer);
+        m_commandBuffer = nullptr;
         return SLANG_OK;
     }
 
@@ -662,7 +663,7 @@ public:
         for (GfxIndex i = 0; i < count; i++)
         {
             info.hasWriteTimestamps |=
-                checked_cast<CommandBufferImpl*>(commandBuffers[i])->m_writer.m_hasWriteTimestamps;
+                checked_cast<CommandBufferImpl*>(commandBuffers[i])->m_hasWriteTimestamps;
         }
         m_device->beginCommandBuffer(info);
         for (GfxIndex i = 0; i < count; i++)

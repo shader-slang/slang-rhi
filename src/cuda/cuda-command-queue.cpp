@@ -1,6 +1,6 @@
 #include "cuda-command-queue.h"
 #include "cuda-buffer.h"
-#include "cuda-command-buffer.h"
+#include "cuda-command-encoder.h"
 #include "cuda-query.h"
 #include "cuda-shader-object-layout.h"
 
@@ -18,6 +18,15 @@ CommandQueueImpl::~CommandQueueImpl()
     cuStreamDestroy(stream);
     currentPipeline = nullptr;
     currentRootObject = nullptr;
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
+    // TODO TRANSIENT_HEAP
+    encoder->init(m_device, this, nullptr);
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
 }
 
 void CommandQueueImpl::executeCommandBuffers(

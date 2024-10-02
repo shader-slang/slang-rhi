@@ -1,5 +1,6 @@
 #include "cuda-command-encoder.h"
 #include "cuda-command-buffer.h"
+#include "cuda-command-queue.h"
 #include "cuda-device.h"
 #include "cuda-buffer.h"
 #include "cuda-acceleration-structure.h"
@@ -9,9 +10,10 @@ namespace rhi::cuda {
 
 // PassEncoderImpl
 
-void PassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+void PassEncoderImpl::init(CommandEncoderImpl* commandEncoder, CommandBufferImpl* commandBuffer)
 {
-    m_writer = cmdBuffer;
+    m_commandEncoder = commandEncoder;
+    m_commandBuffer = commandBuffer;
 }
 
 void PassEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
@@ -37,19 +39,19 @@ void PassEncoderImpl::endDebugEvent() {}
 
 void PassEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
-    m_writer->writeTimestamp(pool, index);
+    m_commandBuffer->writeTimestamp(pool, index);
 }
 
 // ResourcePassEncoderImpl
 
 void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    m_writer->copyBuffer(dst, dstOffset, src, srcOffset, size);
+    m_commandBuffer->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
 void ResourcePassEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
-    m_writer->uploadBufferData(dst, offset, size, data);
+    m_commandBuffer->uploadBufferData(dst, offset, size, data);
 }
 
 void ResourcePassEncoderImpl::copyTexture(
@@ -153,18 +155,12 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
 
 // ComputePassEncoderImpl
 
-void ComputePassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
-{
-    m_writer = cmdBuffer;
-    m_commandBuffer = cmdBuffer;
-}
-
 Result ComputePassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_writer->setPipeline(state);
+    m_commandBuffer->setPipeline(state);
     Pipeline* pipelineImpl = checked_cast<Pipeline*>(state);
     SLANG_RETURN_ON_FAIL(
-        m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
+        m_commandEncoder->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );
     returnComPtr(outRootObject, m_rootObject);
     return SLANG_OK;
@@ -172,19 +168,19 @@ Result ComputePassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** ou
 
 Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
-    m_writer->setPipeline(state);
+    m_commandBuffer->setPipeline(state);
     Pipeline* pipelineImpl = checked_cast<Pipeline*>(state);
     SLANG_RETURN_ON_FAIL(
-        m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
+        m_commandEncoder->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );
-    m_rootObject->copyFrom(rootObject, m_commandBuffer->m_transientHeap);
+    m_rootObject->copyFrom(rootObject, m_commandEncoder->m_transientHeap);
     return SLANG_OK;
 }
 
 Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
-    m_writer->bindRootShaderObject(m_rootObject);
-    m_writer->dispatchCompute(x, y, z);
+    m_commandBuffer->bindRootShaderObject(m_rootObject);
+    m_commandBuffer->dispatchCompute(x, y, z);
     return SLANG_OK;
 }
 
