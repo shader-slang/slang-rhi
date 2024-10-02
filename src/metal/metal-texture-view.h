@@ -21,15 +21,4 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
-class AccelerationStructureImpl : public AccelerationStructure
-{
-public:
-    RefPtr<BufferImpl> m_buffer;
-
-public:
-    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    ~AccelerationStructureImpl();
-};
-
 } // namespace rhi::metal

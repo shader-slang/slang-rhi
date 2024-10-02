@@ -102,7 +102,20 @@ public:
     NS::SharedPtr<MTL::Device> m_device;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
 
-    uint32_t m_queueAllocCount;
+    uint32_t m_queueAllocCount = 0;
+
+    // Global registry of all acceleration structures.
+    // IAccelerationStructure::getHandle will return the index into this array.
+    // These indices are used when building instance acceleration structures.
+    struct
+    {
+        std::vector<MTL::AccelerationStructure*> list;
+        std::vector<uint32_t> freeList;
+        NS::SharedPtr<NS::Array> array;
+        bool dirty = true;
+    } m_accelerationStructures;
+
+    NS::Array* getAccelerationStructureArray();
 
     bool m_hasArgumentBufferTier2 = false;
 

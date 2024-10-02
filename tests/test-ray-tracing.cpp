@@ -1,6 +1,8 @@
 #include "testing.h"
 #include "texture-utils.h"
 
+#include <slang-rhi/acceleration-structure-utils.h>
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -226,27 +228,41 @@ struct BaseRayTracingTest
 
         // Build top level acceleration structure.
         {
-            std::vector<AccelerationStructureInstanceDesc> instanceDescs;
-            instanceDescs.resize(1);
-            instanceDescs[0].accelerationStructure = BLAS->getHandle();
-            instanceDescs[0].flags = AccelerationStructureInstanceFlags::TriangleFacingCullDisable;
-            instanceDescs[0].instanceContributionToHitGroupIndex = 0;
-            instanceDescs[0].instanceID = 0;
-            instanceDescs[0].instanceMask = 0xFF;
+            AccelerationStructureInstanceDescType nativeInstanceDescType =
+                getAccelerationStructureInstanceDescType(device);
+            Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
+
+            std::vector<AccelerationStructureInstanceDescGeneric> genericInstanceDescs;
+            genericInstanceDescs.resize(1);
             float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
-            memcpy(&instanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
+            memcpy(&genericInstanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
+            genericInstanceDescs[0].instanceID = 0;
+            genericInstanceDescs[0].instanceMask = 0xFF;
+            genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
+            genericInstanceDescs[0].flags = AccelerationStructureInstanceFlags::TriangleFacingCullDisable;
+            genericInstanceDescs[0].accelerationStructure = BLAS->getHandle();
+
+            std::vector<uint8_t> nativeInstanceDescs(genericInstanceDescs.size() * nativeInstanceDescSize);
+            convertAccelerationStructureInstanceDescs(
+                genericInstanceDescs.size(),
+                nativeInstanceDescType,
+                nativeInstanceDescs.data(),
+                nativeInstanceDescSize,
+                genericInstanceDescs.data(),
+                sizeof(AccelerationStructureInstanceDescGeneric)
+            );
 
             BufferDesc instanceBufferDesc;
-            instanceBufferDesc.size = instanceDescs.size() * sizeof(AccelerationStructureInstanceDesc);
+            instanceBufferDesc.size = nativeInstanceDescs.size();
             instanceBufferDesc.usage = BufferUsage::ShaderResource;
             instanceBufferDesc.defaultState = ResourceState::ShaderResource;
-            instanceBuffer = device->createBuffer(instanceBufferDesc, instanceDescs.data());
+            instanceBuffer = device->createBuffer(instanceBufferDesc, nativeInstanceDescs.data());
             REQUIRE(instanceBuffer != nullptr);
 
             AccelerationStructureBuildInputInstances instances = {};
             instances.instanceBuffer = instanceBuffer;
             instances.instanceCount = 1;
-            instances.instanceStride = sizeof(AccelerationStructureInstanceDesc);
+            instances.instanceStride = nativeInstanceDescSize;
             AccelerationStructureBuildDesc buildDesc = {};
             buildDesc.inputs = &instances;
             buildDesc.inputCount = 1;

@@ -1,4 +1,5 @@
 #include "metal-util.h"
+#include "metal-buffer.h"
 #include "core/common.h"
 
 #include <stdio.h>
@@ -298,6 +299,111 @@ MTL::VertexFormat MetalUtil::translateVertexFormat(Format format)
         return MTL::VertexFormatFloatRGB9E5;
     default:
         return MTL::VertexFormatInvalid;
+    }
+}
+
+MTL::AttributeFormat MetalUtil::translateAttributeFormat(Format format)
+{
+    switch (format)
+    {
+    case Format::R8G8_UINT:
+        return MTL::AttributeFormatUChar2;
+    // AttributeFormatUChar3
+    case Format::R8G8B8A8_UINT:
+        return MTL::AttributeFormatUChar4;
+    case Format::R8G8_SINT:
+        return MTL::AttributeFormatChar2;
+    // return AttributeFormatChar3
+    case Format::R8G8B8A8_SINT:
+        return MTL::AttributeFormatChar4;
+    case Format::R8G8_UNORM:
+        return MTL::AttributeFormatUChar2Normalized;
+    // return AttributeFormatUChar3Normalized;
+    case Format::R8G8B8A8_UNORM:
+        return MTL::AttributeFormatUChar4Normalized;
+    case Format::R8G8_SNORM:
+        return MTL::AttributeFormatChar2Normalized;
+    // return AttributeFormatChar3Normalized
+    case Format::R8G8B8A8_SNORM:
+        return MTL::AttributeFormatChar4Normalized;
+    case Format::R16G16_UINT:
+        return MTL::AttributeFormatUShort2;
+    // return AttributeFormatUShort3;
+    case Format::R16G16B16A16_UINT:
+        return MTL::AttributeFormatUShort4;
+    case Format::R16G16_SINT:
+        return MTL::AttributeFormatShort2;
+    // return AttributeFormatShort3;
+    case Format::R16G16B16A16_SINT:
+        return MTL::AttributeFormatShort4;
+    case Format::R16G16_UNORM:
+        return MTL::AttributeFormatUShort2Normalized;
+    // return AttributeFormatUShort3Normalized;
+    case Format::R16G16B16A16_UNORM:
+        return MTL::AttributeFormatUShort4Normalized;
+    case Format::R16G16_SNORM:
+        return MTL::AttributeFormatShort2Normalized;
+    // return AttributeFormatShort3Normalized;
+    case Format::R16G16B16A16_SNORM:
+        return MTL::AttributeFormatShort4Normalized;
+    case Format::R16G16_FLOAT:
+        return MTL::AttributeFormatHalf2;
+    // return AttributeFormatHalf3;
+    case Format::R16G16B16A16_FLOAT:
+        return MTL::AttributeFormatHalf4;
+    case Format::R32_FLOAT:
+        return MTL::AttributeFormatFloat;
+    case Format::R32G32_FLOAT:
+        return MTL::AttributeFormatFloat2;
+    case Format::R32G32B32_FLOAT:
+        return MTL::AttributeFormatFloat3;
+    case Format::R32G32B32A32_FLOAT:
+        return MTL::AttributeFormatFloat4;
+    case Format::R32_SINT:
+        return MTL::AttributeFormatInt;
+    case Format::R32G32_SINT:
+        return MTL::AttributeFormatInt2;
+    case Format::R32G32B32_SINT:
+        return MTL::AttributeFormatInt3;
+    case Format::R32G32B32A32_SINT:
+        return MTL::AttributeFormatInt4;
+    case Format::R32_UINT:
+        return MTL::AttributeFormatUInt;
+    case Format::R32G32_UINT:
+        return MTL::AttributeFormatUInt2;
+    case Format::R32G32B32_UINT:
+        return MTL::AttributeFormatUInt3;
+    case Format::R32G32B32A32_UINT:
+        return MTL::AttributeFormatUInt4;
+    // return AttributeFormatInt1010102Normalized;
+    case Format::R10G10B10A2_UNORM:
+        return MTL::AttributeFormatUInt1010102Normalized;
+    case Format::B4G4R4A4_UNORM:
+        return MTL::AttributeFormatUChar4Normalized_BGRA;
+    case Format::R8_UINT:
+        return MTL::AttributeFormatUChar;
+    case Format::R8_SINT:
+        return MTL::AttributeFormatChar;
+    case Format::R8_UNORM:
+        return MTL::AttributeFormatUCharNormalized;
+    case Format::R8_SNORM:
+        return MTL::AttributeFormatCharNormalized;
+    case Format::R16_UINT:
+        return MTL::AttributeFormatUShort;
+    case Format::R16_SINT:
+        return MTL::AttributeFormatShort;
+    case Format::R16_UNORM:
+        return MTL::AttributeFormatUShortNormalized;
+    case Format::R16_SNORM:
+        return MTL::AttributeFormatShortNormalized;
+    case Format::R16_FLOAT:
+        return MTL::AttributeFormatHalf;
+    case Format::R11G11B10_FLOAT:
+        return MTL::AttributeFormatFloatRG11B10;
+    case Format::R9G9B9E5_SHAREDEXP:
+        return MTL::AttributeFormatFloatRGB9E5;
+    default:
+        return MTL::AttributeFormatInvalid;
     }
 }
 
@@ -620,5 +726,150 @@ MTL::StoreAction MetalUtil::translateStoreOp(StoreOp storeOp)
         return MTL::StoreAction(0);
     }
 }
+
+Result AccelerationStructureDescBuilder::build(
+    const AccelerationStructureBuildDesc& buildDesc,
+    const NS::Array* accelerationStructureArray,
+    IDebugCallback* debugCallback
+)
+{
+    if (buildDesc.inputCount < 1)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
+    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    {
+        if ((AccelerationStructureBuildInputType&)buildDesc.inputs[i] != type)
+        {
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
+    switch (type)
+    {
+    case AccelerationStructureBuildInputType::Instances:
+    {
+        if (buildDesc.inputCount > 1)
+        {
+            return SLANG_E_INVALID_ARG;
+        }
+
+        MTL::InstanceAccelerationStructureDescriptor* instanceDescriptor =
+            MTL::InstanceAccelerationStructureDescriptor::alloc()->init();
+        descriptor = NS::TransferPtr(instanceDescriptor);
+
+        const AccelerationStructureBuildInputInstances& instances =
+            (const AccelerationStructureBuildInputInstances&)buildDesc.inputs[0];
+
+        instanceDescriptor->setUsage(translateBuildFlags(buildDesc.flags));
+        instanceDescriptor->setInstanceDescriptorBuffer(
+            static_cast<BufferImpl*>(instances.instanceBuffer.buffer)->m_buffer.get()
+        );
+        instanceDescriptor->setInstanceDescriptorBufferOffset(instances.instanceBuffer.offset);
+        instanceDescriptor->setInstanceDescriptorStride(instances.instanceStride);
+        instanceDescriptor->setInstanceCount(instances.instanceCount);
+        instanceDescriptor->setInstanceDescriptorType(MTL::AccelerationStructureInstanceDescriptorTypeUserID);
+        instanceDescriptor->setInstancedAccelerationStructures(accelerationStructureArray);
+
+        break;
+    }
+    case AccelerationStructureBuildInputType::Triangles:
+    {
+        MTL::PrimitiveAccelerationStructureDescriptor* primitiveDescriptor =
+            MTL::PrimitiveAccelerationStructureDescriptor::alloc()->init();
+        descriptor = NS::TransferPtr(primitiveDescriptor);
+
+        primitiveDescriptor->setUsage(translateBuildFlags(buildDesc.flags));
+
+        for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputTriangles& triangles =
+                (const AccelerationStructureBuildInputTriangles&)buildDesc.inputs[i];
+            if (triangles.vertexBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
+            MTL::AccelerationStructureTriangleGeometryDescriptor* triangleDescriptor =
+                (MTL::AccelerationStructureTriangleGeometryDescriptor*)primitiveDescriptor->geometryDescriptors()
+                    ->object(i);
+
+            triangleDescriptor->setVertexBuffer(
+                static_cast<BufferImpl*>(triangles.vertexBuffers[0].buffer)->m_buffer.get()
+            );
+            triangleDescriptor->setVertexBufferOffset(triangles.vertexBuffers[0].offset);
+            triangleDescriptor->setVertexFormat(MetalUtil::translateAttributeFormat(triangles.vertexFormat));
+            triangleDescriptor->setVertexStride(triangles.vertexStride);
+
+            if (triangles.indexBuffer)
+            {
+                triangleDescriptor->setIndexBuffer(
+                    static_cast<BufferImpl*>(triangles.indexBuffer.buffer)->m_buffer.get()
+                );
+                triangleDescriptor->setIndexBufferOffset(triangles.indexBuffer.offset);
+                triangleDescriptor->setIndexType(
+                    triangles.indexFormat == IndexFormat::UInt32 ? MTL::IndexTypeUInt32 : MTL::IndexTypeUInt16
+                );
+            }
+
+            GfxCount triangleCount = std::max(triangles.vertexCount, triangles.indexCount) / 3;
+            triangleDescriptor->setTriangleCount(triangleCount);
+
+            if (triangles.preTransformBuffer)
+            {
+                triangleDescriptor->setTransformationMatrixBuffer(
+                    static_cast<BufferImpl*>(triangles.preTransformBuffer.buffer)->m_buffer.get()
+                );
+                triangleDescriptor->setTransformationMatrixBufferOffset(triangles.preTransformBuffer.offset);
+            }
+
+            triangleDescriptor->setOpaque(is_set(triangles.flags, AccelerationStructureGeometryFlags::Opaque));
+            triangleDescriptor->setAllowDuplicateIntersectionFunctionInvocation(
+                !is_set(triangles.flags, AccelerationStructureGeometryFlags::NoDuplicateAnyHitInvocation)
+            );
+        }
+
+        break;
+    }
+    case AccelerationStructureBuildInputType::ProceduralPrimitives:
+    {
+        MTL::PrimitiveAccelerationStructureDescriptor* primitiveDescriptor =
+            MTL::PrimitiveAccelerationStructureDescriptor::alloc()->init();
+        descriptor = NS::TransferPtr(primitiveDescriptor);
+
+        primitiveDescriptor->setUsage(translateBuildFlags(buildDesc.flags));
+
+        for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
+                (const AccelerationStructureBuildInputProceduralPrimitives&)buildDesc.inputs[i];
+            if (proceduralPrimitives.aabbBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
+            MTL::AccelerationStructureBoundingBoxGeometryDescriptor* boundingDescriptor =
+                (MTL::AccelerationStructureBoundingBoxGeometryDescriptor*)primitiveDescriptor->geometryDescriptors()
+                    ->object(i);
+
+            boundingDescriptor->setBoundingBoxBuffer(
+                static_cast<BufferImpl*>(proceduralPrimitives.aabbBuffers[0].buffer)->m_buffer.get()
+            );
+            boundingDescriptor->setBoundingBoxBufferOffset(proceduralPrimitives.aabbBuffers[0].offset);
+            boundingDescriptor->setBoundingBoxStride(proceduralPrimitives.aabbStride);
+            boundingDescriptor->setBoundingBoxCount(proceduralPrimitives.primitiveCount);
+        }
+
+        break;
+    }
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return SLANG_OK;
+}
+
 
 } // namespace rhi::metal

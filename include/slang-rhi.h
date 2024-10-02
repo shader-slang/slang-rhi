@@ -392,6 +392,7 @@ enum class NativeHandleType
     MTLRenderPipelineState = 0x00040007,
     MTLSharedEvent = 0x00040008,
     MTLSamplerState = 0x00040009,
+    MTLAccelerationStructure = 0x0004000a,
 
     CUdevice = 0x00050001,
     CUdeviceptr = 0x00050002,
@@ -820,9 +821,19 @@ enum class AccelerationStructureInstanceFlags : uint32_t
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureInstanceFlags);
 
-// The layout of this struct is intentionally consistent with D3D12_RAYTRACING_INSTANCE_DESC
-// and VkAccelerationStructureInstanceKHR.
-struct AccelerationStructureInstanceDesc
+enum class AccelerationStructureInstanceDescType
+{
+    Generic,
+    D3D12,
+    Vulkan,
+    Optix,
+    Metal
+};
+
+/// Generic instance descriptor.
+/// The layout of this struct is intentionally consistent with D3D12_RAYTRACING_INSTANCE_DESC
+/// and VkAccelerationStructureInstanceKHR for fast conversion.
+struct AccelerationStructureInstanceDescGeneric
 {
     float transform[3][4];
     uint32_t instanceID : 24;
@@ -830,6 +841,51 @@ struct AccelerationStructureInstanceDesc
     uint32_t instanceContributionToHitGroupIndex : 24;
     AccelerationStructureInstanceFlags flags : 8;
     AccelerationStructureHandle accelerationStructure;
+};
+
+/// Instance descriptor matching D3D12_RAYTRACING_INSTANCE_DESC.
+struct AccelerationStructureInstanceDescD3D12
+{
+    float Transform[3][4];
+    uint32_t InstanceID : 24;
+    uint32_t InstanceMask : 8;
+    uint32_t InstanceContributionToHitGroupIndex : 24;
+    uint32_t Flags : 8;
+    uint64_t AccelerationStructure;
+};
+
+/// Instance descriptor matching VkAccelerationStructureInstanceKHR.
+struct AccelerationStructureInstanceDescVulkan
+{
+    float transform[4][3];
+    uint32_t instanceCustomIndex : 24;
+    uint32_t mask : 8;
+    uint32_t instanceShaderBindingTableRecordOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureReference;
+};
+
+/// Instance descriptor matching OptixInstance.
+struct AccelerationStructureInstanceDescOptix
+{
+    float transform[3][4];
+    uint32_t instanceId;
+    uint32_t sbtOffset;
+    uint32_t visibilityMask;
+    uint32_t flags;
+    uint64_t traversableHandle;
+    uint32_t pad[2];
+};
+
+/// Instance descriptor matching MTLAccelerationStructureUserIDInstanceDescriptor.
+struct AccelerationStructureInstanceDescMetal
+{
+    float transform[4][3];
+    uint32_t options;
+    uint32_t mask;
+    uint32_t intersectionFunctionTableOffset;
+    uint32_t accelerationStructureIndex;
+    uint32_t userID;
 };
 
 struct AccelerationStructureAABB
