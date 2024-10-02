@@ -374,9 +374,9 @@ public:
         }
 
     public:
-        void init(CommandEncoderImpl* commandEncoder, const RenderPassDesc& desc)
+        void init(CommandEncoderImpl* commandEncoder, CommandBufferImpl* commandBuffer, const RenderPassDesc& desc)
         {
-            PassEncoderImpl::init(commandEncoder, m_commandBuffer);
+            PassEncoderImpl::init(commandEncoder, commandBuffer);
             m_commandBuffer->beginRenderPass(desc);
         }
 
@@ -535,7 +535,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override
     {
-        m_renderPassEncoder.init(this, desc);
+        m_renderPassEncoder.init(this, m_commandBuffer, desc);
         *outEncoder = &m_renderPassEncoder;
         return SLANG_OK;
     }
