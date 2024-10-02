@@ -11,12 +11,12 @@ namespace rhi::d3d12 {
 
 static const Int kMaxRTVCount = 8;
 
-class CommandEncoderImpl : public ICommandEncoder
+class PassEncoderImpl : public IPassEncoder
 {
 public:
     virtual void* getInterface(SlangUUID const& uuid)
     {
-        if (uuid == GUID::IID_ICommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+        if (uuid == GUID::IID_IPassEncoder || uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
     }
@@ -33,7 +33,7 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
 public:
-    // ICommandEncoder implementation
+    // IPassEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
     setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
@@ -74,13 +74,13 @@ public:
     Result _bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline);
 };
 
-class ResourceCommandEncoderImpl : public IResourceCommandEncoder, public CommandEncoderImpl
+class ResourcePassEncoderImpl : public IResourcePassEncoder, public PassEncoderImpl
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(CommandEncoderImpl)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_IRenderCommandEncoder || uuid == GUID::IID_ICommandEncoder ||
+        if (uuid == GUID::IID_IRenderPassEncoder || uuid == GUID::IID_IPassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
@@ -91,7 +91,7 @@ public:
     copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
     uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override {}
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
         ITexture* dst,
         SubresourceRange dstSubresource,
@@ -142,13 +142,13 @@ struct BoundVertexBuffer
     int m_offset;
 };
 
-class RenderCommandEncoderImpl : public IRenderCommandEncoder, public CommandEncoderImpl
+class RenderPassEncoderImpl : public IRenderPassEncoder, public PassEncoderImpl
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(CommandEncoderImpl)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_IRenderCommandEncoder || uuid == GUID::IID_ICommandEncoder ||
+        if (uuid == GUID::IID_IRenderPassEncoder || uuid == GUID::IID_IPassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
@@ -195,7 +195,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL draw(GfxCount vertexCount, GfxIndex startVertex = 0) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     drawIndexed(GfxCount indexCount, GfxIndex startIndex = 0, GfxIndex baseVertex = 0) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setStencilReference(uint32_t referenceValue) override;
 
@@ -229,20 +229,20 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL drawMeshTasks(int x, int y, int z) override;
 };
 
-class ComputeCommandEncoderImpl : public IComputeCommandEncoder, public CommandEncoderImpl
+class ComputePassEncoderImpl : public IComputePassEncoder, public PassEncoderImpl
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(CommandEncoderImpl)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_IComputeCommandEncoder || uuid == GUID::IID_ICommandEncoder ||
+        if (uuid == GUID::IID_IComputePassEncoder || uuid == GUID::IID_IPassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
     }
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
     void init(DeviceImpl* device, TransientResourceHeapImpl* transientHeap, CommandBufferImpl* cmdBuffer);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;
@@ -255,13 +255,13 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
 };
 
-class RayTracingCommandEncoderImpl : public IRayTracingCommandEncoder, public CommandEncoderImpl
+class RayTracingPassEncoderImpl : public IRayTracingPassEncoder, public PassEncoderImpl
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(CommandEncoderImpl)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_IRayTracingCommandEncoder || uuid == GUID::IID_ICommandEncoder ||
+        if (uuid == GUID::IID_IRayTracingPassEncoder || uuid == GUID::IID_IPassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
             return this;
         return nullptr;
@@ -300,7 +300,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     dispatchRays(GfxIndex rayGenShaderIndex, IShaderTable* shaderTable, GfxCount width, GfxCount height, GfxCount depth)
         override;
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override {}
 };
 
 } // namespace rhi::d3d12

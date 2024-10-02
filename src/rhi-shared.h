@@ -35,11 +35,11 @@ struct GUID
     static const Guid IID_IPersistentShaderCache;
     static const Guid IID_IShaderObjectLayout;
     static const Guid IID_IShaderObject;
-    static const Guid IID_ICommandEncoder;
-    static const Guid IID_IRenderCommandEncoder;
-    static const Guid IID_IComputeCommandEncoder;
-    static const Guid IID_IResourceCommandEncoder;
-    static const Guid IID_IRayTracingCommandEncoder;
+    static const Guid IID_IPassEncoder;
+    static const Guid IID_IRenderPassEncoder;
+    static const Guid IID_IComputePassEncoder;
+    static const Guid IID_IResourcePassEncoder;
+    static const Guid IID_IRayTracingPassEncoder;
     static const Guid IID_ICommandBuffer;
     static const Guid IID_ICommandBufferD3D12;
     static const Guid IID_ICommandQueue;
@@ -1055,14 +1055,10 @@ public:
     virtual RefPtr<Buffer> createDeviceBuffer(
         Pipeline* pipeline,
         TransientResourceHeap* transientHeap,
-        IRayTracingCommandEncoder* encoder
+        IRayTracingPassEncoder* encoder
     ) = 0;
 
-    Buffer* getOrCreateBuffer(
-        Pipeline* pipeline,
-        TransientResourceHeap* transientHeap,
-        IRayTracingCommandEncoder* encoder
-    )
+    Buffer* getOrCreateBuffer(Pipeline* pipeline, TransientResourceHeap* transientHeap, IRayTracingPassEncoder* encoder)
     {
         auto it = m_deviceBuffers.find(pipeline);
         if (it != m_deviceBuffers.end())

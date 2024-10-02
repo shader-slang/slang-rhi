@@ -14,16 +14,16 @@ public:
 public:
     DeviceImpl* m_device;
     TransientResourceHeap* m_transientHeap;
-    ResourceCommandEncoderImpl m_resourceCommandEncoder;
-    ComputeCommandEncoderImpl m_computeCommandEncoder;
+    ResourcePassEncoderImpl m_resourcePassEncoder;
+    ComputePassEncoderImpl m_computePassEncoder;
 
     void init(DeviceImpl* device, TransientResourceHeap* transientHeap);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL close() override {}
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../command-encoder-com-forward.h"
+#include "../pass-encoder-com-forward.h"
 #include "../d3d/d3d-swapchain.h"
 #include "../mutable-shader-object.h"
 #include "../rhi-shared.h"
@@ -41,10 +41,10 @@ class BufferImpl;
 class TextureImpl;
 class TextureViewImpl;
 class CommandBufferImpl;
-class CommandEncoderImpl;
-class ResourceCommandEncoderImpl;
-class RenderCommandEncoderImpl;
-class ComputeCommandEncoderImpl;
+class PassEncoderImpl;
+class ResourcePassEncoderImpl;
+class RenderPassEncoderImpl;
+class ComputePassEncoderImpl;
 class CommandQueueImpl;
 class FenceImpl;
 class QueryPoolImpl;
@@ -64,7 +64,7 @@ class TransientResourceHeapImpl;
 class InputLayoutImpl;
 
 #if SLANG_RHI_DXR
-class RayTracingCommandEncoderImpl;
+class RayTracingPassEncoderImpl;
 class RayTracingPipelineImpl;
 #endif
 

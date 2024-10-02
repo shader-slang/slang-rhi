@@ -48,9 +48,9 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     for (ResourceState state : allowedStates)
     {
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeResourceCommands();
-        encoder->setBufferState(buffer, state);
-        encoder->endEncoding();
+        auto passEncoder = commandBuffer->beginResourcePass();
+        passEncoder->setBufferState(buffer, state);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
     }
@@ -126,9 +126,9 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
         for (ResourceState state : allowedStates)
         {
             auto commandBuffer = transientHeap->createCommandBuffer();
-            auto encoder = commandBuffer->encodeResourceCommands();
-            encoder->setTextureState(texture, state);
-            encoder->endEncoding();
+            auto passEncoder = commandBuffer->beginResourcePass();
+            passEncoder->setTextureState(texture, state);
+            passEncoder->end();
             commandBuffer->close();
             queue->executeCommandBuffer(commandBuffer);
         }

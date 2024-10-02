@@ -1535,12 +1535,12 @@ struct SamplePosition
     int8_t y;
 };
 
-class ICommandEncoder : public ISlangUnknown
+class IPassEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xb7483513, 0x8939, 0x4bdf, {0x81, 0x2c, 0xc3, 0xe5, 0xb0, 0xde, 0xdc, 0x8e});
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
 
@@ -1558,7 +1558,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) = 0;
 };
 
-class IResourceCommandEncoder : public ICommandEncoder
+class IResourcePassEncoder : public IPassEncoder
 {
     SLANG_COM_INTERFACE(0x9107510b, 0x75a7, 0x4e2f, {0x8d, 0x00, 0x58, 0xfd, 0x22, 0x48, 0xcd, 0x0d});
 
@@ -1622,7 +1622,7 @@ public:
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) = 0;
 };
 
-class IRenderCommandEncoder : public ICommandEncoder
+class IRenderPassEncoder : public IPassEncoder
 {
     SLANG_COM_INTERFACE(0xa2be110e, 0xaed7, 0x43b6, {0x90, 0x01, 0x77, 0x79, 0x1f, 0xea, 0x1d, 0x40});
 
@@ -1714,7 +1714,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL drawMeshTasks(int x, int y, int z) = 0;
 };
 
-class IComputeCommandEncoder : public ICommandEncoder
+class IComputePassEncoder : public IPassEncoder
 {
     SLANG_COM_INTERFACE(0x46261132, 0xa7f6, 0x439b, {0x82, 0x6b, 0x1e, 0xaf, 0xf2, 0xae, 0xae, 0xa6});
 
@@ -1757,7 +1757,7 @@ struct AccelerationStructureQueryDesc
     GfxIndex firstQueryIndex;
 };
 
-class IRayTracingCommandEncoder : public ICommandEncoder
+class IRayTracingPassEncoder : public IPassEncoder
 {
     SLANG_COM_INTERFACE(0xef4f6545, 0x1f5d, 0x4b9a, {0x9e, 0x72, 0x4d, 0x03, 0x3f, 0xf0, 0x09, 0x1d});
 
@@ -1811,46 +1811,46 @@ class ICommandBuffer : public ISlangUnknown
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
 
 public:
-    // Only one encoder may be open at a time. User must call `ICommandEncoder::endEncoding`
-    // before calling other `encode*Commands` methods.
-    // Once `endEncoding` is called, the `ICommandEncoder` object becomes obsolete and is
-    // invalid for further use. To continue recording, the user must request a new encoder
-    // object by calling one of the `encode*Commands` methods again.
+    // Only one pass encoder may be open at a time. User must call `IPassEncoder::endEncoding`
+    // before calling other `begin*Pass` methods.
+    // Once `end` is called, the `IPassEncoder` object becomes obsolete and is
+    // invalid for further use. To continue recording, the user must request a new pass encoder
+    // object by calling one of the `begin*Pass` methods again.
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) = 0;
 
-    inline IResourceCommandEncoder* encodeResourceCommands()
+    inline IResourcePassEncoder* beginResourcePass()
     {
-        IResourceCommandEncoder* encoder;
-        SLANG_RETURN_NULL_ON_FAIL(encodeResourceCommands(&encoder));
+        IResourcePassEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(beginResourcePass(&encoder));
         return encoder;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) = 0;
+    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) = 0;
 
-    inline IRenderCommandEncoder* encodeRenderCommands(const RenderPassDesc& desc)
+    inline IRenderPassEncoder* beginRenderPass(const RenderPassDesc& desc)
     {
-        IRenderCommandEncoder* encoder;
-        SLANG_RETURN_NULL_ON_FAIL(encodeRenderCommands(desc, &encoder));
+        IRenderPassEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(beginRenderPass(desc, &encoder));
         return encoder;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) = 0;
 
-    inline IComputeCommandEncoder* encodeComputeCommands()
+    inline IComputePassEncoder* beginComputePass()
     {
-        IComputeCommandEncoder* encoder;
-        SLANG_RETURN_NULL_ON_FAIL(encodeComputeCommands(&encoder));
+        IComputePassEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(beginComputePass(&encoder));
         return encoder;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) = 0;
 
-    inline IRayTracingCommandEncoder* encodeRayTracingCommands()
+    inline IRayTracingPassEncoder* beginRayTracingPass()
     {
-        IRayTracingCommandEncoder* encoder;
-        SLANG_RETURN_NULL_ON_FAIL(encodeRayTracingCommands(&encoder));
+        IRayTracingPassEncoder* encoder;
+        SLANG_RETURN_NULL_ON_FAIL(beginRayTracingPass(&encoder));
         return encoder;
     }
 

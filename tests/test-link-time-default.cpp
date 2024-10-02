@@ -148,16 +148,16 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeComputeCommands();
+        auto passEncoder = commandBuffer->beginComputePass();
 
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
         entryPointCursor.getPath("buffer").setBinding(buffer);
 
-        encoder->dispatchCompute(1, 1, 1);
-        encoder->endEncoding();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -168,16 +168,16 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     // Now run again with the overrided program.
     {
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeComputeCommands();
+        auto passEncoder = commandBuffer->beginComputePass();
 
-        auto rootObject = encoder->bindPipeline(pipeline1);
+        auto rootObject = passEncoder->bindPipeline(pipeline1);
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
         entryPointCursor.getPath("buffer").setBinding(buffer);
 
-        encoder->dispatchCompute(1, 1, 1);
-        encoder->endEncoding();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();

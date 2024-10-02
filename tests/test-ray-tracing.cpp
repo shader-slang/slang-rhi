@@ -201,12 +201,13 @@ struct BaseRayTracingTest
             compactedSizeQuery->reset();
 
             auto commandBuffer = transientHeap->createCommandBuffer();
-            auto encoder = commandBuffer->encodeRayTracingCommands();
+            auto passEncoder = commandBuffer->beginRayTracingPass();
             AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
             compactedSizeQueryDesc.queryPool = compactedSizeQuery;
             compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
-            encoder->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-            encoder->endEncoding();
+            passEncoder
+                ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
+            passEncoder->end();
             commandBuffer->close();
             queue->executeCommandBuffer(commandBuffer);
             queue->waitOnHost();
@@ -218,9 +219,9 @@ struct BaseRayTracingTest
             device->createAccelerationStructure(createDesc, BLAS.writeRef());
 
             commandBuffer = transientHeap->createCommandBuffer();
-            encoder = commandBuffer->encodeRayTracingCommands();
-            encoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
-            encoder->endEncoding();
+            passEncoder = commandBuffer->beginRayTracingPass();
+            passEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+            passEncoder->end();
             commandBuffer->close();
             queue->executeCommandBuffer(commandBuffer);
             queue->waitOnHost();
@@ -282,9 +283,9 @@ struct BaseRayTracingTest
             REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
 
             auto commandBuffer = transientHeap->createCommandBuffer();
-            auto encoder = commandBuffer->encodeRayTracingCommands();
-            encoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
-            encoder->endEncoding();
+            auto passEncoder = commandBuffer->beginRayTracingPass();
+            passEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
+            passEncoder->end();
             commandBuffer->close();
             queue->executeCommandBuffer(commandBuffer);
             queue->waitOnHost();
@@ -342,14 +343,14 @@ struct RayTracingTestA : BaseRayTracingTest
     void renderFrame()
     {
         ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
-        auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
+        auto renderEncoder = renderCommandBuffer->beginRayTracingPass();
         IShaderObject* rootObject = nullptr;
         renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
         renderEncoder->dispatchRays(0, shaderTable, width, height, 1);
-        renderEncoder->endEncoding();
+        renderEncoder->end();
         renderCommandBuffer->close();
         queue->executeCommandBuffer(renderCommandBuffer);
         queue->waitOnHost();
@@ -370,14 +371,14 @@ struct RayTracingTestB : BaseRayTracingTest
     void renderFrame()
     {
         ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
-        auto renderEncoder = renderCommandBuffer->encodeRayTracingCommands();
+        auto renderEncoder = renderCommandBuffer->beginRayTracingPass();
         IShaderObject* rootObject = nullptr;
         renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
         renderEncoder->dispatchRays(1, shaderTable, width, height, 1);
-        renderEncoder->endEncoding();
+        renderEncoder->end();
         renderCommandBuffer->close();
         queue->executeCommandBuffer(renderCommandBuffer);
         queue->waitOnHost();

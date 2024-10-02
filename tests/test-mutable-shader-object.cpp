@@ -53,9 +53,9 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeComputeCommands();
+        auto passEncoder = commandBuffer->beginComputePass();
 
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         auto entryPointCursor = ShaderCursor(rootObject->getEntryPoint(0));
 
@@ -66,9 +66,9 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         transformer->getCurrentVersion(transientHeap, transformerVersion.writeRef());
         entryPointCursor.getPath("transformer").setObject(transformerVersion);
 
-        encoder->dispatchCompute(1, 1, 1);
+        passEncoder->dispatchCompute(1, 1, 1);
 
-        rootObject = encoder->bindPipeline(pipeline);
+        rootObject = passEncoder->bindPipeline(pipeline);
         entryPointCursor = ShaderCursor(rootObject->getEntryPoint(0));
 
         // Mutate `transformer` object and run again.
@@ -77,8 +77,8 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         transformer->getCurrentVersion(transientHeap, transformerVersion.writeRef());
         entryPointCursor.getPath("buffer").setBinding(buffer);
         entryPointCursor.getPath("transformer").setObject(transformerVersion);
-        encoder->dispatchCompute(1, 1, 1);
-        encoder->endEncoding();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);

@@ -90,11 +90,11 @@
 | `getResult` | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 | `reset`     | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 
-## `ICommandEncoder` interface
+## `IPassEncoder` interface
 
 | API                          | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |------------------------------|-----|------|-------|-------|--------|-------|------|
-| `endEncoding`                | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `end`                        | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `setBufferState`             | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setTextureState`            | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setTextureSubresourceState` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
@@ -102,7 +102,7 @@
 | `endDebugEvent`              | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 | `writeTimestamp`             | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
 
-## `IResourceCommandEncoder` interface
+## `IResourcePassEncoder` interface
 
 | API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------|-----|------|-------|-------|--------|-------|------|
@@ -115,7 +115,7 @@
 | `clearTexture`        | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
 | `resolveQuery`        | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 
-## `IRenderCommandEncoder` interface
+## `IRenderPassEncoder` interface
 
 | API                          | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |------------------------------|-----|------|-------|-------|--------|-------|------|
@@ -135,7 +135,7 @@
 | `drawIndexedInstanced`       | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawMeshTasks`              | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 
-## `IComputeCommandEncoder` interface
+## `IComputePassEncoder` interface
 
 | API                          | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |------------------------------|-----|------|-------|-------|--------|-------|------|
@@ -144,7 +144,7 @@
 | `dispatchCompute`            | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `dispatchComputeIndirect`    | :x: | :x:  | :x:   | yes   | :x:    | :x:   | yes  |
 
-## `IRayTracingCommandEncoder` interface
+## `IRayTracingPassEncoder` interface
 
 | API                                    | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |----------------------------------------|-----|------|-------|-------|--------|-------|------|
@@ -159,14 +159,14 @@
 
 ## `ICommandBuffer` interface
 
-| API                        | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|----------------------------|-----|------|-------|-------|--------|-------|------|
-| `encodeResourceCommands`   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `encodeRenderCommands`     | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `encodeComputeCommands`    | yes | yes  | yes   | yes   | yes    | :x:   | yes  |
-| `encodeRayTracingCommands` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
-| `close`                    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getNativeHandle`          | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
+| API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-----------------------|-----|------|-------|-------|--------|-------|------|
+| `beginResourcePass`   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `beginRenderPass`     | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `beginComputePass`    | yes | yes  | yes   | yes   | yes    | :x:   | yes  |
+| `beginRayTracingPass` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `close`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getNativeHandle`     | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 
 ## `ICommandQueue` interface
 
@@ -189,10 +189,3 @@
 | `resize`            | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
 | `isOccluded`        | :x: | :x:  | :x:   | yes   | :x:    | :x:   | :x:  |
 | `setFullScreenMode` | :x: | :x:  | :x:   | yes   | :x:    | :x:   | :x:  |
-
-
-
-
-| API           | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|---------------|-----|------|-------|-------|--------|-------|------|
-| `endEncoding` | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |

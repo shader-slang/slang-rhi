@@ -1,3 +1,8 @@
+- rename ICommandEncoder -> IPassEncoder, ICommandEncoder::endEncoding -> IPassEncoder::end
+- rename IResourceCommandEncoder -> IResourcePassEncoder, ICommandBuffer::encodeResourceCommands -> ICommandBuffer::beginResourcePass
+- rename IRenderCommandEncoder -> IRenderPassEncoder, ICommandBuffer::encodeRenderCommands -> ICommandBuffer::beginRenderPass
+- rename IComputeCommandEncoder -> IComputePassEncoder, ICommandBuffer::encodeComputeCommands -> ICommandBuffer::beginComputePass
+- rename IRayTracingCommandEncoder -> IRayTracingPassEncoder, ICommandBuffer::encodeRayTracingCommands -> ICommandBuffer::beginRayTracingPass
 - binding resources is now unified using the Binding struct that holds the type + resource of the binding
 - make all resources implement the IResource interface (buffers, textures, samplers, acceleration structures, etc.)
 - remove IResourceView and replace with ITextureView (for texture views)

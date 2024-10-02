@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../command-encoder-com-forward.h"
+#include "../pass-encoder-com-forward.h"
 #include "../mutable-shader-object.h"
 #include "../rhi-shared.h"
 #include "../transient-resource-heap-base.h"
@@ -24,15 +24,15 @@ class ShaderObjectLayoutImpl;
 class EntryPointLayout;
 class RootShaderObjectLayoutImpl;
 class ShaderProgramImpl;
-class CommandEncoderImpl;
+class PassEncoderImpl;
 class ShaderObjectImpl;
 class MutableShaderObjectImpl;
 class RootShaderObjectImpl;
 class ShaderTableImpl;
-class ResourceCommandEncoderImpl;
-class RenderCommandEncoderImpl;
-class ComputeCommandEncoderImpl;
-class RayTracingCommandEncoderImpl;
+class ResourcePassEncoderImpl;
+class RenderPassEncoderImpl;
+class ComputePassEncoderImpl;
+class RayTracingPassEncoderImpl;
 class CommandBufferImpl;
 class CommandQueueImpl;
 class TransientResourceHeapImpl;

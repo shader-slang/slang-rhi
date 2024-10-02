@@ -17,19 +17,19 @@
 
 namespace rhi::d3d12 {
 
-// CommandEncoderImpl
+// PassEncoderImpl
 
-void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
+void PassEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     m_commandBuffer->m_stateTracking.setBufferState(static_cast<BufferImpl*>(buffer), state);
 }
 
-void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+void PassEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     m_commandBuffer->m_stateTracking.setTextureState(static_cast<TextureImpl*>(texture), subresourceRange, state);
 }
 
-void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
+void PassEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
     auto beginEvent = m_commandBuffer->m_device->m_BeginEventOnCommandList;
     if (beginEvent)
@@ -43,7 +43,7 @@ void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
     }
 }
 
-void CommandEncoderImpl::endDebugEvent()
+void PassEncoderImpl::endDebugEvent()
 {
     auto endEvent = m_commandBuffer->m_device->m_EndEventOnCommandList;
     if (endEvent)
@@ -52,13 +52,13 @@ void CommandEncoderImpl::endDebugEvent()
     }
 }
 
-void CommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
+void PassEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
     static_cast<QueryPoolImpl*>(pool)->writeTimestamp(m_commandBuffer->m_cmdList, index);
 }
 
 
-int CommandEncoderImpl::getBindPointIndex(PipelineType type)
+int PassEncoderImpl::getBindPointIndex(PipelineType type)
 {
     switch (type)
     {
@@ -74,7 +74,7 @@ int CommandEncoderImpl::getBindPointIndex(PipelineType type)
     }
 }
 
-void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
+void PassEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer;
     m_d3dCmdList = m_commandBuffer->m_cmdList;
@@ -84,7 +84,7 @@ void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
     m_d3dDevice = commandBuffer->m_device->m_device;
 }
 
-Result CommandEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject** outRootObject)
+Result PassEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     m_currentPipeline = static_cast<Pipeline*>(pipeline);
     auto rootObject = &m_commandBuffer->m_rootShaderObject;
@@ -99,7 +99,7 @@ Result CommandEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject**
     return SLANG_OK;
 }
 
-Result CommandEncoderImpl::bindPipelineWithRootObjectImpl(IPipeline* pipeline, IShaderObject* rootObject)
+Result PassEncoderImpl::bindPipelineWithRootObjectImpl(IPipeline* pipeline, IShaderObject* rootObject)
 {
     m_currentPipeline = static_cast<Pipeline*>(pipeline);
     m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
@@ -107,7 +107,7 @@ Result CommandEncoderImpl::bindPipelineWithRootObjectImpl(IPipeline* pipeline, I
     return SLANG_OK;
 }
 
-Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline)
+Result PassEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline)
 {
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
                                                ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
@@ -179,9 +179,9 @@ Result CommandEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipelin
     return SLANG_OK;
 }
 
-// ResourceCommandEncoderImpl
+// ResourcePassEncoderImpl
 
-void ResourceCommandEncoderImpl::copyTexture(
+void ResourcePassEncoderImpl::copyTexture(
     ITexture* dst,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
@@ -254,7 +254,7 @@ void ResourceCommandEncoderImpl::copyTexture(
     }
 }
 
-void ResourceCommandEncoderImpl::uploadTextureData(
+void ResourcePassEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -356,13 +356,13 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     }
 }
 
-void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
     // TODO implement
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-void ResourceCommandEncoderImpl::clearTexture(
+void ResourcePassEncoderImpl::clearTexture(
     ITexture* texture,
     const ClearValue& clearValue,
     const SubresourceRange* subresourceRange,
@@ -374,7 +374,7 @@ void ResourceCommandEncoderImpl::clearTexture(
 }
 
 #if 0
-void ResourceCommandEncoderImpl::clearResourceView(
+void ResourcePassEncoderImpl::clearResourceView(
     IResourceView* view,
     ClearValue* clearValue,
     ClearResourceViewFlags::Enum flags
@@ -467,7 +467,7 @@ void ResourceCommandEncoderImpl::clearResourceView(
 }
 #endif
 
-void ResourceCommandEncoderImpl::resolveQuery(
+void ResourcePassEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
@@ -529,7 +529,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
     }
 }
 
-void ResourceCommandEncoderImpl::copyTextureToBuffer(
+void ResourcePassEncoderImpl::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
@@ -629,7 +629,7 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     }
 }
 
-void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
+void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
     BufferImpl* srcBuffer = static_cast<BufferImpl*>(src);
@@ -647,7 +647,7 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
     );
 }
 
-void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+void ResourcePassEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
 
@@ -665,16 +665,16 @@ void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, S
     );
 }
 
-// RenderCommandEncoderImpl
+// RenderPassEncoderImpl
 
-void RenderCommandEncoderImpl::init(
+void RenderPassEncoderImpl::init(
     DeviceImpl* device,
     TransientResourceHeapImpl* transientHeap,
     CommandBufferImpl* cmdBuffer,
     const RenderPassDesc& desc
 )
 {
-    CommandEncoderImpl::init(cmdBuffer);
+    PassEncoderImpl::init(cmdBuffer);
     m_preCmdList = nullptr;
     m_transientHeap = transientHeap;
     m_boundVertexBuffers.clear();
@@ -752,17 +752,17 @@ void RenderCommandEncoderImpl::init(
     }
 }
 
-Result RenderCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+Result RenderPassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     return bindPipelineImpl(state, outRootObject);
 }
 
-Result RenderCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+Result RenderPassEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     return bindPipelineWithRootObjectImpl(state, rootObject);
 }
 
-void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
+void RenderPassEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
 {
     static const int kMaxViewports = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
     SLANG_RHI_ASSERT(count <= kMaxViewports && count <= kMaxRTVCount);
@@ -781,7 +781,7 @@ void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* view
     m_d3dCmdList->RSSetViewports(UINT(count), m_viewports);
 }
 
-void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
+void RenderPassEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
 {
     static const int kMaxScissorRects = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
     SLANG_RHI_ASSERT(count <= kMaxScissorRects && count <= kMaxRTVCount);
@@ -800,7 +800,7 @@ void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect
     m_d3dCmdList->RSSetScissorRects(UINT(count), m_scissorRects);
 }
 
-void RenderCommandEncoderImpl::setVertexBuffers(
+void RenderPassEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
     IBuffer* const* buffers,
@@ -823,14 +823,14 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
+void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     m_boundIndexBuffer = static_cast<BufferImpl*>(buffer);
     m_boundIndexFormat = D3DUtil::getIndexFormat(indexFormat);
     m_boundIndexOffset = (UINT)offset;
 }
 
-Result RenderCommandEncoderImpl::prepareDraw()
+Result RenderPassEncoderImpl::prepareDraw()
 {
     Pipeline* pipeline = m_currentPipeline.get();
     if (!pipeline || (pipeline->desc.type != PipelineType::Graphics))
@@ -897,21 +897,21 @@ Result RenderCommandEncoderImpl::prepareDraw()
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
+Result RenderPassEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
 {
     SLANG_RETURN_ON_FAIL(prepareDraw());
     m_d3dCmdList->DrawInstanced((uint32_t)vertexCount, 1, (uint32_t)startVertex, 0);
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
+Result RenderPassEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
 {
     SLANG_RETURN_ON_FAIL(prepareDraw());
     m_d3dCmdList->DrawIndexedInstanced((uint32_t)indexCount, 1, (uint32_t)startIndex, (uint32_t)baseVertex, 0);
     return SLANG_OK;
 }
 
-void RenderCommandEncoderImpl::endEncoding()
+void RenderPassEncoderImpl::end()
 {
     bool needsResolve = false;
     for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
@@ -958,15 +958,15 @@ void RenderCommandEncoderImpl::endEncoding()
     m_resolveTargetViews.clear();
     m_depthStencilView = nullptr;
 
-    CommandEncoderImpl::endEncodingImpl();
+    PassEncoderImpl::endEncodingImpl();
 }
 
-void RenderCommandEncoderImpl::setStencilReference(uint32_t referenceValue)
+void RenderPassEncoderImpl::setStencilReference(uint32_t referenceValue)
 {
     m_d3dCmdList->OMSetStencilRef((UINT)referenceValue);
 }
 
-Result RenderCommandEncoderImpl::drawIndirect(
+Result RenderPassEncoderImpl::drawIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -996,7 +996,7 @@ Result RenderCommandEncoderImpl::drawIndirect(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndexedIndirect(
+Result RenderPassEncoderImpl::drawIndexedIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -1027,7 +1027,7 @@ Result RenderCommandEncoderImpl::drawIndexedIndirect(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::setSamplePositions(
+Result RenderPassEncoderImpl::setSamplePositions(
     GfxCount samplesPerPixel,
     GfxCount pixelCount,
     const SamplePosition* samplePositions
@@ -1045,7 +1045,7 @@ Result RenderCommandEncoderImpl::setSamplePositions(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RenderCommandEncoderImpl::drawInstanced(
+Result RenderPassEncoderImpl::drawInstanced(
     GfxCount vertexCount,
     GfxCount instanceCount,
     GfxIndex startVertex,
@@ -1062,7 +1062,7 @@ Result RenderCommandEncoderImpl::drawInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndexedInstanced(
+Result RenderPassEncoderImpl::drawIndexedInstanced(
     GfxCount indexCount,
     GfxCount instanceCount,
     GfxIndex startIndexLocation,
@@ -1081,43 +1081,43 @@ Result RenderCommandEncoderImpl::drawIndexedInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawMeshTasks(int x, int y, int z)
+Result RenderPassEncoderImpl::drawMeshTasks(int x, int y, int z)
 {
     SLANG_RETURN_ON_FAIL(prepareDraw());
     m_d3dCmdList6->DispatchMesh(x, y, z);
     return SLANG_OK;
 }
 
-// ComputeCommandEncoderImpl
+// ComputePassEncoderImpl
 
-void ComputeCommandEncoderImpl::endEncoding()
+void ComputePassEncoderImpl::end()
 {
-    CommandEncoderImpl::endEncodingImpl();
+    PassEncoderImpl::endEncodingImpl();
 }
 
-void ComputeCommandEncoderImpl::init(
+void ComputePassEncoderImpl::init(
     DeviceImpl* device,
     TransientResourceHeapImpl* transientHeap,
     CommandBufferImpl* cmdBuffer
 )
 {
-    CommandEncoderImpl::init(cmdBuffer);
+    PassEncoderImpl::init(cmdBuffer);
     m_preCmdList = nullptr;
     m_transientHeap = transientHeap;
     m_currentPipeline = nullptr;
 }
 
-Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+Result ComputePassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     return bindPipelineImpl(state, outRootObject);
 }
 
-Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     return bindPipelineWithRootObjectImpl(state, rootObject);
 }
 
-Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
+Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
     // Submit binding for compute
     {
@@ -1129,7 +1129,7 @@ Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     // Submit binding for compute
     {
@@ -1156,9 +1156,9 @@ Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Of
 
 #if SLANG_RHI_DXR
 
-// RayTracingCommandEncoderImpl
+// RayTracingPassEncoderImpl
 
-void RayTracingCommandEncoderImpl::buildAccelerationStructure(
+void RayTracingPassEncoderImpl::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
@@ -1193,7 +1193,7 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
         ->BuildRaytracingAccelerationStructure(&buildDesc, (UINT)propertyQueryCount, postBuildInfoDescs.data());
 }
 
-void RayTracingCommandEncoderImpl::copyAccelerationStructure(
+void RayTracingPassEncoderImpl::copyAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
@@ -1222,7 +1222,7 @@ void RayTracingCommandEncoderImpl::copyAccelerationStructure(
         ->CopyRaytracingAccelerationStructure(dstImpl->getDeviceAddress(), srcImpl->getDeviceAddress(), copyMode);
 }
 
-void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
+void RayTracingPassEncoderImpl::queryAccelerationStructureProperties(
     GfxCount accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     GfxCount queryCount,
@@ -1242,7 +1242,7 @@ void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
     );
 }
 
-void RayTracingCommandEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
+void RayTracingPassEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
 {
     auto srcImpl = static_cast<AccelerationStructureImpl*>(src);
     m_commandBuffer->m_cmdList4->CopyRaytracingAccelerationStructure(
@@ -1252,7 +1252,7 @@ void RayTracingCommandEncoderImpl::serializeAccelerationStructure(BufferWithOffs
     );
 }
 
-void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
+void RayTracingPassEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
 {
     auto dstImpl = static_cast<AccelerationStructureImpl*>(dst);
     m_commandBuffer->m_cmdList4->CopyRaytracingAccelerationStructure(
@@ -1262,12 +1262,12 @@ void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAcceleratio
     );
 }
 
-Result RayTracingCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+Result RayTracingPassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     return bindPipelineImpl(state, outRootObject);
 }
 
-Result RayTracingCommandEncoderImpl::dispatchRays(
+Result RayTracingPassEncoderImpl::dispatchRays(
     GfxIndex rayGenShaderIndex,
     IShaderTable* shaderTable,
     GfxCount width,

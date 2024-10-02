@@ -15,28 +15,28 @@ void CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeap* transien
     m_transientHeap = transientHeap;
 }
 
-Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result CommandBufferImpl::beginResourcePass(IResourcePassEncoder** outEncoder)
 {
-    m_resourceCommandEncoder.init(this);
-    *outEncoder = &m_resourceCommandEncoder;
+    m_resourcePassEncoder.init(this);
+    *outEncoder = &m_resourcePassEncoder;
     return SLANG_OK;
 }
 
-Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
+Result CommandBufferImpl::beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder)
 {
     SLANG_UNUSED(desc);
     *outEncoder = nullptr;
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result CommandBufferImpl::beginComputePass(IComputePassEncoder** outEncoder)
 {
-    m_computeCommandEncoder.init(this);
-    *outEncoder = &m_computeCommandEncoder;
+    m_computePassEncoder.init(this);
+    *outEncoder = &m_computePassEncoder;
     return SLANG_OK;
 }
 
-Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result CommandBufferImpl::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
 {
     *outEncoder = nullptr;
     return SLANG_E_NOT_AVAILABLE;
