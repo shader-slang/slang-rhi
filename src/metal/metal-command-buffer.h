@@ -26,6 +26,7 @@ public:
 
     NS::SharedPtr<MTL::RenderCommandEncoder> m_metalRenderCommandEncoder;
     NS::SharedPtr<MTL::ComputeCommandEncoder> m_metalComputeCommandEncoder;
+    NS::SharedPtr<MTL::AccelerationStructureCommandEncoder> m_metalAccelerationStructureCommandEncoder;
     NS::SharedPtr<MTL::BlitCommandEncoder> m_metalBlitCommandEncoder;
 
     // Command buffers are deallocated by its command pool,
@@ -38,6 +39,7 @@ public:
 
     MTL::RenderCommandEncoder* getMetalRenderCommandEncoder(MTL::RenderPassDescriptor* renderPassDesc);
     MTL::ComputeCommandEncoder* getMetalComputeCommandEncoder();
+    MTL::AccelerationStructureCommandEncoder* getMetalAccelerationStructureCommandEncoder();
     MTL::BlitCommandEncoder* getMetalBlitCommandEncoder();
     void endMetalCommandEncoder();
 

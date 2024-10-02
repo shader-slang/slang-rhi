@@ -81,6 +81,17 @@ MTL::ComputeCommandEncoder* CommandBufferImpl::getMetalComputeCommandEncoder()
     return m_metalComputeCommandEncoder.get();
 }
 
+MTL::AccelerationStructureCommandEncoder* CommandBufferImpl::getMetalAccelerationStructureCommandEncoder()
+{
+    if (!m_metalAccelerationStructureCommandEncoder)
+    {
+        endMetalCommandEncoder();
+        m_metalAccelerationStructureCommandEncoder =
+            NS::RetainPtr(m_commandBuffer->accelerationStructureCommandEncoder());
+    }
+    return m_metalAccelerationStructureCommandEncoder.get();
+}
+
 MTL::BlitCommandEncoder* CommandBufferImpl::getMetalBlitCommandEncoder()
 {
     if (!m_metalBlitCommandEncoder)
@@ -102,6 +113,11 @@ void CommandBufferImpl::endMetalCommandEncoder()
     {
         m_metalComputeCommandEncoder->endEncoding();
         m_metalComputeCommandEncoder.reset();
+    }
+    if (m_metalAccelerationStructureCommandEncoder)
+    {
+        m_metalAccelerationStructureCommandEncoder->endEncoding();
+        m_metalAccelerationStructureCommandEncoder.reset();
     }
     if (m_metalBlitCommandEncoder)
     {

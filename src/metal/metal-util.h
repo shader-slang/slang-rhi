@@ -28,6 +28,7 @@ struct MetalUtil
 
     static MTL::PixelFormat translatePixelFormat(Format format);
     static MTL::VertexFormat translateVertexFormat(Format format);
+    static MTL::AttributeFormat translateAttributeFormat(Format format);
 
     static bool isDepthFormat(MTL::PixelFormat format);
     static bool isStencilFormat(MTL::PixelFormat format);
@@ -53,6 +54,39 @@ struct MetalUtil
 
     static MTL::LoadAction translateLoadOp(LoadOp loadOp);
     static MTL::StoreAction translateStoreOp(StoreOp storeOp);
+};
+
+struct AccelerationStructureDescBuilder
+{
+public:
+    NS::SharedPtr<MTL::AccelerationStructureDescriptor> descriptor;
+
+    Result build(
+        const AccelerationStructureBuildDesc& buildDesc,
+        const NS::Array* accelerationStructureArray,
+        IDebugCallback* debugCallback
+    );
+
+private:
+    MTL::AccelerationStructureUsage translateBuildFlags(AccelerationStructureBuildFlags flags)
+    {
+        MTL::AccelerationStructureUsage result = MTL::AccelerationStructureUsageNone;
+        // if (is_set(flags, AccelerationStructureBuildFlags::AllowCompaction)) {}
+        if (is_set(flags, AccelerationStructureBuildFlags::AllowUpdate))
+        {
+            result |= MTL::AccelerationStructureUsageRefit;
+        }
+        if (is_set(flags, AccelerationStructureBuildFlags::MinimizeMemory))
+        {
+            result |= MTL::AccelerationStructureUsageExtendedLimits;
+        }
+        if (is_set(flags, AccelerationStructureBuildFlags::PreferFastBuild))
+        {
+            result |= MTL::AccelerationStructureUsagePreferFastBuild;
+        }
+        // if (is_set(flags, AccelerationStructureBuildFlags::PreferFastTrace)) {}
+        return result;
+    }
 };
 
 struct ScopedAutoreleasePool

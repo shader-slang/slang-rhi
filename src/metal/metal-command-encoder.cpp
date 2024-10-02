@@ -9,6 +9,7 @@
 #include "metal-texture.h"
 #include "metal-texture-view.h"
 #include "metal-util.h"
+#include "metal-acceleration-structure.h"
 
 namespace rhi::metal {
 
@@ -586,6 +587,33 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
     AccelerationStructureQueryDesc* queryDescs
 )
 {
+    MTL::AccelerationStructureCommandEncoder* encoder = m_commandBuffer->getMetalAccelerationStructureCommandEncoder();
+
+    AccelerationStructureDescBuilder builder;
+    builder.build(desc, m_commandBuffer->m_device->getAccelerationStructureArray(), getDebugCallback());
+
+    switch (desc.mode)
+    {
+    case AccelerationStructureBuildMode::Build:
+        encoder->buildAccelerationStructure(
+            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get(),
+            builder.descriptor.get(),
+            static_cast<BufferImpl*>(scratchBuffer.buffer)->m_buffer.get(),
+            scratchBuffer.offset
+        );
+        break;
+    case AccelerationStructureBuildMode::Update:
+        encoder->refitAccelerationStructure(
+            static_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
+            builder.descriptor.get(),
+            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get(),
+            static_cast<BufferImpl*>(scratchBuffer.buffer)->m_buffer.get(),
+            scratchBuffer.offset
+        );
+        break;
+    }
+
+    // TODO handle queryDescs
 }
 
 void RayTracingCommandEncoderImpl::copyAccelerationStructure(
@@ -594,6 +622,23 @@ void RayTracingCommandEncoderImpl::copyAccelerationStructure(
     AccelerationStructureCopyMode mode
 )
 {
+    MTL::AccelerationStructureCommandEncoder* encoder = m_commandBuffer->getMetalAccelerationStructureCommandEncoder();
+
+    switch (mode)
+    {
+    case AccelerationStructureCopyMode::Clone:
+        encoder->copyAccelerationStructure(
+            static_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
+            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get()
+        );
+        break;
+    case AccelerationStructureCopyMode::Compact:
+        encoder->copyAndCompactAccelerationStructure(
+            static_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
+            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get()
+        );
+        break;
+    }
 }
 
 void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(

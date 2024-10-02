@@ -16,6 +16,7 @@
 #include "metal-transient-heap.h"
 // #include "metal-pipeline-dump-layer.h"
 // #include "metal-helper-functions.h"
+#include "metal-acceleration-structure.h"
 
 #include "core/common.h"
 
@@ -237,7 +238,14 @@ Result DeviceImpl::getAccelerationStructureSizes(
 {
     AUTORELEASEPOOL
 
-    return SLANG_E_NOT_IMPLEMENTED;
+    AccelerationStructureDescBuilder builder;
+    builder.build(desc, nullptr, getDebugCallback());
+    MTL::AccelerationStructureSizes sizes = m_device->accelerationStructureSizes(builder.descriptor.get());
+    outSizes->accelerationStructureSize = sizes.accelerationStructureSize;
+    outSizes->scratchSize = sizes.buildScratchBufferSize;
+    outSizes->updateScratchSize = sizes.refitScratchBufferSize;
+
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createAccelerationStructure(
@@ -247,7 +255,39 @@ Result DeviceImpl::createAccelerationStructure(
 {
     AUTORELEASEPOOL
 
-    return SLANG_E_NOT_IMPLEMENTED;
+    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
+    result->m_accelerationStructure = NS::TransferPtr(m_device->newAccelerationStructure(desc.size));
+
+    uint32_t globalIndex = 0;
+    if (!m_accelerationStructures.freeList.empty())
+    {
+        globalIndex = m_accelerationStructures.freeList.back();
+        m_accelerationStructures.freeList.pop_back();
+        m_accelerationStructures.list[globalIndex] = result->m_accelerationStructure.get();
+    }
+    else
+    {
+        globalIndex = m_accelerationStructures.list.size();
+        m_accelerationStructures.list.push_back(result->m_accelerationStructure.get());
+    }
+    m_accelerationStructures.dirty = true;
+    result->m_globalIndex = globalIndex;
+
+    returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+NS::Array* DeviceImpl::getAccelerationStructureArray()
+{
+    if (m_accelerationStructures.dirty)
+    {
+        m_accelerationStructures.array = NS::TransferPtr(NS::Array::alloc()->init(
+            (const NS::Object* const*)m_accelerationStructures.list.data(),
+            m_accelerationStructures.list.size()
+        ));
+        m_accelerationStructures.dirty = false;
+    }
+    return m_accelerationStructures.array.get();
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
