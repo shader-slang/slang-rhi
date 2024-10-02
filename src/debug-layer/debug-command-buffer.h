@@ -15,19 +15,19 @@ public:
     DebugTransientResourceHeap* m_transientHeap;
 
 private:
-    DebugRenderCommandEncoder m_renderCommandEncoder;
-    DebugComputeCommandEncoder m_computeCommandEncoder;
-    DebugResourceCommandEncoder m_resourceCommandEncoder;
-    DebugRayTracingCommandEncoder m_rayTracingCommandEncoder;
+    DebugRenderPassEncoder m_renderPassEncoder;
+    DebugComputePassEncoder m_computePassEncoder;
+    DebugResourcePassEncoder m_resourcePassEncoder;
+    DebugRayTracingPassEncoder m_rayTracingPassEncoder;
 
 public:
     DebugCommandBuffer();
     ICommandBuffer* getInterface(const Guid& guid);
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) override;
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW void SLANG_MCALL invalidateDescriptorHeapBinding() override;

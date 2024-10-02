@@ -133,7 +133,7 @@ protected:
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
     Result _writeOrdinaryData(
-        CommandEncoderImpl* encoder,
+        PassEncoderImpl* encoder,
         BufferImpl* buffer,
         Offset offset,
         Size destSize,
@@ -144,7 +144,7 @@ protected:
 
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(
-        CommandEncoderImpl* encoder,
+        PassEncoderImpl* encoder,
         ShaderObjectLayoutImpl* specializedLayout
     );
 

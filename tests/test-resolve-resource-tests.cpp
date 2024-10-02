@@ -175,18 +175,18 @@ struct BaseResolveResourceTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass);
-        auto rootObject = renderEncoder->bindPipeline(pipeline);
+        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
-        renderEncoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
-        renderEncoder->setVertexBuffer(0, vertexBuffer);
-        renderEncoder->draw(kVertexCount, 0);
-        renderEncoder->endEncoding();
+        passEncoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->draw(kVertexCount, 0);
+        passEncoder->end();
 
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);

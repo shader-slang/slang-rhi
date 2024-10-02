@@ -134,9 +134,9 @@ struct TextureAccessTest : TextureTest
             auto queue = device->createCommandQueue(queueDesc);
 
             auto commandBuffer = transientHeap->createCommandBuffer();
-            auto encoder = commandBuffer->encodeComputeCommands();
+            auto passEncoder = commandBuffer->beginComputePass();
 
-            auto rootObject = encoder->bindPipeline(pipeline);
+            auto rootObject = passEncoder->bindPipeline(pipeline);
 
             ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
@@ -156,8 +156,8 @@ struct TextureAccessTest : TextureTest
                 entryPointCursor["sampler"].setBinding(sampler); // TODO: Bind nullptr and make sure it doesn't splut
 
             auto bufferElementCount = width * height * depth;
-            encoder->dispatchCompute(bufferElementCount, 1, 1);
-            encoder->endEncoding();
+            passEncoder->dispatchCompute(bufferElementCount, 1, 1);
+            passEncoder->end();
             commandBuffer->close();
             queue->executeCommandBuffer(commandBuffer);
             queue->waitOnHost();
@@ -399,7 +399,7 @@ struct RenderTargetTests : TextureTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto renderEncoder = commandBuffer->encodeRenderCommands(renderPass);
+        auto renderEncoder = commandBuffer->beginRenderPass(renderPass);
         auto rootObject = renderEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
@@ -410,7 +410,7 @@ struct RenderTargetTests : TextureTest
 
         renderEncoder->setVertexBuffer(0, vertexBuffer);
         renderEncoder->draw(kVertexCount, 0);
-        renderEncoder->endEncoding();
+        renderEncoder->end();
 
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);

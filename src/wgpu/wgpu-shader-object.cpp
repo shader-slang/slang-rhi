@@ -194,7 +194,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 }
 
 Result ShaderObjectImpl::_writeOrdinaryData(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     IBuffer* buffer,
     Offset offset,
     Size destSize,
@@ -392,7 +392,7 @@ bool ShaderObjectImpl::shouldAllocateConstantBuffer(TransientResourceHeapImpl* t
 }
 
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
@@ -433,7 +433,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
 }
 
 Result ShaderObjectImpl::bindAsValue(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& offset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -593,7 +593,7 @@ Result ShaderObjectImpl::bindAsValue(
 }
 
 Result ShaderObjectImpl::allocateDescriptorSets(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& offset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -631,7 +631,7 @@ Result ShaderObjectImpl::createBindGroups(RootBindingContext& context)
 }
 
 Result ShaderObjectImpl::bindAsParameterBlock(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -669,7 +669,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
 }
 
 Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset& ioOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -694,7 +694,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
 }
 
 Result ShaderObjectImpl::bindAsConstantBuffer(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -763,7 +763,7 @@ EntryPointLayout* EntryPointShaderObject::getLayout()
 }
 
 Result EntryPointShaderObject::bindAsEntryPoint(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     EntryPointLayout* layout
@@ -874,7 +874,7 @@ Result RootShaderObjectImpl::copyFrom(IShaderObject* object, ITransientResourceH
 }
 
 Result RootShaderObjectImpl::bindAsRoot(
-    CommandEncoderImpl* encoder,
+    PassEncoderImpl* encoder,
     RootBindingContext& context,
     RootShaderObjectLayout* layout
 )

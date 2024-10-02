@@ -17,7 +17,7 @@ public:
     virtual RefPtr<Buffer> createDeviceBuffer(
         Pipeline* pipeline,
         TransientResourceHeap* transientHeap,
-        IRayTracingCommandEncoder* encoder
+        IRayTracingPassEncoder* encoder
     ) override;
 };
 

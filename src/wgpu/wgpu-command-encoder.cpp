@@ -10,14 +10,14 @@
 
 namespace rhi::wgpu {
 
-void* CommandEncoderImpl::getInterface(SlangUUID const& uuid)
+void* PassEncoderImpl::getInterface(SlangUUID const& uuid)
 {
-    if (uuid == GUID::IID_ICommandEncoder || uuid == ISlangUnknown::getTypeGuid())
+    if (uuid == GUID::IID_IPassEncoder || uuid == ISlangUnknown::getTypeGuid())
         return this;
     return nullptr;
 }
 
-Result CommandEncoderImpl::queryInterface(SlangUUID const& uuid, void** outObject)
+Result PassEncoderImpl::queryInterface(SlangUUID const& uuid, void** outObject)
 {
     if (auto ptr = getInterface(uuid))
     {
@@ -27,26 +27,26 @@ Result CommandEncoderImpl::queryInterface(SlangUUID const& uuid, void** outObjec
     return SLANG_E_NO_INTERFACE;
 }
 
-uint32_t CommandEncoderImpl::addRef()
+uint32_t PassEncoderImpl::addRef()
 {
     return 1;
 }
 
-uint32_t CommandEncoderImpl::release()
+uint32_t PassEncoderImpl::release()
 {
     return 1;
 }
 
-CommandEncoderImpl::~CommandEncoderImpl() {}
+PassEncoderImpl::~PassEncoderImpl() {}
 
-void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
+void PassEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
     m_device = commandBuffer->m_device;
     m_commandBuffer = commandBuffer;
     m_commandEncoder = commandBuffer->m_commandEncoder;
 }
 
-Result CommandEncoderImpl::bindPipelineImpl(RootBindingContext& context)
+Result PassEncoderImpl::bindPipelineImpl(RootBindingContext& context)
 {
     // Get specialized pipeline state and bind it.
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
@@ -86,9 +86,9 @@ Result CommandEncoderImpl::bindPipelineImpl(RootBindingContext& context)
     return SLANG_OK;
 }
 
-void CommandEncoderImpl::endEncodingImpl() {}
+void PassEncoderImpl::endEncodingImpl() {}
 
-void CommandEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size size, void* data)
+void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     // Copy to staging buffer
     IBuffer* stagingBuffer = nullptr;
@@ -114,7 +114,7 @@ void CommandEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Si
     );
 }
 
-Result CommandEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
+Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
     m_currentPipeline = static_cast<PipelineImpl*>(state);
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
@@ -126,33 +126,33 @@ Result CommandEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** out
     return SLANG_OK;
 }
 
-Result CommandEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
+Result PassEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
 {
     m_currentPipeline = static_cast<PipelineImpl*>(state);
     m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
 
-void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
+void PassEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     // WGPU doesn't have explicit barriers.
 }
 
-void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+void PassEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     // WGPU doesn't have explicit barriers.
 }
 
-void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3]) {}
+void PassEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3]) {}
 
-void CommandEncoderImpl::endDebugEvent() {}
+void PassEncoderImpl::endDebugEvent() {}
 
-void CommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index) {}
+void PassEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index) {}
 
 
-void* ResourceCommandEncoderImpl::getInterface(SlangUUID const& uuid)
+void* ResourcePassEncoderImpl::getInterface(SlangUUID const& uuid)
 {
-    if (uuid == GUID::IID_IResourceCommandEncoder || uuid == GUID::IID_ICommandEncoder ||
+    if (uuid == GUID::IID_IResourcePassEncoder || uuid == GUID::IID_IPassEncoder ||
         uuid == ISlangUnknown::getTypeGuid())
     {
         return this;
@@ -160,18 +160,18 @@ void* ResourceCommandEncoderImpl::getInterface(SlangUUID const& uuid)
     return nullptr;
 }
 
-Result ResourceCommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
+Result ResourcePassEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
-    CommandEncoderImpl::init(commandBuffer);
+    PassEncoderImpl::init(commandBuffer);
     return SLANG_OK;
 }
 
-void ResourceCommandEncoderImpl::endEncoding()
+void ResourcePassEncoderImpl::end()
 {
     endEncodingImpl();
 }
 
-void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
+void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
     BufferImpl* srcBuffer = static_cast<BufferImpl*>(src);
@@ -185,7 +185,7 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
     );
 }
 
-void ResourceCommandEncoderImpl::copyTexture(
+void ResourcePassEncoderImpl::copyTexture(
     ITexture* dst,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
@@ -199,7 +199,7 @@ void ResourceCommandEncoderImpl::copyTexture(
     TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
 }
 
-void ResourceCommandEncoderImpl::copyTextureToBuffer(
+void ResourcePassEncoderImpl::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
@@ -212,12 +212,12 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
 {
 }
 
-void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
+void ResourcePassEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     SLANG_RHI_UNIMPLEMENTED("uploadBufferData");
 }
 
-void ResourceCommandEncoderImpl::uploadTextureData(
+void ResourcePassEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -229,7 +229,7 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
-void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
     BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
     uint64_t offset = range ? range->offset : 0;
@@ -237,7 +237,7 @@ void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange*
     m_device->m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, bufferImpl->m_buffer, offset, size);
 }
 
-void ResourceCommandEncoderImpl::clearTexture(
+void ResourcePassEncoderImpl::clearTexture(
     ITexture* texture,
     const ClearValue& clearValue,
     const SubresourceRange* subresourceRange,
@@ -247,7 +247,7 @@ void ResourceCommandEncoderImpl::clearTexture(
 {
 }
 
-void ResourceCommandEncoderImpl::resolveQuery(
+void ResourcePassEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
@@ -258,19 +258,18 @@ void ResourceCommandEncoderImpl::resolveQuery(
     SLANG_RHI_UNIMPLEMENTED("resolveQuery");
 }
 
-void* RenderCommandEncoderImpl::getInterface(SlangUUID const& uuid)
+void* RenderPassEncoderImpl::getInterface(SlangUUID const& uuid)
 {
-    if (uuid == GUID::IID_IRenderCommandEncoder || uuid == GUID::IID_ICommandEncoder ||
-        uuid == ISlangUnknown::getTypeGuid())
+    if (uuid == GUID::IID_IRenderPassEncoder || uuid == GUID::IID_IPassEncoder || uuid == ISlangUnknown::getTypeGuid())
     {
         return this;
     }
     return nullptr;
 }
 
-Result RenderCommandEncoderImpl::init(CommandBufferImpl* commandBuffer, const RenderPassDesc& desc)
+Result RenderPassEncoderImpl::init(CommandBufferImpl* commandBuffer, const RenderPassDesc& desc)
 {
-    CommandEncoderImpl::init(commandBuffer);
+    PassEncoderImpl::init(commandBuffer);
 
     short_vector<WGPURenderPassColorAttachment, 8> colorAttachments(desc.colorAttachmentCount, {});
     for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
@@ -319,7 +318,7 @@ Result RenderCommandEncoderImpl::init(CommandBufferImpl* commandBuffer, const Re
     return m_renderPassEncoder ? SLANG_OK : SLANG_FAIL;
 }
 
-Result RenderCommandEncoderImpl::prepareDraw()
+Result RenderPassEncoderImpl::prepareDraw()
 {
     auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     if (!pipeline)
@@ -344,7 +343,7 @@ Result RenderCommandEncoderImpl::prepareDraw()
     return SLANG_OK;
 }
 
-void RenderCommandEncoderImpl::endEncoding()
+void RenderPassEncoderImpl::end()
 {
     endEncodingImpl();
     m_device->m_ctx.api.wgpuRenderPassEncoderEnd(m_renderPassEncoder);
@@ -352,17 +351,17 @@ void RenderCommandEncoderImpl::endEncoding()
     m_renderPassEncoder = nullptr;
 }
 
-Result RenderCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result RenderPassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result RenderCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result RenderPassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return setPipelineWithRootObjectImpl(pipeline, rootObject);
 }
 
-void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
+void RenderPassEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
 {
     if (count < 1)
         return;
@@ -378,7 +377,7 @@ void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* view
     );
 }
 
-void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
+void RenderPassEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
 {
     if (count < 1)
         return;
@@ -392,7 +391,7 @@ void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect
     );
 }
 
-void RenderCommandEncoderImpl::setVertexBuffers(
+void RenderPassEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
     IBuffer* const* buffers,
@@ -412,7 +411,7 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
+void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
     m_device->m_ctx.api.wgpuRenderPassEncoderSetIndexBuffer(
@@ -424,12 +423,12 @@ void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat index
     );
 }
 
-void RenderCommandEncoderImpl::setStencilReference(uint32_t referenceValue)
+void RenderPassEncoderImpl::setStencilReference(uint32_t referenceValue)
 {
     m_device->m_ctx.api.wgpuRenderPassEncoderSetStencilReference(m_renderPassEncoder, referenceValue);
 }
 
-Result RenderCommandEncoderImpl::setSamplePositions(
+Result RenderPassEncoderImpl::setSamplePositions(
     GfxCount samplesPerPixel,
     GfxCount pixelCount,
     const SamplePosition* samplePositions
@@ -438,21 +437,21 @@ Result RenderCommandEncoderImpl::setSamplePositions(
     return SLANG_FAIL;
 }
 
-Result RenderCommandEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
+Result RenderPassEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
 {
     SLANG_RETURN_ON_FAIL(prepareDraw());
     m_device->m_ctx.api.wgpuRenderPassEncoderDraw(m_renderPassEncoder, vertexCount, 1, startVertex, 0);
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
+Result RenderPassEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
 {
     SLANG_RETURN_ON_FAIL(prepareDraw());
     m_device->m_ctx.api.wgpuRenderPassEncoderDrawIndexed(m_renderPassEncoder, indexCount, 1, startIndex, baseVertex, 0);
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndirect(
+Result RenderPassEncoderImpl::drawIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -468,7 +467,7 @@ Result RenderCommandEncoderImpl::drawIndirect(
     return SLANG_FAIL;
 }
 
-Result RenderCommandEncoderImpl::drawIndexedIndirect(
+Result RenderPassEncoderImpl::drawIndexedIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -484,7 +483,7 @@ Result RenderCommandEncoderImpl::drawIndexedIndirect(
     return SLANG_FAIL;
 }
 
-Result RenderCommandEncoderImpl::drawInstanced(
+Result RenderPassEncoderImpl::drawInstanced(
     GfxCount vertexCount,
     GfxCount instanceCount,
     GfxIndex startVertex,
@@ -497,7 +496,7 @@ Result RenderCommandEncoderImpl::drawInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndexedInstanced(
+Result RenderPassEncoderImpl::drawIndexedInstanced(
     GfxCount indexCount,
     GfxCount instanceCount,
     GfxIndex startIndexLocation,
@@ -517,32 +516,31 @@ Result RenderCommandEncoderImpl::drawIndexedInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawMeshTasks(int x, int y, int z)
+Result RenderPassEncoderImpl::drawMeshTasks(int x, int y, int z)
 {
     return SLANG_FAIL;
 }
 
 
-void* ComputeCommandEncoderImpl::getInterface(SlangUUID const& uuid)
+void* ComputePassEncoderImpl::getInterface(SlangUUID const& uuid)
 {
-    if (uuid == GUID::IID_IComputeCommandEncoder || uuid == GUID::IID_ICommandEncoder ||
-        uuid == ISlangUnknown::getTypeGuid())
+    if (uuid == GUID::IID_IComputePassEncoder || uuid == GUID::IID_IPassEncoder || uuid == ISlangUnknown::getTypeGuid())
     {
         return this;
     }
     return nullptr;
 }
 
-Result ComputeCommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
+Result ComputePassEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
-    CommandEncoderImpl::init(commandBuffer);
+    PassEncoderImpl::init(commandBuffer);
     WGPUComputePassDescriptor passDesc = {};
     m_computePassEncoder =
         m_device->m_ctx.api.wgpuCommandEncoderBeginComputePass(m_commandBuffer->m_commandEncoder, &passDesc);
     return m_computePassEncoder ? SLANG_OK : SLANG_FAIL;
 }
 
-void ComputeCommandEncoderImpl::endEncoding()
+void ComputePassEncoderImpl::end()
 {
     endEncodingImpl();
     m_device->m_ctx.api.wgpuComputePassEncoderEnd(m_computePassEncoder);
@@ -550,17 +548,17 @@ void ComputeCommandEncoderImpl::endEncoding()
     m_computePassEncoder = nullptr;
 }
 
-Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result ComputePassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return setPipelineWithRootObjectImpl(pipeline, rootObject);
 }
 
-Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
+Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
     auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     if (!pipeline)
@@ -586,7 +584,7 @@ Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     m_device->m_ctx.api.wgpuComputePassEncoderDispatchWorkgroupsIndirect(
         m_computePassEncoder,

@@ -102,12 +102,12 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeComputeCommands();
+        auto passEncoder = commandBuffer->beginComputePass();
 
-        encoder->bindPipelineWithRootObject(pipeline, shaderObject);
+        passEncoder->bindPipelineWithRootObject(pipeline, shaderObject);
 
-        encoder->dispatchCompute(1, 1, 1);
-        encoder->endEncoding();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();

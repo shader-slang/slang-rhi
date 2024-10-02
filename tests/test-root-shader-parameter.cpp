@@ -97,10 +97,10 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         {
-            auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipeline, rootObject);
-            encoder->dispatchCompute(1, 1, 1);
-            encoder->endEncoding();
+            auto passEncoder = commandBuffer->beginComputePass();
+            passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
+            passEncoder->dispatchCompute(1, 1, 1);
+            passEncoder->end();
         }
 
         commandBuffer->close();

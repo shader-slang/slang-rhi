@@ -223,23 +223,23 @@ struct DrawInstancedTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
-        encoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
         uint32_t startVertex = 0;
         uint32_t startInstanceLocation = 0;
 
-        encoder->setVertexBuffer(0, vertexBuffer);
-        encoder->setVertexBuffer(1, instanceBuffer);
+        passEncoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->setVertexBuffer(1, instanceBuffer);
 
-        encoder->drawInstanced(kVertexCount, kInstanceCount, startVertex, startInstanceLocation);
-        encoder->endEncoding();
+        passEncoder->drawInstanced(kVertexCount, kInstanceCount, startVertex, startInstanceLocation);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -279,25 +279,25 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
-        encoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
         uint32_t startIndex = 0;
         int32_t startVertex = 0;
         uint32_t startInstanceLocation = 0;
 
-        encoder->setVertexBuffer(0, vertexBuffer);
-        encoder->setVertexBuffer(1, instanceBuffer);
-        encoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
+        passEncoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->setVertexBuffer(1, instanceBuffer);
+        passEncoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
 
-        encoder->drawIndexedInstanced(kIndexCount, kInstanceCount, startIndex, startVertex, startInstanceLocation);
-        encoder->endEncoding();
+        passEncoder->drawIndexedInstanced(kIndexCount, kInstanceCount, startIndex, startVertex, startInstanceLocation);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -361,23 +361,23 @@ struct DrawIndirectTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
-        encoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
-        encoder->setVertexBuffer(0, vertexBuffer);
-        encoder->setVertexBuffer(1, instanceBuffer);
+        passEncoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->setVertexBuffer(1, instanceBuffer);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndirectArgData, args);
 
-        encoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
-        encoder->endEncoding();
+        passEncoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -442,24 +442,24 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = kWidth;
         viewport.extentY = kHeight;
-        encoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
-        encoder->setVertexBuffer(0, vertexBuffer);
-        encoder->setVertexBuffer(1, instanceBuffer);
-        encoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
+        passEncoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->setVertexBuffer(1, instanceBuffer);
+        passEncoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndexedIndirectArgData, args);
 
-        encoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
-        encoder->endEncoding();
+        passEncoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();

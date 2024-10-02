@@ -20,32 +20,31 @@ Result CommandBufferImpl::init(DeviceImpl* device, TransientResourceHeapImpl* tr
     return SLANG_OK;
 }
 
-Result CommandBufferImpl::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result CommandBufferImpl::beginResourcePass(IResourcePassEncoder** outEncoder)
 {
-    m_resourceCommandEncoder.init(this);
-    *outEncoder = &m_resourceCommandEncoder;
+    m_resourcePassEncoder.init(this);
+    *outEncoder = &m_resourcePassEncoder return SLANG_OK;
+}
+
+Result CommandBufferImpl::beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder)
+{
+    m_renderPassEncoder.init(this);
+    SLANG_RETURN_ON_FAIL(m_renderPassEncoder.beginPass(desc));
+    *outEncoder = &m_renderPassEncoder;
     return SLANG_OK;
 }
 
-Result CommandBufferImpl::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
+Result CommandBufferImpl::beginComputePass(IComputePassEncoder** outEncoder)
 {
-    m_renderCommandEncoder.init(this);
-    SLANG_RETURN_ON_FAIL(m_renderCommandEncoder.beginPass(desc));
-    *outEncoder = &m_renderCommandEncoder;
+    m_computePassEncoder.init(this);
+    *outEncoder = &m_computePassEncoder;
     return SLANG_OK;
 }
 
-Result CommandBufferImpl::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result CommandBufferImpl::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
 {
-    m_computeCommandEncoder.init(this);
-    *outEncoder = &m_computeCommandEncoder;
-    return SLANG_OK;
-}
-
-Result CommandBufferImpl::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
-{
-    m_rayTracingCommandEncoder.init(this);
-    *outEncoder = &m_rayTracingCommandEncoder;
+    m_rayTracingPassEncoder.init(this);
+    *outEncoder = &m_rayTracingPassEncoder;
     return SLANG_OK;
 }
 

@@ -6,10 +6,10 @@ namespace rhi::debug {
 DebugCommandBuffer::DebugCommandBuffer()
 {
     SLANG_RHI_API_FUNC;
-    m_renderCommandEncoder.commandBuffer = this;
-    m_computeCommandEncoder.commandBuffer = this;
-    m_resourceCommandEncoder.commandBuffer = this;
-    m_rayTracingCommandEncoder.commandBuffer = this;
+    m_renderPassEncoder.commandBuffer = this;
+    m_computePassEncoder.commandBuffer = this;
+    m_resourcePassEncoder.commandBuffer = this;
+    m_rayTracingPassEncoder.commandBuffer = this;
 }
 
 ICommandBuffer* DebugCommandBuffer::getInterface(const Guid& guid)
@@ -21,18 +21,18 @@ ICommandBuffer* DebugCommandBuffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
-Result DebugCommandBuffer::encodeResourceCommands(IResourceCommandEncoder** outEncoder)
+Result DebugCommandBuffer::beginResourcePass(IResourcePassEncoder** outEncoder)
 {
     SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
-    m_resourceCommandEncoder.isOpen = true;
-    SLANG_RETURN_ON_FAIL(baseObject->encodeResourceCommands(&m_resourceCommandEncoder.baseObject));
-    *outEncoder = &m_resourceCommandEncoder;
+    m_resourcePassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginResourcePass(&m_resourcePassEncoder.baseObject));
+    *outEncoder = &m_resourcePassEncoder;
     return SLANG_OK;
 }
 
-Result DebugCommandBuffer::encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder)
+Result DebugCommandBuffer::beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder)
 {
     // TODO VALIDATION: resolveTarget must have usage RenderTarget (Vulkan, WGPU)
 
@@ -55,31 +55,31 @@ Result DebugCommandBuffer::encodeRenderCommands(const RenderPassDesc& desc, IRen
         innerDepthStencilAttachment.view = getInnerObj(desc.depthStencilAttachment->view);
         innerDesc.depthStencilAttachment = &innerDepthStencilAttachment;
     }
-    m_renderCommandEncoder.isOpen = true;
-    SLANG_RETURN_ON_FAIL(baseObject->encodeRenderCommands(innerDesc, &m_renderCommandEncoder.baseObject));
-    *outEncoder = &m_renderCommandEncoder;
+    m_renderPassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginRenderPass(innerDesc, &m_renderPassEncoder.baseObject));
+    *outEncoder = &m_renderPassEncoder;
     return SLANG_OK;
 }
 
-Result DebugCommandBuffer::encodeComputeCommands(IComputeCommandEncoder** outEncoder)
+Result DebugCommandBuffer::beginComputePass(IComputePassEncoder** outEncoder)
 {
     SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
-    m_computeCommandEncoder.isOpen = true;
-    SLANG_RETURN_ON_FAIL(baseObject->encodeComputeCommands(&m_computeCommandEncoder.baseObject));
-    *outEncoder = &m_computeCommandEncoder;
+    m_computePassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginComputePass(&m_computePassEncoder.baseObject));
+    *outEncoder = &m_computePassEncoder;
     return SLANG_OK;
 }
 
-Result DebugCommandBuffer::encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder)
+Result DebugCommandBuffer::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
 {
     SLANG_RHI_API_FUNC;
     checkCommandBufferOpenWhenCreatingEncoder();
     checkEncodersClosedBeforeNewEncoder();
-    m_rayTracingCommandEncoder.isOpen = true;
-    SLANG_RETURN_ON_FAIL(baseObject->encodeRayTracingCommands(&m_rayTracingCommandEncoder.baseObject));
-    *outEncoder = &m_rayTracingCommandEncoder;
+    m_rayTracingPassEncoder.isOpen = true;
+    SLANG_RETURN_ON_FAIL(baseObject->beginRayTracingPass(&m_rayTracingPassEncoder.baseObject));
+    *outEncoder = &m_rayTracingPassEncoder;
     return SLANG_OK;
 }
 
@@ -90,25 +90,25 @@ void DebugCommandBuffer::close()
     {
         RHI_VALIDATION_ERROR("command buffer is already closed.");
     }
-    if (m_renderCommandEncoder.isOpen)
+    if (m_renderPassEncoder.isOpen)
     {
         RHI_VALIDATION_ERROR(
-            "A render command encoder on this command buffer is still open. "
-            "IRenderCommandEncoder::endEncoding() must be called before closing a command buffer."
+            "A render pass encoder on this command buffer is still open. "
+            "IRenderPassEncoder::end() must be called before closing a command buffer."
         );
     }
-    if (m_computeCommandEncoder.isOpen)
+    if (m_computePassEncoder.isOpen)
     {
         RHI_VALIDATION_ERROR(
-            "A compute command encoder on this command buffer is still open. "
-            "IComputeCommandEncoder::endEncoding() must be called before closing a command buffer."
+            "A compute pass encoder on this command buffer is still open. "
+            "IComputePassEncoder::end() must be called before closing a command buffer."
         );
     }
-    if (m_resourceCommandEncoder.isOpen)
+    if (m_resourcePassEncoder.isOpen)
     {
         RHI_VALIDATION_ERROR(
-            "A resource command encoder on this command buffer is still open. "
-            "IResourceCommandEncoder::endEncoding() must be called before closing a command buffer."
+            "A resource pass encoder on this command buffer is still open. "
+            "IResourcePassEncoder::end() must be called before closing a command buffer."
         );
     }
     isOpen = false;
@@ -149,12 +149,12 @@ void DebugCommandBuffer::ensureInternalDescriptorHeapsBound()
 
 void DebugCommandBuffer::checkEncodersClosedBeforeNewEncoder()
 {
-    if (m_resourceCommandEncoder.isOpen || m_renderCommandEncoder.isOpen || m_computeCommandEncoder.isOpen ||
-        m_rayTracingCommandEncoder.isOpen)
+    if (m_resourcePassEncoder.isOpen || m_renderPassEncoder.isOpen || m_computePassEncoder.isOpen ||
+        m_rayTracingPassEncoder.isOpen)
     {
         RHI_VALIDATION_ERROR(
-            "A previous command encoder created on this command buffer is still open. "
-            "endEncoding() must be called on the encoder before creating an encoder."
+            "A previous pass encoder created on this command buffer is still open. "
+            "end() must be called on the encoder before creating an encoder."
         );
     }
 }

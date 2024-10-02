@@ -267,16 +267,16 @@ struct ShaderCacheTest
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeComputeCommands();
+        auto passEncoder = commandBuffer->beginComputePass();
 
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         // Bind buffer view to the entry point.
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
         entryPointCursor.getPath("buffer").setBinding(buffer);
 
-        encoder->dispatchCompute(4, 1, 1);
-        encoder->endEncoding();
+        passEncoder->dispatchCompute(4, 1, 1);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -565,9 +565,9 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeComputeCommands();
+        auto passEncoder = commandBuffer->beginComputePass();
 
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
@@ -582,8 +582,8 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         entryPointCursor.getPath("buffer").setBinding(buffer);
         entryPointCursor.getPath("transformer").setObject(transformer);
 
-        encoder->dispatchCompute(1, 1, 1);
-        encoder->endEncoding();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();
@@ -801,19 +801,19 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass);
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = (float)kWidth;
         viewport.extentY = (float)kHeight;
-        encoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
-        encoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->setVertexBuffer(0, vertexBuffer);
 
-        encoder->draw(3);
-        encoder->endEncoding();
+        passEncoder->draw(3);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();

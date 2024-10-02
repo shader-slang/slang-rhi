@@ -59,24 +59,24 @@ public:
 
     void init(DeviceImpl* device, ID3D12GraphicsCommandList* d3dCommandList, TransientResourceHeapImpl* transientHeap);
 
-    ResourceCommandEncoderImpl m_resourceCommandEncoder;
+    ResourcePassEncoderImpl m_resourcePassEncoder;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeResourceCommands(IResourceCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
 
-    RenderCommandEncoderImpl m_renderCommandEncoder;
+    RenderPassEncoderImpl m_renderPassEncoder;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    encodeRenderCommands(const RenderPassDesc& desc, IRenderCommandEncoder** outEncoder) override;
+    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override;
 
-    ComputeCommandEncoderImpl m_computeCommandEncoder;
+    ComputePassEncoderImpl m_computePassEncoder;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeComputeCommands(IComputeCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override;
 
 #if SLANG_RHI_DXR
-    RayTracingCommandEncoderImpl m_rayTracingCommandEncoder;
+    RayTracingPassEncoderImpl m_rayTracingPassEncoder;
 #endif
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL encodeRayTracingCommands(IRayTracingCommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL close() override;
 };

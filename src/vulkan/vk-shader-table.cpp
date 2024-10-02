@@ -10,7 +10,7 @@ namespace rhi::vk {
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     Pipeline* pipeline,
     TransientResourceHeap* transientHeap,
-    IRayTracingCommandEncoder* encoder
+    IRayTracingPassEncoder* encoder
 )
 {
     auto vkApi = m_device->m_api;
@@ -123,7 +123,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     copyRegion.srcOffset = stagingBufferOffset;
     copyRegion.size = tableSize;
     vkApi.vkCmdCopyBuffer(
-        static_cast<RayTracingCommandEncoderImpl*>(encoder)->m_commandBuffer->m_commandBuffer,
+        static_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_commandBuffer,
         static_cast<BufferImpl*>(stagingBuffer)->m_buffer.m_buffer,
         static_cast<BufferImpl*>(buffer.get())->m_buffer.m_buffer,
         /* regionCount: */ 1,

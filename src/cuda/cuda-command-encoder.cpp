@@ -4,52 +4,52 @@
 
 namespace rhi::cuda {
 
-// CommandEncoderImpl
+// PassEncoderImpl
 
-void CommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+void PassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 {
     m_writer = cmdBuffer;
 }
 
-void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
+void PassEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     SLANG_UNUSED(buffer);
     SLANG_UNUSED(state);
 }
 
-void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+void PassEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     SLANG_UNUSED(texture);
     SLANG_UNUSED(subresourceRange);
     SLANG_UNUSED(state);
 }
 
-void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
+void PassEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
     SLANG_UNUSED(name);
     SLANG_UNUSED(rgbColor);
 }
 
-void CommandEncoderImpl::endDebugEvent() {}
+void PassEncoderImpl::endDebugEvent() {}
 
-void CommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
+void PassEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
     m_writer->writeTimestamp(pool, index);
 }
 
-// ResourceCommandEncoderImpl
+// ResourcePassEncoderImpl
 
-void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
+void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     m_writer->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
-void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+void ResourcePassEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     m_writer->uploadBufferData(dst, offset, size, data);
 }
 
-void ResourceCommandEncoderImpl::copyTexture(
+void ResourcePassEncoderImpl::copyTexture(
     ITexture* dst,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
@@ -69,7 +69,7 @@ void ResourceCommandEncoderImpl::copyTexture(
     SLANG_RHI_UNIMPLEMENTED("copyTexture");
 }
 
-void ResourceCommandEncoderImpl::uploadTextureData(
+void ResourcePassEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -87,14 +87,14 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
-void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
     SLANG_UNUSED(buffer);
     SLANG_UNUSED(range);
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-void ResourceCommandEncoderImpl::clearTexture(
+void ResourcePassEncoderImpl::clearTexture(
     ITexture* texture,
     const ClearValue& clearValue,
     const SubresourceRange* subresourceRange,
@@ -110,7 +110,7 @@ void ResourceCommandEncoderImpl::clearTexture(
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-void ResourceCommandEncoderImpl::resolveQuery(
+void ResourcePassEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
@@ -126,7 +126,7 @@ void ResourceCommandEncoderImpl::resolveQuery(
     SLANG_RHI_UNIMPLEMENTED("resolveQuery");
 }
 
-void ResourceCommandEncoderImpl::copyTextureToBuffer(
+void ResourcePassEncoderImpl::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
@@ -148,15 +148,15 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     SLANG_RHI_UNIMPLEMENTED("copyTextureToBuffer");
 }
 
-// ComputeCommandEncoderImpl
+// ComputePassEncoderImpl
 
-void ComputeCommandEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+void ComputePassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 {
     m_writer = cmdBuffer;
     m_commandBuffer = cmdBuffer;
 }
 
-Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+Result ComputePassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     m_writer->setPipeline(state);
     Pipeline* pipelineImpl = static_cast<Pipeline*>(state);
@@ -167,7 +167,7 @@ Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* state, IShaderObject**
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     m_writer->setPipeline(state);
     Pipeline* pipelineImpl = static_cast<Pipeline*>(state);
@@ -178,14 +178,14 @@ Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* state, I
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
+Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
     m_writer->bindRootShaderObject(m_rootObject);
     m_writer->dispatchCompute(x, y, z);
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }

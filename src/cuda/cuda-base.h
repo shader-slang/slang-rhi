@@ -2,7 +2,7 @@
 
 #include "cuda-api.h"
 
-#include "../command-encoder-com-forward.h"
+#include "../pass-encoder-com-forward.h"
 #include "../command-writer.h"
 #include "../mutable-shader-object.h"
 #include "../rhi-shared.h"
@@ -44,9 +44,9 @@ class PipelineImpl;
 class QueryPoolImpl;
 class DeviceImpl;
 class CommandBufferImpl;
-class CommandEncoderImpl;
-class ResourceCommandEncoderImpl;
-class ComputeCommandEncoderImpl;
+class PassEncoderImpl;
+class ResourcePassEncoderImpl;
+class ComputePassEncoderImpl;
 class CommandQueueImpl;
 
 } // namespace rhi::cuda

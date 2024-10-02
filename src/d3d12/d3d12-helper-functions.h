@@ -27,7 +27,7 @@ struct PendingDescriptorTableBinding
 /// Contextual data and operations required when binding shader objects to the pipeline state
 struct BindingContext
 {
-    CommandEncoderImpl* encoder;
+    PassEncoderImpl* encoder;
     Submitter* submitter;
     TransientResourceHeapImpl* transientHeap;
     DeviceImpl* device;

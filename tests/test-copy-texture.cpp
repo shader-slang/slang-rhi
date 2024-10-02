@@ -128,9 +128,9 @@ struct BaseCopyTextureTest
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeResourceCommands();
+        auto passEncoder = commandBuffer->beginResourcePass();
 
-        encoder->copyTexture(
+        passEncoder->copyTexture(
             dstTexture,
             texCopyInfo.dstSubresource,
             texCopyInfo.dstOffset,
@@ -140,7 +140,7 @@ struct BaseCopyTextureTest
             texCopyInfo.extent
         );
 
-        encoder->copyTextureToBuffer(
+        passEncoder->copyTextureToBuffer(
             resultsBuffer,
             bufferCopyInfo.bufferOffset,
             bufferCopyInfo.bufferSize,
@@ -151,7 +151,7 @@ struct BaseCopyTextureTest
             bufferCopyInfo.extent
         );
 
-        encoder->endEncoding();
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();

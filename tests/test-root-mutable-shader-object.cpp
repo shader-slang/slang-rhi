@@ -58,20 +58,20 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         {
-            auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipeline, rootObject);
-            encoder->dispatchCompute(1, 1, 1);
-            encoder->endEncoding();
+            auto passEncoder = commandBuffer->beginComputePass();
+            passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
+            passEncoder->dispatchCompute(1, 1, 1);
+            passEncoder->end();
         }
 
         // Mutate `transformer` object and run again.
         c = 2.0f;
         ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
         {
-            auto encoder = commandBuffer->encodeComputeCommands();
-            encoder->bindPipelineWithRootObject(pipeline, rootObject);
-            encoder->dispatchCompute(1, 1, 1);
-            encoder->endEncoding();
+            auto passEncoder = commandBuffer->beginComputePass();
+            passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
+            passEncoder->dispatchCompute(1, 1, 1);
+            passEncoder->end();
         }
 
         commandBuffer->close();

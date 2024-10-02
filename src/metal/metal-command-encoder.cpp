@@ -13,48 +13,48 @@
 
 namespace rhi::metal {
 
-// CommandEncoderImpl
+// PassEncoderImpl
 
-void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
+void PassEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
     // We use automatic hazard tracking for now, no need for barriers.
 }
 
-void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+void PassEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     // We use automatic hazard tracking for now, no need for barriers.
 }
 
-void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
+void PassEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
 {
     NS::SharedPtr<NS::String> string = MetalUtil::createString(name);
     m_commandBuffer->m_commandBuffer->pushDebugGroup(string.get());
 }
 
-void CommandEncoderImpl::endDebugEvent()
+void PassEncoderImpl::endDebugEvent()
 {
     m_commandBuffer->m_commandBuffer->popDebugGroup();
 }
 
-void CommandEncoderImpl::writeTimestamp(IQueryPool* queryPool, GfxIndex index)
+void PassEncoderImpl::writeTimestamp(IQueryPool* queryPool, GfxIndex index)
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->sampleCountersInBuffer(static_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(), index, true);
 }
 
 
-void CommandEncoderImpl::init(CommandBufferImpl* commandBuffer)
+void PassEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer;
     m_metalCommandBuffer = m_commandBuffer->m_commandBuffer.get();
 }
 
-void CommandEncoderImpl::endEncodingImpl()
+void PassEncoderImpl::endEncodingImpl()
 {
     m_commandBuffer->endMetalCommandEncoder();
 }
 
-Result CommandEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
+Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
     m_currentPipeline = static_cast<PipelineImpl*>(state);
     // m_commandBuffer->m_mutableRootShaderObject = nullptr;
@@ -66,14 +66,14 @@ Result CommandEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** out
     return SLANG_OK;
 }
 
-// ResourceCommandEncoderImpl
+// ResourcePassEncoderImpl
 
-void ResourceCommandEncoderImpl::endEncoding()
+void ResourcePassEncoderImpl::end()
 {
-    CommandEncoderImpl::endEncodingImpl();
+    PassEncoderImpl::endEncodingImpl();
 }
 
-void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
+void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->copyFromBuffer(
@@ -85,7 +85,7 @@ void ResourceCommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuf
     );
 }
 
-void ResourceCommandEncoderImpl::copyTexture(
+void ResourcePassEncoderImpl::copyTexture(
     ITexture* dst,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
@@ -124,7 +124,7 @@ void ResourceCommandEncoderImpl::copyTexture(
     }
 }
 
-void ResourceCommandEncoderImpl::copyTextureToBuffer(
+void ResourcePassEncoderImpl::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
@@ -151,12 +151,12 @@ void ResourceCommandEncoderImpl::copyTextureToBuffer(
     );
 }
 
-void ResourceCommandEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
+void ResourcePassEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
 {
     SLANG_RHI_UNIMPLEMENTED("uploadBufferData");
 }
 
-void ResourceCommandEncoderImpl::uploadTextureData(
+void ResourcePassEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -168,12 +168,12 @@ void ResourceCommandEncoderImpl::uploadTextureData(
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
-void ResourceCommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-void ResourceCommandEncoderImpl::clearTexture(
+void ResourcePassEncoderImpl::clearTexture(
     ITexture* texture,
     const ClearValue& clearValue,
     const SubresourceRange* subresourceRange,
@@ -184,7 +184,7 @@ void ResourceCommandEncoderImpl::clearTexture(
     SLANG_RHI_UNIMPLEMENTED("clearTexture");
 }
 
-void ResourceCommandEncoderImpl::resolveQuery(
+void ResourcePassEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
@@ -201,9 +201,9 @@ void ResourceCommandEncoderImpl::resolveQuery(
     );
 }
 
-// RenderCommandEncoderImpl
+// RenderPassEncoderImpl
 
-Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
+Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
 {
     uint32_t width = 1;
     uint32_t height = 1;
@@ -297,27 +297,27 @@ Result RenderCommandEncoderImpl::beginPass(const RenderPassDesc& desc)
     return SLANG_OK;
 }
 
-void RenderCommandEncoderImpl::endEncoding()
+void RenderPassEncoderImpl::end()
 {
     m_renderTargetViews.clear();
     m_depthStencilView = nullptr;
 
-    CommandEncoderImpl::endEncodingImpl();
+    PassEncoderImpl::endEncodingImpl();
 }
 
-Result RenderCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result RenderPassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     m_primitiveType =
         MetalUtil::translatePrimitiveType(static_cast<PipelineImpl*>(pipeline)->desc.graphics.primitiveTopology);
     return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result RenderCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result RenderPassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
+void RenderPassEncoderImpl::setViewports(GfxCount count, const Viewport* viewports)
 {
     m_viewports.resize(count);
     for (GfxIndex i = 0; i < count; ++i)
@@ -333,7 +333,7 @@ void RenderCommandEncoderImpl::setViewports(GfxCount count, const Viewport* view
     }
 }
 
-void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
+void RenderPassEncoderImpl::setScissorRects(GfxCount count, const ScissorRect* rects)
 {
     m_scissorRects.resize(count);
     for (GfxIndex i = 0; i < count; ++i)
@@ -347,7 +347,7 @@ void RenderCommandEncoderImpl::setScissorRects(GfxCount count, const ScissorRect
     }
 }
 
-void RenderCommandEncoderImpl::setVertexBuffers(
+void RenderPassEncoderImpl::setVertexBuffers(
     GfxIndex startSlot,
     GfxCount slotCount,
     IBuffer* const* buffers,
@@ -366,7 +366,7 @@ void RenderCommandEncoderImpl::setVertexBuffers(
     }
 }
 
-void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
+void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     m_indexBuffer = static_cast<BufferImpl*>(buffer)->m_buffer.get();
     m_indexBufferOffset = offset;
@@ -384,12 +384,12 @@ void RenderCommandEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat index
     }
 }
 
-void RenderCommandEncoderImpl::setStencilReference(uint32_t referenceValue)
+void RenderPassEncoderImpl::setStencilReference(uint32_t referenceValue)
 {
     m_stencilReferenceValue = referenceValue;
 }
 
-Result RenderCommandEncoderImpl::setSamplePositions(
+Result RenderPassEncoderImpl::setSamplePositions(
     GfxCount samplesPerPixel,
     GfxCount pixelCount,
     const SamplePosition* samplePositions
@@ -398,7 +398,7 @@ Result RenderCommandEncoderImpl::setSamplePositions(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result RenderCommandEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder)
+Result RenderPassEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 {
     auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     pipeline->ensureAPIPipelineCreated();
@@ -441,7 +441,7 @@ Result RenderCommandEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
+Result RenderPassEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
 {
     MTL::RenderCommandEncoder* encoder;
     SLANG_RETURN_ON_FAIL(prepareDraw(encoder));
@@ -449,7 +449,7 @@ Result RenderCommandEncoderImpl::draw(GfxCount vertexCount, GfxIndex startVertex
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
+Result RenderPassEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
 {
     MTL::RenderCommandEncoder* encoder;
     SLANG_RETURN_ON_FAIL(prepareDraw(encoder));
@@ -458,7 +458,7 @@ Result RenderCommandEncoderImpl::drawIndexed(GfxCount indexCount, GfxIndex start
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndirect(
+Result RenderPassEncoderImpl::drawIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -469,7 +469,7 @@ Result RenderCommandEncoderImpl::drawIndirect(
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RenderCommandEncoderImpl::drawIndexedIndirect(
+Result RenderPassEncoderImpl::drawIndexedIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -480,7 +480,7 @@ Result RenderCommandEncoderImpl::drawIndexedIndirect(
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RenderCommandEncoderImpl::drawInstanced(
+Result RenderPassEncoderImpl::drawInstanced(
     GfxCount vertexCount,
     GfxCount instanceCount,
     GfxIndex startVertex,
@@ -493,7 +493,7 @@ Result RenderCommandEncoderImpl::drawInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawIndexedInstanced(
+Result RenderPassEncoderImpl::drawIndexedInstanced(
     GfxCount indexCount,
     GfxCount instanceCount,
     GfxIndex startIndexLocation,
@@ -516,29 +516,29 @@ Result RenderCommandEncoderImpl::drawIndexedInstanced(
     return SLANG_OK;
 }
 
-Result RenderCommandEncoderImpl::drawMeshTasks(int x, int y, int z)
+Result RenderPassEncoderImpl::drawMeshTasks(int x, int y, int z)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-// ComputeCommandEncoderImpl
+// ComputePassEncoderImpl
 
-void ComputeCommandEncoderImpl::endEncoding()
+void ComputePassEncoderImpl::end()
 {
-    CommandEncoderImpl::endEncodingImpl();
+    PassEncoderImpl::endEncodingImpl();
 }
 
-Result ComputeCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result ComputePassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     return setPipelineImpl(pipeline, outRootObject);
 }
 
-Result ComputeCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
+Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
     MTL::ComputeCommandEncoder* encoder = m_commandBuffer->getMetalComputeCommandEncoder();
 
@@ -566,19 +566,19 @@ Result ComputeCommandEncoderImpl::dispatchCompute(int x, int y, int z)
     return SLANG_OK;
 }
 
-Result ComputeCommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }
 
-// RayTracingCommandEncoderImpl
+// RayTracingPassEncoderImpl
 
-void RayTracingCommandEncoderImpl::endEncoding()
+void RayTracingPassEncoderImpl::end()
 {
-    CommandEncoderImpl::endEncodingImpl();
+    PassEncoderImpl::endEncodingImpl();
 }
 
-void RayTracingCommandEncoderImpl::buildAccelerationStructure(
+void RayTracingPassEncoderImpl::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
@@ -616,7 +616,7 @@ void RayTracingCommandEncoderImpl::buildAccelerationStructure(
     // TODO handle queryDescs
 }
 
-void RayTracingCommandEncoderImpl::copyAccelerationStructure(
+void RayTracingPassEncoderImpl::copyAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
@@ -641,7 +641,7 @@ void RayTracingCommandEncoderImpl::copyAccelerationStructure(
     }
 }
 
-void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
+void RayTracingPassEncoderImpl::queryAccelerationStructureProperties(
     GfxCount accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     GfxCount queryCount,
@@ -650,23 +650,21 @@ void RayTracingCommandEncoderImpl::queryAccelerationStructureProperties(
 {
 }
 
-void RayTracingCommandEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) {}
+void RayTracingPassEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) {}
 
-void RayTracingCommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
-{
-}
+void RayTracingPassEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) {}
 
-Result RayTracingCommandEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+Result RayTracingPassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingCommandEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+Result RayTracingPassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result RayTracingCommandEncoderImpl::dispatchRays(
+Result RayTracingPassEncoderImpl::dispatchRays(
     GfxIndex raygenShaderIndex,
     IShaderTable* shaderTable,
     GfxCount width,

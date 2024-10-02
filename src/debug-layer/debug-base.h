@@ -3,7 +3,7 @@
 #include <slang-com-ptr.h>
 #include <slang-rhi.h>
 
-#include "../command-encoder-com-forward.h"
+#include "../pass-encoder-com-forward.h"
 #include "../rhi-shared.h"
 
 #include "core/common.h"
@@ -47,11 +47,11 @@ class DebugShaderObject;
 class DebugRootShaderObject;
 class DebugCommandBuffer;
 template<typename TEncoderInterface>
-class DebugCommandEncoderImpl;
-class DebugResourceCommandEncoder;
-class DebugRenderCommandEncoder;
-class DebugComputeCommandEncoder;
-class DebugRayTracingCommandEncoder;
+class DebugPassEncoderImpl;
+class DebugResourcePassEncoder;
+class DebugRenderPassEncoder;
+class DebugComputePassEncoder;
+class DebugRayTracingPassEncoder;
 class DebugFence;
 class DebugCommandQueue;
 class DebugFramebuffer;

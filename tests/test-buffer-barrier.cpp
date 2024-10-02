@@ -62,26 +62,26 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto encoder = commandBuffer->encodeComputeCommands();
+        auto passEncoder = commandBuffer->beginComputePass();
 
         // Write inputBuffer data to intermediateBuffer
-        auto rootObjectA = encoder->bindPipeline(programA.pipeline);
+        auto rootObjectA = passEncoder->bindPipeline(programA.pipeline);
         ShaderCursor entryPointCursorA(rootObjectA->getEntryPoint(0));
         entryPointCursorA.getPath("inBuffer").setBinding(inputBuffer);
         entryPointCursorA.getPath("outBuffer").setBinding(intermediateBuffer);
 
-        encoder->dispatchCompute(1, 1, 1);
+        passEncoder->dispatchCompute(1, 1, 1);
 
         // Resource transition is automatically handled.
 
         // Write intermediateBuffer to outputBuffer
-        auto rootObjectB = encoder->bindPipeline(programB.pipeline);
+        auto rootObjectB = passEncoder->bindPipeline(programB.pipeline);
         ShaderCursor entryPointCursorB(rootObjectB->getEntryPoint(0));
         entryPointCursorB.getPath("inBuffer").setBinding(intermediateBuffer);
         entryPointCursorB.getPath("outBuffer").setBinding(outputBuffer);
 
-        encoder->dispatchCompute(1, 1, 1);
-        encoder->endEncoding();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         queue->waitOnHost();

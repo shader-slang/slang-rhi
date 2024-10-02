@@ -4,12 +4,12 @@
 
 namespace rhi::debug {
 
-class DebugCommandEncoder : public ICommandEncoder
+class DebugPassEncoder : public IPassEncoder
 {
 public:
     DebugCommandBuffer* getCommandBuffer() { return commandBuffer; }
     bool getIsOpen() { return isOpen; }
-    virtual ICommandEncoder* getBaseObject() = 0;
+    virtual IPassEncoder* getBaseObject() = 0;
 
     virtual void* getInterface(SlangUUID const& uuid) = 0;
     Result queryInterface(SlangUUID const& uuid, void** outObject) override
@@ -40,16 +40,16 @@ public:
     bool isOpen = false;
 };
 
-class DebugResourceCommandEncoder : public UnownedDebugObject<IResourceCommandEncoder>, public DebugCommandEncoder
+class DebugResourcePassEncoder : public UnownedDebugObject<IResourcePassEncoder>, public DebugPassEncoder
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(DebugCommandEncoder)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
-    virtual ICommandEncoder* getBaseObject() override { return baseObject; }
+    virtual IPassEncoder* getBaseObject() override { return baseObject; }
 
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_ICommandEncoder || uuid == GUID::IID_IResourceCommandEncoder ||
+        if (uuid == GUID::IID_IPassEncoder || uuid == GUID::IID_IResourcePassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
         {
             return this;
@@ -58,7 +58,7 @@ public:
     }
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) override;
@@ -110,16 +110,16 @@ public:
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
 };
 
-class DebugRenderCommandEncoder : public UnownedDebugObject<IRenderCommandEncoder>, public DebugCommandEncoder
+class DebugRenderPassEncoder : public UnownedDebugObject<IRenderPassEncoder>, public DebugPassEncoder
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(DebugCommandEncoder)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
-    virtual ICommandEncoder* getBaseObject() override { return baseObject; }
+    virtual IPassEncoder* getBaseObject() override { return baseObject; }
 
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_ICommandEncoder || uuid == GUID::IID_IRenderCommandEncoder ||
+        if (uuid == GUID::IID_IPassEncoder || uuid == GUID::IID_IRenderPassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
         {
             return this;
@@ -128,7 +128,7 @@ public:
     }
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -171,16 +171,16 @@ public:
 };
 
 
-class DebugComputeCommandEncoder : public UnownedDebugObject<IComputeCommandEncoder>, public DebugCommandEncoder
+class DebugComputePassEncoder : public UnownedDebugObject<IComputePassEncoder>, public DebugPassEncoder
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(DebugCommandEncoder)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
-    virtual ICommandEncoder* getBaseObject() override { return baseObject; }
+    virtual IPassEncoder* getBaseObject() override { return baseObject; }
 
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_ICommandEncoder || uuid == GUID::IID_IComputeCommandEncoder ||
+        if (uuid == GUID::IID_IPassEncoder || uuid == GUID::IID_IComputePassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
         {
             return this;
@@ -189,7 +189,7 @@ public:
     }
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -198,16 +198,16 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* cmdBuffer, Offset offset) override;
 };
 
-class DebugRayTracingCommandEncoder : public UnownedDebugObject<IRayTracingCommandEncoder>, public DebugCommandEncoder
+class DebugRayTracingPassEncoder : public UnownedDebugObject<IRayTracingPassEncoder>, public DebugPassEncoder
 {
 public:
-    SLANG_RHI_FORWARD_COMMAND_ENCODER_IMPL(DebugCommandEncoder)
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
-    virtual ICommandEncoder* getBaseObject() override { return baseObject; }
+    virtual IPassEncoder* getBaseObject() override { return baseObject; }
 
     virtual void* getInterface(SlangUUID const& uuid) override
     {
-        if (uuid == GUID::IID_ICommandEncoder || uuid == GUID::IID_IRayTracingCommandEncoder ||
+        if (uuid == GUID::IID_IPassEncoder || uuid == GUID::IID_IRayTracingPassEncoder ||
             uuid == ISlangUnknown::getTypeGuid())
         {
             return this;
@@ -216,7 +216,7 @@ public:
     }
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL endEncoding() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
         IAccelerationStructure* dst,

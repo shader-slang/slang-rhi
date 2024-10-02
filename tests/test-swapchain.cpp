@@ -174,21 +174,21 @@ struct SwapchainResizeTest
     {
         auto commandBuffer = transientHeap->createCommandBuffer();
 
-        auto encoder = commandBuffer->encodeRenderCommands(renderPass, framebuffers[framebufferIndex]);
-        auto rootObject = encoder->bindPipeline(pipeline);
+        auto passEncoder = commandBuffer->beginRenderPass(renderPass, framebuffers[framebufferIndex]);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
 
         gfx::Viewport viewport = {};
         viewport.maxZ = 1.0f;
         viewport.extentX = (float)width;
         viewport.extentY = (float)height;
-        encoder->setViewportAndScissor(viewport);
+        passEncoder->setViewportAndScissor(viewport);
 
-        encoder->setVertexBuffer(0, vertexBuffer);
-        encoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
+        passEncoder->setVertexBuffer(0, vertexBuffer);
+        passEncoder->setPrimitiveTopology(PrimitiveTopology::TriangleList);
 
         swapchain->acquireNextImage();
-        encoder->draw(kVertexCount);
-        encoder->endEncoding();
+        passEncoder->draw(kVertexCount);
+        passEncoder->end();
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
         swapchain->present();

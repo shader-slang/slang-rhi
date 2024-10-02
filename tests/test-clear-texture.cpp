@@ -31,14 +31,14 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
         auto queue = device->createCommandQueue(queueDesc);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
-        auto resourceEncoder = commandBuffer->encodeResourceCommands();
+        auto passEncoder = commandBuffer->beginResourcePass();
         ClearValue clearValue = {};
         clearValue.color.floatValues[0] = 0.5f;
         clearValue.color.floatValues[1] = 1.0f;
         clearValue.color.floatValues[2] = 0.2f;
         clearValue.color.floatValues[3] = 0.1f;
-        resourceEncoder->clearResourceView(rtv, &clearValue, ClearResourceViewFlags::FloatClearValues);
-        resourceEncoder->endEncoding();
+        passEncoder->clearResourceView(rtv, &clearValue, ClearResourceViewFlags::FloatClearValues);
+        passEncoder->end();
 
         commandBuffer->close();
         queue->executeCommandBuffer(commandBuffer);
