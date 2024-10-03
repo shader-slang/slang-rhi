@@ -9,6 +9,7 @@
 #include "d3d11-shader-object.h"
 #include "d3d11-shader-program.h"
 #include "d3d11-swap-chain.h"
+#include "d3d11-surface.h"
 #include "d3d11-texture.h"
 #include "d3d11-texture-view.h"
 #include "d3d11-vertex-layout.h"
@@ -338,6 +339,14 @@ Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle wi
     RefPtr<SwapchainImpl> swapchain = new SwapchainImpl();
     SLANG_RETURN_ON_FAIL(swapchain->init(this, desc, window));
     returnComPtr(outSwapchain, swapchain);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurface)
+{
+    RefPtr<SurfaceImpl> surface = new SurfaceImpl();
+    SLANG_RETURN_ON_FAIL(surface->init(this, windowHandle));
+    returnComPtr(outSurface, surface);
     return SLANG_OK;
 }
 

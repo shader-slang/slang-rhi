@@ -60,6 +60,7 @@ class RootShaderObjectLayoutImpl;
 class ShaderProgramImpl;
 class ShaderTableImpl;
 class SwapChainImpl;
+class SurfaceImpl;
 class TransientResourceHeapImpl;
 class InputLayoutImpl;
 

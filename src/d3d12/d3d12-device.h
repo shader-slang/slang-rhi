@@ -103,7 +103,7 @@ public:
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
-
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;

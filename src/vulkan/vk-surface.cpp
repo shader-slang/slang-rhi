@@ -11,26 +11,6 @@
 
 namespace rhi::vk {
 
-#if 0
-
-Index SwapchainImpl::_indexOfFormat(std::vector<VkSurfaceFormatKHR>& formatsIn, VkFormat format)
-{
-    const Index numFormats = formatsIn.size();
-    const VkSurfaceFormatKHR* formats = formatsIn.data();
-
-    for (Index i = 0; i < numFormats; ++i)
-    {
-        if (formats[i].format == format)
-        {
-            return i;
-        }
-    }
-    return -1;
-}
-
-
-#endif
-
 SurfaceImpl::~SurfaceImpl()
 {
     auto& api = m_device->m_api;
@@ -186,7 +166,7 @@ Result SurfaceImpl::createSwapchain()
 
     VkSwapchainCreateInfoKHR swapchainDesc = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     swapchainDesc.surface = m_surface;
-    swapchainDesc.minImageCount = 3; // TODO add to config
+    swapchainDesc.minImageCount = m_config.desiredImageCount;
     swapchainDesc.imageFormat = format;
     swapchainDesc.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchainDesc.imageExtent = imageExtent;

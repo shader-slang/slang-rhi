@@ -27,7 +27,7 @@ int main(int argc, const char** argv)
     }
 
     IDevice::Desc deviceDesc;
-    deviceDesc.deviceType = DeviceType::Vulkan;
+    deviceDesc.deviceType = DeviceType::D3D12;
 
     ComPtr<IDevice> device;
     if (rhiCreateDevice(&deviceDesc, device.writeRef()))
@@ -60,6 +60,7 @@ int main(int argc, const char** argv)
     );
 
     ITransientResourceHeap::Desc transientHeapDesc = {};
+    transientHeapDesc.constantBufferSize = 4096;
     ComPtr<ITransientResourceHeap> transientHeap = device->createTransientResourceHeap(transientHeapDesc);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
@@ -102,6 +103,7 @@ int main(int argc, const char** argv)
 
         grey = (grey + (1.f / 60.f)) > 1.f ? 0.f : grey + (1.f / 60.f);
 
+        transientHeap->finish();
         transientHeap->synchronizeAndReset();
     }
 

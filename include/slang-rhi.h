@@ -2023,6 +2023,7 @@ struct SurfaceConfig
     // WGPUTextureFormat const * viewFormats;
     Size width = 0;
     Size height = 0;
+    Size desiredImageCount = 3;
     bool vsync = true;
 };
 

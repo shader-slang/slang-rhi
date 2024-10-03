@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../d3d/d3d-swapchain.h"
+#include "../d3d/d3d-surface.h"
 #include "../d3d/d3d-util.h"
 #include "../flag-combiner.h"
 #include "../immediate-device.h"
@@ -54,6 +55,7 @@ class UnorderedAccessViewImpl;
 class DepthStencilViewImpl;
 class RenderTargetViewImpl;
 class SwapchainImpl;
+class SurfaceImpl;
 class InputLayoutImpl;
 class QueryPoolImpl;
 class PipelineImpl;

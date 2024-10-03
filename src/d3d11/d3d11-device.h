@@ -13,6 +13,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual void beginRenderPass(const RenderPassDesc& desc) override;
     virtual void endRenderPass() override;
     virtual void setStencilReference(uint32_t referenceValue) override;
