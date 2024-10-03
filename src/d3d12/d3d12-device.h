@@ -8,8 +8,6 @@
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
 
-#include "core/virtual-object-pool.h"
-
 namespace rhi::d3d12 {
 
 // Define function pointer types for PIX library.
@@ -61,8 +59,6 @@ public:
     D3D12DeviceInfo m_deviceInfo;
     ID3D12Device* m_device = nullptr;
     ID3D12Device5* m_device5 = nullptr;
-
-    VirtualObjectPool m_queueIndexAllocator;
 
     RefPtr<CommandQueueImpl> m_queue;
 

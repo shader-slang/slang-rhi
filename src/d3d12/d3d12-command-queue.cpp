@@ -16,7 +16,6 @@ CommandQueueImpl::~CommandQueueImpl()
 {
     waitOnHost();
     CloseHandle(globalWaitHandle);
-    m_device->m_queueIndexAllocator.free((int)m_queueIndex, 1);
 }
 
 Result CommandQueueImpl::init(uint32_t queueIndex)

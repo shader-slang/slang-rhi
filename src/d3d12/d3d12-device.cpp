@@ -359,10 +359,6 @@ Result DeviceImpl::initialize(const Desc& desc)
         }
     }
 
-    // Initialize queue index allocator.
-    // Support max 32 queues.
-    m_queueIndexAllocator.initPool(32);
-
     // Initialize DeviceInfo
     {
         m_info.deviceType = DeviceType::D3D12;
