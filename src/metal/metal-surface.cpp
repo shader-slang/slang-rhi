@@ -36,7 +36,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(format));
     m_metalLayer->setDrawableSize(CGSize{(float)config.width, (float)config.height});
     m_metalLayer->setFramebufferOnly(config.usage == TextureUsage::RenderTarget);
-    m_metalLayer->setDisplaySyncEnabled(config.vsync);
+    // m_metalLayer->setDisplaySyncEnabled(config.vsync);
 
     return SLANG_OK;
 }
