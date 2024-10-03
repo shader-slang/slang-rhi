@@ -9,7 +9,6 @@
 #include "debug-shader-object.h"
 #include "debug-shader-program.h"
 #include "debug-shader-table.h"
-#include "debug-swap-chain.h"
 #include "debug-texture.h"
 #include "debug-texture-view.h"
 #include "debug-transient-heap.h"
@@ -241,19 +240,14 @@ Result DebugDevice::createAccelerationStructure(
     return SLANG_OK;
 }
 
-Result DebugDevice::createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain)
+Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
 {
     SLANG_RHI_API_FUNC;
 
-    auto innerDesc = desc;
-    innerDesc.queue = getInnerObj(desc.queue);
-    RefPtr<DebugSwapchain> outObject = new DebugSwapchain();
-    outObject->queue = getDebugObj(desc.queue);
-    auto result = baseObject->createSwapchain(innerDesc, window, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outSwapchain, outObject);
-    return Result();
+    RefPtr<DebugSurface> outObject = new DebugSurface();
+    SLANG_RETURN_ON_FAIL(baseObject->createSurface(windowHandle, outObject->baseObject.writeRef()));
+    returnComPtr(outSurface, outObject);
+    return SLANG_OK;
 }
 
 Result DebugDevice::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)

@@ -149,11 +149,6 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
-{
-    return SLANG_E_NOT_IMPLEMENTED;
-}
-
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
 {
     TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);

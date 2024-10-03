@@ -10,7 +10,6 @@
 #include "vk-shader-object.h"
 #include "vk-shader-program.h"
 #include "vk-shader-table.h"
-#include "vk-swap-chain.h"
 #include "vk-transient-heap.h"
 #include "vk-vertex-layout.h"
 #include "vk-acceleration-structure.h"
@@ -1102,21 +1101,6 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
         return SLANG_FAIL;
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
-{
-#if !defined(SLANG_ENABLE_XLIB)
-    if (window.type == WindowHandle::Type::XLibHandle)
-    {
-        return SLANG_FAIL;
-    }
-#endif
-
-    RefPtr<SwapchainImpl> sc = new SwapchainImpl();
-    SLANG_RETURN_ON_FAIL(sc->init(this, desc, window));
-    returnComPtr(outSwapchain, sc);
     return SLANG_OK;
 }
 

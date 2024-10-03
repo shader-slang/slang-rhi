@@ -299,6 +299,8 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
 
 void RenderPassEncoderImpl::end()
 {
+    auto encoder = m_commandBuffer->getMetalRenderCommandEncoder(m_renderPassDesc.get());
+
     m_renderTargetViews.clear();
     m_depthStencilView = nullptr;
 

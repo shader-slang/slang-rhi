@@ -11,7 +11,7 @@
 #include "debug-shader-object.h"
 #include "debug-shader-program.h"
 #include "debug-shader-table.h"
-#include "debug-swap-chain.h"
+#include "debug-surface.h"
 #include "debug-texture.h"
 #include "debug-texture-view.h"
 #include "debug-transient-heap.h"
@@ -165,7 +165,7 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(Pipeline)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Sampler)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderObject)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderProgram)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(Swapchain)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(Surface)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(TransientResourceHeap)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(AccelerationStructure)

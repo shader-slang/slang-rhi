@@ -11,45 +11,46 @@
 
 namespace rhi {
 
-class D3DSwapchainBase : public ISwapchain, public ComObject
+class D3DSurface : public Surface
 {
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ISwapchain* getInterface(const Guid& guid)
+    Result init(WindowHandle windowHandle, DXGI_SWAP_EFFECT swapEffect)
     {
-        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISwapchain)
-            return static_cast<ISwapchain*>(this);
-        return nullptr;
-    }
-
-public:
-    Result init(const ISwapchain::Desc& desc, WindowHandle window, DXGI_SWAP_EFFECT swapEffect)
-    {
-        // Return fail on non-supported platforms.
-        switch (window.type)
+        if (windowHandle.type != WindowHandle::Type::Win32Handle)
         {
-        case WindowHandle::Type::Win32Handle:
-            break;
-        default:
             return SLANG_FAIL;
         }
+        m_windowHandle = (HWND)windowHandle.handleValues[0];
+        m_swapEffect = swapEffect;
 
-        m_desc = desc;
+        m_info.preferredFormat = Format::R8G8B8A8_UNORM_SRGB;
+        m_info.supportedUsage = TextureUsage::RenderTarget | TextureUsage::Present;
+        static const Format kSupportedFormats[] = {
+            Format::R8G8B8A8_UNORM_SRGB,
+            Format::R8G8B8A8_UNORM,
+            Format::R16G16B16A16_FLOAT,
+            Format::R10G10B10A2_UNORM,
+        };
+        m_info.formats = kSupportedFormats;
+        m_info.formatCount = SLANG_COUNT_OF(kSupportedFormats);
 
-        m_desc.format = srgbToLinearFormat(m_desc.format);
+        return SLANG_OK;
+    }
 
+    Result createSwapchain()
+    {
         // Describe the swap chain.
         DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-        swapChainDesc.BufferCount = desc.imageCount;
-        swapChainDesc.BufferDesc.Width = desc.width;
-        swapChainDesc.BufferDesc.Height = desc.height;
-        swapChainDesc.BufferDesc.Format = D3DUtil::getMapFormat(m_desc.format);
+        swapChainDesc.BufferCount = m_config.desiredImageCount;
+        swapChainDesc.BufferDesc.Width = m_config.width;
+        swapChainDesc.BufferDesc.Height = m_config.height;
+        swapChainDesc.BufferDesc.Format = D3DUtil::getMapFormat(srgbToLinearFormat(m_config.format));
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        swapChainDesc.SwapEffect = swapEffect;
-        swapChainDesc.OutputWindow = (HWND)window.handleValues[0];
+        swapChainDesc.SwapEffect = m_swapEffect;
+        swapChainDesc.OutputWindow = m_windowHandle;
         swapChainDesc.SampleDesc.Count = 1;
         swapChainDesc.Windowed = TRUE;
-        if (!desc.enableVSync)
+        if (!m_config.vsync)
         {
             swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
         }
@@ -63,9 +64,7 @@ public:
             SLANG_RETURN_ON_FAIL(
                 getDXGIFactory()->CreateSwapChain(getOwningDevice(), &swapChainDesc, swapChain.writeRef())
             );
-            SLANG_RETURN_ON_FAIL(
-                getDXGIFactory()->MakeWindowAssociation((HWND)window.handleValues[0], DXGI_MWA_NO_ALT_ENTER)
-            );
+            SLANG_RETURN_ON_FAIL(getDXGIFactory()->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER));
             SLANG_RETURN_ON_FAIL(swapChain->QueryInterface(m_swapChain.writeRef()));
         }
         else
@@ -82,7 +81,7 @@ public:
             ComPtr<IDXGISwapChain1> swapChain1;
             SLANG_RETURN_ON_FAIL(dxgiFactory2->CreateSwapChainForHwnd(
                 getOwningDevice(),
-                (HWND)window.handleValues[0],
+                m_windowHandle,
                 &desc1,
                 nullptr,
                 nullptr,
@@ -91,18 +90,36 @@ public:
             SLANG_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
         }
 
-        createSwapchainBufferImages();
+        createSwapchainTextures(m_config.desiredImageCount);
         return SLANG_OK;
     }
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITexture** outTexture) override
+
+    void destroySwapchain()
     {
-        returnComPtr(outTexture, m_images[index]);
+        m_textures.clear();
+        m_swapChain.setNull();
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override
+    {
+        setConfig(config);
+        m_config.format = m_config.format == Format::Unknown ? m_info.preferredFormat : m_config.format;
+        destroySwapchain();
+        return createSwapchain();
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) override
+    {
+        uint32_t count;
+        m_swapChain->GetLastPresentCount(&count);
+        uint32_t index = count % m_textures.size();
+        returnComPtr(outTexture, m_textures[index]);
         return SLANG_OK;
     }
+
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override
     {
-        const auto res = m_swapChain->Present(m_desc.enableVSync ? 1 : 0, 0);
+        const auto res = m_swapChain->Present(m_config.vsync ? 1 : 0, 0);
 
         // We may want to wait for crash dump completion for some kinds of debugging scenarios
         if (res == DXGI_ERROR_DEVICE_REMOVED || res == DXGI_ERROR_DEVICE_RESET)
@@ -117,43 +134,14 @@ public:
         return SLANG_OK;
     }
 
-    virtual SLANG_NO_THROW int SLANG_MCALL acquireNextImage() override
-    {
-        uint32_t count;
-        m_swapChain->GetLastPresentCount(&count);
-        return (int)(count % m_desc.imageCount);
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL resize(GfxCount width, GfxCount height) override
-    {
-        if (width == m_desc.width && height == m_desc.height)
-            return SLANG_OK;
-
-        m_desc.width = width;
-        m_desc.height = height;
-        for (auto& image : m_images)
-            image = nullptr;
-        m_images.clear();
-        auto result = m_swapChain->ResizeBuffers(
-            m_desc.imageCount,
-            width,
-            height,
-            D3DUtil::getMapFormat(m_desc.format),
-            m_desc.enableVSync ? 0 : DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-        );
-        if (result != 0)
-            return SLANG_FAIL;
-        createSwapchainBufferImages();
-        return SLANG_OK;
-    }
-
 public:
-    virtual void createSwapchainBufferImages() = 0;
+    virtual void createSwapchainTextures(uint32_t count) = 0;
     virtual IDXGIFactory* getDXGIFactory() = 0;
     virtual IUnknown* getOwningDevice() = 0;
-    ISwapchain::Desc m_desc;
+    HWND m_windowHandle;
+    DXGI_SWAP_EFFECT m_swapEffect;
     ComPtr<IDXGISwapChain2> m_swapChain;
-    short_vector<RefPtr<Texture>> m_images;
+    short_vector<RefPtr<Texture>> m_textures;
 };
 
 } // namespace rhi

@@ -2,7 +2,6 @@
 #include "../resource-desc-utils.h"
 #include "metal-buffer.h"
 #include "metal-shader-program.h"
-#include "metal-swap-chain.h"
 #include "metal-texture.h"
 #include "metal-util.h"
 #include "metal-vertex-layout.h"
@@ -139,16 +138,6 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     }
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<SwapchainImpl> swapchainImpl = new SwapchainImpl();
-    SLANG_RETURN_ON_FAIL(swapchainImpl->init(this, desc, window));
-    returnComPtr(outSwapchain, swapchainImpl);
     return SLANG_OK;
 }
 

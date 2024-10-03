@@ -1053,14 +1053,6 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
-{
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(window);
-    SLANG_UNUSED(outSwapchain);
-    return SLANG_FAIL;
-}
-
 Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);

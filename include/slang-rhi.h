@@ -1971,40 +1971,36 @@ public:
     ) = 0;
 };
 
-class ISwapchain : public ISlangUnknown
+struct SurfaceInfo
 {
-    SLANG_COM_INTERFACE(0x9b6595b4, 0x2177, 0x40e7, {0x87, 0x2b, 0xfc, 0x8c, 0x4f, 0xcd, 0x32, 0x62});
+    Format preferredFormat;
+    TextureUsage supportedUsage;
+    const Format* formats;
+    GfxCount formatCount;
+};
+
+struct SurfaceConfig
+{
+    Format format = Format::Unknown;
+    TextureUsage usage = TextureUsage::RenderTarget;
+    // size_t viewFormatCount;
+    // const Format* viewFormats;
+    Size width = 0;
+    Size height = 0;
+    Size desiredImageCount = 3;
+    bool vsync = true;
+};
+
+class ISurface : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xd6c37a71, 0x7d0d, 0x4714, {0xb7, 0xa3, 0x25, 0xca, 0x81, 0x73, 0x0c, 0x37});
 
 public:
-    struct Desc
-    {
-        Format format;
-        GfxCount width, height;
-        GfxCount imageCount;
-        ICommandQueue* queue;
-        bool enableVSync;
-    };
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() = 0;
-
-    /// Returns the back buffer image at `index`.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getImage(GfxIndex index, ITexture** outTexture) = 0;
-
-    /// Present the next image in the swapchain.
+    virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() = 0;
+    virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() = 0;
-
-    /// Returns the index of next back buffer image that will be presented in the next
-    /// `present` call. If the swapchain is invalid/out-of-date, this method returns -1.
-    virtual SLANG_NO_THROW int SLANG_MCALL acquireNextImage() = 0;
-
-    /// Resizes the back buffers of this swapchain. All render target views and framebuffers
-    /// referencing the back buffer images must be freed before calling this method.
-    virtual SLANG_NO_THROW Result SLANG_MCALL resize(GfxCount width, GfxCount height) = 0;
-
-    // Check if the window is occluded.
-    virtual SLANG_NO_THROW bool SLANG_MCALL isOccluded() = 0;
-
-    // Toggle full screen mode.
-    virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) = 0;
 };
 
 struct AdapterLUID
@@ -2297,13 +2293,13 @@ public:
         return view;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain) = 0;
-    inline ComPtr<ISwapchain> createSwapchain(ISwapchain::Desc const& desc, WindowHandle window)
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) = 0;
+
+    inline ComPtr<ISurface> createSurface(WindowHandle windowHandle)
     {
-        ComPtr<ISwapchain> swapchain;
-        SLANG_RETURN_NULL_ON_FAIL(createSwapchain(desc, window, swapchain.writeRef()));
-        return swapchain;
+        ComPtr<ISurface> surface;
+        SLANG_RETURN_NULL_ON_FAIL(createSurface(windowHandle, surface.writeRef()));
+        return surface;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

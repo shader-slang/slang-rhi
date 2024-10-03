@@ -165,15 +165,6 @@ public:
     virtual void setStencilReference(uint32_t referenceValue) override { SLANG_UNUSED(referenceValue); }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override
-    {
-        SLANG_UNUSED(desc);
-        SLANG_UNUSED(window);
-        SLANG_UNUSED(outSwapchain);
-        return SLANG_FAIL;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override
     {
         SLANG_UNUSED(desc);

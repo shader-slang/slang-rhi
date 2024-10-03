@@ -30,6 +30,7 @@ endif()
 # Configuration options
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ON)
+option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ON)
 
 # Determine available backends
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -168,6 +169,16 @@ if(SLANG_RHI_ENABLE_WGPU)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-dawn)
 endif()
 
+# Fetch glfw
+if(SLANG_RHI_BUILD_EXAMPLES)
+    FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
+    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(glfw)
+endif()
+
 if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
@@ -303,4 +314,10 @@ if(SLANG_RHI_BUILD_TESTS)
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests)
     target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi)
+endif()
+
+if(SLANG_RHI_BUILD_EXAMPLES)
+    add_executable(example-surface examples/surface/example-surface.cpp)
+    target_compile_features(example-surface PRIVATE cxx_std_17)
+    target_link_libraries(example-surface PRIVATE slang slang-rhi glfw)
 endif()

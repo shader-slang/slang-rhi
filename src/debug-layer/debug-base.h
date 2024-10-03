@@ -59,6 +59,6 @@ class DebugInputLayout;
 class DebugPipeline;
 class DebugShaderProgram;
 class DebugTransientResourceHeap;
-class DebugSwapchain;
+class DebugSurface;
 
 } // namespace rhi::debug
