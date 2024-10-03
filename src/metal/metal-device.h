@@ -3,6 +3,7 @@
 #include "../simple-transient-resource-heap.h"
 #include "metal-base.h"
 #include "metal-device.h"
+#include "metal-command-queue.h"
 
 #include "core/stable_vector.h"
 
@@ -17,8 +18,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -100,9 +100,8 @@ public:
 
     Desc m_desc;
     NS::SharedPtr<MTL::Device> m_device;
+    RefPtr<CommandQueueImpl> m_queue;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
-
-    uint32_t m_queueAllocCount = 0;
 
     // Global registry of all acceleration structures.
     // IAccelerationStructure::getHandle will return the index into this array.

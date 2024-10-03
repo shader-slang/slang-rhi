@@ -5,18 +5,15 @@
 
 namespace rhi::metal {
 
-ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
+CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+    : CommandQueue(device, type)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
-        return static_cast<ICommandQueue*>(this);
-    return nullptr;
 }
 
 CommandQueueImpl::~CommandQueueImpl() {}
 
-void CommandQueueImpl::init(DeviceImpl* device, NS::SharedPtr<MTL::CommandQueue> commandQueue)
+void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
 {
-    m_device = device;
     m_commandQueue = commandQueue;
 }
 
@@ -30,11 +27,6 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     outHandle->type = NativeHandleType::MTLCommandQueue;
     outHandle->value = (uint64_t)m_commandQueue.get();
     return SLANG_OK;
-}
-
-const CommandQueueImpl::Desc& CommandQueueImpl::getDesc()
-{
-    return m_desc;
 }
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)

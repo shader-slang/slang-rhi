@@ -5,15 +5,9 @@
 
 namespace rhi::metal {
 
-class CommandQueueImpl : public ICommandQueue, public ComObject
+class CommandQueueImpl : public CommandQueue<DeviceImpl>
 {
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ICommandQueue* getInterface(const Guid& guid);
-
-public:
-    RefPtr<DeviceImpl> m_device;
-    Desc m_desc;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
 
     struct FenceWaitInfo
@@ -23,6 +17,7 @@ public:
     };
     std::vector<FenceWaitInfo> m_pendingWaitFences;
 
+    CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
 
     void init(DeviceImpl* device, NS::SharedPtr<MTL::CommandQueue> commandQueue);
@@ -30,8 +25,6 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;

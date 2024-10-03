@@ -25,7 +25,10 @@
 
 namespace rhi::metal {
 
-DeviceImpl::~DeviceImpl() {}
+DeviceImpl::~DeviceImpl()
+{
+    m_queue.setNull();
+}
 
 Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
@@ -56,6 +59,9 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     m_device = NS::TransferPtr(MTL::CreateSystemDefaultDevice());
     m_commandQueue = NS::TransferPtr(m_device->newCommandQueue(64));
+    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->init(m_commandQueue);
+
     m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;
 
     if (m_hasArgumentBufferTier2)
@@ -123,17 +129,16 @@ Result DeviceImpl::createTransientResourceHeap(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     AUTORELEASEPOOL
 
-    if (m_queueAllocCount != 0)
+    if (type != QueueType::Graphics)
+    {
         return SLANG_FAIL;
-
-    RefPtr<CommandQueueImpl> result = new CommandQueueImpl;
-    result->init(this, m_commandQueue);
-    returnComPtr(outQueue, result);
-    // m_queueAllocCount++;
+    }
+    m_queue->establishStrongReferenceToDevice();
+    returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
 
