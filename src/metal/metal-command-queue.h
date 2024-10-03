@@ -20,7 +20,7 @@ public:
     CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
 
-    void init(DeviceImpl* device, NS::SharedPtr<MTL::CommandQueue> commandQueue);
+    void init(NS::SharedPtr<MTL::CommandQueue> commandQueue);
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override;
 
