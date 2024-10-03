@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wgpu-base.h"
+#include "wgpu-command-queue.h"
 
 #include <unordered_set>
 
@@ -26,6 +27,7 @@ public:
     std::string m_adapterName;
 
     Context m_ctx;
+    RefPtr<CommandQueueImpl> m_queue;
 
     ~DeviceImpl();
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
@@ -36,8 +38,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

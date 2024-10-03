@@ -14,8 +14,7 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     transientHeapDesc.constantBufferSize = 4096;
     REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-    ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-    auto queue = device->createCommandQueue(queueDesc);
+    auto queue = device->getQueue(QueueType::Graphics);
 
     BufferUsage bufferUsage = BufferUsage::VertexBuffer | BufferUsage::IndexBuffer | BufferUsage::ConstantBuffer |
                               BufferUsage::ShaderResource | BufferUsage::UnorderedAccess |
@@ -67,8 +66,7 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     transientHeapDesc.constantBufferSize = 4096;
     REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-    ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-    auto queue = device->createCommandQueue(queueDesc);
+    auto queue = device->getQueue(QueueType::Graphics);
 
     for (uint32_t i = 1; i < (uint32_t)Format::_Count; ++i)
     {

@@ -7,24 +7,19 @@
 
 namespace rhi::vk {
 
-ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
+CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+    : CommandQueue(device, type)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
-        return static_cast<ICommandQueue*>(this);
-    return nullptr;
 }
 
 CommandQueueImpl::~CommandQueueImpl()
 {
     m_device->m_api.vkQueueWaitIdle(m_queue);
-
-    m_device->m_queueAllocCount--;
     m_device->m_api.vkDestroySemaphore(m_device->m_api.m_device, m_semaphore, nullptr);
 }
 
-void CommandQueueImpl::init(DeviceImpl* device, VkQueue queue, uint32_t queueFamilyIndex)
+void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
 {
-    m_device = device;
     m_queue = queue;
     m_queueFamilyIndex = queueFamilyIndex;
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
@@ -44,11 +39,6 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     outHandle->type = NativeHandleType::VkQueue;
     outHandle->value = (uint64_t)m_queue;
     return SLANG_OK;
-}
-
-const CommandQueueImpl::Desc& CommandQueueImpl::getDesc()
-{
-    return m_desc;
 }
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)

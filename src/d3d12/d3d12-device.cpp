@@ -664,13 +664,12 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     m_desc = desc;
 
-    // Create a command queue for internal resource transfer operations.
-    SLANG_RETURN_ON_FAIL(createCommandQueueImpl(m_resourceCommandQueue.writeRef()));
-    // `CommandQueueImpl` holds a back reference to `D3D12Device`, make it a weak reference here
-    // since this object is already owned by `D3D12Device`.
-    m_resourceCommandQueue->breakStrongReferenceToDevice();
+    // Create queue.
+    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->init(0);
+
     // Retrieve timestamp frequency.
-    m_resourceCommandQueue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
+    m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
 
     // Get device limits.
     {
@@ -857,11 +856,14 @@ Result DeviceImpl::createTransientResourceHeap(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
-    RefPtr<CommandQueueImpl> queue;
-    SLANG_RETURN_ON_FAIL(createCommandQueueImpl(queue.writeRef()));
-    returnComPtr(outQueue, queue);
+    if (type != QueueType::Graphics)
+    {
+        return SLANG_FAIL;
+    }
+    m_queue->establishStrongReferenceToDevice();
+    returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -1611,7 +1613,7 @@ DeviceImpl::ResourceCommandRecordInfo DeviceImpl::encodeResourceCommands()
 void DeviceImpl::submitResourceCommandsAndWait(const DeviceImpl::ResourceCommandRecordInfo& info)
 {
     info.commandBuffer->close();
-    m_resourceCommandQueue->executeCommandBuffer(info.commandBuffer);
+    m_queue->executeCommandBuffer(info.commandBuffer);
     m_resourceCommandTransientHeap->finish();
     m_resourceCommandTransientHeap->synchronizeAndReset();
 }
@@ -1800,19 +1802,6 @@ Result DeviceImpl::createTransientResourceHeapImpl(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createCommandQueueImpl(CommandQueueImpl** outQueue)
-{
-    int queueIndex = m_queueIndexAllocator.alloc(1);
-    // If we run out of queue index space, then the user is requesting too many queues.
-    if (queueIndex == -1)
-        return SLANG_FAIL;
-
-    RefPtr<CommandQueueImpl> queue = new CommandQueueImpl();
-    SLANG_RETURN_ON_FAIL(queue->init(this, (uint32_t)queueIndex));
-    returnRefPtrMove(outQueue, queue);
-    return SLANG_OK;
-}
-
 void* DeviceImpl::loadProc(SharedLibraryHandle module, char const* name)
 {
     void* proc = findSymbolAddressByName(module, name);
@@ -1827,6 +1816,7 @@ void* DeviceImpl::loadProc(SharedLibraryHandle module, char const* name)
 DeviceImpl::~DeviceImpl()
 {
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
+    m_queue.setNull();
 }
 
 } // namespace rhi::d3d12

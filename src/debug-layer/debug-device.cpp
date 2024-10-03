@@ -268,12 +268,12 @@ Result DebugDevice::createInputLayout(InputLayoutDesc const& desc, IInputLayout*
     return result;
 }
 
-Result DebugDevice::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result DebugDevice::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     SLANG_RHI_API_FUNC;
 
     RefPtr<DebugCommandQueue> outObject = new DebugCommandQueue();
-    auto result = baseObject->createCommandQueue(desc, outObject->baseObject.writeRef());
+    auto result = baseObject->getQueue(type, outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outQueue, outObject);

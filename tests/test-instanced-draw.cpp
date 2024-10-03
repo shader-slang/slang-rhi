@@ -211,8 +211,7 @@ struct DrawInstancedTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         RenderPassColorAttachment colorAttachment;
@@ -267,8 +266,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         RenderPassColorAttachment colorAttachment;
@@ -349,8 +347,7 @@ struct DrawIndirectTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         RenderPassColorAttachment colorAttachment;
@@ -430,8 +427,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
     {
         createRequiredResources();
 
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         RenderPassColorAttachment colorAttachment;

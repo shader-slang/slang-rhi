@@ -6,17 +6,9 @@
 
 namespace rhi::cuda {
 
-ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
+CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+    : CommandQueue(device, type)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
-        return static_cast<ICommandQueue*>(this);
-    return nullptr;
-}
-
-void CommandQueueImpl::init(DeviceImpl* device)
-{
-    m_device = device;
-    m_desc.type = ICommandQueue::QueueType::Graphics;
     cuStreamCreate(&stream, 0);
 }
 

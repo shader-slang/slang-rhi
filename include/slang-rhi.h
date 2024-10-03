@@ -1868,21 +1868,17 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL ensureInternalDescriptorHeapsBound() = 0;
 };
 
+enum class QueueType
+{
+    Graphics,
+};
+
 class ICommandQueue : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xc530a6bd, 0x6d1b, 0x475f, {0x9a, 0x71, 0xc2, 0x06, 0x67, 0x1f, 0x59, 0xc3});
 
 public:
-    enum class QueueType
-    {
-        Graphics
-    };
-    struct Desc
-    {
-        QueueType type;
-    };
-
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeCommandBuffers(
         GfxCount count,
@@ -2348,12 +2344,11 @@ public:
         return layout;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) = 0;
-    inline ComPtr<ICommandQueue> createCommandQueue(const ICommandQueue::Desc& desc)
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) = 0;
+    inline ComPtr<ICommandQueue> getQueue(QueueType type)
     {
         ComPtr<ICommandQueue> queue;
-        SLANG_RETURN_NULL_ON_FAIL(createCommandQueue(desc, queue.writeRef()));
+        SLANG_RETURN_NULL_ON_FAIL(getQueue(type, queue.writeRef()));
         return queue;
     }
 

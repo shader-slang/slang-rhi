@@ -257,6 +257,8 @@ Result DeviceImpl::initialize(const Desc& desc)
         SLANG_CUDA_RETURN_ON_FAIL(lastResult);
     }
 
+    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+
     return SLANG_OK;
 }
 
@@ -1042,11 +1044,12 @@ Result DeviceImpl::createTransientResourceHeap(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
-    RefPtr<CommandQueueImpl> queue = new CommandQueueImpl();
-    queue->init(this);
-    returnComPtr(outQueue, queue);
+    if (type != QueueType::Graphics)
+        return SLANG_FAIL;
+    m_queue->establishStrongReferenceToDevice();
+    returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
 

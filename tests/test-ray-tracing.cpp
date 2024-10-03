@@ -124,9 +124,7 @@ struct BaseRayTracingTest
 
     void createRequiredResources()
     {
-        ICommandQueue::Desc queueDesc = {};
-        queueDesc.type = ICommandQueue::QueueType::Graphics;
-        queue = device->createCommandQueue(queueDesc);
+        queue = device->getQueue(QueueType::Graphics);
 
         BufferDesc vertexBufferDesc;
         vertexBufferDesc.size = kVertexCount * sizeof(Vertex);

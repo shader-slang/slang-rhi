@@ -64,7 +64,8 @@ public:
 
     VirtualObjectPool m_queueIndexAllocator;
 
-    RefPtr<CommandQueueImpl> m_resourceCommandQueue;
+    RefPtr<CommandQueueImpl> m_queue;
+
     RefPtr<TransientResourceHeapImpl> m_resourceCommandTransientHeap;
 
     RefPtr<D3D12GeneralExpandingDescriptorHeap> m_rtvAllocator;
@@ -101,8 +102,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -184,8 +184,6 @@ public:
 
 public:
     static void* loadProc(SharedLibraryHandle module, char const* name);
-
-    Result createCommandQueueImpl(CommandQueueImpl** outQueue);
 
     Result createTransientResourceHeapImpl(
         ITransientResourceHeap::Flags::Enum flags,

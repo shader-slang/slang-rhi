@@ -603,23 +603,12 @@ public:
 class CommandQueueImpl : public ImmediateCommandQueueBase
 {
 public:
-    ICommandQueue::Desc m_desc;
-
-    ImmediateDevice* getDevice() { return static_cast<ImmediateDevice*>(m_device.get()); }
-
-    CommandQueueImpl(ImmediateDevice* device)
+    CommandQueueImpl(ImmediateDevice* device, QueueType type)
+        : ImmediateCommandQueueBase(device, type)
     {
-        // Don't establish strong reference to `Device` at start, because
-        // there will be only one instance of command queue and it will be
-        // owned by `Device`. We should establish a strong reference only
-        // when there are external references to the command queue.
-        m_device.setWeakReference(device);
-        m_desc.type = ICommandQueue::QueueType::Graphics;
     }
 
-    ~CommandQueueImpl() { getDevice()->m_queueCreateCount--; }
-
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
+    ~CommandQueueImpl() {}
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
@@ -642,7 +631,7 @@ public:
         static_cast<ImmediateDevice*>(m_device.get())->endCommandBuffer(info);
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { getDevice()->waitForGpu(); }
+    virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { m_device->waitForGpu(); }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override
@@ -652,7 +641,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override
     {
-        return getDevice()->m_queue->getNativeHandle(outHandle);
+        return m_device->m_queue->getNativeHandle(outHandle);
     }
 };
 
@@ -662,7 +651,7 @@ using TransientResourceHeapImpl = SimpleTransientResourceHeap<ImmediateDevice, C
 
 ImmediateDevice::ImmediateDevice()
 {
-    m_queue = new CommandQueueImpl(this);
+    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 }
 
 Result ImmediateDevice::createTransientResourceHeap(
@@ -676,11 +665,9 @@ Result ImmediateDevice::createTransientResourceHeap(
     return SLANG_OK;
 }
 
-Result ImmediateDevice::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result ImmediateDevice::getQueue(QueueType type, ICommandQueue** outQueue)
 {
-    SLANG_UNUSED(desc);
-    // Only one queue is supported.
-    if (m_queueCreateCount != 0)
+    if (type != QueueType::Graphics)
         return SLANG_FAIL;
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);

@@ -852,6 +852,37 @@ public:
     QueryPoolDesc m_desc;
 };
 
+template<typename TDevice>
+class CommandQueue : public ICommandQueue, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    ICommandQueue* getInterface(const Guid& guid)
+    {
+        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
+            return static_cast<ICommandQueue*>(this);
+        return nullptr;
+    }
+
+    virtual void comFree() override { breakStrongReferenceToDevice(); }
+
+public:
+    BreakableReference<TDevice> m_device;
+    QueueType m_type;
+
+    CommandQueue(TDevice* device, QueueType type)
+    {
+        m_device.setWeakReference(device);
+        m_type = type;
+    }
+
+    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
+    void establishStrongReferenceToDevice() { m_device.establishStrongReference(); }
+
+    // ICommandQueue implementation
+    virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
+};
+
 enum class PipelineType
 {
     Unknown,

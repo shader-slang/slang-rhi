@@ -8,10 +8,10 @@
 
 namespace rhi::debug {
 
-const ICommandQueue::Desc& DebugCommandQueue::getDesc()
+QueueType DebugCommandQueue::getType()
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getDesc();
+    return baseObject->getType();
 }
 
 void DebugCommandQueue::executeCommandBuffers(

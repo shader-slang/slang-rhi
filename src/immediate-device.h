@@ -16,25 +16,14 @@ enum class MapFlavor
     WriteDiscard,
 };
 
-class ImmediateCommandQueueBase : public ICommandQueue, public ComObject
+class ImmediateDevice;
+class ImmediateCommandQueueBase : public CommandQueue<ImmediateDevice>
 {
 public:
-    // Immediate device also holds a strong reference to an instance of `ImmediateCommandQueue`,
-    // forming a cyclic reference. Therefore we need a free-op here to break the cycle when
-    // the public reference count of the queue drops to 0.
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ICommandQueue* getInterface(const Guid& guid)
+    ImmediateCommandQueueBase(ImmediateDevice* device, QueueType type)
+        : CommandQueue(device, type)
     {
-        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
-            return static_cast<ICommandQueue*>(this);
-        return nullptr;
     }
-    virtual void comFree() override { breakStrongReferenceToDevice(); }
-
-public:
-    BreakableReference<Device> m_device;
-    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
-    void establishStrongReferenceToDevice() { m_device.establishStrongReference(); }
 };
 
 struct CommandBufferInfo
@@ -88,12 +77,10 @@ public:
 
 public:
     RefPtr<ImmediateCommandQueueBase> m_queue;
-    uint32_t m_queueCreateCount = 0;
 
     ImmediateDevice();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
 

@@ -4,28 +4,21 @@
 
 namespace rhi::d3d12 {
 
-class CommandQueueImpl : public ICommandQueue, public ComObject
+class CommandQueueImpl : public CommandQueue<DeviceImpl>
 {
-public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ICommandQueue* getInterface(const Guid& guid);
-    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
-    BreakableReference<DeviceImpl> m_device;
     ComPtr<ID3D12Device> m_d3dDevice;
     ComPtr<ID3D12CommandQueue> m_d3dQueue;
     ComPtr<ID3D12Fence> m_fence;
     uint64_t m_fenceValue = 0;
     HANDLE globalWaitHandle;
-    Desc m_desc;
     uint32_t m_queueIndex = 0;
 
-    Result init(DeviceImpl* device, uint32_t queueIndex);
+    CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override;
+
+    Result init(uint32_t queueIndex);
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
@@ -35,6 +28,8 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::d3d12

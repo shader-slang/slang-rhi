@@ -93,8 +93,7 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
 
-    ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-    auto queue = device->createCommandQueue(queueDesc);
+    auto queue = device->getQueue(QueueType::Graphics);
     NativeHandle handle;
     REQUIRE_CALL(queue->getNativeHandle(&handle));
     if (deviceType == DeviceType::D3D12)
