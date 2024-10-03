@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuda-base.h"
+#include "cuda-command-queue.h"
 #include "cuda-command-buffer.h"
 #include "cuda-context.h"
 #include "cuda-helper-functions.h"
@@ -23,6 +24,7 @@ private:
     RefPtr<CUDAContext> m_context;
     DeviceInfo m_info;
     std::string m_adapterName;
+    RefPtr<CommandQueueImpl> m_queue;
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
@@ -85,8 +87,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;

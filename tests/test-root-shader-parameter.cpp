@@ -92,8 +92,7 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     {
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         {

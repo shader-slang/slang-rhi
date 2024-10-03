@@ -138,6 +138,9 @@ Result DeviceImpl::initialize(const Desc& desc)
     api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
     m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
 
+    // Create queue.
+    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+
     return SLANG_OK;
 }
 

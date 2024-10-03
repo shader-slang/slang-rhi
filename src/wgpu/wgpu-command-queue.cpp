@@ -4,11 +4,10 @@
 
 namespace rhi::wgpu {
 
-ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
+CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+    : CommandQueue(device, type)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
-        return static_cast<ICommandQueue*>(this);
-    return nullptr;
+    m_queue = m_device->m_ctx.api.wgpuDeviceGetQueue(m_device->m_ctx.device);
 }
 
 CommandQueueImpl::~CommandQueueImpl()
@@ -17,11 +16,6 @@ CommandQueueImpl::~CommandQueueImpl()
     {
         m_device->m_ctx.api.wgpuQueueRelease(m_queue);
     }
-}
-
-const CommandQueueImpl::Desc& CommandQueueImpl::getDesc()
-{
-    return m_desc;
 }
 
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
@@ -86,17 +80,12 @@ void CommandQueueImpl::executeCommandBuffers(
     // m_device->m_ctx.api.wgpuQueueOnSubmittedWorkDone
 }
 
-Result DeviceImpl::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
-    RefPtr<CommandQueueImpl> queue = new CommandQueueImpl();
-    queue->m_desc = desc;
-    queue->m_device = this;
-    queue->m_queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
-    if (!queue->m_queue)
-    {
+    if (type != QueueType::Graphics)
         return SLANG_FAIL;
-    }
-    returnComPtr(outQueue, queue);
+    m_queue->establishStrongReferenceToDevice();
+    returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
 

@@ -56,8 +56,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(dstDevice->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     {
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = dstDevice->createCommandQueue(queueDesc);
+        auto queue = dstDevice->getQueue(QueueType::Graphics);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto passEncoder = commandBuffer->beginComputePass();

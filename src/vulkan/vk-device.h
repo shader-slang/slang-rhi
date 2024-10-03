@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-command-queue.h"
 
 #include "core/stable_vector.h"
 
@@ -16,8 +17,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -127,7 +127,7 @@ public:
         VkImageLayout newLayout
     );
 
-    uint32_t getQueueFamilyIndex(ICommandQueue::QueueType queueType);
+    uint32_t getQueueFamilyIndex(QueueType queueType);
 
 public:
     // DeviceImpl members.
@@ -144,12 +144,11 @@ public:
 
     VulkanDeviceQueue m_deviceQueue;
     uint32_t m_queueFamilyIndex;
+    RefPtr<CommandQueueImpl> m_queue;
 
     Desc m_desc;
 
     DescriptorSetAllocator descriptorSetAllocator;
-
-    uint32_t m_queueAllocCount;
 
     // A list to hold objects that may have a strong back reference to the device
     // instance. Because of the pipeline cache in `Device`, there could be a reference

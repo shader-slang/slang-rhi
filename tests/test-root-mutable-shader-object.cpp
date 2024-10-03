@@ -53,8 +53,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
 
     {
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         {

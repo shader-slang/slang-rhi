@@ -68,7 +68,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     SLANG_RETURN_ON_FAIL(d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
 
     // Get command queue from device.
-    m_commandQueue = device->m_resourceCommandQueue->m_d3dQueue;
+    m_commandQueue = device->m_queue->m_d3dQueue;
 
     // Create wait event.
     m_waitEvent = CreateEventEx(nullptr, FALSE, 0, EVENT_ALL_ACCESS);

@@ -141,8 +141,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IBuffer> buffer;
     REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
-    ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-    auto queue = device->createCommandQueue(queueDesc);
+    auto queue = device->getQueue(QueueType::Graphics);
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.

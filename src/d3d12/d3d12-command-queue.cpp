@@ -7,11 +7,21 @@
 
 namespace rhi::d3d12 {
 
-Result CommandQueueImpl::init(DeviceImpl* device, uint32_t queueIndex)
+CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+    : CommandQueue(device, type)
+{
+}
+
+CommandQueueImpl::~CommandQueueImpl()
+{
+    waitOnHost();
+    CloseHandle(globalWaitHandle);
+}
+
+Result CommandQueueImpl::init(uint32_t queueIndex)
 {
     m_queueIndex = queueIndex;
-    m_device = device;
-    m_d3dDevice = device->m_device;
+    m_d3dDevice = m_device->m_device;
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
@@ -19,13 +29,6 @@ Result CommandQueueImpl::init(DeviceImpl* device, uint32_t queueIndex)
     globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
     return SLANG_OK;
-}
-
-CommandQueueImpl::~CommandQueueImpl()
-{
-    waitOnHost();
-    CloseHandle(globalWaitHandle);
-    m_device->m_queueIndexAllocator.free((int)m_queueIndex, 1);
 }
 
 void CommandQueueImpl::executeCommandBuffers(
@@ -84,18 +87,6 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
         m_d3dQueue->Wait(fenceImpl->m_fence.get(), waitValues[i]);
     }
     return SLANG_OK;
-}
-
-const CommandQueueImpl::Desc& CommandQueueImpl::getDesc()
-{
-    return m_desc;
-}
-
-ICommandQueue* CommandQueueImpl::getInterface(const Guid& guid)
-{
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
-        return static_cast<ICommandQueue*>(this);
-    return nullptr;
 }
 
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)

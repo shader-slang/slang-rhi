@@ -7,15 +7,9 @@
 
 namespace rhi::vk {
 
-class CommandQueueImpl : public ICommandQueue, public ComObject
+class CommandQueueImpl : public CommandQueue<DeviceImpl>
 {
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ICommandQueue* getInterface(const Guid& guid);
-
-public:
-    Desc m_desc;
-    RefPtr<DeviceImpl> m_device;
     VkQueue m_queue;
     uint32_t m_queueFamilyIndex;
     struct FenceWaitInfo
@@ -27,15 +21,15 @@ public:
     VkSemaphore m_pendingWaitSemaphores[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
     std::vector<VkCommandBuffer> m_submitCommandBuffers;
     VkSemaphore m_semaphore;
+
+    CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
 
-    void init(DeviceImpl* device, VkQueue queue, uint32_t queueFamilyIndex);
+    void init(VkQueue queue, uint32_t queueFamilyIndex);
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;

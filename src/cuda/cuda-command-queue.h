@@ -8,23 +8,15 @@
 
 namespace rhi::cuda {
 
-class CommandQueueImpl : public ICommandQueue, public ComObject
+class CommandQueueImpl : public CommandQueue<DeviceImpl>
 {
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-
-    ICommandQueue* getInterface(const Guid& guid);
-
     RefPtr<ComputePipelineImpl> currentPipeline;
     RefPtr<RootShaderObjectImpl> currentRootObject;
-    RefPtr<DeviceImpl> m_device;
     CUstream stream;
-    Desc m_desc;
 
-    void init(DeviceImpl* inRenderer);
+    CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
-
-    virtual SLANG_NO_THROW const Desc& SLANG_MCALL getDesc() override { return m_desc; }
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)

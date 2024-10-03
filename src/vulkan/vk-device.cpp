@@ -49,6 +49,7 @@ DeviceImpl::~DeviceImpl()
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
     }
 
+    m_queue.setNull();
     m_deviceQueue.destroy();
 
     descriptorSetAllocator.close();
@@ -141,8 +142,6 @@ static bool _hasAnySetBits(const T& val, size_t offset)
 Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer)
 {
     m_features.clear();
-
-    m_queueAllocCount = 0;
 
     bool enableRayTracingValidation = false;
 
@@ -1070,6 +1069,9 @@ Result DeviceImpl::initialize(const Desc& desc)
         SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
     }
 
+    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
+
     return SLANG_OK;
 }
 
@@ -1094,18 +1096,12 @@ Result DeviceImpl::createTransientResourceHeap(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createCommandQueue(const ICommandQueue::Desc& desc, ICommandQueue** outQueue)
+Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
-    // Only support one queue for now.
-    if (m_queueAllocCount != 0)
+    if (type != QueueType::Graphics)
         return SLANG_FAIL;
-    auto queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
-    VkQueue vkQueue;
-    m_api.vkGetDeviceQueue(m_api.m_device, queueFamilyIndex, 0, &vkQueue);
-    RefPtr<CommandQueueImpl> result = new CommandQueueImpl();
-    result->init(this, vkQueue, queueFamilyIndex);
-    returnComPtr(outQueue, result);
-    m_queueAllocCount++;
+    m_queue->establishStrongReferenceToDevice();
+    returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -1428,11 +1424,11 @@ void DeviceImpl::_transitionImageLayout(
     m_api.vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-uint32_t DeviceImpl::getQueueFamilyIndex(ICommandQueue::QueueType queueType)
+uint32_t DeviceImpl::getQueueFamilyIndex(QueueType queueType)
 {
     switch (queueType)
     {
-    case ICommandQueue::QueueType::Graphics:
+    case QueueType::Graphics:
     default:
         return m_queueFamilyIndex;
     }

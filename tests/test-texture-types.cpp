@@ -130,8 +130,7 @@ struct TextureAccessTest : TextureTest
         // We have done all the set up work, now it is time to start recording a command buffer for
         // GPU execution.
         {
-            ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-            auto queue = device->createCommandQueue(queueDesc);
+            auto queue = device->getQueue(QueueType::Graphics);
 
             auto commandBuffer = transientHeap->createCommandBuffer();
             auto passEncoder = commandBuffer->beginComputePass();
@@ -382,8 +381,7 @@ struct RenderTargetTests : TextureTest
 
     void submitShaderWork()
     {
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
 

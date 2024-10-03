@@ -26,7 +26,7 @@ Result TransientResourceHeapImpl::init(const ITransientResourceHeap::Desc& desc,
     VkCommandPoolCreateInfo poolCreateInfo = {};
     poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolCreateInfo.queueFamilyIndex = device->getQueueFamilyIndex(ICommandQueue::QueueType::Graphics);
+    poolCreateInfo.queueFamilyIndex = device->getQueueFamilyIndex(QueueType::Graphics);
     device->m_api.vkCreateCommandPool(device->m_api.m_device, &poolCreateInfo, nullptr, &m_commandPool);
 
     advanceFence();

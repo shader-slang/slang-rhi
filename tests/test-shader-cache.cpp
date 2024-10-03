@@ -263,8 +263,7 @@ struct ShaderCacheTest
         transientHeapDesc.constantBufferSize = 4096;
         REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto passEncoder = commandBuffer->beginComputePass();
@@ -561,8 +560,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         transientHeapDesc.constantBufferSize = 4096;
         REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
 
         auto commandBuffer = transientHeap->createCommandBuffer();
         auto passEncoder = commandBuffer->beginComputePass();
@@ -789,8 +787,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         transientHeapDesc.constantBufferSize = 4096;
         REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
         auto commandBuffer = transientHeap->createCommandBuffer();
 
         RenderPassColorAttachment colorAttachment;
