@@ -10,10 +10,7 @@ class StructHolder
 public:
     ~StructHolder() { freeAll(); }
 
-    void reset()
-    {
-        freeAll();
-    }
+    void reset() { freeAll(); }
 
     void holdString(const char*& str)
     {

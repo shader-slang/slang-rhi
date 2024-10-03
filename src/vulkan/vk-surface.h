@@ -14,12 +14,12 @@ public:
     RefPtr<DeviceImpl> m_device;
     WindowHandle m_windowHandle;
     std::vector<Format> m_supportedFormats;
-    VkQueue m_queue = VK_NULL_HANDLE;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     /// Semaphore to signal after `acquireNextImage`.
     VkSemaphore m_nextImageSemaphore = VK_NULL_HANDLE;
     short_vector<RefPtr<TextureImpl>> m_textures;
+    uint32_t m_currentTextureIndex = -1;
 #if SLANG_APPLE_FAMILY
     void* m_metalLayer;
 #endif

@@ -59,8 +59,6 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 
     auto& api = m_device->m_api;
 
-    api.vkGetDeviceQueue(api.m_device, m_device->m_queueFamilyIndex, 0, &m_queue);
-
     VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
     SLANG_VK_RETURN_ON_FAIL(api.vkCreateSemaphore(api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore));
 
@@ -234,7 +232,7 @@ Result SurfaceImpl::createSwapchain()
 void SurfaceImpl::destroySwapchain()
 {
     auto& api = m_device->m_api;
-    api.vkQueueWaitIdle(m_queue);
+    api.vkQueueWaitIdle(m_device->m_queue->m_queue);
     m_textures.clear();
     if (m_swapchain != VK_NULL_HANDLE)
     {
@@ -264,20 +262,22 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
 {
+    auto& api = m_device->m_api;
+
     if (m_textures.empty())
     {
-        m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
+        m_device->m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
         return -1;
     }
 
-    m_currentImageIndex = -1;
-    VkResult result = m_api->vkAcquireNextImageKHR(
-        m_api->m_device,
-        m_swapChain,
+    m_currentTextureIndex = -1;
+    VkResult result = api.vkAcquireNextImageKHR(
+        api.m_device,
+        m_swapchain,
         UINT64_MAX,
         m_nextImageSemaphore,
         VK_NULL_HANDLE,
-        (uint32_t*)&m_currentImageIndex
+        (uint32_t*)&m_currentTextureIndex
     );
 
     if (result != VK_SUCCESS
@@ -286,54 +286,55 @@ Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
 #endif
     )
     {
-        m_currentImageIndex = -1;
-        destroySwapchainAndImages();
-        return m_currentImageIndex;
+        return SLANG_FAIL;
     }
-    // Make the queue's next submit wait on `m_nextImageSemaphore`.
-    m_queue->m_pendingWaitSemaphores[1] = m_nextImageSemaphore;
-    return m_currentImageIndex;
 
-    return SLANG_FAIL;
+    // Make the queue's next submit wait on `m_nextImageSemaphore`.
+    m_device->m_queue->m_pendingWaitSemaphores[1] = m_nextImageSemaphore;
+    returnComPtr(outTexture, m_textures[m_currentTextureIndex]);
+    return SLANG_OK;
 }
 
 Result SurfaceImpl::present()
 {
-#if 0
+    auto& api = m_device->m_api;
+
     // If there are pending fence wait operations, flush them as an
     // empty vkQueueSubmit.
-    if (!m_queue->m_pendingWaitFences.empty())
+    if (!m_device->m_queue->m_pendingWaitFences.empty())
     {
-        m_queue->queueSubmitImpl(0, nullptr, nullptr, 0);
+        m_device->m_queue->queueSubmitImpl(0, nullptr, nullptr, 0);
     }
-
-    uint32_t swapChainIndices[] = {uint32_t(m_currentImageIndex)};
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &m_swapChain;
-    presentInfo.pImageIndices = swapChainIndices;
+    presentInfo.pSwapchains = &m_swapchain;
+    presentInfo.pImageIndices = &m_currentTextureIndex;
     static_vector<VkSemaphore, 2> waitSemaphores;
-    for (auto s : m_queue->m_pendingWaitSemaphores)
+    for (auto s : m_device->m_queue->m_pendingWaitSemaphores)
     {
         if (s != VK_NULL_HANDLE)
         {
             waitSemaphores.push_back(s);
         }
     }
-    m_queue->m_pendingWaitSemaphores[0] = VK_NULL_HANDLE;
-    m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
+    m_device->m_queue->m_pendingWaitSemaphores[0] = VK_NULL_HANDLE;
+    m_device->m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
     presentInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
     if (presentInfo.waitSemaphoreCount)
     {
         presentInfo.pWaitSemaphores = waitSemaphores.data();
     }
-    if (m_currentImageIndex != -1)
-        m_api->vkQueuePresentKHR(m_queue->m_queue, &presentInfo);
-    return SLANG_OK;
-#endif
-    return SLANG_FAIL;
+    if (m_currentTextureIndex != -1)
+    {
+        api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+        return SLANG_OK;
+    }
+    else
+    {
+        return SLANG_FAIL;
+    }
 }
 
 Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurface)

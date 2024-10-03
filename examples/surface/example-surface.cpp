@@ -62,7 +62,7 @@ int main(int argc, const char** argv)
     ITransientResourceHeap::Desc transientHeapDesc = {};
     ComPtr<ITransientResourceHeap> transientHeap = device->createTransientResourceHeap(transientHeapDesc);
 
-    ComPtr<ICommandQueue> queue = device->createCommandQueue({ICommandQueue::QueueType::Graphics});
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
     int frame = 0;
     float grey = 0.f;
