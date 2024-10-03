@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../pass-encoder-com-forward.h"
-#include "../d3d/d3d-swapchain.h"
 #include "../mutable-shader-object.h"
 #include "../rhi-shared.h"
 #include "../transient-resource-heap-base.h"

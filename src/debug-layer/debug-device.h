@@ -52,8 +52,6 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(

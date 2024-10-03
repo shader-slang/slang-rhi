@@ -24,7 +24,6 @@ struct GUID
     static const Guid IID_ITransientResourceHeap;
     static const Guid IID_IPipeline;
     static const Guid IID_IFramebuffer;
-    static const Guid IID_ISwapchain;
     static const Guid IID_ISurface;
     static const Guid IID_ISampler;
     static const Guid IID_IResource;

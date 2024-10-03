@@ -10,7 +10,6 @@
 #include "d3d12-shader-object.h"
 #include "d3d12-shader-program.h"
 #include "d3d12-shader-table.h"
-#include "d3d12-swap-chain.h"
 #include "d3d12-surface.h"
 #include "d3d12-vertex-layout.h"
 #include "d3d12-acceleration-structure.h"
@@ -861,14 +860,6 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     }
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain)
-{
-    RefPtr<SwapchainImpl> swapchain = new SwapchainImpl();
-    SLANG_RETURN_ON_FAIL(swapchain->init(this, desc, window));
-    returnComPtr(outSwapchain, swapchain);
     return SLANG_OK;
 }
 

@@ -18,7 +18,6 @@ const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
 const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 
-const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
 const Guid GUID::IID_ISurface = ISurface::getTypeGuid();
 const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
 const Guid GUID::IID_IResource = IResource::getTypeGuid();

@@ -20,8 +20,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createSwapchain(const ISwapchain::Desc& desc, WindowHandle window, ISwapchain** outSwapchain) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;

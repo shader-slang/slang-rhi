@@ -37,6 +37,5 @@ class CommandBufferImpl;
 class CommandQueueImpl;
 class TransientResourceHeapImpl;
 class QueryPoolImpl;
-class SwapchainImpl;
 
 } // namespace rhi::metal
