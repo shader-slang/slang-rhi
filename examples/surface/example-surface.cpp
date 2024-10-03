@@ -1,9 +1,17 @@
+#include <slang.h>
+
+#if SLANG_WINDOWS_FAMILY
+#define GLFW_EXPOSE_NATIVE_WIN32
+#elif SLANG_APPLE_FAMILY
 #define GLFW_EXPOSE_NATIVE_COCOA
+#endif
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
 #include <slang-rhi.h>
 #include <slang-rhi/glfw.h>
+
+#include <cstdio>
 
 using namespace rhi;
 
@@ -19,7 +27,7 @@ int main(int argc, const char** argv)
     }
 
     IDevice::Desc deviceDesc;
-    deviceDesc.deviceType = DeviceType::Metal;
+    deviceDesc.deviceType = DeviceType::Vulkan;
 
     ComPtr<IDevice> device;
     if (rhiCreateDevice(&deviceDesc, device.writeRef()))

@@ -27,10 +27,16 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
     setConfig(config);
 
+    if (config.width == 0 || config.height == 0)
+    {
+        return SLANG_FAIL;
+    }
+
     Format format = config.format == Format::Unknown ? m_info.preferredFormat : config.format;
     m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(format));
     m_metalLayer->setDrawableSize(CGSize{(float)config.width, (float)config.height});
     m_metalLayer->setFramebufferOnly(config.usage == TextureUsage::RenderTarget);
+    m_metalLayer->setDisplaySyncEnabled(config.vsync);
 
     return SLANG_OK;
 }
@@ -97,8 +103,6 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
                                      TextureUsage::UnorderedAccess | TextureUsage::CopyDestination;
     surface->m_info.formats = kSupportedFormats;
     surface->m_info.formatCount = SLANG_COUNT_OF(kSupportedFormats);
-    surface->m_info.presentModes = nullptr;
-    surface->m_info.presentModeCount = 0;
 
     returnComPtr(outSurface, surface);
     return SLANG_OK;

@@ -1170,7 +1170,6 @@ void Surface::setInfo(const SurfaceInfo& info)
     m_info = info;
     m_infoHolder.reset();
     m_infoHolder.holdList(m_info.formats, m_info.formatCount);
-    m_infoHolder.holdList(m_info.presentModes, m_info.presentModeCount);
 }
 
 void Surface::setConfig(const SurfaceConfig& config)

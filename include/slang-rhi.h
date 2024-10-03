@@ -2007,20 +2007,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) = 0;
 };
 
-enum class PresentMode
-{
-    Fifo,
-    Immediate,
-};
-
 struct SurfaceInfo
 {
     Format preferredFormat;
     TextureUsage supportedUsage;
     const Format* formats;
     GfxCount formatCount;
-    const PresentMode* presentModes;
-    GfxCount presentModeCount;
 };
 
 struct SurfaceConfig
@@ -2031,7 +2023,7 @@ struct SurfaceConfig
     // WGPUTextureFormat const * viewFormats;
     Size width = 0;
     Size height = 0;
-    PresentMode presentMode = PresentMode::Fifo;
+    bool vsync = true;
 };
 
 class ISurface : public ISlangUnknown
