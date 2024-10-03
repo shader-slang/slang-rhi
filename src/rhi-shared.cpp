@@ -19,6 +19,7 @@ const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeap = ITransientResourceHeap::getTypeGuid();
 
 const Guid GUID::IID_ISwapchain = ISwapchain::getTypeGuid();
+const Guid GUID::IID_ISurface = ISurface::getTypeGuid();
 const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
 const Guid GUID::IID_IResource = IResource::getTypeGuid();
 const Guid GUID::IID_IBuffer = IBuffer::getTypeGuid();
@@ -593,6 +594,13 @@ Result Device::getTextureRowAlignment(Size* outAlignment)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)
+{
+    SLANG_UNUSED(windowHandle);
+    *outSurface = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::getShaderObjectLayout(
     slang::ISession* session,
     slang::TypeReflection* type,
@@ -1150,6 +1158,24 @@ Result ShaderTable::init(const IShaderTable::Desc& desc)
         }
     }
     return SLANG_OK;
+}
+
+ISurface* Surface::getInterface(const Guid& guid)
+{
+    return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISurface) ? static_cast<ISurface*>(this) : nullptr;
+}
+
+void Surface::setInfo(const SurfaceInfo& info)
+{
+    m_info = info;
+    m_infoHolder.reset();
+    m_infoHolder.holdList(m_info.formats, m_info.formatCount);
+    m_infoHolder.holdList(m_info.presentModes, m_info.presentModeCount);
+}
+
+void Surface::setConfig(const SurfaceConfig& config)
+{
+    m_config = config;
 }
 
 bool isDepthFormat(Format format)

@@ -2007,6 +2007,45 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setFullScreenMode(bool mode) = 0;
 };
 
+enum class PresentMode
+{
+    Fifo,
+    Immediate,
+};
+
+struct SurfaceInfo
+{
+    Format preferredFormat;
+    TextureUsage supportedUsage;
+    const Format* formats;
+    GfxCount formatCount;
+    const PresentMode* presentModes;
+    GfxCount presentModeCount;
+};
+
+struct SurfaceConfig
+{
+    Format format = Format::Unknown;
+    TextureUsage usage = TextureUsage::RenderTarget;
+    // size_t viewFormatCount;
+    // WGPUTextureFormat const * viewFormats;
+    Size width = 0;
+    Size height = 0;
+    PresentMode presentMode = PresentMode::Fifo;
+};
+
+class ISurface : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xd6c37a71, 0x7d0d, 0x4714, {0xb7, 0xa3, 0x25, 0xca, 0x81, 0x73, 0x0c, 0x37});
+
+public:
+    virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() = 0;
+    virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL present() = 0;
+};
+
 struct AdapterLUID
 {
     uint8_t luid[16];
@@ -2304,6 +2343,15 @@ public:
         ComPtr<ISwapchain> swapchain;
         SLANG_RETURN_NULL_ON_FAIL(createSwapchain(desc, window, swapchain.writeRef()));
         return swapchain;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) = 0;
+
+    inline ComPtr<ISurface> createSurface(WindowHandle windowHandle)
+    {
+        ComPtr<ISurface> surface;
+        SLANG_RETURN_NULL_ON_FAIL(createSurface(windowHandle, surface.writeRef()));
+        return surface;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

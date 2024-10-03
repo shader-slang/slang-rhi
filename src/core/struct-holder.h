@@ -10,6 +10,11 @@ class StructHolder
 public:
     ~StructHolder() { freeAll(); }
 
+    void reset()
+    {
+        freeAll();
+    }
+
     void holdString(const char*& str)
     {
         if (str)
@@ -26,7 +31,7 @@ public:
         if (items && count > 0)
         {
             T* newItems = (T*)allocate(sizeof(T) * count);
-            std::memcpy(newItems, items, sizeof(T) * count);
+            std::memcpy((void*)newItems, items, sizeof(T) * count);
             items = newItems;
         }
     }

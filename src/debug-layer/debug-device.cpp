@@ -241,6 +241,16 @@ Result DebugDevice::createAccelerationStructure(
     return SLANG_OK;
 }
 
+Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
+{
+    SLANG_RHI_API_FUNC;
+
+    RefPtr<DebugSurface> outObject = new DebugSurface();
+    SLANG_RETURN_ON_FAIL(baseObject->createSurface(windowHandle, outObject->baseObject.writeRef()));
+    returnComPtr(outSurface, outObject);
+    return SLANG_OK;
+}
+
 Result DebugDevice::createSwapchain(ISwapchain::Desc const& desc, WindowHandle window, ISwapchain** outSwapchain)
 {
     SLANG_RHI_API_FUNC;

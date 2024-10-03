@@ -25,6 +25,7 @@ struct GUID
     static const Guid IID_IPipeline;
     static const Guid IID_IFramebuffer;
     static const Guid IID_ISwapchain;
+    static const Guid IID_ISurface;
     static const Guid IID_ISampler;
     static const Guid IID_IResource;
     static const Guid IID_IBuffer;
@@ -1102,6 +1103,27 @@ public:
     Result init(const IShaderTable::Desc& desc);
 };
 
+class Surface : public ISurface, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    ISurface* getInterface(const Guid& guid);
+
+public:
+    const SurfaceInfo& getInfo() override { return m_info; }
+    const SurfaceConfig& getConfig() override { return m_config; }
+
+public:
+    void setInfo(const SurfaceInfo& info);
+    void setConfig(const SurfaceConfig& config);
+
+    SurfaceInfo m_info;
+    StructHolder m_infoHolder;
+    SurfaceConfig m_config;
+    StructHolder m_configHolder;
+};
+
+
 // Device implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
 class Device : public IDevice, public ComObject
@@ -1212,6 +1234,9 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;
+
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
     Result getEntryPointCodeFromShaderCache(
         slang::IComponentType* program,
