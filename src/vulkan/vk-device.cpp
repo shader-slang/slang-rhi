@@ -187,8 +187,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
             instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif SLANG_APPLE_FAMILY
             instanceExtensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
-#elif defined(SLANG_ENABLE_XLIB)
-
+#elif SLANG_LINUX_FAMILY
             instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
 #endif
         }
