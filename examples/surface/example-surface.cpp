@@ -15,73 +15,50 @@
 
 #include <cstdio>
 
+#include "example-base.h"
+
 using namespace rhi;
 
-int main(int argc, const char** argv)
+class ExampleSurface : public ExampleBase
 {
-    glfwInit();
+public:
+    ComPtr<ITransientResourceHeap> transientHeap;
+    ComPtr<ICommandQueue> queue;
+    float grey = 0.5f;
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Hello, World!", nullptr, nullptr);
-    if (!window)
+    const char* getName() const override { return "Surface"; }
+
+    Result init(DeviceType deviceType) override
     {
-        return 1;
+        createDevice(deviceType);
+        createWindow();
+        createSurface();
+
+        ITransientResourceHeap::Desc transientHeapDesc = {};
+        transientHeapDesc.constantBufferSize = 4096;
+        transientHeap = device->createTransientResourceHeap(transientHeapDesc);
+
+        queue = device->getQueue(QueueType::Graphics);
+
+        return SLANG_OK;
     }
 
-    IDevice::Desc deviceDesc;
-    deviceDesc.deviceType = DeviceType::D3D12;
-
-    ComPtr<IDevice> device;
-    if (rhiCreateDevice(&deviceDesc, device.writeRef()))
+    virtual void shutdown() override
     {
-        return 1;
+        queue->waitOnHost();
+        surface.setNull();
+        device.setNull();
     }
 
-    ComPtr<ISurface> surface = device->createSurface(getWindowHandleFromGLFW(window));
+    virtual void update() override {}
 
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-
-    SurfaceConfig surfaceConfig;
-    surfaceConfig.width = width;
-    surfaceConfig.height = height;
-    surface->configure(surfaceConfig);
-
-    glfwSetWindowUserPointer(window, surface.get());
-
-    glfwSetFramebufferSizeCallback(
-        window,
-        [](GLFWwindow* window, int width, int height)
-        {
-            ISurface* surface = (ISurface*)glfwGetWindowUserPointer(window);
-            SurfaceConfig surfaceConfig;
-            surfaceConfig.width = width;
-            surfaceConfig.height = height;
-            surface->configure(surfaceConfig);
-        }
-    );
-
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    ComPtr<ITransientResourceHeap> transientHeap = device->createTransientResourceHeap(transientHeapDesc);
-
-    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
-
-    int frame = 0;
-    float grey = 0.f;
-
-    while (!glfwWindowShouldClose(window))
+    virtual void draw() override
     {
-        // printf("Frame %d\n", frame++);
-
-        glfwPollEvents();
-
         ComPtr<ITexture> texture;
         surface->getCurrentTexture(texture.writeRef());
         if (!texture)
         {
-            printf("Skipping frame\n");
-            continue;
+            return;
         }
         ComPtr<ITextureView> view = device->createTextureView(texture, {});
 
@@ -108,9 +85,6 @@ int main(int argc, const char** argv)
         transientHeap->finish();
         transientHeap->synchronizeAndReset();
     }
+};
 
-    glfwDestroyWindow(window);
-
-    glfwTerminate();
-    return 0;
-}
+EXAMPLE_MAIN(ExampleSurface)
