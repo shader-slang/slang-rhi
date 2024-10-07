@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(slang-rhi)
 
 # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
-if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
 endif()
 
@@ -17,8 +17,9 @@ include(FetchPackage)
 
 # Check if this project is the master cmake project (i.e. not included via add_subdirectory).
 set(SLANG_RHI_MASTER_PROJECT OFF)
-if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
-  set(SLANG_RHI_MASTER_PROJECT ON)
+
+if(${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+    set(SLANG_RHI_MASTER_PROJECT ON)
 endif()
 
 if(NOT DEFINED SLANG_RHI_BINARY_DIR)
@@ -77,6 +78,7 @@ endif()
 if(SLANG_RHI_MASTER_PROJECT)
     set(SLANG_VERSION "2024.11.1")
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
+
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(SLANG_URL "${SLANG_URL}-windows-x86_64.zip")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -88,6 +90,7 @@ if(SLANG_RHI_MASTER_PROJECT)
             set(SLANG_URL "${SLANG_URL}-macos-aarch64.zip")
         endif()
     endif()
+
     FetchPackage(slang URL ${SLANG_URL})
     set(SLANG_RHI_SLANG_INCLUDE_DIR ${slang_SOURCE_DIR}/include)
     set(SLANG_RHI_SLANG_BINARY_DIR ${slang_SOURCE_DIR})
@@ -111,6 +114,7 @@ endif()
 
 set(SLANG_RHI_SLANG_INCLUDE_DIR ${SLANG_RHI_SLANG_INCLUDE_DIR} CACHE STRING "Slang include directory")
 set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang binary directory")
+
 # Use the variables from the cache.
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
@@ -118,6 +122,7 @@ unset(SLANG_RHI_SLANG_BINARY_DIR)
 # Fetch and setup Google Dawn library (WebGPU implementation)
 if(SLANG_RHI_ENABLE_WGPU)
     set(DAWN_VERSION "131.0.6738.0")
+
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -125,6 +130,7 @@ if(SLANG_RHI_ENABLE_WGPU)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         set(DAWN_OS "macos")
     endif()
+
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
         set(DAWN_ARCH "x86_64")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
@@ -132,17 +138,20 @@ if(SLANG_RHI_ENABLE_WGPU)
     else()
         message(FATAL_ERROR "Unsupported processor architecture")
     endif()
+
     set(DAWN_URL "https://github.com/shader-slang/webgpu-dawn-binaries/releases/download/v${DAWN_VERSION}/webgpu-dawn-${DAWN_VERSION}-${DAWN_OS}-${DAWN_ARCH}.zip")
     FetchPackage(dawn URL ${DAWN_URL})
     set(SLANG_RHI_DAWN_INCLUDE_DIR ${dawn_SOURCE_DIR}/include CACHE STRING "Dawn include directory")
     set(SLANG_RHI_DAWN_LIB_DIR ${dawn_SOURCE_DIR}/lib CACHE STRING "Dawn lib directory")
     set(SLANG_RHI_DAWN_BIN_DIR ${dawn_SOURCE_DIR}/bin CACHE STRING "Dawn bin directory")
+
     # Use the variables from the cache.
     unset(SLANG_RHI_DAWN_INCLUDE_DIR)
     unset(SLANG_RHI_DAWN_LIB_DIR)
     unset(SLANG_RHI_DAWN_BIN_DIR)
 
     add_library(slang-rhi-dawn SHARED IMPORTED GLOBAL)
+
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set_target_properties(slang-rhi-dawn PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
@@ -168,6 +177,7 @@ if(SLANG_RHI_ENABLE_WGPU)
             IMPORTED_LOCATION ${SLANG_RHI_DAWN_LIB_DIR}/libdawn.dylib
         )
     endif()
+
     target_link_libraries(slang-rhi PUBLIC slang-rhi-dawn)
 endif()
 
@@ -186,9 +196,9 @@ if(APPLE)
 endif()
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
-
 if(SLANG_RHI_MASTER_PROJECT)
     add_library(slang SHARED IMPORTED GLOBAL)
+
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set_target_properties(slang PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
@@ -259,6 +269,7 @@ if(APPLE)
         src/cocoa-util.mm
     )
 endif()
+
 if(SLANG_RHI_ENABLE_CPU)
     target_sources(slang-rhi PRIVATE
         src/cpu/cpu-buffer.cpp
@@ -272,12 +283,14 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-texture-view.cpp
     )
 endif()
+
 if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d/d3d-util.cpp
         src/nvapi/nvapi-util.cpp
     )
 endif()
+
 if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
         src/d3d11/d3d11-buffer.cpp
@@ -293,6 +306,7 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-texture.cpp
     )
 endif()
+
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
@@ -320,6 +334,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-transient-heap.cpp
     )
 endif()
+
 if(SLANG_RHI_ENABLE_VULKAN)
     target_sources(slang-rhi PRIVATE
         src/vulkan/vk-acceleration-structure.cpp
@@ -351,6 +366,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
     target_include_directories(slang-rhi-vulkan-headers INTERFACE external/vulkan-headers/include)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()
+
 if(SLANG_RHI_ENABLE_METAL)
     target_sources(slang-rhi PRIVATE
         src/metal/metal-acceleration-structure.cpp
@@ -381,6 +397,7 @@ if(SLANG_RHI_ENABLE_METAL)
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Foundation" "-framework Metal" "-framework QuartzCore")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
 endif()
+
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-api.cpp
@@ -398,6 +415,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-texture.cpp
     )
 endif()
+
 if(SLANG_RHI_ENABLE_WGPU)
     target_sources(slang-rhi PRIVATE
         src/wgpu/wgpu-api.cpp
@@ -426,15 +444,15 @@ target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
 target_compile_definitions(slang-rhi
     PRIVATE
-        SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
-        SLANG_RHI_ENABLE_D3D11=$<BOOL:${SLANG_RHI_ENABLE_D3D11}>
-        SLANG_RHI_ENABLE_D3D12=$<BOOL:${SLANG_RHI_ENABLE_D3D12}>
-        SLANG_RHI_ENABLE_VULKAN=$<BOOL:${SLANG_RHI_ENABLE_VULKAN}>
-        SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
-        SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
-        SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
-        $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
-        $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
+    SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
+    SLANG_RHI_ENABLE_D3D11=$<BOOL:${SLANG_RHI_ENABLE_D3D11}>
+    SLANG_RHI_ENABLE_D3D12=$<BOOL:${SLANG_RHI_ENABLE_D3D12}>
+    SLANG_RHI_ENABLE_VULKAN=$<BOOL:${SLANG_RHI_ENABLE_VULKAN}>
+    SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
+    SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
+    SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
+    $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+    $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_17)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -485,8 +503,8 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
-            $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
-            $<$<PLATFORM_ID:Windows>:UNICODE>   # force character map to unicode
+        $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+        $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests)
