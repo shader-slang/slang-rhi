@@ -16,7 +16,7 @@ class D3DSurface : public Surface
 public:
     Result init(WindowHandle windowHandle, DXGI_SWAP_EFFECT swapEffect)
     {
-        if (windowHandle.type != WindowHandle::Type::Win32Handle)
+        if (windowHandle.type != WindowHandleType::HWND)
         {
             return SLANG_E_INVALID_HANDLE;
         }

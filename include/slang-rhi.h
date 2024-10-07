@@ -1403,35 +1403,37 @@ struct Viewport
     float maxZ = 1.0f;
 };
 
+enum class WindowHandleType
+{
+    Unknown,
+    HWND,
+    NSWindow,
+    XlibWindow,
+};
+
 struct WindowHandle
 {
-    enum class Type
-    {
-        Unknown,
-        Win32Handle,
-        NSWindowHandle,
-        XLibHandle,
-    };
-    Type type;
+    WindowHandleType type = WindowHandleType::Unknown;
     intptr_t handleValues[2];
-    static WindowHandle FromHwnd(void* hwnd)
+
+    static WindowHandle fromHwnd(void* hwnd)
     {
         WindowHandle handle = {};
-        handle.type = WindowHandle::Type::Win32Handle;
+        handle.type = WindowHandleType::HWND;
         handle.handleValues[0] = (intptr_t)(hwnd);
         return handle;
     }
-    static WindowHandle FromNSWindow(void* nswindow)
+    static WindowHandle fromNSWindow(void* nswindow)
     {
         WindowHandle handle = {};
-        handle.type = WindowHandle::Type::NSWindowHandle;
+        handle.type = WindowHandleType::NSWindow;
         handle.handleValues[0] = (intptr_t)(nswindow);
         return handle;
     }
-    static WindowHandle FromXWindow(void* xdisplay, uint32_t xwindow)
+    static WindowHandle fromXlibWindow(void* xdisplay, uint32_t xwindow)
     {
         WindowHandle handle = {};
-        handle.type = WindowHandle::Type::XLibHandle;
+        handle.type = WindowHandleType::XlibWindow;
         handle.handleValues[0] = (intptr_t)(xdisplay);
         handle.handleValues[1] = xwindow;
         return handle;

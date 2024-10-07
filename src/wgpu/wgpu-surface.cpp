@@ -41,21 +41,21 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     switch (windowHandle.type)
     {
 #if SLANG_WINDOWS_FAMILY
-    case WindowHandle::Type::Win32Handle:
+    case WindowHandleType::HWND:
         descHWD.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
         descHWD.hinstance = 0;
         descHWD.hwnd = (void*)windowHandle.handleValues[0];
         desc.nextInChain = (WGPUChainedStruct*)&descHWD;
         break;
 #elif SLANG_APPLE_FAMILY
-    case WindowHandle::Type::NSWindowHandle:
+    case WindowHandleType::NSWindow:
         m_metalLayer = CocoaUtil::createMetalLayer((void*)windowHandle.handleValues[0]);
         descMetal.chain.sType = WGPUSType_SurfaceSourceMetalLayer;
         descMetal.layer = m_metalLayer;
         desc.nextInChain = (WGPUChainedStruct*)&descMetal;
         break;
 #elif SLANG_LINUX_FAMILY
-    case WindowHandle::Type::XLibHandle:
+    case WindowHandleType::XlibWindow:
         descXlib.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
         descXlib.display = (void*)windowHandle.handleValues[0];
         descXlib.window = (uint64_t)windowHandle.handleValues[1];

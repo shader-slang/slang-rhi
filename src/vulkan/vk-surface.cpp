@@ -48,7 +48,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     switch (windowHandle.type)
     {
 #if SLANG_WINDOWS_FAMILY
-    case WindowHandle::Type::Win32Handle:
+    case WindowHandleType::HWND:
     {
         VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -58,7 +58,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         break;
     }
 #elif SLANG_APPLE_FAMILY
-    case WindowHandle::Type::NSWindowHandle:
+    case WindowHandleType::NSWindow:
     {
         m_metalLayer = CocoaUtil::createMetalLayer((void*)windowHandle.handleValues[0]);
         VkMetalSurfaceCreateInfoEXT surfaceCreateInfo = {};
@@ -68,7 +68,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         break;
     }
 #elif SLANG_LINUX_FAMILY
-    case WindowHandle::Type::XLibHandle:
+    case WindowHandleType::XlibWindow:
     {
         VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
