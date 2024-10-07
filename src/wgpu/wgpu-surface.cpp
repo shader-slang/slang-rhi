@@ -49,9 +49,9 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         break;
 #elif SLANG_APPLE_FAMILY
     case WindowHandle::Type::NSWindowHandle:
-        surface->m_metalLayer = CocoaUtil::createMetalLayer((void*)windowHandle.handleValues[0]);
+        m_metalLayer = CocoaUtil::createMetalLayer((void*)windowHandle.handleValues[0]);
         descMetal.chain.sType = WGPUSType_SurfaceSourceMetalLayer;
-        descMetal.layer = surface->m_metalLayer;
+        descMetal.layer = m_metalLayer;
         desc.nextInChain = (WGPUChainedStruct*)&descMetal;
         break;
 #elif SLANG_LINUX_FAMILY
