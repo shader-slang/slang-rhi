@@ -13,6 +13,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CMakeDependentOption)
 include(FetchPackage)
 
+# set(FETCHCONTENT_UPDATES_DISCONNECTED OFF)
+
 # Check if this project is the master cmake project (i.e. not included via add_subdirectory).
 set(SLANG_RHI_MASTER_PROJECT OFF)
 if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
@@ -224,57 +226,200 @@ else()
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR})
 endif()
 
-file(GLOB RHI_SOURCES
-    src/*.cpp
-    src/core/*.cpp
-    src/debug-layer/*.cpp
+target_sources(slang-rhi PRIVATE
+    src/enum-strings.cpp
+    src/flag-combiner.cpp
+    src/immediate-device.cpp
+    src/resource-desc-utils.cpp
+    src/rhi.cpp
+    src/rhi-shared.cpp
+    src/core/assert.cpp
+    src/core/blob.cpp
+    src/core/platform.cpp
+    src/debug-layer/debug-buffer.cpp
+    src/debug-layer/debug-command-buffer.cpp
+    src/debug-layer/debug-command-encoder.cpp
+    src/debug-layer/debug-command-queue.cpp
+    src/debug-layer/debug-device.cpp
+    src/debug-layer/debug-fence.cpp
+    src/debug-layer/debug-helper-functions.cpp
+    src/debug-layer/debug-pipeline.cpp
+    src/debug-layer/debug-query.cpp
+    src/debug-layer/debug-sampler.cpp
+    src/debug-layer/debug-shader-object.cpp
+    src/debug-layer/debug-shader-program.cpp
+    src/debug-layer/debug-surface.cpp
+    src/debug-layer/debug-texture.cpp
+    src/debug-layer/debug-texture-view.cpp
+    src/debug-layer/debug-transient-heap.cpp
 )
-target_sources(slang-rhi PRIVATE ${RHI_SOURCES})
 
 if(APPLE)
-    file(GLOB OBJC_SOURCES src/*.mm)
-    target_sources(slang-rhi PRIVATE ${OBJC_SOURCES})
+    target_sources(slang-rhi PRIVATE
+        src/cocoa-util.mm
+    )
 endif()
 if(SLANG_RHI_ENABLE_CPU)
-    file(GLOB CPU_SOURCES src/cpu/*.cpp)
-    target_sources(slang-rhi PRIVATE ${CPU_SOURCES})
+    target_sources(slang-rhi PRIVATE
+        src/cpu/cpu-buffer.cpp
+        src/cpu/cpu-device.cpp
+        src/cpu/cpu-helper-functions.cpp
+        src/cpu/cpu-pipeline.cpp
+        src/cpu/cpu-query.cpp
+        src/cpu/cpu-shader-object.cpp
+        src/cpu/cpu-shader-object-layout.cpp
+        src/cpu/cpu-texture.cpp
+        src/cpu/cpu-texture-view.cpp
+    )
 endif()
 if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
-    file(GLOB D3D_SOURCES src/d3d/*.cpp src/nvapi/*.cpp)
-    target_sources(slang-rhi PRIVATE ${D3D_SOURCES})
+    target_sources(slang-rhi PRIVATE
+        src/d3d/d3d-util.cpp
+        src/nvapi/nvapi-util.cpp
+    )
 endif()
 if(SLANG_RHI_ENABLE_D3D11)
-        file(GLOB D3D11_SOURCES src/d3d11/*.cpp)
-    target_sources(slang-rhi PRIVATE ${D3D11_SOURCES})
+    target_sources(slang-rhi PRIVATE
+        src/d3d11/d3d11-buffer.cpp
+        src/d3d11/d3d11-device.cpp
+        src/d3d11/d3d11-helper-functions.cpp
+        src/d3d11/d3d11-pipeline.cpp
+        src/d3d11/d3d11-query.cpp
+        src/d3d11/d3d11-scopeNVAPI.cpp
+        src/d3d11/d3d11-shader-object.cpp
+        src/d3d11/d3d11-shader-object-layout.cpp
+        src/d3d11/d3d11-shader-program.cpp
+        src/d3d11/d3d11-surface.cpp
+        src/d3d11/d3d11-texture.cpp
+    )
 endif()
 if(SLANG_RHI_ENABLE_D3D12)
-    file(GLOB D3D12_SOURCES src/d3d12/*.cpp)
-    target_sources(slang-rhi PRIVATE ${D3D12_SOURCES})
+    target_sources(slang-rhi PRIVATE
+        src/d3d12/d3d12-acceleration-structure.cpp
+        src/d3d12/d3d12-buffer.cpp
+        src/d3d12/d3d12-command-buffer.cpp
+        src/d3d12/d3d12-command-encoder.cpp
+        src/d3d12/d3d12-command-queue.cpp
+        src/d3d12/d3d12-descriptor-heap.cpp
+        src/d3d12/d3d12-device.cpp
+        src/d3d12/d3d12-fence.cpp
+        src/d3d12/d3d12-helper-functions.cpp
+        src/d3d12/d3d12-pipeline.cpp
+        src/d3d12/d3d12-posix-synchapi.cpp
+        src/d3d12/d3d12-query.cpp
+        src/d3d12/d3d12-resource.cpp
+        src/d3d12/d3d12-sampler.cpp
+        src/d3d12/d3d12-shader-object.cpp
+        src/d3d12/d3d12-shader-object-layout.cpp
+        src/d3d12/d3d12-shader-program.cpp
+        src/d3d12/d3d12-shader-table.cpp
+        src/d3d12/d3d12-submitter.cpp
+        src/d3d12/d3d12-surface.cpp
+        src/d3d12/d3d12-texture.cpp
+        src/d3d12/d3d12-texture-view.cpp
+        src/d3d12/d3d12-transient-heap.cpp
+    )
 endif()
 if(SLANG_RHI_ENABLE_VULKAN)
-    file(GLOB VULKAN_SOURCES src/vulkan/*.cpp)
-    target_sources(slang-rhi PRIVATE ${VULKAN_SOURCES})
-
+    target_sources(slang-rhi PRIVATE
+        src/vulkan/vk-acceleration-structure.cpp
+        src/vulkan/vk-api.cpp
+        src/vulkan/vk-buffer.cpp
+        src/vulkan/vk-command-buffer.cpp
+        src/vulkan/vk-command-encoder.cpp
+        src/vulkan/vk-command-queue.cpp
+        src/vulkan/vk-descriptor-allocator.cpp
+        src/vulkan/vk-device.cpp
+        src/vulkan/vk-device-queue.cpp
+        src/vulkan/vk-fence.cpp
+        src/vulkan/vk-helper-functions.cpp
+        src/vulkan/vk-module.cpp
+        src/vulkan/vk-pipeline.cpp
+        src/vulkan/vk-query.cpp
+        src/vulkan/vk-sampler.cpp
+        src/vulkan/vk-shader-object.cpp
+        src/vulkan/vk-shader-object-layout.cpp
+        src/vulkan/vk-shader-program.cpp
+        src/vulkan/vk-shader-table.cpp
+        src/vulkan/vk-surface.cpp
+        src/vulkan/vk-texture.cpp
+        src/vulkan/vk-texture-view.cpp
+        src/vulkan/vk-transient-heap.cpp
+        src/vulkan/vk-util.cpp
+    )
     add_library(slang-rhi-vulkan-headers INTERFACE)
     target_include_directories(slang-rhi-vulkan-headers INTERFACE external/vulkan-headers/include)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()
 if(SLANG_RHI_ENABLE_METAL)
-    file(GLOB METAL_SOURCES src/metal/*.cpp src/metal/*.mm)
-    target_sources(slang-rhi PRIVATE ${METAL_SOURCES})
-
+    target_sources(slang-rhi PRIVATE
+        src/metal/metal-acceleration-structure.cpp
+        src/metal/metal-api.cpp
+        src/metal/metal-buffer.cpp
+        src/metal/metal-command-buffer.cpp
+        src/metal/metal-command-encoder.cpp
+        src/metal/metal-command-queue.cpp
+        src/metal/metal-device.cpp
+        src/metal/metal-fence.cpp
+        src/metal/metal-helper-functions.cpp
+        src/metal/metal-pipeline.cpp
+        src/metal/metal-query.cpp
+        src/metal/metal-sampler.cpp
+        src/metal/metal-shader-object.cpp
+        src/metal/metal-shader-object-layout.cpp
+        src/metal/metal-shader-program.cpp
+        src/metal/metal-shader-table.cpp
+        src/metal/metal-surface.cpp
+        src/metal/metal-texture.cpp
+        src/metal/metal-texture-view.cpp
+        src/metal/metal-transient-heap.cpp
+        src/metal/metal-util.cpp
+        src/metal/metal-vertex-layout.cpp
+    )
     add_library(slang-rhi-metal-cpp INTERFACE)
     target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Foundation" "-framework Metal" "-framework QuartzCore")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
 endif()
 if(SLANG_RHI_ENABLE_CUDA)
-    file(GLOB CUDA_SOURCES src/cuda/*.cpp)
-    target_sources(slang-rhi PRIVATE ${CUDA_SOURCES})
+    target_sources(slang-rhi PRIVATE
+        src/cuda/cuda-api.cpp
+        src/cuda/cuda-buffer.cpp
+        src/cuda/cuda-command-buffer.cpp
+        src/cuda/cuda-command-encoder.cpp
+        src/cuda/cuda-command-queue.cpp
+        src/cuda/cuda-device.cpp
+        src/cuda/cuda-helper-functions.cpp
+        src/cuda/cuda-pipeline.cpp
+        src/cuda/cuda-query.cpp
+        src/cuda/cuda-shader-object.cpp
+        src/cuda/cuda-shader-object-layout.cpp
+        src/cuda/cuda-shader-program.cpp
+        src/cuda/cuda-texture.cpp
+    )
 endif()
 if(SLANG_RHI_ENABLE_WGPU)
-    file(GLOB WGPU_SOURCES src/wgpu/*.cpp)
-    target_sources(slang-rhi PRIVATE ${WGPU_SOURCES})
+    target_sources(slang-rhi PRIVATE
+        src/wgpu/wgpu-api.cpp
+        src/wgpu/wgpu-buffer.cpp
+        src/wgpu/wgpu-command-buffer.cpp
+        src/wgpu/wgpu-command-encoder.cpp
+        src/wgpu/wgpu-command-queue.cpp
+        src/wgpu/wgpu-device.cpp
+        src/wgpu/wgpu-fence.cpp
+        src/wgpu/wgpu-helper-functions.cpp
+        src/wgpu/wgpu-input-layout.cpp
+        src/wgpu/wgpu-pipeline.cpp
+        src/wgpu/wgpu-query.cpp
+        src/wgpu/wgpu-sampler.cpp
+        src/wgpu/wgpu-shader-object.cpp
+        src/wgpu/wgpu-shader-object-layout.cpp
+        src/wgpu/wgpu-shader-program.cpp
+        src/wgpu/wgpu-surface.cpp
+        src/wgpu/wgpu-texture.cpp
+        src/wgpu/wgpu-transient-resource-heap.cpp
+        src/wgpu/wgpu-util.cpp
+    )
 endif()
 
 target_include_directories(slang-rhi PUBLIC include)
@@ -301,11 +446,43 @@ if(SLANG_RHI_BUILD_TESTS)
     add_library(stb INTERFACE)
     target_include_directories(stb INTERFACE external/stb)
 
-    file(GLOB TEST_SOURCES
-        tests/*.cpp
-    )
     add_executable(slang-rhi-tests)
-    target_sources(slang-rhi-tests PRIVATE ${TEST_SOURCES})
+    target_sources(slang-rhi-tests PRIVATE
+        tests/main.cpp
+        tests/test-buffer-barrier.cpp
+        tests/test-clear-texture.cpp
+        tests/test-compute-smoke.cpp
+        tests/test-compute-trivial.cpp
+        tests/test-copy-texture.cpp
+        tests/test-create-buffer-from-handle.cpp
+        tests/test-existing-device-handle.cpp
+        tests/test-formats.cpp
+        tests/testing.cpp
+        tests/test-instanced-draw.cpp
+        tests/test-link-time-constant.cpp
+        tests/test-link-time-default.cpp
+        tests/test-link-time-options.cpp
+        tests/test-link-time-type.cpp
+        tests/test-mutable-shader-object.cpp
+        tests/test-native-handle.cpp
+        tests/test-nested-parameter-block.cpp
+        tests/test-precompiled-module.cpp
+        tests/test-precompiled-module-2.cpp
+        tests/test-precompiled-module-cache.cpp
+        tests/test-ray-tracing.cpp
+        tests/test-resolve-resource-tests.cpp
+        tests/test-resource-states.cpp
+        tests/test-root-mutable-shader-object.cpp
+        tests/test-root-shader-parameter.cpp
+        tests/test-sampler-array.cpp
+        tests/test-shader-cache.cpp
+        tests/test-shared-buffer.cpp
+        tests/test-shared-texture.cpp
+        tests/test-swapchain.cpp
+        tests/test-texture-types.cpp
+        tests/test-uint16-structured-buffer.cpp
+        tests/texture-utils.cpp
+    )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
             $<$<PLATFORM_ID:Windows>:NOMINMAX>  # do not define min/max macros
