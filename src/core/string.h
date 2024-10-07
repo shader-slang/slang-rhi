@@ -49,7 +49,7 @@ inline const char* convertArg(const std::string& arg)
 } // namespace detail
 
 template<typename... Args>
-std::string printf(const char* format, Args&&... args)
+std::string format(const char* format, Args&&... args)
 {
     size_t size = snprintf(nullptr, 0, format, detail::convertArg(args)...) + 1;
     std::string str;
