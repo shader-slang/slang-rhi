@@ -145,7 +145,7 @@ namespace rhi::vk {
 #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
     x(vkCreateMetalSurfaceEXT) \
     /* */
-#elif SLANG_ENABLE_XLIB
+#elif SLANG_LINUX_FAMILY
 #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
     x(vkCreateXlibSurfaceKHR) \
     /* */

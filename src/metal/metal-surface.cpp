@@ -98,7 +98,7 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
     }
     surface->m_metalLayer->setDevice(m_device.get());
 
-    surface->m_info.preferredFormat = Format::B8G8R8A8_UNORM_SRGB;
+    surface->m_info.preferredFormat = Format::B8G8R8A8_UNORM;
     surface->m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::ShaderResource |
                                      TextureUsage::UnorderedAccess | TextureUsage::CopyDestination;
     surface->m_info.formats = kSupportedFormats;

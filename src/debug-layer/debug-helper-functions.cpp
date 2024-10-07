@@ -39,7 +39,7 @@ std::string _rhiGetFuncName(const char* input)
 
 std::string createBufferLabel(const BufferDesc& desc)
 {
-    return string::printf(
+    return string::format(
         "Unnamed buffer (size=%zu, elementSize=%zu, format=%s, memoryType=%s, usage=%s, defaultState=%s)",
         desc.size,
         desc.elementSize,
@@ -52,7 +52,7 @@ std::string createBufferLabel(const BufferDesc& desc)
 
 std::string createTextureLabel(const TextureDesc& desc)
 {
-    return string::printf(
+    return string::format(
         "Unnamed texture (type=%s, size=%dx%dx%d, arrayLength=%d, mipLevelCount=%d, sampleCount=%d, sampleQuality=%d, "
         "format=%s, memoryType=%s, usage=%s, defaultState=%s)",
         enumToString(desc.type),
@@ -72,7 +72,7 @@ std::string createTextureLabel(const TextureDesc& desc)
 
 std::string createSamplerLabel(const SamplerDesc& desc)
 {
-    return string::printf(
+    return string::format(
         "Unnamed sampler (minFilter=%s, magFilter=%s, mipFilter=%s, reductionOp=%s, addressU=%s, addressV=%s, "
         "addressW=%s, mipLODBias=%.1f, maxAnisotropy=%u, comparisonFunc=%s, borderColor=[%.1f, %.1f, %.1f, %.1f], "
         "minLOD=%.1f, maxLOD=%.1f)",

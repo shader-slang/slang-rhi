@@ -9,6 +9,7 @@
 | `getFeatures`                             | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getSlangSession`                         | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getFormatSupport`                        | :x: | :x:  | :x:   | yes   | yes    | yes (1) | :x:  |
+| `getQueue`                                | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createTexture`                           | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createTextureFromNativeHandle`           | :x: | :x:  | :x:   | yes   | :x:    | :x:     | :x:  |
 | `createBuffer`                            | yes | yes  | yes   | yes   | yes    | yes     | yes  |
@@ -18,7 +19,6 @@
 | `createTextureView`                       | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createSwapchain`                         | :x: | :x:  | yes   | yes   | yes    | yes     | :x:  |
 | `createInputLayout`                       | :x: | :x:  | yes   | yes   | yes    | yes     | yes  |
-| `createCommandQueue`                      | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObject`                      | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObject2`                     | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObjectFromTypeLayout`        | yes | yes  | yes   | yes   | yes    | yes     | yes  |
@@ -163,7 +163,7 @@
 |-----------------------|-----|------|-------|-------|--------|-------|------|
 | `beginResourcePass`   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `beginRenderPass`     | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `beginComputePass`    | yes | yes  | yes   | yes   | yes    | :x:   | yes  |
+| `beginComputePass`    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `beginRayTracingPass` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `close`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`     | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
@@ -178,14 +178,12 @@
 | `waitOnHost`                 | yes | yes  | yes   | yes   | yes    | :x:   | yes  |
 | `waitForFenceValuesOnDevice` | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 
-## `ISwapchain` interface
+## `ISurface` interface
 
 | API                 | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |---------------------|-----|------|-------|-------|--------|-------|------|
-| `getDesc`           | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
-| `getImage`          | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
-| `present`           | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
-| `acquireNextImage`  | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
-| `resize`            | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
-| `isOccluded`        | :x: | :x:  | :x:   | yes   | :x:    | :x:   | :x:  |
-| `setFullScreenMode` | :x: | :x:  | :x:   | yes   | :x:    | :x:   | :x:  |
+| `getInfo`           | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `getConfig`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `configure`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `getCurrentTexture` | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `present`           | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |

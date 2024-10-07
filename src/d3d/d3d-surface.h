@@ -16,18 +16,18 @@ class D3DSurface : public Surface
 public:
     Result init(WindowHandle windowHandle, DXGI_SWAP_EFFECT swapEffect)
     {
-        if (windowHandle.type != WindowHandle::Type::Win32Handle)
+        if (windowHandle.type != WindowHandleType::HWND)
         {
-            return SLANG_FAIL;
+            return SLANG_E_INVALID_HANDLE;
         }
         m_windowHandle = (HWND)windowHandle.handleValues[0];
         m_swapEffect = swapEffect;
 
-        m_info.preferredFormat = Format::R8G8B8A8_UNORM_SRGB;
+        m_info.preferredFormat = Format::R8G8B8A8_UNORM;
         m_info.supportedUsage = TextureUsage::RenderTarget | TextureUsage::Present;
         static const Format kSupportedFormats[] = {
-            Format::R8G8B8A8_UNORM_SRGB,
             Format::R8G8B8A8_UNORM,
+            Format::R8G8B8A8_UNORM_SRGB,
             Format::R16G16B16A16_FLOAT,
             Format::R10G10B10A2_UNORM,
         };
@@ -104,12 +104,21 @@ public:
     {
         setConfig(config);
         m_config.format = m_config.format == Format::Unknown ? m_info.preferredFormat : m_config.format;
+
+        m_configured = false;
         destroySwapchain();
-        return createSwapchain();
+        SLANG_RETURN_ON_FAIL(createSwapchain());
+        m_configured = true;
+        return SLANG_OK;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) override
     {
+        if (!m_configured)
+        {
+            return SLANG_FAIL;
+        }
+
         uint32_t count;
         m_swapChain->GetLastPresentCount(&count);
         uint32_t index = count % m_textures.size();
@@ -119,6 +128,11 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override
     {
+        if (!m_configured)
+        {
+            return SLANG_FAIL;
+        }
+
         const auto res = m_swapChain->Present(m_config.vsync ? 1 : 0, 0);
 
         // We may want to wait for crash dump completion for some kinds of debugging scenarios
@@ -127,11 +141,7 @@ public:
             D3DUtil::waitForCrashDumpCompletion(res);
         }
 
-        if (SLANG_FAILED(res))
-        {
-            return SLANG_FAIL;
-        }
-        return SLANG_OK;
+        return SLANG_FAILED(res) ? SLANG_FAIL : SLANG_OK;
     }
 
 public:
@@ -142,6 +152,7 @@ public:
     DXGI_SWAP_EFFECT m_swapEffect;
     ComPtr<IDXGISwapChain2> m_swapChain;
     short_vector<RefPtr<Texture>> m_textures;
+    bool m_configured = false;
 };
 
 } // namespace rhi
