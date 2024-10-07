@@ -23,11 +23,11 @@ public:
         m_windowHandle = (HWND)windowHandle.handleValues[0];
         m_swapEffect = swapEffect;
 
-        m_info.preferredFormat = Format::R8G8B8A8_UNORM_SRGB;
+        m_info.preferredFormat = Format::R8G8B8A8_UNORM;
         m_info.supportedUsage = TextureUsage::RenderTarget | TextureUsage::Present;
         static const Format kSupportedFormats[] = {
-            Format::R8G8B8A8_UNORM_SRGB,
             Format::R8G8B8A8_UNORM,
+            Format::R8G8B8A8_UNORM_SRGB,
             Format::R16G16B16A16_FLOAT,
             Format::R10G10B10A2_UNORM,
         };

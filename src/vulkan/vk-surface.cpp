@@ -94,14 +94,21 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
     api.vkGetPhysicalDeviceSurfaceFormatsKHR(api.m_physicalDevice, m_surface, &formatCount, surfaceFormats.data());
 
+    Format preferredFormat = Format::Unknown;
     for (uint32_t i = 0; i < formatCount; ++i)
     {
         Format format = translateVkFormat(surfaceFormats[i].format);
         if (format != Format::Unknown)
             m_supportedFormats.push_back(format);
+        if (format == Format::B8G8R8A8_UNORM)
+            preferredFormat = format;
+    }
+    if (preferredFormat == Format::Unknown && !m_supportedFormats.empty())
+    {
+        preferredFormat = m_supportedFormats.front();
     }
 
-    m_info.preferredFormat = m_supportedFormats.front();
+    m_info.preferredFormat = preferredFormat;
     m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();

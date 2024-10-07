@@ -73,11 +73,18 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_device->m_ctx.api.wgpuSurfaceGetCapabilities(m_surface, m_device->m_ctx.adapter, &capabilities);
 
     // Get supported formats
+    Format preferredFormat = Format::Unknown;
     for (size_t i = 0; i < capabilities.formatCount; i++)
     {
         Format format = translateWGPUFormat(capabilities.formats[i]);
         if (format != Format::Unknown)
             m_supportedFormats.push_back(format);
+        if (format == Format::B8G8R8A8_UNORM)
+            preferredFormat = format;
+    }
+    if (preferredFormat == Format::Unknown && !m_supportedFormats.empty())
+    {
+        preferredFormat = m_supportedFormats[0];
     }
 
     // Get supported usage
@@ -93,9 +100,9 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     if (capabilities.usages & WGPUTextureUsage_RenderAttachment)
         usage |= TextureUsage::RenderTarget;
 
+    m_info.preferredFormat = preferredFormat;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
-    m_info.preferredFormat = m_supportedFormats[0];
     m_info.supportedUsage = usage;
 
     auto findPresentMode = [&](const WGPUPresentMode* modes, size_t modeCount) -> WGPUPresentMode
