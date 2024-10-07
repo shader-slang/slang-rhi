@@ -11,6 +11,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_dxgiFactory = device->m_deviceInfo.m_dxgiFactory;
     SLANG_RETURN_ON_FAIL(D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_DISCARD));
     SLANG_RETURN_ON_FAIL(m_device->m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
+    return SLANG_OK;
 }
 
 void SurfaceImpl::createSwapchainTextures(uint32_t count)
