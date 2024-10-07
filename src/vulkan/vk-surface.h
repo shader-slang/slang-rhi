@@ -23,6 +23,7 @@ public:
 #if SLANG_APPLE_FAMILY
     void* m_metalLayer;
 #endif
+    bool m_configured = false;
 
 public:
     ~SurfaceImpl();

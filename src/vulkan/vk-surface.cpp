@@ -6,10 +6,13 @@
 #include "cocoa-util.h"
 
 #include "core/static_vector.h"
+#include "core/reverse-map.h"
 
 #include <vector>
 
 namespace rhi::vk {
+
+static auto translateVkFormat = reverseMap<Format, VkFormat>(VulkanUtil::getVkFormat, Format::Unknown, Format::_Count);
 
 SurfaceImpl::~SurfaceImpl()
 {
@@ -42,27 +45,42 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
     SLANG_VK_RETURN_ON_FAIL(api.vkCreateSemaphore(api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore));
 
+    switch (windowHandle.type)
+    {
 #if SLANG_WINDOWS_FAMILY
-    VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
-    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
-    surfaceCreateInfo.hwnd = (HWND)windowHandle.handleValues[0];
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateWin32SurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+    case WindowHandle::Type::Win32Handle:
+    {
+        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
+        surfaceCreateInfo.hwnd = (HWND)windowHandle.handleValues[0];
+        SLANG_VK_RETURN_ON_FAIL(api.vkCreateWin32SurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        break;
+    }
 #elif SLANG_APPLE_FAMILY
-    m_metalLayer = CocoaUtil::createMetalLayer((void*)windowHandle.handleValues[0]);
-    VkMetalSurfaceCreateInfoEXT surfaceCreateInfo = {};
-    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
-    surfaceCreateInfo.pLayer = (CAMetalLayer*)m_metalLayer;
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateMetalSurfaceEXT(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
-#elif SLANG_ENABLE_XLIB
-    VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
-    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
-    surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
-    surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
-#else
-    return SLANG_E_NOT_AVAILABLE;
+    case WindowHandle::Type::NSWindowHandle:
+    {
+        m_metalLayer = CocoaUtil::createMetalLayer((void*)windowHandle.handleValues[0]);
+        VkMetalSurfaceCreateInfoEXT surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+        surfaceCreateInfo.pLayer = (CAMetalLayer*)m_metalLayer;
+        SLANG_VK_RETURN_ON_FAIL(api.vkCreateMetalSurfaceEXT(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        break;
+    }
+#elif SLANG_LINUX_FAMILY
+    case WindowHandle::Type::XLibHandle:
+    {
+        VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
+        surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
+        SLANG_VK_RETURN_ON_FAIL(api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        break;
+    }
 #endif
+    default:
+        return SLANG_E_INVALID_HANDLE;
+    }
 
     VkBool32 supported = false;
     api.vkGetPhysicalDeviceSurfaceSupportKHR(api.m_physicalDevice, m_device->m_queueFamilyIndex, m_surface, &supported);
@@ -78,23 +96,9 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 
     for (uint32_t i = 0; i < formatCount; ++i)
     {
-        switch (surfaceFormats[i].format)
-        {
-        case VK_FORMAT_R8G8B8A8_UNORM:
-            m_supportedFormats.push_back(Format::R8G8B8A8_UNORM);
-            break;
-        case VK_FORMAT_R8G8B8A8_SRGB:
-            m_supportedFormats.push_back(Format::R8G8B8A8_UNORM_SRGB);
-            break;
-        case VK_FORMAT_B8G8R8A8_UNORM:
-            m_supportedFormats.push_back(Format::B8G8R8A8_UNORM);
-            break;
-        case VK_FORMAT_B8G8R8A8_SRGB:
-            m_supportedFormats.push_back(Format::B8G8R8A8_UNORM_SRGB);
-            break;
-        default:
-            break;
-        }
+        Format format = translateVkFormat(surfaceFormats[i].format);
+        if (format != Format::Unknown)
+            m_supportedFormats.push_back(format);
     }
 
     m_info.preferredFormat = m_supportedFormats.front();
@@ -234,8 +238,10 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         m_config.format = m_info.preferredFormat;
     }
 
+    m_configured = false;
     destroySwapchain();
     SLANG_RETURN_ON_FAIL(createSwapchain());
+    m_configured = true;
 
     return SLANG_OK;
 }
@@ -243,6 +249,11 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
 {
     auto& api = m_device->m_api;
+
+    if (!m_configured)
+    {
+        return SLANG_FAIL;
+    }
 
     if (m_textures.empty())
     {
@@ -279,8 +290,12 @@ Result SurfaceImpl::present()
 {
     auto& api = m_device->m_api;
 
-    // If there are pending fence wait operations, flush them as an
-    // empty vkQueueSubmit.
+    if (!m_configured)
+    {
+        return SLANG_FAIL;
+    }
+
+    // If there are pending fence wait operations, flush them as an empty vkQueueSubmit.
     if (!m_device->m_queue->m_pendingWaitFences.empty())
     {
         m_device->m_queue->queueSubmitImpl(0, nullptr, nullptr, 0);
