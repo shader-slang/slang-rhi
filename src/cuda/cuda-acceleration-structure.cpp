@@ -211,6 +211,6 @@ OptixVertexFormat AccelerationStructureBuildInputBuilder::translateVertexFormat(
     }
 }
 
-#endif // SLANG_RHI_HAS_OPTIX
-
 } // namespace rhi::cuda
+
+#endif // SLANG_RHI_HAS_OPTIX
