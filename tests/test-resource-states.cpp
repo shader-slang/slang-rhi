@@ -71,8 +71,7 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     for (uint32_t i = 1; i < (uint32_t)Format::_Count; ++i)
     {
         auto format = (Format)i;
-        FormatInfo info;
-        rhiGetFormatInfo(format, &info);
+        const FormatInfo& info = getFormatInfo(format);
         FormatSupport formatSupport;
         REQUIRE_CALL(device->getFormatSupport(format, &formatSupport));
 

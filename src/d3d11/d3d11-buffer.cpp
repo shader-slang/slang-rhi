@@ -51,10 +51,10 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
     }
     else
     {
-        FormatInfo sizeInfo;
-        rhiGetFormatInfo(format, &sizeInfo);
-        srvDesc.Buffer.FirstElement = UINT(range.offset / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
-        srvDesc.Buffer.NumElements = UINT(range.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
+        const FormatInfo& formatInfo = getFormatInfo(format);
+        ;
+        srvDesc.Buffer.FirstElement = UINT(range.offset / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
+        srvDesc.Buffer.NumElements = UINT(range.size / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
     }
 
     SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateShaderResourceView(m_buffer, &srvDesc, srv.writeRef()));
@@ -87,10 +87,9 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
     }
     else
     {
-        FormatInfo sizeInfo;
-        rhiGetFormatInfo(format, &sizeInfo);
-        uavDesc.Buffer.FirstElement = UINT(range.offset / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
-        uavDesc.Buffer.NumElements = UINT(range.size / (sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock));
+        const FormatInfo& formatInfo = getFormatInfo(format);
+        uavDesc.Buffer.FirstElement = UINT(range.offset / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
+        uavDesc.Buffer.NumElements = UINT(range.size / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
     }
 
     SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateUnorderedAccessView(m_buffer, &uavDesc, uav.writeRef()));

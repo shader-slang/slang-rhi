@@ -533,7 +533,7 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 {
     for (auto deviceType : deviceTypes)
     {
-        if (!rhiIsDeviceTypeSupported(deviceType))
+        if (!getRHI()->isDeviceTypeSupported(deviceType))
         {
             continue;
         }

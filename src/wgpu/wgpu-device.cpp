@@ -162,8 +162,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     GfxCount width = std::max(desc.size.width, 1);
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
-    FormatInfo formatInfo;
-    rhiGetFormatInfo(desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;
     Size bytesPerSlice = Size(height) * bytesPerRow;

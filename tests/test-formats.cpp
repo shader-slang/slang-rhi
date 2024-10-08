@@ -72,15 +72,14 @@ struct TestFormats
 
     bool isFormatSupported(Format format)
     {
-        FormatInfo info;
-        REQUIRE_CALL(rhiGetFormatInfo(format, &info));
+        const FormatInfo& info = getFormatInfo(format);
 
         if (format == Format::R32G32B32_FLOAT || format == Format::R32G32B32_UINT || format == Format::R32G32B32_SINT ||
             format == Format::R32G32B32_TYPELESS)
             return false;
 
         // for WebGPU
-        if (rhiIsTypelessFormat(format))
+        if (info.isTypeless)
             return false;
         if (format == Format::B4G4R4A4_UNORM || format == Format::B5G6R5_UNORM || format == Format::B5G5R5A1_UNORM)
             return false;
@@ -103,7 +102,7 @@ struct TestFormats
 
         ComPtr<ITextureView> view;
         TextureViewDesc viewDesc = {};
-        viewDesc.format = rhiIsTypelessFormat(format) ? convertTypelessFormat(format) : format;
+        viewDesc.format = getFormatInfo(format).isTypeless ? convertTypelessFormat(format) : format;
         REQUIRE_CALL(device->createTextureView(texture, viewDesc, view.writeRef()));
         return view;
     }
@@ -169,8 +168,7 @@ struct TestFormats
             return;
         }
 
-        FormatInfo info;
-        REQUIRE_CALL(rhiGetFormatInfo(format, &info));
+        const FormatInfo& info = getFormatInfo(format);
 
         // MESSAGE("Checking format: ", doctest::String(info.name));
 

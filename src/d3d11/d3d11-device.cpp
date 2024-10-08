@@ -418,9 +418,8 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* 
         return E_INVALIDARG;
     }
 
-    FormatInfo sizeInfo;
-    rhiGetFormatInfo(textureImpl->m_desc.format, &sizeInfo);
-    size_t bytesPerPixel = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
+    const FormatInfo& formatInfo = getFormatInfo(textureImpl->m_desc.format);
+    size_t bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     size_t rowPitch = int(textureImpl->m_desc.size.width) * bytesPerPixel;
     size_t bufferSize = rowPitch * int(textureImpl->m_desc.size.height);
     if (outRowPitch)

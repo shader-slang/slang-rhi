@@ -155,6 +155,52 @@ struct FormatInfoMap
         set(Format::BC7_UNORM_SRGB, "BC7_UNORM_SRGB", SLANG_SCALAR_TYPE_FLOAT32, 4, 16, 16, 4, 4);
     }
 
+    bool isTypless(Format format)
+    {
+        switch (format)
+        {
+        case Format::R32G32B32A32_TYPELESS:
+        case Format::R32G32B32_TYPELESS:
+        case Format::R32G32_TYPELESS:
+        case Format::R32_TYPELESS:
+        case Format::R16G16B16A16_TYPELESS:
+        case Format::R16G16_TYPELESS:
+        case Format::R16_TYPELESS:
+        case Format::R8G8B8A8_TYPELESS:
+        case Format::R8G8_TYPELESS:
+        case Format::R8_TYPELESS:
+        case Format::B8G8R8A8_TYPELESS:
+        case Format::R10G10B10A2_TYPELESS:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool isCompressed(Format format)
+    {
+        switch (format)
+        {
+        case Format::BC1_UNORM:
+        case Format::BC1_UNORM_SRGB:
+        case Format::BC2_UNORM:
+        case Format::BC2_UNORM_SRGB:
+        case Format::BC3_UNORM:
+        case Format::BC3_UNORM_SRGB:
+        case Format::BC4_UNORM:
+        case Format::BC4_SNORM:
+        case Format::BC5_UNORM:
+        case Format::BC5_SNORM:
+        case Format::BC6H_UF16:
+        case Format::BC6H_SF16:
+        case Format::BC7_UNORM:
+        case Format::BC7_UNORM_SRGB:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     void set(
         Format format,
         const char* name,
@@ -175,6 +221,9 @@ struct FormatInfoMap
         info.pixelsPerBlock = pixelsPerBlock;
         info.blockWidth = blockWidth;
         info.blockHeight = blockHeight;
+
+        info.isTypeless = isTypless(format);
+        info.isCompressed = isCompressed(format);
     }
 
     const FormatInfo& get(Format format) const { return m_infos[Index(format)]; }
@@ -252,58 +301,6 @@ extern "C"
     IRHI* getRHI()
     {
         return RHI::getInstance();
-    }
-
-    SLANG_RHI_API bool SLANG_MCALL rhiIsCompressedFormat(Format format)
-    {
-        switch (format)
-        {
-        case Format::BC1_UNORM:
-        case Format::BC1_UNORM_SRGB:
-        case Format::BC2_UNORM:
-        case Format::BC2_UNORM_SRGB:
-        case Format::BC3_UNORM:
-        case Format::BC3_UNORM_SRGB:
-        case Format::BC4_UNORM:
-        case Format::BC4_SNORM:
-        case Format::BC5_UNORM:
-        case Format::BC5_SNORM:
-        case Format::BC6H_UF16:
-        case Format::BC6H_SF16:
-        case Format::BC7_UNORM:
-        case Format::BC7_UNORM_SRGB:
-            return true;
-        default:
-            return false;
-        }
-    }
-
-    SLANG_RHI_API bool SLANG_MCALL rhiIsTypelessFormat(Format format)
-    {
-        switch (format)
-        {
-        case Format::R32G32B32A32_TYPELESS:
-        case Format::R32G32B32_TYPELESS:
-        case Format::R32G32_TYPELESS:
-        case Format::R32_TYPELESS:
-        case Format::R16G16B16A16_TYPELESS:
-        case Format::R16G16_TYPELESS:
-        case Format::R16_TYPELESS:
-        case Format::R8G8B8A8_TYPELESS:
-        case Format::R8G8_TYPELESS:
-        case Format::R8_TYPELESS:
-        case Format::B8G8R8A8_TYPELESS:
-        case Format::R10G10B10A2_TYPELESS:
-            return true;
-        default:
-            return false;
-        }
-    }
-
-    SLANG_RHI_API Result SLANG_MCALL rhiGetFormatInfo(Format format, FormatInfo* outInfo)
-    {
-        *outInfo = s_formatInfoMap.get(format);
-        return SLANG_OK;
     }
 
     SLANG_RHI_API Result SLANG_MCALL rhiGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
@@ -446,16 +443,6 @@ extern "C"
     SLANG_RHI_API void SLANG_MCALL rhiEnableDebugLayer()
     {
         debugLayerEnabled = true;
-    }
-
-    const char* rhiGetDeviceTypeName(DeviceType type)
-    {
-        return RHI::getInstance()->getDeviceTypeName(type);
-    }
-
-    bool rhiIsDeviceTypeSupported(DeviceType type)
-    {
-        return RHI::getInstance()->isDeviceTypeSupported(type);
     }
 }
 

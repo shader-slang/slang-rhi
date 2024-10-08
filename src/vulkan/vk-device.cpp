@@ -1110,9 +1110,8 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     const TextureDesc& desc = textureImpl->m_desc;
     auto width = desc.size.width;
     auto height = desc.size.height;
-    FormatInfo sizeInfo;
-    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &sizeInfo));
-    Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+    Size pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
     int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
@@ -1742,8 +1741,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             // Handle senario where texture is sampled. We cannot use
             // a simple buffer copy for sampled textures. ClearColorImage
             // is not data accurate but it is fine for testing & works.
-            FormatInfo formatInfo;
-            rhiGetFormatInfo(desc.format, &formatInfo);
+            const FormatInfo& formatInfo = getFormatInfo(desc.format);
             uint32_t data = 0;
             VkClearColorValue clearColor;
             switch (formatInfo.channelType)

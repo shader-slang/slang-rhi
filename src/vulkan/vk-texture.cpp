@@ -96,7 +96,7 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;
-    createInfo.format = rhiIsTypelessFormat(format) ? VulkanUtil::getVkFormat(format) : m_vkformat;
+    createInfo.format = getFormatInfo(format).isTypeless ? VulkanUtil::getVkFormat(format) : m_vkformat;
     createInfo.image = m_image;
     createInfo.components = VkComponentMapping{
         VK_COMPONENT_SWIZZLE_R,

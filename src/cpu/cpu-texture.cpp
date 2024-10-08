@@ -106,8 +106,7 @@ Result TextureImpl::init(SubresourceData const* initData)
     // the block extents would be 1 along each axis.
     //
     auto format = desc.format;
-    FormatInfo texelInfo;
-    rhiGetFormatInfo(format, &texelInfo);
+    const FormatInfo& texelInfo = getFormatInfo(format);
     uint32_t texelSize = uint32_t(texelInfo.blockSizeInBytes / texelInfo.pixelsPerBlock);
     m_texelSize = texelSize;
 

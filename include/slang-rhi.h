@@ -283,6 +283,9 @@ struct FormatInfo
     GfxCount blockWidth;
     /// The height of a block in pixels.
     GfxCount blockHeight;
+
+    bool isTypeless : 1;
+    bool isCompressed : 1;
 };
 
 enum class FormatSupport
@@ -2543,15 +2546,6 @@ extern "C"
 {
     SLANG_RHI_API IRHI* SLANG_MCALL getRHI();
 
-    /// Checks if format is compressed
-    SLANG_RHI_API bool SLANG_MCALL rhiIsCompressedFormat(Format format);
-
-    /// Checks if format is typeless
-    SLANG_RHI_API bool SLANG_MCALL rhiIsTypelessFormat(Format format);
-
-    /// Gets information about the format
-    SLANG_RHI_API SlangResult SLANG_MCALL rhiGetFormatInfo(Format format, FormatInfo* outInfo);
-
     /// Gets a list of available adapters for a given device type
     SLANG_RHI_API SlangResult SLANG_MCALL rhiGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob);
 
@@ -2569,10 +2563,11 @@ extern "C"
 
     /// Enables debug layer. The debug layer will check all `rhi` calls and verify that uses are valid.
     SLANG_RHI_API void SLANG_MCALL rhiEnableDebugLayer();
+}
 
-    SLANG_RHI_API const char* SLANG_MCALL rhiGetDeviceTypeName(DeviceType type);
-
-    SLANG_RHI_API bool rhiIsDeviceTypeSupported(DeviceType type);
+inline const FormatInfo& getFormatInfo(Format format)
+{
+    return getRHI()->getFormatInfo(format);
 }
 
 /// Gets a list of available adapters for a given device type

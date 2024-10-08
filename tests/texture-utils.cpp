@@ -19,8 +19,7 @@ namespace rhi::testing {
 
 Size getTexelSize(Format format)
 {
-    FormatInfo info;
-    REQUIRE_CALL(rhiGetFormatInfo(format, &info));
+    const FormatInfo& info = getFormatInfo(format);
     return info.blockSizeInBytes / info.pixelsPerBlock;
 }
 

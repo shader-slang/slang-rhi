@@ -887,8 +887,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         return SLANG_FAIL;
     }
 
-    FormatInfo formatInfo;
-    rhiGetFormatInfo(rhiDesc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(rhiDesc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = int(desc.Width) * bytesPerPixel;
     static const Size align = 256;                    // D3D requires minimum 256 byte alignment for texture data.
@@ -997,6 +996,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899215%28v=vs.85%29.aspx
 
     TextureDesc srcDesc = fixupTextureDesc(descIn);
+
+    const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
@@ -1127,7 +1128,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
 
                 Extents mipSize = calcMipSize(srcDesc.size, j);
-                if (rhiIsCompressedFormat(descIn.format))
+                if (formatInfo.isCompressed)
                 {
                     mipSize.width = int(D3DUtil::calcAligned(mipSize.width, 4));
                     mipSize.height = int(D3DUtil::calcAligned(mipSize.height, 4));
@@ -1156,8 +1157,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     //
                     const uint8_t* srcRow = srcLayer;
                     uint8_t* dstRow = dstLayer;
-                    int j = rhiIsCompressedFormat(descIn.format) ? 4 : 1; // BC compressed formats are organized into
-                                                                          // 4x4 blocks
+                    int j = formatInfo.isCompressed ? 4 : 1; // BC compressed formats are organized into
+                                                             // 4x4 blocks
                     for (int k = 0; k < mipSize.height; k += j)
                     {
                         ::memcpy(dstRow, srcRow, (Size)mipRowSize);

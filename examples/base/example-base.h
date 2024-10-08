@@ -88,8 +88,12 @@ Result ExampleBase::createDevice(DeviceType deviceType)
 Result ExampleBase::createWindow(uint32_t width, uint32_t height)
 {
     const auto& deviceInfo = device->getDeviceInfo();
-    std::string title =
-        string::format("%s | %s (%s)", getName(), deviceInfo.adapterName, rhiGetDeviceTypeName(deviceInfo.deviceType));
+    std::string title = string::format(
+        "%s | %s (%s)",
+        getName(),
+        deviceInfo.adapterName,
+        getRHI()->getDeviceTypeName(deviceInfo.deviceType)
+    );
 
     window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!window)

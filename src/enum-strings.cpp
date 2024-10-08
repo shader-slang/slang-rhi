@@ -44,10 +44,9 @@ const char* enumToString(DeviceType value)
 
 const char* enumToString(Format value)
 {
-    FormatInfo info;
-    if (rhiGetFormatInfo(value, &info) == SLANG_OK)
+    if (int(value) >= 0 && int(value) < int(Format::_Count))
     {
-        return info.name;
+        return getFormatInfo(value).name;
     }
     else
     {

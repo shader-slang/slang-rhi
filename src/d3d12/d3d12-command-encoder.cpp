@@ -276,8 +276,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
         dstTexture->m_desc.arrayLength
     );
     auto textureSize = dstTexture->m_desc.size;
-    FormatInfo formatInfo = {};
-    rhiGetFormatInfo(dstTexture->m_desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(dstTexture->m_desc.format);
     for (GfxCount i = 0; i < subresourceDataCount; i++)
     {
         auto subresourceIndex = baseSubresourceIndex + i;
@@ -557,8 +556,7 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
         srcTexture->m_desc.arrayLength
     );
     auto textureSize = srcTexture->m_desc.size;
-    FormatInfo formatInfo = {};
-    rhiGetFormatInfo(srcTexture->m_desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(srcTexture->m_desc.format);
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = srcTexture->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
