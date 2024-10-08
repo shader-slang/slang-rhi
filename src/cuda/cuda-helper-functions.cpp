@@ -35,15 +35,15 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line)
     return info.handle();
 }
 
-#ifdef RENDER_TEST_OPTIX
+#if SLANG_RHI_HAS_OPTIX
 
-static bool _isError(OptixResult result)
+bool _isError(OptixResult result)
 {
     return result != OPTIX_SUCCESS;
 }
 
 #if 1
-static Result _handleOptixError(OptixResult result, char const* file, int line)
+Result _handleOptixError(OptixResult result, char const* file, int line)
 {
     fprintf(stderr, "%s(%d): optix: %s (%s)\n", file, line, optixGetErrorString(result), optixGetErrorName(result));
     return SLANG_FAIL;
@@ -54,7 +54,7 @@ void _optixLogCallback(unsigned int level, const char* tag, const char* message,
     fprintf(stderr, "optix: %s (%s)\n", message, tag);
 }
 #endif
-#endif
+#endif // SLANG_RHI_HAS_OPTIX
 
 AdapterLUID getAdapterLUID(int deviceIndex)
 {

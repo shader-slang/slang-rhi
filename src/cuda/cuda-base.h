@@ -15,18 +15,6 @@
 #include <slang-com-ptr.h>
 #include <slang.h>
 
-#ifdef RENDER_TEST_OPTIX
-
-// The `optix_stubs.h` header produces warnings when compiled with MSVC
-#ifdef _MSC_VER
-#pragma warning(disable : 4996)
-#endif
-
-#include <optix.h>
-#include <optix_function_table_definition.h>
-#include <optix_stubs.h>
-#endif
-
 namespace rhi::cuda {
 
 class CUDAContext;
