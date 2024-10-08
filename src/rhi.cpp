@@ -283,6 +283,14 @@ public:
         }
     }
 
+    Result reportLiveObjects() override
+    {
+#if SLANG_RHI_ENABLE_D3D12
+        SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
+#endif
+        return SLANG_OK;
+    }
+
     static RHI* getInstance()
     {
         static RHI instance;
@@ -419,14 +427,6 @@ extern "C"
         debugDevice->baseObject = innerDevice;
         returnComPtr(outDevice, debugDevice);
         return resultCode;
-    }
-
-    SLANG_RHI_API Result SLANG_MCALL rhiReportLiveObjects()
-    {
-#if SLANG_RHI_ENABLE_D3D12
-        SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
-#endif
-        return SLANG_OK;
     }
 }
 

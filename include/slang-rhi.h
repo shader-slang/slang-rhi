@@ -2545,6 +2545,10 @@ public:
     //     SLANG_RETURN_NULL_ON_FAIL(createDevice(desc, device.writeRef()));
     //     return device;
     // }
+
+    /// Reports current set of live objects.
+    /// Currently this just calls D3D's ReportLiveObjects.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;
 };
 
 // Global public functions
@@ -2558,10 +2562,6 @@ extern "C"
 
     /// Given a type returns a function that can construct it, or nullptr if there isn't one
     SLANG_RHI_API SlangResult SLANG_MCALL rhiCreateDevice(const DeviceDesc* desc, IDevice** outDevice);
-
-    /// Reports current set of live objects in rhi.
-    /// Currently this only calls D3D's ReportLiveObjects.
-    SLANG_RHI_API SlangResult SLANG_MCALL rhiReportLiveObjects();
 }
 
 inline const FormatInfo& getFormatInfo(Format format)
