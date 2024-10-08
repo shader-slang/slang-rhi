@@ -127,10 +127,27 @@ Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
     return SLANG_OK;
 }
 
+DeviceImpl::~DeviceImpl()
+{
+    m_queue.setNull();
+
+#if SLANG_RHI_HAS_OPTIX
+    if (m_ctx.optixContext)
+    {
+        optixDeviceContextDestroy(m_ctx.optixContext);
+    }
+#endif
+
+    if (m_ctx.context)
+    {
+        cuCtxDestroy(m_ctx.context);
+    }
+}
+
 Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::CUdevice;
-    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[0].value = m_ctx.device;
     outHandles->handles[1] = {};
     outHandles->handles[2] = {};
     return SLANG_OK;
@@ -151,6 +168,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     SLANG_RETURN_ON_FAIL(_initCuda(reportType));
 
+    int selectedDeviceIndex = -1;
     if (desc.adapterLUID)
     {
         int deviceCount = -1;
@@ -159,23 +177,19 @@ Result DeviceImpl::initialize(const Desc& desc)
         {
             if (cuda::getAdapterLUID(deviceIndex) == *desc.adapterLUID)
             {
-                m_deviceIndex = deviceIndex;
+                selectedDeviceIndex = deviceIndex;
                 break;
             }
         }
-        if (m_deviceIndex >= deviceCount)
-            return SLANG_E_INVALID_ARG;
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&m_deviceIndex));
+        SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&selectedDeviceIndex));
     }
 
-    m_context = new CUDAContext();
+    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&m_ctx.device, selectedDeviceIndex));
 
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&m_device, m_deviceIndex));
-
-    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_context->m_context, 0, m_device), reportType);
+    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), reportType);
 
     {
         // Not clear how to detect half support on CUDA. For now we'll assume we have it
@@ -188,6 +202,28 @@ Result DeviceImpl::initialize(const Desc& desc)
         m_features.push_back("has-ptr");
     }
 
+#if SLANG_RHI_HAS_OPTIX
+    {
+        SLANG_OPTIX_RETURN_ON_FAIL(optixInit());
+
+        static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* /*cbdata */)
+        {
+            printf("[%2u][%12s]: %s\n", level, tag, message);
+            fflush(stdout);
+        };
+
+        OptixDeviceContextOptions options = {};
+        options.logCallbackFunction = logCallback;
+        options.logCallbackLevel = 4;
+#ifdef _DEBUG
+        options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
+#endif
+        SLANG_OPTIX_RETURN_ON_FAIL(optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext));
+
+        m_features.push_back("ray-tracing");
+    }
+#endif
+
     // Initialize DeviceInfo
     {
         m_info.deviceType = DeviceType::CUDA;
@@ -195,7 +231,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
         char deviceName[256];
-        cuDeviceGetName(deviceName, sizeof(deviceName), m_device);
+        cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device);
         m_adapterName = deviceName;
         m_info.adapterName = m_adapterName.data();
         m_info.timestampFrequency = 1000000;
@@ -207,7 +243,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         auto getAttribute = [&](CUdevice_attribute attribute) -> int
         {
             int value;
-            CUresult result = cuDeviceGetAttribute(&value, attribute, m_device);
+            CUresult result = cuDeviceGetAttribute(&value, attribute, m_ctx.device);
             if (result != CUDA_SUCCESS)
                 lastResult = result;
             return value;
@@ -955,7 +991,6 @@ Result DeviceImpl::createShaderProgram(
     // the shader object bindings.
     RefPtr<ShaderProgramImpl> cudaProgram = new ShaderProgramImpl();
     cudaProgram->init(desc);
-    cudaProgram->cudaContext = m_context;
     if (desc.slangGlobalScope->getSpecializationParamCount() != 0)
     {
         cudaProgram->layout = new RootShaderObjectLayoutImpl(this, desc.slangGlobalScope->getLayout());
