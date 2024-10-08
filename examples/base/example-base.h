@@ -79,7 +79,7 @@ void ExampleBase::onResize(int width, int height)
 
 Result ExampleBase::createDevice(DeviceType deviceType)
 {
-    IDevice::Desc deviceDesc = {};
+    DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     SLANG_RETURN_ON_FAIL(rhiCreateDevice(&deviceDesc, device.writeRef()));
     return SLANG_OK;

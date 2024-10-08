@@ -13,13 +13,13 @@
 
 namespace rhi {
 
-Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createWGPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
+Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
@@ -282,13 +282,13 @@ extern "C"
         return SLANG_OK;
     }
 
-    Result _createDevice(const IDevice::Desc* desc, IDevice** outDevice)
+    Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
     {
         switch (desc->deviceType)
         {
         case DeviceType::Default:
         {
-            IDevice::Desc newDesc = *desc;
+            DeviceDesc newDesc = *desc;
             newDesc.deviceType = DeviceType::D3D12;
             if (_createDevice(&newDesc, outDevice) == SLANG_OK)
                 return SLANG_OK;
@@ -344,7 +344,7 @@ extern "C"
         }
     }
 
-    SLANG_RHI_API Result SLANG_MCALL rhiCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
+    SLANG_RHI_API Result SLANG_MCALL rhiCreateDevice(const DeviceDesc* desc, IDevice** outDevice)
     {
         ComPtr<IDevice> innerDevice;
         auto resultCode = _createDevice(desc, innerDevice.writeRef());

@@ -508,7 +508,7 @@ Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outRenderer)
+Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outRenderer)
 {
     RefPtr<vk::DeviceImpl> result = new vk::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

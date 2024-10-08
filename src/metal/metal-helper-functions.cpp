@@ -36,7 +36,7 @@ Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outRenderer)
+Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outRenderer)
 {
     RefPtr<metal::DeviceImpl> result = new metal::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

@@ -117,7 +117,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
     return ((DeviceImpl*)pUserData)->handleDebugMessage(messageSeverity, messageTypes, pCallbackData);
 }
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::VkInstance;
     outHandles->handles[0].value = (uint64_t)m_api.m_instance;
@@ -999,7 +999,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     // Initialize device info.
     {

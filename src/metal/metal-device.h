@@ -14,7 +14,7 @@ namespace rhi::metal {
 class DeviceImpl : public Device
 {
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
@@ -88,7 +88,7 @@ public:
 
     // void waitForGpu();
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     ~DeviceImpl();
 
 public:
@@ -97,7 +97,7 @@ public:
 
     bool captureEnabled() const { return std::getenv("MTL_CAPTURE") != nullptr; }
 
-    Desc m_desc;
+    DeviceDesc m_desc;
     NS::SharedPtr<MTL::Device> m_device;
     RefPtr<CommandQueueImpl> m_queue;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;

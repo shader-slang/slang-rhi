@@ -93,7 +93,7 @@ Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
     return cuda::getAdapters(outAdapters);
 }
 
-Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice)
+Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<cuda::DeviceImpl> result = new cuda::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

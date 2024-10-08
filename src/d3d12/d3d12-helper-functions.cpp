@@ -504,7 +504,7 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice)
+Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

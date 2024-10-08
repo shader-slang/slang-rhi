@@ -44,7 +44,7 @@ struct D3D12DeviceInfo
 class DeviceImpl : public Device
 {
 public:
-    Desc m_desc;
+    DeviceDesc m_desc;
     D3D12DeviceExtendedDesc m_extendedDesc;
 
     DeviceInfo m_info;
@@ -95,7 +95,7 @@ public:
     ComPtr<ID3D12CommandSignature> dispatchIndirectCmdSignature;
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
@@ -161,7 +161,7 @@ public:
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     ~DeviceImpl();
 

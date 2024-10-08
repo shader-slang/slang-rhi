@@ -10,7 +10,7 @@ class DeviceImpl : public ImmediateDevice
 public:
     ~DeviceImpl() {}
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual void beginRenderPass(const RenderPassDesc& desc) override;
     virtual void endRenderPass() override;
@@ -112,7 +112,7 @@ public:
     uint32_t m_stencilRef = 0;
     bool m_depthStencilStateDirty = true;
 
-    Desc m_desc;
+    DeviceDesc m_desc;
 
     float m_clearColor[4] = {0, 0, 0, 0};
 

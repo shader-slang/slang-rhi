@@ -6,11 +6,11 @@ using namespace rhi::testing;
 void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> existingDevice = createTestingDevice(ctx, deviceType);
-    IDevice::NativeHandles handles;
+    DeviceNativeHandles handles;
     CHECK_CALL(existingDevice->getNativeDeviceHandles(&handles));
 
     ComPtr<IDevice> device;
-    IDevice::Desc deviceDesc = {};
+    DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     deviceDesc.existingDeviceHandles.handles[0] = handles.handles[0];
     if (deviceType == DeviceType::Vulkan)

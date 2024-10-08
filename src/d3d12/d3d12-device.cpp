@@ -165,7 +165,7 @@ Result DeviceImpl::createBuffer(
     return SLANG_OK;
 }
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::D3D12Device;
     outHandles->handles[0].value = (uint64_t)m_device;
@@ -324,7 +324,7 @@ Result DeviceImpl::_createDevice(
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 

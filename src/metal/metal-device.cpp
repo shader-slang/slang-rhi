@@ -29,7 +29,7 @@ DeviceImpl::~DeviceImpl()
     m_queue.setNull();
 }
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::MTLDevice;
     outHandles->handles[0].value = (uint64_t)m_device.get();
@@ -38,7 +38,7 @@ Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     AUTORELEASEPOOL
 

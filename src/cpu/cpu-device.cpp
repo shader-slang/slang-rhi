@@ -18,7 +18,7 @@ DeviceImpl::~DeviceImpl()
     m_currentRootObject = nullptr;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
@@ -270,7 +270,7 @@ void DeviceImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t
 
 namespace rhi {
 
-Result createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice)
+Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<cpu::DeviceImpl> result = new cpu::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

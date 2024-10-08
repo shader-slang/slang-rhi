@@ -13,7 +13,7 @@ class DeviceImpl : public Device
 {
 public:
     Result initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer);
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
@@ -89,7 +89,7 @@ public:
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     ~DeviceImpl();
 
@@ -145,7 +145,7 @@ public:
     uint32_t m_queueFamilyIndex;
     RefPtr<CommandQueueImpl> m_queue;
 
-    Desc m_desc;
+    DeviceDesc m_desc;
 
     DescriptorSetAllocator descriptorSetAllocator;
 

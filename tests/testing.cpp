@@ -357,7 +357,7 @@ ComPtr<IDevice> createTestingDevice(
     }
 
     ComPtr<IDevice> device;
-    IDevice::Desc deviceDesc = {};
+    DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
     auto searchPaths = getSlangSearchPaths();

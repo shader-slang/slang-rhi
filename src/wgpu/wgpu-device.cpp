@@ -35,7 +35,7 @@ Context::~Context()
 
 DeviceImpl::~DeviceImpl() {}
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
@@ -45,7 +45,7 @@ void DeviceImpl::handleError(WGPUErrorType type, char const* message)
     fprintf(stderr, "WGPU error: %s\n", message);
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(m_ctx.api.init());
     API& api = m_ctx.api;

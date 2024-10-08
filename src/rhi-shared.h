@@ -1133,7 +1133,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) SLANG_OVERRIDE;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* featureName) SLANG_OVERRIDE;
@@ -1280,7 +1280,7 @@ public:
     virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
 
 protected:
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc);
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc);
 
 protected:
     std::vector<std::string> m_features;

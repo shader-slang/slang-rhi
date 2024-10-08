@@ -97,6 +97,6 @@ namespace rhi {
 
 Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 
-Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
+Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

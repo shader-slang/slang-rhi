@@ -14,7 +14,7 @@ public:
     ComPtr<slang::IGlobalSession> globalSession;
     ComPtr<slang::ISession> session;
     Result initialize(
-        const IDevice::SlangDesc& desc,
+        const SlangDesc& desc,
         uint32_t extendedDescCount,
         void** extendedDescs,
         SlangCompileTarget compileTarget,

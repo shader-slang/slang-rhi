@@ -39,10 +39,7 @@ public:
     std::vector<OptixBuildInput> buildInputs;
     OptixAccelBuildOptions buildOptions;
 
-    Result build(
-        const AccelerationStructureBuildDesc& buildDesc,
-        IDebugCallback* debugCallback
-    );
+    Result build(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
 
 private:
     unsigned int translateBuildFlags(AccelerationStructureBuildFlags flags) const;

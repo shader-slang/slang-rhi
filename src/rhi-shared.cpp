@@ -349,7 +349,7 @@ IDevice* Device::getInterface(const Guid& guid)
     return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IDevice) ? static_cast<IDevice*>(this) : nullptr;
 }
 
-Result Device::initialize(const Desc& desc)
+Result Device::initialize(const DeviceDesc& desc)
 {
     persistentShaderCache = desc.persistentShaderCache;
 
@@ -363,7 +363,7 @@ Result Device::initialize(const Desc& desc)
     return SLANG_OK;
 }
 
-Result Device::getNativeDeviceHandles(NativeHandles* outHandles)
+Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_OK;
 }

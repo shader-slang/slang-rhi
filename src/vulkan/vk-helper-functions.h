@@ -174,6 +174,6 @@ namespace rhi {
 
 Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
 
-Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outRenderer);
+Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outRenderer);
 
 } // namespace rhi

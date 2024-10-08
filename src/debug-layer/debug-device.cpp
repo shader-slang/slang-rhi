@@ -34,7 +34,7 @@ Result DebugDevice::queryInterface(SlangUUID const& uuid, void** outObject) noex
     return baseObject->queryInterface(uuid, outObject);
 }
 
-Result DebugDevice::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return baseObject->getNativeDeviceHandles(outHandles);
 }

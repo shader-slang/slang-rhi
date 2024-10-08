@@ -2135,15 +2135,10 @@ public:
     handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) = 0;
 };
 
-class IDevice : public ISlangUnknown
-{
-    SLANG_COM_INTERFACE(0x311ee28b, 0xdb5a, 0x4a3c, {0x89, 0xda, 0xf0, 0x03, 0x0f, 0xd5, 0x70, 0x4b});
-
-public:
     struct SlangDesc
     {
-        slang::IGlobalSession* slangGlobalSession = nullptr; // (optional) A slang global session object. If null will
-                                                             // create automatically.
+    /// (optional) A slang global session object, if null a new one will be created.
+    slang::IGlobalSession* slangGlobalSession = nullptr;
 
         SlangMatrixLayoutMode defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;
 
@@ -2153,20 +2148,21 @@ public:
         slang::PreprocessorMacroDesc const* preprocessorMacros = nullptr;
         GfxCount preprocessorMacroCount = 0;
 
-        const char* targetProfile = nullptr; // (optional) Target shader profile. If null this will be set to platform
-                                             // dependent default.
+    /// (optional) Target shader profile. If null this will be set to platform dependent default.
+    const char* targetProfile = nullptr;
+
         SlangFloatingPointMode floatingPointMode = SLANG_FLOATING_POINT_MODE_DEFAULT;
         SlangOptimizationLevel optimizationLevel = SLANG_OPTIMIZATION_LEVEL_DEFAULT;
         SlangTargetFlags targetFlags = kDefaultTargetFlags;
         SlangLineDirectiveMode lineDirectiveMode = SLANG_LINE_DIRECTIVE_MODE_DEFAULT;
     };
 
-    struct NativeHandles
+struct DeviceNativeHandles
     {
         NativeHandle handles[3] = {};
     };
 
-    struct Desc
+struct DeviceDesc
     {
         // The underlying API/Platform of the device.
         DeviceType deviceType = DeviceType::Default;
@@ -2174,7 +2170,7 @@ public:
         // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
         // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this only contains a single value for the
         // CUDADevice.
-        NativeHandles existingDeviceHandles;
+    DeviceNativeHandles existingDeviceHandles;
         // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
         const AdapterLUID* adapterLUID = nullptr;
         // Number of required features.
@@ -2195,7 +2191,12 @@ public:
         void** extendedDescs = nullptr;
     };
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) = 0;
+class IDevice : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x311ee28b, 0xdb5a, 0x4a3c, {0x89, 0xda, 0xf0, 0x03, 0x0f, 0xd5, 0x70, 0x4b});
+
+public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) = 0;
 
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
 
@@ -2532,7 +2533,7 @@ extern "C"
     SLANG_RHI_API SlangResult SLANG_MCALL rhiGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob);
 
     /// Given a type returns a function that can construct it, or nullptr if there isn't one
-    SLANG_RHI_API SlangResult SLANG_MCALL rhiCreateDevice(const IDevice::Desc* desc, IDevice** outDevice);
+    SLANG_RHI_API SlangResult SLANG_MCALL rhiCreateDevice(const DeviceDesc* desc, IDevice** outDevice);
 
     /// Reports current set of live objects in rhi.
     /// Currently this only calls D3D's ReportLiveObjects.

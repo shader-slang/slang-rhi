@@ -374,7 +374,7 @@ Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters)
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice)
+Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<d3d11::DeviceImpl> result = new d3d11::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
