@@ -184,8 +184,76 @@ struct FormatInfoMap
 
 static const FormatInfoMap s_formatInfoMap;
 
+class RHI : public IRHI
+{
+public:
+    virtual const FormatInfo& getFormatInfo(Format format) override { return s_formatInfoMap.get(format); }
+
+    virtual const char* getDeviceTypeName(DeviceType deviceType) override
+    {
+        switch (deviceType)
+        {
+        case DeviceType::Default:
+            return "Default";
+        case DeviceType::D3D11:
+            return "D3D11";
+        case DeviceType::D3D12:
+            return "D3D12";
+        case DeviceType::Vulkan:
+            return "Vulkan";
+        case DeviceType::Metal:
+            return "Metal";
+        case DeviceType::CPU:
+            return "CPU";
+        case DeviceType::CUDA:
+            return "CUDA";
+        case DeviceType::WGPU:
+            return "WGPU";
+        }
+        return "invalid";
+    }
+
+    virtual bool isDeviceTypeSupported(DeviceType deviceType) override
+    {
+        switch (deviceType)
+        {
+        case DeviceType::D3D11:
+            return SLANG_RHI_ENABLE_D3D11;
+        case DeviceType::D3D12:
+            return SLANG_RHI_ENABLE_D3D12;
+        case DeviceType::Vulkan:
+            return SLANG_RHI_ENABLE_VULKAN;
+        case DeviceType::Metal:
+            return SLANG_RHI_ENABLE_METAL;
+        case DeviceType::CPU:
+            return true;
+        case DeviceType::CUDA:
+#if SLANG_RHI_ENABLE_CUDA
+            return rhiCudaApiInit();
+#else
+            return false;
+#endif
+        case DeviceType::WGPU:
+            return SLANG_RHI_ENABLE_WGPU;
+        default:
+            return false;
+        }
+    }
+
+    static RHI* getInstance()
+    {
+        static RHI instance;
+        return &instance;
+    }
+};
+
 extern "C"
 {
+    IRHI* getRHI()
+    {
+        return RHI::getInstance();
+    }
+
     SLANG_RHI_API bool SLANG_MCALL rhiIsCompressedFormat(Format format)
     {
         switch (format)
@@ -380,56 +448,14 @@ extern "C"
         debugLayerEnabled = true;
     }
 
-    const char* SLANG_MCALL rhiGetDeviceTypeName(DeviceType type)
+    const char* rhiGetDeviceTypeName(DeviceType type)
     {
-        switch (type)
-        {
-        case DeviceType::Default:
-            return "Default";
-        case DeviceType::D3D11:
-            return "D3D11";
-        case DeviceType::D3D12:
-            return "D3D12";
-        case DeviceType::Vulkan:
-            return "Vulkan";
-        case DeviceType::Metal:
-            return "Metal";
-        case DeviceType::CPU:
-            return "CPU";
-        case DeviceType::CUDA:
-            return "CUDA";
-        case DeviceType::WGPU:
-            return "WGPU";
-        default:
-            return "?";
-        }
+        return RHI::getInstance()->getDeviceTypeName(type);
     }
 
     bool rhiIsDeviceTypeSupported(DeviceType type)
     {
-        switch (type)
-        {
-        case DeviceType::D3D11:
-            return SLANG_RHI_ENABLE_D3D11;
-        case DeviceType::D3D12:
-            return SLANG_RHI_ENABLE_D3D12;
-        case DeviceType::Vulkan:
-            return SLANG_RHI_ENABLE_VULKAN;
-        case DeviceType::Metal:
-            return SLANG_RHI_ENABLE_METAL;
-        case DeviceType::CPU:
-            return true;
-        case DeviceType::CUDA:
-#if SLANG_RHI_ENABLE_CUDA
-            return rhiCudaApiInit();
-#else
-            return false;
-#endif
-        case DeviceType::WGPU:
-            return SLANG_RHI_ENABLE_WGPU;
-        default:
-            return false;
-        }
+        return RHI::getInstance()->isDeviceTypeSupported(type);
     }
 }
 

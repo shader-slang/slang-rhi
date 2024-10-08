@@ -2135,61 +2135,61 @@ public:
     handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) = 0;
 };
 
-    struct SlangDesc
-    {
+struct SlangDesc
+{
     /// (optional) A slang global session object, if null a new one will be created.
     slang::IGlobalSession* slangGlobalSession = nullptr;
 
-        SlangMatrixLayoutMode defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;
+    SlangMatrixLayoutMode defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;
 
-        char const* const* searchPaths = nullptr;
-        GfxCount searchPathCount = 0;
+    char const* const* searchPaths = nullptr;
+    GfxCount searchPathCount = 0;
 
-        slang::PreprocessorMacroDesc const* preprocessorMacros = nullptr;
-        GfxCount preprocessorMacroCount = 0;
+    slang::PreprocessorMacroDesc const* preprocessorMacros = nullptr;
+    GfxCount preprocessorMacroCount = 0;
 
     /// (optional) Target shader profile. If null this will be set to platform dependent default.
     const char* targetProfile = nullptr;
 
-        SlangFloatingPointMode floatingPointMode = SLANG_FLOATING_POINT_MODE_DEFAULT;
-        SlangOptimizationLevel optimizationLevel = SLANG_OPTIMIZATION_LEVEL_DEFAULT;
-        SlangTargetFlags targetFlags = kDefaultTargetFlags;
-        SlangLineDirectiveMode lineDirectiveMode = SLANG_LINE_DIRECTIVE_MODE_DEFAULT;
-    };
+    SlangFloatingPointMode floatingPointMode = SLANG_FLOATING_POINT_MODE_DEFAULT;
+    SlangOptimizationLevel optimizationLevel = SLANG_OPTIMIZATION_LEVEL_DEFAULT;
+    SlangTargetFlags targetFlags = kDefaultTargetFlags;
+    SlangLineDirectiveMode lineDirectiveMode = SLANG_LINE_DIRECTIVE_MODE_DEFAULT;
+};
 
 struct DeviceNativeHandles
-    {
-        NativeHandle handles[3] = {};
-    };
+{
+    NativeHandle handles[3] = {};
+};
 
 struct DeviceDesc
-    {
-        // The underlying API/Platform of the device.
-        DeviceType deviceType = DeviceType::Default;
-        // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
-        // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
-        // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this only contains a single value for the
-        // CUDADevice.
+{
+    // The underlying API/Platform of the device.
+    DeviceType deviceType = DeviceType::Default;
+    // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
+    // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
+    // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this only contains a single value for the
+    // CUDADevice.
     DeviceNativeHandles existingDeviceHandles;
-        // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
-        const AdapterLUID* adapterLUID = nullptr;
-        // Number of required features.
-        GfxCount requiredFeatureCount = 0;
-        // Array of required feature names, whose size is `requiredFeatureCount`.
-        const char** requiredFeatures = nullptr;
-        // A command dispatcher object that intercepts and handles actual low-level API call.
-        ISlangUnknown* apiCommandDispatcher = nullptr;
-        // The slot (typically UAV) used to identify NVAPI intrinsics. If >=0 NVAPI is required.
-        GfxIndex nvapiExtnSlot = -1;
-        // Configurations for Slang compiler.
-        SlangDesc slang = {};
+    // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
+    const AdapterLUID* adapterLUID = nullptr;
+    // Number of required features.
+    GfxCount requiredFeatureCount = 0;
+    // Array of required feature names, whose size is `requiredFeatureCount`.
+    const char** requiredFeatures = nullptr;
+    // A command dispatcher object that intercepts and handles actual low-level API call.
+    ISlangUnknown* apiCommandDispatcher = nullptr;
+    // The slot (typically UAV) used to identify NVAPI intrinsics. If >=0 NVAPI is required.
+    GfxIndex nvapiExtnSlot = -1;
+    // Configurations for Slang compiler.
+    SlangDesc slang = {};
 
-        // Interface to persistent shader cache.
-        IPersistentShaderCache* persistentShaderCache = nullptr;
+    // Interface to persistent shader cache.
+    IPersistentShaderCache* persistentShaderCache = nullptr;
 
-        GfxCount extendedDescCount = 0;
-        void** extendedDescs = nullptr;
-    };
+    GfxCount extendedDescCount = 0;
+    void** extendedDescs = nullptr;
+};
 
 class IDevice : public ISlangUnknown
 {
@@ -2516,10 +2516,33 @@ public:
     afterCreateRayTracingState(IDevice* device, slang::IComponentType* program) = 0;
 };
 
+class IRHI
+{
+public:
+    virtual SLANG_NO_THROW const FormatInfo& SLANG_MCALL getFormatInfo(Format format) = 0;
+
+    virtual SLANG_NO_THROW const char* SLANG_MCALL getDeviceTypeName(DeviceType type) = 0;
+
+    virtual SLANG_NO_THROW bool SLANG_MCALL isDeviceTypeSupported(DeviceType deviceType) = 0;
+
+    // virtual SLANG_NO_THROW Result SLANG_MCALL getAdapter(DeviceType deviceType, ISlangBlob** outAdaptersBlob);
+
+    // virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice);
+
+    // ComPtr<IDevice> createDevice(const DeviceDesc& desc)
+    // {
+    //     ComPtr<IDevice> device;
+    //     SLANG_RETURN_NULL_ON_FAIL(createDevice(desc, device.writeRef()));
+    //     return device;
+    // }
+};
+
 // Global public functions
 
 extern "C"
 {
+    SLANG_RHI_API IRHI* SLANG_MCALL getRHI();
+
     /// Checks if format is compressed
     SLANG_RHI_API bool SLANG_MCALL rhiIsCompressedFormat(Format format);
 
