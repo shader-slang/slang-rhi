@@ -941,14 +941,14 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
             device->m_D3D12SerializeVersionedRootSignature(&versionedDesc, signature.writeRef(), error.writeRef())
         ))
     {
-        getDevice()->handleMessage(
+        device->handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
             "error: D3D12SerializeRootSignature failed"
         );
         if (error)
         {
-            getDevice()->handleMessage(
+            device->handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Driver,
                 (const char*)error->GetBufferPointer()
