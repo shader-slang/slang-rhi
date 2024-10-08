@@ -1023,10 +1023,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         if (initDeviceResult != SLANG_OK)
             continue;
         descriptorSetAllocator.m_api = &m_api;
-        initDeviceResult = initVulkanInstanceAndDevice(
-            desc.existingDeviceHandles.handles,
-            ENABLE_VALIDATION_LAYER || desc.enableBackendValidation
-        );
+        initDeviceResult =
+            initVulkanInstanceAndDevice(desc.existingDeviceHandles.handles, desc.enableBackendValidation);
         if (initDeviceResult == SLANG_OK)
             break;
     }
