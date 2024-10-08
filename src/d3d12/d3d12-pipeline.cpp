@@ -179,7 +179,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                     meshDesc.MS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 default:
-                    getDebugCallback()->handleMessage(
+                    m_device->handleMessage(
                         DebugMessageType::Error,
                         DebugMessageSource::Layer,
                         "Unsupported shader stage."
@@ -230,7 +230,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
                     graphicsDesc.GS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
                     break;
                 default:
-                    getDebugCallback()->handleMessage(
+                    m_device->handleMessage(
                         DebugMessageType::Error,
                         DebugMessageSource::Layer,
                         "Unsupported shader stage."
@@ -410,7 +410,7 @@ Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
         );
         if (diagnostics.get())
         {
-            getDebugCallback()->handleMessage(
+            m_device->handleMessage(
                 compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
                 DebugMessageSource::Slang,
                 (char*)diagnostics->getBufferPointer()

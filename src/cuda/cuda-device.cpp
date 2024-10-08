@@ -1029,7 +1029,7 @@ Result DeviceImpl::createShaderProgram(
     );
     if (diagnostics)
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
             DebugMessageSource::Slang,
             (char*)diagnostics->getBufferPointer()
@@ -1181,7 +1181,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
 {
 #if SLANG_RHI_HAS_OPTIX
     AccelerationStructureBuildInputBuilder builder;
-    builder.build(desc, getDebugCallback());
+    builder.build(desc, m_debugCallback);
     OptixAccelBufferSizes sizes;
     SLANG_OPTIX_RETURN_ON_FAIL(optixAccelComputeMemoryUsage(
         m_ctx.optixContext,

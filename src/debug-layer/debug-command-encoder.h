@@ -43,6 +43,8 @@ public:
 class DebugResourcePassEncoder : public UnownedDebugObject<IResourcePassEncoder>, public DebugPassEncoder
 {
 public:
+    SLANG_RHI_UNOWNED_DEBUG_OBJECT_CONSTRUCTOR(DebugResourcePassEncoder);
+
     SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
     virtual IPassEncoder* getBaseObject() override { return baseObject; }
@@ -113,6 +115,8 @@ public:
 class DebugRenderPassEncoder : public UnownedDebugObject<IRenderPassEncoder>, public DebugPassEncoder
 {
 public:
+    SLANG_RHI_UNOWNED_DEBUG_OBJECT_CONSTRUCTOR(DebugRenderPassEncoder);
+
     SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
     virtual IPassEncoder* getBaseObject() override { return baseObject; }
@@ -174,6 +178,8 @@ public:
 class DebugComputePassEncoder : public UnownedDebugObject<IComputePassEncoder>, public DebugPassEncoder
 {
 public:
+    SLANG_RHI_UNOWNED_DEBUG_OBJECT_CONSTRUCTOR(DebugComputePassEncoder);
+
     SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
     virtual IPassEncoder* getBaseObject() override { return baseObject; }
@@ -201,6 +207,8 @@ public:
 class DebugRayTracingPassEncoder : public UnownedDebugObject<IRayTracingPassEncoder>, public DebugPassEncoder
 {
 public:
+    SLANG_RHI_UNOWNED_DEBUG_OBJECT_CONSTRUCTOR(DebugRayTracingPassEncoder);
+
     SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(DebugPassEncoder)
 
     virtual IPassEncoder* getBaseObject() override { return baseObject; }

@@ -9,6 +9,8 @@ class DebugBuffer : public DebugObject<IBuffer>
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugBuffer);
+
 public:
     IBuffer* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW const BufferDesc& SLANG_MCALL getDesc() override;

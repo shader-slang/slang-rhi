@@ -232,7 +232,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AUTORELEASEPOOL
 
     AccelerationStructureDescBuilder builder;
-    builder.build(desc, nullptr, getDebugCallback());
+    builder.build(desc, nullptr, m_debugCallback);
     MTL::AccelerationStructureSizes sizes = m_device->accelerationStructureSizes(builder.descriptor.get());
     outSizes->accelerationStructureSize = sizes.accelerationStructureSize;
     outSizes->scratchSize = sizes.buildScratchBufferSize;

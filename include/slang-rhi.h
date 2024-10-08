@@ -2192,6 +2192,13 @@ struct DeviceDesc
 
     GfxCount extendedDescCount = 0;
     void** extendedDescs = nullptr;
+
+    /// Enable RHI validation layer.
+    bool enableValidation = false;
+    /// Enable backend API validation layer.
+    bool enableBackendValidation = false;
+    /// Debug callback. If not null, this will be called for each debug message.
+    IDebugCallback* debugCallback = nullptr;
 };
 
 class IDevice : public ISlangUnknown
@@ -2555,14 +2562,6 @@ extern "C"
     /// Reports current set of live objects in rhi.
     /// Currently this only calls D3D's ReportLiveObjects.
     SLANG_RHI_API SlangResult SLANG_MCALL rhiReportLiveObjects();
-
-    /// Sets a callback for receiving debug messages.
-    /// The layer does not hold a strong reference to the callback object.
-    /// The user is responsible for holding the callback object alive.
-    SLANG_RHI_API SlangResult SLANG_MCALL rhiSetDebugCallback(IDebugCallback* callback);
-
-    /// Enables debug layer. The debug layer will check all `rhi` calls and verify that uses are valid.
-    SLANG_RHI_API void SLANG_MCALL rhiEnableDebugLayer();
 }
 
 inline const FormatInfo& getFormatInfo(Format format)

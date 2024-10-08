@@ -592,7 +592,11 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     MTL::AccelerationStructureCommandEncoder* encoder = m_commandBuffer->getMetalAccelerationStructureCommandEncoder();
 
     AccelerationStructureDescBuilder builder;
-    builder.build(desc, m_commandBuffer->m_device->getAccelerationStructureArray(), getDebugCallback());
+    builder.build(
+        desc,
+        m_commandBuffer->m_device->getAccelerationStructureArray(),
+        m_commandBuffer->m_device->m_debugCallback
+    );
 
     switch (desc.mode)
     {

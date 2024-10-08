@@ -3,7 +3,13 @@
 
 namespace rhi::debug {
 
-DebugCommandBuffer::DebugCommandBuffer()
+DebugCommandBuffer::DebugCommandBuffer(DebugContext* ctx)
+    : DebugObject(ctx)
+    , m_renderPassEncoder(ctx)
+    , m_computePassEncoder(ctx)
+    , m_resourcePassEncoder(ctx)
+    , m_rayTracingPassEncoder(ctx)
+    , rootObject(ctx)
 {
     SLANG_RHI_API_FUNC;
     m_renderPassEncoder.commandBuffer = this;

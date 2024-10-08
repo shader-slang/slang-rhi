@@ -9,6 +9,8 @@ class DebugShaderProgram : public DebugObject<IShaderProgram>
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugShaderProgram);
+
 public:
     IShaderProgram* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;

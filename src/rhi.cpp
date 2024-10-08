@@ -29,12 +29,6 @@ Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL reportD3DLiveObjects();
 
-static bool debugLayerEnabled = false;
-bool isRhiDebugLayerEnabled()
-{
-    return debugLayerEnabled;
-}
-
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
 struct FormatInfoMap
@@ -415,12 +409,13 @@ extern "C"
         auto resultCode = _createDevice(desc, innerDevice.writeRef());
         if (SLANG_FAILED(resultCode))
             return resultCode;
-        if (!debugLayerEnabled)
+        if (!desc->enableValidation)
         {
             returnComPtr(outDevice, innerDevice);
             return resultCode;
         }
         RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice();
+        debugDevice->ctx->debugCallback = static_cast<Device*>(innerDevice.get())->m_debugCallback;
         debugDevice->baseObject = innerDevice;
         returnComPtr(outDevice, debugDevice);
         return resultCode;
@@ -432,17 +427,6 @@ extern "C"
         SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
 #endif
         return SLANG_OK;
-    }
-
-    SLANG_RHI_API Result SLANG_MCALL rhiSetDebugCallback(IDebugCallback* callback)
-    {
-        _getDebugCallback() = callback;
-        return SLANG_OK;
-    }
-
-    SLANG_RHI_API void SLANG_MCALL rhiEnableDebugLayer()
-    {
-        debugLayerEnabled = true;
     }
 }
 

@@ -53,8 +53,6 @@ struct GUID
 
 class Device;
 
-bool isRhiDebugLayerEnabled();
-
 // We use a `BreakableReference` to avoid the cyclic reference situation in rhi implementation.
 // It is a common scenario where objects created from an `IDevice` implementation needs to hold
 // a strong reference to the device object that creates them. For example, a `Buffer` or a
@@ -1259,6 +1257,11 @@ public:
     );
 
 public:
+    inline void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message)
+    {
+        m_debugCallback->handleMessage(type, source, message);
+    }
+
     ExtendedShaderObjectTypeList specializationArgs;
     // Given current pipeline and root shader object binding, generate and bind a specialized pipeline if necessary.
     // The newly specialized pipeline is held alive by the pipeline cache so users of `outNewPipeline` do not
@@ -1293,24 +1296,11 @@ public:
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
     ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
+
+    IDebugCallback* m_debugCallback = nullptr;
 };
 
 bool isDepthFormat(Format format);
-
-IDebugCallback*& _getDebugCallback();
-IDebugCallback* _getNullDebugCallback();
-inline IDebugCallback* getDebugCallback()
-{
-    auto rs = _getDebugCallback();
-    if (rs)
-    {
-        return rs;
-    }
-    else
-    {
-        return _getNullDebugCallback();
-    }
-}
 
 // Implementations that have to come after Device
 

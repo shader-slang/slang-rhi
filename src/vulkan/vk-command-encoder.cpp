@@ -1319,7 +1319,7 @@ void RayTracingPassEncoderImpl::_queryAccelerationStructureProperties(
         case QueryType::AccelerationStructureCurrentSize:
             continue;
         default:
-            getDebugCallback()->handleMessage(
+            m_device->handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Layer,
                 "Invalid query type for use in queryAccelerationStructureProperties."
@@ -1354,7 +1354,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
 )
 {
     AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
-    if (geomInfoBuilder.build(desc, getDebugCallback()) != SLANG_OK)
+    if (geomInfoBuilder.build(desc, m_device->m_debugCallback) != SLANG_OK)
         return;
 
     geomInfoBuilder.buildInfo.dstAccelerationStructure = static_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
@@ -1408,7 +1408,7 @@ void RayTracingPassEncoderImpl::copyAccelerationStructure(
         copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
         break;
     default:
-        getDebugCallback()->handleMessage(
+        m_device->handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
             "Unsupported AccelerationStructureCopyMode."

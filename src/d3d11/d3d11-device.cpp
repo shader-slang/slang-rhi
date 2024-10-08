@@ -1184,8 +1184,7 @@ Result DeviceImpl::createShaderProgram(
             DebugMessageType msgType = DebugMessageType::Warning;
             if (compileResult != SLANG_OK)
                 msgType = DebugMessageType::Error;
-            getDebugCallback()
-                ->handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
+            handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
             if (outDiagnosticBlob)
                 returnComPtr(outDiagnosticBlob, diagnostics);
         }

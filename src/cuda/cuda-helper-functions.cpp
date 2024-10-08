@@ -5,25 +5,7 @@ namespace rhi::cuda {
 
 Result CUDAErrorInfo::handle() const
 {
-    std::string str;
-    str += "Error: ";
-    str += m_filePath;
-    str += " (";
-    str += std::to_string(m_lineNo);
-    str += ")";
-    if (m_errorName)
-    {
-        str += " : ";
-        str += m_errorName;
-    }
-    if (m_errorString)
-    {
-        str += " : ";
-        str += m_errorString;
-    }
-
-    getDebugCallback()->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, str.data());
-
+    fprintf(stderr, "%s(%d): CUDA: %s (%s)\n", m_filePath, m_lineNo, m_errorString, m_errorName);
     return SLANG_FAIL;
 }
 

@@ -10,11 +10,19 @@
 
 namespace rhi::debug {
 
+struct DebugContext
+{
+    IDebugCallback* debugCallback = nullptr;
+};
+
 class DebugObjectBase : public ComObject
 {
 public:
     uint64_t uid;
-    DebugObjectBase()
+    DebugContext* ctx;
+
+    DebugObjectBase(DebugContext* ctx)
+        : ctx(ctx)
     {
         static uint64_t uidCounter = 0;
         uid = ++uidCounter;
@@ -26,14 +34,36 @@ class DebugObject : public TInterface, public DebugObjectBase
 {
 public:
     ComPtr<TInterface> baseObject;
+
+    DebugObject(DebugContext* ctx)
+        : DebugObjectBase(ctx)
+    {
+    }
 };
+
+#define SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(name)                                                                       \
+    name(DebugContext* ctx)                                                                                            \
+        : DebugObject(ctx)                                                                                             \
+    {                                                                                                                  \
+    }
 
 template<typename TInterface>
 class UnownedDebugObject : public TInterface, public DebugObjectBase
 {
 public:
     TInterface* baseObject = nullptr;
+
+    UnownedDebugObject(DebugContext* ctx)
+        : DebugObjectBase(ctx)
+    {
+    }
 };
+
+#define SLANG_RHI_UNOWNED_DEBUG_OBJECT_CONSTRUCTOR(name)                                                               \
+    name(DebugContext* ctx)                                                                                            \
+        : UnownedDebugObject(ctx)                                                                                      \
+    {                                                                                                                  \
+    }
 
 class DebugDevice;
 class DebugShaderTable;

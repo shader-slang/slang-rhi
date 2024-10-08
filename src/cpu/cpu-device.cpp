@@ -235,7 +235,7 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
             ->getEntryPointHostCallable(entryPointIndex, targetIndex, sharedLibrary.writeRef(), diagnostics.writeRef());
     if (diagnostics)
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
             DebugMessageSource::Slang,
             (char*)diagnostics->getBufferPointer()

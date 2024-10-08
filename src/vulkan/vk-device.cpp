@@ -103,7 +103,7 @@ VkBool32 DeviceImpl::handleDebugMessage(
         pCallbackData->pMessage
     );
 
-    getDebugCallback()->handleMessage(msgType, DebugMessageSource::Driver, buffer);
+    handleMessage(msgType, DebugMessageSource::Driver, buffer);
     return VK_FALSE;
 }
 
@@ -138,7 +138,7 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer)
+Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool enableValidationLayer)
 {
     m_features.clear();
 
@@ -192,7 +192,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
 #endif
         }
 
-        if (ENABLE_VALIDATION_LAYER || isRhiDebugLayerEnabled())
+        if (enableValidationLayer)
         {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -210,7 +210,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
 
         VkValidationFeaturesEXT validationFeatures = {};
         VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
-        if (useValidationLayer)
+        if (enableValidationLayer)
         {
             // Depending on driver version, validation layer may or may not exist.
             // Newer drivers comes with "VK_LAYER_KHRONOS_validation", while older
@@ -290,7 +290,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         return SLANG_FAIL;
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((enableRayTracingValidation || useValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((enableRayTracingValidation || enableValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
@@ -1025,7 +1025,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         descriptorSetAllocator.m_api = &m_api;
         initDeviceResult = initVulkanInstanceAndDevice(
             desc.existingDeviceHandles.handles,
-            ENABLE_VALIDATION_LAYER != 0 || isRhiDebugLayerEnabled()
+            ENABLE_VALIDATION_LAYER || desc.enableBackendValidation
         );
         if (initDeviceResult == SLANG_OK)
             break;
@@ -1328,7 +1328,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     }
     VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
     AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
-    SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(desc, getDebugCallback()));
+    SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(desc, m_debugCallback));
     m_api.vkGetAccelerationStructureBuildSizesKHR(
         m_api.m_device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,

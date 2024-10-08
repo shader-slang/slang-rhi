@@ -406,7 +406,7 @@ void DebugRayTracingPassEncoder::buildAccelerationStructure(
     {
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
-    validateAccelerationStructureBuildDesc(desc);
+    validateAccelerationStructureBuildDesc(ctx, desc);
     baseObject->buildAccelerationStructure(
         innerDesc,
         getInnerObj(dst),

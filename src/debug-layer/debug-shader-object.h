@@ -34,6 +34,9 @@ class DebugShaderObject : public DebugObject<IShaderObject>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
+
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugShaderObject);
+
     void checkCompleteness();
 
 public:
@@ -82,6 +85,11 @@ public:
 class DebugRootShaderObject : public DebugShaderObject
 {
 public:
+    DebugRootShaderObject(DebugContext* ctx)
+        : DebugShaderObject(ctx)
+    {
+    }
+
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
     virtual SLANG_NO_THROW Result SLANG_MCALL

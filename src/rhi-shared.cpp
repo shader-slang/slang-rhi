@@ -45,6 +45,23 @@ const Guid GUID::IID_IShaderTable = IShaderTable::getTypeGuid();
 const Guid GUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
 const Guid GUID::IID_ITransientResourceHeapD3D12 = ITransientResourceHeapD3D12::getTypeGuid();
 
+class NullDebugCallback : public IDebugCallback
+{
+public:
+    virtual void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    {
+        SLANG_UNUSED(type);
+        SLANG_UNUSED(source);
+        SLANG_UNUSED(message);
+    }
+
+    static IDebugCallback* getInstance()
+    {
+        static NullDebugCallback instance;
+        return &instance;
+    }
+};
+
 IFence* Fence::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFence)
@@ -351,6 +368,8 @@ IDevice* Device::getInterface(const Guid& guid)
 
 Result Device::initialize(const DeviceDesc& desc)
 {
+    m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
+
     persistentShaderCache = desc.persistentShaderCache;
 
     if (desc.apiCommandDispatcher)
@@ -887,8 +906,7 @@ Result ShaderProgram::compileShaders(Device* device)
             DebugMessageType msgType = DebugMessageType::Warning;
             if (compileResult != SLANG_OK)
                 msgType = DebugMessageType::Error;
-            getDebugCallback()
-                ->handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
+            device->handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
         }
         SLANG_RETURN_ON_FAIL(compileResult);
         SLANG_RETURN_ON_FAIL(createShaderModule(entryPointInfo, kernelCode));
@@ -990,7 +1008,7 @@ Result Device::maybeSpecializePipeline(
             );
             if (diagnosticBlob)
             {
-                getDebugCallback()->handleMessage(
+                handleMessage(
                     compileRs == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
                     DebugMessageSource::Slang,
                     (char*)diagnosticBlob->getBufferPointer()
@@ -1048,28 +1066,6 @@ Result Device::maybeSpecializePipeline(
         outNewPipeline = specializedPipelineBase;
     }
     return SLANG_OK;
-}
-
-IDebugCallback*& _getDebugCallback()
-{
-    static IDebugCallback* callback = nullptr;
-    return callback;
-}
-
-class NullDebugCallback : public IDebugCallback
-{
-public:
-    virtual void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
-    {
-        SLANG_UNUSED(type);
-        SLANG_UNUSED(source);
-        SLANG_UNUSED(message);
-    }
-};
-IDebugCallback* _getNullDebugCallback()
-{
-    static NullDebugCallback result = {};
-    return &result;
 }
 
 Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap)

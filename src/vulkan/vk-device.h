@@ -12,7 +12,7 @@ namespace rhi::vk {
 class DeviceImpl : public Device
 {
 public:
-    Result initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer);
+    Result initVulkanInstanceAndDevice(const NativeHandle* handles, bool enableValidationLayer);
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

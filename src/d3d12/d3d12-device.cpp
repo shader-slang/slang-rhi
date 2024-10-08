@@ -338,8 +338,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #endif
     if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
     {
-        getDebugCallback()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "error: failed load 'd3d12.dll'\n");
+        handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "error: failed load 'd3d12.dll'\n");
         return SLANG_FAIL;
     }
 
@@ -393,7 +392,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #endif
 
     // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
-    if (ENABLE_DEBUG_LAYER || isRhiDebugLayerEnabled() && !g_isAftermathEnabled)
+    if (ENABLE_DEBUG_LAYER || desc.enableBackendValidation && !g_isAftermathEnabled)
     {
         m_D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)loadProc(d3dModule, "D3D12GetDebugInterface");
         if (m_D3D12GetDebugInterface)
@@ -430,7 +429,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         // TODO: we should probably provide a command-line option
         // to override UseDebug of default rather than leave it
         // up to each back-end to specify.
-        if (ENABLE_DEBUG_LAYER || isRhiDebugLayerEnabled())
+        if (ENABLE_DEBUG_LAYER || desc.enableBackendValidation)
         {
             /// First try debug then non debug.
             combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);
@@ -765,7 +764,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     int userSpecifiedShaderModel = D3DUtil::getShaderModelFromProfileName(desc.slang.targetProfile);
     if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
             "The requested shader model is not supported by the system."
@@ -1630,7 +1629,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         (PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)loadProc(d3dModule, "D3D12EnableExperimentalFeatures");
     if (!enableExperimentalFeaturesFunc)
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             DebugMessageType::Warning,
             DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' function "
@@ -1645,7 +1644,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
             desc.configurationStructSizes
         )))
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             DebugMessageType::Warning,
             DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' call "
@@ -1724,7 +1723,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
         return SLANG_E_NOT_AVAILABLE;
 
     D3DAccelerationStructureInputsBuilder inputsBuilder;
-    SLANG_RETURN_ON_FAIL(inputsBuilder.build(desc, getDebugCallback()));
+    SLANG_RETURN_ON_FAIL(inputsBuilder.build(desc, m_debugCallback));
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
     m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&inputsBuilder.desc, &prebuildInfo);

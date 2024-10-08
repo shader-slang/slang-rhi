@@ -29,6 +29,25 @@ static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffse
 static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
 } // namespace example
 
+class DebugPrinter : public IDebugCallback
+{
+public:
+    virtual void SLANG_MCALL
+    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    {
+        static const char* kTypeStrings[] = {"INFO", "WARN", "ERROR"};
+        static const char* kSourceStrings[] = {"Layer", "Driver", "Slang"};
+        printf("[%s] (%s) %s\n", kTypeStrings[int(type)], kSourceStrings[int(source)], message);
+        fflush(stdout);
+    }
+
+    static DebugPrinter* getInstance()
+    {
+        static DebugPrinter instance;
+        return &instance;
+    }
+};
+
 class ExampleBase
 {
 public:
@@ -81,6 +100,11 @@ Result ExampleBase::createDevice(DeviceType deviceType)
 {
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
+#ifdef _DEBUG
+    deviceDesc.enableValidation = true;
+    deviceDesc.enableBackendValidation = true;
+    deviceDesc.debugCallback = DebugPrinter::getInstance();
+#endif
     SLANG_RETURN_ON_FAIL(rhiCreateDevice(&deviceDesc, device.writeRef()));
     return SLANG_OK;
 }
@@ -198,36 +222,9 @@ static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int heigh
     }
 }
 
-class DebugPrinter : public IDebugCallback
-{
-public:
-    virtual void SLANG_MCALL
-    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
-    {
-        static const char* kTypeStrings[] = {"INFO", "WARN", "ERROR"};
-        static const char* kSourceStrings[] = {"Layer", "Driver", "Slang"};
-        printf("[%s] (%s) %s\n", kTypeStrings[int(type)], kSourceStrings[int(source)], message);
-        fflush(stdout);
-    }
-};
-
-
 template<typename Example>
 static int main(int argc, const char** argv)
 {
-#ifdef _DEBUG
-    bool enableValidation = true;
-#else
-    bool enableValidation = false;
-#endif
-
-    DebugPrinter debugPrinter;
-    rhiSetDebugCallback(&debugPrinter);
-    if (enableValidation)
-    {
-        rhiEnableDebugLayer();
-    }
-
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
