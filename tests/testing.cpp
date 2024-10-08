@@ -395,8 +395,9 @@ ComPtr<IDevice> createTestingDevice(
     // (And in general reduce the differences (and duplication) between
     // here and render-test-main.cpp)
 #ifdef _DEBUG
-    rhiEnableDebugLayer();
-    rhiSetDebugCallback(&sDebugCallback);
+    deviceDesc.enableValidation = true;
+    deviceDesc.enableBackendValidation = true;
+    deviceDesc.debugCallback = &sDebugCallback;
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
