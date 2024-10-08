@@ -1182,6 +1182,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AccelerationStructureSizes* outSizes
 )
 {
+#if SLANG_RHI_HAS_OPTIX
     AccelerationStructureBuildInputBuilder builder;
     builder.build(desc, getDebugCallback());
     OptixAccelBufferSizes sizes;
@@ -1197,6 +1198,9 @@ Result DeviceImpl::getAccelerationStructureSizes(
     outSizes->updateScratchSize = sizes.tempUpdateSizeInBytes;
 
     return SLANG_OK;
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 Result DeviceImpl::createAccelerationStructure(
@@ -1204,11 +1208,15 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+#if SLANG_RHI_HAS_OPTIX
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_buffer, desc.size));
     SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_propertyBuffer, 8));
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 } // namespace rhi::cuda
