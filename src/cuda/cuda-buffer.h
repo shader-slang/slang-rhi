@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "cuda-context.h"
 
 namespace rhi::cuda {
 

@@ -181,6 +181,20 @@ if(SLANG_RHI_ENABLE_WGPU)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-dawn)
 endif()
 
+
+if(SLANG_RHI_ENABLE_CUDA)
+    # Find Optix
+    set(Optix_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/optix CACHE STRING "Optix root directory")
+    find_package(OptiX)
+    set(SLANG_RHI_HAS_OPTIX ${OptiX_FOUND})
+    if(${SLANG_RHI_HAS_OPTIX})
+        add_library(slang-rhi-optix INTERFACE)
+        target_include_directories(slang-rhi-optix INTERFACE ${OptiX_INCLUDE_DIRS})
+        target_link_libraries(slang-rhi PUBLIC slang-rhi-optix)
+    endif()
+    target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_HAS_OPTIX=$<BOOL:${SLANG_RHI_HAS_OPTIX}>)
+endif()
+
 # Fetch glfw
 if(SLANG_RHI_BUILD_EXAMPLES)
     FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
@@ -400,6 +414,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
+        src/cuda/cuda-acceleration-structure.cpp
         src/cuda/cuda-api.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-command-buffer.cpp

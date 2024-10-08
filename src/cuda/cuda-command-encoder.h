@@ -123,7 +123,6 @@ public:
     }
 
 public:
-    CommandWriter* m_writer;
     CommandBufferImpl* m_commandBuffer;
     RefPtr<ShaderObjectBase> m_rootObject;
 
@@ -140,5 +139,70 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
 };
+
+#if SLANG_RHI_HAS_OPTIX
+
+class RayTracingPassEncoderImpl : public IRayTracingPassEncoder, public PassEncoderImpl
+{
+public:
+    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
+
+    virtual void* getInterface(SlangUUID const& uuid) override
+    {
+        if (uuid == GUID::IID_IRayTracingPassEncoder || uuid == GUID::IID_IPassEncoder ||
+            uuid == ISlangUnknown::getTypeGuid())
+        {
+            return this;
+        }
+        return nullptr;
+    }
+
+public:
+    CommandBufferImpl* m_commandBuffer;
+    RefPtr<ShaderObjectBase> m_rootObject;
+
+    void init(CommandBufferImpl* cmdBuffer);
+
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override {}
+
+    virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
+        const AccelerationStructureBuildDesc& desc,
+        IAccelerationStructure* dst,
+        IAccelerationStructure* src,
+        BufferWithOffset scratchBuffer,
+        GfxCount propertyQueryCount,
+        AccelerationStructureQueryDesc* queryDescs
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
+        IAccelerationStructure* dst,
+        IAccelerationStructure* src,
+        AccelerationStructureCopyMode mode
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
+        GfxCount accelerationStructureCount,
+        IAccelerationStructure* const* accelerationStructures,
+        GfxCount queryCount,
+        AccelerationStructureQueryDesc* queryDescs
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    dispatchRays(GfxIndex raygenShaderIndex, IShaderTable* shaderTable, GfxCount width, GfxCount height, GfxCount depth)
+        override;
+};
+
+#endif // SLANG_RHI_HAS_OPTIX
 
 } // namespace rhi::cuda

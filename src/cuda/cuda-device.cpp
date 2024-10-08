@@ -8,6 +8,7 @@
 #include "cuda-shader-program.h"
 #include "cuda-texture.h"
 #include "cuda-texture-view.h"
+#include "cuda-acceleration-structure.h"
 
 namespace rhi::cuda {
 
@@ -127,11 +128,33 @@ Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
     return SLANG_OK;
 }
 
+DeviceImpl::~DeviceImpl()
+{
+    m_queue.setNull();
+
+#if SLANG_RHI_HAS_OPTIX
+    if (m_ctx.optixContext)
+    {
+        optixDeviceContextDestroy(m_ctx.optixContext);
+    }
+#endif
+
+    if (m_ctx.context)
+    {
+        cuCtxDestroy(m_ctx.context);
+    }
+}
+
 Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::CUdevice;
-    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[0].value = m_ctx.device;
+#if SLANG_RHI_HAS_OPTIX
+    outHandles->handles[1].type = NativeHandleType::OptixDeviceContext;
+    outHandles->handles[1].value = (uint64_t)m_ctx.optixContext;
+#else
     outHandles->handles[1] = {};
+#endif
     outHandles->handles[2] = {};
     return SLANG_OK;
 }
@@ -151,6 +174,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 
     SLANG_RETURN_ON_FAIL(_initCuda(reportType));
 
+    int selectedDeviceIndex = -1;
     if (desc.adapterLUID)
     {
         int deviceCount = -1;
@@ -159,23 +183,19 @@ Result DeviceImpl::initialize(const Desc& desc)
         {
             if (cuda::getAdapterLUID(deviceIndex) == *desc.adapterLUID)
             {
-                m_deviceIndex = deviceIndex;
+                selectedDeviceIndex = deviceIndex;
                 break;
             }
         }
-        if (m_deviceIndex >= deviceCount)
-            return SLANG_E_INVALID_ARG;
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&m_deviceIndex));
+        SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&selectedDeviceIndex));
     }
 
-    m_context = new CUDAContext();
+    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&m_ctx.device, selectedDeviceIndex));
 
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&m_device, m_deviceIndex));
-
-    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_context->m_context, 0, m_device), reportType);
+    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), reportType);
 
     {
         // Not clear how to detect half support on CUDA. For now we'll assume we have it
@@ -188,6 +208,28 @@ Result DeviceImpl::initialize(const Desc& desc)
         m_features.push_back("has-ptr");
     }
 
+#if SLANG_RHI_HAS_OPTIX
+    {
+        SLANG_OPTIX_RETURN_ON_FAIL(optixInit());
+
+        static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* /*cbdata */)
+        {
+            printf("[%2u][%12s]: %s\n", level, tag, message);
+            fflush(stdout);
+        };
+
+        OptixDeviceContextOptions options = {};
+        options.logCallbackFunction = logCallback;
+        options.logCallbackLevel = 4;
+#ifdef _DEBUG
+        options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
+#endif
+        SLANG_OPTIX_RETURN_ON_FAIL(optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext));
+
+        m_features.push_back("ray-tracing");
+    }
+#endif
+
     // Initialize DeviceInfo
     {
         m_info.deviceType = DeviceType::CUDA;
@@ -195,7 +237,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
         char deviceName[256];
-        cuDeviceGetName(deviceName, sizeof(deviceName), m_device);
+        cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device);
         m_adapterName = deviceName;
         m_info.adapterName = m_adapterName.data();
         m_info.timestampFrequency = 1000000;
@@ -207,7 +249,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         auto getAttribute = [&](CUdevice_attribute attribute) -> int
         {
             int value;
-            CUresult result = cuDeviceGetAttribute(&value, attribute, m_device);
+            CUresult result = cuDeviceGetAttribute(&value, attribute, m_ctx.device);
             if (result != CUDA_SUCCESS)
                 lastResult = result;
             return value;
@@ -899,10 +941,26 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
-    RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
-    SLANG_RETURN_ON_FAIL(pool->init(desc));
-    returnComPtr(outPool, pool);
-    return SLANG_OK;
+    switch (desc.type)
+    {
+    case QueryType::Timestamp:
+    {
+        RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
+        SLANG_RETURN_ON_FAIL(pool->init(desc));
+        returnComPtr(outPool, pool);
+        return SLANG_OK;
+    }
+    case QueryType::AccelerationStructureCompactedSize:
+    {
+        RefPtr<PlainBufferProxyQueryPoolImpl> pool = new PlainBufferProxyQueryPoolImpl();
+        SLANG_RETURN_ON_FAIL(pool->init(desc, this));
+        returnComPtr(outPool, pool);
+        return SLANG_OK;
+        break;
+    }
+    default:
+        return SLANG_FAIL;
+    }
 }
 
 Result DeviceImpl::createShaderObjectLayout(
@@ -955,7 +1013,6 @@ Result DeviceImpl::createShaderProgram(
     // the shader object bindings.
     RefPtr<ShaderProgramImpl> cudaProgram = new ShaderProgramImpl();
     cudaProgram->init(desc);
-    cudaProgram->cudaContext = m_context;
     if (desc.slangGlobalScope->getSpecializationParamCount() != 0)
     {
         cudaProgram->layout = new RootShaderObjectLayoutImpl(this, desc.slangGlobalScope->getLayout());
@@ -1118,6 +1175,48 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlan
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
+}
+
+Result DeviceImpl::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
+)
+{
+#if SLANG_RHI_HAS_OPTIX
+    AccelerationStructureBuildInputBuilder builder;
+    builder.build(desc, getDebugCallback());
+    OptixAccelBufferSizes sizes;
+    SLANG_OPTIX_RETURN_ON_FAIL(optixAccelComputeMemoryUsage(
+        m_ctx.optixContext,
+        &builder.buildOptions,
+        builder.buildInputs.data(),
+        builder.buildInputs.size(),
+        &sizes
+    ));
+    outSizes->accelerationStructureSize = sizes.outputSizeInBytes;
+    outSizes->scratchSize = sizes.tempSizeInBytes;
+    outSizes->updateScratchSize = sizes.tempUpdateSizeInBytes;
+
+    return SLANG_OK;
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
+}
+
+Result DeviceImpl::createAccelerationStructure(
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
+)
+{
+#if SLANG_RHI_HAS_OPTIX
+    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_buffer, desc.size));
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_propertyBuffer, 8));
+    returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 } // namespace rhi::cuda

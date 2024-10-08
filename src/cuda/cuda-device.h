@@ -3,10 +3,18 @@
 #include "cuda-base.h"
 #include "cuda-command-queue.h"
 #include "cuda-command-buffer.h"
-#include "cuda-context.h"
 #include "cuda-helper-functions.h"
 
 namespace rhi::cuda {
+
+struct Context
+{
+    CUdevice device = -1;
+    CUcontext context = nullptr;
+#if SLANG_RHI_HAS_OPTIX
+    OptixDeviceContext optixContext = nullptr;
+#endif
+};
 
 class DeviceImpl : public Device
 {
@@ -18,15 +26,15 @@ private:
 
     static Result _initCuda(CUDAReportStyle reportType = CUDAReportStyle::Normal);
 
-private:
-    int m_deviceIndex = -1;
-    CUdevice m_device = 0;
-    RefPtr<CUDAContext> m_context;
+public:
+    Context m_ctx;
     DeviceInfo m_info;
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
 
 public:
+    ~DeviceImpl();
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
@@ -102,6 +110,16 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
+        const AccelerationStructureBuildDesc& desc,
+        AccelerationStructureSizes* outSizes
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
+        const AccelerationStructureDesc& desc,
+        IAccelerationStructure** outAccelerationStructure
+    ) override;
 };
 
 } // namespace rhi::cuda

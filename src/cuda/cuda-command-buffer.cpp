@@ -38,8 +38,14 @@ Result CommandBufferImpl::beginComputePass(IComputePassEncoder** outEncoder)
 
 Result CommandBufferImpl::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
 {
+#if SLANG_RHI_HAS_OPTIX
+    m_rayTracingPassEncoder.init(this);
+    *outEncoder = &m_rayTracingPassEncoder;
+    return SLANG_OK;
+#else
     *outEncoder = nullptr;
     return SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)

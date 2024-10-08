@@ -1,6 +1,9 @@
 #include "cuda-command-encoder.h"
 #include "cuda-command-buffer.h"
 #include "cuda-device.h"
+#include "cuda-buffer.h"
+#include "cuda-acceleration-structure.h"
+#include "cuda-query.h"
 
 namespace rhi::cuda {
 
@@ -189,5 +192,143 @@ Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offse
 {
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }
+
+// RayTracingPassEncoderImpl
+
+#if SLANG_RHI_HAS_OPTIX
+
+void RayTracingPassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+{
+    m_writer = cmdBuffer;
+    m_commandBuffer = cmdBuffer;
+}
+
+void RayTracingPassEncoderImpl::buildAccelerationStructure(
+    const AccelerationStructureBuildDesc& desc,
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    BufferWithOffset scratchBuffer,
+    GfxCount propertyQueryCount,
+    AccelerationStructureQueryDesc* queryDescs
+)
+{
+    AccelerationStructureBuildInputBuilder builder;
+    SLANG_RETURN_VOID_ON_FAIL(builder.build(desc, getDebugCallback()));
+
+    AccelerationStructureImpl* dstImpl = static_cast<AccelerationStructureImpl*>(dst);
+
+    short_vector<OptixAccelEmitDesc, 8> emittedProperties;
+    for (GfxCount i = 0; i < propertyQueryCount; i++)
+    {
+        if (queryDescs[i].queryType == QueryType::AccelerationStructureCompactedSize)
+        {
+            PlainBufferProxyQueryPoolImpl* queryPool =
+                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
+            OptixAccelEmitDesc property = {};
+            property.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
+            property.result = queryPool->m_buffer + queryDescs[i].firstQueryIndex * sizeof(uint64_t);
+            emittedProperties.push_back(property);
+        }
+    }
+
+    optixAccelBuild(
+        m_commandBuffer->m_device->m_ctx.optixContext,
+        nullptr, // TODO: CUDA stream
+        &builder.buildOptions,
+        builder.buildInputs.data(),
+        builder.buildInputs.size(),
+        scratchBuffer.getDeviceAddress(),
+        static_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset,
+        dstImpl->m_buffer,
+        dstImpl->m_desc.size,
+        &dstImpl->m_handle,
+        emittedProperties.data(),
+        emittedProperties.size()
+    );
+}
+
+void RayTracingPassEncoderImpl::copyAccelerationStructure(
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    AccelerationStructureCopyMode mode
+)
+{
+    AccelerationStructureImpl* dstImpl = static_cast<AccelerationStructureImpl*>(dst);
+    AccelerationStructureImpl* srcImpl = static_cast<AccelerationStructureImpl*>(src);
+
+    switch (mode)
+    {
+    case AccelerationStructureCopyMode::Clone:
+    {
+#if 0
+        OptixRelocationInfo relocInfo = {};
+        optixAccelGetRelocationInfo(m_commandBuffer->m_device->m_ctx.optixContext, srcImpl->m_handle, &relocInfo);
+
+        // TODO setup inputs
+        OptixRelocateInput relocInput = {};
+
+        cuMemcpyDtoD(dstImpl->m_buffer, srcImpl->m_buffer, srcImpl->m_desc.size);
+
+        optixAccelRelocate(
+            m_commandBuffer->m_device->m_ctx.optixContext,
+            nullptr, // TODO: CUDA stream
+            &relocInfo,
+            &relocInput,
+            1,
+            dstImpl->m_buffer,
+            dstImpl->m_desc.size,
+            &dstImpl->m_handle
+        );
+        break;
+#endif
+    }
+    case AccelerationStructureCopyMode::Compact:
+        optixAccelCompact(
+            m_commandBuffer->m_device->m_ctx.optixContext,
+            nullptr, // TODO: CUDA stream
+            srcImpl->m_handle,
+            dstImpl->m_buffer,
+            dstImpl->m_desc.size,
+            &dstImpl->m_handle
+        );
+        break;
+    }
+}
+
+void RayTracingPassEncoderImpl::queryAccelerationStructureProperties(
+    GfxCount accelerationStructureCount,
+    IAccelerationStructure* const* accelerationStructures,
+    GfxCount queryCount,
+    AccelerationStructureQueryDesc* queryDescs
+)
+{
+}
+
+void RayTracingPassEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) {}
+
+void RayTracingPassEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) {}
+
+Result RayTracingPassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
+Result RayTracingPassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
+Result RayTracingPassEncoderImpl::dispatchRays(
+    GfxIndex raygenShaderIndex,
+    IShaderTable* shaderTable,
+    GfxCount width,
+    GfxCount height,
+    GfxCount depth
+)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
+#endif // SLANG_RHI_HAS_OPTIX
 
 } // namespace rhi::cuda

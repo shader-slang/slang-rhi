@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "cuda-context.h"
 #include "cuda-shader-object-layout.h"
 
 namespace rhi::cuda {
@@ -13,7 +12,6 @@ public:
     CUfunction cudaKernel;
     std::string kernelName;
     RefPtr<RootShaderObjectLayoutImpl> layout;
-    RefPtr<CUDAContext> cudaContext;
     ~ShaderProgramImpl();
 };
 
