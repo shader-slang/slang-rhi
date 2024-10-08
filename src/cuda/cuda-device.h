@@ -110,6 +110,16 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
+        const AccelerationStructureBuildDesc& desc,
+        AccelerationStructureSizes* outSizes
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
+        const AccelerationStructureDesc& desc,
+        IAccelerationStructure** outAccelerationStructure
+    ) override;
 };
 
 } // namespace rhi::cuda

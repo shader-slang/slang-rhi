@@ -35,5 +35,6 @@ class PassEncoderImpl;
 class ResourcePassEncoderImpl;
 class ComputePassEncoderImpl;
 class CommandQueueImpl;
+class AccelerationStructureImpl;
 
 } // namespace rhi::cuda

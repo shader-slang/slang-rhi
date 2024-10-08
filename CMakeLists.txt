@@ -414,6 +414,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
+        src/cuda/cuda-acceleration-structure.cpp
         src/cuda/cuda-api.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-command-buffer.cpp

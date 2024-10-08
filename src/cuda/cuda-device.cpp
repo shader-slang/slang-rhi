@@ -8,6 +8,7 @@
 #include "cuda-shader-program.h"
 #include "cuda-texture.h"
 #include "cuda-texture-view.h"
+#include "cuda-acceleration-structure.h"
 
 namespace rhi::cuda {
 
@@ -940,10 +941,26 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
-    RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
-    SLANG_RETURN_ON_FAIL(pool->init(desc));
-    returnComPtr(outPool, pool);
-    return SLANG_OK;
+    switch (desc.type)
+    {
+    case QueryType::Timestamp:
+    {
+        RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
+        SLANG_RETURN_ON_FAIL(pool->init(desc));
+        returnComPtr(outPool, pool);
+        return SLANG_OK;
+    }
+    case QueryType::AccelerationStructureCompactedSize:
+    {
+        RefPtr<PlainBufferProxyQueryPoolImpl> pool = new PlainBufferProxyQueryPoolImpl();
+        SLANG_RETURN_ON_FAIL(pool->init(desc, this));
+        returnComPtr(outPool, pool);
+        return SLANG_OK;
+        break;
+    }
+    default:
+        return SLANG_FAIL;
+    }
 }
 
 Result DeviceImpl::createShaderObjectLayout(
@@ -1157,6 +1174,40 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlan
     cuMemcpy((CUdeviceptr)blob->getBufferPointer(), (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size);
 
     returnComPtr(outBlob, blob);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
+)
+{
+    AccelerationStructureBuildInputBuilder builder;
+    builder.build(desc, getDebugCallback());
+    OptixAccelBufferSizes sizes;
+    SLANG_OPTIX_RETURN_ON_FAIL(optixAccelComputeMemoryUsage(
+        m_ctx.optixContext,
+        &builder.buildOptions,
+        builder.buildInputs.data(),
+        builder.buildInputs.size(),
+        &sizes
+    ));
+    outSizes->accelerationStructureSize = sizes.outputSizeInBytes;
+    outSizes->scratchSize = sizes.tempSizeInBytes;
+    outSizes->updateScratchSize = sizes.tempUpdateSizeInBytes;
+
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createAccelerationStructure(
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
+)
+{
+    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_buffer, desc.size));
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_propertyBuffer, 8));
+    returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
 }
 
