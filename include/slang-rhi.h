@@ -398,15 +398,18 @@ enum class NativeHandleType
     CUdeviceptr = 0x00050002,
     CUtexObject = 0x00050003,
 
-    WGPUDevice = 0x00060001,
-    WGPUBuffer = 0x00060002,
-    WGPUTexture = 0x00060003,
-    WGPUSampler = 0x00060004,
-    WGPURenderPipeline = 0x00060005,
-    WGPUComputePipeline = 0x00060006,
-    WGPUQueue = 0x00060007,
-    WGPUCommandBuffer = 0x00060008,
-    WGPUTextureView = 0x00060009,
+    OptixDeviceContext = 0x00060001,
+    OptixTraversableHandle = 0x00060002,
+
+    WGPUDevice = 0x00070001,
+    WGPUBuffer = 0x00070002,
+    WGPUTexture = 0x00070003,
+    WGPUSampler = 0x00070004,
+    WGPURenderPipeline = 0x00070005,
+    WGPUComputePipeline = 0x00070006,
+    WGPUQueue = 0x00070007,
+    WGPUCommandBuffer = 0x00070008,
+    WGPUTextureView = 0x00070009,
 };
 
 struct NativeHandle

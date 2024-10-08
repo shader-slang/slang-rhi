@@ -148,7 +148,12 @@ Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::CUdevice;
     outHandles->handles[0].value = m_ctx.device;
+#if SLANG_RHI_HAS_OPTIX
+    outHandles->handles[1].type = NativeHandleType::OptixDeviceContext;
+    outHandles->handles[1].value = (uint64_t)m_ctx.optixContext;
+#else
     outHandles->handles[1] = {};
+#endif
     outHandles->handles[2] = {};
     return SLANG_OK;
 }
