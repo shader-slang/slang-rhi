@@ -105,7 +105,7 @@ Result ExampleBase::createDevice(DeviceType deviceType)
     deviceDesc.enableBackendValidation = true;
     deviceDesc.debugCallback = DebugPrinter::getInstance();
 #endif
-    SLANG_RETURN_ON_FAIL(rhiCreateDevice(&deviceDesc, device.writeRef()));
+    SLANG_RETURN_ON_FAIL(getRHI()->createDevice(deviceDesc, device.writeRef()));
     return SLANG_OK;
 }
 

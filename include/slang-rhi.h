@@ -2533,18 +2533,27 @@ public:
 
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDeviceTypeName(DeviceType type) = 0;
 
-    virtual SLANG_NO_THROW bool SLANG_MCALL isDeviceTypeSupported(DeviceType deviceType) = 0;
+    virtual SLANG_NO_THROW bool SLANG_MCALL isDeviceTypeSupported(DeviceType type) = 0;
 
-    // virtual SLANG_NO_THROW Result SLANG_MCALL getAdapter(DeviceType deviceType, ISlangBlob** outAdaptersBlob);
+    /// Gets a list of available adapters for a given device type.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
 
-    // virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice);
+    inline AdapterList getAdapters(DeviceType type)
+    {
+        ComPtr<ISlangBlob> blob;
+        SLANG_RETURN_NULL_ON_FAIL(getAdapters(type, blob.writeRef()));
+        return AdapterList(blob);
+    }
 
-    // ComPtr<IDevice> createDevice(const DeviceDesc& desc)
-    // {
-    //     ComPtr<IDevice> device;
-    //     SLANG_RETURN_NULL_ON_FAIL(createDevice(desc, device.writeRef()));
-    //     return device;
-    // }
+    /// Creates a device.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice) = 0;
+
+    ComPtr<IDevice> createDevice(const DeviceDesc& desc)
+    {
+        ComPtr<IDevice> device;
+        SLANG_RETURN_NULL_ON_FAIL(createDevice(desc, device.writeRef()));
+        return device;
+    }
 
     /// Reports current set of live objects.
     /// Currently this just calls D3D's ReportLiveObjects.
@@ -2555,26 +2564,13 @@ public:
 
 extern "C"
 {
+    /// Get the global interface to the RHI.
     SLANG_RHI_API IRHI* SLANG_MCALL getRHI();
-
-    /// Gets a list of available adapters for a given device type
-    SLANG_RHI_API SlangResult SLANG_MCALL rhiGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob);
-
-    /// Given a type returns a function that can construct it, or nullptr if there isn't one
-    SLANG_RHI_API SlangResult SLANG_MCALL rhiCreateDevice(const DeviceDesc* desc, IDevice** outDevice);
 }
 
 inline const FormatInfo& getFormatInfo(Format format)
 {
     return getRHI()->getFormatInfo(format);
-}
-
-/// Gets a list of available adapters for a given device type
-inline AdapterList rhiGetAdapters(DeviceType type)
-{
-    ComPtr<ISlangBlob> blob;
-    rhiGetAdapters(type, blob.writeRef());
-    return AdapterList(blob);
 }
 
 // Extended descs.

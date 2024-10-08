@@ -210,7 +210,7 @@ struct ShaderCacheTest
         rhiEnableDebugLayer();
 #endif
 
-        REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
+        REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
     }
 
     void createComputeResources()

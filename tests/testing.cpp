@@ -399,7 +399,7 @@ ComPtr<IDevice> createTestingDevice(
     rhiSetDebugCallback(&sDebugCallback);
 #endif
 
-    REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
+    REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
 
     if (useCachedDevice)
     {
