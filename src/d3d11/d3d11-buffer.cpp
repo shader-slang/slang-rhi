@@ -52,7 +52,6 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
     else
     {
         const FormatInfo& formatInfo = getFormatInfo(format);
-        ;
         srvDesc.Buffer.FirstElement = UINT(range.offset / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
         srvDesc.Buffer.NumElements = UINT(range.size / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
     }
