@@ -420,8 +420,8 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
                 }
                 case slang::BindingType::Sampler:
                 {
-                    auto samplerStateImpl = checked_cast<SamplerImpl*>(m_samplers[resourceIndex].get());
-                    auto resourceId = samplerStateImpl->m_samplerState->gpuResourceID();
+                    SamplerImpl* samplerImpl = m_samplers[resourceIndex].get();
+                    auto resourceId = samplerImpl->m_samplerState->gpuResourceID();
                     memcpy(argumentPtr, &resourceId, sizeof(resourceId));
                     break;
                 }
