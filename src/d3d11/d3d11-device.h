@@ -46,9 +46,9 @@ public:
         ISlangBlob** outDiagnosticBlob
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
+    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
 
     virtual void* map(IBuffer* buffer, MapFlavor flavor) override;
     virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
@@ -105,7 +105,7 @@ public:
     short_vector<ID3D11RenderTargetView*> m_d3dRenderTargetViews;
     ID3D11DepthStencilView* m_d3dDepthStencilView;
 
-    RefPtr<PipelineImpl> m_currentPipeline;
+    RefPtr<Pipeline> m_currentPipeline;
 
     ComPtr<ID3D11Query> m_disjointQuery;
 

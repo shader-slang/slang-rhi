@@ -4,31 +4,32 @@
 
 namespace rhi::d3d11 {
 
-class PipelineImpl : public Pipeline
+class RenderPipelineImpl : public RenderPipeline
 {
 public:
-};
-
-class GraphicsPipelineImpl : public PipelineImpl
-{
-public:
-    UINT m_rtvCount;
-
+    RefPtr<ShaderProgramImpl> m_program;
     RefPtr<InputLayoutImpl> m_inputLayout;
+
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
     ComPtr<ID3D11RasterizerState> m_rasterizerState;
     ComPtr<ID3D11BlendState> m_blendState;
 
+    UINT m_rtvCount;
+    D3D_PRIMITIVE_TOPOLOGY m_primitiveTopology;
     float m_blendColor[4];
     UINT m_sampleMask;
 
-    void init(const RenderPipelineDesc& inDesc);
+    // IRenderPipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
-class ComputePipelineImpl : public PipelineImpl
+class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    void init(const ComputePipelineDesc& inDesc);
+    RefPtr<ShaderProgramImpl> m_program;
+
+    // IComputePipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::d3d11
