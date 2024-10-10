@@ -385,17 +385,18 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
         return createCUDADevice(desc, outDevice);
     }
 #endif
+#if SLANG_RHI_ENABLE_CPU
     case DeviceType::CPU:
     {
         return createCPUDevice(desc, outDevice);
     }
+#endif
 #if SLANG_RHI_ENABLE_WGPU
     case DeviceType::WGPU:
     {
         return createWGPUDevice(desc, outDevice);
     }
 #endif
-
     default:
         return SLANG_FAIL;
     }
