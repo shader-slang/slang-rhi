@@ -281,7 +281,7 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     case DeviceType::Metal:
         return SLANG_RHI_ENABLE_METAL;
     case DeviceType::CPU:
-        return true;
+        return SLANG_RHI_ENABLE_CPU;
     case DeviceType::CUDA:
 #if SLANG_RHI_ENABLE_CUDA
         return rhiCudaApiInit();
