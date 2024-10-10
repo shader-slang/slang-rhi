@@ -154,14 +154,6 @@ Result DeviceImpl::createShaderProgram(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
-{
-    RefPtr<PipelineImpl> state = new PipelineImpl();
-    state->init(desc);
-    returnComPtr(outPipeline, state);
-    return Result();
-}
-
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
@@ -204,7 +196,7 @@ void DeviceImpl::unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten
 
 void DeviceImpl::setPipeline(IPipeline* state)
 {
-    m_currentPipeline = checked_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<Pipeline*>(state);
 }
 
 void DeviceImpl::bindRootShaderObject(IShaderObject* object)
@@ -220,9 +212,9 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     // Specialize the compute kernel based on the shader object bindings.
     RefPtr<Pipeline> newPipeline;
     maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
-    m_currentPipeline = checked_cast<PipelineImpl*>(newPipeline.Ptr());
+    m_currentPipeline = newPipeline;
 
-    auto program = m_currentPipeline->getProgram();
+    auto program = m_currentPipeline->m_program.get();
     auto entryPointLayout = m_currentRootObject->getLayout()->getEntryPoint(entryPointIndex);
     auto entryPointName = entryPointLayout->getEntryPointName();
 

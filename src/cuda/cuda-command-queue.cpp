@@ -56,7 +56,7 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 void CommandQueueImpl::setPipeline(IPipeline* state)
 {
-    currentPipeline = dynamic_cast<ComputePipelineImpl*>(state);
+    currentPipeline = checked_cast<Pipeline*>(state);
 }
 
 Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
@@ -72,10 +72,13 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     // Specialize the compute kernel based on the shader object bindings.
     RefPtr<Pipeline> newPipeline;
     m_device->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
-    currentPipeline = checked_cast<ComputePipelineImpl*>(newPipeline.Ptr());
+    newPipeline->ensurePipelineCreated();
+    currentPipeline = newPipeline;
+
+    ComputePipelineImpl* computePipeline = checked_cast<ComputePipelineImpl*>(currentPipeline->m_computePipeline.get());
 
     // Find out thread group size from program reflection.
-    auto& kernelName = currentPipeline->shaderProgram->kernelName;
+    auto& kernelName = computePipeline->m_program->kernelName;
     auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(currentRootObject->getLayout());
     int kernelId = programLayout->getKernelIndex(kernelName);
     SLANG_RHI_ASSERT(kernelId != -1);
@@ -89,7 +92,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
         cuModuleGetGlobal(
             &globalParamsSymbol,
             &globalParamsSymbolSize,
-            currentPipeline->shaderProgram->cudaModule,
+            computePipeline->m_program->cudaModule,
             "SLANG_globalParams"
         );
 
@@ -115,7 +118,7 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     // set up, we can launch the kernel and see what happens.
     //
     auto cudaLaunchResult = cuLaunchKernel(
-        currentPipeline->shaderProgram->cudaKernel,
+        computePipeline->m_program->cudaKernel,
         x,
         y,
         z,

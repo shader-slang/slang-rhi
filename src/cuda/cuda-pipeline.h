@@ -5,16 +5,13 @@
 
 namespace rhi::cuda {
 
-class PipelineImpl : public Pipeline
+class ComputePipelineImpl : public ComputePipeline
 {
 public:
-};
+    RefPtr<ShaderProgramImpl> m_program;
 
-class ComputePipelineImpl : public PipelineImpl
-{
-public:
-    RefPtr<ShaderProgramImpl> shaderProgram;
-    void init(const ComputePipelineDesc& inDesc);
+    // IComputePipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::cuda

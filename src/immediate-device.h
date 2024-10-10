@@ -172,13 +172,6 @@ public:
         return SLANG_E_NOT_AVAILABLE;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override
-    {
-        SLANG_UNUSED(desc);
-        SLANG_UNUSED(outPipeline);
-        return SLANG_E_NOT_AVAILABLE;
-    }
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) override
     {
         SLANG_UNUSED(texture);

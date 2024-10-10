@@ -60,22 +60,6 @@ void PassEncoderImpl::writeTimestamp(IQueryPool* queryPool, GfxIndex index)
     _writeTimestamp(&m_commandBuffer->m_device->m_api, m_commandBuffer->m_commandBuffer, queryPool, index);
 }
 
-int PassEncoderImpl::getBindPointIndex(VkPipelineBindPoint bindPoint)
-{
-    switch (bindPoint)
-    {
-    case VK_PIPELINE_BIND_POINT_GRAPHICS:
-        return 0;
-    case VK_PIPELINE_BIND_POINT_COMPUTE:
-        return 1;
-    case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR:
-        return 2;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown pipeline type.");
-        return -1;
-    }
-}
-
 void PassEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer;
@@ -202,11 +186,11 @@ Result PassEncoderImpl::bindRootShaderObjectImpl(RootShaderObjectImpl* rootShade
 
 Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = checked_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<Pipeline*>(state);
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
-        m_currentPipeline->getProgram<ShaderProgramImpl>()->m_rootObjectLayout
+        checked_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get())->m_rootObjectLayout
     ));
     *outRootObject = &m_commandBuffer->m_rootObject;
     return SLANG_OK;
@@ -214,7 +198,7 @@ Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRoo
 
 Result PassEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
 {
-    m_currentPipeline = checked_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<Pipeline*>(state);
     m_commandBuffer->m_mutableRootShaderObject = checked_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
@@ -230,18 +214,33 @@ Result PassEncoderImpl::bindRenderState(VkPipelineBindPoint pipelineBindPoint)
                                                : &m_commandBuffer->m_rootObject;
     RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineImpl* newPipelineImpl = checked_cast<PipelineImpl*>(newPipeline.Ptr());
-
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
-    m_currentPipeline = newPipelineImpl;
+    SLANG_RETURN_ON_FAIL(newPipeline->ensurePipelineCreated());
+    m_currentPipeline = newPipeline;
 
     bindRootShaderObjectImpl(rootObjectImpl, pipelineBindPoint);
 
-    auto pipelineBindPointId = getBindPointIndex(pipelineBindPoint);
-    if (m_boundPipelines[pipelineBindPointId] != newPipelineImpl->m_pipeline)
+    uint32_t pipelineIndex = (uint32_t)m_currentPipeline->m_type;
+    VkPipelineBindPoint vkBindPoint = (VkPipelineBindPoint)0;
+    VkPipeline vkPipeline = VK_NULL_HANDLE;
+    switch (m_currentPipeline->m_type)
     {
-        api.vkCmdBindPipeline(m_vkCommandBuffer, pipelineBindPoint, newPipelineImpl->m_pipeline);
-        m_boundPipelines[pipelineBindPointId] = newPipelineImpl->m_pipeline;
+    case PipelineType::Render:
+        vkBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        vkPipeline = checked_cast<RenderPipelineImpl*>(m_currentPipeline->m_renderPipeline.get())->m_pipeline;
+        break;
+    case PipelineType::Compute:
+        vkBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+        vkPipeline = checked_cast<ComputePipelineImpl*>(m_currentPipeline->m_computePipeline.get())->m_pipeline;
+        break;
+    case PipelineType::RayTracing:
+        vkBindPoint = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
+        vkPipeline = checked_cast<RayTracingPipelineImpl*>(m_currentPipeline->m_rayTracingPipeline.get())->m_pipeline;
+        break;
+    }
+    if (m_boundPipelines[pipelineIndex] != vkPipeline)
+    {
+        api.vkCmdBindPipeline(m_vkCommandBuffer, vkBindPoint, vkPipeline);
+        m_boundPipelines[pipelineIndex] = vkPipeline;
     }
 
     return SLANG_OK;
@@ -1072,8 +1071,7 @@ void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFor
 
 Result RenderPassEncoderImpl::prepareDraw()
 {
-    PipelineImpl* pipeline = m_currentPipeline.get();
-    if (!pipeline)
+    if (!m_currentPipeline)
     {
         return SLANG_FAIL;
     }
@@ -1233,8 +1231,7 @@ Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, I
 
 Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
-    PipelineImpl* pipeline = m_currentPipeline.get();
-    if (!pipeline)
+    if (!m_currentPipeline)
     {
         return SLANG_FAIL;
     }
@@ -1483,8 +1480,11 @@ Result RayTracingPassEncoderImpl::dispatchRays(
     auto shaderTableImpl = (ShaderTableImpl*)shaderTable;
     auto alignedHandleSize = VulkanUtil::calcAligned(rtProps.shaderGroupHandleSize, rtProps.shaderGroupHandleAlignment);
 
-    auto shaderTableBuffer =
-        shaderTableImpl->getOrCreateBuffer(m_currentPipeline, m_commandBuffer->m_transientHeap, this);
+    auto shaderTableBuffer = shaderTableImpl->getOrCreateBuffer(
+        checked_cast<RayTracingPipelineImpl*>(m_currentPipeline->m_rayTracingPipeline.get()),
+        m_commandBuffer->m_transientHeap,
+        this
+    );
     auto shaderTableAddr = shaderTableBuffer->getDeviceAddress();
 
     VkStridedDeviceAddressRegionKHR raygenSBT;

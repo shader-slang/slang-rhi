@@ -41,7 +41,7 @@ public:
 public:
     CommandBufferImpl* m_commandBuffer;
     MTL::CommandBuffer* m_metalCommandBuffer;
-    RefPtr<PipelineImpl> m_currentPipeline;
+    RefPtr<Pipeline> m_currentPipeline;
 
     void init(CommandBufferImpl* commandBuffer);
     void endEncodingImpl();

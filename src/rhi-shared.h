@@ -23,6 +23,9 @@ struct GUID
     static const Guid IID_IShaderProgram;
     static const Guid IID_ITransientResourceHeap;
     static const Guid IID_IPipeline;
+    static const Guid IID_IRenderPipeline;
+    static const Guid IID_IComputePipeline;
+    static const Guid IID_IRayTracingPipeline;
     static const Guid IID_IFramebuffer;
     static const Guid IID_ISurface;
     static const Guid IID_ISampler;
@@ -881,13 +884,35 @@ public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
 };
 
+class RenderPipeline : public IRenderPipeline, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+
+    IRenderPipeline* getInterface(const Guid& guid);
+};
+
+class ComputePipeline : public IComputePipeline, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+
+    IComputePipeline* getInterface(const Guid& guid);
+};
+
+class RayTracingPipeline : public IRayTracingPipeline, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+
+    IRayTracingPipeline* getInterface(const Guid& guid);
+};
+
 enum class PipelineType
 {
-    Unknown,
-    Graphics,
+    Render,
     Compute,
     RayTracing,
-    CountOf,
 };
 
 class Pipeline : public IPipeline, public ComObject
@@ -896,52 +921,38 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IPipeline* getInterface(const Guid& guid);
 
-    struct PipelineStateDesc
-    {
-        PipelineType type;
-        RenderPipelineDesc graphics;
-        ComputePipelineDesc compute;
-        RayTracingPipelineDesc rayTracing;
-        ShaderProgram* getProgram()
-        {
-            switch (type)
-            {
-            case PipelineType::Compute:
-                return checked_cast<ShaderProgram*>(compute.program);
-            case PipelineType::Graphics:
-                return checked_cast<ShaderProgram*>(graphics.program);
-            case PipelineType::RayTracing:
-                return checked_cast<ShaderProgram*>(rayTracing.program);
-            }
-            return nullptr;
-        }
-    } desc;
+    Device* m_device;
 
-    StructHolder descHolder;
+    StructHolder m_descHolder;
 
     // We need to hold inputLayout object alive, since we may use it to
     // create specialized pipeline states later.
-    RefPtr<InputLayout> inputLayout;
+    RefPtr<InputLayout> m_inputLayout;
 
     // The pipeline state from which this pipeline state is specialized.
     // If null, this pipeline is either an unspecialized pipeline.
-    RefPtr<Pipeline> unspecializedPipeline = nullptr;
+    RefPtr<Pipeline> m_unspecializedPipeline;
 
     // Indicates whether this is a specializable pipeline. A specializable
     // pipeline cannot be used directly and must be specialized first.
-    bool isSpecializable = false;
+    bool m_isSpecializable = false;
     RefPtr<ShaderProgram> m_program;
-    template<typename TProgram>
-    TProgram* getProgram()
-    {
-        return checked_cast<TProgram*>(m_program.Ptr());
-    }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual Result ensureAPIPipelineCreated() { return SLANG_OK; };
+    PipelineType m_type;
+    RenderPipelineDesc m_renderPipelineDesc;
+    RefPtr<RenderPipeline> m_renderPipeline;
+    ComputePipelineDesc m_computePipelineDesc;
+    RefPtr<ComputePipeline> m_computePipeline;
+    RayTracingPipelineDesc m_rayTracingPipelineDesc;
+    RefPtr<RayTracingPipeline> m_rayTracingPipeline;
 
-protected:
-    void initializeBase(const PipelineStateDesc& inDesc);
+    Result init(Device* device, const RenderPipelineDesc& desc);
+    Result init(Device* device, const ComputePipelineDesc& desc);
+    Result init(Device* device, const RayTracingPipelineDesc& desc);
+    Result initSpecialized(Pipeline* unspecializedPipeline, ShaderProgram* specializedProgram);
+    Result initCommon();
+
+    Result ensurePipelineCreated();
 };
 
 struct ComponentKey
@@ -1071,7 +1082,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::map<Pipeline*, RefPtr<Buffer>> m_deviceBuffers;
+    std::map<RayTracingPipeline*, RefPtr<Buffer>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
@@ -1082,12 +1093,16 @@ public:
     }
 
     virtual RefPtr<Buffer> createDeviceBuffer(
-        Pipeline* pipeline,
+        RayTracingPipeline* pipeline,
         TransientResourceHeap* transientHeap,
         IRayTracingPassEncoder* encoder
     ) = 0;
 
-    Buffer* getOrCreateBuffer(Pipeline* pipeline, TransientResourceHeap* transientHeap, IRayTracingPassEncoder* encoder)
+    Buffer* getOrCreateBuffer(
+        RayTracingPipeline* pipeline,
+        TransientResourceHeap* transientHeap,
+        IRayTracingPassEncoder* encoder
+    )
     {
         auto it = m_deviceBuffers.find(pipeline);
         if (it != m_deviceBuffers.end())
@@ -1158,6 +1173,23 @@ public:
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) SLANG_OVERRIDE;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
+
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderObject(slang::TypeReflection* type, ShaderObjectContainerType containerType, IShaderObject** outObject)
         SLANG_OVERRIDE;
 
@@ -1207,11 +1239,6 @@ public:
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) override;
-
-    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
-    // without ray tracing support.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL

@@ -19,7 +19,7 @@ public:
     DeviceImpl* m_device = nullptr;
     CommandBufferImpl* m_commandBuffer = nullptr;
     WGPUCommandEncoder m_commandEncoder = nullptr;
-    RefPtr<PipelineImpl> m_currentPipeline;
+    RefPtr<Pipeline> m_currentPipeline;
 
     virtual ~PassEncoderImpl();
 

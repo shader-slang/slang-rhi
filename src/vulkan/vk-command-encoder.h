@@ -46,11 +46,9 @@ public:
     VkCommandBuffer m_vkPreCommandBuffer = VK_NULL_HANDLE;
     VkPipeline m_boundPipelines[3] = {};
     DeviceImpl* m_device = nullptr;
-    RefPtr<PipelineImpl> m_currentPipeline;
+    RefPtr<Pipeline> m_currentPipeline;
 
     VulkanApi* m_api;
-
-    static int getBindPointIndex(VkPipelineBindPoint bindPoint);
 
     void init(CommandBufferImpl* commandBuffer);
 

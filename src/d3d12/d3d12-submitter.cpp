@@ -45,8 +45,9 @@ void GraphicsSubmitter::setRootConstants(
 
 void GraphicsSubmitter::setPipeline(Pipeline* pipeline)
 {
-    auto pipelineImpl = checked_cast<PipelineImpl*>(pipeline);
-    m_commandList->SetPipelineState(pipelineImpl->m_pipelineState.get());
+    m_commandList->SetPipelineState(
+        checked_cast<RenderPipelineImpl*>(pipeline->m_renderPipeline.get())->m_pipelineState.get()
+    );
 }
 
 void ComputeSubmitter::setRootConstantBufferView(int index, D3D12_GPU_VIRTUAL_ADDRESS gpuBufferLocation)
@@ -91,8 +92,9 @@ void ComputeSubmitter::setRootConstants(
 
 void ComputeSubmitter::setPipeline(Pipeline* pipeline)
 {
-    auto pipelineImpl = checked_cast<PipelineImpl*>(pipeline);
-    m_commandList->SetPipelineState(pipelineImpl->m_pipelineState.get());
+    m_commandList->SetPipelineState(
+        checked_cast<ComputePipelineImpl*>(pipeline->m_computePipeline.get())->m_pipelineState.get()
+    );
 }
 
 } // namespace rhi::d3d12

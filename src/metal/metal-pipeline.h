@@ -7,41 +7,33 @@
 
 namespace rhi::metal {
 
-class PipelineImpl : public Pipeline
+class RenderPipelineImpl : public RenderPipeline
 {
 public:
-    DeviceImpl* m_device;
-    NS::SharedPtr<MTL::RenderPipelineState> m_renderPipelineState;
+    NS::SharedPtr<MTL::RenderPipelineState> m_pipelineState;
     NS::SharedPtr<MTL::DepthStencilState> m_depthStencilState;
-    NS::SharedPtr<MTL::ComputePipelineState> m_computePipelineState;
-    MTL::Size m_threadGroupSize;
+    MTL::PrimitiveType m_primitiveType;
+    RasterizerDesc m_rasterizerDesc;
     NS::UInteger m_vertexBufferOffset;
 
-    PipelineImpl(DeviceImpl* device);
-    ~PipelineImpl();
-
-    void init(const RenderPipelineDesc& desc);
-    void init(const ComputePipelineDesc& desc);
-    void init(const RayTracingPipelineDesc& desc);
-
-    Result createMetalComputePipelineState();
-    Result createMetalRenderPipelineState();
-
-    virtual Result ensureAPIPipelineCreated() override;
-
+    // IRenderPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
-class RayTracingPipelineImpl : public PipelineImpl
+class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    std::map<std::string, Index> shaderGroupNameToIndex;
-    Int shaderGroupCount;
+    NS::SharedPtr<MTL::ComputePipelineState> m_pipelineState;
+    MTL::Size m_threadGroupSize;
 
-    RayTracingPipelineImpl(DeviceImpl* device);
+    // IComputePipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
 
-    virtual Result ensureAPIPipelineCreated() override;
-
+class RayTracingPipelineImpl : public RayTracingPipeline
+{
+public:
+    // IRayTracingPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

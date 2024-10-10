@@ -1,20 +1,21 @@
 #include "cpu-pipeline.h"
-
+#include "cpu-device.h"
 #include "cpu-shader-program.h"
 
 namespace rhi::cpu {
 
-ShaderProgramImpl* PipelineImpl::getProgram()
+Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return checked_cast<ShaderProgramImpl*>(m_program.Ptr());
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
 }
 
-void PipelineImpl::init(const ComputePipelineDesc& inDesc)
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
 {
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::Compute;
-    pipelineDesc.compute = inDesc;
-    initializeBase(pipelineDesc);
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    pipeline->m_program = checked_cast<ShaderProgramImpl*>(desc.program);
+    returnComPtr(outPipeline, pipeline);
+    return SLANG_OK;
 }
 
 } // namespace rhi::cpu

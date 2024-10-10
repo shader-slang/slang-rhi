@@ -7,46 +7,25 @@
 
 namespace rhi::metal {
 
-PipelineImpl::PipelineImpl(DeviceImpl* device)
-    : m_device(device)
+Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
+    outHandle->type = NativeHandleType::MTLRenderPipelineState;
+    outHandle->value = (uint64_t)m_pipelineState.get();
+    return SLANG_OK;
 }
 
-PipelineImpl::~PipelineImpl() {}
-
-void PipelineImpl::init(const RenderPipelineDesc& desc)
+Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
 {
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::Graphics;
-    pipelineDesc.graphics = desc;
-    initializeBase(pipelineDesc);
-}
+    AUTORELEASEPOOL
 
-void PipelineImpl::init(const ComputePipelineDesc& desc)
-{
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::Compute;
-    pipelineDesc.compute = desc;
-    initializeBase(pipelineDesc);
-}
-
-void PipelineImpl::init(const RayTracingPipelineDesc& desc)
-{
-    PipelineStateDesc pipelineDesc;
-    pipelineDesc.type = PipelineType::RayTracing;
-    pipelineDesc.rayTracing = desc;
-    initializeBase(pipelineDesc);
-}
-
-Result PipelineImpl::createMetalRenderPipelineState()
-{
-    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (!programImpl)
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
+    if (!program | !inputLayout)
         return SLANG_FAIL;
 
     NS::SharedPtr<MTL::RenderPipelineDescriptor> pd = NS::TransferPtr(MTL::RenderPipelineDescriptor::alloc()->init());
 
-    for (const ShaderProgramImpl::Module& module : programImpl->m_modules)
+    for (const ShaderProgramImpl::Module& module : program->m_modules)
     {
         auto functionName = MetalUtil::createString(module.entryPointName.data());
         NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
@@ -69,20 +48,18 @@ Result PipelineImpl::createMetalRenderPipelineState()
     // Create a vertex descriptor with the vertex buffer binding indices being offset.
     // They need to be in a range not used by any buffers in the root object layout.
     // The +1 is to account for a potential constant buffer at index 0.
-    m_vertexBufferOffset = programImpl->m_rootObjectLayout->getBufferCount() + 1;
-    auto inputLayoutImpl = checked_cast<InputLayoutImpl*>(desc.graphics.inputLayout);
-    NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor =
-        inputLayoutImpl->createVertexDescriptor(m_vertexBufferOffset);
+    NS::UInteger vertexBufferOffset = program->m_rootObjectLayout->getBufferCount() + 1;
+    NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor = inputLayout->createVertexDescriptor(vertexBufferOffset);
     pd->setVertexDescriptor(vertexDescriptor.get());
-    pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.graphics.primitiveTopology));
+    pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.primitiveTopology));
 
-    pd->setAlphaToCoverageEnabled(desc.graphics.multisample.alphaToCoverageEnable);
+    pd->setAlphaToCoverageEnabled(desc.multisample.alphaToCoverageEnable);
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < desc.graphics.targetCount; ++i)
+    for (Index i = 0; i < desc.targetCount; ++i)
     {
-        const ColorTargetState& targetState = desc.graphics.targets[i];
+        const ColorTargetState& targetState = desc.targets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
         colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetState.format));
 
@@ -95,9 +72,9 @@ Result PipelineImpl::createMetalRenderPipelineState()
         colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetState.alpha.op));
         colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetState.writeMask));
     }
-    if (desc.graphics.depthStencil.format != Format::Unknown)
+    if (desc.depthStencil.format != Format::Unknown)
     {
-        const DepthStencilState& depthStencil = desc.graphics.depthStencil;
+        const DepthStencilState& depthStencil = desc.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
@@ -109,14 +86,22 @@ Result PipelineImpl::createMetalRenderPipelineState()
         }
     }
 
-    pd->setRasterSampleCount(desc.graphics.multisample.sampleCount);
+    pd->setRasterSampleCount(desc.multisample.sampleCount);
 
     NS::Error* error;
-    m_renderPipelineState = NS::TransferPtr(m_device->m_device->newRenderPipelineState(pd.get(), &error));
-    if (!m_renderPipelineState)
+    NS::SharedPtr<MTL::RenderPipelineState> pipelineState =
+        NS::TransferPtr(m_device->newRenderPipelineState(pd.get(), &error));
+    if (!pipelineState)
     {
-        printf("%s", error->localizedDescription()->utf8String());
-        return SLANG_E_INVALID_ARG;
+        if (error)
+        {
+            handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Driver,
+                error->localizedDescription()->utf8String()
+            );
+        }
+        return SLANG_FAIL;
     }
 
     // Create depth stencil state
@@ -133,11 +118,12 @@ Result PipelineImpl::createMetalRenderPipelineState()
         return stencilDesc;
     };
 
-    const auto& depthStencil = desc.graphics.depthStencil;
+    const auto& depthStencil = desc.depthStencil;
     NS::SharedPtr<MTL::DepthStencilDescriptor> depthStencilDesc =
         NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
-    m_depthStencilState = NS::TransferPtr(m_device->m_device->newDepthStencilState(depthStencilDesc.get()));
-    if (!m_depthStencilState)
+    NS::SharedPtr<MTL::DepthStencilState> depthStencilState =
+        NS::TransferPtr(m_device->newDepthStencilState(depthStencilDesc.get()));
+    if (!depthStencilState)
     {
         return SLANG_FAIL;
     }
@@ -156,77 +142,72 @@ Result PipelineImpl::createMetalRenderPipelineState()
         );
     }
 
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    pipeline->m_pipelineState = pipelineState;
+    pipeline->m_depthStencilState = depthStencilState;
+    pipeline->m_primitiveType = MetalUtil::translatePrimitiveType(desc.primitiveTopology);
+    pipeline->m_rasterizerDesc = desc.rasterizer;
+    pipeline->m_vertexBufferOffset = vertexBufferOffset;
+    returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
 
-Result PipelineImpl::createMetalComputePipelineState()
+Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
-    if (!programImpl)
-        return SLANG_FAIL;
+    outHandle->type = NativeHandleType::MTLComputePipelineState;
+    outHandle->value = (uint64_t)m_pipelineState.get();
+    return SLANG_OK;
+}
 
-    const ShaderProgramImpl::Module& module = programImpl->m_modules[0];
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+{
+    AUTORELEASEPOOL
+
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+
+    const ShaderProgramImpl::Module& module = program->m_modules[0];
     auto functionName = MetalUtil::createString(module.entryPointName.data());
     NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
     if (!function)
         return SLANG_FAIL;
 
     NS::Error* error;
-    m_computePipelineState = NS::TransferPtr(m_device->m_device->newComputePipelineState(function.get(), &error));
+    NS::SharedPtr<MTL::ComputePipelineState> pipelineState =
+        NS::TransferPtr(m_device->newComputePipelineState(function.get(), &error));
+    if (!pipelineState)
+    {
+        if (error)
+        {
+            handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Driver,
+                error->localizedDescription()->utf8String()
+            );
+        }
+        return SLANG_FAIL;
+    }
 
     // Query thread group size for use during dispatch.
     SlangUInt threadGroupSize[3];
-    programImpl->linkedProgram->getLayout()->getEntryPointByIndex(0)->getComputeThreadGroupSize(3, threadGroupSize);
-    m_threadGroupSize = MTL::Size(threadGroupSize[0], threadGroupSize[1], threadGroupSize[2]);
+    program->linkedProgram->getLayout()->getEntryPointByIndex(0)->getComputeThreadGroupSize(3, threadGroupSize);
 
-    return m_computePipelineState ? SLANG_OK : SLANG_FAIL;
-}
-
-Result PipelineImpl::ensureAPIPipelineCreated()
-{
-    AUTORELEASEPOOL
-
-    switch (desc.type)
-    {
-    case PipelineType::Compute:
-        return m_computePipelineState ? SLANG_OK : createMetalComputePipelineState();
-    case PipelineType::Graphics:
-        return m_renderPipelineState ? SLANG_OK : createMetalRenderPipelineState();
-    default:
-        SLANG_RHI_UNREACHABLE("Unknown pipeline type.");
-        return SLANG_FAIL;
-    }
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    pipeline->m_pipelineState = pipelineState;
+    pipeline->m_threadGroupSize = MTL::Size(threadGroupSize[0], threadGroupSize[1], threadGroupSize[2]);
+    returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
-}
-
-Result PipelineImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    switch (desc.type)
-    {
-    case PipelineType::Compute:
-        outHandle->type = NativeHandleType::MTLComputePipelineState;
-        outHandle->value = (uint64_t)m_computePipelineState.get();
-        return SLANG_OK;
-    case PipelineType::Graphics:
-        outHandle->type = NativeHandleType::MTLRenderPipelineState;
-        outHandle->value = (uint64_t)m_renderPipelineState.get();
-        return SLANG_OK;
-    }
-    return SLANG_E_NOT_AVAILABLE;
-}
-
-RayTracingPipelineImpl::RayTracingPipelineImpl(DeviceImpl* device)
-    : PipelineImpl(device)
-{
-}
-
-Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
-{
-    return SLANG_E_NOT_IMPLEMENTED;
 }
 
 Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
+    *outHandle = {};
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
+Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
+{
+    AUTORELEASEPOOL
+
     return SLANG_E_NOT_IMPLEMENTED;
 }
 

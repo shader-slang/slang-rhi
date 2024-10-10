@@ -81,7 +81,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
 
     void* map(IBuffer* buffer);
 

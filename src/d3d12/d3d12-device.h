@@ -140,9 +140,11 @@ public:
         ISlangBlob** outDiagnostics
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
+    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const QueryPoolDesc& desc, IQueryPool** outState) override;
@@ -173,8 +175,6 @@ public:
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
 
 public:
     static void* loadProc(SharedLibraryHandle module, char const* name);

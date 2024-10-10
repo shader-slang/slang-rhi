@@ -4,25 +4,27 @@
 
 namespace rhi::wgpu {
 
-class PipelineImpl : public Pipeline
+class RenderPipelineImpl : public RenderPipeline
 {
 public:
     DeviceImpl* m_device;
     WGPURenderPipeline m_renderPipeline = nullptr;
+
+    ~RenderPipelineImpl();
+
+    // IRenderPipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
+
+class ComputePipelineImpl : public ComputePipeline
+{
+public:
+    DeviceImpl* m_device;
     WGPUComputePipeline m_computePipeline = nullptr;
 
-    ~PipelineImpl();
+    ~ComputePipelineImpl();
 
-    void init(const RenderPipelineDesc& desc);
-    void init(const ComputePipelineDesc& desc);
-    void init(const RayTracingPipelineDesc& desc);
-
-    Result createRenderPipeline();
-    Result createComputePipeline();
-
-    virtual Result ensureAPIPipelineCreated() override;
-
-    // IPipeline implementation
+    // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

@@ -57,23 +57,6 @@ void PassEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
     checked_cast<QueryPoolImpl*>(pool)->writeTimestamp(m_commandBuffer->m_cmdList, index);
 }
 
-
-int PassEncoderImpl::getBindPointIndex(PipelineType type)
-{
-    switch (type)
-    {
-    case PipelineType::Graphics:
-        return 0;
-    case PipelineType::Compute:
-        return 1;
-    case PipelineType::RayTracing:
-        return 2;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown pipeline type.");
-        return -1;
-    }
-}
-
 void PassEncoderImpl::init(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer;
@@ -91,7 +74,7 @@ Result PassEncoderImpl::bindPipelineImpl(IPipeline* pipeline, IShaderObject** ou
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->reset(
         m_device,
-        m_currentPipeline->getProgram<ShaderProgramImpl>()->m_rootObjectLayout,
+        checked_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get())->m_rootObjectLayout,
         m_commandBuffer->m_transientHeap
     ));
     *outRootObject = rootObject;
@@ -110,14 +93,13 @@ Result PassEncoderImpl::bindPipelineWithRootObjectImpl(IPipeline* pipeline, ISha
 Result PassEncoderImpl::_bindRenderState(Submitter* submitter, RefPtr<Pipeline>& newPipeline)
 {
     RootShaderObjectImpl* rootObjectImpl = m_commandBuffer->m_mutableRootShaderObject
-                                               ? m_commandBuffer->m_mutableRootShaderObject.Ptr()
+                                               ? m_commandBuffer->m_mutableRootShaderObject.get()
                                                : &m_commandBuffer->m_rootShaderObject;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
     Pipeline* newPipelineImpl = newPipeline.get();
     auto commandList = m_d3dCmdList;
-    auto pipelineTypeIndex = (int)newPipelineImpl->desc.type;
-    auto programImpl = checked_cast<ShaderProgramImpl*>(newPipelineImpl->m_program.Ptr());
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
+    auto programImpl = checked_cast<ShaderProgramImpl*>(newPipelineImpl->m_program.get());
+    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensurePipelineCreated());
     submitter->setRootSignature(programImpl->m_rootObjectLayout->m_rootSignature);
     submitter->setPipeline(newPipelineImpl);
     RootShaderObjectLayoutImpl* rootLayoutImpl = programImpl->m_rootObjectLayout;
@@ -831,11 +813,13 @@ void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFor
 Result RenderPassEncoderImpl::prepareDraw()
 {
     Pipeline* pipeline = m_currentPipeline.get();
-    if (!pipeline || (pipeline->desc.type != PipelineType::Graphics))
+    if (!pipeline || (pipeline->m_type != PipelineType::Render))
     {
         return SLANG_FAIL;
     }
-    InputLayoutImpl* inputLayout = (InputLayoutImpl*)pipeline->inputLayout.get();
+    // HACK: We should get this from the render pipeline instead, but the actual pipeline might not be created yet
+    // (created in _bindRenderState).
+    InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(pipeline->m_inputLayout.get());
 
     if (inputLayout)
     {
@@ -856,7 +840,8 @@ Result RenderPassEncoderImpl::prepareDraw()
         SLANG_RETURN_ON_FAIL(_bindRenderState(&submitter, newPipeline));
     }
 
-    m_d3dCmdList->IASetPrimitiveTopology(D3DUtil::getPrimitiveTopology(pipeline->desc.graphics.primitiveTopology));
+    RenderPipelineImpl* renderPipeline = checked_cast<RenderPipelineImpl*>(pipeline->m_renderPipeline.get());
+    m_d3dCmdList->IASetPrimitiveTopology(renderPipeline->m_primitiveTopology);
 
     // Set up vertex buffer views
     {
@@ -1265,6 +1250,11 @@ Result RayTracingPassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject**
     return bindPipelineImpl(state, outRootObject);
 }
 
+Result RayTracingPassEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+{
+    return bindPipelineWithRootObjectImpl(state, rootObject);
+}
+
 Result RayTracingPassEncoderImpl::dispatchRays(
     GfxIndex rayGenShaderIndex,
     IShaderTable* shaderTable,
@@ -1286,8 +1276,9 @@ Result RayTracingPassEncoderImpl::dispatchRays(
             }
             virtual void setPipeline(Pipeline* pipeline) override
             {
-                auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);
-                m_cmdList4->SetPipelineState1(pipelineImpl->m_stateObject.get());
+                m_cmdList4->SetPipelineState1(
+                    checked_cast<RayTracingPipelineImpl*>(pipeline->m_rayTracingPipeline.get())->m_stateObject.get()
+                );
             }
         };
         RayTracingSubmitter submitter(m_commandBuffer->m_cmdList4);
@@ -1295,11 +1286,13 @@ Result RayTracingPassEncoderImpl::dispatchRays(
         if (newPipeline)
             pipeline = newPipeline.Ptr();
     }
-    auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);
+
+    RayTracingPipelineImpl* rayTracingPipeline =
+        checked_cast<RayTracingPipelineImpl*>(pipeline->m_rayTracingPipeline.get());
 
     auto shaderTableImpl = checked_cast<ShaderTableImpl*>(shaderTable);
 
-    auto shaderTableBuffer = shaderTableImpl->getOrCreateBuffer(pipelineImpl, m_transientHeap, this);
+    auto shaderTableBuffer = shaderTableImpl->getOrCreateBuffer(rayTracingPipeline, m_transientHeap, this);
     auto shaderTableAddr = shaderTableBuffer->getDeviceAddress();
 
     D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};

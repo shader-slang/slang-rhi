@@ -957,9 +957,11 @@ void DeviceImpl::setVertexBuffers(
 
     auto buffers = (BufferImpl* const*)buffersIn;
 
+    RenderPipelineImpl* renderPipeline = checked_cast<RenderPipelineImpl*>(m_currentPipeline->m_renderPipeline.get());
+
     for (GfxIndex ii = 0; ii < slotCount; ++ii)
     {
-        auto inputLayout = (InputLayoutImpl*)m_currentPipeline->inputLayout.Ptr();
+        auto inputLayout = renderPipeline->m_inputLayout.get();
         vertexStrides[ii] = inputLayout->m_vertexStreamStrides[startSlot + ii];
         vertexOffsets[ii] = (UINT)offsetsIn[ii];
         dxBuffers[ii] = buffers[ii]->m_buffer;
@@ -1019,17 +1021,19 @@ void DeviceImpl::setScissorRects(GfxCount count, ScissorRect const* rects)
 
 void DeviceImpl::setPipeline(IPipeline* state)
 {
-    auto pipelineType = checked_cast<Pipeline*>(state)->desc.type;
+    auto pipeline = checked_cast<Pipeline*>(state);
 
-    switch (pipelineType)
+    pipeline->ensurePipelineCreated();
+
+    switch (pipeline->m_type)
     {
     default:
         break;
 
-    case PipelineType::Graphics:
+    case PipelineType::Render:
     {
-        auto stateImpl = (GraphicsPipelineImpl*)state;
-        auto programImpl = checked_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
+        RenderPipelineImpl* renderPipeline = checked_cast<RenderPipelineImpl*>(pipeline->m_renderPipeline.get());
+        ShaderProgramImpl* program = renderPipeline->m_program.get();
 
         // TODO: We could conceivably do some lightweight state
         // differencing here (e.g., check if `programImpl` is the
@@ -1040,18 +1044,15 @@ void DeviceImpl::setPipeline(IPipeline* state)
 
         // IA
 
-        m_immediateContext->IASetInputLayout(stateImpl->m_inputLayout->m_layout);
-
-        m_immediateContext->IASetPrimitiveTopology(
-            D3DUtil::getPrimitiveTopology(stateImpl->desc.graphics.primitiveTopology)
-        );
+        m_immediateContext->IASetInputLayout(renderPipeline->m_inputLayout->m_layout);
+        m_immediateContext->IASetPrimitiveTopology(renderPipeline->m_primitiveTopology);
 
         // VS
 
         // TODO(tfoley): Why the conditional here? If somebody is trying to disable the VS or PS, shouldn't we respect
         // that?
-        if (programImpl->m_vertexShader)
-            m_immediateContext->VSSetShader(programImpl->m_vertexShader, nullptr, 0);
+        if (program->m_vertexShader)
+            m_immediateContext->VSSetShader(program->m_vertexShader, nullptr, 0);
 
         // HS
 
@@ -1061,17 +1062,18 @@ void DeviceImpl::setPipeline(IPipeline* state)
 
         // RS
 
-        m_immediateContext->RSSetState(stateImpl->m_rasterizerState);
+        m_immediateContext->RSSetState(renderPipeline->m_rasterizerState);
 
         // PS
-        if (programImpl->m_pixelShader)
-            m_immediateContext->PSSetShader(programImpl->m_pixelShader, nullptr, 0);
+        if (program->m_pixelShader)
+            m_immediateContext->PSSetShader(program->m_pixelShader, nullptr, 0);
 
         // OM
 
-        m_immediateContext->OMSetBlendState(stateImpl->m_blendState, stateImpl->m_blendColor, stateImpl->m_sampleMask);
+        m_immediateContext
+            ->OMSetBlendState(renderPipeline->m_blendState, renderPipeline->m_blendColor, renderPipeline->m_sampleMask);
 
-        m_currentPipeline = stateImpl;
+        m_currentPipeline = pipeline;
 
         m_depthStencilStateDirty = true;
     }
@@ -1079,13 +1081,14 @@ void DeviceImpl::setPipeline(IPipeline* state)
 
     case PipelineType::Compute:
     {
-        auto stateImpl = (ComputePipelineImpl*)state;
-        auto programImpl = checked_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
+        ComputePipelineImpl* computePipeline = checked_cast<ComputePipelineImpl*>(pipeline->m_computePipeline.get());
+        ShaderProgramImpl* program = computePipeline->m_program.get();
 
         // CS
 
-        m_immediateContext->CSSetShader(programImpl->m_computeShader, nullptr, 0);
-        m_currentPipeline = stateImpl;
+        m_immediateContext->CSSetShader(program->m_computeShader, nullptr, 0);
+
+        m_currentPipeline = pipeline;
     }
     break;
     }
@@ -1281,8 +1284,7 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
     RootShaderObjectImpl* rootShaderObjectImpl = checked_cast<RootShaderObjectImpl*>(shaderObject);
     RefPtr<Pipeline> specializedPipeline;
     maybeSpecializePipeline(m_currentPipeline, rootShaderObjectImpl, specializedPipeline);
-    PipelineImpl* specializedPipelineImpl = checked_cast<PipelineImpl*>(specializedPipeline.Ptr());
-    setPipeline(specializedPipelineImpl);
+    setPipeline(specializedPipeline);
 
     // In order to bind the root object we must compute its specialized layout.
     //
@@ -1299,7 +1301,7 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
     // D3D11 calls. We deal with that distinction here by instantiating an
     // appropriate subtype of `BindingContext` based on the pipeline type.
     //
-    switch (m_currentPipeline->desc.type)
+    switch (m_currentPipeline->m_type)
     {
     case PipelineType::Compute:
     {
@@ -1372,139 +1374,6 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
     }
 }
 
-Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipeline** outPipeline)
-{
-    RenderPipelineDesc desc = inDesc;
-
-    auto programImpl = (ShaderProgramImpl*)desc.program;
-
-    ComPtr<ID3D11DepthStencilState> depthStencilState;
-    {
-        D3D11_DEPTH_STENCIL_DESC dsDesc;
-        dsDesc.DepthEnable = desc.depthStencil.depthTestEnable;
-        dsDesc.DepthWriteMask =
-            desc.depthStencil.depthWriteEnable ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-        dsDesc.DepthFunc = translateComparisonFunc(desc.depthStencil.depthFunc);
-        dsDesc.StencilEnable = desc.depthStencil.stencilEnable;
-        dsDesc.StencilReadMask = desc.depthStencil.stencilReadMask;
-        dsDesc.StencilWriteMask = desc.depthStencil.stencilWriteMask;
-
-#define FACE(DST, SRC)                                                                                                 \
-    dsDesc.DST.StencilFailOp = translateStencilOp(desc.depthStencil.SRC.stencilFailOp);                                \
-    dsDesc.DST.StencilDepthFailOp = translateStencilOp(desc.depthStencil.SRC.stencilDepthFailOp);                      \
-    dsDesc.DST.StencilPassOp = translateStencilOp(desc.depthStencil.SRC.stencilPassOp);                                \
-    dsDesc.DST.StencilFunc = translateComparisonFunc(desc.depthStencil.SRC.stencilFunc);                               \
-    /* end */
-
-        FACE(FrontFace, frontFace);
-        FACE(BackFace, backFace);
-
-        SLANG_RETURN_ON_FAIL(m_device->CreateDepthStencilState(&dsDesc, depthStencilState.writeRef()));
-    }
-
-    ComPtr<ID3D11RasterizerState> rasterizerState;
-    {
-        D3D11_RASTERIZER_DESC rsDesc;
-        rsDesc.FillMode = translateFillMode(desc.rasterizer.fillMode);
-        rsDesc.CullMode = translateCullMode(desc.rasterizer.cullMode);
-        rsDesc.FrontCounterClockwise = desc.rasterizer.frontFace == FrontFaceMode::Clockwise;
-        rsDesc.DepthBias = desc.rasterizer.depthBias;
-        rsDesc.DepthBiasClamp = desc.rasterizer.depthBiasClamp;
-        rsDesc.SlopeScaledDepthBias = desc.rasterizer.slopeScaledDepthBias;
-        rsDesc.DepthClipEnable = desc.rasterizer.depthClipEnable;
-        rsDesc.ScissorEnable = desc.rasterizer.scissorEnable;
-        rsDesc.MultisampleEnable = desc.rasterizer.multisampleEnable;
-        rsDesc.AntialiasedLineEnable = desc.rasterizer.antialiasedLineEnable;
-
-        SLANG_RETURN_ON_FAIL(m_device->CreateRasterizerState(&rsDesc, rasterizerState.writeRef()));
-    }
-
-    ComPtr<ID3D11BlendState> blendState;
-    {
-        D3D11_BLEND_DESC dstDesc = {};
-
-        ColorTargetState defaultTargetState;
-
-        static const UInt kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-        int targetCount = desc.targetCount;
-        if (targetCount > kMaxTargets)
-            return SLANG_FAIL;
-
-        for (GfxIndex ii = 0; ii < kMaxTargets; ++ii)
-        {
-            const ColorTargetState* targetState = nullptr;
-            if (ii < targetCount)
-            {
-                targetState = &desc.targets[ii];
-            }
-            else if (targetCount == 0)
-            {
-                targetState = &defaultTargetState;
-            }
-            else
-            {
-                targetState = &desc.targets[targetCount - 1];
-            }
-
-            auto& srcTarget = *targetState;
-            auto& dstTarget = dstDesc.RenderTarget[ii];
-
-            if (isBlendDisabled(srcTarget))
-            {
-                dstTarget.BlendEnable = false;
-                dstTarget.BlendOp = D3D11_BLEND_OP_ADD;
-                dstTarget.BlendOpAlpha = D3D11_BLEND_OP_ADD;
-                dstTarget.SrcBlend = D3D11_BLEND_ONE;
-                dstTarget.SrcBlendAlpha = D3D11_BLEND_ONE;
-                dstTarget.DestBlend = D3D11_BLEND_ZERO;
-                dstTarget.DestBlendAlpha = D3D11_BLEND_ZERO;
-            }
-            else
-            {
-                dstTarget.BlendEnable = true;
-                dstTarget.BlendOp = translateBlendOp(srcTarget.color.op);
-                dstTarget.BlendOpAlpha = translateBlendOp(srcTarget.alpha.op);
-                dstTarget.SrcBlend = translateBlendFactor(srcTarget.color.srcFactor);
-                dstTarget.SrcBlendAlpha = translateBlendFactor(srcTarget.alpha.srcFactor);
-                dstTarget.DestBlend = translateBlendFactor(srcTarget.color.dstFactor);
-                dstTarget.DestBlendAlpha = translateBlendFactor(srcTarget.alpha.dstFactor);
-            }
-
-            dstTarget.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTarget.writeMask);
-        }
-
-        dstDesc.IndependentBlendEnable = targetCount > 1;
-        dstDesc.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable;
-
-        SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
-    }
-
-    RefPtr<GraphicsPipelineImpl> pipeline = new GraphicsPipelineImpl();
-    pipeline->m_depthStencilState = depthStencilState;
-    pipeline->m_rasterizerState = rasterizerState;
-    pipeline->m_blendState = blendState;
-    pipeline->m_inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
-    pipeline->m_rtvCount = desc.targetCount;
-    pipeline->m_blendColor[0] = 0;
-    pipeline->m_blendColor[1] = 0;
-    pipeline->m_blendColor[2] = 0;
-    pipeline->m_blendColor[3] = 0;
-    pipeline->m_sampleMask = 0xFFFFFFFF;
-    pipeline->init(desc);
-    returnComPtr(outPipeline, pipeline);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& inDesc, IPipeline** outPipeline)
-{
-    ComputePipelineDesc desc = inDesc;
-
-    RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
-    state->init(desc);
-    returnComPtr(outPipeline, state);
-    return SLANG_OK;
-}
-
 void DeviceImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     auto dstImpl = checked_cast<BufferImpl*>(dst);
@@ -1527,8 +1396,9 @@ void DeviceImpl::_flushGraphicsState()
     if (m_depthStencilStateDirty)
     {
         m_depthStencilStateDirty = false;
-        auto pipeline = checked_cast<GraphicsPipelineImpl*>(m_currentPipeline.Ptr());
-        m_immediateContext->OMSetDepthStencilState(pipeline->m_depthStencilState, m_stencilRef);
+        RenderPipelineImpl* renderPipeline =
+            checked_cast<RenderPipelineImpl*>(m_currentPipeline->m_renderPipeline.get());
+        m_immediateContext->OMSetDepthStencilState(renderPipeline->m_depthStencilState, m_stencilRef);
     }
 }
 

@@ -2228,39 +2228,6 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipeline** outPipeline)
-{
-    RenderPipelineDesc desc = inDesc;
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
-    pipelineImpl->establishStrongDeviceReference();
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
-    returnComPtr(outPipeline, pipelineImpl);
-
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& inDesc, IPipeline** outPipeline)
-{
-    ComputePipelineDesc desc = inDesc;
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
-    pipelineImpl->establishStrongDeviceReference();
-    returnComPtr(outPipeline, pipelineImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
-{
-    RefPtr<RayTracingPipelineImpl> pipelineImpl = new RayTracingPipelineImpl(this);
-    pipelineImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
-    pipelineImpl->establishStrongDeviceReference();
-    returnComPtr(outPipeline, pipelineImpl);
-    return SLANG_OK;
-}
-
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     RefPtr<QueryPoolImpl> result = new QueryPoolImpl();

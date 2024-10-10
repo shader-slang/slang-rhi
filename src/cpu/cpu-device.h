@@ -41,7 +41,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
@@ -57,7 +57,7 @@ public:
     virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
 
 private:
-    RefPtr<PipelineImpl> m_currentPipeline = nullptr;
+    RefPtr<Pipeline> m_currentPipeline = nullptr;
     RefPtr<RootShaderObjectImpl> m_currentRootObject = nullptr;
     DeviceInfo m_info;
 

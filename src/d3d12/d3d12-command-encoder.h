@@ -56,9 +56,6 @@ public:
 
     RefPtr<Pipeline> m_currentPipeline;
 
-
-    static int getBindPointIndex(PipelineType type);
-
     void init(CommandBufferImpl* commandBuffer);
 
     void endEncodingImpl() { m_isOpen = false; }
@@ -293,10 +290,7 @@ public:
     deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
-    {
-        return bindPipelineWithRootObjectImpl(state, rootObject);
-    }
+    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     dispatchRays(GfxIndex rayGenShaderIndex, IShaderTable* shaderTable, GfxCount width, GfxCount height, GfxCount depth)
         override;

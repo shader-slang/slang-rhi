@@ -27,7 +27,7 @@ class MutableShaderObjectImpl;
 class EntryPointShaderObjectImpl;
 class RootShaderObjectImpl;
 class ShaderProgramImpl;
-class PipelineImpl;
+class ComputePipelineImpl;
 class QueryPoolImpl;
 class DeviceImpl;
 class CommandBufferImpl;

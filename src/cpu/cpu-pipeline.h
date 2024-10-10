@@ -4,12 +4,13 @@
 
 namespace rhi::cpu {
 
-class PipelineImpl : public Pipeline
+class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    ShaderProgramImpl* getProgram();
+    RefPtr<ShaderProgramImpl> m_program;
 
-    void init(const ComputePipelineDesc& inDesc);
+    // IComputePipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 } // namespace rhi::cpu

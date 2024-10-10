@@ -54,10 +54,8 @@ Result PassEncoderImpl::bindPipelineImpl(RootBindingContext& context)
                                                : &m_commandBuffer->m_rootObject;
     RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineImpl* newPipelineImpl = checked_cast<PipelineImpl*>(newPipeline.Ptr());
-
-    SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
-    m_currentPipeline = newPipelineImpl;
+    SLANG_RETURN_ON_FAIL(newPipeline->ensurePipelineCreated());
+    m_currentPipeline = newPipeline;
 
     // Obtain specialized root layout.
     auto specializedLayout = rootObjectImpl->getSpecializedLayout();
@@ -116,11 +114,11 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
 
 Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = checked_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<Pipeline*>(state);
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
-        m_currentPipeline->getProgram<ShaderProgramImpl>()->m_rootObjectLayout
+        checked_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get())->m_rootObjectLayout
     ));
     *outRootObject = &m_commandBuffer->m_rootObject;
     return SLANG_OK;
@@ -128,7 +126,7 @@ Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRoo
 
 Result PassEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
 {
-    m_currentPipeline = checked_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<Pipeline*>(state);
     m_commandBuffer->m_mutableRootShaderObject = checked_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
@@ -320,8 +318,7 @@ Result RenderPassEncoderImpl::init(CommandBufferImpl* commandBuffer, const Rende
 
 Result RenderPassEncoderImpl::prepareDraw()
 {
-    PipelineImpl* pipeline = m_currentPipeline.get();
-    if (!pipeline)
+    if (!m_currentPipeline)
     {
         return SLANG_FAIL;
     }
@@ -329,7 +326,10 @@ Result RenderPassEncoderImpl::prepareDraw()
     RootBindingContext context;
     SLANG_RETURN_ON_FAIL(bindPipelineImpl(context));
 
-    m_device->m_ctx.api.wgpuRenderPassEncoderSetPipeline(m_renderPassEncoder, m_currentPipeline->m_renderPipeline);
+    m_device->m_ctx.api.wgpuRenderPassEncoderSetPipeline(
+        m_renderPassEncoder,
+        checked_cast<RenderPipelineImpl*>(m_currentPipeline->m_renderPipeline.get())->m_renderPipeline
+    );
     for (uint32_t groupIndex = 0; groupIndex < context.bindGroups.size(); groupIndex++)
     {
         m_device->m_ctx.api.wgpuRenderPassEncoderSetBindGroup(
@@ -560,8 +560,7 @@ Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, I
 
 Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
-    PipelineImpl* pipeline = m_currentPipeline.get();
-    if (!pipeline)
+    if (!m_currentPipeline)
     {
         return SLANG_FAIL;
     }
@@ -569,7 +568,10 @@ Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
     RootBindingContext context;
     SLANG_RETURN_ON_FAIL(bindPipelineImpl(context));
 
-    m_device->m_ctx.api.wgpuComputePassEncoderSetPipeline(m_computePassEncoder, m_currentPipeline->m_computePipeline);
+    m_device->m_ctx.api.wgpuComputePassEncoderSetPipeline(
+        m_computePassEncoder,
+        checked_cast<ComputePipelineImpl*>(m_currentPipeline->m_computePipeline.get())->m_computePipeline
+    );
     for (uint32_t groupIndex = 0; groupIndex < context.bindGroups.size(); groupIndex++)
     {
         m_device->m_ctx.api.wgpuComputePassEncoderSetBindGroup(

@@ -7,50 +7,41 @@
 
 namespace rhi::vk {
 
-class PipelineImpl : public Pipeline
+class RenderPipelineImpl : public RenderPipeline
 {
 public:
-    PipelineImpl(DeviceImpl* device);
-    ~PipelineImpl();
-
-    // Turns `m_device` into a strong reference.
-    // This method should be called before returning the pipeline state object to
-    // external users (i.e. via an `IPipeline` pointer).
-    void establishStrongDeviceReference();
-
-    virtual void comFree() override;
-
-    void init(const RenderPipelineDesc& inDesc);
-    void init(const ComputePipelineDesc& inDesc);
-    void init(const RayTracingPipelineDesc& inDesc);
-
-    Result createVKGraphicsPipeline();
-
-    Result createVKComputePipeline();
-
-    virtual Result ensureAPIPipelineCreated() override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
-    BreakableReference<DeviceImpl> m_device;
-
+    DeviceImpl* m_device;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
+
+    ~RenderPipelineImpl();
+
+    // IRenderPipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
-class RayTracingPipelineImpl : public PipelineImpl
+class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    std::map<std::string, Index> shaderGroupNameToIndex;
-    Int shaderGroupCount;
+    DeviceImpl* m_device;
+    VkPipeline m_pipeline = VK_NULL_HANDLE;
 
-    RayTracingPipelineImpl(DeviceImpl* device);
+    ~ComputePipelineImpl();
 
-    uint32_t findEntryPointIndexByName(const std::map<std::string, Index>& entryPointNameToIndex, const char* name);
+    // IComputePipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
 
-    Result createVKRayTracingPipeline();
+class RayTracingPipelineImpl : public RayTracingPipeline
+{
+public:
+    DeviceImpl* m_device;
+    VkPipeline m_pipeline = VK_NULL_HANDLE;
+    std::map<std::string, Index> m_shaderGroupNameToIndex;
+    Int m_shaderGroupCount;
 
-    virtual Result ensureAPIPipelineCreated() override;
+    ~RayTracingPipelineImpl();
 
+    // IRayTracingPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

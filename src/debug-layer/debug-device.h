@@ -96,6 +96,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;

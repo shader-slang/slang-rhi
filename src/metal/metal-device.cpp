@@ -714,34 +714,6 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
-    returnComPtr(outPipeline, pipelineImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipelineImpl);
-    returnComPtr(outPipeline, pipelineImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
-{
-    AUTORELEASEPOOL
-
-    return SLANG_E_NOT_IMPLEMENTED;
-}
-
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     AUTORELEASEPOOL

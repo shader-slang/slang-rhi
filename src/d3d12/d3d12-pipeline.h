@@ -4,32 +4,33 @@
 
 namespace rhi::d3d12 {
 
-class PipelineImpl : public Pipeline
+class RenderPipelineImpl : public RenderPipeline
 {
 public:
-    PipelineImpl(DeviceImpl* device)
-        : m_device(device)
-    {
-    }
-    DeviceImpl* m_device;
+    RefPtr<InputLayoutImpl> m_inputLayout;
     ComPtr<ID3D12PipelineState> m_pipelineState;
-    void init(const RenderPipelineDesc& inDesc);
-    void init(const ComputePipelineDesc& inDesc);
+    D3D_PRIMITIVE_TOPOLOGY m_primitiveTopology;
+
+    // IRenderPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual Result ensureAPIPipelineCreated() override;
 };
 
-#if SLANG_RHI_DXR
-class RayTracingPipelineImpl : public Pipeline
+class ComputePipelineImpl : public ComputePipeline
+{
+public:
+    ComPtr<ID3D12PipelineState> m_pipelineState;
+
+    // IComputePipeline implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
+
+class RayTracingPipelineImpl : public RayTracingPipeline
 {
 public:
     ComPtr<ID3D12StateObject> m_stateObject;
-    DeviceImpl* m_device;
-    RayTracingPipelineImpl(DeviceImpl* device);
-    void init(const RayTracingPipelineDesc& inDesc);
+
+    // IRayTracingPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual Result ensureAPIPipelineCreated() override;
 };
-#endif
 
 } // namespace rhi::d3d12
