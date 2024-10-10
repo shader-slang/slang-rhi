@@ -1132,7 +1132,7 @@ Result Device::maybeSpecializePipeline(
             );
 
             // Create specialized pipeline.
-            RefPtr<Pipeline> specializedPipeline = new Pipeline();
+            specializedPipeline = new Pipeline();
             SLANG_RETURN_ON_FAIL(specializedPipeline->initSpecialized(currentPipeline, specializedProgram.get()));
             shaderCache.addSpecializedPipeline(pipelineKey, specializedPipeline);
         }

@@ -172,7 +172,21 @@ public:
         return SLANG_E_NOT_AVAILABLE;
     }
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override
+    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override
+    {
+        SLANG_UNUSED(desc);
+        SLANG_UNUSED(outPipeline);
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override
+    {
+        SLANG_UNUSED(desc);
+        SLANG_UNUSED(outPipeline);
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override
     {
         SLANG_UNUSED(desc);
         SLANG_UNUSED(outPipeline);
