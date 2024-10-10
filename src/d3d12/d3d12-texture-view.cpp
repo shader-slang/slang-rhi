@@ -62,7 +62,7 @@ Result createD3D12BufferDescriptor(
 
     auto resourceImpl = (BufferImpl*)buffer;
     auto resourceDesc = *resourceImpl->getDesc();
-    const auto counterResourceImpl = static_cast<BufferImpl*>(counterBuffer);
+    const auto counterResourceImpl = checked_cast<BufferImpl*>(counterBuffer);
 
     uint64_t offset = desc.bufferRange.offset;
     uint64_t size = desc.bufferRange.size == 0 ? buffer->getDesc()->size - offset : desc.bufferRange.size;
@@ -182,11 +182,11 @@ Result ResourceViewInternalImpl::getBufferDescriptorForBinding(
 
     // We need to create and cache a d3d12 descriptor for the resource view that encodes
     // the given buffer stride.
-    auto bufferResImpl = static_cast<BufferImpl*>(view->m_resource.get());
+    auto bufferResImpl = checked_cast<BufferImpl*>(view->m_resource.get());
     auto desc = view->m_desc;
     SLANG_RETURN_ON_FAIL(createD3D12BufferDescriptor(
         bufferResImpl,
-        static_cast<BufferImpl*>(view->m_counterResource.get()),
+        checked_cast<BufferImpl*>(view->m_counterResource.get()),
         desc,
         bufferStride,
         device,

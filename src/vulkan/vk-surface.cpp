@@ -8,6 +8,7 @@
 #include "core/static_vector.h"
 #include "core/reverse-map.h"
 
+#include <algorithm>
 #include <vector>
 
 namespace rhi::vk {

@@ -41,7 +41,7 @@ void CommandQueueImpl::executeCommandBuffers(
     short_vector<ID3D12CommandList*> commandLists;
     for (GfxCount i = 0; i < count; i++)
     {
-        auto cmdImpl = static_cast<CommandBufferImpl*>(commandBuffers[i]);
+        auto cmdImpl = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
         commandLists.push_back(cmdImpl->m_cmdList);
     }
     if (count > 0)
@@ -54,7 +54,7 @@ void CommandQueueImpl::executeCommandBuffers(
         {
             if (i > 0 && commandBuffers[i] == commandBuffers[i - 1])
                 continue;
-            auto cmdImpl = static_cast<CommandBufferImpl*>(commandBuffers[i]);
+            auto cmdImpl = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
             auto transientHeap = cmdImpl->m_transientHeap;
             auto& waitInfo = transientHeap->getQueueWaitInfo(m_queueIndex);
             waitInfo.waitValue = m_fenceValue;
@@ -65,7 +65,7 @@ void CommandQueueImpl::executeCommandBuffers(
 
     if (fence)
     {
-        auto fenceImpl = static_cast<FenceImpl*>(fence);
+        auto fenceImpl = checked_cast<FenceImpl*>(fence);
         m_d3dQueue->Signal(fenceImpl->m_fence.get(), valueToSignal);
     }
 }
@@ -83,7 +83,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
 {
     for (GfxCount i = 0; i < fenceCount; ++i)
     {
-        auto fenceImpl = static_cast<FenceImpl*>(fences[i]);
+        auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         m_d3dQueue->Wait(fenceImpl->m_fence.get(), waitValues[i]);
     }
     return SLANG_OK;

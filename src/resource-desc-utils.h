@@ -29,11 +29,11 @@ inline int calcMaxDimension(Extents size, TextureType type)
     case TextureType::Texture1D:
         return size.width;
     case TextureType::Texture3D:
-        return std::max(std::max(size.width, size.height), size.depth);
+        return max({size.width, size.height, size.depth});
     case TextureType::TextureCube: // fallthru
     case TextureType::Texture2D:
     {
-        return std::max(size.width, size.height);
+        return max(size.width, size.height);
     }
     default:
         return 0;

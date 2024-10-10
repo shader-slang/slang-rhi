@@ -25,7 +25,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     )D3DUtil::calcAligned(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     uint32_t tableSize = m_callableTableOffset + callableTableSize;
 
-    auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
+    auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
@@ -37,7 +37,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
     pipelineImpl->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
 
-    TransientResourceHeapImpl* transientHeapImpl = static_cast<TransientResourceHeapImpl*>(transientHeap);
+    TransientResourceHeapImpl* transientHeapImpl = checked_cast<TransientResourceHeapImpl*>(transientHeap);
 
     IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
@@ -97,21 +97,21 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     }
 
     stagingBuffer->unmap(nullptr);
-    static_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->CopyBufferRegion(
-        static_cast<BufferImpl*>(buffer.get())->m_resource.getResource(),
+    checked_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->CopyBufferRegion(
+        checked_cast<BufferImpl*>(buffer.get())->m_resource.getResource(),
         0,
-        static_cast<BufferImpl*>(stagingBuffer)->m_resource.getResource(),
+        checked_cast<BufferImpl*>(stagingBuffer)->m_resource.getResource(),
         stagingBufferOffset,
         tableSize
     );
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = static_cast<BufferImpl*>(buffer.get())->m_resource.getResource();
+    barrier.Transition.pResource = checked_cast<BufferImpl*>(buffer.get())->m_resource.getResource();
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-    static_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->ResourceBarrier(1, &barrier);
+    checked_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->ResourceBarrier(1, &barrier);
 
-    RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
+    RefPtr<Buffer> resultPtr = checked_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);
 }
 

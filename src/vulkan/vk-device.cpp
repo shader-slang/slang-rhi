@@ -1042,7 +1042,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.extendedDescs,
         SLANG_SPIRV,
         "sm_5_1",
-        make_array(slang::PreprocessorMacroDesc{"__VK__", "1"})
+        std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}}
     ));
 
     // Create default sampler.
@@ -1103,7 +1103,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
 {
-    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
     const TextureDesc& desc = textureImpl->m_desc;
     auto width = desc.size.width;
@@ -1240,7 +1240,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
 
 Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
-    BufferImpl* buffer = static_cast<BufferImpl*>(inBuffer);
+    BufferImpl* buffer = checked_cast<BufferImpl*>(inBuffer);
 
     // create staging buffer
     VKBufferHandleRAII staging;
@@ -2029,8 +2029,8 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     samplerInfo.compareEnable = desc.reductionOp == TextureReductionOp::Comparison;
     samplerInfo.compareOp = VulkanUtil::translateComparisonFunc(desc.comparisonFunc);
     samplerInfo.mipmapMode = VulkanUtil::translateMipFilterMode(desc.mipFilter);
-    samplerInfo.minLod = std::max(0.0f, desc.minLOD);
-    samplerInfo.maxLod = std::clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
+    samplerInfo.minLod = max(0.0f, desc.minLOD);
+    samplerInfo.maxLod = clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
 
     VkSamplerReductionModeCreateInfo reductionInfo = {VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO};
     reductionInfo.reductionMode = VulkanUtil::translateReductionOp(desc.reductionOp);
@@ -2050,7 +2050,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
-    view->m_texture = static_cast<TextureImpl*>(texture);
+    view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -2193,7 +2193,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 {
     RefPtr<ShaderObjectImpl> shaderObject;
     SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, static_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
+        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
     );
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;
@@ -2201,7 +2201,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 
 Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
-    auto layoutImpl = static_cast<ShaderObjectLayoutImpl*>(layout);
+    auto layoutImpl = checked_cast<ShaderObjectLayoutImpl*>(layout);
 
     RefPtr<ShaderObjectImpl> result;
     SLANG_RETURN_ON_FAIL(ShaderObjectImpl::create(this, layoutImpl, result.writeRef()));
@@ -2213,7 +2213,7 @@ Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShader
 Result DeviceImpl::createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
     RefPtr<MutableRootShaderObjectImpl> result = new MutableRootShaderObjectImpl();
-    auto programImpl = static_cast<ShaderProgramImpl*>(program);
+    auto programImpl = checked_cast<ShaderProgramImpl*>(program);
     SLANG_RETURN_ON_FAIL(result->init(this, programImpl->m_rootObjectLayout));
     returnComPtr(outObject, result);
     return SLANG_OK;
@@ -2288,7 +2288,7 @@ Result DeviceImpl::waitForFences(
     short_vector<VkSemaphore> semaphores;
     for (Index i = 0; i < fenceCount; ++i)
     {
-        auto fenceImpl = static_cast<FenceImpl*>(fences[i]);
+        auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         semaphores.push_back(fenceImpl->m_semaphore);
     }
     VkSemaphoreWaitInfo waitInfo;

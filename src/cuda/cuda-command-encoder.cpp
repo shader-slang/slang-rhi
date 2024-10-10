@@ -162,7 +162,7 @@ void ComputePassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 Result ComputePassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
 {
     m_writer->setPipeline(state);
-    Pipeline* pipelineImpl = static_cast<Pipeline*>(state);
+    Pipeline* pipelineImpl = checked_cast<Pipeline*>(state);
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );
@@ -173,7 +173,7 @@ Result ComputePassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** ou
 Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
 {
     m_writer->setPipeline(state);
-    Pipeline* pipelineImpl = static_cast<Pipeline*>(state);
+    Pipeline* pipelineImpl = checked_cast<Pipeline*>(state);
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
     );
@@ -215,7 +215,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     AccelerationStructureBuildInputBuilder builder;
     SLANG_RETURN_VOID_ON_FAIL(builder.build(desc, m_commandBuffer->m_device->m_debugCallback));
 
-    AccelerationStructureImpl* dstImpl = static_cast<AccelerationStructureImpl*>(dst);
+    AccelerationStructureImpl* dstImpl = checked_cast<AccelerationStructureImpl*>(dst);
 
     short_vector<OptixAccelEmitDesc, 8> emittedProperties;
     for (GfxCount i = 0; i < propertyQueryCount; i++)
@@ -223,7 +223,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
         if (queryDescs[i].queryType == QueryType::AccelerationStructureCompactedSize)
         {
             PlainBufferProxyQueryPoolImpl* queryPool =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
+                checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
             OptixAccelEmitDesc property = {};
             property.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
             property.result = queryPool->m_buffer + queryDescs[i].firstQueryIndex * sizeof(uint64_t);
@@ -238,7 +238,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
         builder.buildInputs.data(),
         builder.buildInputs.size(),
         scratchBuffer.getDeviceAddress(),
-        static_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset,
+        checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset,
         dstImpl->m_buffer,
         dstImpl->m_desc.size,
         &dstImpl->m_handle,
@@ -253,8 +253,8 @@ void RayTracingPassEncoderImpl::copyAccelerationStructure(
     AccelerationStructureCopyMode mode
 )
 {
-    AccelerationStructureImpl* dstImpl = static_cast<AccelerationStructureImpl*>(dst);
-    AccelerationStructureImpl* srcImpl = static_cast<AccelerationStructureImpl*>(src);
+    AccelerationStructureImpl* dstImpl = checked_cast<AccelerationStructureImpl*>(dst);
+    AccelerationStructureImpl* srcImpl = checked_cast<AccelerationStructureImpl*>(src);
 
     switch (mode)
     {

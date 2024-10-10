@@ -145,7 +145,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
 {
     AUTORELEASEPOOL
 
-    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
     if (textureImpl->m_desc.sampleCount > 1)
     {
@@ -155,9 +155,9 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
     const TextureDesc& desc = textureImpl->m_desc;
-    GfxCount width = std::max(desc.size.width, 1);
-    GfxCount height = std::max(desc.size.height, 1);
-    GfxCount depth = std::max(desc.size.depth, 1);
+    GfxCount width = max(desc.size.width, 1);
+    GfxCount height = max(desc.size.height, 1);
+    GfxCount depth = max(desc.size.depth, 1);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;
@@ -212,7 +212,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
-    blitEncoder->copyFromBuffer(static_cast<BufferImpl*>(buffer)->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
+    blitEncoder
+        ->copyFromBuffer(checked_cast<BufferImpl*>(buffer)->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
@@ -306,9 +307,9 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
         rowSize = alignTo(rowSize, alignment);
         Size sliceSize = rowSize * alignTo(extents.height, formatInfo.blockHeight);
         size += sliceSize * extents.depth;
-        extents.width = std::max(1, extents.width / 2);
-        extents.height = std::max(1, extents.height / 2);
-        extents.depth = std::max(1, extents.depth / 2);
+        extents.width = max(1, extents.width / 2);
+        extents.height = max(1, extents.height / 2);
+        extents.depth = max(1, extents.depth / 2);
     }
     size *= desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
@@ -479,9 +480,9 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     subresourceData.strideZ
                 );
                 encoder->synchronizeTexture(stagingTexture.get(), slice, level);
-                region.size.width = region.size.width > 0 ? std::max(1ul, region.size.width >> 1) : 0;
-                region.size.height = region.size.height > 0 ? std::max(1ul, region.size.height >> 1) : 0;
-                region.size.depth = region.size.depth > 0 ? std::max(1ul, region.size.depth >> 1) : 0;
+                region.size.width = region.size.width > 0 ? max(1ul, region.size.width >> 1) : 0;
+                region.size.height = region.size.height > 0 ? max(1ul, region.size.height >> 1) : 0;
+                region.size.depth = region.size.depth > 0 ? max(1ul, region.size.depth >> 1) : 0;
             }
         }
 
@@ -571,7 +572,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 {
     AUTORELEASEPOOL
 
-    auto textureImpl = static_cast<TextureImpl*>(texture);
+    auto textureImpl = checked_cast<TextureImpl*>(texture);
     RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(desc);
     viewImpl->m_texture = textureImpl;
     if (viewImpl->m_desc.format == Format::Unknown)
@@ -686,7 +687,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 
     RefPtr<ShaderObjectImpl> shaderObject;
     SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, static_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
+        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
     );
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;

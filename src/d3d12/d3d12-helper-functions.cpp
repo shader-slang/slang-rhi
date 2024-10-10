@@ -190,7 +190,7 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
 
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
 {
-    return std::max(
+    return max(
         {desc.srvDescriptorCount,
          desc.uavDescriptorCount,
          desc.accelerationStructureDescriptorCount,
@@ -287,7 +287,7 @@ Result uploadBufferDataImpl(
     }
     D3D12Resource& uploadResourceRef = (buffer->m_desc.memoryType == MemoryType::Upload)
                                            ? buffer->m_resource
-                                           : static_cast<BufferImpl*>(uploadResource)->m_resource;
+                                           : checked_cast<BufferImpl*>(uploadResource)->m_resource;
 
     D3D12_RANGE readRange = {};
     readRange.Begin = 0;
@@ -457,21 +457,21 @@ void translatePostBuildInfoDescs(
         case QueryType::AccelerationStructureCompactedSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
+                checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureCurrentSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
+                checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
         case QueryType::AccelerationStructureSerializedSize:
             postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION;
             postBuildInfoDescs[i].DestBuffer =
-                static_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
+                checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
@@ -495,7 +495,7 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
         dxgiAdapter->GetDesc(&desc);
         AdapterInfo info = {};
         auto name = string::from_wstring(desc.Description);
-        memcpy(info.name, name.data(), std::min(name.length(), sizeof(AdapterInfo::name) - 1));
+        memcpy(info.name, name.data(), min(name.length(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
         info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);

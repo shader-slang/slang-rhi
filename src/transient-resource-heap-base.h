@@ -63,7 +63,7 @@ public:
         bufferDesc.size = pageSize;
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
-        page.resource = static_cast<TBuffer*>(bufferPtr.get());
+        page.resource = checked_cast<TBuffer*>(bufferPtr.get());
         page.size = pageSize;
         m_pages.push_back(page);
         return SLANG_OK;
@@ -78,7 +78,7 @@ public:
         bufferDesc.memoryType = m_memoryType;
         bufferDesc.size = size;
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
-        auto bufferImpl = static_cast<TBuffer*>(bufferPtr.get());
+        auto bufferImpl = checked_cast<TBuffer*>(bufferPtr.get());
         m_largeAllocations.push_back(bufferImpl);
         return SLANG_OK;
     }

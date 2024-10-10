@@ -23,12 +23,12 @@ namespace rhi::vk {
 
 void PassEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
 {
-    m_commandBuffer->m_stateTracking.setBufferState(static_cast<BufferImpl*>(buffer), state);
+    m_commandBuffer->m_stateTracking.setBufferState(checked_cast<BufferImpl*>(buffer), state);
 }
 
 void PassEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
-    m_commandBuffer->m_stateTracking.setTextureState(static_cast<TextureImpl*>(texture), subresourceRange, state);
+    m_commandBuffer->m_stateTracking.setTextureState(checked_cast<TextureImpl*>(texture), subresourceRange, state);
 }
 
 void PassEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
@@ -104,7 +104,7 @@ void PassEncoderImpl::_uploadBufferData(
     Offset stagingBufferOffset = 0;
     transientHeap->allocateStagingBuffer(size, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
 
-    BufferImpl* stagingBufferImpl = static_cast<BufferImpl*>(stagingBuffer);
+    BufferImpl* stagingBufferImpl = checked_cast<BufferImpl*>(stagingBuffer);
 
     void* mappedData = nullptr;
     SLANG_VK_CHECK(api->vkMapMemory(
@@ -133,7 +133,7 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
         m_api,
         m_vkPreCommandBuffer,
         m_commandBuffer->m_transientHeap.get(),
-        static_cast<BufferImpl*>(buffer),
+        checked_cast<BufferImpl*>(buffer),
         offset,
         size,
         data
@@ -202,7 +202,7 @@ Result PassEncoderImpl::bindRootShaderObjectImpl(RootShaderObjectImpl* rootShade
 
 Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<PipelineImpl*>(state);
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
@@ -214,8 +214,8 @@ Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRoo
 
 Result PassEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
-    m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
+    m_currentPipeline = checked_cast<PipelineImpl*>(state);
+    m_commandBuffer->m_mutableRootShaderObject = checked_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
 
@@ -230,7 +230,7 @@ Result PassEncoderImpl::bindRenderState(VkPipelineBindPoint pipelineBindPoint)
                                                : &m_commandBuffer->m_rootObject;
     RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
+    PipelineImpl* newPipelineImpl = checked_cast<PipelineImpl*>(newPipeline.Ptr());
 
     SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
     m_currentPipeline = newPipelineImpl;
@@ -253,8 +253,8 @@ void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer
 {
     auto& vkAPI = m_commandBuffer->m_device->m_api;
 
-    BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
-    BufferImpl* srcBuffer = static_cast<BufferImpl*>(src);
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(dst);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(src);
 
     m_commandBuffer->requireBufferState(dstBuffer, ResourceState::CopyDestination);
     m_commandBuffer->requireBufferState(srcBuffer, ResourceState::CopySource);
@@ -280,7 +280,7 @@ void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer
 
 void ResourcePassEncoderImpl::uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
 {
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     m_commandBuffer->requireBufferState(bufferImpl, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
@@ -329,8 +329,8 @@ void ResourcePassEncoderImpl::copyTexture(
     Extents extent
 )
 {
-    TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
-    TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
+    TextureImpl* dstTexture = checked_cast<TextureImpl*>(dst);
+    TextureImpl* srcTexture = checked_cast<TextureImpl*>(src);
 
     m_commandBuffer->requireTextureState(dstTexture, dstSubresource, ResourceState::CopyDestination);
     m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
@@ -390,7 +390,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
     GfxCount subresourceDataCount
 )
 {
-    TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
+    TextureImpl* dstTexture = checked_cast<TextureImpl*>(dst);
 
     m_commandBuffer->requireTextureState(dstTexture, subresourceRange, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
@@ -509,7 +509,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
                 // Do the copy (do all depths in a single go)
                 api.vkCmdCopyBufferToImage(
                     commandBuffer,
-                    static_cast<BufferImpl*>(uploadBuffer)->m_buffer.m_buffer,
+                    checked_cast<BufferImpl*>(uploadBuffer)->m_buffer.m_buffer,
                     dstTexture->m_image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     1,
@@ -664,24 +664,24 @@ void ResourcePassEncoderImpl::clearResourceView(
     {
     case IResourceView::Type::RenderTarget:
     {
-        auto viewImpl = static_cast<TextureViewImpl*>(view);
+        auto viewImpl = checked_cast<TextureViewImpl*>(view);
         _clearColorImage(viewImpl, clearValue);
     }
     break;
     case IResourceView::Type::DepthStencil:
     {
-        auto viewImpl = static_cast<TextureViewImpl*>(view);
+        auto viewImpl = checked_cast<TextureViewImpl*>(view);
         _clearDepthImage(viewImpl, clearValue, flags);
     }
     break;
     case IResourceView::Type::UnorderedAccess:
     {
-        auto viewImplBase = static_cast<ResourceViewImpl*>(view);
+        auto viewImplBase = checked_cast<ResourceViewImpl*>(view);
         switch (viewImplBase->m_type)
         {
         case ResourceViewImpl::ViewType::Texture:
         {
-            auto viewImpl = static_cast<TextureViewImpl*>(viewImplBase);
+            auto viewImpl = checked_cast<TextureViewImpl*>(viewImplBase);
             if ((flags & ClearResourceViewFlags::ClearDepth) || (flags & ClearResourceViewFlags::ClearStencil))
             {
                 _clearDepthImage(viewImpl, clearValue, flags);
@@ -699,7 +699,7 @@ void ResourcePassEncoderImpl::clearResourceView(
                 clearValue->color.uintValues[2] == clearValue->color.uintValues[0] &&
                 clearValue->color.uintValues[3] == clearValue->color.uintValues[0]
             );
-            auto viewImpl = static_cast<PlainBufferViewImpl*>(viewImplBase);
+            auto viewImpl = checked_cast<PlainBufferViewImpl*>(viewImplBase);
             uint64_t clearStart = viewImpl->m_desc.bufferRange.offset;
             uint64_t clearSize = viewImpl->m_desc.bufferRange.size;
             if (clearSize == 0)
@@ -720,7 +720,7 @@ void ResourcePassEncoderImpl::clearResourceView(
                 clearValue->color.uintValues[2] == clearValue->color.uintValues[0] &&
                 clearValue->color.uintValues[3] == clearValue->color.uintValues[0]
             );
-            auto viewImpl = static_cast<TexelBufferViewImpl*>(viewImplBase);
+            auto viewImpl = checked_cast<TexelBufferViewImpl*>(viewImplBase);
             _clearBuffer(
                 viewImpl->m_buffer->m_buffer.m_buffer,
                 viewImpl->m_buffer->getDesc()->size,
@@ -738,7 +738,7 @@ void ResourcePassEncoderImpl::clearResourceView(
 
 void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     m_commandBuffer->requireBufferState(bufferImpl, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
@@ -768,8 +768,8 @@ void ResourcePassEncoderImpl::resolveQuery(
     Offset offset
 )
 {
-    QueryPoolImpl* poolImpl = static_cast<QueryPoolImpl*>(queryPool);
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    QueryPoolImpl* poolImpl = checked_cast<QueryPoolImpl*>(queryPool);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     m_commandBuffer->requireBufferState(bufferImpl, ResourceState::CopyDestination);
     m_commandBuffer->commitBarriers();
@@ -800,8 +800,8 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
 {
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
-    BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
-    TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(dst);
+    TextureImpl* srcTexture = checked_cast<TextureImpl*>(src);
 
     m_commandBuffer->requireBufferState(dstBuffer, ResourceState::CopyDestination);
     m_commandBuffer->requireTextureState(srcTexture, srcSubresource, ResourceState::CopySource);
@@ -853,10 +853,10 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
     for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
-        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);
         if (!view)
             return SLANG_FAIL;
-        TextureViewImpl* resolveView = static_cast<TextureViewImpl*>(attachment.resolveTarget);
+        TextureViewImpl* resolveView = checked_cast<TextureViewImpl*>(attachment.resolveTarget);
 
         m_renderTargetViews[i] = view;
         m_resolveTargetViews[i] = resolveView;
@@ -876,16 +876,16 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
         const TextureDesc& textureDesc = view->m_texture->m_desc;
         uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
         uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
-        renderArea.extent.width = std::min(renderArea.extent.width, width);
-        renderArea.extent.height = std::min(renderArea.extent.height, height);
+        renderArea.extent.width = min(renderArea.extent.width, width);
+        renderArea.extent.height = min(renderArea.extent.height, height);
         uint32_t attachmentLayerCount = (textureDesc.type == TextureType::Texture3D)
                                             ? textureDesc.size.depth
                                             : viewDesc.subresourceRange.layerCount;
-        layerCount = std::max(layerCount, attachmentLayerCount);
+        layerCount = max(layerCount, attachmentLayerCount);
 
         // Create attachment info
         VkRenderingAttachmentInfoKHR attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
-        attachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
+        attachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
         attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         if (attachment.resolveTarget)
         {
@@ -906,11 +906,11 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
     if (desc.depthStencilAttachment)
     {
         const auto& attachment = *desc.depthStencilAttachment;
-        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);
         if (!view)
             return SLANG_FAIL;
 
-        m_depthStencilView = static_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
+        m_depthStencilView = checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
 
         // Transition state
         m_commandBuffer->requireTextureState(
@@ -924,15 +924,15 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
         const TextureDesc& textureDesc = view->m_texture->m_desc;
         uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
         uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
-        renderArea.extent.width = std::min(renderArea.extent.width, width);
-        renderArea.extent.height = std::min(renderArea.extent.height, height);
+        renderArea.extent.width = min(renderArea.extent.width, width);
+        renderArea.extent.height = min(renderArea.extent.height, height);
 
         // Create attachment info
         if (VulkanUtil::isDepthFormat(view->m_texture->m_vkformat))
         {
             hasDepthAttachment = true;
             const auto& attachment = *desc.depthStencilAttachment;
-            depthAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
+            depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
             depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachmentInfo.loadOp = translateLoadOp(attachment.depthLoadOp);
             depthAttachmentInfo.storeOp = translateStoreOp(attachment.depthStoreOp);
@@ -942,7 +942,7 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
         {
             hasStencilAttachment = true;
             const auto& attachment = *desc.depthStencilAttachment;
-            stencilAttachmentInfo.imageView = static_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
+            stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
             stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             stencilAttachmentInfo.loadOp = translateLoadOp(attachment.stencilLoadOp);
             stencilAttachmentInfo.storeOp = translateStoreOp(attachment.stencilStoreOp);
@@ -1039,7 +1039,7 @@ void RenderPassEncoderImpl::setVertexBuffers(
     for (GfxIndex i = 0; i < GfxIndex(slotCount); i++)
     {
         GfxIndex slotIndex = startSlot + i;
-        BufferImpl* buffer = static_cast<BufferImpl*>(buffers[i]);
+        BufferImpl* buffer = checked_cast<BufferImpl*>(buffers[i]);
         if (buffer)
         {
             VkBuffer vertexBuffers[] = {buffer->m_buffer.m_buffer};
@@ -1065,14 +1065,14 @@ void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFor
         SLANG_RHI_ASSERT_FAILURE("Unsupported index format");
     }
 
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     m_api->vkCmdBindIndexBuffer(m_vkCommandBuffer, bufferImpl->m_buffer.m_buffer, (VkDeviceSize)offset, indexType);
 }
 
 Result RenderPassEncoderImpl::prepareDraw()
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    PipelineImpl* pipeline = m_currentPipeline.get();
     if (!pipeline)
     {
         return SLANG_FAIL;
@@ -1117,7 +1117,7 @@ Result RenderPassEncoderImpl::drawIndirect(
 
     SLANG_RETURN_ON_FAIL(prepareDraw());
     auto& api = *m_api;
-    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+    auto argBufferImpl = checked_cast<BufferImpl*>(argBuffer);
     api.vkCmdDrawIndirect(
         m_vkCommandBuffer,
         argBufferImpl->m_buffer.m_buffer,
@@ -1143,7 +1143,7 @@ Result RenderPassEncoderImpl::drawIndexedIndirect(
     SLANG_RETURN_ON_FAIL(prepareDraw());
 
     auto& api = *m_api;
-    auto argBufferImpl = static_cast<BufferImpl*>(argBuffer);
+    auto argBufferImpl = checked_cast<BufferImpl*>(argBuffer);
     api.vkCmdDrawIndexedIndirect(
         m_vkCommandBuffer,
         argBufferImpl->m_buffer.m_buffer,
@@ -1233,7 +1233,7 @@ Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, I
 
 Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    PipelineImpl* pipeline = m_currentPipeline.get();
     if (!pipeline)
     {
         return SLANG_FAIL;
@@ -1270,7 +1270,7 @@ void RayTracingPassEncoderImpl::_memoryBarrier(
         memBarriers[i].srcQueueFamilyIndex = m_commandBuffer->m_device->m_queueFamilyIndex;
         memBarriers[i].dstQueueFamilyIndex = m_commandBuffer->m_device->m_queueFamilyIndex;
 
-        auto asImpl = static_cast<AccelerationStructureImpl*>(structures[i]);
+        auto asImpl = checked_cast<AccelerationStructureImpl*>(structures[i]);
         memBarriers[i].buffer = asImpl->m_buffer->m_buffer.m_buffer;
         memBarriers[i].offset = 0;
         memBarriers[i].size = asImpl->m_buffer->m_desc.size;
@@ -1303,7 +1303,7 @@ void RayTracingPassEncoderImpl::_queryAccelerationStructureProperties(
     vkHandles.resize(accelerationStructureCount);
     for (GfxIndex i = 0; i < accelerationStructureCount; i++)
     {
-        vkHandles[i] = static_cast<AccelerationStructureImpl*>(accelerationStructures[i])->m_vkHandle;
+        vkHandles[i] = checked_cast<AccelerationStructureImpl*>(accelerationStructures[i])->m_vkHandle;
     }
     for (GfxIndex i = 0; i < queryCount; i++)
     {
@@ -1326,7 +1326,7 @@ void RayTracingPassEncoderImpl::_queryAccelerationStructureProperties(
             );
             return;
         }
-        auto queryPool = static_cast<QueryPoolImpl*>(queryDescs[i].queryPool)->m_pool;
+        auto queryPool = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool)->m_pool;
         m_commandBuffer->m_device->m_api.vkCmdResetQueryPool(
             m_commandBuffer->m_commandBuffer,
             queryPool,
@@ -1357,10 +1357,10 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     if (geomInfoBuilder.build(desc, m_device->m_debugCallback) != SLANG_OK)
         return;
 
-    geomInfoBuilder.buildInfo.dstAccelerationStructure = static_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
+    geomInfoBuilder.buildInfo.dstAccelerationStructure = checked_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
     if (src)
     {
-        geomInfoBuilder.buildInfo.srcAccelerationStructure = static_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
+        geomInfoBuilder.buildInfo.srcAccelerationStructure = checked_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
     }
     geomInfoBuilder.buildInfo.scratchData.deviceAddress = scratchBuffer.getDeviceAddress();
 
@@ -1397,8 +1397,8 @@ void RayTracingPassEncoderImpl::copyAccelerationStructure(
 )
 {
     VkCopyAccelerationStructureInfoKHR copyInfo = {VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
-    copyInfo.src = static_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
-    copyInfo.dst = static_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
+    copyInfo.src = checked_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
+    copyInfo.dst = checked_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
     switch (mode)
     {
     case AccelerationStructureCopyMode::Clone:
@@ -1433,7 +1433,7 @@ void RayTracingPassEncoderImpl::serializeAccelerationStructure(BufferWithOffset 
     VkCopyAccelerationStructureToMemoryInfoKHR copyInfo = {
         VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR
     };
-    copyInfo.src = static_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
+    copyInfo.src = checked_cast<AccelerationStructureImpl*>(src)->m_vkHandle;
     copyInfo.dst.deviceAddress = dst.getDeviceAddress();
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR;
     m_commandBuffer->m_device->m_api.vkCmdCopyAccelerationStructureToMemoryKHR(
@@ -1448,7 +1448,7 @@ void RayTracingPassEncoderImpl::deserializeAccelerationStructure(IAccelerationSt
         VK_STRUCTURE_TYPE_COPY_MEMORY_TO_ACCELERATION_STRUCTURE_INFO_KHR
     };
     copyInfo.src.deviceAddress = src.getDeviceAddress();
-    copyInfo.dst = static_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
+    copyInfo.dst = checked_cast<AccelerationStructureImpl*>(dst)->m_vkHandle;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
     m_commandBuffer->m_device->m_api.vkCmdCopyMemoryToAccelerationStructureKHR(
         m_commandBuffer->m_commandBuffer,

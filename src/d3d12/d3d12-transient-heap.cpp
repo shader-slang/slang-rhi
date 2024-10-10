@@ -182,7 +182,7 @@ Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuf
 {
     if ((Index)m_commandListAllocId < m_commandBufferPool.size())
     {
-        auto result = static_cast<CommandBufferImpl*>(m_commandBufferPool[m_commandListAllocId].Ptr());
+        auto result = checked_cast<CommandBufferImpl*>(m_commandBufferPool[m_commandListAllocId].Ptr());
         m_d3dCommandListPool[m_commandListAllocId]->Reset(m_commandAllocator, nullptr);
         result->reinit();
         ++m_commandListAllocId;

@@ -546,7 +546,7 @@ protected:
     ExtendedShaderObjectTypeList m_structuredBufferSpecializationArgs;
 
 public:
-    TShaderObjectLayoutImpl* getLayout() { return static_cast<TShaderObjectLayoutImpl*>(m_layout.Ptr()); }
+    TShaderObjectLayoutImpl* getLayout() { return checked_cast<TShaderObjectLayoutImpl*>(m_layout.Ptr()); }
 
     void* getBuffer() { return m_data.getBuffer(); }
     size_t getBufferSize() { return (size_t)m_data.getCount(); } // TODO: Change size_t to Count?
@@ -579,7 +579,7 @@ public:
         SLANG_OVERRIDE
     {
         auto layout = getLayout();
-        auto subObject = static_cast<TShaderObjectImpl*>(object);
+        auto subObject = checked_cast<TShaderObjectImpl*>(object);
         // There are three different cases in `setObject`.
         // 1. `this` object represents a StructuredBuffer, and `object` is an
         //    element to be written into the StructuredBuffer.
@@ -907,11 +907,11 @@ public:
             switch (type)
             {
             case PipelineType::Compute:
-                return static_cast<ShaderProgram*>(compute.program);
+                return checked_cast<ShaderProgram*>(compute.program);
             case PipelineType::Graphics:
-                return static_cast<ShaderProgram*>(graphics.program);
+                return checked_cast<ShaderProgram*>(graphics.program);
             case PipelineType::RayTracing:
-                return static_cast<ShaderProgram*>(rayTracing.program);
+                return checked_cast<ShaderProgram*>(rayTracing.program);
             }
             return nullptr;
         }
@@ -934,7 +934,7 @@ public:
     template<typename TProgram>
     TProgram* getProgram()
     {
-        return static_cast<TProgram*>(m_program.Ptr());
+        return checked_cast<TProgram*>(m_program.Ptr());
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

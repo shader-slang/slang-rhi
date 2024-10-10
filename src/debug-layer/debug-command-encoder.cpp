@@ -54,15 +54,15 @@ void DebugResourcePassEncoder::end()
 void DebugResourcePassEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     SLANG_RHI_API_FUNC;
-    auto dstImpl = static_cast<DebugBuffer*>(dst);
-    auto srcImpl = static_cast<DebugBuffer*>(src);
+    auto dstImpl = checked_cast<DebugBuffer*>(dst);
+    auto srcImpl = checked_cast<DebugBuffer*>(src);
     baseObject->copyBuffer(dstImpl->baseObject, dstOffset, srcImpl->baseObject, srcOffset, size);
 }
 
 void DebugResourcePassEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     SLANG_RHI_API_FUNC;
-    auto dstImpl = static_cast<DebugBuffer*>(dst);
+    auto dstImpl = checked_cast<DebugBuffer*>(dst);
     baseObject->uploadBufferData(dstImpl->baseObject, offset, size, data);
 }
 
@@ -201,7 +201,7 @@ void DebugRenderPassEncoder::setVertexBuffers(
     std::vector<IBuffer*> innerBuffers;
     for (GfxIndex i = 0; i < slotCount; i++)
     {
-        innerBuffers.push_back(static_cast<DebugBuffer*>(buffers[i])->baseObject.get());
+        innerBuffers.push_back(checked_cast<DebugBuffer*>(buffers[i])->baseObject.get());
     }
     baseObject->setVertexBuffers(startSlot, slotCount, innerBuffers.data(), offsets);
 }
@@ -209,7 +209,7 @@ void DebugRenderPassEncoder::setVertexBuffers(
 void DebugRenderPassEncoder::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
     SLANG_RHI_API_FUNC;
-    auto innerBuffer = static_cast<DebugBuffer*>(buffer)->baseObject.get();
+    auto innerBuffer = checked_cast<DebugBuffer*>(buffer)->baseObject.get();
     baseObject->setIndexBuffer(innerBuffer, indexFormat, offset);
 }
 

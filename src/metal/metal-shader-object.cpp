@@ -58,19 +58,19 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     switch (binding.type)
     {
     case BindingType::Buffer:
-        m_buffers[bindingIndex] = static_cast<BufferImpl*>(binding.resource.get());
+        m_buffers[bindingIndex] = checked_cast<BufferImpl*>(binding.resource.get());
         m_bufferOffsets[bindingIndex] = binding.bufferRange.offset;
         break;
     case BindingType::Texture:
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
-        m_textureViews[bindingIndex] = static_cast<TextureViewImpl*>(binding.resource.get());
+        m_textureViews[bindingIndex] = checked_cast<TextureViewImpl*>(binding.resource.get());
         break;
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
         break;
     }
 
@@ -80,7 +80,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 {
-    m_device = static_cast<DeviceImpl*>(device);
+    m_device = checked_cast<DeviceImpl*>(device);
 
     m_layout = layout;
 
@@ -247,7 +247,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* de
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.memoryType = MemoryType::Upload;
         SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-        m_ordinaryDataBuffer = static_cast<BufferImpl*>(buffer.get());
+        m_ordinaryDataBuffer = checked_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isConstantBufferDirty)
@@ -342,7 +342,7 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.memoryType = MemoryType::Upload;
         SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-        m_argumentBuffer = static_cast<BufferImpl*>(buffer.get());
+        m_argumentBuffer = checked_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isArgumentBufferDirty)
@@ -420,8 +420,8 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
                 }
                 case slang::BindingType::Sampler:
                 {
-                    auto samplerStateImpl = static_cast<SamplerImpl*>(m_samplers[resourceIndex].get());
-                    auto resourceId = samplerStateImpl->m_samplerState->gpuResourceID();
+                    SamplerImpl* samplerImpl = m_samplers[resourceIndex].get();
+                    auto resourceId = samplerImpl->m_samplerState->gpuResourceID();
                     memcpy(argumentPtr, &resourceId, sizeof(resourceId));
                     break;
                 }

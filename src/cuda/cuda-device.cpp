@@ -167,7 +167,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.extendedDescs,
         SLANG_PTX,
         "sm_5_1",
-        make_array(slang::PreprocessorMacroDesc{"__CUDA_COMPUTE__", "1"})
+        std::array{slang::PreprocessorMacroDesc{"__CUDA_COMPUTE__", "1"}}
     ));
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
@@ -258,22 +258,20 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         DeviceLimits limits = {};
 
         limits.maxTextureDimension1D = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_WIDTH);
-        limits.maxTextureDimension2D = std::min(
+        limits.maxTextureDimension2D = min({
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_WIDTH),
-            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_HEIGHT)
-        );
-        limits.maxTextureDimension3D = std::min(
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_HEIGHT),
+        });
+        limits.maxTextureDimension3D = min({
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_WIDTH),
-            std::min(
-                getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_HEIGHT),
-                getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_DEPTH)
-            )
-        );
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_HEIGHT),
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_DEPTH),
+        });
         limits.maxTextureDimensionCube = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACECUBEMAP_WIDTH);
-        limits.maxTextureArrayLayers = std::min(
+        limits.maxTextureArrayLayers = min({
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_LAYERED_LAYERS),
-            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_LAYERED_LAYERS)
-        );
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_LAYERED_LAYERS),
+        });
 
         // limits.maxVertexInputElements
         // limits.maxVertexInputElementOffset
@@ -929,7 +927,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
-    view->m_texture = static_cast<TextureImpl*>(texture);
+    view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -1067,7 +1065,7 @@ Result DeviceImpl::createShaderProgram(
 Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
     RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
-    state->shaderProgram = static_cast<ShaderProgramImpl*>(desc.program);
+    state->shaderProgram = checked_cast<ShaderProgramImpl*>(desc.program);
     state->init(desc);
     returnComPtr(outPipeline, state);
     return Result();
@@ -1075,7 +1073,7 @@ Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipel
 
 void* DeviceImpl::map(IBuffer* buffer)
 {
-    return static_cast<BufferImpl*>(buffer)->m_cudaMemory;
+    return checked_cast<BufferImpl*>(buffer)->m_cudaMemory;
 }
 
 void DeviceImpl::unmap(IBuffer* buffer)
@@ -1131,7 +1129,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipelin
 
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
-    auto textureImpl = static_cast<TextureImpl*>(texture);
+    auto textureImpl = checked_cast<TextureImpl*>(texture);
 
     const TextureDesc& desc = textureImpl->m_desc;
     auto width = desc.size.width;
@@ -1165,7 +1163,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* 
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
-    auto bufferImpl = static_cast<BufferImpl*>(buffer);
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     auto blob = OwnedBlob::create(size);
     cuMemcpy((CUdeviceptr)blob->getBufferPointer(), (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size);

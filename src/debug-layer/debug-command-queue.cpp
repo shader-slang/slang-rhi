@@ -51,7 +51,7 @@ void DebugCommandQueue::executeCommandBuffers(
     baseObject->executeCommandBuffers(count, innerCommandBuffers.data(), getInnerObj(fence), valueToSignal);
     if (fence)
     {
-        getDebugObj(fence)->maxValueToSignal = std::max(getDebugObj(fence)->maxValueToSignal, valueToSignal);
+        getDebugObj(fence)->maxValueToSignal = max(getDebugObj(fence)->maxValueToSignal, valueToSignal);
     }
 }
 

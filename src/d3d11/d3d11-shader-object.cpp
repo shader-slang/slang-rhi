@@ -56,7 +56,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
         BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         m_resources.emplace(buffer);
         if (D3DUtil::isUAVBinding(bindingRange.bindingType))
@@ -71,17 +71,16 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
-        TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource.get());
         m_resources.emplace(textureView);
         if (D3DUtil::isUAVBinding(bindingRange.bindingType))
         {
             m_uavs[bindingIndex] = textureView->getUAV();
-            ;
         }
         else
         {
@@ -90,7 +89,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
         break;
     case BindingType::CombinedTextureSampler:
         break;
@@ -103,7 +102,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 {
-    m_device = static_cast<DeviceImpl*>(device);
+    m_device = checked_cast<DeviceImpl*>(device);
 
     m_layout = layout;
 
@@ -274,7 +273,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.memoryType = MemoryType::Upload;
         SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-        m_ordinaryDataBuffer = static_cast<BufferImpl*>(buffer.get());
+        m_ordinaryDataBuffer = checked_cast<BufferImpl*>(buffer.get());
     }
 
     if (m_isConstantBufferDirty)

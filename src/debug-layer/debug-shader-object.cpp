@@ -113,27 +113,27 @@ Result DebugShaderObject::setBinding(ShaderOffset const& offset, Binding binding
     switch (binding.type)
     {
     case BindingType::Buffer:
-        innerBinding.resource = getInnerObj(static_cast<DebugBuffer*>(binding.resource.get()));
+        innerBinding.resource = getInnerObj(checked_cast<DebugBuffer*>(binding.resource.get()));
         break;
     case BindingType::BufferWithCounter:
-        innerBinding.resource = getInnerObj(static_cast<DebugBuffer*>(binding.resource.get()));
-        innerBinding.resource2 = getInnerObj(static_cast<DebugBuffer*>(binding.resource2.get()));
+        innerBinding.resource = getInnerObj(checked_cast<DebugBuffer*>(binding.resource.get()));
+        innerBinding.resource2 = getInnerObj(checked_cast<DebugBuffer*>(binding.resource2.get()));
         break;
     case BindingType::Texture:
-        innerBinding.resource = getInnerObj(static_cast<DebugTexture*>(binding.resource.get()));
+        innerBinding.resource = getInnerObj(checked_cast<DebugTexture*>(binding.resource.get()));
         break;
     case BindingType::TextureView:
-        innerBinding.resource = getInnerObj(static_cast<DebugTextureView*>(binding.resource.get()));
+        innerBinding.resource = getInnerObj(checked_cast<DebugTextureView*>(binding.resource.get()));
         break;
     case BindingType::Sampler:
-        innerBinding.resource = getInnerObj(static_cast<DebugSampler*>(binding.resource.get()));
+        innerBinding.resource = getInnerObj(checked_cast<DebugSampler*>(binding.resource.get()));
         break;
     case BindingType::CombinedTextureSampler:
-        innerBinding.resource = getInnerObj(static_cast<DebugTexture*>(binding.resource.get()));
-        innerBinding.resource2 = getInnerObj(static_cast<DebugSampler*>(binding.resource2.get()));
+        innerBinding.resource = getInnerObj(checked_cast<DebugTexture*>(binding.resource.get()));
+        innerBinding.resource2 = getInnerObj(checked_cast<DebugSampler*>(binding.resource2.get()));
         break;
     case BindingType::AccelerationStructure:
-        innerBinding.resource = getInnerObj(static_cast<DebugAccelerationStructure*>(binding.resource.get()));
+        innerBinding.resource = getInnerObj(checked_cast<DebugAccelerationStructure*>(binding.resource.get()));
         break;
     default:
         // TODO better error message

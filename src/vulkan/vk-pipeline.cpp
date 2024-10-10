@@ -243,7 +243,7 @@ Result PipelineImpl::createVKGraphicsPipeline()
     VkGraphicsPipelineCreateInfo pipelineInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     pipelineInfo.pNext = &renderingInfo;
 
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
+    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
@@ -284,7 +284,7 @@ Result PipelineImpl::createVKGraphicsPipeline()
 
 Result PipelineImpl::createVKComputePipeline()
 {
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
+    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
@@ -363,7 +363,7 @@ uint32_t RayTracingPipelineImpl::findEntryPointIndexByName(
 }
 Result RayTracingPipelineImpl::createVKRayTracingPipeline()
 {
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
+    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_stageCreateInfos.empty())
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));

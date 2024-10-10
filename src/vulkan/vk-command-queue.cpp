@@ -46,7 +46,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
     for (GfxIndex i = 0; i < fenceCount; ++i)
     {
         FenceWaitInfo waitInfo;
-        waitInfo.fence = static_cast<FenceImpl*>(fences[i]);
+        waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
         waitInfo.waitValue = waitValues[i];
         m_pendingWaitFences.push_back(waitInfo);
     }
@@ -64,7 +64,7 @@ void CommandQueueImpl::queueSubmitImpl(
     m_submitCommandBuffers.clear();
     for (uint32_t i = 0; i < count; i++)
     {
-        auto cmdBufImpl = static_cast<CommandBufferImpl*>(commandBuffers[i]);
+        auto cmdBufImpl = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
         if (!cmdBufImpl->m_isPreCommandBufferEmpty)
             m_submitCommandBuffers.push_back(cmdBufImpl->m_preCommandBuffer);
         auto vkCmdBuf = cmdBufImpl->m_commandBuffer;
@@ -100,7 +100,7 @@ void CommandQueueImpl::queueSubmitImpl(
     VkTimelineSemaphoreSubmitInfo timelineSubmitInfo = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
     if (fence)
     {
-        auto fenceImpl = static_cast<FenceImpl*>(fence);
+        auto fenceImpl = checked_cast<FenceImpl*>(fence);
         signalSemaphores.push_back(fenceImpl->m_semaphore);
         signalValues.push_back(valueToSignal);
         submitInfo.pNext = &timelineSubmitInfo;
@@ -120,7 +120,7 @@ void CommandQueueImpl::queueSubmitImpl(
     VkFence vkFence = VK_NULL_HANDLE;
     if (count)
     {
-        auto commandBufferImpl = static_cast<CommandBufferImpl*>(commandBuffers[0]);
+        auto commandBufferImpl = checked_cast<CommandBufferImpl*>(commandBuffers[0]);
         vkFence = commandBufferImpl->m_transientHeap->getCurrentFence();
         vkAPI.vkResetFences(vkAPI.m_device, 1, &vkFence);
         commandBufferImpl->m_transientHeap->advanceFence();

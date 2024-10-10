@@ -765,7 +765,7 @@ Result AccelerationStructureDescBuilder::build(
 
         instanceDescriptor->setUsage(translateBuildFlags(buildDesc.flags));
         instanceDescriptor->setInstanceDescriptorBuffer(
-            static_cast<BufferImpl*>(instances.instanceBuffer.buffer)->m_buffer.get()
+            checked_cast<BufferImpl*>(instances.instanceBuffer.buffer)->m_buffer.get()
         );
         instanceDescriptor->setInstanceDescriptorBufferOffset(instances.instanceBuffer.offset);
         instanceDescriptor->setInstanceDescriptorStride(instances.instanceStride);
@@ -797,7 +797,7 @@ Result AccelerationStructureDescBuilder::build(
                     ->object(i);
 
             triangleDescriptor->setVertexBuffer(
-                static_cast<BufferImpl*>(triangles.vertexBuffers[0].buffer)->m_buffer.get()
+                checked_cast<BufferImpl*>(triangles.vertexBuffers[0].buffer)->m_buffer.get()
             );
             triangleDescriptor->setVertexBufferOffset(triangles.vertexBuffers[0].offset);
             triangleDescriptor->setVertexFormat(MetalUtil::translateAttributeFormat(triangles.vertexFormat));
@@ -806,7 +806,7 @@ Result AccelerationStructureDescBuilder::build(
             if (triangles.indexBuffer)
             {
                 triangleDescriptor->setIndexBuffer(
-                    static_cast<BufferImpl*>(triangles.indexBuffer.buffer)->m_buffer.get()
+                    checked_cast<BufferImpl*>(triangles.indexBuffer.buffer)->m_buffer.get()
                 );
                 triangleDescriptor->setIndexBufferOffset(triangles.indexBuffer.offset);
                 triangleDescriptor->setIndexType(
@@ -814,13 +814,13 @@ Result AccelerationStructureDescBuilder::build(
                 );
             }
 
-            GfxCount triangleCount = std::max(triangles.vertexCount, triangles.indexCount) / 3;
+            GfxCount triangleCount = max(triangles.vertexCount, triangles.indexCount) / 3;
             triangleDescriptor->setTriangleCount(triangleCount);
 
             if (triangles.preTransformBuffer)
             {
                 triangleDescriptor->setTransformationMatrixBuffer(
-                    static_cast<BufferImpl*>(triangles.preTransformBuffer.buffer)->m_buffer.get()
+                    checked_cast<BufferImpl*>(triangles.preTransformBuffer.buffer)->m_buffer.get()
                 );
                 triangleDescriptor->setTransformationMatrixBufferOffset(triangles.preTransformBuffer.offset);
             }
@@ -855,7 +855,7 @@ Result AccelerationStructureDescBuilder::build(
                     ->object(i);
 
             boundingDescriptor->setBoundingBoxBuffer(
-                static_cast<BufferImpl*>(proceduralPrimitives.aabbBuffers[0].buffer)->m_buffer.get()
+                checked_cast<BufferImpl*>(proceduralPrimitives.aabbBuffers[0].buffer)->m_buffer.get()
             );
             boundingDescriptor->setBoundingBoxBufferOffset(proceduralPrimitives.aabbBuffers[0].offset);
             boundingDescriptor->setBoundingBoxStride(proceduralPrimitives.aabbStride);

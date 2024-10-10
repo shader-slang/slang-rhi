@@ -89,7 +89,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
         slot.format = slot.format != Format::Unknown ? slot.format : buffer->m_desc.format;
@@ -109,13 +109,13 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
         slot.type = BindingType::TextureView;
-        slot.resource = static_cast<TextureViewImpl*>(binding.resource.get());
+        slot.resource = checked_cast<TextureViewImpl*>(binding.resource.get());
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::Texture:
@@ -128,20 +128,20 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
         break;
     case BindingType::CombinedTextureSampler:
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
         m_combinedTextureSamplers[bindingIndex] = CombinedTextureSamplerSlot{
-            static_cast<TextureViewImpl*>(m_device->createTextureView(texture, {}).get()),
-            static_cast<SamplerImpl*>(binding.resource2.get())
+            checked_cast<TextureViewImpl*>(m_device->createTextureView(texture, {}).get()),
+            checked_cast<SamplerImpl*>(binding.resource2.get())
         };
         break;
     }
     case BindingType::AccelerationStructure:
         slot.type = BindingType::AccelerationStructure;
-        slot.resource = static_cast<AccelerationStructureImpl*>(binding.resource.get());
+        slot.resource = checked_cast<AccelerationStructureImpl*>(binding.resource.get());
         break;
     }
 
@@ -150,7 +150,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 {
-    m_device = static_cast<DeviceImpl*>(device);
+    m_device = checked_cast<DeviceImpl*>(device);
 
     m_layout = layout;
 
@@ -397,7 +397,7 @@ void ShaderObjectImpl::writePlainBufferDescriptor(
         if (slot)
         {
             SLANG_RHI_ASSERT(slot.type == BindingType::Buffer);
-            BufferImpl* buffer = static_cast<BufferImpl*>(slot.resource.get());
+            BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
             BufferRange bufferRange = buffer->resolveBufferRange(slot.bufferRange);
             bufferInfo.buffer = buffer->m_buffer.m_buffer;
             bufferInfo.offset = bufferRange.offset;
@@ -436,7 +436,7 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
         if (slot)
         {
             SLANG_RHI_ASSERT(slot.type == BindingType::Buffer);
-            BufferImpl* buffer = static_cast<BufferImpl*>(slot.resource.get());
+            BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
             bufferView = buffer->getView(slot.format, slot.bufferRange);
         }
 
@@ -509,7 +509,7 @@ void ShaderObjectImpl::writeAccelerationStructureDescriptor(
         {
             SLANG_RHI_ASSERT(slot.type == BindingType::AccelerationStructure);
             AccelerationStructureImpl* accelerationStructure =
-                static_cast<AccelerationStructureImpl*>(slot.resource.get());
+                checked_cast<AccelerationStructureImpl*>(slot.resource.get());
             writeAS.pAccelerationStructures = &accelerationStructure->m_vkHandle;
         }
         else
@@ -547,7 +547,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
         if (slot)
         {
             SLANG_RHI_ASSERT(slot.type == BindingType::TextureView);
-            TextureViewImpl* textureView = static_cast<TextureViewImpl*>(slot.resource.get());
+            TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
             imageInfo.imageView = textureView->getView().imageView;
             imageInfo.imageLayout = descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
                                         ? VK_IMAGE_LAYOUT_GENERAL
@@ -958,7 +958,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
     //
     if (m_constantBuffer && m_constantBufferSize > 0)
     {
-        auto bufferImpl = static_cast<BufferImpl*>(m_constantBuffer);
+        auto bufferImpl = checked_cast<BufferImpl*>(m_constantBuffer);
         writeBufferDescriptor(
             context,
             ioOffset,
@@ -1003,11 +1003,11 @@ void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
         switch (slot.type)
         {
         case BindingType::Buffer:
-            stateTracking.setBufferState(static_cast<BufferImpl*>(slot.resource.get()), slot.requiredState);
+            stateTracking.setBufferState(checked_cast<BufferImpl*>(slot.resource.get()), slot.requiredState);
             break;
         case BindingType::TextureView:
         {
-            TextureViewImpl* textureView = static_cast<TextureViewImpl*>(slot.resource.get());
+            TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
             stateTracking
                 .setTextureState(textureView->m_texture, textureView->m_desc.subresourceRange, slot.requiredState);
             break;
@@ -1082,7 +1082,7 @@ Result EntryPointShaderObject::create(
 
 EntryPointLayout* EntryPointShaderObject::getLayout()
 {
-    return static_cast<EntryPointLayout*>(m_layout.Ptr());
+    return checked_cast<EntryPointLayout*>(m_layout.Ptr());
 }
 
 Result EntryPointShaderObject::bindAsEntryPoint(
@@ -1151,14 +1151,14 @@ Result EntryPointShaderObject::init(IDevice* device, EntryPointLayout* layout)
 
 RootShaderObjectLayout* RootShaderObjectImpl::getLayout()
 {
-    return static_cast<RootShaderObjectLayout*>(m_layout.Ptr());
+    return checked_cast<RootShaderObjectLayout*>(m_layout.Ptr());
 }
 
 RootShaderObjectLayout* RootShaderObjectImpl::getSpecializedLayout()
 {
     RefPtr<ShaderObjectLayoutImpl> specializedLayout;
     _getSpecializedLayout(specializedLayout.writeRef());
-    return static_cast<RootShaderObjectLayout*>(m_specializedLayout.Ptr());
+    return checked_cast<RootShaderObjectLayout*>(m_specializedLayout.Ptr());
 }
 
 std::vector<RefPtr<EntryPointShaderObject>> const& RootShaderObjectImpl::getEntryPoints() const
@@ -1332,7 +1332,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     auto slangSpecializedLayout = specializedComponentType->getLayout();
     RefPtr<RootShaderObjectLayout> specializedLayout;
     RootShaderObjectLayout::create(
-        static_cast<DeviceImpl*>(getDevice()),
+        checked_cast<DeviceImpl*>(getDevice()),
         specializedComponentType,
         slangSpecializedLayout,
         specializedLayout.writeRef()

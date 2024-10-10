@@ -54,7 +54,7 @@ Result DeviceImpl::waitForFences(
     waitFences.resize(fenceCount);
     for (GfxCount i = 0; i < fenceCount; ++i)
     {
-        waitFences[i] = static_cast<FenceImpl*>(fences[i]);
+        waitFences[i] = checked_cast<FenceImpl*>(fences[i]);
     }
 
     // Wait for all fences to be signaled.

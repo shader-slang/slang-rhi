@@ -128,19 +128,19 @@ public:
 
     void setPipeline(IPipeline* state)
     {
-        auto offset = encodeObject(static_cast<Pipeline*>(state));
+        auto offset = encodeObject(checked_cast<Pipeline*>(state));
         m_commands.push_back(Command(CommandName::SetPipeline, (uint32_t)offset));
     }
 
     void bindRootShaderObject(IShaderObject* object)
     {
-        auto rootOffset = encodeObject(static_cast<ShaderObjectBase*>(object));
+        auto rootOffset = encodeObject(checked_cast<ShaderObjectBase*>(object));
         m_commands.push_back(Command(CommandName::BindRootShaderObject, (uint32_t)rootOffset));
     }
 
     void uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
     {
-        auto bufferOffset = encodeObject(static_cast<Buffer*>(buffer));
+        auto bufferOffset = encodeObject(checked_cast<Buffer*>(buffer));
         auto dataOffset = encodeData(data, size);
         m_commands.push_back(Command(
             CommandName::UploadBufferData,
@@ -153,8 +153,8 @@ public:
 
     void copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
     {
-        auto dstBuffer = encodeObject(static_cast<Buffer*>(dst));
-        auto srcBuffer = encodeObject(static_cast<Buffer*>(src));
+        auto dstBuffer = encodeObject(checked_cast<Buffer*>(dst));
+        auto srcBuffer = encodeObject(checked_cast<Buffer*>(src));
         m_commands.push_back(Command(
             CommandName::CopyBuffer,
             (uint32_t)dstBuffer,
@@ -176,13 +176,13 @@ public:
         Offset viewsOffset = 0;
         for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
         {
-            auto offset = encodeObject(static_cast<TextureView*>(desc.colorAttachments[i].view));
+            auto offset = encodeObject(checked_cast<TextureView*>(desc.colorAttachments[i].view));
             if (i == 0)
                 viewsOffset = offset;
         }
         if (desc.depthStencilAttachment)
         {
-            auto offset = encodeObject(static_cast<TextureView*>(desc.depthStencilAttachment->view));
+            auto offset = encodeObject(checked_cast<TextureView*>(desc.depthStencilAttachment->view));
             if (desc.colorAttachmentCount == 0)
                 viewsOffset = offset;
         }
@@ -215,7 +215,7 @@ public:
         Offset bufferOffset = 0;
         for (GfxCount i = 0; i < slotCount; i++)
         {
-            auto offset = encodeObject(static_cast<Buffer*>(buffers[i]));
+            auto offset = encodeObject(checked_cast<Buffer*>(buffers[i]));
             if (i == 0)
                 bufferOffset = offset;
         }
@@ -231,7 +231,7 @@ public:
 
     void setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
     {
-        auto bufferOffset = encodeObject(static_cast<Buffer*>(buffer));
+        auto bufferOffset = encodeObject(checked_cast<Buffer*>(buffer));
         m_commands.push_back(
             Command(CommandName::SetIndexBuffer, (uint32_t)bufferOffset, (uint32_t)indexFormat, (uint32_t)offset)
         );
@@ -295,7 +295,7 @@ public:
 
     void writeTimestamp(IQueryPool* pool, GfxIndex index)
     {
-        auto poolOffset = encodeObject(static_cast<QueryPool*>(pool));
+        auto poolOffset = encodeObject(checked_cast<QueryPool*>(pool));
         m_commands.push_back(Command(CommandName::WriteTimestamp, (uint32_t)poolOffset, (uint32_t)index));
         m_hasWriteTimestamps = true;
     }

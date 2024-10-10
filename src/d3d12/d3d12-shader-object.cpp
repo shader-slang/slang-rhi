@@ -72,7 +72,7 @@ Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* ob
         auto subObjectIndex = getSubObjectIndex(offset);
         if (subObjectIndex >= m_subObjectVersions.size())
             m_subObjectVersions.resize(subObjectIndex + 1);
-        m_subObjectVersions[subObjectIndex] = static_cast<ShaderObjectImpl*>(object)->m_version;
+        m_subObjectVersions[subObjectIndex] = checked_cast<ShaderObjectImpl*>(object)->m_version;
         m_version++;
     }
     return SLANG_OK;
@@ -345,7 +345,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     //
     SLANG_RETURN_ON_FAIL(_writeOrdinaryData(
         encoder,
-        static_cast<BufferImpl*>(m_constantBufferWeakPtr),
+        checked_cast<BufferImpl*>(m_constantBufferWeakPtr),
         m_constantBufferOffset,
         m_constantBufferSize,
         specializedLayout
@@ -361,7 +361,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         auto descriptorTable = m_descriptorSet.resourceTable;
         D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
         viewDesc.BufferLocation =
-            static_cast<BufferImpl*>(m_constantBufferWeakPtr)->m_resource.getResource()->GetGPUVirtualAddress() +
+            checked_cast<BufferImpl*>(m_constantBufferWeakPtr)->m_resource.getResource()->GetGPUVirtualAddress() +
             m_constantBufferOffset;
         viewDesc.SizeInBytes = (UINT)alignedConstantBufferSize;
         encoder->m_d3dDevice->CreateConstantBufferView(&viewDesc, descriptorTable.getCpuHandle());
@@ -804,13 +804,13 @@ void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
         {
         case BoundResourceType::Buffer:
             stateTracking.setBufferState(
-                static_cast<BufferImpl*>(boundResource.resource.get()),
+                checked_cast<BufferImpl*>(boundResource.resource.get()),
                 boundResource.requiredState
             );
             break;
         case BoundResourceType::TextureView:
         {
-            TextureViewImpl* textureView = static_cast<TextureViewImpl*>(boundResource.resource.get());
+            TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(boundResource.resource.get());
             stateTracking.setTextureState(
                 textureView->m_texture,
                 textureView->m_desc.subresourceRange,
@@ -882,7 +882,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
     m_version++;
 
-    ID3D12Device* d3dDevice = static_cast<DeviceImpl*>(getDevice())->m_device;
+    ID3D12Device* d3dDevice = checked_cast<DeviceImpl*>(getDevice())->m_device;
 
     auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
@@ -895,8 +895,8 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     case BindingType::Buffer:
     case BindingType::BufferWithCounter:
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
-        BufferImpl* counterBuffer = static_cast<BufferImpl*>(binding.resource2.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* counterBuffer = checked_cast<BufferImpl*>(binding.resource2.get());
         BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         boundResource.type = BoundResourceType::Buffer;
         boundResource.resource = buffer;
@@ -941,12 +941,12 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
-        TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource.get());
         boundResource.type = BoundResourceType::TextureView;
         boundResource.resource = textureView;
         D3D12Descriptor descriptor;
@@ -973,7 +973,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Sampler:
     {
-        SamplerImpl* sampler = static_cast<SamplerImpl*>(binding.resource.get());
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource.get());
         d3dDevice->CopyDescriptorsSimple(
             1,
             m_descriptorSet.samplerTable.getCpuHandle(bindingIndex),
@@ -984,8 +984,8 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::CombinedTextureSampler:
     {
-        TextureViewImpl* textureView = static_cast<TextureViewImpl*>(binding.resource.get());
-        SamplerImpl* sampler = static_cast<SamplerImpl*>(binding.resource2.get());
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource.get());
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2.get());
         boundResource.type = BoundResourceType::TextureView;
         boundResource.resource = textureView;
         boundResource.requiredState = ResourceState::ShaderResource;
@@ -1005,7 +1005,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::AccelerationStructure:
     {
-        AccelerationStructureImpl* as = static_cast<AccelerationStructureImpl*>(binding.resource.get());
+        AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(binding.resource.get());
         boundResource.type = BoundResourceType::AccelerationStructure;
         boundResource.resource = as;
         if (bindingRange.isRootParameter)
@@ -1043,7 +1043,7 @@ ShaderObjectImpl::~ShaderObjectImpl()
 
 RootShaderObjectLayoutImpl* RootShaderObjectImpl::getLayout()
 {
-    return static_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr());
+    return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr());
 }
 
 GfxCount RootShaderObjectImpl::getEntryPointCount()
@@ -1135,7 +1135,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     auto slangSpecializedLayout = specializedComponentType->getLayout();
     RefPtr<RootShaderObjectLayoutImpl> specializedLayout;
     auto rootLayoutResult = RootShaderObjectLayoutImpl::create(
-        static_cast<DeviceImpl*>(getDevice()),
+        checked_cast<DeviceImpl*>(getDevice()),
         specializedComponentType,
         slangSpecializedLayout,
         specializedLayout.writeRef(),

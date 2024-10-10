@@ -777,7 +777,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.extendedDescs,
         compileTarget,
         profileName,
-        make_array(slang::PreprocessorMacroDesc{"__D3D12__", "1"})
+        std::array{slang::PreprocessorMacroDesc{"__D3D12__", "1"}}
     ));
 
     // Allocate a D3D12 "command signature" object that matches the behavior
@@ -844,7 +844,7 @@ Result DeviceImpl::createTransientResourceHeap(
         desc.flags,
         desc.constantBufferSize,
         getViewDescriptorCount(desc),
-        std::max(1024, desc.samplerDescriptorCount),
+        max(1024, desc.samplerDescriptorCount),
         heap.writeRef()
     ));
     returnComPtr(outHeap, heap);
@@ -872,7 +872,7 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
 
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
 {
-    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
     auto& resource = textureImpl->m_resource;
 
@@ -1325,7 +1325,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
-    view->m_texture = static_cast<TextureImpl*>(texture);
+    view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -1438,7 +1438,7 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
 Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlangBlob** outBlob)
 {
 
-    BufferImpl* buffer = static_cast<BufferImpl*>(bufferIn);
+    BufferImpl* buffer = checked_cast<BufferImpl*>(bufferIn);
 
     const Size bufferSize = buffer->m_desc.size;
 
@@ -1559,7 +1559,7 @@ Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShader
 {
     auto result = createShaderObject(layout, outObject);
     SLANG_RETURN_ON_FAIL(result);
-    static_cast<ShaderObjectImpl*>(*outObject)->m_isMutable = true;
+    checked_cast<ShaderObjectImpl*>(*outObject)->m_isMutable = true;
     return result;
 }
 
@@ -1567,7 +1567,7 @@ Result DeviceImpl::createMutableRootShaderObject(IShaderProgram* program, IShade
 {
     RefPtr<MutableRootShaderObjectImpl> result = new MutableRootShaderObjectImpl();
     result->init(this);
-    auto programImpl = static_cast<ShaderProgramImpl*>(program);
+    auto programImpl = checked_cast<ShaderProgramImpl*>(program);
     result->resetImpl(this, programImpl->m_rootObjectLayout, m_cpuViewHeap.Ptr(), m_cpuSamplerHeap.Ptr(), true);
     returnComPtr(outObject, result);
     return SLANG_OK;
@@ -1602,7 +1602,7 @@ DeviceImpl::ResourceCommandRecordInfo DeviceImpl::encodeResourceCommands()
 {
     ResourceCommandRecordInfo info;
     m_resourceCommandTransientHeap->createCommandBuffer(info.commandBuffer.writeRef());
-    info.d3dCommandList = static_cast<CommandBufferImpl*>(info.commandBuffer.get())->m_cmdList;
+    info.d3dCommandList = checked_cast<CommandBufferImpl*>(info.commandBuffer.get())->m_cmdList;
     return info;
 }
 
@@ -1699,7 +1699,7 @@ Result DeviceImpl::waitForFences(
     short_vector<HANDLE> waitHandles;
     for (GfxCount i = 0; i < fenceCount; ++i)
     {
-        auto fenceImpl = static_cast<FenceImpl*>(fences[i]);
+        auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         waitHandles.push_back(fenceImpl->getWaitEvent());
         SLANG_RETURN_ON_FAIL(fenceImpl->m_fence->SetEventOnCompletion(fenceValues[i], fenceImpl->getWaitEvent()));
     }

@@ -1,12 +1,10 @@
 #pragma once
 
-// for std::max, std::clamp
-#include <algorithm>
 #include <array>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <vector>
+#include <initializer_list>
 
 #include <cstring>
 #include <cstdint>
@@ -23,6 +21,60 @@ namespace rhi {
 
 using Index = int;
 
+// A type cast that is safer than static_cast in debug builds, and is a simple static_cast in release builds.
+// Used mostly for downcasting IFoo* pointers to their implementation classes in the backends.
+template<typename T, typename U>
+T checked_cast(U u)
+{
+    static_assert(!std::is_same<T, U>::value, "Redundant checked_cast");
+#ifdef _DEBUG
+    if (!u)
+        return nullptr;
+    T t = dynamic_cast<T>(u);
+    if (!t)
+        SLANG_RHI_ASSERT_FAILURE("Invalid type cast");
+    return t;
+#else
+    return static_cast<T>(u);
+#endif
+}
+
+template<typename T>
+constexpr T min(T a, T b)
+{
+    return a < b ? a : b;
+}
+
+template<typename T>
+T min(std::initializer_list<T> list)
+{
+    T result = *list.begin();
+    for (auto& v : list)
+        result = min(result, v);
+    return result;
+}
+
+template<typename T>
+constexpr T max(T a, T b)
+{
+    return a > b ? a : b;
+}
+
+template<typename T>
+T max(std::initializer_list<T> list)
+{
+    T result = *list.begin();
+    for (auto& v : list)
+        result = max(result, v);
+    return result;
+}
+
+template<typename T>
+constexpr T clamp(T v, T lo, T hi)
+{
+    return v < lo ? lo : (v > hi ? hi : v);
+}
+
 template<typename T>
 inline T&& _Move(T& obj)
 {
@@ -34,25 +86,6 @@ inline void hash_combine(std::size_t& seed, const T& v)
 {
     std::hash<T> hasher;
     seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
-inline uint32_t hash_data(const void* data, size_t size)
-{
-    uint32_t hash = 0;
-    const uint8_t* buf = static_cast<const uint8_t*>(data);
-    for (size_t i = 0; i < size; ++i)
-    {
-        hash = uint32_t(buf[i]) + (hash << 6) + (hash << 16) - hash;
-    }
-    return hash;
-}
-
-template<typename... Args>
-auto make_array(Args... args)
-{
-    using T = std::tuple_element_t<0, std::tuple<Args...>>;
-    std::array<T, sizeof...(args)> result({args...});
-    return result;
 }
 
 namespace math {

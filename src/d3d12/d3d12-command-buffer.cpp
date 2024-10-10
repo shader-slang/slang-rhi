@@ -41,7 +41,7 @@ void CommandBufferImpl::commitBarriers()
 
     for (const auto& bufferBarrier : m_stateTracking.getBufferBarriers())
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(bufferBarrier.buffer);
+        BufferImpl* buffer = checked_cast<BufferImpl*>(bufferBarrier.buffer);
         D3D12_RESOURCE_BARRIER barrier = {};
         bool isUAVBarrier =
             (bufferBarrier.stateBefore == bufferBarrier.stateAfter &&
@@ -64,7 +64,7 @@ void CommandBufferImpl::commitBarriers()
 
     for (const auto& textureBarrier : m_stateTracking.getTextureBarriers())
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(textureBarrier.texture);
+        TextureImpl* texture = checked_cast<TextureImpl*>(textureBarrier.texture);
         D3D12_RESOURCE_BARRIER barrier = {};
         if (textureBarrier.entireTexture)
         {

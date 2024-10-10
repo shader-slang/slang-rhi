@@ -130,7 +130,7 @@ public:
 
     static Result create(IDevice* device, RootShaderObjectLayoutImpl* layout, RootShaderObjectImpl** outShaderObject);
 
-    RootShaderObjectLayoutImpl* getLayout() { return static_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr()); }
+    RootShaderObjectLayoutImpl* getLayout() { return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr()); }
 
     GfxCount SLANG_MCALL getEntryPointCount() SLANG_OVERRIDE { return (GfxCount)m_entryPoints.size(); }
     Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) SLANG_OVERRIDE

@@ -104,7 +104,7 @@ public:
     Result init(Device* device, ShaderObjectLayout* layout)
     {
         this->m_device = device;
-        auto layoutImpl = static_cast<TShaderObjectLayoutImpl*>(layout);
+        auto layoutImpl = checked_cast<TShaderObjectLayoutImpl*>(layout);
         this->m_layout = layoutImpl;
         Index subObjectCount = layoutImpl->getSubObjectCount();
         this->m_objects.resize(subObjectCount);
@@ -155,7 +155,7 @@ public:
             return SLANG_OK;
         }
 
-        RefPtr<ShaderObjectBase> object = allocateShaderObject(static_cast<TransientResourceHeap*>(transientHeap));
+        RefPtr<ShaderObjectBase> object = allocateShaderObject(checked_cast<TransientResourceHeap*>(transientHeap));
         SLANG_RETURN_ON_FAIL(object->setData(ShaderOffset(), this->m_data.getBuffer(), this->m_data.getCount()));
         for (auto it : m_bindings)
             SLANG_RETURN_ON_FAIL(object->setBinding(it.first, it.second));
@@ -190,7 +190,7 @@ public:
         {
             ComPtr<IShaderObject> shaderObject;
             SLANG_RETURN_NULL_ON_FAIL(this->m_device->createShaderObject(this->m_layout, shaderObject.writeRef()));
-            version.object = static_cast<ShaderObjectBase*>(shaderObject.get());
+            version.object = checked_cast<ShaderObjectBase*>(shaderObject.get());
         }
         return version.object;
     }
@@ -279,7 +279,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override
     {
-        m_objects[offset] = static_cast<ShaderObjectBase*>(object);
+        m_objects[offset] = checked_cast<ShaderObjectBase*>(object);
         return SLANG_OK;
     }
 
@@ -310,7 +310,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     copyFrom(IShaderObject* other, ITransientResourceHeap* transientHeap) override
     {
-        auto otherObject = static_cast<MutableRootShaderObject*>(other);
+        auto otherObject = checked_cast<MutableRootShaderObject*>(other);
         *this = *otherObject;
         return SLANG_OK;
     }
@@ -321,7 +321,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) override
     {
-        m_constantBufferOverride = static_cast<Buffer*>(constantBuffer);
+        m_constantBufferOverride = checked_cast<Buffer*>(constantBuffer);
         return SLANG_OK;
     }
 
