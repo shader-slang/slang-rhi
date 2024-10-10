@@ -353,6 +353,18 @@ Result Pipeline::initSpecialized(Pipeline* unspecializedPipeline, ShaderProgram*
     m_renderPipelineDesc = unspecializedPipeline->m_renderPipelineDesc;
     m_computePipelineDesc = unspecializedPipeline->m_computePipelineDesc;
     m_rayTracingPipelineDesc = unspecializedPipeline->m_rayTracingPipelineDesc;
+    switch (m_type)
+    {
+    case PipelineType::Render:
+        m_renderPipelineDesc.program = specializedProgram;
+        break;
+    case PipelineType::Compute:
+        m_computePipelineDesc.program = specializedProgram;
+        break;
+    case PipelineType::RayTracing:
+        m_rayTracingPipelineDesc.program = specializedProgram;
+        break;
+    }
     return initCommon();
 }
 
@@ -583,6 +595,27 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPip
     SLANG_RETURN_ON_FAIL(pipeline->init(this, desc));
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
+}
+
+Result Device::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result Device::createShaderObject(

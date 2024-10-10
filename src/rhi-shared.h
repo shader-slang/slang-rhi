@@ -1175,6 +1175,16 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
 
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderObject(slang::TypeReflection* type, ShaderObjectContainerType containerType, IShaderObject** outObject)
         SLANG_OVERRIDE;

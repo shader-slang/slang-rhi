@@ -11,7 +11,7 @@ namespace rhi::cuda {
 class CommandQueueImpl : public CommandQueue<DeviceImpl>
 {
 public:
-    RefPtr<ComputePipelineImpl> currentPipeline;
+    RefPtr<Pipeline> currentPipeline;
     RefPtr<RootShaderObjectImpl> currentRootObject;
     CUstream stream;
 

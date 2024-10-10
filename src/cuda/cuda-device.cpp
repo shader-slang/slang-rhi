@@ -1062,15 +1062,6 @@ Result DeviceImpl::createShaderProgram(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
-{
-    RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
-    state->shaderProgram = checked_cast<ShaderProgramImpl*>(desc.program);
-    state->init(desc);
-    returnComPtr(outPipeline, state);
-    return Result();
-}
-
 void* DeviceImpl::map(IBuffer* buffer)
 {
     return checked_cast<BufferImpl*>(buffer)->m_cudaMemory;
