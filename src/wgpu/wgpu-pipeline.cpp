@@ -45,8 +45,8 @@ void PipelineImpl::init(const RayTracingPipelineDesc& desc)
 
 Result PipelineImpl::createRenderPipeline()
 {
-    ShaderProgramImpl* program = static_cast<ShaderProgramImpl*>(m_program.get());
-    InputLayoutImpl* inputLayout = static_cast<InputLayoutImpl*>(desc.graphics.inputLayout);
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(m_program.get());
+    InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.graphics.inputLayout);
     ShaderProgramImpl::Module* vertexModule = program->findModule(SlangStage::SLANG_STAGE_VERTEX);
     ShaderProgramImpl::Module* fragmentModule = program->findModule(SlangStage::SLANG_STAGE_FRAGMENT);
     if (!vertexModule || !fragmentModule)
@@ -134,7 +134,7 @@ Result PipelineImpl::createRenderPipeline()
 
 Result PipelineImpl::createComputePipeline()
 {
-    ShaderProgramImpl* program = static_cast<ShaderProgramImpl*>(m_program.get());
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(m_program.get());
     ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_COMPUTE);
     if (!computeModule)
     {

@@ -34,7 +34,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
     for (GfxCount i = 0; i < fenceCount; ++i)
     {
         FenceWaitInfo waitInfo;
-        waitInfo.fence = static_cast<FenceImpl*>(fences[i]);
+        waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
         waitInfo.waitValue = waitValues[i];
         m_pendingWaitFences.push_back(waitInfo);
     }
@@ -63,12 +63,12 @@ void CommandQueueImpl::queueSubmitImpl(
 
     for (uint32_t i = 0; i < count; ++i)
     {
-        CommandBufferImpl* cmdBufImpl = static_cast<CommandBufferImpl*>(commandBuffers[i]);
+        CommandBufferImpl* cmdBufImpl = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
         // If this is the last command buffer and a fence is provided, signal the fence.
         if (i == count - 1 && fence != nullptr)
         {
             cmdBufImpl->m_commandBuffer->encodeSignalEvent(
-                static_cast<FenceImpl*>(fence)->m_event.get(),
+                checked_cast<FenceImpl*>(fence)->m_event.get(),
                 valueToSignal
             );
         }
@@ -79,7 +79,7 @@ void CommandQueueImpl::queueSubmitImpl(
     if (count == 0 && fence != nullptr)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        commandBuffer->encodeSignalEvent(static_cast<FenceImpl*>(fence)->m_event.get(), valueToSignal);
+        commandBuffer->encodeSignalEvent(checked_cast<FenceImpl*>(fence)->m_event.get(), valueToSignal);
         commandBuffer->commit();
     }
 }

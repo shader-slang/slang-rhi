@@ -24,16 +24,16 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
         (uint32_t)VulkanUtil::calcAligned(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
-    auto pipelineImpl = static_cast<RayTracingPipelineImpl*>(pipeline);
+    auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.size = tableSize;
-    static_cast<vk::DeviceImpl*>(m_device)->createBuffer(bufferDesc, nullptr, buffer.writeRef());
+    m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef());
 
-    TransientResourceHeapImpl* transientHeapImpl = static_cast<TransientResourceHeapImpl*>(transientHeap);
+    TransientResourceHeapImpl* transientHeapImpl = checked_cast<TransientResourceHeapImpl*>(transientHeap);
 
     IBuffer* stagingBuffer = nullptr;
     Offset stagingBufferOffset = 0;
@@ -123,14 +123,14 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     copyRegion.srcOffset = stagingBufferOffset;
     copyRegion.size = tableSize;
     vkApi.vkCmdCopyBuffer(
-        static_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_commandBuffer,
-        static_cast<BufferImpl*>(stagingBuffer)->m_buffer.m_buffer,
-        static_cast<BufferImpl*>(buffer.get())->m_buffer.m_buffer,
+        checked_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_commandBuffer,
+        checked_cast<BufferImpl*>(stagingBuffer)->m_buffer.m_buffer,
+        checked_cast<BufferImpl*>(buffer.get())->m_buffer.m_buffer,
         /* regionCount: */ 1,
         &copyRegion
     );
     encoder->setBufferState(buffer, ResourceState::ShaderResource);
-    RefPtr<Buffer> resultPtr = static_cast<Buffer*>(buffer.get());
+    RefPtr<Buffer> resultPtr = checked_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);
 }
 

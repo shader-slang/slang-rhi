@@ -134,7 +134,7 @@ void CommandBufferImpl::commitBarriers()
 
     for (const auto& bufferBarrier : m_stateTracking.getBufferBarriers())
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(bufferBarrier.buffer);
+        BufferImpl* buffer = checked_cast<BufferImpl*>(bufferBarrier.buffer);
 
         VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(bufferBarrier.stateBefore, true);
         VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(bufferBarrier.stateAfter, false);
@@ -169,7 +169,7 @@ void CommandBufferImpl::commitBarriers()
 
     for (const auto& textureBarrier : m_stateTracking.getTextureBarriers())
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(textureBarrier.texture);
+        TextureImpl* texture = checked_cast<TextureImpl*>(textureBarrier.texture);
 
         VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(textureBarrier.stateBefore, true);
         VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(textureBarrier.stateAfter, false);

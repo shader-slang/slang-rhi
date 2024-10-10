@@ -114,7 +114,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         bindingRangeInfo.count = count;
         bindingRangeInfo.isRootParameter = isBindingRangeRootParameter(
             m_device->slangContext.globalSession,
-            static_cast<DeviceImpl*>(m_device)->m_extendedDesc.rootParameterShaderAttributeName,
+            checked_cast<DeviceImpl*>(m_device)->m_extendedDesc.rootParameterShaderAttributeName,
             typeLayout,
             r
         );

@@ -353,10 +353,10 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
     m_d3dRenderTargetViews.resize(desc.colorAttachmentCount);
     for (Index i = 0; i < desc.colorAttachmentCount; ++i)
     {
-        m_d3dRenderTargetViews[i] = static_cast<TextureViewImpl*>(desc.colorAttachments[i].view)->getRTV();
+        m_d3dRenderTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].view)->getRTV();
     }
     m_d3dDepthStencilView = desc.depthStencilAttachment
-                                ? static_cast<TextureViewImpl*>(desc.depthStencilAttachment->view)->getDSV()
+                                ? checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view)->getDSV()
                                 : nullptr;
 
     // Clear color attachments.
@@ -366,7 +366,7 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
         if (attachment.loadOp == LoadOp::Clear)
         {
             m_immediateContext->ClearRenderTargetView(
-                static_cast<TextureViewImpl*>(attachment.view)->getRTV(),
+                checked_cast<TextureViewImpl*>(attachment.view)->getRTV(),
                 attachment.clearValue
             );
         }
@@ -387,7 +387,7 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
         if (clearFlags)
         {
             m_immediateContext->ClearDepthStencilView(
-                static_cast<TextureViewImpl*>(attachment.view)->getDSV(),
+                checked_cast<TextureViewImpl*>(attachment.view)->getDSV(),
                 D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
                 attachment.depthClearValue,
                 attachment.stencilClearValue
@@ -410,7 +410,7 @@ void DeviceImpl::setStencilReference(uint32_t referenceValue)
 
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
-    auto textureImpl = static_cast<TextureImpl*>(texture);
+    auto textureImpl = checked_cast<TextureImpl*>(texture);
     // Don't bother supporting MSAA for right now
     if (textureImpl->m_desc.sampleCount > 1)
     {
@@ -739,7 +739,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
-    view->m_texture = static_cast<TextureImpl*>(texture);
+    view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -846,7 +846,7 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 
 void* DeviceImpl::map(IBuffer* bufferIn, MapFlavor flavor)
 {
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(bufferIn);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(bufferIn);
 
     D3D11_MAP mapType;
     ID3D11Buffer* buffer = bufferImpl->m_buffer;
@@ -901,7 +901,7 @@ void* DeviceImpl::map(IBuffer* bufferIn, MapFlavor flavor)
 
 void DeviceImpl::unmap(IBuffer* bufferIn, size_t offsetWritten, size_t sizeWritten)
 {
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(bufferIn);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(bufferIn);
     switch (bufferImpl->m_mapFlavor)
     {
     case MapFlavor::WriteDiscard:
@@ -935,7 +935,7 @@ void DeviceImpl::unmap(IBuffer* bufferIn, size_t offsetWritten, size_t sizeWritt
 #if 0
 void D3D11Device::setInputLayout(InputLayout* inputLayoutIn)
 {
-    auto inputLayout = static_cast<InputLayoutImpl*>(inputLayoutIn);
+    auto inputLayout = checked_cast<InputLayoutImpl*>(inputLayoutIn);
     m_immediateContext->IASetInputLayout(inputLayout->m_layout);
 }
 #endif
@@ -1019,7 +1019,7 @@ void DeviceImpl::setScissorRects(GfxCount count, ScissorRect const* rects)
 
 void DeviceImpl::setPipeline(IPipeline* state)
 {
-    auto pipelineType = static_cast<Pipeline*>(state)->desc.type;
+    auto pipelineType = checked_cast<Pipeline*>(state)->desc.type;
 
     switch (pipelineType)
     {
@@ -1029,7 +1029,7 @@ void DeviceImpl::setPipeline(IPipeline* state)
     case PipelineType::Graphics:
     {
         auto stateImpl = (GraphicsPipelineImpl*)state;
-        auto programImpl = static_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
+        auto programImpl = checked_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
 
         // TODO: We could conceivably do some lightweight state
         // differencing here (e.g., check if `programImpl` is the
@@ -1080,7 +1080,7 @@ void DeviceImpl::setPipeline(IPipeline* state)
     case PipelineType::Compute:
     {
         auto stateImpl = (ComputePipelineImpl*)state;
-        auto programImpl = static_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
+        auto programImpl = checked_cast<ShaderProgramImpl*>(stateImpl->m_program.Ptr());
 
         // CS
 
@@ -1243,7 +1243,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 {
     RefPtr<ShaderObjectImpl> shaderObject;
     SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, static_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
+        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
     );
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;
@@ -1251,7 +1251,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 
 Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
-    auto layoutImpl = static_cast<ShaderObjectLayoutImpl*>(layout);
+    auto layoutImpl = checked_cast<ShaderObjectLayoutImpl*>(layout);
 
     RefPtr<MutableShaderObjectImpl> result = new MutableShaderObjectImpl();
     SLANG_RETURN_ON_FAIL(result->init(this, layoutImpl));
@@ -1262,7 +1262,7 @@ Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShader
 
 Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject)
 {
-    auto programImpl = static_cast<ShaderProgramImpl*>(program);
+    auto programImpl = checked_cast<ShaderProgramImpl*>(program);
     RefPtr<RootShaderObjectImpl> shaderObject;
     RefPtr<RootShaderObjectLayoutImpl> rootLayout;
     SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
@@ -1278,10 +1278,10 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
 
 void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
 {
-    RootShaderObjectImpl* rootShaderObjectImpl = static_cast<RootShaderObjectImpl*>(shaderObject);
+    RootShaderObjectImpl* rootShaderObjectImpl = checked_cast<RootShaderObjectImpl*>(shaderObject);
     RefPtr<Pipeline> specializedPipeline;
     maybeSpecializePipeline(m_currentPipeline, rootShaderObjectImpl, specializedPipeline);
-    PipelineImpl* specializedPipelineImpl = static_cast<PipelineImpl*>(specializedPipeline.Ptr());
+    PipelineImpl* specializedPipelineImpl = checked_cast<PipelineImpl*>(specializedPipeline.Ptr());
     setPipeline(specializedPipelineImpl);
 
     // In order to bind the root object we must compute its specialized layout.
@@ -1292,7 +1292,7 @@ void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
     RefPtr<ShaderObjectLayoutImpl> specializedRootLayout;
     rootShaderObjectImpl->_getSpecializedLayout(specializedRootLayout.writeRef());
     RootShaderObjectLayoutImpl* specializedRootLayoutImpl =
-        static_cast<RootShaderObjectLayoutImpl*>(specializedRootLayout.Ptr());
+        checked_cast<RootShaderObjectLayoutImpl*>(specializedRootLayout.Ptr());
 
     // Depending on whether we are binding a compute or a graphics/rasterization
     // pipeline, we will need to bind any SRVs/UAVs/CBs/samplers using different
@@ -1483,7 +1483,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& inDesc, IPipel
     pipeline->m_depthStencilState = depthStencilState;
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
-    pipeline->m_inputLayout = static_cast<InputLayoutImpl*>(desc.inputLayout);
+    pipeline->m_inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
     pipeline->m_rtvCount = desc.targetCount;
     pipeline->m_blendColor[0] = 0;
     pipeline->m_blendColor[1] = 0;
@@ -1507,8 +1507,8 @@ Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& inDesc, IPip
 
 void DeviceImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    auto dstImpl = static_cast<BufferImpl*>(dst);
-    auto srcImpl = static_cast<BufferImpl*>(src);
+    auto dstImpl = checked_cast<BufferImpl*>(dst);
+    auto srcImpl = checked_cast<BufferImpl*>(src);
     D3D11_BOX srcBox = {};
     srcBox.left = (UINT)srcOffset;
     srcBox.right = (UINT)(srcOffset + size);
@@ -1527,7 +1527,7 @@ void DeviceImpl::_flushGraphicsState()
     if (m_depthStencilStateDirty)
     {
         m_depthStencilStateDirty = false;
-        auto pipeline = static_cast<GraphicsPipelineImpl*>(m_currentPipeline.Ptr());
+        auto pipeline = checked_cast<GraphicsPipelineImpl*>(m_currentPipeline.Ptr());
         m_immediateContext->OMSetDepthStencilState(pipeline->m_depthStencilState, m_stencilRef);
     }
 }
@@ -1550,7 +1550,7 @@ void DeviceImpl::endCommandBuffer(const CommandBufferInfo& info)
 
 void DeviceImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
-    auto poolImpl = static_cast<QueryPoolImpl*>(pool);
+    auto poolImpl = checked_cast<QueryPoolImpl*>(pool);
     m_immediateContext->End(poolImpl->getQuery(index));
 }
 

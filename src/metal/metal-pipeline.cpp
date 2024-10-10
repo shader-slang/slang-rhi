@@ -40,7 +40,7 @@ void PipelineImpl::init(const RayTracingPipelineDesc& desc)
 
 Result PipelineImpl::createMetalRenderPipelineState()
 {
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
+    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (!programImpl)
         return SLANG_FAIL;
 
@@ -70,7 +70,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
     // They need to be in a range not used by any buffers in the root object layout.
     // The +1 is to account for a potential constant buffer at index 0.
     m_vertexBufferOffset = programImpl->m_rootObjectLayout->getBufferCount() + 1;
-    auto inputLayoutImpl = static_cast<InputLayoutImpl*>(desc.graphics.inputLayout);
+    auto inputLayoutImpl = checked_cast<InputLayoutImpl*>(desc.graphics.inputLayout);
     NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor =
         inputLayoutImpl->createVertexDescriptor(m_vertexBufferOffset);
     pd->setVertexDescriptor(vertexDescriptor.get());
@@ -161,7 +161,7 @@ Result PipelineImpl::createMetalRenderPipelineState()
 
 Result PipelineImpl::createMetalComputePipelineState()
 {
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
+    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (!programImpl)
         return SLANG_FAIL;
 

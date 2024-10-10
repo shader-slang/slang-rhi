@@ -39,7 +39,7 @@ void PassEncoderImpl::endDebugEvent()
 void PassEncoderImpl::writeTimestamp(IQueryPool* queryPool, GfxIndex index)
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
-    encoder->sampleCountersInBuffer(static_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(), index, true);
+    encoder->sampleCountersInBuffer(checked_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(), index, true);
 }
 
 
@@ -56,7 +56,7 @@ void PassEncoderImpl::endEncodingImpl()
 
 Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<PipelineImpl*>(state);
     // m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
@@ -77,9 +77,9 @@ void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->copyFromBuffer(
-        static_cast<BufferImpl*>(src)->m_buffer.get(),
+        checked_cast<BufferImpl*>(src)->m_buffer.get(),
         srcOffset,
-        static_cast<BufferImpl*>(dst)->m_buffer.get(),
+        checked_cast<BufferImpl*>(dst)->m_buffer.get(),
         dstOffset,
         size
     );
@@ -101,8 +101,8 @@ void ResourcePassEncoderImpl::copyTexture(
         srcSubresource.mipLevelCount == 0)
     {
         encoder->copyFromTexture(
-            static_cast<TextureImpl*>(src)->m_texture.get(),
-            static_cast<TextureImpl*>(dst)->m_texture.get()
+            checked_cast<TextureImpl*>(src)->m_texture.get(),
+            checked_cast<TextureImpl*>(dst)->m_texture.get()
         );
     }
     else
@@ -110,12 +110,12 @@ void ResourcePassEncoderImpl::copyTexture(
         for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
         {
             encoder->copyFromTexture(
-                static_cast<TextureImpl*>(src)->m_texture.get(),
+                checked_cast<TextureImpl*>(src)->m_texture.get(),
                 srcSubresource.baseArrayLayer + layer,
                 srcSubresource.mipLevel,
                 MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
                 MTL::Size(extent.width, extent.height, extent.depth),
-                static_cast<TextureImpl*>(dst)->m_texture.get(),
+                checked_cast<TextureImpl*>(dst)->m_texture.get(),
                 dstSubresource.baseArrayLayer + layer,
                 dstSubresource.mipLevel,
                 MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
@@ -139,12 +139,12 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
 
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->copyFromTexture(
-        static_cast<TextureImpl*>(src)->m_texture.get(),
+        checked_cast<TextureImpl*>(src)->m_texture.get(),
         srcSubresource.baseArrayLayer,
         srcSubresource.mipLevel,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
         MTL::Size(extent.width, extent.height, extent.depth),
-        static_cast<BufferImpl*>(dst)->m_buffer.get(),
+        checked_cast<BufferImpl*>(dst)->m_buffer.get(),
         dstOffset,
         dstRowStride,
         dstSize
@@ -194,9 +194,9 @@ void ResourcePassEncoderImpl::resolveQuery(
 {
     auto encoder = m_commandBuffer->getMetalBlitCommandEncoder();
     encoder->resolveCounters(
-        static_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(),
+        checked_cast<QueryPoolImpl*>(queryPool)->m_counterSampleBuffer.get(),
         NS::Range(index, count),
-        static_cast<BufferImpl*>(buffer)->m_buffer.get(),
+        checked_cast<BufferImpl*>(buffer)->m_buffer.get(),
         offset
     );
 }
@@ -225,7 +225,7 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
     for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
-        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);
         if (!view)
             return SLANG_FAIL;
         visitView(view);
@@ -245,7 +245,7 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
         }
         colorAttachment->setTexture(view->m_textureView.get());
         colorAttachment->setResolveTexture(
-            attachment.resolveTarget ? static_cast<TextureViewImpl*>(attachment.resolveTarget)->m_textureView.get()
+            attachment.resolveTarget ? checked_cast<TextureViewImpl*>(attachment.resolveTarget)->m_textureView.get()
                                      : nullptr
         );
         colorAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
@@ -256,7 +256,7 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
     if (desc.depthStencilAttachment)
     {
         const auto& attachment = *desc.depthStencilAttachment;
-        TextureViewImpl* view = static_cast<TextureViewImpl*>(attachment.view);
+        TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);
         if (!view)
             return SLANG_FAIL;
         visitView(view);
@@ -310,7 +310,7 @@ void RenderPassEncoderImpl::end()
 Result RenderPassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
 {
     m_primitiveType =
-        MetalUtil::translatePrimitiveType(static_cast<PipelineImpl*>(pipeline)->desc.graphics.primitiveTopology);
+        MetalUtil::translatePrimitiveType(checked_cast<PipelineImpl*>(pipeline)->desc.graphics.primitiveTopology);
     return setPipelineImpl(pipeline, outRootObject);
 }
 
@@ -363,14 +363,14 @@ void RenderPassEncoderImpl::setVertexBuffers(
     for (Index i = 0; i < Index(slotCount); i++)
     {
         Index slotIndex = startSlot + i;
-        m_vertexBuffers[slotIndex] = static_cast<BufferImpl*>(buffers[i])->m_buffer.get();
+        m_vertexBuffers[slotIndex] = checked_cast<BufferImpl*>(buffers[i])->m_buffer.get();
         m_vertexBufferOffsets[slotIndex] = offsets[i];
     }
 }
 
 void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
-    m_indexBuffer = static_cast<BufferImpl*>(buffer)->m_buffer.get();
+    m_indexBuffer = checked_cast<BufferImpl*>(buffer)->m_buffer.get();
     m_indexBufferOffset = offset;
 
     switch (indexFormat)
@@ -402,7 +402,7 @@ Result RenderPassEncoderImpl::setSamplePositions(
 
 Result RenderPassEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = checked_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     pipeline->ensureAPIPipelineCreated();
 
     encoder = m_commandBuffer->getMetalRenderCommandEncoder(m_renderPassDesc.get());
@@ -410,7 +410,7 @@ Result RenderPassEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 
     RenderBindingContext bindingContext;
     bindingContext.init(m_commandBuffer->m_device, encoder);
-    auto program = static_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
+    auto program = checked_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
     m_commandBuffer->m_rootObject.bindAsRoot(&bindingContext, program->m_rootObjectLayout);
 
     for (Index i = 0; i < m_vertexBuffers.size(); ++i)
@@ -546,16 +546,16 @@ Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 
     ComputeBindingContext bindingContext;
     bindingContext.init(m_commandBuffer->m_device, encoder);
-    auto program = static_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
+    auto program = checked_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
     m_commandBuffer->m_rootObject.bindAsRoot(&bindingContext, program->m_rootObjectLayout);
 
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    auto pipeline = checked_cast<PipelineImpl*>(m_currentPipeline.Ptr());
     RootShaderObjectImpl* rootObjectImpl = &m_commandBuffer->m_rootObject;
     RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(
         m_commandBuffer->m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline)
     );
-    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
+    PipelineImpl* newPipelineImpl = checked_cast<PipelineImpl*>(newPipeline.Ptr());
 
     SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
     m_currentPipeline = newPipelineImpl;
@@ -602,18 +602,18 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     {
     case AccelerationStructureBuildMode::Build:
         encoder->buildAccelerationStructure(
-            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get(),
+            checked_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get(),
             builder.descriptor.get(),
-            static_cast<BufferImpl*>(scratchBuffer.buffer)->m_buffer.get(),
+            checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_buffer.get(),
             scratchBuffer.offset
         );
         break;
     case AccelerationStructureBuildMode::Update:
         encoder->refitAccelerationStructure(
-            static_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
+            checked_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
             builder.descriptor.get(),
-            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get(),
-            static_cast<BufferImpl*>(scratchBuffer.buffer)->m_buffer.get(),
+            checked_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get(),
+            checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_buffer.get(),
             scratchBuffer.offset
         );
         break;
@@ -634,14 +634,14 @@ void RayTracingPassEncoderImpl::copyAccelerationStructure(
     {
     case AccelerationStructureCopyMode::Clone:
         encoder->copyAccelerationStructure(
-            static_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
-            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get()
+            checked_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
+            checked_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get()
         );
         break;
     case AccelerationStructureCopyMode::Compact:
         encoder->copyAndCompactAccelerationStructure(
-            static_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
-            static_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get()
+            checked_cast<AccelerationStructureImpl*>(src)->m_accelerationStructure.get(),
+            checked_cast<AccelerationStructureImpl*>(dst)->m_accelerationStructure.get()
         );
         break;
     }

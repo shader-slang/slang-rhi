@@ -131,7 +131,7 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 #define SLANG_RHI_DEBUG_GET_OBJ_IMPL(type)                                                                             \
     inline Debug##type* getDebugObj(I##type* ptr)                                                                      \
     {                                                                                                                  \
-        return static_cast<Debug##type*>(static_cast<DebugObject<I##type>*>(ptr));                                     \
+        return checked_cast<Debug##type*>(checked_cast<DebugObject<I##type>*>(ptr));                                   \
     }                                                                                                                  \
     inline I##type* getInnerObj(I##type* ptr)                                                                          \
     {                                                                                                                  \
@@ -144,7 +144,7 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 #define SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(type)                                                                     \
     inline Debug##type* getDebugObj(I##type* ptr)                                                                      \
     {                                                                                                                  \
-        return static_cast<Debug##type*>(static_cast<UnownedDebugObject<I##type>*>(ptr));                              \
+        return checked_cast<Debug##type*>(checked_cast<UnownedDebugObject<I##type>*>(ptr));                            \
     }                                                                                                                  \
     inline I##type* getInnerObj(I##type* ptr)                                                                          \
     {                                                                                                                  \

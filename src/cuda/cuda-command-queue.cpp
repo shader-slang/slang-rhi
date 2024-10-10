@@ -32,7 +32,7 @@ void CommandQueueImpl::executeCommandBuffers(
     SLANG_RHI_ASSERT(fence == nullptr);
     for (GfxIndex i = 0; i < count; i++)
     {
-        execute(static_cast<CommandBufferImpl*>(commandBuffers[i]));
+        execute(checked_cast<CommandBufferImpl*>(commandBuffers[i]));
     }
 }
 
@@ -72,11 +72,11 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
     // Specialize the compute kernel based on the shader object bindings.
     RefPtr<Pipeline> newPipeline;
     m_device->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
-    currentPipeline = static_cast<ComputePipelineImpl*>(newPipeline.Ptr());
+    currentPipeline = checked_cast<ComputePipelineImpl*>(newPipeline.Ptr());
 
     // Find out thread group size from program reflection.
     auto& kernelName = currentPipeline->shaderProgram->kernelName;
-    auto programLayout = static_cast<RootShaderObjectLayoutImpl*>(currentRootObject->getLayout());
+    auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(currentRootObject->getLayout());
     int kernelId = programLayout->getKernelIndex(kernelName);
     SLANG_RHI_ASSERT(kernelId != -1);
     UInt threadGroupSize[3];
@@ -133,8 +133,8 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
 
 void CommandQueueImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size)
 {
-    auto dstImpl = static_cast<BufferImpl*>(dst);
-    auto srcImpl = static_cast<BufferImpl*>(src);
+    auto dstImpl = checked_cast<BufferImpl*>(dst);
+    auto srcImpl = checked_cast<BufferImpl*>(src);
     cuMemcpy(
         (CUdeviceptr)((uint8_t*)dstImpl->m_cudaMemory + dstOffset),
         (CUdeviceptr)((uint8_t*)srcImpl->m_cudaMemory + srcOffset),
@@ -144,13 +144,13 @@ void CommandQueueImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, 
 
 void CommandQueueImpl::uploadBufferData(IBuffer* dst, size_t offset, size_t size, void* data)
 {
-    auto dstImpl = static_cast<BufferImpl*>(dst);
+    auto dstImpl = checked_cast<BufferImpl*>(dst);
     cuMemcpy((CUdeviceptr)((uint8_t*)dstImpl->m_cudaMemory + offset), (CUdeviceptr)data, size);
 }
 
 void CommandQueueImpl::writeTimestamp(IQueryPool* pool, SlangInt index)
 {
-    auto poolImpl = static_cast<QueryPoolImpl*>(pool);
+    auto poolImpl = checked_cast<QueryPoolImpl*>(pool);
     cuEventRecord(poolImpl->m_events[index], stream);
 }
 

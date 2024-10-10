@@ -75,7 +75,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
-    view->m_texture = static_cast<TextureImpl*>(texture);
+    view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -97,7 +97,7 @@ Result DeviceImpl::createShaderObjectLayout(
 
 Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
-    auto cpuLayout = static_cast<ShaderObjectLayoutImpl*>(layout);
+    auto cpuLayout = checked_cast<ShaderObjectLayoutImpl*>(layout);
 
     RefPtr<ShaderObjectImpl> result = new ShaderObjectImpl();
     SLANG_RETURN_ON_FAIL(result->init(this, cpuLayout));
@@ -108,7 +108,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 
 Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
-    auto cpuLayout = static_cast<ShaderObjectLayoutImpl*>(layout);
+    auto cpuLayout = checked_cast<ShaderObjectLayoutImpl*>(layout);
 
     RefPtr<MutableShaderObjectImpl> result = new MutableShaderObjectImpl();
     SLANG_RETURN_ON_FAIL(result->init(this, cpuLayout));
@@ -119,7 +119,7 @@ Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShader
 
 Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject)
 {
-    auto cpuProgram = static_cast<ShaderProgramImpl*>(program);
+    auto cpuProgram = checked_cast<ShaderProgramImpl*>(program);
     auto cpuProgramLayout = cpuProgram->layout;
 
     RefPtr<RootShaderObjectImpl> result = new RootShaderObjectImpl();
@@ -172,7 +172,7 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 
 void DeviceImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
-    static_cast<QueryPoolImpl*>(pool)->m_queries[index] =
+    checked_cast<QueryPoolImpl*>(pool)->m_queries[index] =
         std::chrono::high_resolution_clock::now().time_since_epoch().count();
 }
 
@@ -191,7 +191,7 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
 void* DeviceImpl::map(IBuffer* buffer, MapFlavor flavor)
 {
     SLANG_UNUSED(flavor);
-    auto bufferImpl = static_cast<BufferImpl*>(buffer);
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer);
     return bufferImpl->m_data;
 }
 
@@ -204,12 +204,12 @@ void DeviceImpl::unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten
 
 void DeviceImpl::setPipeline(IPipeline* state)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<PipelineImpl*>(state);
 }
 
 void DeviceImpl::bindRootShaderObject(IShaderObject* object)
 {
-    m_currentRootObject = static_cast<RootShaderObjectImpl*>(object);
+    m_currentRootObject = checked_cast<RootShaderObjectImpl*>(object);
 }
 
 void DeviceImpl::dispatchCompute(int x, int y, int z)
@@ -220,7 +220,7 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     // Specialize the compute kernel based on the shader object bindings.
     RefPtr<Pipeline> newPipeline;
     maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
-    m_currentPipeline = static_cast<PipelineImpl*>(newPipeline.Ptr());
+    m_currentPipeline = checked_cast<PipelineImpl*>(newPipeline.Ptr());
 
     auto program = m_currentPipeline->getProgram();
     auto entryPointLayout = m_currentRootObject->getLayout()->getEntryPoint(entryPointIndex);
@@ -261,8 +261,8 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
 
 void DeviceImpl::copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size)
 {
-    auto dstImpl = static_cast<BufferImpl*>(dst);
-    auto srcImpl = static_cast<BufferImpl*>(src);
+    auto dstImpl = checked_cast<BufferImpl*>(dst);
+    auto srcImpl = checked_cast<BufferImpl*>(src);
     memcpy((uint8_t*)dstImpl->m_data + dstOffset, (uint8_t*)srcImpl->m_data + srcOffset, size);
 }
 

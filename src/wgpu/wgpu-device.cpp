@@ -151,7 +151,7 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
 
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
 {
-    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
     if (textureImpl->m_desc.sampleCount > 1)
     {
@@ -270,7 +270,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     WGPUBufferDescriptor stagingBufferDesc = {};
     stagingBufferDesc.size = size;
@@ -418,7 +418,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 {
     RefPtr<ShaderObjectImpl> shaderObject;
     SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, static_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
+        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
     );
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;

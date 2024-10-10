@@ -86,7 +86,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
         ResourceSlot slot;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
@@ -97,19 +97,19 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
         ResourceSlot slot;
         slot.type = BindingType::TextureView;
-        slot.resource = static_cast<TextureViewImpl*>(binding.resource.get());
+        slot.resource = checked_cast<TextureViewImpl*>(binding.resource.get());
         m_resources[bindingIndex] = slot;
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = static_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
         break;
     }
 
@@ -118,7 +118,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 {
-    m_device = static_cast<DeviceImpl*>(device);
+    m_device = checked_cast<DeviceImpl*>(device);
 
     m_layout = layout;
 
@@ -342,7 +342,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
 
         WGPUBindGroupEntry entry = {};
         entry.binding = offset.binding + i;
-        entry.buffer = static_cast<BufferImpl*>(slot.resource.get())->m_buffer;
+        entry.buffer = checked_cast<BufferImpl*>(slot.resource.get())->m_buffer;
         entry.offset = slot.bufferRange.offset;
         entry.size = slot.bufferRange.size;
         writeDescriptor(context, offset.bindingSet, entry);
@@ -362,7 +362,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
 
         WGPUBindGroupEntry entry = {};
         entry.binding = offset.binding + i;
-        entry.textureView = static_cast<TextureViewImpl*>(slot.resource.get())->m_textureView;
+        entry.textureView = checked_cast<TextureViewImpl*>(slot.resource.get())->m_textureView;
         writeDescriptor(context, offset.bindingSet, entry);
     }
 }
@@ -685,7 +685,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
     //
     if (m_constantBuffer && m_constantBufferSize > 0)
     {
-        auto bufferImpl = static_cast<BufferImpl*>(m_constantBuffer);
+        auto bufferImpl = checked_cast<BufferImpl*>(m_constantBuffer);
         writeBufferDescriptor(context, ioOffset, bufferImpl, m_constantBufferOffset, m_constantBufferSize);
         ioOffset.binding++;
     }
@@ -759,7 +759,7 @@ Result EntryPointShaderObject::create(
 
 EntryPointLayout* EntryPointShaderObject::getLayout()
 {
-    return static_cast<EntryPointLayout*>(m_layout.Ptr());
+    return checked_cast<EntryPointLayout*>(m_layout.Ptr());
 }
 
 Result EntryPointShaderObject::bindAsEntryPoint(
@@ -830,14 +830,14 @@ Result EntryPointShaderObject::init(IDevice* device, EntryPointLayout* layout)
 
 RootShaderObjectLayout* RootShaderObjectImpl::getLayout()
 {
-    return static_cast<RootShaderObjectLayout*>(m_layout.Ptr());
+    return checked_cast<RootShaderObjectLayout*>(m_layout.Ptr());
 }
 
 RootShaderObjectLayout* RootShaderObjectImpl::getSpecializedLayout()
 {
     RefPtr<ShaderObjectLayoutImpl> specializedLayout;
     _getSpecializedLayout(specializedLayout.writeRef());
-    return static_cast<RootShaderObjectLayout*>(m_specializedLayout.Ptr());
+    return checked_cast<RootShaderObjectLayout*>(m_specializedLayout.Ptr());
 }
 
 std::vector<RefPtr<EntryPointShaderObject>> const& RootShaderObjectImpl::getEntryPoints() const
@@ -1007,7 +1007,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     auto slangSpecializedLayout = specializedComponentType->getLayout();
     RefPtr<RootShaderObjectLayout> specializedLayout;
     RootShaderObjectLayout::create(
-        static_cast<DeviceImpl*>(getDevice()),
+        checked_cast<DeviceImpl*>(getDevice()),
         specializedComponentType,
         slangSpecializedLayout,
         specializedLayout.writeRef()

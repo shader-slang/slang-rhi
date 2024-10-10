@@ -317,7 +317,7 @@ void Pipeline::initializeBase(const PipelineStateDesc& inDesc)
     // Hold a strong reference to inputLayout object to prevent it from destruction.
     if (inDesc.type == PipelineType::Graphics)
     {
-        inputLayout = static_cast<InputLayout*>(inDesc.graphics.inputLayout);
+        inputLayout = checked_cast<InputLayout*>(inDesc.graphics.inputLayout);
     }
 }
 
@@ -830,7 +830,7 @@ Buffer* SimpleShaderObjectData::getBufferResource(
         desc.size = (Size)m_ordinaryData.size();
         ComPtr<IBuffer> buffer;
         SLANG_RETURN_NULL_ON_FAIL(device->createBuffer(desc, m_ordinaryData.data(), buffer.writeRef()));
-        m_structuredBuffer = static_cast<Buffer*>(buffer.get());
+        m_structuredBuffer = checked_cast<Buffer*>(buffer.get());
     }
 
     return m_structuredBuffer;
@@ -968,7 +968,7 @@ Result Device::maybeSpecializePipeline(
     RefPtr<Pipeline>& outNewPipeline
 )
 {
-    outNewPipeline = static_cast<Pipeline*>(currentPipeline);
+    outNewPipeline = currentPipeline;
 
     auto pipelineType = currentPipeline->desc.type;
     if (currentPipeline->unspecializedPipeline)
@@ -992,7 +992,7 @@ Result Device::maybeSpecializePipeline(
         // Try to find specialized pipeline from shader cache.
         if (!specializedPipeline)
         {
-            auto unspecializedProgram = static_cast<ShaderProgram*>(
+            auto unspecializedProgram = checked_cast<ShaderProgram*>(
                 pipelineType == PipelineType::Compute ? currentPipeline->desc.compute.program
                                                       : currentPipeline->desc.graphics.program
             );
@@ -1044,26 +1044,25 @@ Result Device::maybeSpecializePipeline(
             case PipelineType::Graphics:
             {
                 auto pipelineDesc = currentPipeline->desc.graphics;
-                pipelineDesc.program = static_cast<ShaderProgram*>(specializedProgram.get());
+                pipelineDesc.program = checked_cast<ShaderProgram*>(specializedProgram.get());
                 SLANG_RETURN_ON_FAIL(createRenderPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             case PipelineType::RayTracing:
             {
                 auto pipelineDesc = currentPipeline->desc.rayTracing;
-                pipelineDesc.program = static_cast<ShaderProgram*>(specializedProgram.get());
+                pipelineDesc.program = checked_cast<ShaderProgram*>(specializedProgram.get());
                 SLANG_RETURN_ON_FAIL(createRayTracingPipeline(pipelineDesc, specializedPipelineComPtr.writeRef()));
                 break;
             }
             default:
                 break;
             }
-            specializedPipeline = static_cast<Pipeline*>(specializedPipelineComPtr.get());
+            specializedPipeline = checked_cast<Pipeline*>(specializedPipelineComPtr.get());
             specializedPipeline->unspecializedPipeline = currentPipeline;
             shaderCache.addSpecializedPipeline(pipelineKey, specializedPipeline);
         }
-        auto specializedPipelineBase = static_cast<Pipeline*>(specializedPipeline.Ptr());
-        outNewPipeline = specializedPipelineBase;
+        outNewPipeline = specializedPipeline;
     }
     return SLANG_OK;
 }

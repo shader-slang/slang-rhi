@@ -639,7 +639,7 @@ Result ShaderObjectLayoutImpl::_init(Builder const* builder)
 
 DeviceImpl* ShaderObjectLayoutImpl::getDevice()
 {
-    return static_cast<DeviceImpl*>(m_device);
+    return checked_cast<DeviceImpl*>(m_device);
 }
 
 Result EntryPointLayout::Builder::build(EntryPointLayout** outLayout)

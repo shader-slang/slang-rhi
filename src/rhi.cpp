@@ -412,7 +412,7 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
         returnComPtr(outDevice, innerDevice);
         return resultCode;
     }
-    IDebugCallback* debugCallback = static_cast<Device*>(innerDevice.get())->m_debugCallback;
+    IDebugCallback* debugCallback = checked_cast<Device*>(innerDevice.get())->m_debugCallback;
     RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice(debugCallback);
     debugDevice->baseObject = innerDevice;
     returnComPtr(outDevice, debugDevice);

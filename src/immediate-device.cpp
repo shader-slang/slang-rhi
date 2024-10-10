@@ -256,7 +256,7 @@ public:
         virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<Pipeline*>(state);
+            auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
@@ -269,7 +269,7 @@ public:
         bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<Pipeline*>(state);
+            auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
@@ -431,7 +431,7 @@ public:
         virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<Pipeline*>(state);
+            auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
@@ -444,7 +444,7 @@ public:
         bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override
         {
             m_writer->setPipeline(state);
-            auto stateImpl = static_cast<Pipeline*>(state);
+            auto stateImpl = checked_cast<Pipeline*>(state);
             SLANG_RETURN_ON_FAIL(m_commandBuffer->m_device->createRootShaderObject(
                 stateImpl->m_program,
                 m_commandBuffer->m_rootShaderObject.writeRef()
@@ -621,14 +621,14 @@ public:
         for (GfxIndex i = 0; i < count; i++)
         {
             info.hasWriteTimestamps |=
-                static_cast<CommandBufferImpl*>(commandBuffers[i])->m_writer.m_hasWriteTimestamps;
+                checked_cast<CommandBufferImpl*>(commandBuffers[i])->m_writer.m_hasWriteTimestamps;
         }
-        static_cast<ImmediateDevice*>(m_device.get())->beginCommandBuffer(info);
+        m_device->beginCommandBuffer(info);
         for (GfxIndex i = 0; i < count; i++)
         {
-            static_cast<CommandBufferImpl*>(commandBuffers[i])->execute();
+            checked_cast<CommandBufferImpl*>(commandBuffers[i])->execute();
         }
-        static_cast<ImmediateDevice*>(m_device.get())->endCommandBuffer(info);
+        m_device->endCommandBuffer(info);
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override { m_device->waitForGpu(); }

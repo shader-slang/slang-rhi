@@ -147,7 +147,7 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
     RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = textureImpl;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(view->m_desc.subresourceRange);

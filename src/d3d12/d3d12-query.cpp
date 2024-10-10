@@ -126,7 +126,7 @@ Result PlainBufferProxyQueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl
     bufferDesc.format = Format::Unknown;
     bufferDesc.usage = BufferUsage::UnorderedAccess;
     SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-    m_buffer = static_cast<BufferImpl*>(buffer.get());
+    m_buffer = checked_cast<BufferImpl*>(buffer.get());
     m_queryType = desc.type;
     m_device = device;
     m_stride = stride;

@@ -145,7 +145,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
 {
     AUTORELEASEPOOL
 
-    TextureImpl* textureImpl = static_cast<TextureImpl*>(texture);
+    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
     if (textureImpl->m_desc.sampleCount > 1)
     {
@@ -212,7 +212,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
-    blitEncoder->copyFromBuffer(static_cast<BufferImpl*>(buffer)->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
+    blitEncoder
+        ->copyFromBuffer(checked_cast<BufferImpl*>(buffer)->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
@@ -571,7 +572,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 {
     AUTORELEASEPOOL
 
-    auto textureImpl = static_cast<TextureImpl*>(texture);
+    auto textureImpl = checked_cast<TextureImpl*>(texture);
     RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(desc);
     viewImpl->m_texture = textureImpl;
     if (viewImpl->m_desc.format == Format::Unknown)
@@ -686,7 +687,7 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 
     RefPtr<ShaderObjectImpl> shaderObject;
     SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, static_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
+        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
     );
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;

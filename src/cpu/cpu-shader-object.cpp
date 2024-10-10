@@ -51,7 +51,7 @@ Buffer* CPUShaderObjectData::getBufferResource(
 
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
-    m_device = static_cast<DeviceImpl*>(device);
+    m_device = checked_cast<DeviceImpl*>(device);
     m_device.breakStrongReference();
 
     m_layout = typeLayout;
@@ -156,7 +156,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = static_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
         const BufferDesc& desc = buffer->m_desc;
         BufferRange range = buffer->resolveBufferRange(binding.bufferRange);
         m_resources[viewIndex] = buffer;
@@ -176,12 +176,12 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = static_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
-        auto textureView = static_cast<TextureViewImpl*>(binding.resource.get());
+        auto textureView = checked_cast<TextureViewImpl*>(binding.resource.get());
         m_resources[viewIndex] = textureView;
         slang_prelude::IRWTexture* textureObj = textureView;
         SLANG_RETURN_ON_FAIL(setData(offset, &textureObj, sizeof(textureObj)));
@@ -211,7 +211,7 @@ Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* ob
     auto bindingRangeIndex = offset.bindingRangeIndex;
     auto& bindingRange = getLayout()->m_bindingRanges[bindingRangeIndex];
 
-    ShaderObjectImpl* subObject = static_cast<ShaderObjectImpl*>(object);
+    ShaderObjectImpl* subObject = checked_cast<ShaderObjectImpl*>(object);
 
     switch (bindingRange.bindingType)
     {
@@ -236,7 +236,7 @@ uint8_t* ShaderObjectImpl::getDataBuffer()
 
 EntryPointLayoutImpl* EntryPointShaderObjectImpl::getLayout()
 {
-    return static_cast<EntryPointLayoutImpl*>(m_layout.Ptr());
+    return checked_cast<EntryPointLayoutImpl*>(m_layout.Ptr());
 }
 
 uint32_t RootShaderObjectImpl::addRef()
@@ -263,7 +263,7 @@ Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* p
 
 RootShaderObjectLayoutImpl* RootShaderObjectImpl::getLayout()
 {
-    return static_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr());
+    return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr());
 }
 
 EntryPointShaderObjectImpl* RootShaderObjectImpl::getEntryPoint(Index index)

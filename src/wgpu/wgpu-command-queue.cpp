@@ -48,7 +48,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
     // for (GfxCount i = 0; i < fenceCount; ++i)
     // {
     //     FenceWaitInfo waitInfo;
-    //     waitInfo.fence = static_cast<FenceImpl*>(fences[i]);
+    //     waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
     //     waitInfo.waitValue = waitValues[i];
     //     m_pendingWaitFences.push_back(waitInfo);
     // }
@@ -71,7 +71,7 @@ void CommandQueueImpl::executeCommandBuffers(
     buffers.resize(count);
     for (GfxIndex i = 0; i < count; ++i)
     {
-        buffers[i] = static_cast<CommandBufferImpl*>(commandBuffers[i])->m_commandBuffer;
+        buffers[i] = checked_cast<CommandBufferImpl*>(commandBuffers[i])->m_commandBuffer;
     }
 
     m_device->m_ctx.api.wgpuQueueSubmit(m_queue, buffers.size(), buffers.data());

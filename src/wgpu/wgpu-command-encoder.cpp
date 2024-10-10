@@ -54,7 +54,7 @@ Result PassEncoderImpl::bindPipelineImpl(RootBindingContext& context)
                                                : &m_commandBuffer->m_rootObject;
     RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(m_device->maybeSpecializePipeline(m_currentPipeline, rootObjectImpl, newPipeline));
-    PipelineImpl* newPipelineImpl = static_cast<PipelineImpl*>(newPipeline.Ptr());
+    PipelineImpl* newPipelineImpl = checked_cast<PipelineImpl*>(newPipeline.Ptr());
 
     SLANG_RETURN_ON_FAIL(newPipelineImpl->ensureAPIPipelineCreated());
     m_currentPipeline = newPipelineImpl;
@@ -95,7 +95,7 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
     Offset stagingBufferOffset = 0;
     m_commandBuffer->m_transientHeap
         ->allocateStagingBuffer(size, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
-    BufferImpl* stagingBufferImpl = static_cast<BufferImpl*>(stagingBuffer);
+    BufferImpl* stagingBufferImpl = checked_cast<BufferImpl*>(stagingBuffer);
     BufferRange range = {stagingBufferOffset, size};
     void* mappedData;
     if (stagingBufferImpl->map(&range, &mappedData) == SLANG_OK)
@@ -108,7 +108,7 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
         m_commandBuffer->m_commandEncoder,
         stagingBufferImpl->m_buffer,
         stagingBufferOffset,
-        static_cast<BufferImpl*>(buffer)->m_buffer,
+        checked_cast<BufferImpl*>(buffer)->m_buffer,
         offset,
         size
     );
@@ -116,7 +116,7 @@ void PassEncoderImpl::uploadBufferDataImpl(IBuffer* buffer, Offset offset, Size 
 
 Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
+    m_currentPipeline = checked_cast<PipelineImpl*>(state);
     m_commandBuffer->m_mutableRootShaderObject = nullptr;
     SLANG_RETURN_ON_FAIL(m_commandBuffer->m_rootObject.init(
         m_commandBuffer->m_device,
@@ -128,8 +128,8 @@ Result PassEncoderImpl::setPipelineImpl(IPipeline* state, IShaderObject** outRoo
 
 Result PassEncoderImpl::setPipelineWithRootObjectImpl(IPipeline* state, IShaderObject* rootObject)
 {
-    m_currentPipeline = static_cast<PipelineImpl*>(state);
-    m_commandBuffer->m_mutableRootShaderObject = static_cast<MutableRootShaderObjectImpl*>(rootObject);
+    m_currentPipeline = checked_cast<PipelineImpl*>(state);
+    m_commandBuffer->m_mutableRootShaderObject = checked_cast<MutableRootShaderObjectImpl*>(rootObject);
     return SLANG_OK;
 }
 
@@ -173,8 +173,8 @@ void ResourcePassEncoderImpl::end()
 
 void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    BufferImpl* dstBuffer = static_cast<BufferImpl*>(dst);
-    BufferImpl* srcBuffer = static_cast<BufferImpl*>(src);
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(dst);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(src);
     m_device->m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
         m_commandEncoder,
         srcBuffer->m_buffer,
@@ -195,8 +195,8 @@ void ResourcePassEncoderImpl::copyTexture(
     Extents extent
 )
 {
-    TextureImpl* dstTexture = static_cast<TextureImpl*>(dst);
-    TextureImpl* srcTexture = static_cast<TextureImpl*>(src);
+    TextureImpl* dstTexture = checked_cast<TextureImpl*>(dst);
+    TextureImpl* srcTexture = checked_cast<TextureImpl*>(src);
 }
 
 void ResourcePassEncoderImpl::copyTextureToBuffer(
@@ -231,7 +231,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
 
 void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     uint64_t offset = range ? range->offset : 0;
     uint64_t size = range ? range->size : bufferImpl->m_desc.size;
     m_device->m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, bufferImpl->m_buffer, offset, size);
@@ -276,9 +276,9 @@ Result RenderPassEncoderImpl::init(CommandBufferImpl* commandBuffer, const Rende
     {
         const RenderPassColorAttachment& attachmentIn = desc.colorAttachments[i];
         WGPURenderPassColorAttachment& attachment = colorAttachments[i];
-        attachment.view = static_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
+        attachment.view = checked_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
         attachment.resolveTarget = attachmentIn.resolveTarget
-                                       ? static_cast<TextureViewImpl*>(attachmentIn.resolveTarget)->m_textureView
+                                       ? checked_cast<TextureViewImpl*>(attachmentIn.resolveTarget)->m_textureView
                                        : nullptr;
         attachment.depthSlice = -1;         // TODO not provided
         attachment.resolveTarget = nullptr; // TODO not provided
@@ -295,7 +295,7 @@ Result RenderPassEncoderImpl::init(CommandBufferImpl* commandBuffer, const Rende
     {
         const RenderPassDepthStencilAttachment& attachmentIn = *desc.depthStencilAttachment;
         WGPURenderPassDepthStencilAttachment& attachment = depthStencilAttachment;
-        attachment.view = static_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
+        attachment.view = checked_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
         attachment.depthLoadOp = translateLoadOp(attachmentIn.depthLoadOp);
         attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
         attachment.depthClearValue = attachmentIn.depthClearValue;
@@ -320,7 +320,7 @@ Result RenderPassEncoderImpl::init(CommandBufferImpl* commandBuffer, const Rende
 
 Result RenderPassEncoderImpl::prepareDraw()
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    PipelineImpl* pipeline = m_currentPipeline.get();
     if (!pipeline)
     {
         return SLANG_FAIL;
@@ -400,7 +400,7 @@ void RenderPassEncoderImpl::setVertexBuffers(
 {
     for (GfxCount i = 0; i < slotCount; i++)
     {
-        BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffers[i]);
+        BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffers[i]);
         m_device->m_ctx.api.wgpuRenderPassEncoderSetVertexBuffer(
             m_renderPassEncoder,
             startSlot + i,
@@ -413,7 +413,7 @@ void RenderPassEncoderImpl::setVertexBuffers(
 
 void RenderPassEncoderImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
 {
-    BufferImpl* bufferImpl = static_cast<BufferImpl*>(buffer);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     m_device->m_ctx.api.wgpuRenderPassEncoderSetIndexBuffer(
         m_renderPassEncoder,
         bufferImpl->m_buffer,
@@ -461,7 +461,7 @@ Result RenderPassEncoderImpl::drawIndirect(
 {
     // m_device->m_ctx.api.wgpuRenderPassEncoderDrawIndirect(
     //     m_renderPassEncoder,
-    //     static_cast<BufferImpl*>(argBuffer)->m_buffer,
+    //     checked_cast<BufferImpl*>(argBuffer)->m_buffer,
     //     argOffset
     // );
     return SLANG_FAIL;
@@ -477,7 +477,7 @@ Result RenderPassEncoderImpl::drawIndexedIndirect(
 {
     // m_device->m_ctx.api.wgpuRenderPassEncoderDrawIndexedIndirect(
     //     m_renderPassEncoder,
-    //     static_cast<BufferImpl*>(argBuffer)->m_buffer,
+    //     checked_cast<BufferImpl*>(argBuffer)->m_buffer,
     //     argOffset
     // );
     return SLANG_FAIL;
@@ -560,7 +560,7 @@ Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, I
 
 Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
 {
-    auto pipeline = static_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    PipelineImpl* pipeline = m_currentPipeline.get();
     if (!pipeline)
     {
         return SLANG_FAIL;
@@ -588,7 +588,7 @@ Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offse
 {
     m_device->m_ctx.api.wgpuComputePassEncoderDispatchWorkgroupsIndirect(
         m_computePassEncoder,
-        static_cast<BufferImpl*>(argBuffer)->m_buffer,
+        checked_cast<BufferImpl*>(argBuffer)->m_buffer,
         offset
     );
     return SLANG_OK;

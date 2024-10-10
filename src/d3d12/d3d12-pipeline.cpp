@@ -48,7 +48,7 @@ Result PipelineImpl::ensureAPIPipelineCreated()
     if (m_pipelineState)
         return SLANG_OK;
 
-    auto programImpl = static_cast<ShaderProgramImpl*>(m_program.Ptr());
+    auto programImpl = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
     if (programImpl->m_shaders.size() == 0)
     {
         SLANG_RETURN_ON_FAIL(programImpl->compileShaders(m_device));
@@ -367,7 +367,7 @@ Result RayTracingPipelineImpl::ensureAPIPipelineCreated()
     if (m_stateObject)
         return SLANG_OK;
 
-    auto program = static_cast<ShaderProgramImpl*>(m_program.Ptr());
+    auto program = checked_cast<ShaderProgramImpl*>(m_program.Ptr());
     auto slangGlobalScope = program->linkedProgram;
     auto programLayout = slangGlobalScope->getLayout();
 

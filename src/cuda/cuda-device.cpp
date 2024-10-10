@@ -929,7 +929,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
-    view->m_texture = static_cast<TextureImpl*>(texture);
+    view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Unknown)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -1067,7 +1067,7 @@ Result DeviceImpl::createShaderProgram(
 Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
 {
     RefPtr<ComputePipelineImpl> state = new ComputePipelineImpl();
-    state->shaderProgram = static_cast<ShaderProgramImpl*>(desc.program);
+    state->shaderProgram = checked_cast<ShaderProgramImpl*>(desc.program);
     state->init(desc);
     returnComPtr(outPipeline, state);
     return Result();
@@ -1075,7 +1075,7 @@ Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipel
 
 void* DeviceImpl::map(IBuffer* buffer)
 {
-    return static_cast<BufferImpl*>(buffer)->m_cudaMemory;
+    return checked_cast<BufferImpl*>(buffer)->m_cudaMemory;
 }
 
 void DeviceImpl::unmap(IBuffer* buffer)
@@ -1131,7 +1131,7 @@ Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipelin
 
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
-    auto textureImpl = static_cast<TextureImpl*>(texture);
+    auto textureImpl = checked_cast<TextureImpl*>(texture);
 
     const TextureDesc& desc = textureImpl->m_desc;
     auto width = desc.size.width;
@@ -1165,7 +1165,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* 
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
-    auto bufferImpl = static_cast<BufferImpl*>(buffer);
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     auto blob = OwnedBlob::create(size);
     cuMemcpy((CUdeviceptr)blob->getBufferPointer(), (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size);
