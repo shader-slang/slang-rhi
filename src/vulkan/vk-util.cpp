@@ -755,7 +755,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
             geometry.geometry.triangles.transformData.deviceAddress =
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
 
-            primitiveCounts[i] = std::max(triangles.vertexCount, triangles.indexCount) / 3;
+            primitiveCounts[i] = max(triangles.vertexCount, triangles.indexCount) / 3;
         }
 
         buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;

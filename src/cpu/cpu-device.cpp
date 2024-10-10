@@ -26,7 +26,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.extendedDescs,
         SLANG_SHADER_HOST_CALLABLE,
         "sm_5_1",
-        make_array(slang::PreprocessorMacroDesc{"__CPU__", "1"})
+        std::array{slang::PreprocessorMacroDesc{"__CPU__", "1"}}
     ));
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));

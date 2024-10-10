@@ -155,9 +155,9 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
     const TextureDesc& desc = textureImpl->m_desc;
-    GfxCount width = std::max(desc.size.width, 1);
-    GfxCount height = std::max(desc.size.height, 1);
-    GfxCount depth = std::max(desc.size.depth, 1);
+    GfxCount width = max(desc.size.width, 1);
+    GfxCount height = max(desc.size.height, 1);
+    GfxCount depth = max(desc.size.depth, 1);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;
@@ -307,9 +307,9 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
         rowSize = alignTo(rowSize, alignment);
         Size sliceSize = rowSize * alignTo(extents.height, formatInfo.blockHeight);
         size += sliceSize * extents.depth;
-        extents.width = std::max(1, extents.width / 2);
-        extents.height = std::max(1, extents.height / 2);
-        extents.depth = std::max(1, extents.depth / 2);
+        extents.width = max(1, extents.width / 2);
+        extents.height = max(1, extents.height / 2);
+        extents.depth = max(1, extents.depth / 2);
     }
     size *= desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
@@ -480,9 +480,9 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     subresourceData.strideZ
                 );
                 encoder->synchronizeTexture(stagingTexture.get(), slice, level);
-                region.size.width = region.size.width > 0 ? std::max(1ul, region.size.width >> 1) : 0;
-                region.size.height = region.size.height > 0 ? std::max(1ul, region.size.height >> 1) : 0;
-                region.size.depth = region.size.depth > 0 ? std::max(1ul, region.size.depth >> 1) : 0;
+                region.size.width = region.size.width > 0 ? max(1ul, region.size.width >> 1) : 0;
+                region.size.height = region.size.height > 0 ? max(1ul, region.size.height >> 1) : 0;
+                region.size.depth = region.size.depth > 0 ? max(1ul, region.size.depth >> 1) : 0;
             }
         }
 

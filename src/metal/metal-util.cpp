@@ -814,7 +814,7 @@ Result AccelerationStructureDescBuilder::build(
                 );
             }
 
-            GfxCount triangleCount = std::max(triangles.vertexCount, triangles.indexCount) / 3;
+            GfxCount triangleCount = max(triangles.vertexCount, triangles.indexCount) / 3;
             triangleDescriptor->setTriangleCount(triangleCount);
 
             if (triangles.preTransformBuffer)

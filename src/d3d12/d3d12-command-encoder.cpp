@@ -301,7 +301,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
         }
         else
         {
-            footprint.Footprint.Width = std::max(1, (textureSize.width >> mipLevel)) - offset.x;
+            footprint.Footprint.Width = max(1, (textureSize.width >> mipLevel)) - offset.x;
         }
         if (extent.height != kRemainingTextureSize)
         {
@@ -309,7 +309,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
         }
         else
         {
-            footprint.Footprint.Height = std::max(1, (textureSize.height >> mipLevel)) - offset.y;
+            footprint.Footprint.Height = max(1, (textureSize.height >> mipLevel)) - offset.y;
         }
         if (extent.depth != kRemainingTextureSize)
         {
@@ -317,7 +317,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
         }
         else
         {
-            footprint.Footprint.Depth = std::max(1, (textureSize.depth >> mipLevel)) - offset.z;
+            footprint.Footprint.Depth = max(1, (textureSize.depth >> mipLevel)) - offset.z;
         }
         auto rowSize = (footprint.Footprint.Width + formatInfo.blockWidth - 1) / formatInfo.blockWidth *
                        formatInfo.blockSizeInBytes;
@@ -592,7 +592,7 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
         }
         else
         {
-            footprint.Footprint.Width = std::max(1, (textureSize.width >> mipLevel)) - srcOffset.x;
+            footprint.Footprint.Width = max(1, (textureSize.width >> mipLevel)) - srcOffset.x;
         }
         if (extent.height != 0xFFFFFFFF)
         {
@@ -600,7 +600,7 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
         }
         else
         {
-            footprint.Footprint.Height = std::max(1, (textureSize.height >> mipLevel)) - srcOffset.y;
+            footprint.Footprint.Height = max(1, (textureSize.height >> mipLevel)) - srcOffset.y;
         }
         if (extent.depth != 0xFFFFFFFF)
         {
@@ -608,7 +608,7 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
         }
         else
         {
-            footprint.Footprint.Depth = std::max(1, (textureSize.depth >> mipLevel)) - srcOffset.z;
+            footprint.Footprint.Depth = max(1, (textureSize.depth >> mipLevel)) - srcOffset.z;
         }
 
         SLANG_RHI_ASSERT(dstRowStride % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);

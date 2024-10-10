@@ -22,7 +22,7 @@ Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
     samplerDesc->setTAddressMode(MetalUtil::translateSamplerAddressMode(desc.addressV));
     samplerDesc->setRAddressMode(MetalUtil::translateSamplerAddressMode(desc.addressW));
 
-    samplerDesc->setMaxAnisotropy(std::clamp(desc.maxAnisotropy, 1u, 16u));
+    samplerDesc->setMaxAnisotropy(clamp(desc.maxAnisotropy, 1u, 16u));
 
     // TODO: support translation of border color...
     MTL::SamplerBorderColor borderColor = MTL::SamplerBorderColorOpaqueBlack;
@@ -31,8 +31,8 @@ Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
     samplerDesc->setNormalizedCoordinates(true);
 
     samplerDesc->setCompareFunction(MetalUtil::translateCompareFunction(desc.comparisonFunc));
-    samplerDesc->setLodMinClamp(std::clamp(desc.minLOD, 0.f, 1000.f));
-    samplerDesc->setLodMaxClamp(std::clamp(desc.maxLOD, samplerDesc->lodMinClamp(), 1000.f));
+    samplerDesc->setLodMinClamp(clamp(desc.minLOD, 0.f, 1000.f));
+    samplerDesc->setLodMaxClamp(clamp(desc.maxLOD, samplerDesc->lodMinClamp(), 1000.f));
 
     samplerDesc->setSupportArgumentBuffers(true);
     if (desc.label)

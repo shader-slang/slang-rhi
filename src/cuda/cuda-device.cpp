@@ -167,7 +167,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.extendedDescs,
         SLANG_PTX,
         "sm_5_1",
-        make_array(slang::PreprocessorMacroDesc{"__CUDA_COMPUTE__", "1"})
+        std::array{slang::PreprocessorMacroDesc{"__CUDA_COMPUTE__", "1"}}
     ));
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
@@ -258,22 +258,20 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         DeviceLimits limits = {};
 
         limits.maxTextureDimension1D = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_WIDTH);
-        limits.maxTextureDimension2D = std::min(
+        limits.maxTextureDimension2D = min({
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_WIDTH),
-            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_HEIGHT)
-        );
-        limits.maxTextureDimension3D = std::min(
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_HEIGHT),
+        });
+        limits.maxTextureDimension3D = min({
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_WIDTH),
-            std::min(
-                getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_HEIGHT),
-                getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_DEPTH)
-            )
-        );
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_HEIGHT),
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE3D_DEPTH),
+        });
         limits.maxTextureDimensionCube = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACECUBEMAP_WIDTH);
-        limits.maxTextureArrayLayers = std::min(
+        limits.maxTextureArrayLayers = min({
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_LAYERED_LAYERS),
-            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_LAYERED_LAYERS)
-        );
+            getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_LAYERED_LAYERS),
+        });
 
         // limits.maxVertexInputElements
         // limits.maxVertexInputElementOffset

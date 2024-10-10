@@ -212,8 +212,8 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
     {
         const TextureDesc& textureDesc = view->m_texture->m_desc;
         const TextureViewDesc& viewDesc = view->m_desc;
-        width = std::max(1u, uint32_t(textureDesc.size.width >> viewDesc.subresourceRange.mipLevel));
-        height = std::max(1u, uint32_t(textureDesc.size.height >> viewDesc.subresourceRange.mipLevel));
+        width = max(1u, uint32_t(textureDesc.size.width >> viewDesc.subresourceRange.mipLevel));
+        height = max(1u, uint32_t(textureDesc.size.height >> viewDesc.subresourceRange.mipLevel));
     };
 
     // Initialize render pass descriptor.
@@ -356,7 +356,7 @@ void RenderPassEncoderImpl::setVertexBuffers(
     const Offset* offsets
 )
 {
-    Index count = std::max(m_vertexBuffers.size(), size_t(startSlot + slotCount));
+    Index count = max(m_vertexBuffers.size(), size_t(startSlot + slotCount));
     m_vertexBuffers.resize(count);
     m_vertexBufferOffsets.resize(count);
 

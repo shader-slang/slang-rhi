@@ -1042,7 +1042,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.extendedDescs,
         SLANG_SPIRV,
         "sm_5_1",
-        make_array(slang::PreprocessorMacroDesc{"__VK__", "1"})
+        std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}}
     ));
 
     // Create default sampler.
@@ -2029,8 +2029,8 @@ Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
     samplerInfo.compareEnable = desc.reductionOp == TextureReductionOp::Comparison;
     samplerInfo.compareOp = VulkanUtil::translateComparisonFunc(desc.comparisonFunc);
     samplerInfo.mipmapMode = VulkanUtil::translateMipFilterMode(desc.mipFilter);
-    samplerInfo.minLod = std::max(0.0f, desc.minLOD);
-    samplerInfo.maxLod = std::clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
+    samplerInfo.minLod = max(0.0f, desc.minLOD);
+    samplerInfo.maxLod = clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
 
     VkSamplerReductionModeCreateInfo reductionInfo = {VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO};
     reductionInfo.reductionMode = VulkanUtil::translateReductionOp(desc.reductionOp);

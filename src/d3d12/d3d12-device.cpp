@@ -777,7 +777,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.extendedDescs,
         compileTarget,
         profileName,
-        make_array(slang::PreprocessorMacroDesc{"__D3D12__", "1"})
+        std::array{slang::PreprocessorMacroDesc{"__D3D12__", "1"}}
     ));
 
     // Allocate a D3D12 "command signature" object that matches the behavior
@@ -844,7 +844,7 @@ Result DeviceImpl::createTransientResourceHeap(
         desc.flags,
         desc.constantBufferSize,
         getViewDescriptorCount(desc),
-        std::max(1024, desc.samplerDescriptorCount),
+        max(1024, desc.samplerDescriptorCount),
         heap.writeRef()
     ));
     returnComPtr(outHeap, heap);

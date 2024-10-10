@@ -876,12 +876,12 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
         const TextureDesc& textureDesc = view->m_texture->m_desc;
         uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
         uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
-        renderArea.extent.width = std::min(renderArea.extent.width, width);
-        renderArea.extent.height = std::min(renderArea.extent.height, height);
+        renderArea.extent.width = min(renderArea.extent.width, width);
+        renderArea.extent.height = min(renderArea.extent.height, height);
         uint32_t attachmentLayerCount = (textureDesc.type == TextureType::Texture3D)
                                             ? textureDesc.size.depth
                                             : viewDesc.subresourceRange.layerCount;
-        layerCount = std::max(layerCount, attachmentLayerCount);
+        layerCount = max(layerCount, attachmentLayerCount);
 
         // Create attachment info
         VkRenderingAttachmentInfoKHR attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
@@ -924,8 +924,8 @@ Result RenderPassEncoderImpl::beginPass(const RenderPassDesc& desc)
         const TextureDesc& textureDesc = view->m_texture->m_desc;
         uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
         uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
-        renderArea.extent.width = std::min(renderArea.extent.width, width);
-        renderArea.extent.height = std::min(renderArea.extent.height, height);
+        renderArea.extent.width = min(renderArea.extent.width, width);
+        renderArea.extent.height = min(renderArea.extent.height, height);
 
         // Create attachment info
         if (VulkanUtil::isDepthFormat(view->m_texture->m_vkformat))

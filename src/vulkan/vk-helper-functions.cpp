@@ -55,7 +55,7 @@ VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags f
 
 uint32_t getMipLevelSize(uint32_t mipLevel, uint32_t size)
 {
-    return std::max(1u, (size >> mipLevel));
+    return max(1u, (size >> mipLevel));
 }
 
 VkImageLayout translateImageLayout(ResourceState state)
@@ -491,7 +491,7 @@ Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
                 VkPhysicalDeviceProperties props;
                 api.vkGetPhysicalDeviceProperties(physicalDevice, &props);
                 AdapterInfo info = {};
-                memcpy(info.name, props.deviceName, std::min(strlen(props.deviceName), sizeof(AdapterInfo::name) - 1));
+                memcpy(info.name, props.deviceName, min(strlen(props.deviceName), sizeof(AdapterInfo::name) - 1));
                 info.vendorID = props.vendorID;
                 info.deviceID = props.deviceID;
                 info.luid = vk::getAdapterLUID(api, physicalDevice);

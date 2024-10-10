@@ -96,8 +96,8 @@ Result Buffer::getSharedHandle(NativeHandle* outHandle)
 BufferRange Buffer::resolveBufferRange(const BufferRange& range)
 {
     BufferRange resolved = range;
-    resolved.offset = std::min(resolved.offset, m_desc.size);
-    resolved.size = std::min(resolved.size, m_desc.size - resolved.offset);
+    resolved.offset = min(resolved.offset, m_desc.size);
+    resolved.size = min(resolved.size, m_desc.size - resolved.offset);
     return resolved;
 }
 
@@ -128,11 +128,11 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
 {
     SubresourceRange resolved = range;
-    resolved.mipLevel = std::min(resolved.mipLevel, m_desc.mipLevelCount);
-    resolved.mipLevelCount = std::min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
+    resolved.mipLevel = min(resolved.mipLevel, m_desc.mipLevelCount);
+    resolved.mipLevelCount = min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
     GfxCount arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
-    resolved.baseArrayLayer = std::min(resolved.baseArrayLayer, arrayLayerCount);
-    resolved.layerCount = std::min(resolved.layerCount, arrayLayerCount - resolved.baseArrayLayer);
+    resolved.baseArrayLayer = min(resolved.baseArrayLayer, arrayLayerCount);
+    resolved.layerCount = min(resolved.layerCount, arrayLayerCount - resolved.baseArrayLayer);
     return resolved;
 }
 

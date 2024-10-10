@@ -159,9 +159,9 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     }
 
     const TextureDesc& desc = textureImpl->m_desc;
-    GfxCount width = std::max(desc.size.width, 1);
-    GfxCount height = std::max(desc.size.height, 1);
-    GfxCount depth = std::max(desc.size.depth, 1);
+    GfxCount width = max(desc.size.width, 1);
+    GfxCount height = max(desc.size.height, 1);
+    GfxCount depth = max(desc.size.depth, 1);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;

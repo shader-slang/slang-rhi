@@ -190,7 +190,7 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
 
 uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
 {
-    return std::max(
+    return max(
         {desc.srvDescriptorCount,
          desc.uavDescriptorCount,
          desc.accelerationStructureDescriptorCount,
@@ -495,7 +495,7 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
         dxgiAdapter->GetDesc(&desc);
         AdapterInfo info = {};
         auto name = string::from_wstring(desc.Description);
-        memcpy(info.name, name.data(), std::min(name.length(), sizeof(AdapterInfo::name) - 1));
+        memcpy(info.name, name.data(), min(name.length(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
         info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);

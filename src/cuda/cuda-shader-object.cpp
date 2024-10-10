@@ -41,11 +41,9 @@ Result ShaderObjectData::setCount(Index count)
             }
             if (oldSize)
             {
-                SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
-                    (CUdeviceptr)newMemory,
-                    (CUdeviceptr)m_buffer->m_cudaMemory,
-                    std::min((size_t)count, oldSize)
-                ));
+                SLANG_CUDA_RETURN_ON_FAIL(
+                    cuMemcpy((CUdeviceptr)newMemory, (CUdeviceptr)m_buffer->m_cudaMemory, min((size_t)count, oldSize))
+                );
             }
             cuMemFree((CUdeviceptr)m_buffer->m_cudaMemory);
             m_buffer->m_cudaMemory = newMemory;
@@ -177,7 +175,7 @@ Size ShaderObjectImpl::getSize()
 Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, Size size)
 {
     Size temp = m_data.getCount() - (Size)offset.uniformOffset;
-    size = std::min(size, temp);
+    size = min(size, temp);
     SLANG_CUDA_RETURN_ON_FAIL(
         cuMemcpy((CUdeviceptr)((uint8_t*)m_data.getBuffer() + offset.uniformOffset), (CUdeviceptr)data, size)
     );

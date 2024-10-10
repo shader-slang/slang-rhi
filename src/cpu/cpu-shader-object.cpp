@@ -136,7 +136,7 @@ size_t ShaderObjectImpl::getSize()
 
 Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, size_t size)
 {
-    size = std::min(size, size_t(m_data.getCount() - offset.uniformOffset));
+    size = min(size, size_t(m_data.getCount() - offset.uniformOffset));
     memcpy((char*)m_data.getBuffer() + offset.uniformOffset, data, size);
     return SLANG_OK;
 }
