@@ -716,8 +716,6 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    const bool isVkd3d = SLANG_ENABLE_VKD3D && strcmp(device->getDeviceInfo().apiName, "D3D12") == 0;
-
     // Skip Type::Unknown and Type::Buffer as well as Format::Unknown
     // TODO: Add support for TextureCube
     Format formats[] = {
@@ -731,12 +729,6 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
     {
         for (auto format : formats)
         {
-            // Fails validation VUID-VkImageCreateInfo-imageCreateMaxMipLevels-02251
-            if (isVkd3d && (format == Format::R32G32B32_TYPELESS || format == Format::R32G32B32_FLOAT ||
-                            format == Format::R32G32B32_UINT || format == Format::R32G32B32_SINT))
-            {
-                continue;
-            }
             auto type = (TextureType)i;
             auto validationFormat = getValidationTextureFormat(format);
             if (!validationFormat)
