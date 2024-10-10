@@ -1082,7 +1082,7 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::map<Pipeline*, RefPtr<Buffer>> m_deviceBuffers;
+    std::map<RayTracingPipeline*, RefPtr<Buffer>> m_deviceBuffers;
 
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
@@ -1093,12 +1093,16 @@ public:
     }
 
     virtual RefPtr<Buffer> createDeviceBuffer(
-        Pipeline* pipeline,
+        RayTracingPipeline* pipeline,
         TransientResourceHeap* transientHeap,
         IRayTracingPassEncoder* encoder
     ) = 0;
 
-    Buffer* getOrCreateBuffer(Pipeline* pipeline, TransientResourceHeap* transientHeap, IRayTracingPassEncoder* encoder)
+    Buffer* getOrCreateBuffer(
+        RayTracingPipeline* pipeline,
+        TransientResourceHeap* transientHeap,
+        IRayTracingPassEncoder* encoder
+    )
     {
         auto it = m_deviceBuffers.find(pipeline);
         if (it != m_deviceBuffers.end())

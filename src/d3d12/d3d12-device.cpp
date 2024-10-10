@@ -1582,22 +1582,6 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
-{
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
-    returnComPtr(outPipeline, pipelineImpl);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
-{
-    RefPtr<PipelineImpl> pipelineImpl = new PipelineImpl(this);
-    pipelineImpl->init(desc);
-    returnComPtr(outPipeline, pipelineImpl);
-    return SLANG_OK;
-}
-
 DeviceImpl::ResourceCommandRecordInfo DeviceImpl::encodeResourceCommands()
 {
     ResourceCommandRecordInfo info;
@@ -1761,19 +1745,6 @@ Result DeviceImpl::createAccelerationStructure(
     *outAccelerationStructure = nullptr;
     return SLANG_FAIL;
 #endif
-}
-
-Result DeviceImpl::createRayTracingPipeline(const RayTracingPipelineDesc& inDesc, IPipeline** outPipeline)
-{
-    if (!m_device5)
-    {
-        return SLANG_E_NOT_AVAILABLE;
-    }
-
-    RefPtr<RayTracingPipelineImpl> pipelineImpl = new RayTracingPipelineImpl(this);
-    pipelineImpl->init(inDesc);
-    returnComPtr(outPipeline, pipelineImpl);
-    return SLANG_OK;
 }
 
 Result DeviceImpl::createTransientResourceHeapImpl(
