@@ -9,6 +9,8 @@ class DebugSampler : public DebugObject<ISampler>
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugSampler);
+
 public:
     ISampler* getInterface(const Guid& guid);
 

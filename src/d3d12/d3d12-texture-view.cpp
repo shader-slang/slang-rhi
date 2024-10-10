@@ -92,11 +92,10 @@ Result createD3D12BufferDescriptor(
         }
         else
         {
-            FormatInfo sizeInfo;
-            rhiGetFormatInfo(desc.format, &sizeInfo);
-            SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
-            uavDesc.Buffer.FirstElement = offset / sizeInfo.blockSizeInBytes;
-            uavDesc.Buffer.NumElements = UINT(size / sizeInfo.blockSizeInBytes);
+            const FormatInfo& formatInfo = getFormatInfo(desc.format);
+            SLANG_RHI_ASSERT(formatInfo.pixelsPerBlock == 1);
+            uavDesc.Buffer.FirstElement = offset / formatInfo.blockSizeInBytes;
+            uavDesc.Buffer.NumElements = UINT(size / formatInfo.blockSizeInBytes);
         }
 
         if (size >= (1ull << 32) - 8)
@@ -141,11 +140,10 @@ Result createD3D12BufferDescriptor(
         }
         else
         {
-            FormatInfo sizeInfo;
-            rhiGetFormatInfo(desc.format, &sizeInfo);
-            SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
-            srvDesc.Buffer.FirstElement = offset / sizeInfo.blockSizeInBytes;
-            srvDesc.Buffer.NumElements = UINT(size / sizeInfo.blockSizeInBytes);
+            const FormatInfo& formatInfo = getFormatInfo(desc.format);
+            SLANG_RHI_ASSERT(formatInfo.pixelsPerBlock == 1);
+            srvDesc.Buffer.FirstElement = offset / formatInfo.blockSizeInBytes;
+            srvDesc.Buffer.NumElements = UINT(size / formatInfo.blockSizeInBytes);
         }
 
         if (size >= (1ull << 32) - 8)

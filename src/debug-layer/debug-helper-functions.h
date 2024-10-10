@@ -65,16 +65,17 @@ char* _rhiDiagnoseFormat(
 }
 
 template<typename... TArgs>
-void _rhiDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
+void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* format, TArgs... args)
 {
     char shortBuffer[256];
     std::vector<char> bufferArray;
     auto buffer = _rhiDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, args...);
-    getDebugCallback()->handleMessage(type, DebugMessageSource::Layer, buffer);
+    ctx->debugCallback->handleMessage(type, DebugMessageSource::Layer, buffer);
 }
 
 #define RHI_VALIDATION_ERROR(message)                                                                                  \
     _rhiDiagnoseImpl(                                                                                                  \
+        ctx,                                                                                                           \
         DebugMessageType::Error,                                                                                       \
         "%s: %s",                                                                                                      \
         _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
@@ -82,6 +83,7 @@ void _rhiDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
     )
 #define RHI_VALIDATION_WARNING(message)                                                                                \
     _rhiDiagnoseImpl(                                                                                                  \
+        ctx,                                                                                                           \
         DebugMessageType::Warning,                                                                                     \
         "%s: %s",                                                                                                      \
         _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
@@ -89,6 +91,7 @@ void _rhiDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
     )
 #define RHI_VALIDATION_INFO(message)                                                                                   \
     _rhiDiagnoseImpl(                                                                                                  \
+        ctx,                                                                                                           \
         DebugMessageType::Info,                                                                                        \
         "%s: %s",                                                                                                      \
         _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
@@ -100,6 +103,7 @@ void _rhiDiagnoseImpl(DebugMessageType type, const char* format, TArgs... args)
         std::vector<char> bufferArray;                                                                                 \
         auto message = _rhiDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, __VA_ARGS__);         \
         _rhiDiagnoseImpl(                                                                                              \
+            ctx,                                                                                                       \
             type,                                                                                                      \
             "%s: %s",                                                                                                  \
             _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                     \
@@ -181,6 +185,6 @@ std::string createBufferLabel(const BufferDesc& desc);
 std::string createTextureLabel(const TextureDesc& desc);
 std::string createSamplerLabel(const SamplerDesc& desc);
 
-void validateAccelerationStructureBuildDesc(const AccelerationStructureBuildDesc& buildDesc);
+void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
 
 } // namespace rhi::debug

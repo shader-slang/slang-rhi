@@ -35,9 +35,9 @@ public:
 public:
     ~DeviceImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
     Result getCUDAFormat(Format format, CUarray_format* outFormat);
 

@@ -194,7 +194,7 @@ D3D12Descriptor TextureImpl::getUAV(
     bool isMultiSample = m_desc.sampleCount > 1;
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
     viewDesc.Format =
-        rhiIsTypelessFormat(m_desc.format) ? D3DUtil::getMapFormat(m_desc.format) : D3DUtil::getMapFormat(format);
+        getFormatInfo(m_desc.format).isTypeless ? D3DUtil::getMapFormat(m_desc.format) : D3DUtil::getMapFormat(format);
     switch (type)
     {
     case TextureType::Texture1D:

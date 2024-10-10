@@ -357,7 +357,7 @@ ComPtr<IDevice> createTestingDevice(
     }
 
     ComPtr<IDevice> device;
-    IDevice::Desc deviceDesc = {};
+    DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
     auto searchPaths = getSlangSearchPaths();
@@ -395,11 +395,12 @@ ComPtr<IDevice> createTestingDevice(
     // (And in general reduce the differences (and duplication) between
     // here and render-test-main.cpp)
 #ifdef _DEBUG
-    rhiEnableDebugLayer();
-    rhiSetDebugCallback(&sDebugCallback);
+    deviceDesc.enableValidation = true;
+    deviceDesc.enableBackendValidation = true;
+    deviceDesc.debugCallback = &sDebugCallback;
 #endif
 
-    REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
+    REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
 
     if (useCachedDevice)
     {
@@ -533,7 +534,7 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 {
     for (auto deviceType : deviceTypes)
     {
-        if (!rhiIsDeviceTypeSupported(deviceType))
+        if (!getRHI()->isDeviceTypeSupported(deviceType))
         {
             continue;
         }

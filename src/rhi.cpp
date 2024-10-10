@@ -13,13 +13,13 @@
 
 namespace rhi {
 
-Result SLANG_MCALL createD3D11Device(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createD3D12Device(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createCUDADevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
-Result SLANG_MCALL createWGPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
+Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
@@ -28,12 +28,6 @@ Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL reportD3DLiveObjects();
-
-static bool debugLayerEnabled = false;
-bool isRhiDebugLayerEnabled()
-{
-    return debugLayerEnabled;
-}
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
@@ -155,38 +149,29 @@ struct FormatInfoMap
         set(Format::BC7_UNORM_SRGB, "BC7_UNORM_SRGB", SLANG_SCALAR_TYPE_FLOAT32, 4, 16, 16, 4, 4);
     }
 
-    void set(
-        Format format,
-        const char* name,
-        SlangScalarType type,
-        Index channelCount,
-        uint32_t blockSizeInBytes,
-        uint32_t pixelsPerBlock = 1,
-        uint32_t blockWidth = 1,
-        uint32_t blockHeight = 1
-    )
+    bool isTypless(Format format)
     {
-        FormatInfo& info = m_infos[Index(format)];
-        info.name = name;
-        info.channelCount = uint8_t(channelCount);
-        info.channelType = uint8_t(type);
-
-        info.blockSizeInBytes = blockSizeInBytes;
-        info.pixelsPerBlock = pixelsPerBlock;
-        info.blockWidth = blockWidth;
-        info.blockHeight = blockHeight;
+        switch (format)
+        {
+        case Format::R32G32B32A32_TYPELESS:
+        case Format::R32G32B32_TYPELESS:
+        case Format::R32G32_TYPELESS:
+        case Format::R32_TYPELESS:
+        case Format::R16G16B16A16_TYPELESS:
+        case Format::R16G16_TYPELESS:
+        case Format::R16_TYPELESS:
+        case Format::R8G8B8A8_TYPELESS:
+        case Format::R8G8_TYPELESS:
+        case Format::R8_TYPELESS:
+        case Format::B8G8R8A8_TYPELESS:
+        case Format::R10G10B10A2_TYPELESS:
+            return true;
+        default:
+            return false;
+        }
     }
 
-    const FormatInfo& get(Format format) const { return m_infos[Index(format)]; }
-
-    FormatInfo m_infos[Index(Format::_Count)];
-};
-
-static const FormatInfoMap s_formatInfoMap;
-
-extern "C"
-{
-    SLANG_RHI_API bool SLANG_MCALL rhiIsCompressedFormat(Format format)
+    bool isCompressed(Format format)
     {
         switch (format)
         {
@@ -210,226 +195,243 @@ extern "C"
         }
     }
 
-    SLANG_RHI_API bool SLANG_MCALL rhiIsTypelessFormat(Format format)
+    void set(
+        Format format,
+        const char* name,
+        SlangScalarType type,
+        Index channelCount,
+        uint32_t blockSizeInBytes,
+        uint32_t pixelsPerBlock = 1,
+        uint32_t blockWidth = 1,
+        uint32_t blockHeight = 1
+    )
     {
-        switch (format)
-        {
-        case Format::R32G32B32A32_TYPELESS:
-        case Format::R32G32B32_TYPELESS:
-        case Format::R32G32_TYPELESS:
-        case Format::R32_TYPELESS:
-        case Format::R16G16B16A16_TYPELESS:
-        case Format::R16G16_TYPELESS:
-        case Format::R16_TYPELESS:
-        case Format::R8G8B8A8_TYPELESS:
-        case Format::R8G8_TYPELESS:
-        case Format::R8_TYPELESS:
-        case Format::B8G8R8A8_TYPELESS:
-        case Format::R10G10B10A2_TYPELESS:
-            return true;
-        default:
-            return false;
-        }
+        FormatInfo& info = m_infos[Index(format)];
+        info.name = name;
+        info.channelCount = uint8_t(channelCount);
+        info.channelType = uint8_t(type);
+
+        info.blockSizeInBytes = blockSizeInBytes;
+        info.pixelsPerBlock = pixelsPerBlock;
+        info.blockWidth = blockWidth;
+        info.blockHeight = blockHeight;
+
+        info.isTypeless = isTypless(format);
+        info.isCompressed = isCompressed(format);
     }
 
-    SLANG_RHI_API Result SLANG_MCALL rhiGetFormatInfo(Format format, FormatInfo* outInfo)
+    const FormatInfo& get(Format format) const { return m_infos[Index(format)]; }
+
+    FormatInfo m_infos[Index(Format::_Count)];
+};
+
+static const FormatInfoMap s_formatInfoMap;
+
+class RHI : public IRHI
+{
+public:
+    virtual const FormatInfo& getFormatInfo(Format format) override { return s_formatInfoMap.get(format); }
+    virtual const char* getDeviceTypeName(DeviceType type) override;
+    virtual bool isDeviceTypeSupported(DeviceType type) override;
+    Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
+    Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
+    Result reportLiveObjects() override;
+
+    static RHI* getInstance()
     {
-        *outInfo = s_formatInfoMap.get(format);
-        return SLANG_OK;
+        static RHI instance;
+        return &instance;
     }
+};
 
-    SLANG_RHI_API Result SLANG_MCALL rhiGetAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
+const char* RHI::getDeviceTypeName(DeviceType type)
+{
+    switch (type)
     {
-        std::vector<AdapterInfo> adapters;
+    case DeviceType::Default:
+        return "Default";
+    case DeviceType::D3D11:
+        return "D3D11";
+    case DeviceType::D3D12:
+        return "D3D12";
+    case DeviceType::Vulkan:
+        return "Vulkan";
+    case DeviceType::Metal:
+        return "Metal";
+    case DeviceType::CPU:
+        return "CPU";
+    case DeviceType::CUDA:
+        return "CUDA";
+    case DeviceType::WGPU:
+        return "WGPU";
+    }
+    return "invalid";
+}
 
-        switch (type)
-        {
-#if SLANG_RHI_ENABLE_D3D11
-        case DeviceType::D3D11:
-            SLANG_RETURN_ON_FAIL(getD3D11Adapters(adapters));
-            break;
-#endif
-#if SLANG_RHI_ENABLE_D3D12
-        case DeviceType::D3D12:
-            SLANG_RETURN_ON_FAIL(getD3D12Adapters(adapters));
-            break;
-#endif
-#if SLANG_RHI_ENABLE_VULKAN
-        case DeviceType::Vulkan:
-            SLANG_RETURN_ON_FAIL(getVKAdapters(adapters));
-            break;
-#endif
-#if SLANG_RHI_ENABLE_METAL
-        case DeviceType::Metal:
-            SLANG_RETURN_ON_FAIL(getMetalAdapters(adapters));
-            break;
-#endif
-        case DeviceType::CPU:
-            return SLANG_E_NOT_IMPLEMENTED;
+bool RHI::isDeviceTypeSupported(DeviceType type)
+{
+    switch (type)
+    {
+    case DeviceType::D3D11:
+        return SLANG_RHI_ENABLE_D3D11;
+    case DeviceType::D3D12:
+        return SLANG_RHI_ENABLE_D3D12;
+    case DeviceType::Vulkan:
+        return SLANG_RHI_ENABLE_VULKAN;
+    case DeviceType::Metal:
+        return SLANG_RHI_ENABLE_METAL;
+    case DeviceType::CPU:
+        return true;
+    case DeviceType::CUDA:
 #if SLANG_RHI_ENABLE_CUDA
-        case DeviceType::CUDA:
-            SLANG_RETURN_ON_FAIL(getCUDAAdapters(adapters));
-            break;
+        return rhiCudaApiInit();
+#else
+        return false;
 #endif
-        default:
-            return SLANG_E_INVALID_ARG;
-        }
-
-        auto adaptersBlob = OwnedBlob::create(adapters.data(), adapters.size() * sizeof(AdapterInfo));
-        if (outAdaptersBlob)
-            returnComPtr(outAdaptersBlob, adaptersBlob);
-
-        return SLANG_OK;
+    case DeviceType::WGPU:
+        return SLANG_RHI_ENABLE_WGPU;
+    default:
+        return false;
     }
+}
 
-    Result _createDevice(const IDevice::Desc* desc, IDevice** outDevice)
+Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
+{
+    std::vector<AdapterInfo> adapters;
+
+    switch (type)
     {
-        switch (desc->deviceType)
-        {
-        case DeviceType::Default:
-        {
-            IDevice::Desc newDesc = *desc;
-            newDesc.deviceType = DeviceType::D3D12;
-            if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                return SLANG_OK;
-            newDesc.deviceType = DeviceType::Vulkan;
-            if (_createDevice(&newDesc, outDevice) == SLANG_OK)
-                return SLANG_OK;
-            return SLANG_FAIL;
-        }
+#if SLANG_RHI_ENABLE_D3D11
+    case DeviceType::D3D11:
+        SLANG_RETURN_ON_FAIL(getD3D11Adapters(adapters));
         break;
-#if SLANG_RHI_ENABLE_D3D11
-        case DeviceType::D3D11:
-        {
-            return createD3D11Device(desc, outDevice);
-        }
 #endif
 #if SLANG_RHI_ENABLE_D3D12
-        case DeviceType::D3D12:
-        {
-            return createD3D12Device(desc, outDevice);
-        }
+    case DeviceType::D3D12:
+        SLANG_RETURN_ON_FAIL(getD3D12Adapters(adapters));
+        break;
 #endif
 #if SLANG_RHI_ENABLE_VULKAN
-        case DeviceType::Vulkan:
-        {
-            return createVKDevice(desc, outDevice);
-        }
+    case DeviceType::Vulkan:
+        SLANG_RETURN_ON_FAIL(getVKAdapters(adapters));
+        break;
 #endif
 #if SLANG_RHI_ENABLE_METAL
-        case DeviceType::Metal:
-        {
-            return createMetalDevice(desc, outDevice);
-        }
+    case DeviceType::Metal:
+        SLANG_RETURN_ON_FAIL(getMetalAdapters(adapters));
+        break;
 #endif
+    case DeviceType::CPU:
+        return SLANG_E_NOT_IMPLEMENTED;
 #if SLANG_RHI_ENABLE_CUDA
-        case DeviceType::CUDA:
-        {
-            return createCUDADevice(desc, outDevice);
-        }
+    case DeviceType::CUDA:
+        SLANG_RETURN_ON_FAIL(getCUDAAdapters(adapters));
+        break;
 #endif
-        case DeviceType::CPU:
-        {
-            return createCPUDevice(desc, outDevice);
-        }
-#if SLANG_RHI_ENABLE_WGPU
-        case DeviceType::WGPU:
-        {
-            return createWGPUDevice(desc, outDevice);
-        }
-#endif
-
-        default:
-            return SLANG_FAIL;
-        }
+    default:
+        return SLANG_E_INVALID_ARG;
     }
 
-    SLANG_RHI_API Result SLANG_MCALL rhiCreateDevice(const IDevice::Desc* desc, IDevice** outDevice)
+    auto adaptersBlob = OwnedBlob::create(adapters.data(), adapters.size() * sizeof(AdapterInfo));
+    if (outAdaptersBlob)
+        returnComPtr(outAdaptersBlob, adaptersBlob);
+
+    return SLANG_OK;
+}
+
+inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
+{
+    switch (desc->deviceType)
     {
-        ComPtr<IDevice> innerDevice;
-        auto resultCode = _createDevice(desc, innerDevice.writeRef());
-        if (SLANG_FAILED(resultCode))
-            return resultCode;
-        if (!debugLayerEnabled)
-        {
-            returnComPtr(outDevice, innerDevice);
-            return resultCode;
-        }
-        RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice();
-        debugDevice->baseObject = innerDevice;
-        returnComPtr(outDevice, debugDevice);
+    case DeviceType::Default:
+    {
+        DeviceDesc newDesc = *desc;
+        newDesc.deviceType = DeviceType::D3D12;
+        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+            return SLANG_OK;
+        newDesc.deviceType = DeviceType::Vulkan;
+        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+            return SLANG_OK;
+        return SLANG_FAIL;
+    }
+    break;
+#if SLANG_RHI_ENABLE_D3D11
+    case DeviceType::D3D11:
+    {
+        return createD3D11Device(desc, outDevice);
+    }
+#endif
+#if SLANG_RHI_ENABLE_D3D12
+    case DeviceType::D3D12:
+    {
+        return createD3D12Device(desc, outDevice);
+    }
+#endif
+#if SLANG_RHI_ENABLE_VULKAN
+    case DeviceType::Vulkan:
+    {
+        return createVKDevice(desc, outDevice);
+    }
+#endif
+#if SLANG_RHI_ENABLE_METAL
+    case DeviceType::Metal:
+    {
+        return createMetalDevice(desc, outDevice);
+    }
+#endif
+#if SLANG_RHI_ENABLE_CUDA
+    case DeviceType::CUDA:
+    {
+        return createCUDADevice(desc, outDevice);
+    }
+#endif
+    case DeviceType::CPU:
+    {
+        return createCPUDevice(desc, outDevice);
+    }
+#if SLANG_RHI_ENABLE_WGPU
+    case DeviceType::WGPU:
+    {
+        return createWGPUDevice(desc, outDevice);
+    }
+#endif
+
+    default:
+        return SLANG_FAIL;
+    }
+}
+
+Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
+{
+    ComPtr<IDevice> innerDevice;
+    auto resultCode = _createDevice(&desc, innerDevice.writeRef());
+    if (SLANG_FAILED(resultCode))
+        return resultCode;
+    if (!desc.enableValidation)
+    {
+        returnComPtr(outDevice, innerDevice);
         return resultCode;
     }
+    IDebugCallback* debugCallback = static_cast<Device*>(innerDevice.get())->m_debugCallback;
+    RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice(debugCallback);
+    debugDevice->baseObject = innerDevice;
+    returnComPtr(outDevice, debugDevice);
+    return resultCode;
+}
 
-    SLANG_RHI_API Result SLANG_MCALL rhiReportLiveObjects()
-    {
+Result RHI::reportLiveObjects()
+{
 #if SLANG_RHI_ENABLE_D3D12
-        SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
+    SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
 #endif
-        return SLANG_OK;
-    }
+    return SLANG_OK;
+}
 
-    SLANG_RHI_API Result SLANG_MCALL rhiSetDebugCallback(IDebugCallback* callback)
+extern "C"
+{
+    IRHI* getRHI()
     {
-        _getDebugCallback() = callback;
-        return SLANG_OK;
-    }
-
-    SLANG_RHI_API void SLANG_MCALL rhiEnableDebugLayer()
-    {
-        debugLayerEnabled = true;
-    }
-
-    const char* SLANG_MCALL rhiGetDeviceTypeName(DeviceType type)
-    {
-        switch (type)
-        {
-        case DeviceType::Default:
-            return "Default";
-        case DeviceType::D3D11:
-            return "D3D11";
-        case DeviceType::D3D12:
-            return "D3D12";
-        case DeviceType::Vulkan:
-            return "Vulkan";
-        case DeviceType::Metal:
-            return "Metal";
-        case DeviceType::CPU:
-            return "CPU";
-        case DeviceType::CUDA:
-            return "CUDA";
-        case DeviceType::WGPU:
-            return "WGPU";
-        default:
-            return "?";
-        }
-    }
-
-    bool rhiIsDeviceTypeSupported(DeviceType type)
-    {
-        switch (type)
-        {
-        case DeviceType::D3D11:
-            return SLANG_RHI_ENABLE_D3D11;
-        case DeviceType::D3D12:
-            return SLANG_RHI_ENABLE_D3D12;
-        case DeviceType::Vulkan:
-            return SLANG_RHI_ENABLE_VULKAN;
-        case DeviceType::Metal:
-            return SLANG_RHI_ENABLE_METAL;
-        case DeviceType::CPU:
-            return true;
-        case DeviceType::CUDA:
-#if SLANG_RHI_ENABLE_CUDA
-            return rhiCudaApiInit();
-#else
-            return false;
-#endif
-        case DeviceType::WGPU:
-            return SLANG_RHI_ENABLE_WGPU;
-        default:
-            return false;
-        }
+        return RHI::getInstance();
     }
 }
 

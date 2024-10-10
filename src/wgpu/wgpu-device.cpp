@@ -35,7 +35,7 @@ Context::~Context()
 
 DeviceImpl::~DeviceImpl() {}
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
@@ -45,7 +45,7 @@ void DeviceImpl::handleError(WGPUErrorType type, char const* message)
     fprintf(stderr, "WGPU error: %s\n", message);
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(m_ctx.api.init());
     API& api = m_ctx.api;
@@ -162,8 +162,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     GfxCount width = std::max(desc.size.width, 1);
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
-    FormatInfo formatInfo;
-    rhiGetFormatInfo(desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;
     Size bytesPerSlice = Size(height) * bytesPerRow;

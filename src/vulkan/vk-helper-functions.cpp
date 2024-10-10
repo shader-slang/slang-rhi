@@ -8,16 +8,14 @@ namespace rhi::vk {
 
 Size calcRowSize(Format format, int width)
 {
-    FormatInfo sizeInfo;
-    rhiGetFormatInfo(format, &sizeInfo);
-    return Size((width + sizeInfo.blockWidth - 1) / sizeInfo.blockWidth * sizeInfo.blockSizeInBytes);
+    const FormatInfo& info = getFormatInfo(format);
+    return Size((width + info.blockWidth - 1) / info.blockWidth * info.blockSizeInBytes);
 }
 
 GfxCount calcNumRows(Format format, int height)
 {
-    FormatInfo sizeInfo;
-    rhiGetFormatInfo(format, &sizeInfo);
-    return (GfxCount)(height + sizeInfo.blockHeight - 1) / sizeInfo.blockHeight;
+    const FormatInfo& info = getFormatInfo(format);
+    return (GfxCount)(height + info.blockHeight - 1) / info.blockHeight;
 }
 
 VkAttachmentLoadOp translateLoadOp(LoadOp loadOp)
@@ -508,7 +506,7 @@ Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createVKDevice(const IDevice::Desc* desc, IDevice** outRenderer)
+Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outRenderer)
 {
     RefPtr<vk::DeviceImpl> result = new vk::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

@@ -9,6 +9,8 @@ class DebugSurface : public DebugObject<ISurface>
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugSurface);
+
     ISurface* getInterface(const Guid& guid);
 
 public:

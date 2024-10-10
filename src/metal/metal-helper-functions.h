@@ -112,6 +112,6 @@ struct RenderBindingContext : public BindingContext
 namespace rhi {
 
 Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createMetalDevice(const IDevice::Desc* desc, IDevice** outRenderer);
+Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outRenderer);
 
 } // namespace rhi

@@ -22,7 +22,7 @@ struct Context
 class DeviceImpl : public Device
 {
 public:
-    Desc m_desc;
+    DeviceDesc m_desc;
     DeviceInfo m_info;
     std::string m_adapterName;
 
@@ -30,7 +30,7 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
 
     ~DeviceImpl();
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
     void handleError(WGPUErrorType type, char const* message);
 
@@ -98,7 +98,7 @@ public:
 
     // void waitForGpu();
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 };
 
 } // namespace rhi::wgpu

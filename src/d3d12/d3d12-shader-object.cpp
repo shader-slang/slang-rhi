@@ -1121,7 +1121,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
 
     if (diagnosticBlob && diagnosticBlob->getBufferSize())
     {
-        getDebugCallback()->handleMessage(
+        m_device->handleMessage(
             SLANG_FAILED(result) ? DebugMessageType::Error : DebugMessageType::Info,
             DebugMessageSource::Layer,
             (const char*)diagnosticBlob->getBufferPointer()

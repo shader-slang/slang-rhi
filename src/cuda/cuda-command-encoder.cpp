@@ -213,7 +213,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
 )
 {
     AccelerationStructureBuildInputBuilder builder;
-    SLANG_RETURN_VOID_ON_FAIL(builder.build(desc, getDebugCallback()));
+    SLANG_RETURN_VOID_ON_FAIL(builder.build(desc, m_commandBuffer->m_device->m_debugCallback));
 
     AccelerationStructureImpl* dstImpl = static_cast<AccelerationStructureImpl*>(dst);
 

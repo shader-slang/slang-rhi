@@ -23,7 +23,7 @@
 
 namespace rhi::d3d11 {
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
@@ -418,9 +418,8 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* 
         return E_INVALIDARG;
     }
 
-    FormatInfo sizeInfo;
-    rhiGetFormatInfo(textureImpl->m_desc.format, &sizeInfo);
-    size_t bytesPerPixel = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
+    const FormatInfo& formatInfo = getFormatInfo(textureImpl->m_desc.format);
+    size_t bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     size_t rowPitch = int(textureImpl->m_desc.size.width) * bytesPerPixel;
     size_t bufferSize = rowPitch * int(textureImpl->m_desc.size.height);
     if (outRowPitch)
@@ -1185,8 +1184,7 @@ Result DeviceImpl::createShaderProgram(
             DebugMessageType msgType = DebugMessageType::Warning;
             if (compileResult != SLANG_OK)
                 msgType = DebugMessageType::Error;
-            getDebugCallback()
-                ->handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
+            handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
             if (outDiagnosticBlob)
                 returnComPtr(outDiagnosticBlob, diagnostics);
         }

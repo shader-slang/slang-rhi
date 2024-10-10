@@ -29,7 +29,7 @@ DeviceImpl::~DeviceImpl()
     m_queue.setNull();
 }
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::MTLDevice;
     outHandles->handles[0].value = (uint64_t)m_device.get();
@@ -38,7 +38,7 @@ Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     AUTORELEASEPOOL
 
@@ -158,8 +158,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     GfxCount width = std::max(desc.size.width, 1);
     GfxCount height = std::max(desc.size.height, 1);
     GfxCount depth = std::max(desc.size.depth, 1);
-    FormatInfo formatInfo;
-    rhiGetFormatInfo(desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;
     Size bytesPerSlice = Size(height) * bytesPerRow;
@@ -233,7 +232,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AUTORELEASEPOOL
 
     AccelerationStructureDescBuilder builder;
-    builder.build(desc, nullptr, getDebugCallback());
+    builder.build(desc, nullptr, m_debugCallback);
     MTL::AccelerationStructureSizes sizes = m_device->accelerationStructureSizes(builder.descriptor.get());
     outSizes->accelerationStructureSize = sizes.accelerationStructureSize;
     outSizes->scratchSize = sizes.buildScratchBufferSize;
@@ -291,8 +290,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     auto alignTo = [&](Size size, Size alignment) -> Size { return ((size + alignment - 1) / alignment) * alignment; };
 
     TextureDesc desc = fixupTextureDesc(descIn);
-    FormatInfo formatInfo;
-    rhiGetFormatInfo(desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
     MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;

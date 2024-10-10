@@ -10,7 +10,7 @@ Result DebugTransientResourceHeap::queryInterface(SlangUUID const& uuid, void** 
         *outObject = static_cast<ITransientResourceHeap*>(this);
     if (uuid == GUID::IID_ITransientResourceHeapD3D12)
     {
-        RefPtr<DebugTransientResourceHeapD3D12> result = new DebugTransientResourceHeapD3D12();
+        RefPtr<DebugTransientResourceHeapD3D12> result = new DebugTransientResourceHeapD3D12(ctx);
         baseObject->queryInterface(uuid, (void**)result->baseObject.writeRef());
         returnComPtr((ITransientResourceHeapD3D12**)outObject, result);
         return SLANG_OK;
@@ -36,7 +36,7 @@ Result DebugTransientResourceHeap::finish()
 Result DebugTransientResourceHeap::createCommandBuffer(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RHI_API_FUNC;
-    RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer();
+    RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
     outObject->m_transientHeap = this;
     auto result = baseObject->createCommandBuffer(outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
@@ -51,7 +51,7 @@ Result DebugTransientResourceHeapD3D12::queryInterface(SlangUUID const& uuid, vo
         *outObject = static_cast<ITransientResourceHeapD3D12*>(this);
     if (uuid == GUID::IID_ITransientResourceHeap)
     {
-        RefPtr<DebugTransientResourceHeap> result = new DebugTransientResourceHeap();
+        RefPtr<DebugTransientResourceHeap> result = new DebugTransientResourceHeap(ctx);
         baseObject->queryInterface(uuid, (void**)result->baseObject.writeRef());
         returnComPtr((ITransientResourceHeap**)outObject, result);
         return SLANG_OK;

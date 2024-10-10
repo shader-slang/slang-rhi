@@ -10,6 +10,8 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF;
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
 
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugTransientResourceHeap);
+
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
 
@@ -23,6 +25,8 @@ class DebugTransientResourceHeapD3D12 : public DebugObject<ITransientResourceHea
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF;
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
+
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugTransientResourceHeapD3D12);
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;

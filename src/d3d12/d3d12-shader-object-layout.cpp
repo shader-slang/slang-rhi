@@ -511,7 +511,7 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
             rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
             break;
         default:
-            getDebugCallback()->handleMessage(
+            m_device->handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Layer,
                 "A shader parameter marked as root parameter is neither SRV nor UAV."
@@ -941,14 +941,14 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
             device->m_D3D12SerializeVersionedRootSignature(&versionedDesc, signature.writeRef(), error.writeRef())
         ))
     {
-        getDebugCallback()->handleMessage(
+        device->handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
             "error: D3D12SerializeRootSignature failed"
         );
         if (error)
         {
-            getDebugCallback()->handleMessage(
+            device->handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Driver,
                 (const char*)error->GetBufferPointer()

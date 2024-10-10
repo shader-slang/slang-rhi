@@ -11,7 +11,7 @@ class DeviceImpl : public ImmediateComputeDeviceBase
 public:
     ~DeviceImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const Desc& desc) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
@@ -74,6 +74,6 @@ private:
 
 namespace rhi {
 
-Result SLANG_MCALL createCPUDevice(const IDevice::Desc* desc, IDevice** outDevice);
+Result SLANG_MCALL createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

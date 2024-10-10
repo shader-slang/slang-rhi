@@ -177,7 +177,7 @@ struct ShaderCacheTest
 
     void createDevice()
     {
-        IDevice::Desc deviceDesc = {};
+        DeviceDesc deviceDesc = {};
         deviceDesc.deviceType = deviceType;
         deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
         auto searchPaths = getSlangSearchPaths();
@@ -207,10 +207,11 @@ struct ShaderCacheTest
         // (And in general reduce the differences (and duplication) between
         // here and render-test-main.cpp)
 #ifdef _DEBUG
-        rhiEnableDebugLayer();
+        deviceDesc.enableValidation = true;
+        deviceDesc.enableBackendValidation = true;
 #endif
 
-        REQUIRE_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
+        REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
     }
 
     void createComputeResources()

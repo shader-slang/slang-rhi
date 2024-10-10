@@ -21,7 +21,7 @@ Result DebugSurface::configure(const SurfaceConfig& config)
 
 Result DebugSurface::getCurrentTexture(ITexture** outTexture)
 {
-    RefPtr<DebugTexture> texture = new DebugTexture();
+    RefPtr<DebugTexture> texture = new DebugTexture(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->getCurrentTexture(texture->baseObject.writeRef()));
     returnComPtr(outTexture, texture);
     return SLANG_OK;

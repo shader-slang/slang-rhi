@@ -21,7 +21,7 @@ private:
     DebugRayTracingPassEncoder m_rayTracingPassEncoder;
 
 public:
-    DebugCommandBuffer();
+    DebugCommandBuffer(DebugContext* ctx);
     ICommandBuffer* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

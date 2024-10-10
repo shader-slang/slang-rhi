@@ -120,11 +120,10 @@ D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferR
     }
     else
     {
-        FormatInfo sizeInfo;
-        rhiGetFormatInfo(format, &sizeInfo);
-        SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
-        viewDesc.Buffer.FirstElement = range.offset / sizeInfo.blockSizeInBytes;
-        viewDesc.Buffer.NumElements = UINT(range.size / sizeInfo.blockSizeInBytes);
+        const FormatInfo& formatInfo = getFormatInfo(format);
+        SLANG_RHI_ASSERT(formatInfo.pixelsPerBlock == 1);
+        viewDesc.Buffer.FirstElement = range.offset / formatInfo.blockSizeInBytes;
+        viewDesc.Buffer.NumElements = UINT(range.size / formatInfo.blockSizeInBytes);
     }
 
     m_device->m_cpuViewHeap->allocate(&descriptor);
@@ -158,11 +157,10 @@ D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferR
     }
     else
     {
-        FormatInfo sizeInfo;
-        rhiGetFormatInfo(format, &sizeInfo);
-        SLANG_RHI_ASSERT(sizeInfo.pixelsPerBlock == 1);
-        viewDesc.Buffer.FirstElement = range.offset / sizeInfo.blockSizeInBytes;
-        viewDesc.Buffer.NumElements = UINT(range.size / sizeInfo.blockSizeInBytes);
+        const FormatInfo& formatInfo = getFormatInfo(format);
+        SLANG_RHI_ASSERT(formatInfo.pixelsPerBlock == 1);
+        viewDesc.Buffer.FirstElement = range.offset / formatInfo.blockSizeInBytes;
+        viewDesc.Buffer.NumElements = UINT(range.size / formatInfo.blockSizeInBytes);
     }
 
     m_device->m_cpuViewHeap->allocate(&descriptor);

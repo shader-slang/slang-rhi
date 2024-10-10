@@ -103,7 +103,7 @@ VkBool32 DeviceImpl::handleDebugMessage(
         pCallbackData->pMessage
     );
 
-    getDebugCallback()->handleMessage(msgType, DebugMessageSource::Driver, buffer);
+    handleMessage(msgType, DebugMessageSource::Driver, buffer);
     return VK_FALSE;
 }
 
@@ -117,7 +117,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
     return ((DeviceImpl*)pUserData)->handleDebugMessage(messageSeverity, messageTypes, pCallbackData);
 }
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::VkInstance;
     outHandles->handles[0].value = (uint64_t)m_api.m_instance;
@@ -138,7 +138,7 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool useValidationLayer)
+Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool enableValidationLayer)
 {
     m_features.clear();
 
@@ -192,7 +192,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
 #endif
         }
 
-        if (ENABLE_VALIDATION_LAYER || isRhiDebugLayerEnabled())
+        if (enableValidationLayer)
         {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -210,7 +210,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
 
         VkValidationFeaturesEXT validationFeatures = {};
         VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
-        if (useValidationLayer)
+        if (enableValidationLayer)
         {
             // Depending on driver version, validation layer may or may not exist.
             // Newer drivers comes with "VK_LAYER_KHRONOS_validation", while older
@@ -290,7 +290,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         return SLANG_FAIL;
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((enableRayTracingValidation || useValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((enableRayTracingValidation || enableValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
@@ -999,7 +999,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     // Initialize device info.
     {
@@ -1023,10 +1023,8 @@ Result DeviceImpl::initialize(const Desc& desc)
         if (initDeviceResult != SLANG_OK)
             continue;
         descriptorSetAllocator.m_api = &m_api;
-        initDeviceResult = initVulkanInstanceAndDevice(
-            desc.existingDeviceHandles.handles,
-            ENABLE_VALIDATION_LAYER != 0 || isRhiDebugLayerEnabled()
-        );
+        initDeviceResult =
+            initVulkanInstanceAndDevice(desc.existingDeviceHandles.handles, desc.enableBackendValidation);
         if (initDeviceResult == SLANG_OK)
             break;
     }
@@ -1110,9 +1108,8 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     const TextureDesc& desc = textureImpl->m_desc;
     auto width = desc.size.width;
     auto height = desc.size.height;
-    FormatInfo sizeInfo;
-    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &sizeInfo));
-    Size pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+    Size pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
     int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
@@ -1329,7 +1326,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     }
     VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
     AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
-    SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(desc, getDebugCallback()));
+    SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(desc, m_debugCallback));
     m_api.vkGetAccelerationStructureBuildSizesKHR(
         m_api.m_device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
@@ -1742,8 +1739,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             // Handle senario where texture is sampled. We cannot use
             // a simple buffer copy for sampled textures. ClearColorImage
             // is not data accurate but it is fine for testing & works.
-            FormatInfo formatInfo;
-            rhiGetFormatInfo(desc.format, &formatInfo);
+            const FormatInfo& formatInfo = getFormatInfo(desc.format);
             uint32_t data = 0;
             VkClearColorValue clearColor;
             switch (formatInfo.channelType)

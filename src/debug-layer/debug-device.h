@@ -12,9 +12,9 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
 
 public:
-    DebugDevice();
+    DebugDevice(IDebugCallback* debugCallback);
     IDevice* getInterface(const Guid& guid);
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(NativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) override;
@@ -109,6 +109,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) override;
+
+private:
+    DebugContext m_ctx;
 };
 
 } // namespace rhi::debug

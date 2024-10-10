@@ -50,7 +50,7 @@ Result DebugShaderObject::getEntryPoint(GfxIndex index, IShaderObject** entryPoi
     {
         for (GfxIndex i = 0; i < getEntryPointCount(); i++)
         {
-            RefPtr<DebugShaderObject> entryPointObj = new DebugShaderObject();
+            RefPtr<DebugShaderObject> entryPointObj = new DebugShaderObject(ctx);
             SLANG_RETURN_ON_FAIL(baseObject->getEntryPoint(i, entryPointObj->baseObject.writeRef()));
             m_entryPoints.push_back(entryPointObj);
         }
@@ -88,7 +88,7 @@ Result DebugShaderObject::getObject(ShaderOffset const& offset, IShaderObject** 
             return resultCode;
         }
     }
-    debugShaderObject = new DebugShaderObject();
+    debugShaderObject = new DebugShaderObject(ctx);
     debugShaderObject->baseObject = innerObject;
     debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
     m_objects.emplace(ShaderOffsetKey{offset}, debugShaderObject);
@@ -159,7 +159,7 @@ Result DebugShaderObject::getCurrentVersion(ITransientResourceHeap* transientHea
     SLANG_RHI_API_FUNC;
     ComPtr<IShaderObject> innerObject;
     SLANG_RETURN_ON_FAIL(baseObject->getCurrentVersion(getInnerObj(transientHeap), innerObject.writeRef()));
-    RefPtr<DebugShaderObject> debugShaderObject = new DebugShaderObject();
+    RefPtr<DebugShaderObject> debugShaderObject = new DebugShaderObject(ctx);
     debugShaderObject->baseObject = innerObject;
     debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
     returnComPtr(outObject, debugShaderObject);

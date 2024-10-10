@@ -276,8 +276,7 @@ void ResourcePassEncoderImpl::uploadTextureData(
         dstTexture->m_desc.arrayLength
     );
     auto textureSize = dstTexture->m_desc.size;
-    FormatInfo formatInfo = {};
-    rhiGetFormatInfo(dstTexture->m_desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(dstTexture->m_desc.format);
     for (GfxCount i = 0; i < subresourceDataCount; i++)
     {
         auto subresourceIndex = baseSubresourceIndex + i;
@@ -557,8 +556,7 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
         srcTexture->m_desc.arrayLength
     );
     auto textureSize = srcTexture->m_desc.size;
-    FormatInfo formatInfo = {};
-    rhiGetFormatInfo(srcTexture->m_desc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(srcTexture->m_desc.format);
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = srcTexture->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
@@ -1169,7 +1167,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
 {
     if (!m_commandBuffer->m_cmdList4)
     {
-        getDebugCallback()->handleMessage(
+        m_device->handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
             "Ray-tracing is not supported on current system."
@@ -1184,7 +1182,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     buildDesc.SourceAccelerationStructureData = srcImpl ? srcImpl->getDeviceAddress() : 0;
     buildDesc.ScratchAccelerationStructureData = scratchBuffer.buffer->getDeviceAddress() + scratchBuffer.offset;
     D3DAccelerationStructureInputsBuilder builder;
-    builder.build(desc, getDebugCallback());
+    builder.build(desc, m_device->m_debugCallback);
     buildDesc.Inputs = builder.desc;
 
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
@@ -1211,7 +1209,7 @@ void RayTracingPassEncoderImpl::copyAccelerationStructure(
         copyMode = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_COMPACT;
         break;
     default:
-        getDebugCallback()->handleMessage(
+        m_device->handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
             "Unsupported AccelerationStructureCopyMode."

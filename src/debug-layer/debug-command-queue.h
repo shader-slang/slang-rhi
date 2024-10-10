@@ -9,6 +9,8 @@ class DebugCommandQueue : public DebugObject<ICommandQueue>
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugCommandQueue);
+
 public:
     ICommandQueue* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override;

@@ -145,7 +145,7 @@ DeviceImpl::~DeviceImpl()
     }
 }
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::CUdevice;
     outHandles->handles[0].value = m_ctx.device;
@@ -159,7 +159,7 @@ Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
@@ -408,8 +408,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
         int numChannels = 0;
 
         SLANG_RETURN_ON_FAIL(getCUDAFormat(desc.format, &format));
-        FormatInfo info;
-        rhiGetFormatInfo(desc.format, &info);
+        const FormatInfo& info = getFormatInfo(desc.format);
         numChannels = info.channelCount;
 
         switch (format)
@@ -879,8 +878,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
     SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));
     texture->m_cudaExternalMemory = externalMemory;
 
-    FormatInfo formatInfo;
-    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &formatInfo));
+    const FormatInfo formatInfo = getFormatInfo(desc.format);
     CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
     arrayDesc.Depth = desc.size.depth;
     arrayDesc.Height = desc.size.height;
@@ -1031,7 +1029,7 @@ Result DeviceImpl::createShaderProgram(
     );
     if (diagnostics)
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
             DebugMessageSource::Slang,
             (char*)diagnostics->getBufferPointer()
@@ -1138,9 +1136,8 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* 
     const TextureDesc& desc = textureImpl->m_desc;
     auto width = desc.size.width;
     auto height = desc.size.height;
-    FormatInfo sizeInfo;
-    SLANG_RETURN_ON_FAIL(rhiGetFormatInfo(desc.format, &sizeInfo));
-    size_t pixelSize = sizeInfo.blockSizeInBytes / sizeInfo.pixelsPerBlock;
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+    size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     size_t rowPitch = width * pixelSize;
     size_t size = height * rowPitch;
 
@@ -1184,7 +1181,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
 {
 #if SLANG_RHI_HAS_OPTIX
     AccelerationStructureBuildInputBuilder builder;
-    builder.build(desc, getDebugCallback());
+    builder.build(desc, m_debugCallback);
     OptixAccelBufferSizes sizes;
     SLANG_OPTIX_RETURN_ON_FAIL(optixAccelComputeMemoryUsage(
         m_ctx.optixContext,

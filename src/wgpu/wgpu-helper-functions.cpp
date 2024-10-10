@@ -35,7 +35,7 @@ Result SLANG_MCALL getWGPUAdapters(std::vector<AdapterInfo>& outAdapters)
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createWGPUDevice(const IDevice::Desc* desc, IDevice** outRenderer)
+Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outRenderer)
 {
     RefPtr<wgpu::DeviceImpl> result = new wgpu::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

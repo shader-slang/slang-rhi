@@ -165,7 +165,7 @@ Result DeviceImpl::createBuffer(
     return SLANG_OK;
 }
 
-Result DeviceImpl::getNativeDeviceHandles(NativeHandles* outHandles)
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::D3D12Device;
     outHandles->handles[0].value = (uint64_t)m_device;
@@ -324,7 +324,7 @@ Result DeviceImpl::_createDevice(
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const Desc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -338,8 +338,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 #endif
     if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
     {
-        getDebugCallback()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "error: failed load 'd3d12.dll'\n");
+        handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "error: failed load 'd3d12.dll'\n");
         return SLANG_FAIL;
     }
 
@@ -393,7 +392,7 @@ Result DeviceImpl::initialize(const Desc& desc)
 #endif
 
     // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
-    if (ENABLE_DEBUG_LAYER || isRhiDebugLayerEnabled() && !g_isAftermathEnabled)
+    if (ENABLE_DEBUG_LAYER || desc.enableBackendValidation && !g_isAftermathEnabled)
     {
         m_D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)loadProc(d3dModule, "D3D12GetDebugInterface");
         if (m_D3D12GetDebugInterface)
@@ -430,7 +429,7 @@ Result DeviceImpl::initialize(const Desc& desc)
         // TODO: we should probably provide a command-line option
         // to override UseDebug of default rather than leave it
         // up to each back-end to specify.
-        if (ENABLE_DEBUG_LAYER || isRhiDebugLayerEnabled())
+        if (ENABLE_DEBUG_LAYER || desc.enableBackendValidation)
         {
             /// First try debug then non debug.
             combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);
@@ -765,7 +764,7 @@ Result DeviceImpl::initialize(const Desc& desc)
     int userSpecifiedShaderModel = D3DUtil::getShaderModelFromProfileName(desc.slang.targetProfile);
     if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Layer,
             "The requested shader model is not supported by the system."
@@ -887,8 +886,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         return SLANG_FAIL;
     }
 
-    FormatInfo formatInfo;
-    rhiGetFormatInfo(rhiDesc.format, &formatInfo);
+    const FormatInfo& formatInfo = getFormatInfo(rhiDesc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = int(desc.Width) * bytesPerPixel;
     static const Size align = 256;                    // D3D requires minimum 256 byte alignment for texture data.
@@ -997,6 +995,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899215%28v=vs.85%29.aspx
 
     TextureDesc srcDesc = fixupTextureDesc(descIn);
+
+    const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     D3D12_RESOURCE_DESC resourceDesc = {};
     initTextureDesc(resourceDesc, srcDesc);
@@ -1127,7 +1127,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
 
                 Extents mipSize = calcMipSize(srcDesc.size, j);
-                if (rhiIsCompressedFormat(descIn.format))
+                if (formatInfo.isCompressed)
                 {
                     mipSize.width = int(D3DUtil::calcAligned(mipSize.width, 4));
                     mipSize.height = int(D3DUtil::calcAligned(mipSize.height, 4));
@@ -1156,8 +1156,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     //
                     const uint8_t* srcRow = srcLayer;
                     uint8_t* dstRow = dstLayer;
-                    int j = rhiIsCompressedFormat(descIn.format) ? 4 : 1; // BC compressed formats are organized into
-                                                                          // 4x4 blocks
+                    int j = formatInfo.isCompressed ? 4 : 1; // BC compressed formats are organized into
+                                                             // 4x4 blocks
                     for (int k = 0; k < mipSize.height; k += j)
                     {
                         ::memcpy(dstRow, srcRow, (Size)mipRowSize);
@@ -1629,7 +1629,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         (PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)loadProc(d3dModule, "D3D12EnableExperimentalFeatures");
     if (!enableExperimentalFeaturesFunc)
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             DebugMessageType::Warning,
             DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' function "
@@ -1644,7 +1644,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
             desc.configurationStructSizes
         )))
     {
-        getDebugCallback()->handleMessage(
+        handleMessage(
             DebugMessageType::Warning,
             DebugMessageSource::Layer,
             "cannot enable D3D12 experimental features, 'D3D12EnableExperimentalFeatures' call "
@@ -1723,7 +1723,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
         return SLANG_E_NOT_AVAILABLE;
 
     D3DAccelerationStructureInputsBuilder inputsBuilder;
-    SLANG_RETURN_ON_FAIL(inputsBuilder.build(desc, getDebugCallback()));
+    SLANG_RETURN_ON_FAIL(inputsBuilder.build(desc, m_debugCallback));
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
     m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&inputsBuilder.desc, &prebuildInfo);

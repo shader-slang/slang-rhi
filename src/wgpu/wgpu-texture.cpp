@@ -60,8 +60,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        FormatInfo formatInfo;
-        rhiGetFormatInfo(desc.format, &formatInfo);
+        const FormatInfo& formatInfo = getFormatInfo(desc.format);
 
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
         SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });

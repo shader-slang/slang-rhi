@@ -9,6 +9,8 @@ class DebugTexture : public DebugObject<ITexture>
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugTexture);
+
 public:
     ITexture* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW const TextureDesc& SLANG_MCALL getDesc() override;

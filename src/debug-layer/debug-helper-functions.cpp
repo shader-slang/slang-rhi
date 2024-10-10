@@ -95,7 +95,7 @@ std::string createSamplerLabel(const SamplerDesc& desc)
     );
 }
 
-void validateAccelerationStructureBuildDesc(const AccelerationStructureBuildDesc& buildDesc)
+void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc)
 {
     if (buildDesc.inputCount < 1)
     {

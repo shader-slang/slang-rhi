@@ -6,11 +6,11 @@ using namespace rhi::testing;
 void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> existingDevice = createTestingDevice(ctx, deviceType);
-    IDevice::NativeHandles handles;
+    DeviceNativeHandles handles;
     CHECK_CALL(existingDevice->getNativeDeviceHandles(&handles));
 
     ComPtr<IDevice> device;
-    IDevice::Desc deviceDesc = {};
+    DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
     deviceDesc.existingDeviceHandles.handles[0] = handles.handles[0];
     if (deviceType == DeviceType::Vulkan)
@@ -22,7 +22,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
     auto searchPaths = getSlangSearchPaths();
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
-    CHECK_CALL(rhiCreateDevice(&deviceDesc, device.writeRef()));
+    CHECK_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
 
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
