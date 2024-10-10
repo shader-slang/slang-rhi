@@ -402,7 +402,7 @@ Result RenderPassEncoderImpl::setSamplePositions(
 
 Result RenderPassEncoderImpl::prepareDraw(MTL::RenderCommandEncoder*& encoder)
 {
-    auto pipeline = checked_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    PipelineImpl* pipeline = m_currentPipeline.get();
     pipeline->ensureAPIPipelineCreated();
 
     encoder = m_commandBuffer->getMetalRenderCommandEncoder(m_renderPassDesc.get());
@@ -549,7 +549,7 @@ Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
     auto program = checked_cast<ShaderProgramImpl*>(m_currentPipeline->m_program.get());
     m_commandBuffer->m_rootObject.bindAsRoot(&bindingContext, program->m_rootObjectLayout);
 
-    auto pipeline = checked_cast<PipelineImpl*>(m_currentPipeline.Ptr());
+    PipelineImpl* pipeline = m_currentPipeline.get();
     RootShaderObjectImpl* rootObjectImpl = &m_commandBuffer->m_rootObject;
     RefPtr<Pipeline> newPipeline;
     SLANG_RETURN_ON_FAIL(
