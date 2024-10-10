@@ -1305,7 +1305,18 @@ struct MultisampleState
 struct RenderPipelineDesc
 {
     IShaderProgram* program = nullptr;
+    IInputLayout* inputLayout = nullptr;
+    PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
+    ColorTargetState* targets = nullptr;
+    GfxCount targetCount = 0;
+    DepthStencilState depthStencil;
+    RasterizerDesc rasterizer;
+    MultisampleState multisample;
+};
 
+struct RenderPipelineDesc2
+{
+    IShaderProgram* program = nullptr;
     IInputLayout* inputLayout = nullptr;
     PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
     ColorTargetState* targets = nullptr;
@@ -1316,6 +1327,12 @@ struct RenderPipelineDesc
 };
 
 struct ComputePipelineDesc
+{
+    IShaderProgram* program = nullptr;
+    void* d3d12RootSignatureOverride = nullptr;
+};
+
+struct ComputePipelineDesc2
 {
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
@@ -1338,6 +1355,17 @@ struct HitGroupDesc
 };
 
 struct RayTracingPipelineDesc
+{
+    IShaderProgram* program = nullptr;
+    GfxCount hitGroupCount = 0;
+    HitGroupDesc* hitGroups = nullptr;
+    int maxRecursion = 0;
+    Size maxRayPayloadSize = 0;
+    Size maxAttributeSizeInBytes = 8;
+    RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
+};
+
+struct RayTracingPipelineDesc2
 {
     IShaderProgram* program = nullptr;
     GfxCount hitGroupCount = 0;
@@ -1386,6 +1414,27 @@ public:
 class IPipeline : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x2ad83bfc, 0x581d, 0x4b88, {0x81, 0x3c, 0x0c, 0x0e, 0xaf, 0x04, 0x0a, 0x00});
+};
+
+class IRenderPipeline : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xf2eb0472, 0xfa25, 0x44f9, {0xb1, 0x90, 0xdc, 0x3e, 0x29, 0xaa, 0x56, 0x6a});
+
+public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+};
+
+class IComputePipeline : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x16eded28, 0xdc04, 0x434d, {0x85, 0xb7, 0xd6, 0xfa, 0xa0, 0x00, 0x5d, 0xf3});
+
+public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+};
+
+class IRayTracingPipeline : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x5047f5d7, 0xc6f6, 0x4482, {0xab, 0x49, 0x08, 0x57, 0x1b, 0xcf, 0xe8, 0xda});
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
@@ -2440,6 +2489,13 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) = 0;
 
     /// Read back texture resource and stores the result in `outBlob`.
     virtual SLANG_NO_THROW SlangResult SLANG_MCALL

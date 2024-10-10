@@ -468,6 +468,45 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
     return result;
 }
 
+Result DebugDevice::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
+{
+    SLANG_RHI_API_FUNC;
+
+    RenderPipelineDesc2 innerDesc = desc;
+    innerDesc.program = getInnerObj(desc.program);
+
+    RefPtr<DebugRenderPipeline> outObject = new DebugRenderPipeline(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createRenderPipeline2(innerDesc, outObject->baseObject.writeRef()));
+    returnComPtr(outPipeline, outObject);
+    return SLANG_OK;
+}
+
+Result DebugDevice::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+{
+    SLANG_RHI_API_FUNC;
+
+    ComputePipelineDesc2 innerDesc = desc;
+    innerDesc.program = getInnerObj(desc.program);
+
+    RefPtr<DebugComputePipeline> outObject = new DebugComputePipeline(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createComputePipeline2(innerDesc, outObject->baseObject.writeRef()));
+    returnComPtr(outPipeline, outObject);
+    return SLANG_OK;
+}
+
+Result DebugDevice::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
+{
+    SLANG_RHI_API_FUNC;
+
+    RayTracingPipelineDesc2 innerDesc = desc;
+    innerDesc.program = getInnerObj(desc.program);
+
+    RefPtr<DebugRayTracingPipeline> outObject = new DebugRayTracingPipeline(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createRayTracingPipeline2(innerDesc, outObject->baseObject.writeRef()));
+    returnComPtr(outPipeline, outObject);
+    return SLANG_OK;
+}
+
 Result DebugDevice::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
     SLANG_RHI_API_FUNC;
