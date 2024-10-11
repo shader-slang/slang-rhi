@@ -9,7 +9,7 @@
 #include "d3d12-shader-table.h"
 #include "d3d12-texture.h"
 #include "d3d12-transient-heap.h"
-#include "d3d12-vertex-layout.h"
+#include "d3d12-input-layout.h"
 #include "d3d12-texture-view.h"
 #include "d3d12-acceleration-structure.h"
 

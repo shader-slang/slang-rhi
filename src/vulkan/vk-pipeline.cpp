@@ -3,7 +3,7 @@
 #include "vk-helper-functions.h"
 #include "vk-shader-object-layout.h"
 #include "vk-shader-program.h"
-#include "vk-vertex-layout.h"
+#include "vk-input-layout.h"
 
 #include "core/static_vector.h"
 

@@ -3,7 +3,7 @@
 #include "metal-shader-object-layout.h"
 #include "metal-shader-program.h"
 #include "metal-util.h"
-#include "metal-vertex-layout.h"
+#include "metal-input-layout.h"
 
 namespace rhi::metal {
 

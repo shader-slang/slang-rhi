@@ -1,7 +1,7 @@
 #include "d3d11-pipeline.h"
 #include "d3d11-device.h"
 #include "d3d11-shader-program.h"
-#include "d3d11-vertex-layout.h"
+#include "d3d11-input-layout.h"
 #include "d3d11-helper-functions.h"
 
 namespace rhi::d3d11 {

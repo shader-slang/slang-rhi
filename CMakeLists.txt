@@ -273,8 +273,8 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-shader-object.cpp
     src/debug-layer/debug-shader-program.cpp
     src/debug-layer/debug-surface.cpp
-    src/debug-layer/debug-texture.cpp
     src/debug-layer/debug-texture-view.cpp
+    src/debug-layer/debug-texture.cpp
     src/debug-layer/debug-transient-heap.cpp
 )
 
@@ -291,10 +291,10 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-helper-functions.cpp
         src/cpu/cpu-pipeline.cpp
         src/cpu/cpu-query.cpp
-        src/cpu/cpu-shader-object.cpp
         src/cpu/cpu-shader-object-layout.cpp
-        src/cpu/cpu-texture.cpp
+        src/cpu/cpu-shader-object.cpp
         src/cpu/cpu-texture-view.cpp
+        src/cpu/cpu-texture.cpp
     )
 endif()
 
@@ -313,8 +313,8 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-pipeline.cpp
         src/d3d11/d3d11-query.cpp
         src/d3d11/d3d11-scopeNVAPI.cpp
-        src/d3d11/d3d11-shader-object.cpp
         src/d3d11/d3d11-shader-object-layout.cpp
+        src/d3d11/d3d11-shader-object.cpp
         src/d3d11/d3d11-shader-program.cpp
         src/d3d11/d3d11-surface.cpp
         src/d3d11/d3d11-texture.cpp
@@ -337,14 +337,14 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-query.cpp
         src/d3d12/d3d12-resource.cpp
         src/d3d12/d3d12-sampler.cpp
-        src/d3d12/d3d12-shader-object.cpp
         src/d3d12/d3d12-shader-object-layout.cpp
+        src/d3d12/d3d12-shader-object.cpp
         src/d3d12/d3d12-shader-program.cpp
         src/d3d12/d3d12-shader-table.cpp
         src/d3d12/d3d12-submitter.cpp
         src/d3d12/d3d12-surface.cpp
-        src/d3d12/d3d12-texture.cpp
         src/d3d12/d3d12-texture-view.cpp
+        src/d3d12/d3d12-texture.cpp
         src/d3d12/d3d12-transient-heap.cpp
     )
 endif()
@@ -358,21 +358,21 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-command-encoder.cpp
         src/vulkan/vk-command-queue.cpp
         src/vulkan/vk-descriptor-allocator.cpp
-        src/vulkan/vk-device.cpp
         src/vulkan/vk-device-queue.cpp
+        src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
         src/vulkan/vk-helper-functions.cpp
         src/vulkan/vk-module.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
-        src/vulkan/vk-shader-object.cpp
         src/vulkan/vk-shader-object-layout.cpp
+        src/vulkan/vk-shader-object.cpp
         src/vulkan/vk-shader-program.cpp
         src/vulkan/vk-shader-table.cpp
         src/vulkan/vk-surface.cpp
-        src/vulkan/vk-texture.cpp
         src/vulkan/vk-texture-view.cpp
+        src/vulkan/vk-texture.cpp
         src/vulkan/vk-transient-heap.cpp
         src/vulkan/vk-util.cpp
     )
@@ -392,19 +392,19 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-device.cpp
         src/metal/metal-fence.cpp
         src/metal/metal-helper-functions.cpp
+        src/metal/metal-input-layout.cpp
         src/metal/metal-pipeline.cpp
         src/metal/metal-query.cpp
         src/metal/metal-sampler.cpp
-        src/metal/metal-shader-object.cpp
         src/metal/metal-shader-object-layout.cpp
+        src/metal/metal-shader-object.cpp
         src/metal/metal-shader-program.cpp
         src/metal/metal-shader-table.cpp
         src/metal/metal-surface.cpp
-        src/metal/metal-texture.cpp
         src/metal/metal-texture-view.cpp
+        src/metal/metal-texture.cpp
         src/metal/metal-transient-heap.cpp
         src/metal/metal-util.cpp
-        src/metal/metal-vertex-layout.cpp
     )
     add_library(slang-rhi-metal-cpp INTERFACE)
     target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
@@ -424,8 +424,8 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
-        src/cuda/cuda-shader-object.cpp
         src/cuda/cuda-shader-object-layout.cpp
+        src/cuda/cuda-shader-object.cpp
         src/cuda/cuda-shader-program.cpp
         src/cuda/cuda-texture.cpp
     )
@@ -445,8 +445,8 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-pipeline.cpp
         src/wgpu/wgpu-query.cpp
         src/wgpu/wgpu-sampler.cpp
-        src/wgpu/wgpu-shader-object.cpp
         src/wgpu/wgpu-shader-object-layout.cpp
+        src/wgpu/wgpu-shader-object.cpp
         src/wgpu/wgpu-shader-program.cpp
         src/wgpu/wgpu-surface.cpp
         src/wgpu/wgpu-texture.cpp
@@ -490,7 +490,6 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-create-buffer-from-handle.cpp
         tests/test-existing-device-handle.cpp
         tests/test-formats.cpp
-        tests/testing.cpp
         tests/test-instanced-draw.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp
@@ -499,9 +498,9 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-mutable-shader-object.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
-        tests/test-precompiled-module.cpp
         tests/test-precompiled-module-2.cpp
         tests/test-precompiled-module-cache.cpp
+        tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
@@ -514,6 +513,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-swapchain.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/testing.cpp
         tests/texture-utils.cpp
     )
     target_compile_definitions(slang-rhi-tests
