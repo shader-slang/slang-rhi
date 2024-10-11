@@ -3,7 +3,7 @@
 #include "d3d12-query.h"
 #include "d3d12-transient-heap.h"
 
-#ifdef SLANG_RHI_ENABLE_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
 #include "../nvapi/nvapi-include.h"
 #endif
 
@@ -21,7 +21,7 @@ namespace rhi::d3d12 {
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
 {
-#ifdef SLANG_RHI_ENABLE_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
     {
         bool isSupported;
         NvAPI_Status status = NvAPI_D3D12_IsNvShaderExtnOpCodeSupported(dev, NvU32(op), &isSupported);
