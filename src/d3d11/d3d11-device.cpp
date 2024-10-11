@@ -228,16 +228,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
         if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
         {
-            m_features.add("atomic-int64");
+            m_features.push_back("atomic-int64");
         }
         if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
         {
-            m_features.add("atomic-float");
+            m_features.push_back("atomic-float");
         }
 
         // If we have NVAPI well assume we have realtime clock
         {
-            m_features.add("realtime-clock");
+            m_features.push_back("realtime-clock");
         }
 
         m_nvapi = true;

@@ -7,7 +7,7 @@ static Result g_initStatus = SLANG_E_UNINITIALIZED;
 
 Result NVAPIUtil::initialize()
 {
-#ifdef SLANG_RHI_NVAPI
+#ifdef SLANG_RHI_ENABLE_NVAPI
     if (g_initStatus == SLANG_E_UNINITIALIZED)
     {
         NvAPI_Status ret = NVAPI_OK;
