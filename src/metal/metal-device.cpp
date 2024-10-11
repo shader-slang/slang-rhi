@@ -4,7 +4,7 @@
 #include "metal-shader-program.h"
 #include "metal-texture.h"
 #include "metal-util.h"
-#include "metal-vertex-layout.h"
+#include "metal-input-layout.h"
 // #include "metal-command-queue.h"
 #include "metal-fence.h"
 #include "metal-query.h"

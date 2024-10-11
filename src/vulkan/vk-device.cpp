@@ -11,7 +11,7 @@
 #include "vk-shader-program.h"
 #include "vk-shader-table.h"
 #include "vk-transient-heap.h"
-#include "vk-vertex-layout.h"
+#include "vk-input-layout.h"
 #include "vk-acceleration-structure.h"
 
 #include "core/common.h"

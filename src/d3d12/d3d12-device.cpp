@@ -11,7 +11,7 @@
 #include "d3d12-shader-program.h"
 #include "d3d12-shader-table.h"
 #include "d3d12-surface.h"
-#include "d3d12-vertex-layout.h"
+#include "d3d12-input-layout.h"
 #include "d3d12-acceleration-structure.h"
 
 #include "core/short_vector.h"

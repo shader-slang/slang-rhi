@@ -1,4 +1,4 @@
-#include "metal-vertex-layout.h"
+#include "metal-input-layout.h"
 #include "metal-util.h"
 
 namespace rhi::metal {

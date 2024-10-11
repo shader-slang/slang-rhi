@@ -11,7 +11,7 @@
 #include "d3d11-surface.h"
 #include "d3d11-texture.h"
 #include "d3d11-texture-view.h"
-#include "d3d11-vertex-layout.h"
+#include "d3d11-input-layout.h"
 
 #include "core/string.h"
 

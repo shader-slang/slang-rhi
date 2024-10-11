@@ -12,7 +12,7 @@
 #include "debug-texture.h"
 #include "debug-texture-view.h"
 #include "debug-transient-heap.h"
-#include "debug-vertex-layout.h"
+#include "debug-input-layout.h"
 
 #include "core/short_vector.h"
 

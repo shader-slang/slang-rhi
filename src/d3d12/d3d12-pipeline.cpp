@@ -2,7 +2,7 @@
 #include "d3d12-device.h"
 #include "d3d12-pipeline-state-stream.h"
 #include "d3d12-shader-program.h"
-#include "d3d12-vertex-layout.h"
+#include "d3d12-input-layout.h"
 
 #ifdef SLANG_RHI_NVAPI
 #include "../nvapi/nvapi-include.h"
