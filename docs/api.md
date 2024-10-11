@@ -173,7 +173,7 @@
 | API                          | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |------------------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`                    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `executeCommandBuffers`      | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `submit`                     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`            | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `waitOnHost`                 | yes | yes  | yes   | yes   | yes    | :x:   | yes  |
 | `waitForFenceValuesOnDevice` | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |

@@ -130,7 +130,7 @@ void CommandQueueImpl::queueSubmitImpl(
     m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
 }
 
-void CommandQueueImpl::executeCommandBuffers(
+void CommandQueueImpl::submit(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,

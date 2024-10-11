@@ -1937,12 +1937,8 @@ class ICommandQueue : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL executeCommandBuffers(
-        GfxCount count,
-        ICommandBuffer* const* commandBuffers,
-        IFence* fenceToSignal,
-        uint64_t newFenceValue
-    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) = 0;
 
     inline void executeCommandBuffer(
         ICommandBuffer* commandBuffer,
@@ -1950,7 +1946,7 @@ public:
         uint64_t newFenceValue = 0
     )
     {
-        executeCommandBuffers(1, &commandBuffer, fenceToSignal, newFenceValue);
+        submit(1, &commandBuffer, fenceToSignal, newFenceValue);
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
@@ -1997,7 +1993,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL finish() = 0;
 
     // Command buffers are one-time use. Once it is submitted to the queue via
-    // `executeCommandBuffers` a command buffer is no longer valid to be used any more. Command
+    // `submit` a command buffer is no longer valid to be used any more. Command
     // buffers must be closed before submission. The current D3D12 implementation has a limitation
     // that only one command buffer maybe recorded at a time. User must finish recording a command
     // buffer before creating another command buffer.

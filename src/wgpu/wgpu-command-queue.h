@@ -18,8 +18,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
-        override;
+    submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
 
 } // namespace rhi::wgpu

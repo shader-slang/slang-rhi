@@ -55,7 +55,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
     return SLANG_OK;
 }
 
-void CommandQueueImpl::executeCommandBuffers(
+void CommandQueueImpl::submit(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,

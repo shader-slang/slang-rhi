@@ -20,7 +20,7 @@ CommandQueueImpl::~CommandQueueImpl()
     currentRootObject = nullptr;
 }
 
-void CommandQueueImpl::executeCommandBuffers(
+void CommandQueueImpl::submit(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,

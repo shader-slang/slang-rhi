@@ -31,7 +31,7 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     return SLANG_OK;
 }
 
-void CommandQueueImpl::executeCommandBuffers(
+void CommandQueueImpl::submit(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,

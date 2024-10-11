@@ -14,7 +14,7 @@ QueueType DebugCommandQueue::getType()
     return baseObject->getType();
 }
 
-void DebugCommandQueue::executeCommandBuffers(
+void DebugCommandQueue::submit(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
@@ -42,13 +42,13 @@ void DebugCommandQueue::executeCommandBuffers(
             if (cmdBufferImpl->m_transientHeap != getDebugObj(commandBuffers[0])->m_transientHeap)
             {
                 RHI_VALIDATION_ERROR(
-                    "Command buffers passed to a single executeCommandBuffers "
+                    "Command buffers passed to a single submit "
                     "call must be allocated from the same transient heap."
                 );
             }
         }
     }
-    baseObject->executeCommandBuffers(count, innerCommandBuffers.data(), getInnerObj(fence), valueToSignal);
+    baseObject->submit(count, innerCommandBuffers.data(), getInnerObj(fence), valueToSignal);
     if (fence)
     {
         getDebugObj(fence)->maxValueToSignal = max(getDebugObj(fence)->maxValueToSignal, valueToSignal);

@@ -84,7 +84,7 @@ void CommandQueueImpl::queueSubmitImpl(
     }
 }
 
-void CommandQueueImpl::executeCommandBuffers(
+void CommandQueueImpl::submit(
     GfxCount count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,

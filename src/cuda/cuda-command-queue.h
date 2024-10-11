@@ -19,8 +19,7 @@ public:
     ~CommandQueueImpl();
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
-        override;
+    submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override;
 

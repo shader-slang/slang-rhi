@@ -32,8 +32,7 @@ public:
     void queueSubmitImpl(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal);
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    executeCommandBuffers(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal)
-        override;
+    submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
 
 } // namespace rhi::metal
