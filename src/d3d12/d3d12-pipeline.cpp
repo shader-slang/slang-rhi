@@ -4,7 +4,7 @@
 #include "d3d12-shader-program.h"
 #include "d3d12-input-layout.h"
 
-#ifdef SLANG_RHI_ENABLE_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
 #include "../nvapi/nvapi-include.h"
 #endif
 
@@ -255,7 +255,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
                                      : program->m_rootObjectLayout->m_rootSignature;
     computeDesc.CS = {program->m_shaders[0].code.data(), SIZE_T(program->m_shaders[0].code.size())};
 
-#ifdef SLANG_RHI_ENABLE_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
     if (m_nvapi)
     {
         // Also fill the extension structure.
