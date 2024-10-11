@@ -188,7 +188,7 @@ struct BaseResolveResourceTest
         passEncoder->end();
 
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

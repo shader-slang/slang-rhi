@@ -186,7 +186,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

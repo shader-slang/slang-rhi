@@ -152,7 +152,7 @@ struct BaseCopyTextureTest
 
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

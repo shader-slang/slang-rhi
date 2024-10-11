@@ -74,7 +74,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
         }
 
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

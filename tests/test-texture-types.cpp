@@ -158,7 +158,7 @@ struct TextureAccessTest : TextureTest
             passEncoder->dispatchCompute(bufferElementCount, 1, 1);
             passEncoder->end();
             commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            queue->submit(commandBuffer);
             queue->waitOnHost();
         }
     }
@@ -411,7 +411,7 @@ struct RenderTargetTests : TextureTest
         renderEncoder->end();
 
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

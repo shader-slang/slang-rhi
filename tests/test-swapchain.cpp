@@ -190,7 +190,7 @@ struct SwapchainResizeTest
         passEncoder->draw(kVertexCount);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         swapchain->present();
     }
 

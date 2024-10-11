@@ -69,7 +69,7 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

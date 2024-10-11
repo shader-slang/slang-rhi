@@ -278,7 +278,7 @@ struct ShaderCacheTest
         passEncoder->dispatchCompute(4, 1, 1);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 
@@ -584,7 +584,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 
@@ -813,7 +813,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         passEncoder->draw(3);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

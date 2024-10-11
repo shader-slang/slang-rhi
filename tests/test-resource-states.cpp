@@ -51,7 +51,7 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
         passEncoder->setBufferState(buffer, state);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
     }
 
     queue->waitOnHost();
@@ -127,7 +127,7 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
             passEncoder->setTextureState(texture, state);
             passEncoder->end();
             commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            queue->submit(commandBuffer);
         }
 
         queue->waitOnHost();

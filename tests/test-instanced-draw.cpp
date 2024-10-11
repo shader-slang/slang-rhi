@@ -240,7 +240,7 @@ struct DrawInstancedTest : BaseDrawTest
         passEncoder->drawInstanced(kVertexCount, kInstanceCount, startVertex, startInstanceLocation);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 
@@ -297,7 +297,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         passEncoder->drawIndexedInstanced(kIndexCount, kInstanceCount, startIndex, startVertex, startInstanceLocation);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 
@@ -376,7 +376,7 @@ struct DrawIndirectTest : BaseDrawTest
         passEncoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 
@@ -457,7 +457,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         passEncoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
         passEncoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
         queue->waitOnHost();
     }
 

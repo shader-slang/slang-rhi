@@ -207,7 +207,7 @@ struct BaseRayTracingTest
                 ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
             passEncoder->end();
             commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            queue->submit(commandBuffer);
             queue->waitOnHost();
 
             uint64_t compactedSize = 0;
@@ -221,7 +221,7 @@ struct BaseRayTracingTest
             passEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
             passEncoder->end();
             commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            queue->submit(commandBuffer);
             queue->waitOnHost();
         }
 
@@ -285,7 +285,7 @@ struct BaseRayTracingTest
             passEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
             passEncoder->end();
             commandBuffer->close();
-            queue->executeCommandBuffer(commandBuffer);
+            queue->submit(commandBuffer);
             queue->waitOnHost();
         }
 
@@ -350,7 +350,7 @@ struct RayTracingTestA : BaseRayTracingTest
         renderEncoder->dispatchRays(0, shaderTable, width, height, 1);
         renderEncoder->end();
         renderCommandBuffer->close();
-        queue->executeCommandBuffer(renderCommandBuffer);
+        queue->submit(renderCommandBuffer);
         queue->waitOnHost();
     }
 
@@ -378,7 +378,7 @@ struct RayTracingTestB : BaseRayTracingTest
         renderEncoder->dispatchRays(1, shaderTable, width, height, 1);
         renderEncoder->end();
         renderCommandBuffer->close();
-        queue->executeCommandBuffer(renderCommandBuffer);
+        queue->submit(renderCommandBuffer);
         queue->waitOnHost();
     }
 

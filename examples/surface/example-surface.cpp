@@ -76,7 +76,7 @@ public:
         auto encoder = commandBuffer->beginRenderPass(renderPass);
         encoder->end();
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
 
         surface->present();
 

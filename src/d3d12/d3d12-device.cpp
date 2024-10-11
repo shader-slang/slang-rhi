@@ -1593,7 +1593,8 @@ DeviceImpl::ResourceCommandRecordInfo DeviceImpl::encodeResourceCommands()
 void DeviceImpl::submitResourceCommandsAndWait(const DeviceImpl::ResourceCommandRecordInfo& info)
 {
     info.commandBuffer->close();
-    m_queue->executeCommandBuffer(info.commandBuffer);
+    ICommandBuffer* commandBuffer = info.commandBuffer.get();
+    m_queue->submit(1, &commandBuffer, nullptr, 0);
     m_resourceCommandTransientHeap->finish();
     m_resourceCommandTransientHeap->synchronizeAndReset();
 }

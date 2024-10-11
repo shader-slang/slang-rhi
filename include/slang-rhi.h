@@ -1940,11 +1940,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) = 0;
 
-    inline void executeCommandBuffer(
-        ICommandBuffer* commandBuffer,
-        IFence* fenceToSignal = nullptr,
-        uint64_t newFenceValue = 0
-    )
+    inline void submit(ICommandBuffer* commandBuffer, IFence* fenceToSignal = nullptr, uint64_t newFenceValue = 0)
     {
         submit(1, &commandBuffer, fenceToSignal, newFenceValue);
     }

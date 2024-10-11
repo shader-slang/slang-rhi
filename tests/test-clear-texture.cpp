@@ -41,7 +41,7 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
         passEncoder->end();
 
         commandBuffer->close();
-        queue->executeCommandBuffer(commandBuffer);
+        queue->submit(commandBuffer);
 
         queue->waitOnHost();
 
