@@ -249,6 +249,6 @@ void rhiCudaApiShutdown() {}
 
 #endif // SLANG_RHI_USE_DYNAMIC_CUDA
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
 #include <optix_function_table_definition.h>
 #endif

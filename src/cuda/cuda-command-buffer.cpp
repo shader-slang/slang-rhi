@@ -38,7 +38,7 @@ Result CommandBufferImpl::beginComputePass(IComputePassEncoder** outEncoder)
 
 Result CommandBufferImpl::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
 {
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     m_rayTracingPassEncoder.init(this);
     *outEncoder = &m_rayTracingPassEncoder;
     return SLANG_OK;

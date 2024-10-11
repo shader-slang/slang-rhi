@@ -132,7 +132,7 @@ DeviceImpl::~DeviceImpl()
 {
     m_queue.setNull();
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     if (m_ctx.optixContext)
     {
         optixDeviceContextDestroy(m_ctx.optixContext);
@@ -149,7 +149,7 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::CUdevice;
     outHandles->handles[0].value = m_ctx.device;
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     outHandles->handles[1].type = NativeHandleType::OptixDeviceContext;
     outHandles->handles[1].value = (uint64_t)m_ctx.optixContext;
 #else
@@ -208,7 +208,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_features.push_back("has-ptr");
     }
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     {
         SLANG_OPTIX_RETURN_ON_FAIL(optixInit());
 
@@ -1168,7 +1168,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AccelerationStructureSizes* outSizes
 )
 {
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     AccelerationStructureBuildInputBuilder builder;
     builder.build(desc, m_debugCallback);
     OptixAccelBufferSizes sizes;
@@ -1194,7 +1194,7 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_buffer, desc.size));
     SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_propertyBuffer, 8));

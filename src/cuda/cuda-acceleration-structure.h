@@ -4,7 +4,7 @@
 
 #include "core/stable_vector.h"
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
 
 namespace rhi::cuda {
 
@@ -49,4 +49,4 @@ private:
 
 } // namespace rhi::cuda
 
-#endif // SLANG_RHI_HAS_OPTIX
+#endif // SLANG_RHI_ENABLE_OPTIX

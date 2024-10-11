@@ -863,7 +863,7 @@ enum CUmemAttach_flags
 
 #endif // SLANG_RHI_USE_DYNAMIC_CUDA
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
 #define OPTIX_DONT_INCLUDE_CUDA
 #include <optix.h>
 #include <optix_stubs.h>

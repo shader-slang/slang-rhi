@@ -94,22 +94,6 @@ if(SLANG_RHI_MASTER_PROJECT)
     FetchPackage(slang URL ${SLANG_URL})
     set(SLANG_RHI_SLANG_INCLUDE_DIR ${slang_SOURCE_DIR}/include)
     set(SLANG_RHI_SLANG_BINARY_DIR ${slang_SOURCE_DIR})
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        # Fetch nvapi
-        # set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
-        # FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
-        # set(NVAPI_ROOT_DIR ${nvapi_SOURCE_DIR})
-
-        # Fetch dxc
-        # set(DXC_VERSION "1.8.2407")
-        # set(DXC_TAG "2024_07_31")
-        # FetchPackage(dxc URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_${DXC_TAG}.zip")
-
-        # Fetch Agility SDK
-        # set(AGILITY_SDK_VERSION "1.611.2")
-        # FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
-    endif()
 endif()
 
 set(SLANG_RHI_SLANG_INCLUDE_DIR ${SLANG_RHI_SLANG_INCLUDE_DIR} CACHE STRING "Slang include directory")
@@ -118,6 +102,31 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 # Use the variables from the cache.
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
+
+# Fetch NVAPI & Agility SDK
+if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64"))
+    # NVAPI
+    set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
+    FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
+    set(NVAPI_ROOT_DIR ${nvapi_SOURCE_DIR})
+
+    add_library(slang-rhi-nvapi INTERFACE)
+    target_include_directories(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR})
+    target_link_libraries(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR}/amd64/nvapi64.lib)
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-nvapi)
+    set(SLANG_RHI_ENABLE_NVAPI ON)
+
+    # Fetch dxc
+    # set(DXC_VERSION "1.8.2407")
+    # set(DXC_TAG "2024_07_31")
+    # FetchPackage(dxc URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_${DXC_TAG}.zip")
+
+    # Agility SDK
+    set(AGILITY_SDK_VERSION "1.614.1")
+    FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
+else()
+    set(SLANG_RHI_ENABLE_NVAPI OFF)
+endif()
 
 # Fetch and setup Google Dawn library (WebGPU implementation)
 if(SLANG_RHI_ENABLE_WGPU)
@@ -186,13 +195,14 @@ if(SLANG_RHI_ENABLE_CUDA)
     # Find Optix
     set(Optix_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/optix CACHE STRING "Optix root directory")
     find_package(OptiX)
-    set(SLANG_RHI_HAS_OPTIX ${OptiX_FOUND})
-    if(${SLANG_RHI_HAS_OPTIX})
+    set(SLANG_RHI_ENABLE_OPTIX ${OptiX_FOUND})
+    if(${SLANG_RHI_ENABLE_OPTIX})
         add_library(slang-rhi-optix INTERFACE)
         target_include_directories(slang-rhi-optix INTERFACE ${OptiX_INCLUDE_DIRS})
         target_link_libraries(slang-rhi PUBLIC slang-rhi-optix)
     endif()
-    target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_HAS_OPTIX=$<BOOL:${SLANG_RHI_HAS_OPTIX}>)
+else()
+    set(SLANG_RHI_ENABLE_OPTIX OFF)
 endif()
 
 # Fetch glfw
@@ -466,6 +476,8 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
     SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
     SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
+    SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
+    SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
