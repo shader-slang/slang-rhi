@@ -140,7 +140,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
 };
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
 
 class RayTracingPassEncoderImpl : public IRayTracingPassEncoder, public PassEncoderImpl
 {
@@ -203,6 +203,6 @@ public:
         override;
 };
 
-#endif // SLANG_RHI_HAS_OPTIX
+#endif // SLANG_RHI_ENABLE_OPTIX
 
 } // namespace rhi::cuda

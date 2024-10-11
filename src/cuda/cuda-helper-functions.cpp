@@ -17,7 +17,7 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line)
     return info.handle();
 }
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
 
 bool _isError(OptixResult result)
 {
@@ -36,7 +36,7 @@ void _optixLogCallback(unsigned int level, const char* tag, const char* message,
     fprintf(stderr, "optix: %s (%s)\n", message, tag);
 }
 #endif
-#endif // SLANG_RHI_HAS_OPTIX
+#endif // SLANG_RHI_ENABLE_OPTIX
 
 AdapterLUID getAdapterLUID(int deviceIndex)
 {

@@ -195,13 +195,14 @@ if(SLANG_RHI_ENABLE_CUDA)
     # Find Optix
     set(Optix_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/optix CACHE STRING "Optix root directory")
     find_package(OptiX)
-    set(SLANG_RHI_HAS_OPTIX ${OptiX_FOUND})
-    if(${SLANG_RHI_HAS_OPTIX})
+    set(SLANG_RHI_ENABLE_OPTIX ${OptiX_FOUND})
+    if(${SLANG_RHI_ENABLE_OPTIX})
         add_library(slang-rhi-optix INTERFACE)
         target_include_directories(slang-rhi-optix INTERFACE ${OptiX_INCLUDE_DIRS})
         target_link_libraries(slang-rhi PUBLIC slang-rhi-optix)
     endif()
-    target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_HAS_OPTIX=$<BOOL:${SLANG_RHI_HAS_OPTIX}>)
+else()
+    set(SLANG_RHI_ENABLE_OPTIX OFF)
 endif()
 
 # Fetch glfw
@@ -476,6 +477,7 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
     SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
     SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
+    SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )

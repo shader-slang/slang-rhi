@@ -195,7 +195,7 @@ Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offse
 
 // RayTracingPassEncoderImpl
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
 
 void RayTracingPassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
 {
@@ -329,6 +329,6 @@ Result RayTracingPassEncoderImpl::dispatchRays(
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-#endif // SLANG_RHI_HAS_OPTIX
+#endif // SLANG_RHI_ENABLE_OPTIX
 
 } // namespace rhi::cuda

@@ -1,7 +1,7 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-device.h"
 
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
 
 namespace rhi::cuda {
 
@@ -213,4 +213,4 @@ OptixVertexFormat AccelerationStructureBuildInputBuilder::translateVertexFormat(
 
 } // namespace rhi::cuda
 
-#endif // SLANG_RHI_HAS_OPTIX
+#endif // SLANG_RHI_ENABLE_OPTIX

@@ -11,7 +11,7 @@ struct Context
 {
     CUdevice device = -1;
     CUcontext context = nullptr;
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     OptixDeviceContext optixContext = nullptr;
 #endif
 };

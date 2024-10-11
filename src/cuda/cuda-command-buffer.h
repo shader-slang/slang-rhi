@@ -16,7 +16,7 @@ public:
     TransientResourceHeap* m_transientHeap;
     ResourcePassEncoderImpl m_resourcePassEncoder;
     ComputePassEncoderImpl m_computePassEncoder;
-#if SLANG_RHI_HAS_OPTIX
+#if SLANG_RHI_ENABLE_OPTIX
     RayTracingPassEncoderImpl m_rayTracingPassEncoder;
 #endif
 
