@@ -276,6 +276,7 @@ TEST_CASE("resolve-resource-simple")
     runGpuTests(
         testResolveResource<ResolveResourceSimple>,
         {
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
         }

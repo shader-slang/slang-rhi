@@ -125,9 +125,6 @@ class RootShaderObjectImpl : public ShaderObjectImpl
     typedef ShaderObjectImpl Super;
 
 public:
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
-
     static Result create(IDevice* device, RootShaderObjectLayoutImpl* layout, RootShaderObjectImpl** outShaderObject);
 
     RootShaderObjectLayoutImpl* getLayout() { return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr()); }
