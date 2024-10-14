@@ -17,14 +17,6 @@ Result TransientResourceHeapImpl::init(const ITransientResourceHeap::Desc& desc,
 
 TransientResourceHeapImpl::~TransientResourceHeapImpl() {}
 
-Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuffer)
-{
-    RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl();
-    SLANG_RETURN_ON_FAIL(commandBuffer->init(m_device, this));
-    returnComPtr(outCmdBuffer, commandBuffer);
-    return SLANG_OK;
-}
-
 Result TransientResourceHeapImpl::synchronizeAndReset()
 {
     Super::reset();
