@@ -12,22 +12,15 @@ namespace rhi {
 
 enum class CommandName
 {
-    SetPipeline,
-    BindRootShaderObject,
+    CopyBuffer,
+    UploadBufferData,
     BeginRenderPass,
     EndRenderPass,
-    SetViewports,
-    SetScissorRects,
-    SetVertexBuffers,
-    SetIndexBuffer,
+    SetRenderState,
     Draw,
     DrawIndexed,
-    DrawInstanced,
-    DrawIndexedInstanced,
-    SetStencilReference,
+    SetComputeState,
     DispatchCompute,
-    UploadBufferData,
-    CopyBuffer,
     WriteTimestamp,
 };
 
@@ -126,16 +119,18 @@ public:
         return reinterpret_cast<T*>(m_data.data() + offset);
     }
 
-    void setPipeline(IPipeline* state)
+    void copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
     {
-        auto offset = encodeObject(checked_cast<Pipeline*>(state));
-        m_commands.push_back(Command(CommandName::SetPipeline, (uint32_t)offset));
-    }
-
-    void bindRootShaderObject(IShaderObject* object)
-    {
-        auto rootOffset = encodeObject(checked_cast<ShaderObjectBase*>(object));
-        m_commands.push_back(Command(CommandName::BindRootShaderObject, (uint32_t)rootOffset));
+        auto dstBuffer = encodeObject(checked_cast<Buffer*>(dst));
+        auto srcBuffer = encodeObject(checked_cast<Buffer*>(src));
+        m_commands.push_back(Command(
+            CommandName::CopyBuffer,
+            (uint32_t)dstBuffer,
+            (uint32_t)dstOffset,
+            (uint32_t)srcBuffer,
+            (uint32_t)srcOffset,
+            (uint32_t)size
+        ));
     }
 
     void uploadBufferData(IBuffer* buffer, Offset offset, Size size, void* data)
@@ -151,20 +146,6 @@ public:
         ));
     }
 
-    void copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
-    {
-        auto dstBuffer = encodeObject(checked_cast<Buffer*>(dst));
-        auto srcBuffer = encodeObject(checked_cast<Buffer*>(src));
-        m_commands.push_back(Command(
-            CommandName::CopyBuffer,
-            (uint32_t)dstBuffer,
-            (uint32_t)dstOffset,
-            (uint32_t)srcBuffer,
-            (uint32_t)srcOffset,
-            (uint32_t)size
-        ));
-    }
-
     void beginRenderPass(const RenderPassDesc& desc)
     {
         Offset colorAttachmentsOffset =
@@ -173,119 +154,57 @@ public:
             desc.depthStencilAttachment,
             desc.depthStencilAttachment ? sizeof(RenderPassDepthStencilAttachment) : 0
         );
-        Offset viewsOffset = 0;
         for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
         {
-            auto offset = encodeObject(checked_cast<TextureView*>(desc.colorAttachments[i].view));
-            if (i == 0)
-                viewsOffset = offset;
+            encodeObject(checked_cast<TextureView*>(desc.colorAttachments[i].view));
+            encodeObject(checked_cast<TextureView*>(desc.colorAttachments[i].resolveTarget));
         }
         if (desc.depthStencilAttachment)
         {
-            auto offset = encodeObject(checked_cast<TextureView*>(desc.depthStencilAttachment->view));
-            if (desc.colorAttachmentCount == 0)
-                viewsOffset = offset;
+            encodeObject(checked_cast<TextureView*>(desc.depthStencilAttachment->view));
         }
         m_commands.push_back(Command(
             CommandName::BeginRenderPass,
             (uint32_t)desc.colorAttachmentCount,
             (uint32_t)(desc.depthStencilAttachment ? 1 : 0),
             (uint32_t)colorAttachmentsOffset,
-            (uint32_t)depthStencilAttachmentOffset,
-            (uint32_t)viewsOffset
+            (uint32_t)depthStencilAttachmentOffset
         ));
     }
 
     void endRenderPass() { m_commands.push_back(Command(CommandName::EndRenderPass)); }
 
-    void setViewports(GfxCount count, const Viewport* viewports)
+    void setRenderState(const RenderState& state)
     {
-        auto offset = encodeData(viewports, sizeof(Viewport) * count);
-        m_commands.push_back(Command(CommandName::SetViewports, (uint32_t)count, (uint32_t)offset));
-    }
-
-    void setScissorRects(GfxCount count, const ScissorRect* scissors)
-    {
-        auto offset = encodeData(scissors, sizeof(ScissorRect) * count);
-        m_commands.push_back(Command(CommandName::SetScissorRects, (uint32_t)count, (uint32_t)offset));
-    }
-
-    void setVertexBuffers(GfxIndex startSlot, GfxCount slotCount, IBuffer* const* buffers, const Offset* offsets)
-    {
-        Offset bufferOffset = 0;
-        for (GfxCount i = 0; i < slotCount; i++)
+        Offset offset = encodeData(&state, sizeof(state));
+        encodeObject(checked_cast<RenderPipeline*>(state.pipeline));
+        encodeObject(checked_cast<ShaderObjectBase*>(state.rootObject));
+        for (Index i = 0; i < state.vertexBufferCount; i++)
         {
-            auto offset = encodeObject(checked_cast<Buffer*>(buffers[i]));
-            if (i == 0)
-                bufferOffset = offset;
+            encodeObject(checked_cast<Buffer*>(state.vertexBuffers[i].buffer));
         }
-        auto offsetsOffset = encodeData(offsets, sizeof(Size) * slotCount);
-        m_commands.push_back(Command(
-            CommandName::SetVertexBuffers,
-            (uint32_t)startSlot,
-            (uint32_t)slotCount,
-            (uint32_t)bufferOffset,
-            (uint32_t)offsetsOffset
-        ));
+        encodeObject(checked_cast<Buffer*>(state.indexBuffer.buffer));
+        m_commands.push_back(Command(CommandName::SetRenderState, (uint32_t)offset));
     }
 
-    void setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
+    void draw(const DrawArguments& args)
     {
-        auto bufferOffset = encodeObject(checked_cast<Buffer*>(buffer));
-        m_commands.push_back(
-            Command(CommandName::SetIndexBuffer, (uint32_t)bufferOffset, (uint32_t)indexFormat, (uint32_t)offset)
-        );
+        Offset offset = encodeData(&args, sizeof(args));
+        m_commands.push_back(Command(CommandName::Draw, (uint32_t)offset));
     }
 
-    void draw(GfxCount vertexCount, GfxIndex startVertex)
+    void drawIndexed(const DrawArguments& args)
     {
-        m_commands.push_back(Command(CommandName::Draw, (uint32_t)vertexCount, (uint32_t)startVertex));
+        Offset offset = encodeData(&args, sizeof(args));
+        m_commands.push_back(Command(CommandName::DrawIndexed, (uint32_t)offset));
     }
 
-    void drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
+    void setComputeState(const ComputeState& state)
     {
-        m_commands.push_back(
-            Command(CommandName::DrawIndexed, (uint32_t)indexCount, (uint32_t)startIndex, (uint32_t)baseVertex)
-        );
-    }
-
-    void drawInstanced(
-        GfxCount vertexCount,
-        GfxCount instanceCount,
-        GfxIndex startVertex,
-        GfxIndex startInstanceLocation
-    )
-    {
-        m_commands.push_back(Command(
-            CommandName::DrawInstanced,
-            (uint32_t)vertexCount,
-            (uint32_t)instanceCount,
-            (uint32_t)startVertex,
-            (uint32_t)startInstanceLocation
-        ));
-    }
-
-    void drawIndexedInstanced(
-        GfxCount indexCount,
-        GfxCount instanceCount,
-        GfxIndex startIndexLocation,
-        GfxIndex baseVertexLocation,
-        GfxIndex startInstanceLocation
-    )
-    {
-        m_commands.push_back(Command(
-            CommandName::DrawIndexedInstanced,
-            (uint32_t)indexCount,
-            (uint32_t)instanceCount,
-            (uint32_t)startIndexLocation,
-            (uint32_t)baseVertexLocation,
-            (uint32_t)startInstanceLocation
-        ));
-    }
-
-    void setStencilReference(uint32_t referenceValue)
-    {
-        m_commands.push_back(Command(CommandName::SetStencilReference, referenceValue));
+        Offset offset = encodeData(&state, sizeof(state));
+        encodeObject(checked_cast<ComputePipeline*>(state.pipeline));
+        encodeObject(checked_cast<ShaderObjectBase*>(state.rootObject));
+        m_commands.push_back(Command(CommandName::SetComputeState, (uint32_t)offset));
     }
 
     void dispatchCompute(int x, int y, int z)

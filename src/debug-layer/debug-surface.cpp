@@ -1,6 +1,5 @@
 #include "debug-surface.h"
 #include "debug-helper-functions.h"
-#include "debug-texture.h"
 
 namespace rhi::debug {
 
@@ -21,10 +20,7 @@ Result DebugSurface::configure(const SurfaceConfig& config)
 
 Result DebugSurface::getCurrentTexture(ITexture** outTexture)
 {
-    RefPtr<DebugTexture> texture = new DebugTexture(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->getCurrentTexture(texture->baseObject.writeRef()));
-    returnComPtr(outTexture, texture);
-    return SLANG_OK;
+    return baseObject->getCurrentTexture(outTexture);
 }
 
 Result DebugSurface::present()

@@ -17,7 +17,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL synchronizeAndReset() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL finish() override;
+#if 0
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
+#endif
 };
 
 class DebugTransientResourceHeapD3D12 : public DebugObject<ITransientResourceHeapD3D12>

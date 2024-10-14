@@ -270,7 +270,6 @@ target_sources(slang-rhi PRIVATE
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/platform.cpp
-    src/debug-layer/debug-buffer.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
     src/debug-layer/debug-command-queue.cpp
@@ -279,12 +278,9 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-pipeline.cpp
     src/debug-layer/debug-query.cpp
-    src/debug-layer/debug-sampler.cpp
     src/debug-layer/debug-shader-object.cpp
     src/debug-layer/debug-shader-program.cpp
     src/debug-layer/debug-surface.cpp
-    src/debug-layer/debug-texture-view.cpp
-    src/debug-layer/debug-texture.cpp
     src/debug-layer/debug-transient-heap.cpp
 )
 
