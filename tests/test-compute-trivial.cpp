@@ -7,11 +7,6 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
@@ -39,19 +34,19 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        auto rootObject = commandEncoder->preparePipeline(pipeline);
 
         // Bind buffer view to the entry point.
         ShaderCursor(rootObject).getPath("buffer").setBinding(buffer);
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        ComputeState state;
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(1, 1, 1);
+
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

@@ -30,11 +30,6 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(
@@ -99,16 +94,15 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        commandEncoder->preparePipelineWithRootObject(pipeline, shaderObject);
+        ComputeState state;
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(1, 1, 1);
 
-        passEncoder->bindPipelineWithRootObject(pipeline, shaderObject);
-
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

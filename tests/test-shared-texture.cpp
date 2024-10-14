@@ -11,11 +11,6 @@ static void setUpAndRunShader(
     ComPtr<ISampler> sampler = nullptr
 )
 {
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "trivial-copy", entryPoint, slangReflection));
@@ -29,30 +24,25 @@ static void setUpAndRunShader(
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
-
+        auto rootObject = commandEncoder->preparePipeline(pipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
-
         entryPointCursor["width"].setData(tex->getDesc().size.width);
         entryPointCursor["height"].setData(tex->getDesc().size.height);
-
         // Bind texture view to the entry point
         entryPointCursor["tex"].setBinding(tex);
-
         if (sampler)
             entryPointCursor["sampler"].setBinding(sampler);
-
         // Bind buffer view to the entry point.
         entryPointCursor["buffer"].setBinding(buffer);
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        ComputeState state;
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(1, 1, 1);
+
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 }

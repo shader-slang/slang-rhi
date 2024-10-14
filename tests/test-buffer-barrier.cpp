@@ -36,11 +36,6 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     Shader programA;
     Shader programB;
     REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
@@ -59,30 +54,31 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
 
         // Write inputBuffer data to intermediateBuffer
-        auto rootObjectA = passEncoder->bindPipeline(programA.pipeline);
+        auto rootObjectA = commandEncoder->preparePipeline(programA.pipeline);
         ShaderCursor entryPointCursorA(rootObjectA->getEntryPoint(0));
         entryPointCursorA.getPath("inBuffer").setBinding(inputBuffer);
         entryPointCursorA.getPath("outBuffer").setBinding(intermediateBuffer);
 
-        passEncoder->dispatchCompute(1, 1, 1);
+        ComputeState state;
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(1, 1, 1);
 
         // Resource transition is automatically handled.
 
         // Write intermediateBuffer to outputBuffer
-        auto rootObjectB = passEncoder->bindPipeline(programB.pipeline);
+        auto rootObjectB = commandEncoder->preparePipeline(programB.pipeline);
         ShaderCursor entryPointCursorB(rootObjectB->getEntryPoint(0));
         entryPointCursorB.getPath("inBuffer").setBinding(intermediateBuffer);
         entryPointCursorB.getPath("outBuffer").setBinding(outputBuffer);
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(1, 1, 1);
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

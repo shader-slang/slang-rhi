@@ -119,17 +119,10 @@ struct BaseCopyTextureTest
 
     void submitGPUWork()
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginResourcePass();
-
-        passEncoder->copyTexture(
+        commandEncoder->copyTexture(
             dstTexture,
             texCopyInfo.dstSubresource,
             texCopyInfo.dstOffset,
@@ -139,7 +132,7 @@ struct BaseCopyTextureTest
             texCopyInfo.extent
         );
 
-        passEncoder->copyTextureToBuffer(
+        commandEncoder->copyTextureToBuffer(
             resultsBuffer,
             bufferCopyInfo.bufferOffset,
             bufferCopyInfo.bufferSize,
@@ -150,9 +143,7 @@ struct BaseCopyTextureTest
             bufferCopyInfo.extent
         );
 
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

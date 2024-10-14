@@ -121,18 +121,9 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
 
-    // We need to create a transient heap in order to create a command buffer.
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
-    auto commandBuffer = transientHeap->createCommandBuffer();
-    struct CloseComandBufferRAII
-    {
-        ICommandBuffer* m_commandBuffer;
-        ~CloseComandBufferRAII() { m_commandBuffer->close(); }
-    } closeCommandBufferRAII{commandBuffer};
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    auto commandBuffer = commandEncoder->finish();
     NativeHandle handle;
     REQUIRE_CALL(commandBuffer->getNativeHandle(&handle));
     if (deviceType == DeviceType::D3D12)
