@@ -343,21 +343,17 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
 
 void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
 {
-    // Note: the framebuffer state will be flushed to the pipeline as part
-    // of binding the root shader object.
-    //
-    // TODO: alternatively we could call `OMSetRenderTargets` here and then
-    // call `OMSetRenderTargetsAndUnorderedAccessViews` later with the option
-    // that preserves the existing RTV/DSV bindings.
-    //
-    m_d3dRenderTargetViews.resize(desc.colorAttachmentCount);
+    clearState();
+
+    m_renderTargetViews.resize(desc.colorAttachmentCount);
+    m_resolveTargetViews.resize(desc.colorAttachmentCount);
     for (Index i = 0; i < desc.colorAttachmentCount; ++i)
     {
-        m_d3dRenderTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].view)->getRTV();
+        m_renderTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
+        m_resolveTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].resolveTarget);
     }
-    m_d3dDepthStencilView = desc.depthStencilAttachment
-                                ? checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view)->getDSV()
-                                : nullptr;
+    m_depthStencilView =
+        desc.depthStencilAttachment ? checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view) : nullptr;
 
     // Clear color attachments.
     for (Index i = 0; i < desc.colorAttachmentCount; ++i)
@@ -394,18 +390,315 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
             );
         }
     }
+
+    // Set render targets.
+    short_vector<ID3D11RenderTargetView*, 8> renderTargetViews(desc.colorAttachmentCount, nullptr);
+    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    {
+        renderTargetViews[i] = m_renderTargetViews[i]->getRTV();
+    }
+    ID3D11DepthStencilView* depthStencilView = m_depthStencilView ? m_depthStencilView->getDSV() : nullptr;
+    m_immediateContext->OMSetRenderTargets((UINT)renderTargetViews.size(), renderTargetViews.data(), depthStencilView);
+
+    m_renderPassValid = true;
 }
 
 void DeviceImpl::endRenderPass()
 {
-    m_d3dRenderTargetViews.clear();
-    m_d3dDepthStencilView = nullptr;
+    // Resolve render targets.
+    for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
+    {
+        if (m_renderTargetViews[i] && m_resolveTargetViews[i])
+        {
+            TextureViewImpl* srcView = m_renderTargetViews[i].get();
+            TextureViewImpl* dstView = m_resolveTargetViews[i].get();
+            DXGI_FORMAT format = D3DUtil::getMapFormat(srcView->m_texture->m_desc.format);
+            m_immediateContext->ResolveSubresource(
+                dstView->m_texture->m_resource,
+                0, // TODO iterate subresources
+                srcView->m_texture->m_resource,
+                0, // TODO iterate subresources
+                format
+            );
+        }
+    }
+
+    m_renderTargetViews.clear();
+    m_resolveTargetViews.clear();
+    m_depthStencilView = nullptr;
+
+    m_renderPassValid = false;
+
+    clearState();
 }
 
-void DeviceImpl::setStencilReference(uint32_t referenceValue)
+template<typename T>
+inline bool arraysEqual(GfxCount countA, GfxCount countB, const T* a, const T* b)
 {
-    m_stencilRef = referenceValue;
-    m_depthStencilStateDirty = true;
+    return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
+}
+
+void DeviceImpl::setRenderState(const RenderState& state)
+{
+    if (!m_renderPassValid)
+        return;
+
+    bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
+    bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updateDepthStencilState = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
+    bool updateVertexBuffers = !m_renderStateValid || arraysEqual(
+                                                          state.vertexBufferCount,
+                                                          m_renderState.vertexBufferCount,
+                                                          state.vertexBuffers,
+                                                          m_renderState.vertexBuffers
+                                                      );
+    bool updateIndexBuffer = !m_renderStateValid || state.indexFormat != m_renderState.indexFormat ||
+                             state.indexBuffer.buffer != m_renderState.indexBuffer.buffer ||
+                             state.indexBuffer.offset != m_renderState.indexBuffer.offset;
+    bool updateViewports =
+        !m_renderStateValid ||
+        arraysEqual(state.viewportCount, m_renderState.viewportCount, state.viewports, m_renderState.viewports);
+    bool updateScissorRects = !m_renderStateValid || arraysEqual(
+                                                         state.scissorRectCount,
+                                                         m_renderState.scissorRectCount,
+                                                         state.scissorRects,
+                                                         m_renderState.scissorRects
+                                                     );
+
+    if (updatePipeline)
+    {
+        m_renderPipeline = checked_cast<RenderPipelineImpl*>(state.pipeline);
+
+        m_immediateContext->IASetInputLayout(m_renderPipeline->m_inputLayout->m_layout);
+        m_immediateContext->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
+        m_immediateContext->VSSetShader(m_renderPipeline->m_program->m_vertexShader, nullptr, 0);
+        m_immediateContext->RSSetState(m_renderPipeline->m_rasterizerState);
+        m_immediateContext->PSSetShader(m_renderPipeline->m_program->m_pixelShader, nullptr, 0);
+        m_immediateContext->OMSetBlendState(
+            m_renderPipeline->m_blendState,
+            m_renderPipeline->m_blendColor,
+            m_renderPipeline->m_sampleMask
+        );
+    }
+
+    if (updateRootObject)
+    {
+        m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+
+        // In order to bind the root object we must compute its specialized layout.
+        //
+        // TODO: This is in most ways redundant with `maybeSpecializePipeline` earlier,
+        // and the two operations should really be one.
+        //
+        RefPtr<ShaderObjectLayoutImpl> specializedLayout;
+        m_rootObject->_getSpecializedLayout(specializedLayout.writeRef());
+        RootShaderObjectLayoutImpl* specializedRootLayout =
+            checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout.get());
+
+        GraphicsBindingContext context(this, m_immediateContext);
+        m_rootObject->bindAsRoot(&context, specializedRootLayout);
+
+        // Bind UAVs.
+        if (context.uavCount)
+        {
+            // Similar to the compute case above, the rasteirzation case needs to
+            // set the UAVs after the call to `bindAsRoot()` completes, but we
+            // also have a few extra wrinkles here that are specific to the D3D 11.0
+            // rasterization pipeline.
+            //
+            // In D3D 11.0, the RTV and UAV binding slots alias, so that a shader
+            // that binds an RTV for `SV_Target0` cannot also bind a UAV for `u0`.
+            // The Slang layout algorithm already accounts for this rule, and assigns
+            // all UAVs to slots taht won't alias the RTVs it knows about.
+            //
+            // In order to account for the aliasing, we need to consider how many
+            // RTVs are bound as part of the active framebuffer, and then adjust
+            // the UAVs that we bind accordingly.
+            //
+            UINT rtvCount = (UINT)m_renderTargetViews.size();
+            //
+            // The `context` we are using will have computed the number of UAV registers
+            // that might need to be bound, as a range from 0 to `context.uavCount`.
+            // However we need to skip over the first `rtvCount` of those, so the
+            // actual number of UAVs we wnat to bind is smaller:
+            //
+            // Note: As a result we expect that either there were no UAVs bound,
+            // *or* the number of UAV slots bound is higher than the number of
+            // RTVs so that there is something left to actually bind.
+            //
+            SLANG_RHI_ASSERT((context.uavCount == 0) || (context.uavCount >= rtvCount));
+            UINT uavCount = context.uavCount - rtvCount;
+            //
+            // Similarly, the actual UAVs we intend to bind will come after the first
+            // `rtvCount` in the array.
+            //
+            ID3D11UnorderedAccessView** uavs = context.uavs + rtvCount;
+
+            // Once the offsetting is accounted for, we set all of the RTVs, DSV,
+            // and UAVs with one call.
+            //
+            // TODO: We may want to use the capability for `OMSetRenderTargetsAnd...`
+            // to only set the UAVs and leave the RTVs/UAVs alone, so that we don't
+            // needlessly re-bind RTVs during a pass.
+            //
+            m_immediateContext->OMSetRenderTargetsAndUnorderedAccessViews(
+                D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL,
+                nullptr,
+                nullptr,
+                rtvCount,
+                uavCount,
+                uavs,
+                nullptr
+            );
+        }
+    }
+
+    if (updateDepthStencilState)
+    {
+        m_immediateContext->OMSetDepthStencilState(m_renderPipeline->m_depthStencilState, state.stencilRef);
+    }
+
+    if (updateVertexBuffers)
+    {
+        UINT strides[SLANG_COUNT_OF(state.vertexBuffers)];
+        UINT offsets[SLANG_COUNT_OF(state.vertexBuffers)];
+        ID3D11Buffer* buffers[SLANG_COUNT_OF(state.vertexBuffers)];
+        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        {
+            const auto& buffer = state.vertexBuffers[i];
+            strides[i] = m_renderPipeline->m_inputLayout->m_vertexStreamStrides[i];
+            offsets[i] = state.vertexBuffers[i].offset;
+            buffers[i] = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer)->m_buffer;
+        }
+        m_immediateContext->IASetVertexBuffers(0, state.vertexBufferCount, buffers, strides, offsets);
+    }
+
+    if (updateIndexBuffer)
+    {
+        if (state.indexBuffer.buffer)
+        {
+            m_immediateContext->IASetIndexBuffer(
+                checked_cast<BufferImpl*>(state.indexBuffer.buffer)->m_buffer,
+                D3DUtil::getIndexFormat(state.indexFormat),
+                (UINT)state.indexBuffer.offset
+            );
+        }
+        else
+        {
+            m_immediateContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+        }
+    }
+
+    if (updateViewports)
+    {
+        static const int kMaxViewports = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
+        SLANG_RHI_ASSERT(state.viewportCount <= kMaxViewports);
+        D3D11_VIEWPORT viewports[SLANG_COUNT_OF(state.viewports)];
+        for (GfxIndex i = 0; i < state.viewportCount; ++i)
+        {
+            const Viewport& src = state.viewports[i];
+            D3D11_VIEWPORT& dst = viewports[i];
+            dst.TopLeftX = src.originX;
+            dst.TopLeftY = src.originY;
+            dst.Width = src.extentX;
+            dst.Height = src.extentY;
+            dst.MinDepth = src.minZ;
+            dst.MaxDepth = src.maxZ;
+        }
+        m_immediateContext->RSSetViewports(UINT(state.viewportCount), viewports);
+    }
+
+    if (updateScissorRects)
+    {
+        static const int kMaxScissorRects = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
+        SLANG_RHI_ASSERT(state.scissorRectCount <= kMaxScissorRects);
+        D3D11_RECT scissorRects[kMaxScissorRects];
+        for (GfxIndex i = 0; i < state.scissorRectCount; ++i)
+        {
+            const ScissorRect& src = state.scissorRects[i];
+            D3D11_RECT& dst = scissorRects[i];
+            dst.left = LONG(src.minX);
+            dst.top = LONG(src.minY);
+            dst.right = LONG(src.maxX);
+            dst.bottom = LONG(src.maxY);
+        }
+        m_immediateContext->RSSetScissorRects(UINT(state.scissorRectCount), scissorRects);
+    }
+
+    m_renderStateValid = true;
+    m_renderState = state;
+}
+
+void DeviceImpl::draw(const DrawArguments& args)
+{
+    if (!m_renderStateValid)
+        return;
+
+    m_immediateContext
+        ->DrawInstanced(args.vertexCount, args.instanceCount, args.startVertexLocation, args.startIndexLocation);
+}
+
+void DeviceImpl::drawIndexed(const DrawArguments& args)
+{
+    if (!m_renderStateValid)
+        return;
+
+    m_immediateContext->DrawIndexedInstanced(
+        args.vertexCount,
+        args.instanceCount,
+        args.startIndexLocation,
+        args.startVertexLocation,
+        args.startInstanceLocation
+    );
+}
+
+void DeviceImpl::setComputeState(const ComputeState& state)
+{
+    if (m_renderPassValid)
+        return;
+
+    bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;
+    bool updateRootObject = updatePipeline || state.rootObject != m_computeState.rootObject;
+
+    if (updatePipeline)
+    {
+        m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+        m_immediateContext->CSSetShader(m_computePipeline->m_program->m_computeShader, nullptr, 0);
+    }
+
+    if (updateRootObject)
+    {
+        m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+
+        // In order to bind the root object we must compute its specialized layout.
+        //
+        // TODO: This is in most ways redundant with `maybeSpecializePipeline` earlier,
+        // and the two operations should really be one.
+        //
+        RefPtr<ShaderObjectLayoutImpl> specializedLayout;
+        m_rootObject->_getSpecializedLayout(specializedLayout.writeRef());
+        RootShaderObjectLayoutImpl* specializedRootLayout =
+            checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout.get());
+
+        ComputeBindingContext context(this, m_immediateContext);
+        m_rootObject->bindAsRoot(&context, specializedRootLayout);
+        // Because D3D11 requires all UAVs to be set at once, we did *not* issue
+        // actual binding calls during the `bindAsRoot` step, and instead we
+        // batch them up and set them here.
+        //
+        m_immediateContext->CSSetUnorderedAccessViews(0, context.uavCount, context.uavs, nullptr);
+    }
+
+    m_computeStateValid = true;
+    m_computeState = state;
+}
+
+void DeviceImpl::dispatchCompute(int x, int y, int z)
+{
+    if (!m_computeStateValid)
+        return;
+
+    m_immediateContext->Dispatch(x, y, z);
 }
 
 Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
@@ -932,211 +1225,6 @@ void DeviceImpl::unmap(IBuffer* bufferIn, size_t offsetWritten, size_t sizeWritt
     );
 }
 
-#if 0
-void D3D11Device::setInputLayout(InputLayout* inputLayoutIn)
-{
-    auto inputLayout = checked_cast<InputLayoutImpl*>(inputLayoutIn);
-    m_immediateContext->IASetInputLayout(inputLayout->m_layout);
-}
-#endif
-
-void DeviceImpl::setVertexBuffers(
-    GfxIndex startSlot,
-    GfxCount slotCount,
-    IBuffer* const* buffersIn,
-    const Offset* offsetsIn
-)
-{
-    static const int kMaxVertexBuffers = 16;
-    SLANG_RHI_ASSERT(slotCount <= kMaxVertexBuffers);
-    SLANG_RHI_ASSERT(m_currentPipeline); // The pipeline state should be created before setting vertex buffers.
-
-    UINT vertexStrides[kMaxVertexBuffers];
-    UINT vertexOffsets[kMaxVertexBuffers];
-    ID3D11Buffer* dxBuffers[kMaxVertexBuffers];
-
-    auto buffers = (BufferImpl* const*)buffersIn;
-
-    RenderPipelineImpl* renderPipeline = checked_cast<RenderPipelineImpl*>(m_currentPipeline->m_renderPipeline.get());
-
-    for (GfxIndex ii = 0; ii < slotCount; ++ii)
-    {
-        auto inputLayout = renderPipeline->m_inputLayout.get();
-        vertexStrides[ii] = inputLayout->m_vertexStreamStrides[startSlot + ii];
-        vertexOffsets[ii] = (UINT)offsetsIn[ii];
-        dxBuffers[ii] = buffers[ii]->m_buffer;
-    }
-
-    m_immediateContext
-        ->IASetVertexBuffers((UINT)startSlot, (UINT)slotCount, dxBuffers, &vertexStrides[0], &vertexOffsets[0]);
-}
-
-void DeviceImpl::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
-{
-    DXGI_FORMAT dxFormat = D3DUtil::getIndexFormat(indexFormat);
-    m_immediateContext->IASetIndexBuffer(((BufferImpl*)buffer)->m_buffer, dxFormat, UINT(offset));
-}
-
-void DeviceImpl::setViewports(GfxCount count, Viewport const* viewports)
-{
-    static const int kMaxViewports = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
-    SLANG_RHI_ASSERT(count <= kMaxViewports);
-
-    D3D11_VIEWPORT dxViewports[kMaxViewports];
-    for (GfxIndex ii = 0; ii < count; ++ii)
-    {
-        auto& inViewport = viewports[ii];
-        auto& dxViewport = dxViewports[ii];
-
-        dxViewport.TopLeftX = inViewport.originX;
-        dxViewport.TopLeftY = inViewport.originY;
-        dxViewport.Width = inViewport.extentX;
-        dxViewport.Height = inViewport.extentY;
-        dxViewport.MinDepth = inViewport.minZ;
-        dxViewport.MaxDepth = inViewport.maxZ;
-    }
-
-    m_immediateContext->RSSetViewports(UINT(count), dxViewports);
-}
-
-void DeviceImpl::setScissorRects(GfxCount count, ScissorRect const* rects)
-{
-    static const int kMaxScissorRects = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
-    SLANG_RHI_ASSERT(count <= kMaxScissorRects);
-
-    D3D11_RECT dxRects[kMaxScissorRects];
-    for (GfxIndex ii = 0; ii < count; ++ii)
-    {
-        auto& inRect = rects[ii];
-        auto& dxRect = dxRects[ii];
-
-        dxRect.left = LONG(inRect.minX);
-        dxRect.top = LONG(inRect.minY);
-        dxRect.right = LONG(inRect.maxX);
-        dxRect.bottom = LONG(inRect.maxY);
-    }
-
-    m_immediateContext->RSSetScissorRects(UINT(count), dxRects);
-}
-
-void DeviceImpl::setPipeline(IPipeline* state)
-{
-    auto pipeline = checked_cast<Pipeline*>(state);
-
-    pipeline->ensurePipelineCreated();
-
-    switch (pipeline->m_type)
-    {
-    default:
-        break;
-
-    case PipelineType::Render:
-    {
-        RenderPipelineImpl* renderPipeline = checked_cast<RenderPipelineImpl*>(pipeline->m_renderPipeline.get());
-        ShaderProgramImpl* program = renderPipeline->m_program.get();
-
-        // TODO: We could conceivably do some lightweight state
-        // differencing here (e.g., check if `programImpl` is the
-        // same as the program that is currently bound).
-        //
-        // It isn't clear how much that would pay off given that
-        // the D3D11 runtime seems to do its own state diffing.
-
-        // IA
-
-        m_immediateContext->IASetInputLayout(renderPipeline->m_inputLayout->m_layout);
-        m_immediateContext->IASetPrimitiveTopology(renderPipeline->m_primitiveTopology);
-
-        // VS
-
-        // TODO(tfoley): Why the conditional here? If somebody is trying to disable the VS or PS, shouldn't we respect
-        // that?
-        if (program->m_vertexShader)
-            m_immediateContext->VSSetShader(program->m_vertexShader, nullptr, 0);
-
-        // HS
-
-        // DS
-
-        // GS
-
-        // RS
-
-        m_immediateContext->RSSetState(renderPipeline->m_rasterizerState);
-
-        // PS
-        if (program->m_pixelShader)
-            m_immediateContext->PSSetShader(program->m_pixelShader, nullptr, 0);
-
-        // OM
-
-        m_immediateContext
-            ->OMSetBlendState(renderPipeline->m_blendState, renderPipeline->m_blendColor, renderPipeline->m_sampleMask);
-
-        m_currentPipeline = pipeline;
-
-        m_depthStencilStateDirty = true;
-    }
-    break;
-
-    case PipelineType::Compute:
-    {
-        ComputePipelineImpl* computePipeline = checked_cast<ComputePipelineImpl*>(pipeline->m_computePipeline.get());
-        ShaderProgramImpl* program = computePipeline->m_program.get();
-
-        // CS
-
-        m_immediateContext->CSSetShader(program->m_computeShader, nullptr, 0);
-
-        m_currentPipeline = pipeline;
-    }
-    break;
-    }
-
-    /// ...
-}
-
-void DeviceImpl::draw(GfxCount vertexCount, GfxIndex startVertex)
-{
-    _flushGraphicsState();
-    m_immediateContext->Draw(vertexCount, startVertex);
-}
-
-void DeviceImpl::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
-{
-    _flushGraphicsState();
-    m_immediateContext->DrawIndexed(indexCount, startIndex, baseVertex);
-}
-
-void DeviceImpl::drawInstanced(
-    GfxCount vertexCount,
-    GfxCount instanceCount,
-    GfxIndex startVertex,
-    GfxIndex startInstanceLocation
-)
-{
-    _flushGraphicsState();
-    m_immediateContext->DrawInstanced(vertexCount, instanceCount, startVertex, startInstanceLocation);
-}
-
-void DeviceImpl::drawIndexedInstanced(
-    GfxCount indexCount,
-    GfxCount instanceCount,
-    GfxIndex startIndexLocation,
-    GfxIndex baseVertexLocation,
-    GfxIndex startInstanceLocation
-)
-{
-    _flushGraphicsState();
-    m_immediateContext->DrawIndexedInstanced(
-        indexCount,
-        instanceCount,
-        startIndexLocation,
-        baseVertexLocation,
-        startInstanceLocation
-    );
-}
-
 Result DeviceImpl::createShaderProgram(
     const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
@@ -1279,101 +1367,6 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, ShaderObjectB
     return SLANG_OK;
 }
 
-void DeviceImpl::bindRootShaderObject(IShaderObject* shaderObject)
-{
-    RootShaderObjectImpl* rootShaderObjectImpl = checked_cast<RootShaderObjectImpl*>(shaderObject);
-    RefPtr<Pipeline> specializedPipeline;
-    maybeSpecializePipeline(m_currentPipeline, rootShaderObjectImpl, specializedPipeline);
-    setPipeline(specializedPipeline);
-
-    // In order to bind the root object we must compute its specialized layout.
-    //
-    // TODO: This is in most ways redundant with `maybeSpecializePipeline` above,
-    // and the two operations should really be one.
-    //
-    RefPtr<ShaderObjectLayoutImpl> specializedRootLayout;
-    rootShaderObjectImpl->_getSpecializedLayout(specializedRootLayout.writeRef());
-    RootShaderObjectLayoutImpl* specializedRootLayoutImpl =
-        checked_cast<RootShaderObjectLayoutImpl*>(specializedRootLayout.Ptr());
-
-    // Depending on whether we are binding a compute or a graphics/rasterization
-    // pipeline, we will need to bind any SRVs/UAVs/CBs/samplers using different
-    // D3D11 calls. We deal with that distinction here by instantiating an
-    // appropriate subtype of `BindingContext` based on the pipeline type.
-    //
-    switch (m_currentPipeline->m_type)
-    {
-    case PipelineType::Compute:
-    {
-        ComputeBindingContext context(this, m_immediateContext);
-        rootShaderObjectImpl->bindAsRoot(&context, specializedRootLayoutImpl);
-
-        // Because D3D11 requires all UAVs to be set at once, we did *not* issue
-        // actual binding calls during the `bindAsRoot` step, and instead we
-        // batch them up and set them here.
-        //
-        m_immediateContext->CSSetUnorderedAccessViews(0, context.uavCount, context.uavs, nullptr);
-    }
-    break;
-    default:
-    {
-        GraphicsBindingContext context(this, m_immediateContext);
-        rootShaderObjectImpl->bindAsRoot(&context, specializedRootLayoutImpl);
-
-        // Similar to the compute case above, the rasteirzation case needs to
-        // set the UAVs after the call to `bindAsRoot()` completes, but we
-        // also have a few extra wrinkles here that are specific to the D3D 11.0
-        // rasterization pipeline.
-        //
-        // In D3D 11.0, the RTV and UAV binding slots alias, so that a shader
-        // that binds an RTV for `SV_Target0` cannot also bind a UAV for `u0`.
-        // The Slang layout algorithm already accounts for this rule, and assigns
-        // all UAVs to slots taht won't alias the RTVs it knows about.
-        //
-        // In order to account for the aliasing, we need to consider how many
-        // RTVs are bound as part of the active framebuffer, and then adjust
-        // the UAVs that we bind accordingly.
-        //
-        auto rtvCount = (UINT)m_d3dRenderTargetViews.size();
-        //
-        // The `context` we are using will have computed the number of UAV registers
-        // that might need to be bound, as a range from 0 to `context.uavCount`.
-        // However we need to skip over the first `rtvCount` of those, so the
-        // actual number of UAVs we wnat to bind is smaller:
-        //
-        // Note: As a result we expect that either there were no UAVs bound,
-        // *or* the number of UAV slots bound is higher than the number of
-        // RTVs so that there is something left to actually bind.
-        //
-        SLANG_RHI_ASSERT((context.uavCount == 0) || (context.uavCount >= rtvCount));
-        auto bindableUAVCount = context.uavCount - rtvCount;
-        //
-        // Similarly, the actual UAVs we intend to bind will come after the first
-        // `rtvCount` in the array.
-        //
-        auto bindableUAVs = context.uavs + rtvCount;
-
-        // Once the offsetting is accounted for, we set all of the RTVs, DSV,
-        // and UAVs with one call.
-        //
-        // TODO: We may want to use the capability for `OMSetRenderTargetsAnd...`
-        // to only set the UAVs and leave the RTVs/UAVs alone, so that we don't
-        // needlessly re-bind RTVs during a pass.
-        //
-        m_immediateContext->OMSetRenderTargetsAndUnorderedAccessViews(
-            rtvCount,
-            m_d3dRenderTargetViews.data(),
-            m_d3dDepthStencilView,
-            rtvCount,
-            bindableUAVCount,
-            bindableUAVs,
-            nullptr
-        );
-    }
-    break;
-    }
-}
-
 void DeviceImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     auto dstImpl = checked_cast<BufferImpl*>(dst);
@@ -1384,22 +1377,6 @@ void DeviceImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset
     srcBox.bottom = srcBox.back = 1;
     m_immediateContext
         ->CopySubresourceRegion(dstImpl->m_buffer, 0, (UINT)dstOffset, 0, 0, srcImpl->m_buffer, 0, &srcBox);
-}
-
-void DeviceImpl::dispatchCompute(int x, int y, int z)
-{
-    m_immediateContext->Dispatch(x, y, z);
-}
-
-void DeviceImpl::_flushGraphicsState()
-{
-    if (m_depthStencilStateDirty)
-    {
-        m_depthStencilStateDirty = false;
-        RenderPipelineImpl* renderPipeline =
-            checked_cast<RenderPipelineImpl*>(m_currentPipeline->m_renderPipeline.get());
-        m_immediateContext->OMSetDepthStencilState(renderPipeline->m_depthStencilState, m_stencilRef);
-    }
 }
 
 void DeviceImpl::beginCommandBuffer(const CommandBufferInfo& info)
@@ -1422,6 +1399,18 @@ void DeviceImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
     auto poolImpl = checked_cast<QueryPoolImpl*>(pool);
     m_immediateContext->End(poolImpl->getQuery(index));
+}
+
+void DeviceImpl::clearState()
+{
+    m_immediateContext->ClearState();
+    m_renderStateValid = false;
+    m_renderState = {};
+    m_renderPipeline = nullptr;
+    m_computeStateValid = false;
+    m_computeState = {};
+    m_computePipeline = nullptr;
+    m_rootObject = nullptr;
 }
 
 } // namespace rhi::d3d11

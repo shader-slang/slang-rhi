@@ -2,6 +2,7 @@
 
 #include "d3d11-pipeline.h"
 #include "d3d11-texture-view.h"
+#include "d3d11-shader-object.h"
 
 namespace rhi::d3d11 {
 
@@ -14,7 +15,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual void beginRenderPass(const RenderPassDesc& desc) override;
     virtual void endRenderPass() override;
-    virtual void setStencilReference(uint32_t referenceValue) override;
+    virtual void setRenderState(const RenderState& state) override;
+    virtual void draw(const DrawArguments& args) override;
+    virtual void drawIndexed(const DrawArguments& args) override;
+    virtual void setComputeState(const ComputeState& state) override;
+    virtual void dispatchCompute(int x, int y, int z) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
@@ -38,7 +43,6 @@ public:
     virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
     virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
     virtual Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject) override;
-    virtual void bindRootShaderObject(IShaderObject* shaderObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
@@ -56,32 +60,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize) override;
 
-    virtual void setVertexBuffers(
-        GfxIndex startSlot,
-        GfxCount slotCount,
-        IBuffer* const* buffers,
-        const Offset* offsets
-    ) override;
-    virtual void setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset) override;
-    virtual void setViewports(GfxCount count, Viewport const* viewports) override;
-    virtual void setScissorRects(GfxCount count, ScissorRect const* rects) override;
-    virtual void setPipeline(IPipeline* state) override;
-    virtual void draw(GfxCount vertexCount, GfxIndex startVertex) override;
-    virtual void drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex) override;
-    virtual void drawInstanced(
-        GfxCount vertexCount,
-        GfxCount instanceCount,
-        GfxIndex startVertex,
-        GfxIndex startInstanceLocation
-    ) override;
-    virtual void drawIndexedInstanced(
-        GfxCount indexCount,
-        GfxCount instanceCount,
-        GfxIndex startIndexLocation,
-        GfxIndex baseVertexLocation,
-        GfxIndex startInstanceLocation
-    ) override;
-    virtual void dispatchCompute(int x, int y, int z) override;
     virtual void submitGpuWork() override {}
     virtual void waitForGpu() override {}
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override { return m_info; }
@@ -90,7 +68,7 @@ public:
     virtual void writeTimestamp(IQueryPool* pool, GfxIndex index) override;
 
 public:
-    void _flushGraphicsState();
+    void clearState();
 
     // D3D11Device members.
 
@@ -99,18 +77,24 @@ public:
 
     ComPtr<ID3D11Device> m_device;
     ComPtr<ID3D11DeviceContext> m_immediateContext;
-    ComPtr<ID3D11Texture2D> m_backBufferTexture;
     ComPtr<IDXGIFactory> m_dxgiFactory;
 
-    short_vector<ID3D11RenderTargetView*> m_d3dRenderTargetViews;
-    ID3D11DepthStencilView* m_d3dDepthStencilView;
+    short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
+    short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
+    RefPtr<TextureViewImpl> m_depthStencilView;
 
-    RefPtr<Pipeline> m_currentPipeline;
+    bool m_renderPassValid = false;
+    bool m_renderStateValid = false;
+    RenderState m_renderState = {};
+    RefPtr<RenderPipelineImpl> m_renderPipeline;
+
+    bool m_computeStateValid = false;
+    ComputeState m_computeState = {};
+    RefPtr<ComputePipelineImpl> m_computePipeline;
+
+    RefPtr<RootShaderObjectImpl> m_rootObject;
 
     ComPtr<ID3D11Query> m_disjointQuery;
-
-    uint32_t m_stencilRef = 0;
-    bool m_depthStencilStateDirty = true;
 
     DeviceDesc m_desc;
 

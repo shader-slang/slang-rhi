@@ -103,6 +103,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 {
     m_device = checked_cast<DeviceImpl*>(device);
+    m_device.breakStrongReference();
 
     m_layout = layout;
 
