@@ -239,16 +239,6 @@ EntryPointLayoutImpl* EntryPointShaderObjectImpl::getLayout()
     return checked_cast<EntryPointLayoutImpl*>(m_layout.Ptr());
 }
 
-uint32_t RootShaderObjectImpl::addRef()
-{
-    return 1;
-}
-
-uint32_t RootShaderObjectImpl::release()
-{
-    return 1;
-}
-
 Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* programLayout)
 {
     SLANG_RETURN_ON_FAIL(ShaderObjectImpl::init(device, programLayout));

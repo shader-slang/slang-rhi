@@ -12,11 +12,7 @@
 
 namespace rhi::cpu {
 
-DeviceImpl::~DeviceImpl()
-{
-    m_currentPipeline = nullptr;
-    m_currentRootObject = nullptr;
-}
+DeviceImpl::~DeviceImpl() {}
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
@@ -194,31 +190,25 @@ void DeviceImpl::unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten
     SLANG_UNUSED(sizeWritten);
 }
 
-void DeviceImpl::setPipeline(IPipeline* state)
+void DeviceImpl::setComputeState(const ComputeState& state)
 {
-    m_currentPipeline = checked_cast<Pipeline*>(state);
-}
-
-void DeviceImpl::bindRootShaderObject(IShaderObject* object)
-{
-    m_currentRootObject = checked_cast<RootShaderObjectImpl*>(object);
+    m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+    m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+    m_computeStateValid = m_computePipeline && m_rootObject;
 }
 
 void DeviceImpl::dispatchCompute(int x, int y, int z)
 {
+    if (!m_computeStateValid)
+        return;
+
     int entryPointIndex = 0;
     int targetIndex = 0;
 
-    // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<Pipeline> newPipeline;
-    maybeSpecializePipeline(m_currentPipeline, m_currentRootObject, newPipeline);
-    m_currentPipeline = newPipeline;
-
-    auto program = m_currentPipeline->m_program.get();
-    auto entryPointLayout = m_currentRootObject->getLayout()->getEntryPoint(entryPointIndex);
+    auto program = m_computePipeline->m_program.get();
+    auto entryPointLayout = m_rootObject->getLayout()->getEntryPoint(entryPointIndex);
     auto entryPointName = entryPointLayout->getEntryPointName();
-
-    auto entryPointObject = m_currentRootObject->getEntryPoint(entryPointIndex);
+    auto entryPointObject = m_rootObject->getEntryPoint(entryPointIndex);
 
     ComPtr<ISlangSharedLibrary> sharedLibrary;
     ComPtr<ISlangBlob> diagnostics;
@@ -246,7 +236,7 @@ void DeviceImpl::dispatchCompute(int x, int y, int z)
     varyingInput.endGroupID.y = y;
     varyingInput.endGroupID.z = z;
 
-    auto globalParamsData = m_currentRootObject->getDataBuffer();
+    auto globalParamsData = m_rootObject->getDataBuffer();
     auto entryPointParamsData = entryPointObject->getDataBuffer();
     func(&varyingInput, entryPointParamsData, globalParamsData);
 }
