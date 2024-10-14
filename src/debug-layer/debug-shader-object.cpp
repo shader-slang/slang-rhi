@@ -1,7 +1,5 @@
 #include "debug-shader-object.h"
 #include "debug-helper-functions.h"
-#include "debug-texture-view.h"
-#include "debug-sampler.h"
 
 namespace rhi::debug {
 
@@ -109,39 +107,9 @@ Result DebugShaderObject::setObject(ShaderOffset const& offset, IShaderObject* o
 Result DebugShaderObject::setBinding(ShaderOffset const& offset, Binding binding)
 {
     SLANG_RHI_API_FUNC;
-    Binding innerBinding = binding;
-    switch (binding.type)
-    {
-    case BindingType::Buffer:
-        innerBinding.resource = getInnerObj(checked_cast<DebugBuffer*>(binding.resource.get()));
-        break;
-    case BindingType::BufferWithCounter:
-        innerBinding.resource = getInnerObj(checked_cast<DebugBuffer*>(binding.resource.get()));
-        innerBinding.resource2 = getInnerObj(checked_cast<DebugBuffer*>(binding.resource2.get()));
-        break;
-    case BindingType::Texture:
-        innerBinding.resource = getInnerObj(checked_cast<DebugTexture*>(binding.resource.get()));
-        break;
-    case BindingType::TextureView:
-        innerBinding.resource = getInnerObj(checked_cast<DebugTextureView*>(binding.resource.get()));
-        break;
-    case BindingType::Sampler:
-        innerBinding.resource = getInnerObj(checked_cast<DebugSampler*>(binding.resource.get()));
-        break;
-    case BindingType::CombinedTextureSampler:
-        innerBinding.resource = getInnerObj(checked_cast<DebugTexture*>(binding.resource.get()));
-        innerBinding.resource2 = getInnerObj(checked_cast<DebugSampler*>(binding.resource2.get()));
-        break;
-    case BindingType::AccelerationStructure:
-        innerBinding.resource = getInnerObj(checked_cast<DebugAccelerationStructure*>(binding.resource.get()));
-        break;
-    default:
-        // TODO better error message
-        return SLANG_FAIL;
-    }
     m_bindings[ShaderOffsetKey{offset}] = binding;
     m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
-    return baseObject->setBinding(offset, innerBinding);
+    return baseObject->setBinding(offset, binding);
 }
 
 Result DebugShaderObject::setSpecializationArgs(
@@ -181,7 +149,7 @@ size_t DebugShaderObject::getSize()
 Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->setConstantBufferOverride(getInnerObj(constantBuffer));
+    return baseObject->setConstantBufferOverride(constantBuffer);
 }
 
 Result DebugRootShaderObject::setSpecializationArgs(

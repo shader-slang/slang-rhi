@@ -31,14 +31,8 @@ const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
 const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
 const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
 
-const Guid GUID::IID_IPassEncoder = IPassEncoder::getTypeGuid();
-const Guid GUID::IID_IResourcePassEncoder = IResourcePassEncoder::getTypeGuid();
-const Guid GUID::IID_IRenderPassEncoder = IRenderPassEncoder::getTypeGuid();
-const Guid GUID::IID_IComputePassEncoder = IComputePassEncoder::getTypeGuid();
-const Guid GUID::IID_IRayTracingPassEncoder = IRayTracingPassEncoder::getTypeGuid();
-
+const Guid GUID::IID_ICommandEncoder = ICommandEncoder::getTypeGuid();
 const Guid GUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
-const Guid GUID::IID_ICommandBufferD3D12 = ICommandBufferD3D12::getTypeGuid();
 
 const Guid GUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
 const Guid GUID::IID_IQueryPool = IQueryPool::getTypeGuid();
@@ -275,6 +269,78 @@ IQueryPool* QueryPool::getInterface(const Guid& guid)
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
         return static_cast<IQueryPool*>(this);
     return nullptr;
+}
+
+ICommandEncoder* CommandEncoder::getInterface(const Guid& guid)
+{
+    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandEncoder)
+        return static_cast<ICommandEncoder*>(this);
+    return nullptr;
+}
+
+CommandEncoder::~CommandEncoder() {}
+
+Result CommandEncoder::preparePipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+{
+    m_pipeline = checked_cast<Pipeline*>(pipeline);
+    SLANG_RETURN_ON_FAIL(createRootShaderObject(m_pipeline->m_program, m_rootObject.writeRef()));
+    *outRootObject = m_rootObject;
+    return SLANG_OK;
+}
+
+Result CommandEncoder::preparePipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+{
+    m_pipeline = checked_cast<Pipeline*>(pipeline);
+    m_rootObject = checked_cast<ShaderObjectBase*>(rootObject);
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
+Result CommandEncoder::prepareFinish(RenderState* outState)
+{
+    if (!m_pipeline || m_pipeline->m_type != PipelineType::Render)
+    {
+        return SLANG_FAIL;
+    }
+    RefPtr<Pipeline> newPipeline;
+    SLANG_RETURN_ON_FAIL(m_pipeline->m_device->maybeSpecializePipeline(m_pipeline, m_rootObject, newPipeline));
+    SLANG_RETURN_ON_FAIL(newPipeline->ensurePipelineCreated());
+    outState->pipeline = newPipeline->m_renderPipeline;
+    outState->rootObject = m_rootObject;
+    // m_pipeline = nullptr;
+    // m_rootObject = nullptr;
+    return SLANG_OK;
+}
+
+Result CommandEncoder::prepareFinish(ComputeState* outState)
+{
+    if (!m_pipeline || m_pipeline->m_type != PipelineType::Compute)
+    {
+        return SLANG_FAIL;
+    }
+    RefPtr<Pipeline> newPipeline;
+    SLANG_RETURN_ON_FAIL(m_pipeline->m_device->maybeSpecializePipeline(m_pipeline, m_rootObject, newPipeline));
+    SLANG_RETURN_ON_FAIL(newPipeline->ensurePipelineCreated());
+    outState->pipeline = newPipeline->m_computePipeline;
+    outState->rootObject = m_rootObject;
+    // m_pipeline = nullptr;
+    // m_rootObject = nullptr;
+    return SLANG_OK;
+}
+
+Result CommandEncoder::prepareFinish(RayTracingState* outState)
+{
+    if (!m_pipeline || m_pipeline->m_type != PipelineType::RayTracing)
+    {
+        return SLANG_FAIL;
+    }
+    RefPtr<Pipeline> newPipeline;
+    SLANG_RETURN_ON_FAIL(m_pipeline->m_device->maybeSpecializePipeline(m_pipeline, m_rootObject, newPipeline));
+    SLANG_RETURN_ON_FAIL(newPipeline->ensurePipelineCreated());
+    outState->pipeline = newPipeline->m_rayTracingPipeline;
+    outState->rootObject = m_rootObject;
+    // m_pipeline = nullptr;
+    // m_rootObject = nullptr;
+    return SLANG_OK;
 }
 
 IRenderPipeline* RenderPipeline::getInterface(const Guid& guid)

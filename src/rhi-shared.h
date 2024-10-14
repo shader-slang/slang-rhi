@@ -38,11 +38,7 @@ struct GUID
     static const Guid IID_IPersistentShaderCache;
     static const Guid IID_IShaderObjectLayout;
     static const Guid IID_IShaderObject;
-    static const Guid IID_IPassEncoder;
-    static const Guid IID_IRenderPassEncoder;
-    static const Guid IID_IComputePassEncoder;
-    static const Guid IID_IResourcePassEncoder;
-    static const Guid IID_IRayTracingPassEncoder;
+    static const Guid IID_ICommandEncoder;
     static const Guid IID_ICommandBuffer;
     static const Guid IID_ICommandBufferD3D12;
     static const Guid IID_ICommandQueue;
@@ -55,6 +51,7 @@ struct GUID
 };
 
 class Device;
+class Pipeline;
 
 // We use a `BreakableReference` to avoid the cyclic reference situation in rhi implementation.
 // It is a common scenario where objects created from an `IDevice` implementation needs to hold
@@ -884,6 +881,30 @@ public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
 };
 
+class CommandEncoder : public ICommandEncoder, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+
+    ICommandEncoder* getInterface(const Guid& guid);
+
+public:
+    RefPtr<Pipeline> m_pipeline;
+    RefPtr<ShaderObjectBase> m_rootObject;
+
+    ~CommandEncoder();
+    virtual Result createRootShaderObject(ShaderProgram* program, ShaderObjectBase** outObject) = 0;
+
+    // ICommandEncoder implementation (generic part)
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    preparePipeline(IPipeline* pipeline, IShaderObject** outRootObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    preparePipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL prepareFinish(RenderState* outState) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL prepareFinish(ComputeState* outState) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL prepareFinish(RayTracingState* outState) override;
+};
+
 class RenderPipeline : public IRenderPipeline, public ComObject
 {
 public:
@@ -1095,13 +1116,13 @@ public:
     virtual RefPtr<Buffer> createDeviceBuffer(
         RayTracingPipeline* pipeline,
         TransientResourceHeap* transientHeap,
-        IRayTracingPassEncoder* encoder
+        ICommandEncoder* encoder
     ) = 0;
 
     Buffer* getOrCreateBuffer(
         RayTracingPipeline* pipeline,
         TransientResourceHeap* transientHeap,
-        IRayTracingPassEncoder* encoder
+        ICommandEncoder* encoder
     )
     {
         auto it = m_deviceBuffers.find(pipeline);

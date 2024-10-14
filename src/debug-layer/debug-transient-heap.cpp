@@ -33,17 +33,18 @@ Result DebugTransientResourceHeap::finish()
     return baseObject->finish();
 }
 
+#if 0
 Result DebugTransientResourceHeap::createCommandBuffer(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RHI_API_FUNC;
     RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
-    outObject->m_transientHeap = this;
     auto result = baseObject->createCommandBuffer(outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     outObject->queryInterface(ICommandBuffer::getTypeGuid(), (void**)outCommandBuffer);
     return result;
 }
+#endif
 
 Result DebugTransientResourceHeapD3D12::queryInterface(SlangUUID const& uuid, void** outObject)
 {
