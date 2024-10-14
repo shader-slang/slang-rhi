@@ -57,13 +57,13 @@ public:
     virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
 
 private:
-    RefPtr<Pipeline> m_currentPipeline = nullptr;
-    RefPtr<RootShaderObjectImpl> m_currentRootObject = nullptr;
     DeviceInfo m_info;
 
-    virtual void setPipeline(IPipeline* state) override;
+    bool m_computeStateValid = false;
+    RefPtr<ComputePipelineImpl> m_computePipeline;
+    RefPtr<RootShaderObjectImpl> m_rootObject;
 
-    virtual void bindRootShaderObject(IShaderObject* object) override;
+    virtual void setComputeState(const ComputeState& state) override;
 
     virtual void dispatchCompute(int x, int y, int z) override;
 
