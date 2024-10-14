@@ -4,63 +4,16 @@
 
 namespace rhi::cuda {
 
-class PassEncoderImpl : public IPassEncoder
+class CommandEncoderImpl : public CommandEncoder
 {
 public:
-    CommandWriter* m_writer;
+    DeviceImpl* m_device;
+    CommandQueueImpl* m_queue;
+    RefPtr<CommandBufferImpl> m_commandBuffer;
 
-    virtual void* getInterface(SlangUUID const& uuid)
-    {
-        if (uuid == GUID::IID_IPassEncoder || uuid == ISlangUnknown::getTypeGuid())
-            return this;
-        return nullptr;
-    }
+    void init(DeviceImpl* device);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override
-    {
-        if (auto ptr = getInterface(uuid))
-        {
-            *outObject = ptr;
-            return SLANG_OK;
-        }
-        return SLANG_E_NO_INTERFACE;
-    }
-
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
-
-public:
-    void init(CommandBufferImpl* cmdBuffer);
-
-    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* pool, GfxIndex index) override;
-};
-
-class ResourcePassEncoderImpl : public IResourcePassEncoder, public PassEncoderImpl
-{
-public:
-    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
-
-    virtual void* getInterface(SlangUUID const& uuid) override
-    {
-        if (uuid == GUID::IID_IResourcePassEncoder || uuid == GUID::IID_IPassEncoder ||
-            uuid == ISlangUnknown::getTypeGuid())
-            return this;
-        return nullptr;
-    }
-
-public:
-    virtual SLANG_NO_THROW void SLANG_MCALL end() override {}
-
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
+    virtual Result createRootShaderObject(ShaderProgram* program, ShaderObjectBase** outObject) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) override;
@@ -69,6 +22,17 @@ public:
         ITexture* dst,
         SubresourceRange dstSubresource,
         Offset3D dstOffset,
+        ITexture* src,
+        SubresourceRange srcSubresource,
+        Offset3D srcOffset,
+        Extents extent
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
+        IBuffer* dst,
+        Offset dstOffset,
+        Size dstSize,
+        Size dstRowStride,
         ITexture* src,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
@@ -84,86 +48,53 @@ public:
         GfxCount subresourceDataCount
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range = nullptr) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearTexture(
         ITexture* texture,
-        const ClearValue& clearValue,
-        const SubresourceRange* subresourceRange,
-        bool clearDepth,
-        bool clearStencil
+        const ClearValue& clearValue = ClearValue(),
+        const SubresourceRange* subresourceRange = nullptr,
+        bool clearDepth = true,
+        bool clearStencil = true
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
-        IBuffer* dst,
-        Offset dstOffset,
-        Size dstSize,
-        Size dstRowStride,
-        ITexture* src,
-        SubresourceRange srcSubresource,
-        Offset3D srcOffset,
-        Extents extent
+    virtual SLANG_NO_THROW void SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL endRenderPass() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
+        GfxCount maxDrawCount,
+        IBuffer* argBuffer,
+        Offset argOffset,
+        IBuffer* countBuffer = nullptr,
+        Offset countOffset = 0
     ) override;
-};
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
+        GfxCount maxDrawCount,
+        IBuffer* argBuffer,
+        Offset argOffset,
+        IBuffer* countBuffer = nullptr,
+        Offset countOffset = 0
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(int x, int y, int z) override;
 
-class ComputePassEncoderImpl : public IComputePassEncoder, public PassEncoderImpl
-{
-public:
-    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
+    virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) override;
 
-    virtual void* getInterface(SlangUUID const& uuid) override
-    {
-        if (uuid == GUID::IID_IComputePassEncoder || uuid == GUID::IID_IPassEncoder ||
-            uuid == ISlangUnknown::getTypeGuid())
-            return this;
-        return nullptr;
-    }
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(int x, int y, int z) override;
 
-public:
-    CommandBufferImpl* m_commandBuffer;
-    RefPtr<ShaderObjectBase> m_rootObject;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
 
-    void init(CommandBufferImpl* cmdBuffer);
+    virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL end() override {}
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* state, IShaderObject** outRootObject) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL dispatchCompute(int x, int y, int z) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
-};
-
-#if SLANG_RHI_ENABLE_OPTIX
-
-class RayTracingPassEncoderImpl : public IRayTracingPassEncoder, public PassEncoderImpl
-{
-public:
-    SLANG_RHI_FORWARD_PASS_ENCODER_IMPL(PassEncoderImpl)
-
-    virtual void* getInterface(SlangUUID const& uuid) override
-    {
-        if (uuid == GUID::IID_IRayTracingPassEncoder || uuid == GUID::IID_IPassEncoder ||
-            uuid == ISlangUnknown::getTypeGuid())
-        {
-            return this;
-        }
-        return nullptr;
-    }
-
-public:
-    CommandBufferImpl* m_commandBuffer;
-    RefPtr<ShaderObjectBase> m_rootObject;
-
-    void init(CommandBufferImpl* cmdBuffer);
-
-    virtual SLANG_NO_THROW void SLANG_MCALL end() override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
@@ -193,16 +124,20 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    dispatchRays(GfxIndex raygenShaderIndex, IShaderTable* shaderTable, GfxCount width, GfxCount height, GfxCount depth)
-        override;
+    virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* pool, GfxIndex index) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
-
-#endif // SLANG_RHI_ENABLE_OPTIX
 
 } // namespace rhi::cuda

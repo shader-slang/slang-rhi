@@ -2,7 +2,6 @@
 
 #include "cuda-api.h"
 
-#include "../pass-encoder-com-forward.h"
 #include "../command-writer.h"
 #include "../mutable-shader-object.h"
 #include "../rhi-shared.h"
@@ -19,7 +18,7 @@ namespace rhi::cuda {
 
 class BufferImpl;
 class TextureImpl;
-class ResourceViewImpl;
+class TextureViewImpl;
 class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
 class ShaderObjectImpl;
@@ -31,9 +30,7 @@ class ComputePipelineImpl;
 class QueryPoolImpl;
 class DeviceImpl;
 class CommandBufferImpl;
-class PassEncoderImpl;
-class ResourcePassEncoderImpl;
-class ComputePassEncoderImpl;
+class CommandEncoderImpl;
 class CommandQueueImpl;
 class AccelerationStructureImpl;
 

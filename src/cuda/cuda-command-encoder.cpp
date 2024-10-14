@@ -1,5 +1,6 @@
 #include "cuda-command-encoder.h"
 #include "cuda-command-buffer.h"
+#include "cuda-command-queue.h"
 #include "cuda-device.h"
 #include "cuda-buffer.h"
 #include "cuda-acceleration-structure.h"
@@ -7,52 +8,33 @@
 
 namespace rhi::cuda {
 
-// PassEncoderImpl
-
-void PassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+void CommandEncoderImpl::init(DeviceImpl* device)
 {
-    m_writer = cmdBuffer;
+    m_device = device;
+    m_commandBuffer = new CommandBufferImpl();
 }
 
-void PassEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
+Result CommandEncoderImpl::createRootShaderObject(ShaderProgram* program, ShaderObjectBase** outObject)
 {
-    SLANG_UNUSED(buffer);
-    SLANG_UNUSED(state);
+    RefPtr<ShaderObjectBase> object;
+    SLANG_RETURN_ON_FAIL(m_device->createRootShaderObject(program, object.writeRef()));
+    // Root objects need to be kept alive until command buffer submission.
+    m_commandBuffer->encodeObject(object);
+    returnRefPtr(outObject, object);
+    return SLANG_OK;
 }
 
-void PassEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+void CommandEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    SLANG_UNUSED(texture);
-    SLANG_UNUSED(subresourceRange);
-    SLANG_UNUSED(state);
+    m_commandBuffer->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
-void PassEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
+void CommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
-    SLANG_UNUSED(name);
-    SLANG_UNUSED(rgbColor);
+    m_commandBuffer->uploadBufferData(dst, offset, size, data);
 }
 
-void PassEncoderImpl::endDebugEvent() {}
-
-void PassEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
-{
-    m_writer->writeTimestamp(pool, index);
-}
-
-// ResourcePassEncoderImpl
-
-void ResourcePassEncoderImpl::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
-{
-    m_writer->copyBuffer(dst, dstOffset, src, srcOffset, size);
-}
-
-void ResourcePassEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
-{
-    m_writer->uploadBufferData(dst, offset, size, data);
-}
-
-void ResourcePassEncoderImpl::copyTexture(
+void CommandEncoderImpl::copyTexture(
     ITexture* dst,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
@@ -72,7 +54,7 @@ void ResourcePassEncoderImpl::copyTexture(
     SLANG_RHI_UNIMPLEMENTED("copyTexture");
 }
 
-void ResourcePassEncoderImpl::uploadTextureData(
+void CommandEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -90,14 +72,14 @@ void ResourcePassEncoderImpl::uploadTextureData(
     SLANG_RHI_UNIMPLEMENTED("uploadTextureData");
 }
 
-void ResourcePassEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void CommandEncoderImpl::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
     SLANG_UNUSED(buffer);
     SLANG_UNUSED(range);
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-void ResourcePassEncoderImpl::clearTexture(
+void CommandEncoderImpl::clearTexture(
     ITexture* texture,
     const ClearValue& clearValue,
     const SubresourceRange* subresourceRange,
@@ -113,7 +95,7 @@ void ResourcePassEncoderImpl::clearTexture(
     SLANG_RHI_UNIMPLEMENTED("clearBuffer");
 }
 
-void ResourcePassEncoderImpl::resolveQuery(
+void CommandEncoderImpl::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
@@ -129,7 +111,7 @@ void ResourcePassEncoderImpl::resolveQuery(
     SLANG_RHI_UNIMPLEMENTED("resolveQuery");
 }
 
-void ResourcePassEncoderImpl::copyTextureToBuffer(
+void CommandEncoderImpl::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
@@ -151,59 +133,93 @@ void ResourcePassEncoderImpl::copyTextureToBuffer(
     SLANG_RHI_UNIMPLEMENTED("copyTextureToBuffer");
 }
 
-// ComputePassEncoderImpl
-
-void ComputePassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+void CommandEncoderImpl::beginRenderPass(const RenderPassDesc& desc)
 {
-    m_writer = cmdBuffer;
-    m_commandBuffer = cmdBuffer;
+    SLANG_UNUSED(desc);
 }
 
-Result ComputePassEncoderImpl::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+void CommandEncoderImpl::endRenderPass() {}
+
+void CommandEncoderImpl::setRenderState(const RenderState& state)
 {
-    m_writer->setPipeline(state);
-    Pipeline* pipelineImpl = checked_cast<Pipeline*>(state);
-    SLANG_RETURN_ON_FAIL(
-        m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
-    );
-    returnComPtr(outRootObject, m_rootObject);
-    return SLANG_OK;
+    SLANG_UNUSED(state);
 }
 
-Result ComputePassEncoderImpl::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+void CommandEncoderImpl::draw(const DrawArguments& args)
 {
-    m_writer->setPipeline(state);
-    Pipeline* pipelineImpl = checked_cast<Pipeline*>(state);
-    SLANG_RETURN_ON_FAIL(
-        m_commandBuffer->m_device->createRootShaderObject(pipelineImpl->m_program, m_rootObject.writeRef())
-    );
-    m_rootObject->copyFrom(rootObject, m_commandBuffer->m_transientHeap);
-    return SLANG_OK;
+    SLANG_UNUSED(args);
 }
 
-Result ComputePassEncoderImpl::dispatchCompute(int x, int y, int z)
+void CommandEncoderImpl::drawIndexed(const DrawArguments& args)
 {
-    m_writer->bindRootShaderObject(m_rootObject);
-    m_writer->dispatchCompute(x, y, z);
-    return SLANG_OK;
+    SLANG_UNUSED(args);
 }
 
-Result ComputePassEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+void CommandEncoderImpl::drawIndirect(
+    GfxCount maxDrawCount,
+    IBuffer* argBuffer,
+    Offset argOffset,
+    IBuffer* countBuffer,
+    Offset countOffset
+)
 {
+    SLANG_UNUSED(maxDrawCount);
+    SLANG_UNUSED(argBuffer);
+    SLANG_UNUSED(argOffset);
+    SLANG_UNUSED(countBuffer);
+    SLANG_UNUSED(countOffset);
+}
+
+void CommandEncoderImpl::drawIndexedIndirect(
+    GfxCount maxDrawCount,
+    IBuffer* argBuffer,
+    Offset argOffset,
+    IBuffer* countBuffer,
+    Offset countOffset
+)
+{
+    SLANG_UNUSED(maxDrawCount);
+    SLANG_UNUSED(argBuffer);
+    SLANG_UNUSED(argOffset);
+    SLANG_UNUSED(countBuffer);
+    SLANG_UNUSED(countOffset);
+}
+
+void CommandEncoderImpl::drawMeshTasks(int x, int y, int z)
+{
+    SLANG_UNUSED(x);
+    SLANG_UNUSED(y);
+    SLANG_UNUSED(z);
+}
+
+void CommandEncoderImpl::setComputeState(const ComputeState& state)
+{
+    m_commandBuffer->setComputeState(state);
+}
+
+void CommandEncoderImpl::dispatchCompute(int x, int y, int z)
+{
+    m_commandBuffer->dispatchCompute(x, y, z);
+}
+
+void CommandEncoderImpl::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+{
+    SLANG_UNUSED(argBuffer);
+    SLANG_UNUSED(offset);
     SLANG_RHI_UNIMPLEMENTED("dispatchComputeIndirect");
 }
 
-// RayTracingPassEncoderImpl
-
 #if SLANG_RHI_ENABLE_OPTIX
 
-void RayTracingPassEncoderImpl::init(CommandBufferImpl* cmdBuffer)
+void CommandEncoderImpl::setRayTracingState(const RayTracingState& state)
 {
-    m_writer = cmdBuffer;
-    m_commandBuffer = cmdBuffer;
+    SLANG_UNUSED(state);
+    SLANG_RHI_UNIMPLEMENTED("setRayTracingState");
 }
 
-void RayTracingPassEncoderImpl::buildAccelerationStructure(
+void CommandEncoderImpl::dispatchRays(GfxIndex raygenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) {}
+
+void CommandEncoderImpl::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
@@ -213,7 +229,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
 )
 {
     AccelerationStructureBuildInputBuilder builder;
-    SLANG_RETURN_VOID_ON_FAIL(builder.build(desc, m_commandBuffer->m_device->m_debugCallback));
+    SLANG_RETURN_VOID_ON_FAIL(builder.build(desc, m_device->m_debugCallback));
 
     AccelerationStructureImpl* dstImpl = checked_cast<AccelerationStructureImpl*>(dst);
 
@@ -232,7 +248,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     }
 
     optixAccelBuild(
-        m_commandBuffer->m_device->m_ctx.optixContext,
+        m_device->m_ctx.optixContext,
         nullptr, // TODO: CUDA stream
         &builder.buildOptions,
         builder.buildInputs.data(),
@@ -247,7 +263,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     );
 }
 
-void RayTracingPassEncoderImpl::copyAccelerationStructure(
+void CommandEncoderImpl::copyAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
@@ -284,7 +300,7 @@ void RayTracingPassEncoderImpl::copyAccelerationStructure(
     }
     case AccelerationStructureCopyMode::Compact:
         optixAccelCompact(
-            m_commandBuffer->m_device->m_ctx.optixContext,
+            m_device->m_ctx.optixContext,
             nullptr, // TODO: CUDA stream
             srcImpl->m_handle,
             dstImpl->m_buffer,
@@ -295,7 +311,7 @@ void RayTracingPassEncoderImpl::copyAccelerationStructure(
     }
 }
 
-void RayTracingPassEncoderImpl::queryAccelerationStructureProperties(
+void CommandEncoderImpl::queryAccelerationStructureProperties(
     GfxCount accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     GfxCount queryCount,
@@ -304,31 +320,122 @@ void RayTracingPassEncoderImpl::queryAccelerationStructureProperties(
 {
 }
 
-void RayTracingPassEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) {}
+void CommandEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) {}
 
-void RayTracingPassEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) {}
+void CommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) {}
 
-Result RayTracingPassEncoderImpl::bindPipeline(IPipeline* pipeline, IShaderObject** outRootObject)
+#else // SLANG_RHI_ENABLE_OPTIX
+
+void CommandEncoderImpl::setRayTracingState(const RayTracingState& state)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    SLANG_UNUSED(state);
+    SLANG_RHI_UNIMPLEMENTED("setRayTracingState");
 }
 
-Result RayTracingPassEncoderImpl::bindPipelineWithRootObject(IPipeline* pipeline, IShaderObject* rootObject)
+void CommandEncoderImpl::dispatchRays(GfxIndex raygenShaderIndex, GfxCount width, GfxCount height, GfxCount depth)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    SLANG_UNUSED(raygenShaderIndex);
+    SLANG_UNUSED(width);
+    SLANG_UNUSED(height);
+    SLANG_UNUSED(depth);
 }
 
-Result RayTracingPassEncoderImpl::dispatchRays(
-    GfxIndex raygenShaderIndex,
-    IShaderTable* shaderTable,
-    GfxCount width,
-    GfxCount height,
-    GfxCount depth
+void CommandEncoderImpl::buildAccelerationStructure(
+    const AccelerationStructureBuildDesc& desc,
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    BufferWithOffset scratchBuffer,
+    GfxCount propertyQueryCount,
+    AccelerationStructureQueryDesc* queryDescs
 )
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(dst);
+    SLANG_UNUSED(src);
+    SLANG_UNUSED(scratchBuffer);
+    SLANG_UNUSED(propertyQueryCount);
+    SLANG_UNUSED(queryDescs);
+}
+
+void CommandEncoderImpl::copyAccelerationStructure(
+    IAccelerationStructure* dst,
+    IAccelerationStructure* src,
+    AccelerationStructureCopyMode mode
+)
+{
+    SLANG_UNUSED(dst);
+    SLANG_UNUSED(src);
+    SLANG_UNUSED(mode);
+}
+
+void CommandEncoderImpl::queryAccelerationStructureProperties(
+    GfxCount accelerationStructureCount,
+    IAccelerationStructure* const* accelerationStructures,
+    GfxCount queryCount,
+    AccelerationStructureQueryDesc* queryDescs
+)
+{
+    SLANG_UNUSED(accelerationStructureCount);
+    SLANG_UNUSED(accelerationStructures);
+    SLANG_UNUSED(queryCount);
+    SLANG_UNUSED(queryDescs);
+}
+
+void CommandEncoderImpl::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
+{
+    SLANG_UNUSED(dst);
+    SLANG_UNUSED(src);
+}
+
+void CommandEncoderImpl::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
+{
+    SLANG_UNUSED(dst);
+    SLANG_UNUSED(src);
 }
 
 #endif // SLANG_RHI_ENABLE_OPTIX
+
+void CommandEncoderImpl::setBufferState(IBuffer* buffer, ResourceState state)
+{
+    SLANG_UNUSED(buffer);
+    SLANG_UNUSED(state);
+}
+
+void CommandEncoderImpl::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+{
+    SLANG_UNUSED(texture);
+    SLANG_UNUSED(subresourceRange);
+    SLANG_UNUSED(state);
+}
+
+void CommandEncoderImpl::beginDebugEvent(const char* name, float rgbColor[3])
+{
+    SLANG_UNUSED(name);
+    SLANG_UNUSED(rgbColor);
+}
+
+void CommandEncoderImpl::endDebugEvent() {}
+
+void CommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
+{
+    m_commandBuffer->writeTimestamp(pool, index);
+}
+
+Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
+{
+    if (!m_commandBuffer)
+    {
+        return SLANG_FAIL;
+    }
+    returnComPtr(outCommandBuffer, m_commandBuffer);
+    m_commandBuffer = nullptr;
+    return SLANG_OK;
+}
+
+Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
 
 } // namespace rhi::cuda
