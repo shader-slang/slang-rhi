@@ -1,4 +1,5 @@
 #include "wgpu-command-queue.h"
+#include "wgpu-command-encoder.h"
 #include "wgpu-command-buffer.h"
 #include "wgpu-device.h"
 
@@ -16,6 +17,14 @@ CommandQueueImpl::~CommandQueueImpl()
     {
         m_device->m_ctx.api.wgpuQueueRelease(m_queue);
     }
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
+    SLANG_RETURN_ON_FAIL(encoder->init(m_device, this));
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)

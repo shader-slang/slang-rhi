@@ -194,7 +194,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 }
 
 Result ShaderObjectImpl::_writeOrdinaryData(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     IBuffer* buffer,
     Offset offset,
     Size destSize,
@@ -207,7 +207,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
 
     SLANG_RHI_ASSERT(srcSize <= destSize);
 
-    encoder->uploadBufferDataImpl(buffer, offset, srcSize, src);
+    encoder->uploadBufferData(buffer, offset, srcSize, src);
 
     // In the case where this object has any sub-objects of
     // existential/interface type, we need to recurse on those objects
@@ -392,20 +392,20 @@ bool ShaderObjectImpl::shouldAllocateConstantBuffer(TransientResourceHeapImpl* t
 }
 
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
     // If data has been changed since last allocation/filling of constant buffer,
     // we will need to allocate a new one.
     //
-    if (!shouldAllocateConstantBuffer(encoder->m_commandBuffer->m_transientHeap))
+    if (!shouldAllocateConstantBuffer(encoder->m_transientHeap))
     {
         return SLANG_OK;
     }
     m_isConstantBufferDirty = false;
-    m_constantBufferTransientHeap = encoder->m_commandBuffer->m_transientHeap;
-    m_constantBufferTransientHeapVersion = encoder->m_commandBuffer->m_transientHeap->getVersion();
+    m_constantBufferTransientHeap = encoder->m_transientHeap;
+    m_constantBufferTransientHeapVersion = encoder->m_transientHeap->getVersion();
 
     m_constantBufferSize = specializedLayout->getTotalOrdinaryDataSize();
     if (m_constantBufferSize == 0)
@@ -416,8 +416,9 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // Once we have computed how large the buffer should be, we can allocate
     // it from the transient resource heap.
     //
-    SLANG_RETURN_ON_FAIL(encoder->m_commandBuffer->m_transientHeap
-                             ->allocateConstantBuffer(m_constantBufferSize, m_constantBuffer, m_constantBufferOffset));
+    SLANG_RETURN_ON_FAIL(
+        encoder->m_transientHeap->allocateConstantBuffer(m_constantBufferSize, m_constantBuffer, m_constantBufferOffset)
+    );
 
     // Once the buffer is allocated, we can use `_writeOrdinaryData` to fill it in.
     //
@@ -433,7 +434,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
 }
 
 Result ShaderObjectImpl::bindAsValue(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& offset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -593,7 +594,7 @@ Result ShaderObjectImpl::bindAsValue(
 }
 
 Result ShaderObjectImpl::allocateDescriptorSets(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& offset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -631,7 +632,7 @@ Result ShaderObjectImpl::createBindGroups(RootBindingContext& context)
 }
 
 Result ShaderObjectImpl::bindAsParameterBlock(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -669,7 +670,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
 }
 
 Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset& ioOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -694,7 +695,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
 }
 
 Result ShaderObjectImpl::bindAsConstantBuffer(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -763,7 +764,7 @@ EntryPointLayout* EntryPointShaderObject::getLayout()
 }
 
 Result EntryPointShaderObject::bindAsEntryPoint(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     EntryPointLayout* layout
@@ -874,7 +875,7 @@ Result RootShaderObjectImpl::copyFrom(IShaderObject* object, ITransientResourceH
 }
 
 Result RootShaderObjectImpl::bindAsRoot(
-    PassEncoderImpl* encoder,
+    CommandEncoderImpl* encoder,
     RootBindingContext& context,
     RootShaderObjectLayout* layout
 )
