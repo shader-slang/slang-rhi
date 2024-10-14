@@ -59,10 +59,6 @@ public:
 class RootShaderObjectImpl : public ShaderObjectImpl
 {
 public:
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override;
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override;
-
-public:
     std::vector<RefPtr<EntryPointShaderObjectImpl>> entryPointObjects;
     virtual SLANG_NO_THROW Result SLANG_MCALL init(IDevice* device, ShaderObjectLayoutImpl* typeLayout) override;
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;

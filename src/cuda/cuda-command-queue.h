@@ -11,12 +11,16 @@ namespace rhi::cuda {
 class CommandQueueImpl : public CommandQueue<DeviceImpl>
 {
 public:
-    RefPtr<Pipeline> currentPipeline;
-    RefPtr<RootShaderObjectImpl> currentRootObject;
     CUstream stream;
+
+    bool m_computeStateValid = false;
+    RefPtr<ComputePipelineImpl> m_computePipeline;
+    RefPtr<RootShaderObjectImpl> m_rootObject;
 
     CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
@@ -28,9 +32,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
-    void setPipeline(IPipeline* state);
-
-    Result bindRootShaderObject(IShaderObject* object);
+    void setComputeState(const ComputeState& state);
 
     void dispatchCompute(int x, int y, int z);
 

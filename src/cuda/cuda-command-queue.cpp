@@ -1,6 +1,6 @@
 #include "cuda-command-queue.h"
 #include "cuda-buffer.h"
-#include "cuda-command-buffer.h"
+#include "cuda-command-encoder.h"
 #include "cuda-query.h"
 #include "cuda-shader-object-layout.h"
 
@@ -16,8 +16,14 @@ CommandQueueImpl::~CommandQueueImpl()
 {
     cuStreamSynchronize(stream);
     cuStreamDestroy(stream);
-    currentPipeline = nullptr;
-    currentRootObject = nullptr;
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
+    encoder->init(m_device);
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
 }
 
 void CommandQueueImpl::submit(
@@ -54,32 +60,24 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-void CommandQueueImpl::setPipeline(IPipeline* state)
+void CommandQueueImpl::setComputeState(const ComputeState& state)
 {
-    currentPipeline = checked_cast<Pipeline*>(state);
-}
-
-Result CommandQueueImpl::bindRootShaderObject(IShaderObject* object)
-{
-    currentRootObject = dynamic_cast<RootShaderObjectImpl*>(object);
-    if (currentRootObject)
-        return SLANG_OK;
-    return SLANG_E_INVALID_ARG;
+    m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+    m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+    m_computeStateValid = m_computePipeline && m_rootObject;
 }
 
 void CommandQueueImpl::dispatchCompute(int x, int y, int z)
 {
-    // Specialize the compute kernel based on the shader object bindings.
-    RefPtr<Pipeline> newPipeline;
-    m_device->maybeSpecializePipeline(currentPipeline, currentRootObject, newPipeline);
-    newPipeline->ensurePipelineCreated();
-    currentPipeline = newPipeline;
+    if (!m_computeStateValid)
+        return;
 
-    ComputePipelineImpl* computePipeline = checked_cast<ComputePipelineImpl*>(currentPipeline->m_computePipeline.get());
+    ComputePipelineImpl* computePipeline = m_computePipeline.get();
+    RootShaderObjectImpl* rootObject = m_rootObject.get();
 
     // Find out thread group size from program reflection.
     auto& kernelName = computePipeline->m_program->kernelName;
-    auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(currentRootObject->getLayout());
+    auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(rootObject->getLayout());
     int kernelId = programLayout->getKernelIndex(kernelName);
     SLANG_RHI_ASSERT(kernelId != -1);
     UInt threadGroupSize[3];
@@ -96,15 +94,15 @@ void CommandQueueImpl::dispatchCompute(int x, int y, int z)
             "SLANG_globalParams"
         );
 
-        CUdeviceptr globalParamsCUDAData = (CUdeviceptr)currentRootObject->getBuffer();
+        CUdeviceptr globalParamsCUDAData = (CUdeviceptr)rootObject->getBuffer();
         cuMemcpyAsync((CUdeviceptr)globalParamsSymbol, (CUdeviceptr)globalParamsCUDAData, globalParamsSymbolSize, 0);
     }
     //
     // The argument data for the entry-point parameters are already
     // stored in host memory in a CUDAEntryPointShaderObject, as expected by cuLaunchKernel.
     //
-    auto entryPointBuffer = currentRootObject->entryPointObjects[kernelId]->getBuffer();
-    auto entryPointDataSize = currentRootObject->entryPointObjects[kernelId]->getBufferSize();
+    auto entryPointBuffer = rootObject->entryPointObjects[kernelId]->getBuffer();
+    auto entryPointDataSize = rootObject->entryPointObjects[kernelId]->getBufferSize();
 
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
@@ -163,15 +161,6 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
     {
         switch (cmd.name)
         {
-        case CommandName::SetPipeline:
-            setPipeline(commandBuffer->getObject<Pipeline>(cmd.operands[0]));
-            break;
-        case CommandName::BindRootShaderObject:
-            bindRootShaderObject(commandBuffer->getObject<ShaderObjectBase>(cmd.operands[0]));
-            break;
-        case CommandName::DispatchCompute:
-            dispatchCompute(int(cmd.operands[0]), int(cmd.operands[1]), int(cmd.operands[2]));
-            break;
         case CommandName::CopyBuffer:
             copyBuffer(
                 commandBuffer->getObject<Buffer>(cmd.operands[0]),
@@ -188,6 +177,12 @@ void CommandQueueImpl::execute(CommandBufferImpl* commandBuffer)
                 cmd.operands[2],
                 commandBuffer->getData<uint8_t>(cmd.operands[3])
             );
+            break;
+        case CommandName::SetComputeState:
+            setComputeState(*commandBuffer->getData<ComputeState>(cmd.operands[0]));
+            break;
+        case CommandName::DispatchCompute:
+            dispatchCompute(int(cmd.operands[0]), int(cmd.operands[1]), int(cmd.operands[2]));
             break;
         case CommandName::WriteTimestamp:
             writeTimestamp(commandBuffer->getObject<QueryPool>(cmd.operands[0]), (SlangInt)cmd.operands[1]);

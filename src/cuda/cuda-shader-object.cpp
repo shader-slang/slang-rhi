@@ -277,16 +277,6 @@ EntryPointShaderObjectImpl::EntryPointShaderObjectImpl()
     m_data.isHostOnly = true;
 }
 
-uint32_t RootShaderObjectImpl::addRef()
-{
-    return 1;
-}
-
-uint32_t RootShaderObjectImpl::release()
-{
-    return 1;
-}
-
 Result RootShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
 {
     SLANG_RETURN_ON_FAIL(ShaderObjectImpl::init(device, typeLayout));
