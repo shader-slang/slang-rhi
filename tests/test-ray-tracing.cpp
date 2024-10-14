@@ -45,7 +45,6 @@ struct BaseRayTracingTest
 {
     IDevice* device;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ICommandQueue> queue;
 
     ComPtr<IPipeline> raytracingPipeline;
@@ -150,10 +149,6 @@ struct BaseRayTracingTest
 
         createResultTexture();
 
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096 * 1024;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         // Build bottom level acceleration structure.
         {
             AccelerationStructureBuildInputTriangles triangles = {};
@@ -198,16 +193,13 @@ struct BaseRayTracingTest
 
             compactedSizeQuery->reset();
 
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginRayTracingPass();
+            auto commandEncoder = queue->createCommandEncoder();
             AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
             compactedSizeQueryDesc.queryPool = compactedSizeQuery;
             compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
-            passEncoder
+            commandEncoder
                 ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-            passEncoder->end();
-            commandBuffer->close();
-            queue->submit(commandBuffer);
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
 
             uint64_t compactedSize = 0;
@@ -216,12 +208,9 @@ struct BaseRayTracingTest
             createDesc.size = compactedSize;
             device->createAccelerationStructure(createDesc, BLAS.writeRef());
 
-            commandBuffer = transientHeap->createCommandBuffer();
-            passEncoder = commandBuffer->beginRayTracingPass();
-            passEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
-            passEncoder->end();
-            commandBuffer->close();
-            queue->submit(commandBuffer);
+            commandEncoder = queue->createCommandEncoder();
+            commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
         }
 
@@ -280,12 +269,9 @@ struct BaseRayTracingTest
             createDesc.size = sizes.accelerationStructureSize;
             REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
 
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginRayTracingPass();
-            passEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
-            passEncoder->end();
-            commandBuffer->close();
-            queue->submit(commandBuffer);
+            auto commandEncoder = queue->createCommandEncoder();
+            commandEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
         }
 
@@ -340,17 +326,17 @@ struct RayTracingTestA : BaseRayTracingTest
 {
     void renderFrame()
     {
-        ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
-        auto renderEncoder = renderCommandBuffer->beginRayTracingPass();
-        IShaderObject* rootObject = nullptr;
-        renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto rootObject = commandEncoder->preparePipeline(raytracingPipeline);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
-        renderEncoder->dispatchRays(0, shaderTable, width, height, 1);
-        renderEncoder->end();
-        renderCommandBuffer->close();
-        queue->submit(renderCommandBuffer);
+        RayTracingState state;
+        commandEncoder->prepareFinish(&state);
+        state.shaderTable = shaderTable;
+        commandEncoder->setRayTracingState(state);
+        commandEncoder->dispatchRays(0, width, height, 1);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -368,17 +354,16 @@ struct RayTracingTestB : BaseRayTracingTest
 {
     void renderFrame()
     {
-        ComPtr<ICommandBuffer> renderCommandBuffer = transientHeap->createCommandBuffer();
-        auto renderEncoder = renderCommandBuffer->beginRayTracingPass();
-        IShaderObject* rootObject = nullptr;
-        renderEncoder->bindPipeline(raytracingPipeline, &rootObject);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto rootObject = commandEncoder->preparePipeline(raytracingPipeline);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
-        renderEncoder->dispatchRays(1, shaderTable, width, height, 1);
-        renderEncoder->end();
-        renderCommandBuffer->close();
-        queue->submit(renderCommandBuffer);
+        RayTracingState state;
+        commandEncoder->prepareFinish(&state);
+        state.shaderTable = shaderTable;
+        commandEncoder->dispatchRays(1, width, height, 1);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

@@ -40,12 +40,6 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     CHECK_EQ(testDesc.size, numberCount * sizeof(float));
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
-    // Check that dstBuffer can be successfully used in a compute dispatch using dstDevice.
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(dstDevice->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(dstDevice, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
@@ -57,20 +51,20 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         auto queue = dstDevice->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        auto rootObject = commandEncoder->preparePipeline(pipeline);
 
         ShaderCursor rootCursor(rootObject);
         // Bind buffer view to the entry point.
         rootCursor.getPath("buffer").setBinding(dstBuffer);
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        ComputeState state;
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(1, 1, 1);
+
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

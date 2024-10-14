@@ -43,7 +43,6 @@ Format convertTypelessFormat(Format format)
 struct TestFormats
 {
     ComPtr<IDevice> device;
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ISampler> sampler;
     ComPtr<IBuffer> resultBuffer;
     std::map<std::string, ComPtr<IPipeline>> cachedPipelines;
@@ -51,12 +50,6 @@ struct TestFormats
     void init(GpuTestContext* ctx, DeviceType deviceType)
     {
         device = createTestingDevice(ctx, deviceType);
-
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
-        // bool isSwiftShader = isSwiftShaderDevice(device);
 
         SamplerDesc samplerDesc;
         sampler = device->createSampler(samplerDesc);
@@ -130,11 +123,9 @@ struct TestFormats
         // GPU execution.
         {
             auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
 
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginComputePass();
-
-            auto rootObject = passEncoder->bindPipeline(pipeline);
+            auto rootObject = commandEncoder->preparePipeline(pipeline);
 
             ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
@@ -147,10 +138,12 @@ struct TestFormats
             // Bind buffer view to the entry point.
             entryPointCursor.getPath("buffer").setBinding(buffer);
 
-            passEncoder->dispatchCompute(1, 1, 1);
-            passEncoder->end();
-            commandBuffer->close();
-            queue->submit(commandBuffer);
+            ComputeState state;
+            commandEncoder->prepareFinish(&state);
+            commandEncoder->setComputeState(state);
+            commandEncoder->dispatchCompute(1, 1, 1);
+
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
         }
     }
