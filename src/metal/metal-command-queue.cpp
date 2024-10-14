@@ -1,5 +1,6 @@
 #include "metal-command-queue.h"
 #include "metal-command-buffer.h"
+#include "metal-command-encoder.h"
 #include "metal-fence.h"
 #include "metal-util.h"
 
@@ -15,6 +16,14 @@ CommandQueueImpl::~CommandQueueImpl() {}
 void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
 {
     m_commandQueue = commandQueue;
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
+    encoder->init(m_device, this);
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
 }
 
 void CommandQueueImpl::waitOnHost()

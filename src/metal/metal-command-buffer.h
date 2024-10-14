@@ -14,42 +14,10 @@ public:
     ICommandBuffer* getInterface(const Guid& guid);
 
 public:
-    RefPtr<DeviceImpl> m_device;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
-    RootShaderObjectImpl m_rootObject;
-    // RefPtr<MutableRootShaderObjectImpl> m_mutableRootShaderObject;
+    std::vector<RefPtr<RefObject>> m_resources;
 
-    ResourcePassEncoderImpl m_resourcePassEncoder;
-    ComputePassEncoderImpl m_computePassEncoder;
-    RenderPassEncoderImpl m_renderPassEncoder;
-    RayTracingPassEncoderImpl m_rayTracingPassEncoder;
-
-    NS::SharedPtr<MTL::RenderCommandEncoder> m_metalRenderCommandEncoder;
-    NS::SharedPtr<MTL::ComputeCommandEncoder> m_metalComputeCommandEncoder;
-    NS::SharedPtr<MTL::AccelerationStructureCommandEncoder> m_metalAccelerationStructureCommandEncoder;
-    NS::SharedPtr<MTL::BlitCommandEncoder> m_metalBlitCommandEncoder;
-
-    // Command buffers are deallocated by its command pool,
-    // so no need to free individually.
-    ~CommandBufferImpl() = default;
-
-    Result init(DeviceImpl* device, TransientResourceHeapImpl* transientHeap);
-
-    void beginCommandBuffer();
-
-    MTL::RenderCommandEncoder* getMetalRenderCommandEncoder(MTL::RenderPassDescriptor* renderPassDesc);
-    MTL::ComputeCommandEncoder* getMetalComputeCommandEncoder();
-    MTL::AccelerationStructureCommandEncoder* getMetalAccelerationStructureCommandEncoder();
-    MTL::BlitCommandEncoder* getMetalBlitCommandEncoder();
-    void endMetalCommandEncoder();
-
-public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL beginResourcePass(IResourcePassEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL beginComputePass(IComputePassEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL beginRayTracingPass(IRayTracingPassEncoder** outEncoder) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL close() override;
+    // ICommandBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

@@ -143,6 +143,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRende
     }
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_depthStencilState = depthStencilState;
     pipeline->m_primitiveType = MetalUtil::translatePrimitiveType(desc.primitiveTopology);
@@ -192,6 +193,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
     program->linkedProgram->getLayout()->getEntryPointByIndex(0)->getComputeThreadGroupSize(3, threadGroupSize);
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_threadGroupSize = MTL::Size(threadGroupSize[0], threadGroupSize[1], threadGroupSize[2]);
     returnComPtr(outPipeline, pipeline);
