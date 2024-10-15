@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../pass-encoder-com-forward.h"
 #include "../mutable-shader-object.h"
 #include "../rhi-shared.h"
 #include "../transient-resource-heap-base.h"
@@ -39,11 +38,8 @@ class DeviceImpl;
 class BufferImpl;
 class TextureImpl;
 class TextureViewImpl;
+class CommandEncoderImpl;
 class CommandBufferImpl;
-class PassEncoderImpl;
-class ResourcePassEncoderImpl;
-class RenderPassEncoderImpl;
-class ComputePassEncoderImpl;
 class CommandQueueImpl;
 class FenceImpl;
 class QueryPoolImpl;
@@ -60,14 +56,8 @@ class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
 class ShaderProgramImpl;
 class ShaderTableImpl;
-class SwapChainImpl;
 class SurfaceImpl;
 class TransientResourceHeapImpl;
 class InputLayoutImpl;
-
-#if SLANG_RHI_DXR
-class RayTracingPassEncoderImpl;
-class RayTracingPipelineImpl;
-#endif
 
 } // namespace rhi::d3d12

@@ -27,7 +27,7 @@ struct PendingDescriptorTableBinding
 /// Contextual data and operations required when binding shader objects to the pipeline state
 struct BindingContext
 {
-    PassEncoderImpl* encoder;
+    // CommandEncoderImpl* encoder;
     Submitter* submitter;
     TransientResourceHeapImpl* transientHeap;
     DeviceImpl* device;
@@ -60,7 +60,7 @@ Result uploadBufferDataImpl(
     BufferImpl* buffer,
     Offset offset,
     Size size,
-    void* data
+    const void* data
 );
 
 Result createNullDescriptor(

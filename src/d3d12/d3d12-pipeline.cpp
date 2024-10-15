@@ -229,6 +229,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRende
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
     pipeline->m_inputLayout = inputLayout;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_primitiveTopology = D3DUtil::getPrimitiveTopology(desc.primitiveTopology);
     returnComPtr(outPipeline, pipeline);
@@ -307,6 +308,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
     }
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -479,6 +481,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc
     }
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;

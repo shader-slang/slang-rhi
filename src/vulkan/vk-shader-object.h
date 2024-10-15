@@ -62,8 +62,8 @@ protected:
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
     Result _writeOrdinaryData(
-        PassEncoderImpl* encoder,
-        IBuffer* buffer,
+        RootBindingContext& context,
+        BufferImpl* buffer,
         Offset offset,
         Size destSize,
         ShaderObjectLayoutImpl* specializedLayout
@@ -135,7 +135,7 @@ public:
 
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(
-        PassEncoderImpl* encoder,
+        RootBindingContext& context,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
@@ -147,7 +147,6 @@ public:
     /// parameter-block and constant-buffer cases.
     ///
     Result bindAsValue(
-        PassEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -156,7 +155,6 @@ public:
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
     /// blocks)
     Result allocateDescriptorSets(
-        PassEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -164,7 +162,6 @@ public:
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
-        PassEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -172,7 +169,6 @@ public:
 
     /// Bind the ordinary data buffer if needed.
     Result bindOrdinaryDataBufferIfNeeded(
-        PassEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -180,7 +176,6 @@ public:
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
-        PassEncoderImpl* encoder,
         RootBindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -233,12 +228,7 @@ public:
     EntryPointLayout* getLayout();
 
     /// Bind this shader object as an entry point
-    Result bindAsEntryPoint(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
-        BindingOffset const& inOffset,
-        EntryPointLayout* layout
-    );
+    Result bindAsEntryPoint(RootBindingContext& context, BindingOffset const& inOffset, EntryPointLayout* layout);
 
 protected:
     Result init(IDevice* device, EntryPointLayout* layout);
@@ -270,7 +260,7 @@ public:
     void setResourceStates(StateTracking& stateTracking);
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(PassEncoderImpl* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);
+    Result bindAsRoot(RootBindingContext& context, RootShaderObjectLayout* layout);
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 

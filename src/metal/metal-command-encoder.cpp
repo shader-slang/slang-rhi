@@ -127,7 +127,7 @@ void CommandEncoderImpl::clearTexture(
     SLANG_UNUSED(subresourceRange);
     SLANG_UNUSED(clearDepth);
     SLANG_UNUSED(clearStencil);
-    SLANG_RHI_UNIMPLEMENTED("clearBuffer");
+    SLANG_RHI_UNIMPLEMENTED("clearTexture");
 }
 
 void CommandEncoderImpl::resolveQuery(

@@ -44,6 +44,12 @@ TransientResourceHeapImpl::~TransientResourceHeapImpl()
     m_descSetAllocator.close();
 }
 
+Result TransientResourceHeapImpl::allocateCommandBuffer(CommandBufferImpl** outCmdBuffer)
+{
+
+}
+
+#if 0
 Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuffer)
 {
     if (m_commandBufferAllocId < (uint32_t)m_commandBufferPool.size())
@@ -63,6 +69,7 @@ Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuf
     returnComPtr(outCmdBuffer, commandBuffer);
     return SLANG_OK;
 }
+#endif
 
 Result TransientResourceHeapImpl::synchronizeAndReset()
 {

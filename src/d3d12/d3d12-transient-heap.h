@@ -75,11 +75,11 @@ public:
         uint32_t samplerHeapSize
     );
 
+    Result allocateCommandBuffer(CommandBufferImpl** outCmdBuffer);
+
     Result allocateNewViewDescriptorHeap(DeviceImpl* device);
 
     Result allocateNewSamplerDescriptorHeap(DeviceImpl* device);
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
 
     Result synchronize();
 

@@ -239,6 +239,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRende
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -290,6 +291,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -434,6 +436,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
     pipeline->m_shaderGroupCount = shaderGroupInfos.size();

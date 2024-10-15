@@ -434,7 +434,7 @@ public:
 
     ~CommandQueueImpl() {}
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder) override
     {
         RefPtr<CommandEncoderImpl> result = new CommandEncoderImpl();
         result->init(m_device, nullptr);

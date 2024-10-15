@@ -14,11 +14,11 @@ QueueType DebugCommandQueue::getType()
     return baseObject->getType();
 }
 
-Result DebugCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
+Result DebugCommandQueue::createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder)
 {
     SLANG_RHI_API_FUNC;
     RefPtr<DebugCommandEncoder> encoder = new DebugCommandEncoder(ctx);
-    auto result = baseObject->createCommandEncoder(encoder->baseObject.writeRef());
+    auto result = baseObject->createCommandEncoder(getInnerObj(transientHeap), encoder->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outEncoder, encoder);

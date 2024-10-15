@@ -1,4 +1,5 @@
 #include "d3d12-command-queue.h"
+#include "d3d12-command-encoder.h"
 #include "d3d12-command-buffer.h"
 #include "d3d12-device.h"
 #include "d3d12-fence.h"
@@ -15,7 +16,7 @@ CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
 CommandQueueImpl::~CommandQueueImpl()
 {
     waitOnHost();
-    CloseHandle(globalWaitHandle);
+    CloseHandle(m_globalWaitHandle);
 }
 
 Result CommandQueueImpl::init(uint32_t queueIndex)
@@ -26,8 +27,33 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
     SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
-    globalWaitHandle =
+    m_globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
+    return SLANG_OK;
+}
+
+void CommandQueueImpl::runGarbageCollection()
+{
+    // // remove finished submitted command buffers
+    // while (!m_submittedCommandBuffers.empty())
+    // {
+    //     auto cmdBuffer = m_submittedCommandBuffers.back();
+    //     if (cmdBuffer->m_fenceValue <= m_fenceValue)
+    //     {
+    //         m_submittedCommandBuffers.pop_back();
+    //     }
+    //     else
+    //     {
+    //         break;
+    //     }
+    // }
+}
+
+Result CommandQueueImpl::createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder)
+{
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
+    SLANG_RETURN_ON_FAIL(encoder->init(m_device, this, checked_cast<TransientResourceHeapImpl*>(transientHeap)));
+    returnComPtr(outEncoder, encoder);
     return SLANG_OK;
 }
 
@@ -41,15 +67,17 @@ void CommandQueueImpl::submit(
     short_vector<ID3D12CommandList*> commandLists;
     for (GfxCount i = 0; i < count; i++)
     {
-        auto cmdImpl = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
-        commandLists.push_back(cmdImpl->m_cmdList);
+        auto commandBuffer = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
+        commandLists.push_back(commandBuffer->m_cmdList);
+        m_submittedCommandBuffers.push_front(commandBuffer);
     }
     if (count > 0)
     {
         m_d3dQueue->ExecuteCommandLists((UINT)count, commandLists.data());
 
         m_fenceValue++;
-
+        // TODO SYNCHRONIZATION
+#if 0
         for (GfxCount i = 0; i < count; i++)
         {
             if (i > 0 && commandBuffers[i] == commandBuffers[i - 1])
@@ -61,6 +89,7 @@ void CommandQueueImpl::submit(
             waitInfo.fence = m_fence;
             waitInfo.queue = m_d3dQueue;
         }
+#endif
     }
 
     if (fence)
@@ -68,15 +97,17 @@ void CommandQueueImpl::submit(
         auto fenceImpl = checked_cast<FenceImpl*>(fence);
         m_d3dQueue->Signal(fenceImpl->m_fence.get(), valueToSignal);
     }
+
+    runGarbageCollection();
 }
 
 void CommandQueueImpl::waitOnHost()
 {
     m_fenceValue++;
     m_d3dQueue->Signal(m_fence, m_fenceValue);
-    ResetEvent(globalWaitHandle);
-    m_fence->SetEventOnCompletion(m_fenceValue, globalWaitHandle);
-    WaitForSingleObject(globalWaitHandle, INFINITE);
+    ResetEvent(m_globalWaitHandle);
+    m_fence->SetEventOnCompletion(m_fenceValue, m_globalWaitHandle);
+    WaitForSingleObject(m_globalWaitHandle, INFINITE);
 }
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)

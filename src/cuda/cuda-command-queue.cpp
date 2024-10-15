@@ -18,7 +18,7 @@ CommandQueueImpl::~CommandQueueImpl()
     cuStreamDestroy(stream);
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+Result CommandQueueImpl::createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder)
 {
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
     encoder->init(m_device);

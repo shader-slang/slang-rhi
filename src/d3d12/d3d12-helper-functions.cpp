@@ -270,7 +270,7 @@ Result uploadBufferDataImpl(
     BufferImpl* buffer,
     Offset offset,
     Size size,
-    void* data
+    const void* data
 )
 {
     IBuffer* uploadResource;

@@ -413,6 +413,7 @@ ComPtr<IDevice> createTestingDevice(
 void releaseCachedDevices()
 {
     gCachedDevices.clear();
+    getRHI()->reportLiveObjects();
 }
 
 ComPtr<slang::ISession> createTestingSession(

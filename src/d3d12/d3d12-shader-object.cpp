@@ -176,7 +176,7 @@ Result ShaderObjectImpl::init(
 /// `offset`
 
 Result ShaderObjectImpl::_writeOrdinaryData(
-    PassEncoderImpl* encoder,
+    BindingContext* context,
     BufferImpl* buffer,
     Offset offset,
     Size destSize,
@@ -188,15 +188,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
 
     SLANG_RHI_ASSERT(srcSize <= destSize);
 
-    uploadBufferDataImpl(
-        encoder->m_d3dDevice,
-        encoder->m_d3dCmdList,
-        encoder->m_transientHeap,
-        buffer,
-        offset,
-        srcSize,
-        src
-    );
+    context->submitter->uploadData(buffer, offset, srcSize, src);
 
     // In the case where this object has any sub-objects of
     // existential/interface type, we need to recurse on those objects
@@ -274,7 +266,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
             auto subObjectOffset = subObjectRangePendingDataOffset + i * subObjectRangePendingDataStride;
 
             subObject->_writeOrdinaryData(
-                encoder,
+                context,
                 buffer,
                 offset + subObjectOffset,
                 destSize - subObjectOffset,
@@ -299,20 +291,20 @@ bool ShaderObjectImpl::shouldAllocateConstantBuffer(TransientResourceHeapImpl* t
 /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
 
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
-    PassEncoderImpl* encoder,
+    BindingContext* context,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
     // If data has been changed since last allocation/filling of constant buffer,
     // we will need to allocate a new one.
     //
-    if (!shouldAllocateConstantBuffer(encoder->m_transientHeap))
+    if (!shouldAllocateConstantBuffer(context->transientHeap))
     {
         return SLANG_OK;
     }
     m_isConstantBufferDirty = false;
-    m_cachedTransientHeap = encoder->m_transientHeap;
-    m_cachedTransientHeapVersion = encoder->m_transientHeap->getVersion();
+    m_cachedTransientHeap = context->transientHeap;
+    m_cachedTransientHeapVersion = context->transientHeap->getVersion();
 
     // Computing the size of the ordinary data buffer is *not* just as simple
     // as using the size of the `m_ordinayData` array that we store. The reason
@@ -331,7 +323,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // it from the transient resource heap.
     //
     auto alignedConstantBufferSize = D3DUtil::calcAligned(m_constantBufferSize, 256);
-    SLANG_RETURN_ON_FAIL(encoder->m_commandBuffer->m_transientHeap->allocateConstantBuffer(
+    SLANG_RETURN_ON_FAIL(context->transientHeap->allocateConstantBuffer(
         alignedConstantBufferSize,
         m_constantBufferWeakPtr,
         m_constantBufferOffset
@@ -344,7 +336,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // don't need or want to inline it into this call site.
     //
     SLANG_RETURN_ON_FAIL(_writeOrdinaryData(
-        encoder,
+        context,
         checked_cast<BufferImpl*>(m_constantBufferWeakPtr),
         m_constantBufferOffset,
         m_constantBufferSize,
@@ -359,12 +351,11 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         // in the table of resource views.
         //
         auto descriptorTable = m_descriptorSet.resourceTable;
-        D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
-        viewDesc.BufferLocation =
-            checked_cast<BufferImpl*>(m_constantBufferWeakPtr)->m_resource.getResource()->GetGPUVirtualAddress() +
-            m_constantBufferOffset;
-        viewDesc.SizeInBytes = (UINT)alignedConstantBufferSize;
-        encoder->m_d3dDevice->CreateConstantBufferView(&viewDesc, descriptorTable.getCpuHandle());
+        context->submitter->createConstantBufferView(
+            m_constantBufferWeakPtr->getDeviceAddress() + m_constantBufferOffset,
+            alignedConstantBufferSize,
+            descriptorTable.getCpuHandle()
+        );
     }
 
     return SLANG_OK;
@@ -605,7 +596,7 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
     // If we are to bind as a constant buffer we first need to ensure that
     // the ordinary data buffer is created, if this object needs one.
     //
-    SLANG_RETURN_ON_FAIL(_ensureOrdinaryDataBufferCreatedIfNeeded(context->encoder, specializedLayout));
+    SLANG_RETURN_ON_FAIL(_ensureOrdinaryDataBufferCreatedIfNeeded(context, specializedLayout));
 
     // Next, we need to bind all of the resource descriptors for this object
     // (including any ordinary data buffer) into the provided `descriptorSet`.
@@ -616,7 +607,7 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
         auto& dstTable = descriptorSet.resourceTable;
         auto& srcTable = m_descriptorSet.resourceTable;
 
-        context->device->m_device->CopyDescriptorsSimple(
+        context->submitter->copyDescriptors(
             UINT(resourceCount),
             dstTable.getCpuHandle(offset.resource),
             srcTable.getCpuHandle(),
@@ -658,7 +649,7 @@ Result ShaderObjectImpl::bindAsValue(
         auto& dstTable = descriptorSet.resourceTable;
         auto& srcTable = m_descriptorSet.resourceTable;
 
-        context->device->m_device->CopyDescriptorsSimple(
+        context->submitter->copyDescriptors(
             UINT(resourceCount),
             dstTable.getCpuHandle(offset.resource),
             srcTable.getCpuHandle(skipResourceCount),
@@ -703,7 +694,7 @@ Result ShaderObjectImpl::_bindImpl(
         auto& dstTable = descriptorSet.samplerTable;
         auto& srcTable = m_descriptorSet.samplerTable;
 
-        context->device->m_device->CopyDescriptorsSimple(
+        context->submitter->copyDescriptors(
             UINT(samplerCount),
             dstTable.getCpuHandle(offset.sampler),
             srcTable.getCpuHandle(),
