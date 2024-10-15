@@ -400,7 +400,7 @@ void DeviceImpl::beginRenderPass(const RenderPassDesc& desc)
     ID3D11DepthStencilView* depthStencilView = m_depthStencilView ? m_depthStencilView->getDSV() : nullptr;
     m_immediateContext->OMSetRenderTargets((UINT)renderTargetViews.size(), renderTargetViews.data(), depthStencilView);
 
-    m_renderPassValid = true;
+    m_renderPassActive = true;
 }
 
 void DeviceImpl::endRenderPass()
@@ -427,7 +427,7 @@ void DeviceImpl::endRenderPass()
     m_resolveTargetViews.clear();
     m_depthStencilView = nullptr;
 
-    m_renderPassValid = false;
+    m_renderPassActive = false;
 
     clearState();
 }
@@ -440,7 +440,7 @@ inline bool arraysEqual(GfxCount countA, GfxCount countB, const T* a, const T* b
 
 void DeviceImpl::setRenderState(const RenderState& state)
 {
-    if (!m_renderPassValid)
+    if (!m_renderPassActive)
         return;
 
     bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
@@ -612,7 +612,7 @@ void DeviceImpl::setRenderState(const RenderState& state)
     {
         static const int kMaxScissorRects = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
         SLANG_RHI_ASSERT(state.scissorRectCount <= kMaxScissorRects);
-        D3D11_RECT scissorRects[kMaxScissorRects];
+        D3D11_RECT scissorRects[SLANG_COUNT_OF(state.scissorRects)];
         for (GfxIndex i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
@@ -654,7 +654,7 @@ void DeviceImpl::drawIndexed(const DrawArguments& args)
 
 void DeviceImpl::setComputeState(const ComputeState& state)
 {
-    if (m_renderPassValid)
+    if (m_renderPassActive)
         return;
 
     bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;

@@ -2,6 +2,7 @@
 #include "d3d12-device.h"
 #include "d3d12-pipeline.h"
 #include "d3d12-transient-heap.h"
+#include "d3d12-command-encoder.h"
 
 #include "core/string.h"
 
@@ -10,7 +11,7 @@ namespace rhi::d3d12 {
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     RayTracingPipeline* pipeline,
     TransientResourceHeap* transientHeap,
-    IRayTracingPassEncoder* encoder
+    ICommandEncoder* encoder
 )
 {
     uint32_t raygenTableSize = m_rayGenShaderCount * kRayGenRecordSize;
@@ -97,7 +98,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     }
 
     stagingBuffer->unmap(nullptr);
-    checked_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->CopyBufferRegion(
+    checked_cast<CommandEncoderImpl*>(encoder)->m_cmdList->CopyBufferRegion(
         checked_cast<BufferImpl*>(buffer.get())->m_resource.getResource(),
         0,
         checked_cast<BufferImpl*>(stagingBuffer)->m_resource.getResource(),
@@ -109,7 +110,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     barrier.Transition.pResource = checked_cast<BufferImpl*>(buffer.get())->m_resource.getResource();
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-    checked_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_cmdList->ResourceBarrier(1, &barrier);
+    checked_cast<CommandEncoderImpl*>(encoder)->m_cmdList->ResourceBarrier(1, &barrier);
 
     RefPtr<Buffer> resultPtr = checked_cast<Buffer*>(buffer.get());
     return _Move(resultPtr);

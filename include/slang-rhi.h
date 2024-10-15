@@ -1873,12 +1873,13 @@ class ICommandQueue : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder) = 0;
 
-    inline ComPtr<ICommandEncoder> createCommandEncoder()
+    inline ComPtr<ICommandEncoder> createCommandEncoder(ITransientResourceHeap* transientHeap = nullptr)
     {
         ComPtr<ICommandEncoder> encoder;
-        SLANG_RETURN_NULL_ON_FAIL(createCommandEncoder(encoder.writeRef()));
+        SLANG_RETURN_NULL_ON_FAIL(createCommandEncoder(transientHeap, encoder.writeRef()));
         return encoder;
     }
 

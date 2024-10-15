@@ -362,6 +362,7 @@ struct RayTracingTestB : BaseRayTracingTest
         RayTracingState state;
         commandEncoder->prepareFinish(&state);
         state.shaderTable = shaderTable;
+        commandEncoder->setRayTracingState(state);
         commandEncoder->dispatchRays(1, width, height, 1);
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();

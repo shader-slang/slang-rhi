@@ -2,6 +2,8 @@
 #include "vk-device.h"
 #include "vk-helper-functions.h"
 #include "vk-transient-heap.h"
+#include "vk-pipeline.h"
+#include "vk-command-encoder.h"
 
 #include <vector>
 
@@ -10,7 +12,7 @@ namespace rhi::vk {
 RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     RayTracingPipeline* pipeline,
     TransientResourceHeap* transientHeap,
-    IRayTracingPassEncoder* encoder
+    ICommandEncoder* encoder
 )
 {
     auto vkApi = m_device->m_api;
@@ -123,7 +125,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     copyRegion.srcOffset = stagingBufferOffset;
     copyRegion.size = tableSize;
     vkApi.vkCmdCopyBuffer(
-        checked_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_commandBuffer,
+        checked_cast<CommandEncoderImpl*>(encoder)->m_cmdBuffer,
         checked_cast<BufferImpl*>(stagingBuffer)->m_buffer.m_buffer,
         checked_cast<BufferImpl*>(buffer.get())->m_buffer.m_buffer,
         /* regionCount: */ 1,

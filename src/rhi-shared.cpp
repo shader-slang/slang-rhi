@@ -5,6 +5,7 @@
 
 #include <slang.h>
 
+#include <atomic>
 #include <algorithm>
 #include <string>
 #include <string_view>
@@ -292,7 +293,7 @@ Result CommandEncoder::preparePipelineWithRootObject(IPipeline* pipeline, IShade
 {
     m_pipeline = checked_cast<Pipeline*>(pipeline);
     m_rootObject = checked_cast<ShaderObjectBase*>(rootObject);
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_OK;
 }
 
 Result CommandEncoder::prepareFinish(RenderState* outState)
@@ -1262,6 +1263,12 @@ Result ShaderObjectBase::copyFrom(IShaderObject* object, ITransientResourceHeap*
         return SLANG_OK;
     }
     return SLANG_FAIL;
+}
+
+uint64_t TransientResourceHeap::getNextVersion()
+{
+    static std::atomic<uint64_t> m_nextVersion = 1;
+    return m_nextVersion++;
 }
 
 Result ShaderTable::init(const IShaderTable::Desc& desc)

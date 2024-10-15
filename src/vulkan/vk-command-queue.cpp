@@ -28,6 +28,12 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
     m_device->m_api.vkCreateSemaphore(m_device->m_api.m_device, &semaphoreCreateInfo, nullptr, &m_semaphore);
 }
 
+Result CommandQueueImpl::createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder)
+{
+    // TODO
+    return SLANG_FAIL;
+}
+
 void CommandQueueImpl::waitOnHost()
 {
     auto& vkAPI = m_device->m_api;
@@ -65,8 +71,10 @@ void CommandQueueImpl::queueSubmitImpl(
     for (uint32_t i = 0; i < count; i++)
     {
         auto cmdBufImpl = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
+#if 0
         if (!cmdBufImpl->m_isPreCommandBufferEmpty)
             m_submitCommandBuffers.push_back(cmdBufImpl->m_preCommandBuffer);
+#endif
         auto vkCmdBuf = cmdBufImpl->m_commandBuffer;
         m_submitCommandBuffers.push_back(vkCmdBuf);
     }

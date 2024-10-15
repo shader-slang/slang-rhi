@@ -1070,12 +1070,7 @@ class TransientResourceHeap : public ITransientResourceHeap, public ComObject
 public:
     uint64_t m_version = 0;
     uint64_t getVersion() { return m_version; }
-    uint64_t& getVersionCounter()
-    {
-        static uint64_t version = 1;
-        return version;
-    }
-    TransientResourceHeap() { m_version = getVersionCounter()++; }
+    TransientResourceHeap() { m_version = getNextVersion(); }
     virtual ~TransientResourceHeap() {}
 
 public:
@@ -1088,6 +1083,9 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish() override { return SLANG_OK; }
+
+protected:
+    static uint64_t getNextVersion();
 };
 
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;

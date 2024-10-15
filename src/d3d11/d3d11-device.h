@@ -83,7 +83,7 @@ public:
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
     RefPtr<TextureViewImpl> m_depthStencilView;
 
-    bool m_renderPassValid = false;
+    bool m_renderPassActive = false;
     bool m_renderStateValid = false;
     RenderState m_renderState = {};
     RefPtr<RenderPipelineImpl> m_renderPipeline;

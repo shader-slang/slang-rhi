@@ -117,7 +117,7 @@ void CommandEncoderImpl::clearTexture(
     SLANG_UNUSED(subresourceRange);
     SLANG_UNUSED(clearDepth);
     SLANG_UNUSED(clearStencil);
-    SLANG_RHI_UNIMPLEMENTED("clearBuffer");
+    SLANG_RHI_UNIMPLEMENTED("clearTexture");
 }
 
 void CommandEncoderImpl::resolveQuery(
@@ -224,6 +224,7 @@ void CommandEncoderImpl::setRenderState(const RenderState& state)
 
     bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
     bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updateStencilRef = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
     bool updateVertexBuffers = !m_renderStateValid || !arraysEqual(
                                                           state.vertexBufferCount,
                                                           m_renderState.vertexBufferCount,
@@ -268,6 +269,11 @@ void CommandEncoderImpl::setRenderState(const RenderState& state)
                 nullptr
             );
         }
+    }
+
+    if (updateStencilRef)
+    {
+        m_device->m_ctx.api.wgpuRenderPassEncoderSetStencilReference(m_renderPassEncoder, state.stencilRef);
     }
 
     if (updateVertexBuffers)
@@ -327,8 +333,6 @@ void CommandEncoderImpl::setRenderState(const RenderState& state)
             scissorRect.maxY - scissorRect.minY
         );
     }
-
-    m_device->m_ctx.api.wgpuRenderPassEncoderSetStencilReference(m_renderPassEncoder, state.stencilRef);
 
     m_renderStateValid = true;
     m_renderState = state;

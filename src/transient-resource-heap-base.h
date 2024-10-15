@@ -152,8 +152,7 @@ public:
         m_readbackBufferPool
             .init(device, MemoryType::ReadBack, 256, BufferUsage::CopySource | BufferUsage::CopyDestination);
 
-        m_version = getVersionCounter();
-        getVersionCounter()++;
+        m_version = getNextVersion();
         return SLANG_OK;
     }
 
@@ -198,8 +197,7 @@ public:
         m_constantBufferPool.reset();
         m_uploadBufferPool.reset();
         m_readbackBufferPool.reset();
-        m_version = getVersionCounter();
-        getVersionCounter()++;
+        m_version = getNextVersion();
     }
 };
 

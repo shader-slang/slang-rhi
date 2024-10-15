@@ -5,16 +5,21 @@
 
 namespace rhi::vk {
 
-// There are a pair of cyclic references between a `TransientResourceHeap` and
-// a `CommandBuffer` created from the heap. We need to break the cycle when
-// the public reference count of a command buffer drops to 0.
-
 ICommandBuffer* CommandBufferImpl::getInterface(const Guid& guid)
 {
     if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandBuffer)
         return static_cast<ICommandBuffer*>(this);
     return nullptr;
 }
+
+Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::VkCommandBuffer;
+    outHandle->value = (uint64_t)m_commandBuffer;
+    return SLANG_OK;
+}
+
+#if 0
 
 void CommandBufferImpl::comFree()
 {
@@ -76,200 +81,7 @@ VkCommandBuffer CommandBufferImpl::getPreCommandBuffer()
     return m_preCommandBuffer;
 }
 
-void CommandBufferImpl::requireBufferState(BufferImpl* buffer, ResourceState state)
-{
-    m_stateTracking.setBufferState(buffer, state);
-}
 
-void CommandBufferImpl::requireTextureState(
-    TextureImpl* texture,
-    SubresourceRange subresourceRange,
-    ResourceState state
-)
-{
-    m_stateTracking.setTextureState(texture, subresourceRange, state);
-}
-
-void CommandBufferImpl::commitBarriers()
-{
-    auto& api = m_device->m_api;
-
-    short_vector<VkBufferMemoryBarrier, 16> bufferBarriers;
-    short_vector<VkImageMemoryBarrier, 16> imageBarriers;
-
-    VkPipelineStageFlags activeBeforeStageFlags = VkPipelineStageFlags(0);
-    VkPipelineStageFlags activeAfterStageFlags = VkPipelineStageFlags(0);
-
-    auto submitBufferBarriers = [&]()
-    {
-        api.vkCmdPipelineBarrier(
-            m_commandBuffer,
-            activeBeforeStageFlags,
-            activeAfterStageFlags,
-            VkDependencyFlags(0),
-            0,
-            nullptr,
-            (uint32_t)bufferBarriers.size(),
-            bufferBarriers.data(),
-            0,
-            nullptr
-        );
-    };
-
-    auto submitImageBarriers = [&]()
-    {
-        api.vkCmdPipelineBarrier(
-            m_commandBuffer,
-            activeBeforeStageFlags,
-            activeAfterStageFlags,
-            VkDependencyFlags(0),
-            0,
-            nullptr,
-            0,
-            nullptr,
-            (uint32_t)imageBarriers.size(),
-            imageBarriers.data()
-        );
-    };
-
-    for (const auto& bufferBarrier : m_stateTracking.getBufferBarriers())
-    {
-        BufferImpl* buffer = checked_cast<BufferImpl*>(bufferBarrier.buffer);
-
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(bufferBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(bufferBarrier.stateAfter, false);
-
-        if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
-            !bufferBarriers.empty())
-        {
-            submitBufferBarriers();
-            bufferBarriers.clear();
-        }
-
-        activeBeforeStageFlags = beforeStageFlags;
-        activeAfterStageFlags = afterStageFlags;
-
-        VkBufferMemoryBarrier barrier = {};
-        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barrier.srcAccessMask = calcAccessFlags(bufferBarrier.stateBefore);
-        barrier.dstAccessMask = calcAccessFlags(bufferBarrier.stateAfter);
-        barrier.buffer = buffer->m_buffer.m_buffer;
-        barrier.offset = 0;
-        barrier.size = buffer->m_desc.size;
-
-        bufferBarriers.push_back(barrier);
-    }
-    if (!bufferBarriers.empty())
-    {
-        submitBufferBarriers();
-    }
-
-    activeBeforeStageFlags = VkPipelineStageFlags(0);
-    activeAfterStageFlags = VkPipelineStageFlags(0);
-
-    for (const auto& textureBarrier : m_stateTracking.getTextureBarriers())
-    {
-        TextureImpl* texture = checked_cast<TextureImpl*>(textureBarrier.texture);
-
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(textureBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(textureBarrier.stateAfter, false);
-
-        if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
-            !imageBarriers.empty())
-        {
-            submitImageBarriers();
-            imageBarriers.clear();
-        }
-
-        activeBeforeStageFlags = beforeStageFlags;
-        activeAfterStageFlags = afterStageFlags;
-
-        VkImageMemoryBarrier barrier = {};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.image = texture->m_image;
-        barrier.oldLayout = translateImageLayout(textureBarrier.stateBefore);
-        barrier.newLayout = translateImageLayout(textureBarrier.stateAfter);
-        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(texture->m_desc.format));
-        barrier.subresourceRange.baseArrayLayer = textureBarrier.entireTexture ? 0 : textureBarrier.arrayLayer;
-        barrier.subresourceRange.baseMipLevel = textureBarrier.entireTexture ? 0 : textureBarrier.mipLevel;
-        barrier.subresourceRange.layerCount = textureBarrier.entireTexture ? VK_REMAINING_ARRAY_LAYERS : 1;
-        barrier.subresourceRange.levelCount = textureBarrier.entireTexture ? VK_REMAINING_MIP_LEVELS : 1;
-        barrier.srcAccessMask = calcAccessFlags(textureBarrier.stateBefore);
-        barrier.dstAccessMask = calcAccessFlags(textureBarrier.stateAfter);
-        imageBarriers.push_back(barrier);
-    }
-    if (!imageBarriers.empty())
-    {
-        submitImageBarriers();
-    }
-
-    m_stateTracking.clearBarriers();
-}
-
-Result CommandBufferImpl::beginResourcePass(IResourcePassEncoder** outEncoder)
-{
-    m_resourcePassEncoder.init(this);
-    *outEncoder = &m_resourcePassEncoder;
-    return SLANG_OK;
-}
-
-Result CommandBufferImpl::beginRenderPass(const RenderPassDesc& desc, IRenderPassEncoder** outEncoder)
-{
-    m_renderPassEncoder.init(this);
-    SLANG_RETURN_ON_FAIL(m_renderPassEncoder.beginPass(desc));
-    *outEncoder = &m_renderPassEncoder;
-    return SLANG_OK;
-}
-
-Result CommandBufferImpl::beginComputePass(IComputePassEncoder** outEncoder)
-{
-    m_computePassEncoder.init(this);
-    *outEncoder = &m_computePassEncoder;
-    return SLANG_OK;
-}
-
-Result CommandBufferImpl::beginRayTracingPass(IRayTracingPassEncoder** outEncoder)
-{
-    if (!m_device->m_api.vkCmdBuildAccelerationStructuresKHR)
-        return SLANG_E_NOT_AVAILABLE;
-    m_rayTracingPassEncoder.init(this);
-    *outEncoder = &m_rayTracingPassEncoder;
-    return SLANG_OK;
-}
-
-void CommandBufferImpl::close()
-{
-    auto& vkAPI = m_device->m_api;
-    if (!m_isPreCommandBufferEmpty)
-    {
-        // `preCmdBuffer` contains buffer transfer commands for shader object
-        // uniform buffers, and we need a memory barrier here to ensure the
-        // transfers are visible to shaders.
-        VkMemoryBarrier memBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
-        memBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        memBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-        vkAPI.vkCmdPipelineBarrier(
-            m_preCommandBuffer,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            0,
-            1,
-            &memBarrier,
-            0,
-            nullptr,
-            0,
-            nullptr
-        );
-        vkAPI.vkEndCommandBuffer(m_preCommandBuffer);
-    }
-    vkAPI.vkEndCommandBuffer(m_commandBuffer);
-}
-
-Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    outHandle->type = NativeHandleType::VkCommandBuffer;
-    outHandle->value = (uint64_t)m_commandBuffer;
-    return SLANG_OK;
-}
+#endif
 
 } // namespace rhi::vk

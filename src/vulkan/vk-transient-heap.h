@@ -26,8 +26,12 @@ public:
     Result init(const ITransientResourceHeap::Desc& desc, DeviceImpl* device);
     ~TransientResourceHeapImpl();
 
+    Result allocateCommandBuffer(CommandBufferImpl** outCmdBuffer);
+
 public:
+#if 0
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
+#endif
     virtual SLANG_NO_THROW Result SLANG_MCALL synchronizeAndReset() override;
 };
 

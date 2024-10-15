@@ -19,7 +19,7 @@ CommandQueueImpl::~CommandQueueImpl()
     }
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+Result CommandQueueImpl::createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder)
 {
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
     SLANG_RETURN_ON_FAIL(encoder->init(m_device, this));

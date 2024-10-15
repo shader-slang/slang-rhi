@@ -116,7 +116,7 @@ struct BindingOffset : SimpleBindingOffset
 struct RootBindingContext
 {
     /// The pipeline layout being used for binding
-    VkPipelineLayout pipelineLayout;
+    // VkPipelineLayout pipelineLayout;
 
     /// An allocator to use for descriptor sets during binding
     DescriptorSetAllocator* descriptorSetAllocator;
@@ -124,11 +124,17 @@ struct RootBindingContext
     /// The device being used
     DeviceImpl* device;
 
+    /// Transient resource heap for allocating transient resources (constant buffers)
+    TransientResourceHeapImpl* transientHeap;
+
     /// The descriptor sets that are being allocated and bound
     std::vector<VkDescriptorSet>* descriptorSets;
 
     /// Information about all the push-constant ranges that should be bound
     span<const VkPushConstantRange> pushConstantRanges;
+
+    virtual void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) = 0;
+    virtual void writePushConstants(VkPushConstantRange range, const void* data) = 0;
 };
 
 Size calcRowSize(Format format, int width);

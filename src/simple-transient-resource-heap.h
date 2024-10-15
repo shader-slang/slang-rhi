@@ -31,7 +31,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL synchronizeAndReset() override
     {
-        ++getVersionCounter();
+        m_version = getNextVersion();
         return SLANG_OK;
     }
 };

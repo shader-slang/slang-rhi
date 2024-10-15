@@ -64,6 +64,8 @@ public:
 
     RefPtr<TransientResourceHeapImpl> m_resourceCommandTransientHeap;
 
+    std::deque<RefPtr<TransientResourceHeapImpl>> m_transientHeapPool;
+
     RefPtr<D3D12GeneralExpandingDescriptorHeap> m_rtvAllocator;
     RefPtr<D3D12GeneralExpandingDescriptorHeap> m_dsvAllocator;
 
@@ -206,7 +208,7 @@ public:
 
     struct ResourceCommandRecordInfo
     {
-        ComPtr<ICommandBuffer> commandBuffer;
+        ComPtr<ICommandEncoder> commandEncoder;
         ID3D12GraphicsCommandList* d3dCommandList;
     };
     ResourceCommandRecordInfo encodeResourceCommands();

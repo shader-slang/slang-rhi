@@ -59,8 +59,8 @@ Result DebugCommandEncoder::preparePipelineWithRootObject(IPipeline* pipeline, I
 {
     SLANG_RHI_API_FUNC;
 
+    m_rootObject.baseObject = getInnerObj(rootObject);
     SLANG_RETURN_ON_FAIL(baseObject->preparePipelineWithRootObject(getInnerObj(pipeline), getInnerObj(rootObject)));
-    m_rootObject.baseObject = rootObject;
     return SLANG_OK;
 }
 

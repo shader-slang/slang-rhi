@@ -13,6 +13,7 @@
 #include "d3d12-surface.h"
 #include "d3d12-input-layout.h"
 #include "d3d12-acceleration-structure.h"
+#include "d3d12-command-encoder.h"
 
 #include "core/short_vector.h"
 #include "core/string.h"
@@ -1585,16 +1586,19 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
 DeviceImpl::ResourceCommandRecordInfo DeviceImpl::encodeResourceCommands()
 {
     ResourceCommandRecordInfo info;
-    m_resourceCommandTransientHeap->createCommandBuffer(info.commandBuffer.writeRef());
-    info.d3dCommandList = checked_cast<CommandBufferImpl*>(info.commandBuffer.get())->m_cmdList;
+    m_queue->createCommandEncoder(m_resourceCommandTransientHeap, info.commandEncoder.writeRef());
+    info.d3dCommandList = checked_cast<CommandEncoderImpl*>(info.commandEncoder.get())->m_cmdList;
+    // m_resourceCommandTransientHeap->createCommandBuffer(info.commandBuffer.writeRef());
     return info;
 }
 
 void DeviceImpl::submitResourceCommandsAndWait(const DeviceImpl::ResourceCommandRecordInfo& info)
 {
-    info.commandBuffer->close();
-    ICommandBuffer* commandBuffer = info.commandBuffer.get();
-    m_queue->submit(1, &commandBuffer, nullptr, 0);
+    ComPtr<ICommandBuffer> commandBuffer = info.commandEncoder->finish();
+    ICommandBuffer* commandBuffers[1] = {commandBuffer.get()};
+    m_queue->submit(1, commandBuffers, nullptr, 0);
+    // TODO SYNCHRONIZATION
+    m_queue->waitOnHost();
     m_resourceCommandTransientHeap->finish();
     m_resourceCommandTransientHeap->synchronizeAndReset();
 }

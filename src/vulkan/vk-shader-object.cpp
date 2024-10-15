@@ -1,6 +1,5 @@
 #include "vk-shader-object.h"
 #include "vk-command-buffer.h"
-#include "vk-command-encoder.h"
 #include "vk-transient-heap.h"
 
 #include "../state-tracking.h"
@@ -227,8 +226,8 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 }
 
 Result ShaderObjectImpl::_writeOrdinaryData(
-    PassEncoderImpl* encoder,
-    IBuffer* buffer,
+    RootBindingContext& context,
+    BufferImpl* buffer,
     Offset offset,
     Size destSize,
     ShaderObjectLayoutImpl* specializedLayout
@@ -240,7 +239,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
 
     SLANG_RHI_ASSERT(srcSize <= destSize);
 
-    encoder->uploadBufferDataImpl(buffer, offset, srcSize, src);
+    context.writeBuffer(buffer, offset, srcSize, src);
 
     // In the case where this object has any sub-objects of
     // existential/interface type, we need to recurse on those objects
@@ -318,7 +317,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
             auto subObjectOffset = subObjectRangePendingDataOffset + i * subObjectRangePendingDataStride;
 
             subObject->_writeOrdinaryData(
-                encoder,
+                context,
                 buffer,
                 offset + subObjectOffset,
                 destSize - subObjectOffset,
@@ -613,20 +612,20 @@ bool ShaderObjectImpl::shouldAllocateConstantBuffer(TransientResourceHeapImpl* t
 }
 
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
-    PassEncoderImpl* encoder,
+    RootBindingContext& context,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
     // If data has been changed since last allocation/filling of constant buffer,
     // we will need to allocate a new one.
     //
-    if (!shouldAllocateConstantBuffer(encoder->m_commandBuffer->m_transientHeap))
+    if (!shouldAllocateConstantBuffer(context.transientHeap))
     {
         return SLANG_OK;
     }
     m_isConstantBufferDirty = false;
-    m_constantBufferTransientHeap = encoder->m_commandBuffer->m_transientHeap;
-    m_constantBufferTransientHeapVersion = encoder->m_commandBuffer->m_transientHeap->getVersion();
+    m_constantBufferTransientHeap = context.transientHeap;
+    m_constantBufferTransientHeapVersion = context.transientHeap->getVersion();
 
     m_constantBufferSize = specializedLayout->getTotalOrdinaryDataSize();
     if (m_constantBufferSize == 0)
@@ -637,8 +636,9 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // Once we have computed how large the buffer should be, we can allocate
     // it from the transient resource heap.
     //
-    SLANG_RETURN_ON_FAIL(encoder->m_commandBuffer->m_transientHeap
-                             ->allocateConstantBuffer(m_constantBufferSize, m_constantBuffer, m_constantBufferOffset));
+    SLANG_RETURN_ON_FAIL(
+        context.transientHeap->allocateConstantBuffer(m_constantBufferSize, m_constantBuffer, m_constantBufferOffset)
+    );
 
     // Once the buffer is allocated, we can use `_writeOrdinaryData` to fill it in.
     //
@@ -646,15 +646,18 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // where this object contains interface/existential-type fields, so we
     // don't need or want to inline it into this call site.
     //
-    SLANG_RETURN_ON_FAIL(
-        _writeOrdinaryData(encoder, m_constantBuffer, m_constantBufferOffset, m_constantBufferSize, specializedLayout)
-    );
+    SLANG_RETURN_ON_FAIL(_writeOrdinaryData(
+        context,
+        checked_cast<BufferImpl*>(m_constantBuffer),
+        m_constantBufferOffset,
+        m_constantBufferSize,
+        specializedLayout
+    ));
 
     return SLANG_OK;
 }
 
 Result ShaderObjectImpl::bindAsValue(
-    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& offset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -806,7 +809,7 @@ Result ShaderObjectImpl::bindAsValue(
                 // bindings it recursively contains.
                 //
                 ShaderObjectImpl* subObject = m_objects[subObjectIndex + i];
-                subObject->bindAsConstantBuffer(encoder, context, objOffset, subObjectLayout);
+                subObject->bindAsConstantBuffer(context, objOffset, subObjectLayout);
 
                 // When dealing with arrays of sub-objects, we need to make
                 // sure to increment the offset for each subsequent object
@@ -826,7 +829,7 @@ Result ShaderObjectImpl::bindAsValue(
                 // instead (understandably).
                 //
                 ShaderObjectImpl* subObject = m_objects[subObjectIndex + i];
-                subObject->bindAsParameterBlock(encoder, context, objOffset, subObjectLayout);
+                subObject->bindAsParameterBlock(context, objOffset, subObjectLayout);
             }
         }
         break;
@@ -858,7 +861,7 @@ Result ShaderObjectImpl::bindAsValue(
                     // already.
                     //
                     ShaderObjectImpl* subObject = m_objects[subObjectIndex + i];
-                    subObject->bindAsValue(encoder, context, BindingOffset(objOffset), subObjectLayout);
+                    subObject->bindAsValue(context, BindingOffset(objOffset), subObjectLayout);
                     objOffset += objStride;
                 }
             }
@@ -878,7 +881,6 @@ Result ShaderObjectImpl::bindAsValue(
 }
 
 Result ShaderObjectImpl::allocateDescriptorSets(
-    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& offset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -906,7 +908,6 @@ Result ShaderObjectImpl::allocateDescriptorSets(
 }
 
 Result ShaderObjectImpl::bindAsParameterBlock(
-    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -933,16 +934,15 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     // we just need to allocate the descriptor set(s) needed for this
     // object and then fill it in like a `ConstantBuffer<X>`.
     //
-    SLANG_RETURN_ON_FAIL(allocateDescriptorSets(encoder, context, offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(allocateDescriptorSets(context, offset, specializedLayout));
 
     SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)context.descriptorSets->size());
-    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(encoder, context, offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(context, offset, specializedLayout));
 
     return SLANG_OK;
 }
 
 Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
-    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset& ioOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -950,7 +950,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
 {
     // We start by ensuring that the buffer is created, if it is needed.
     //
-    SLANG_RETURN_ON_FAIL(_ensureOrdinaryDataBufferCreatedIfNeeded(encoder, specializedLayout));
+    SLANG_RETURN_ON_FAIL(_ensureOrdinaryDataBufferCreatedIfNeeded(context, specializedLayout));
 
     // If we did indeed need/create a buffer, then we must bind it into
     // the given `descriptorSet` and update the base range index for
@@ -974,7 +974,6 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
 }
 
 Result ShaderObjectImpl::bindAsConstantBuffer(
-    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -991,8 +990,8 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
     // data buffer was used (and thus consumed a `binding`).
     //
     BindingOffset offset = inOffset;
-    SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(encoder, context, /*inout*/ offset, specializedLayout));
-    SLANG_RETURN_ON_FAIL(bindAsValue(encoder, context, offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(context, /*inout*/ offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(bindAsValue(context, offset, specializedLayout));
     return SLANG_OK;
 }
 
@@ -1086,7 +1085,6 @@ EntryPointLayout* EntryPointShaderObject::getLayout()
 }
 
 Result EntryPointShaderObject::bindAsEntryPoint(
-    PassEncoderImpl* encoder,
     RootBindingContext& context,
     BindingOffset const& inOffset,
     EntryPointLayout* layout
@@ -1126,20 +1124,13 @@ Result EntryPointShaderObject::bindAsEntryPoint(
 
         auto pushConstantData = m_data.getBuffer();
 
-        encoder->m_api->vkCmdPushConstants(
-            encoder->m_commandBuffer->m_commandBuffer,
-            context.pipelineLayout,
-            pushConstantRange.stageFlags,
-            pushConstantRange.offset,
-            pushConstantRange.size,
-            pushConstantData
-        );
+        context.writePushConstants(pushConstantRange, pushConstantData);
     }
 
     // Any remaining bindings in the object can be handled through the
     // "value" case.
     //
-    SLANG_RETURN_ON_FAIL(bindAsValue(encoder, context, offset, layout));
+    SLANG_RETURN_ON_FAIL(bindAsValue(context, offset, layout));
     return SLANG_OK;
 }
 
@@ -1200,11 +1191,7 @@ void RootShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
     }
 }
 
-Result RootShaderObjectImpl::bindAsRoot(
-    PassEncoderImpl* encoder,
-    RootBindingContext& context,
-    RootShaderObjectLayout* layout
-)
+Result RootShaderObjectImpl::bindAsRoot(RootBindingContext& context, RootShaderObjectLayout* layout)
 {
     BindingOffset offset = {};
     offset.pending = layout->getPendingDataOffset();
@@ -1223,12 +1210,12 @@ Result RootShaderObjectImpl::bindAsRoot(
     // the ordinary data buffer directly from the reflection information for
     // the global scope.
 
-    SLANG_RETURN_ON_FAIL(allocateDescriptorSets(encoder, context, offset, layout));
+    SLANG_RETURN_ON_FAIL(allocateDescriptorSets(context, offset, layout));
 
     BindingOffset ordinaryDataBufferOffset = offset;
-    SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(encoder, context, ordinaryDataBufferOffset, layout));
+    SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(context, ordinaryDataBufferOffset, layout));
 
-    SLANG_RETURN_ON_FAIL(bindAsValue(encoder, context, offset, layout));
+    SLANG_RETURN_ON_FAIL(bindAsValue(context, offset, layout));
 
     auto entryPointCount = layout->getEntryPoints().size();
     for (Index i = 0; i < entryPointCount; ++i)
@@ -1241,7 +1228,7 @@ Result RootShaderObjectImpl::bindAsRoot(
         // `RootShaderObjectLayout` has already baked any offsets
         // from the global layout into the `entryPointInfo`.
 
-        entryPoint->bindAsEntryPoint(encoder, context, entryPointInfo.offset, entryPointInfo.layout);
+        entryPoint->bindAsEntryPoint(context, entryPointInfo.offset, entryPointInfo.layout);
     }
 
     return SLANG_OK;

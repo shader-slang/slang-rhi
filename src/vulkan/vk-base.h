@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../pass-encoder-com-forward.h"
 #include "../mutable-shader-object.h"
 #include "../rhi-shared.h"
 #include "../transient-resource-heap-base.h"
@@ -17,11 +16,8 @@ class InputLayoutImpl;
 class BufferImpl;
 class FenceImpl;
 class TextureImpl;
-class SamplerImpl;
-class ResourceViewImpl;
 class TextureViewImpl;
-class TexelBufferViewImpl;
-class PlainBufferViewImpl;
+class SamplerImpl;
 class AccelerationStructureImpl;
 class RenderPipelineImpl;
 class ComputePipelineImpl;
@@ -30,16 +26,12 @@ class ShaderObjectLayoutImpl;
 class EntryPointLayout;
 class RootShaderObjectLayout;
 class ShaderProgramImpl;
-class PassEncoderImpl;
 class ShaderObjectImpl;
 class MutableShaderObjectImpl;
 class RootShaderObjectImpl;
 class MutableRootShaderObjectImpl;
 class ShaderTableImpl;
-class ResourcePassEncoderImpl;
-class RenderPassEncoderImpl;
-class ComputePassEncoderImpl;
-class RayTracingPassEncoderImpl;
+class CommandEncoderImpl;
 class CommandBufferImpl;
 class CommandQueueImpl;
 class TransientResourceHeapImpl;
