@@ -85,7 +85,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     };
 
-    api.wgpuInstanceRequestAdapter(m_ctx.instance, nullptr, requestAdapterCallback, &m_ctx);
+    WGPURequestAdapterOptions options = {};
+    options.powerPreference = WGPUPowerPreference_HighPerformance;
+#if SLANG_WINDOWS_FAMILY
+    options.backendType = WGPUBackendType_D3D12;
+#elif SLANG_LINUX_FAMILY
+    options.backendType = WGPUBackendType_Vulkan;
+#endif
+    api.wgpuInstanceRequestAdapter(m_ctx.instance, &options, requestAdapterCallback, &m_ctx);
     if (!m_ctx.adapter)
     {
         return SLANG_FAIL;
