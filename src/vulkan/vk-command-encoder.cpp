@@ -707,7 +707,7 @@ void CommandEncoderImpl::setRenderState(const RenderState& state)
         }
         else
         {
-            api.vkCmdBindIndexBuffer(m_cmdBuffer, VK_NULL_HANDLE, 0, VK_INDEX_TYPE_UINT32);
+            // api.vkCmdBindIndexBuffer(m_cmdBuffer, VK_NULL_HANDLE, 0, VK_INDEX_TYPE_UINT32);
         }
     }
 
@@ -719,7 +719,7 @@ void CommandEncoderImpl::setRenderState(const RenderState& state)
             const Viewport& src = state.viewports[i];
             VkViewport& dst = viewports[i];
             dst.x = src.originX;
-            dst.y = src.originY;
+            dst.y = src.originY + src.extentY;
             dst.width = src.extentX;
             dst.height = -src.extentY;
             dst.minDepth = src.minZ;
@@ -742,6 +742,8 @@ void CommandEncoderImpl::setRenderState(const RenderState& state)
         }
         api.vkCmdSetScissor(m_cmdBuffer, 0, uint32_t(state.scissorRectCount), scissorRects);
     }
+
+    commitBarriers();
 
     m_renderStateValid = true;
     m_renderState = state;
@@ -1131,7 +1133,7 @@ void CommandEncoderImpl::endDebugEvent()
 
 void CommandEncoderImpl::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
-    _writeTimestamp(m_device->m_api, m_cmdBuffer, pool, index);
+    _writeTimestamp(&m_device->m_api, m_cmdBuffer, pool, index);
 }
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
@@ -1140,7 +1142,6 @@ Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
     {
         return SLANG_FAIL;
     }
-    endPassEncoder();
 
     // Transition all resources back to their default states.
     m_stateTracking.requireDefaultStates();
@@ -1174,6 +1175,7 @@ Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
     }
 #endif
     api.vkEndCommandBuffer(m_cmdBuffer);
+    returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_cmdBuffer = VK_NULL_HANDLE;
     return SLANG_OK;
@@ -1418,6 +1420,8 @@ Result CommandEncoderImpl::bindRootObject(
     BindingContextImpl context;
     context.pipelineLayout = rootObjectLayout->m_pipelineLayout;
     context.device = m_device;
+    context.transientHeap = m_transientHeap;
+    context.encoder = this;
     context.descriptorSetAllocator = &m_transientHeap->m_descSetAllocator;
     context.pushConstantRanges = span(rootObjectLayout->getAllPushConstantRanges());
 

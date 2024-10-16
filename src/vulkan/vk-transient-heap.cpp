@@ -46,30 +46,16 @@ TransientResourceHeapImpl::~TransientResourceHeapImpl()
 
 Result TransientResourceHeapImpl::allocateCommandBuffer(CommandBufferImpl** outCmdBuffer)
 {
-
-}
-
-#if 0
-Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuffer)
-{
-    if (m_commandBufferAllocId < (uint32_t)m_commandBufferPool.size())
-    {
-        auto result = m_commandBufferPool[m_commandBufferAllocId];
-        result->m_transientHeap.establishStrongReference();
-        result->beginCommandBuffer();
-        m_commandBufferAllocId++;
-        returnComPtr(outCmdBuffer, result);
-        return SLANG_OK;
-    }
-
     RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl();
-    SLANG_RETURN_ON_FAIL(commandBuffer->init(m_device, m_commandPool, this));
-    m_commandBufferPool.push_back(commandBuffer);
-    m_commandBufferAllocId++;
-    returnComPtr(outCmdBuffer, commandBuffer);
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = m_commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+    SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkAllocateCommandBuffers(m_device->m_api.m_device, &allocInfo, &commandBuffer->m_commandBuffer));
+    returnRefPtr(outCmdBuffer, commandBuffer);
     return SLANG_OK;
 }
-#endif
 
 Result TransientResourceHeapImpl::synchronizeAndReset()
 {
