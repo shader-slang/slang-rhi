@@ -1,5 +1,6 @@
 #include "vk-command-queue.h"
 #include "vk-command-buffer.h"
+#include "vk-command-encoder.h"
 #include "vk-fence.h"
 #include "vk-transient-heap.h"
 
@@ -30,8 +31,10 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
 
 Result CommandQueueImpl::createCommandEncoder(ITransientResourceHeap* transientHeap, ICommandEncoder** outEncoder)
 {
-    // TODO
-    return SLANG_FAIL;
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl();
+    SLANG_RETURN_ON_FAIL(encoder->init(m_device, this));
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
 }
 
 void CommandQueueImpl::waitOnHost()
@@ -126,6 +129,7 @@ void CommandQueueImpl::queueSubmitImpl(
     submitInfo.pSignalSemaphores = signalSemaphores.data();
 
     VkFence vkFence = VK_NULL_HANDLE;
+#if 0
     if (count)
     {
         auto commandBufferImpl = checked_cast<CommandBufferImpl*>(commandBuffers[0]);
@@ -133,6 +137,7 @@ void CommandQueueImpl::queueSubmitImpl(
         vkAPI.vkResetFences(vkAPI.m_device, 1, &vkFence);
         commandBufferImpl->m_transientHeap->advanceFence();
     }
+#endif
     vkAPI.vkQueueSubmit(m_queue, 1, &submitInfo, vkFence);
     m_pendingWaitSemaphores[0] = m_semaphore;
     m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;

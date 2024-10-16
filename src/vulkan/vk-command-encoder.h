@@ -2,6 +2,8 @@
 
 #include "vk-base.h"
 #include "vk-pipeline.h"
+#include "vk-shader-object.h"
+#include "vk-shader-table.h"
 #include "../state-tracking.h"
 
 #include "core/static_vector.h"
@@ -39,13 +41,11 @@ public:
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
 
+    uint64_t m_rayGenTableAddr = 0;
     VkStridedDeviceAddressRegionKHR m_raygenSBT;
     VkStridedDeviceAddressRegionKHR m_missSBT;
     VkStridedDeviceAddressRegionKHR m_hitSBT;
     VkStridedDeviceAddressRegionKHR m_callableSBT;
-
-    // D3D12_DISPATCH_RAYS_DESC m_dispatchRaysDesc = {};
-    UINT64 m_rayGenTableAddr = 0;
 
     RefPtr<RootShaderObjectImpl> m_rootObject;
 
