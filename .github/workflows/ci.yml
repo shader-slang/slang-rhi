@@ -24,7 +24,7 @@ jobs:
 
       - name: Setup Linux
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y xorg-dev
+        run: sudo apt-get update && sudo apt-get install -y xorg-dev
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
