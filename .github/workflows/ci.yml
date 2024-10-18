@@ -12,10 +12,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        os: ["windows", "linux", "macos"]
+        platform: ["x86_64", "aarch64"]
         config: ["Debug", "Release"]
+        include:
+          - {os: windows, runs-on: windows-latest}
+          - {os: linux, runs-on: ubuntu-latest}
+          - {os: macos, runs-on: macos-latest}
+        exclude:
+          - {os: macos, platform: x86_64}
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +33,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y xorg-dev
 
+      - name: Setup Linux ARM64
+        if: matrix.os == 'ubuntu-latest' && matrix.platform == 'aarch64'
+        run: |
+          sudo apt-get update && sudo apt-get install -y crossbuild-essential-arm64 xorg-dev:arm64
+          echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
+
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.platform }}
 
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
