@@ -22,7 +22,7 @@ jobs:
         exclude:
           - {os: macos, platform: x86_64}
 
-    runs-on: ${{ matrix.runs-os }}
+    runs-on: ${{ matrix.runs-on }}
 
     steps:
       - uses: actions/checkout@v4
