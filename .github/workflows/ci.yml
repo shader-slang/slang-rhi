@@ -43,7 +43,7 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: ${{ matrix.platform }}
+          arch: ${{matrix.platform == 'aarch64' && 'amd64_arm64' || 'amd64'}}
 
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
