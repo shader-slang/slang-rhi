@@ -12,10 +12,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        os: ["windows", "linux", "macos"]
+        platform: ["x86_64", "aarch64"]
         config: ["Debug", "Release"]
+        include:
+          - {os: windows, runs-on: windows-latest}
+          - {os: linux, runs-on: ubuntu-latest}
+          - {os: macos, runs-on: macos-latest}
+        exclude:
+          - {os: macos, platform: x86_64}
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on }}
 
     steps:
       - uses: actions/checkout@v4
@@ -23,17 +30,28 @@ jobs:
           submodules: true
 
       - name: Setup Linux
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'linux'
         run: sudo apt-get update && sudo apt-get install -y xorg-dev
+
+      - name: Setup Linux (aarch64 cross-compilation)
+        if: matrix.os == 'linux' && matrix.platform == 'aarch64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y crossbuild-essential-arm64
+          echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
+          echo "CMAKE_ARGS='-DSLANG_RHI_BUILD_EXAMPLES=0'" >> "$GITHUB_ENV"
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{matrix.platform == 'aarch64' && 'amd64_arm64' || 'amd64'}}
 
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
 
       - name: Configure
-        run: cmake -S . -B build
+        run: cmake --preset default -S . -B build ${{env.CMAKE_ARGS}}
 
       - name: Build
         run: cmake --build build -j 2
