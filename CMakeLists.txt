@@ -12,6 +12,11 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(CMakeDependentOption)
 include(FetchPackage)
+include(DetermineTargetArchitecture)
+
+# Determine the target architecture we build for.
+# CMAKE_SYSTEM_PROCESSOR is not a reliable way to determine the target architecture.
+determine_target_architecture(SLANG_RHI_ARCHITECTURE)
 
 # set(FETCHCONTENT_UPDATES_DISCONNECTED OFF)
 
@@ -80,9 +85,17 @@ if(SLANG_RHI_MASTER_PROJECT)
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set(SLANG_URL "${SLANG_URL}-windows-x86_64.zip")
+        if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+            set(SLANG_URL "${SLANG_URL}-windows-x86_64.zip")
+        elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+            set(SLANG_URL "${SLANG_URL}-windows-aarch64.zip")
+        endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        set(SLANG_URL "${SLANG_URL}-linux-x86_64-glibc-2.17.tar.gz")
+        if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+            set(SLANG_URL "${SLANG_URL}-linux-x86_64-glibc-2.17.tar.gz")
+        elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+            set(SLANG_URL "${SLANG_URL}-linux-aarch64.tar.gz")
+        endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         if(CMAKE_APPLE_SILICON_PROCESSOR MATCHES "x86_64")
             set(SLANG_URL "${SLANG_URL}-macos-x86_64.zip")
@@ -104,7 +117,7 @@ unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
 
 # Fetch NVAPI & Agility SDK
-if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64"))
+if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
     # NVAPI
     set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
     FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
@@ -140,9 +153,9 @@ if(SLANG_RHI_ENABLE_WGPU)
         set(DAWN_OS "macos")
     endif()
 
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
         set(DAWN_ARCH "x86_64")
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
         set(DAWN_ARCH "aarch64")
     else()
         message(FATAL_ERROR "Unsupported processor architecture")
@@ -248,9 +261,9 @@ if(SLANG_RHI_MASTER_PROJECT)
             OUTPUT ${SLANG_RHI_BINARY_DIR}/slang.dll
             DEPENDS ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll
             COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll ${SLANG_RHI_BINARY_DIR}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll ${SLANG_RHI_BINARY_DIR}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll ${SLANG_RHI_BINARY_DIR}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll ${SLANG_RHI_BINARY_DIR}/
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
+            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
             COMMENT "Copy Slang DLLs"
         )
         add_custom_target(slang-rhi-copy-binaries ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/slang.dll)
