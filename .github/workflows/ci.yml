@@ -40,6 +40,7 @@ jobs:
           sudo apt-get install -y crossbuild-essential-arm64
           echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
           echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
+          echo "CMAKE_ARGS='-DSLANG_RHI_BUILD_EXAMPLES=0'" >> "$GITHUB_ENV"
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
