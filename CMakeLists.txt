@@ -146,6 +146,20 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
 
+# Fetch dxc
+if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+    set(DXC_VERSION "1.8.2407")
+    set(DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
+    FetchPackage(dxc URL ${DXC_URL})
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        copy_file(${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll .)
+        copy_file(${dxc_SOURCE_DIR}/bin/x64/dxil.dll .)
+    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+        copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxcompiler.dll .)
+        copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxil.dll .)
+    endif()
+endif()
+
 # Fetch NVAPI & Agility SDK
 if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
     # NVAPI
@@ -158,11 +172,6 @@ if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STR
     target_link_libraries(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR}/amd64/nvapi64.lib)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-nvapi)
     set(SLANG_RHI_ENABLE_NVAPI ON)
-
-    # Fetch dxc
-    # set(DXC_VERSION "1.8.2407")
-    # set(DXC_TAG "2024_07_31")
-    # FetchPackage(dxc URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_${DXC_TAG}.zip")
 
     # Agility SDK
     set(AGILITY_SDK_VERSION "1.614.1")
