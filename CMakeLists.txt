@@ -160,7 +160,26 @@ if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     endif()
 endif()
 
-# Fetch NVAPI & Agility SDK
+# Fetch Agility SDK
+if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+    set(AGILITY_SDK_VERSION "1.614.1")
+    FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/D3D12Core.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/d3d12SDKLayers.dll D3D12)
+    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/D3D12Core.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/d3d12SDKLayers.dll D3D12)
+    endif()
+    add_library(slang-rhi-agility-sdk INTERFACE)
+    target_include_directories(slang-rhi-agility-sdk INTERFACE ${agility_sdk_SOURCE_DIR}/build/native/include)
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-agility-sdk)
+    set(SLANG_RHI_ENABLE_AGILITY_SDK ON)
+else()
+    set(SLANG_RHI_ENABLE_AGILITY_SDK OFF)
+endif()
+
+# Fetch NVAPI
 if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
     # NVAPI
     set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
@@ -170,12 +189,8 @@ if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STR
     add_library(slang-rhi-nvapi INTERFACE)
     target_include_directories(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR})
     target_link_libraries(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR}/amd64/nvapi64.lib)
-    target_link_libraries(slang-rhi PUBLIC slang-rhi-nvapi)
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-nvapi)
     set(SLANG_RHI_ENABLE_NVAPI ON)
-
-    # Agility SDK
-    set(AGILITY_SDK_VERSION "1.614.1")
-    FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
 else()
     set(SLANG_RHI_ENABLE_NVAPI OFF)
 endif()
@@ -232,7 +247,7 @@ if(SLANG_RHI_ENABLE_WGPU)
         )
     endif()
 
-    target_link_libraries(slang-rhi PUBLIC slang-rhi-dawn)
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
 endif()
 
 
@@ -244,7 +259,7 @@ if(SLANG_RHI_ENABLE_CUDA)
     if(${SLANG_RHI_ENABLE_OPTIX})
         add_library(slang-rhi-optix INTERFACE)
         target_include_directories(slang-rhi-optix INTERFACE ${OptiX_INCLUDE_DIRS})
-        target_link_libraries(slang-rhi PUBLIC slang-rhi-optix)
+        target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
     endif()
 else()
     set(SLANG_RHI_ENABLE_OPTIX OFF)
@@ -515,6 +530,7 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
     SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
     SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
+    SLANG_RHI_ENABLE_AGILITY_SDK=$<BOOL:${SLANG_RHI_ENABLE_AGILITY_SDK}>
     SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
     SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
