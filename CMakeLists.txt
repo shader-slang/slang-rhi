@@ -79,9 +79,39 @@ else()
     add_library(slang-rhi STATIC)
 endif()
 
+set(SLANG_RHI_COPY_FILES "")
+
+# Function to copy a file to the binary output directory
+macro(copy_file IN_FILE OUT_DIR)
+    if(EXISTS ${IN_FILE})
+        get_filename_component(FILENAME ${IN_FILE} NAME)
+        set(OUT_FILE_1 "${CMAKE_CURRENT_BINARY_DIR}/${OUT_DIR}/${FILENAME}")
+        set(OUT_FILE_2 "${SLANG_RHI_BINARY_DIR}/${OUT_DIR}/${FILENAME}")
+
+        if (UNIX)
+            add_custom_command(
+                OUTPUT ${OUT_FILE_2} DEPENDS ${IN_FILE} ${ARGN}
+                COMMAND ${CMAKE_COMMAND} -E copy ${IN_FILE} ${OUT_FILE_2}
+                COMMENT "Copying ${FILENAME}"
+            )
+            list(APPEND SLANG_RHI_COPY_FILES ${OUT_FILE_2})
+        else()
+            # add_custom_command does not support generator expressions in OUTPUT argument
+            # make a dummy copy and then depend on that
+            add_custom_command(
+                OUTPUT ${OUT_FILE_1} DEPENDS ${IN_FILE} ${ARGN}
+                COMMAND ${CMAKE_COMMAND} -E copy ${IN_FILE} ${OUT_FILE_1}
+                COMMAND ${CMAKE_COMMAND} -E copy ${IN_FILE} ${OUT_FILE_2}
+                COMMENT "Copying ${FILENAME}"
+            )
+            list(APPEND SLANG_RHI_COPY_FILES ${OUT_FILE_1})
+        endif()
+    endif()
+endmacro()
+
 # Fetch slang binary release if this is the master project
 if(SLANG_RHI_MASTER_PROJECT)
-    set(SLANG_VERSION "2024.11.1")
+    set(SLANG_VERSION "2024.14")
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -116,7 +146,40 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
 
-# Fetch NVAPI & Agility SDK
+# Fetch dxc
+if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+    set(DXC_VERSION "1.8.2407")
+    set(DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
+    FetchPackage(dxc URL ${DXC_URL})
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        copy_file(${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll .)
+        copy_file(${dxc_SOURCE_DIR}/bin/x64/dxil.dll .)
+    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+        copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxcompiler.dll .)
+        copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxil.dll .)
+    endif()
+endif()
+
+# Fetch Agility SDK
+if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+    set(AGILITY_SDK_VERSION "1.614.1")
+    FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/D3D12Core.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/d3d12SDKLayers.dll D3D12)
+    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/D3D12Core.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/d3d12SDKLayers.dll D3D12)
+    endif()
+    add_library(slang-rhi-agility-sdk INTERFACE)
+    target_include_directories(slang-rhi-agility-sdk INTERFACE ${agility_sdk_SOURCE_DIR}/build/native/include)
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-agility-sdk)
+    set(SLANG_RHI_ENABLE_AGILITY_SDK ON)
+else()
+    set(SLANG_RHI_ENABLE_AGILITY_SDK OFF)
+endif()
+
+# Fetch NVAPI
 if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
     # NVAPI
     set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
@@ -126,17 +189,8 @@ if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STR
     add_library(slang-rhi-nvapi INTERFACE)
     target_include_directories(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR})
     target_link_libraries(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR}/amd64/nvapi64.lib)
-    target_link_libraries(slang-rhi PUBLIC slang-rhi-nvapi)
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-nvapi)
     set(SLANG_RHI_ENABLE_NVAPI ON)
-
-    # Fetch dxc
-    # set(DXC_VERSION "1.8.2407")
-    # set(DXC_TAG "2024_07_31")
-    # FetchPackage(dxc URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v${DXC_VERSION}/dxc_${DXC_TAG}.zip")
-
-    # Agility SDK
-    set(AGILITY_SDK_VERSION "1.614.1")
-    FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
 else()
     set(SLANG_RHI_ENABLE_NVAPI OFF)
 endif()
@@ -180,14 +234,7 @@ if(SLANG_RHI_ENABLE_WGPU)
             IMPORTED_IMPLIB ${SLANG_RHI_DAWN_LIB_DIR}/dawn.lib
             IMPORTED_LOCATION ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
         )
-        add_custom_command(
-            OUTPUT ${SLANG_RHI_BINARY_DIR}/dawn.dll
-            DEPENDS ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll ${SLANG_RHI_BINARY_DIR}/
-            COMMENT "Copy Dawn DLLs"
-        )
-        add_custom_target(slang-rhi-copy-dawn ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/dawn.dll)
-        add_dependencies(slang-rhi slang-rhi-copy-dawn)
+        copy_file(${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll .)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set_target_properties(slang-rhi-dawn PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
@@ -200,7 +247,7 @@ if(SLANG_RHI_ENABLE_WGPU)
         )
     endif()
 
-    target_link_libraries(slang-rhi PUBLIC slang-rhi-dawn)
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
 endif()
 
 
@@ -212,7 +259,7 @@ if(SLANG_RHI_ENABLE_CUDA)
     if(${SLANG_RHI_ENABLE_OPTIX})
         add_library(slang-rhi-optix INTERFACE)
         target_include_directories(slang-rhi-optix INTERFACE ${OptiX_INCLUDE_DIRS})
-        target_link_libraries(slang-rhi PUBLIC slang-rhi-optix)
+        target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
     endif()
 else()
     set(SLANG_RHI_ENABLE_OPTIX OFF)
@@ -232,7 +279,6 @@ if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
 
-# target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
 if(SLANG_RHI_MASTER_PROJECT)
     add_library(slang SHARED IMPORTED GLOBAL)
 
@@ -257,21 +303,16 @@ if(SLANG_RHI_MASTER_PROJECT)
     target_link_libraries(slang-rhi PUBLIC slang)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        add_custom_command(
-            OUTPUT ${SLANG_RHI_BINARY_DIR}/slang.dll
-            DEPENDS ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll ${SLANG_RHI_BINARY_DIR}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
-            COMMENT "Copy Slang DLLs"
-        )
-        add_custom_target(slang-rhi-copy-binaries ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/slang.dll)
-        add_dependencies(slang slang-rhi-copy-binaries)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
     endif()
 else()
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR})
 endif()
+
+# target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
 
 target_sources(slang-rhi PRIVATE
     src/enum-strings.cpp
@@ -489,6 +530,7 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
     SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
     SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
+    SLANG_RHI_ENABLE_AGILITY_SDK=$<BOOL:${SLANG_RHI_ENABLE_AGILITY_SDK}>
     SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
     SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
@@ -561,3 +603,5 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 
     add_example(example-surface examples/surface/example-surface.cpp)
 endif()
+
+add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
