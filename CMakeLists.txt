@@ -111,7 +111,7 @@ endmacro()
 
 # Fetch slang binary release if this is the master project
 if(SLANG_RHI_MASTER_PROJECT)
-    set(SLANG_VERSION "2024.14.1")
+    set(SLANG_VERSION "2024.14")
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
