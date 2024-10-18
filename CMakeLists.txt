@@ -79,6 +79,36 @@ else()
     add_library(slang-rhi STATIC)
 endif()
 
+set(SLANG_RHI_COPY_FILES "")
+
+# Function to copy a file to the binary output directory
+macro(copy_file IN_FILE OUT_DIR)
+    if(EXISTS ${IN_FILE})
+        get_filename_component(FILENAME ${IN_FILE} NAME)
+        set(OUT_FILE_1 "${CMAKE_CURRENT_BINARY_DIR}/${OUT_DIR}/${FILENAME}")
+        set(OUT_FILE_2 "${SLANG_RHI_BINARY_DIR}/${OUT_DIR}/${FILENAME}")
+
+        if (UNIX)
+            add_custom_command(
+                OUTPUT ${OUT_FILE_2} DEPENDS ${IN_FILE} ${ARGN}
+                COMMAND ${CMAKE_COMMAND} -E copy ${IN_FILE} ${OUT_FILE_2}
+                COMMENT "Copying ${FILENAME}"
+            )
+            list(APPEND SLANG_RHI_COPY_FILES ${OUT_FILE_2})
+        else()
+            # add_custom_command does not support generator expressions in OUTPUT argument
+            # make a dummy copy and then depend on that
+            add_custom_command(
+                OUTPUT ${OUT_FILE_1} DEPENDS ${IN_FILE} ${ARGN}
+                COMMAND ${CMAKE_COMMAND} -E copy ${IN_FILE} ${OUT_FILE_1}
+                COMMAND ${CMAKE_COMMAND} -E copy ${IN_FILE} ${OUT_FILE_2}
+                COMMENT "Copying ${FILENAME}"
+            )
+            list(APPEND SLANG_RHI_COPY_FILES ${OUT_FILE_1})
+        endif()
+    endif()
+endmacro()
+
 # Fetch slang binary release if this is the master project
 if(SLANG_RHI_MASTER_PROJECT)
     set(SLANG_VERSION "2024.14.1")
@@ -180,14 +210,7 @@ if(SLANG_RHI_ENABLE_WGPU)
             IMPORTED_IMPLIB ${SLANG_RHI_DAWN_LIB_DIR}/dawn.lib
             IMPORTED_LOCATION ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
         )
-        add_custom_command(
-            OUTPUT ${SLANG_RHI_BINARY_DIR}/dawn.dll
-            DEPENDS ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll ${SLANG_RHI_BINARY_DIR}/
-            COMMENT "Copy Dawn DLLs"
-        )
-        add_custom_target(slang-rhi-copy-dawn ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/dawn.dll)
-        add_dependencies(slang-rhi slang-rhi-copy-dawn)
+        copy_file(${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll .)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set_target_properties(slang-rhi-dawn PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
@@ -232,7 +255,6 @@ if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
 
-# target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
 if(SLANG_RHI_MASTER_PROJECT)
     add_library(slang SHARED IMPORTED GLOBAL)
 
@@ -257,21 +279,16 @@ if(SLANG_RHI_MASTER_PROJECT)
     target_link_libraries(slang-rhi PUBLIC slang)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        add_custom_command(
-            OUTPUT ${SLANG_RHI_BINARY_DIR}/slang.dll
-            DEPENDS ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll ${SLANG_RHI_BINARY_DIR}/
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
-            COMMAND ${CMAKE_COMMAND} -E copy ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll ${SLANG_RHI_BINARY_DIR}/ || (exit 0)
-            COMMENT "Copy Slang DLLs"
-        )
-        add_custom_target(slang-rhi-copy-binaries ALL DEPENDS ${SLANG_RHI_BINARY_DIR}/slang.dll)
-        add_dependencies(slang slang-rhi-copy-binaries)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
     endif()
 else()
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR})
 endif()
+
+# target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
 
 target_sources(slang-rhi PRIVATE
     src/enum-strings.cpp
@@ -561,3 +578,5 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 
     add_example(example-surface examples/surface/example-surface.cpp)
 endif()
+
+add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
