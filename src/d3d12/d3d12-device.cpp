@@ -1707,7 +1707,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     if (!m_device5)
         return SLANG_E_NOT_AVAILABLE;
 
-    D3DAccelerationStructureInputsBuilder inputsBuilder;
+    AccelerationStructureInputsBuilder inputsBuilder;
     SLANG_RETURN_ON_FAIL(inputsBuilder.build(desc, m_debugCallback));
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
