@@ -1166,7 +1166,7 @@ void RayTracingPassEncoderImpl::buildAccelerationStructure(
     buildDesc.DestAccelerationStructureData = dstImpl->getDeviceAddress();
     buildDesc.SourceAccelerationStructureData = srcImpl ? srcImpl->getDeviceAddress() : 0;
     buildDesc.ScratchAccelerationStructureData = scratchBuffer.buffer->getDeviceAddress() + scratchBuffer.offset;
-    D3DAccelerationStructureInputsBuilder builder;
+    AccelerationStructureInputsBuilder builder;
     builder.build(desc, m_device->m_debugCallback);
     buildDesc.Inputs = builder.desc;
 
