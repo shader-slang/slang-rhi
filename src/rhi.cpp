@@ -422,7 +422,7 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 
 Result RHI::reportLiveObjects()
 {
-#if SLANG_RHI_ENABLE_D3D12
+#if SLANG_RHI_ENABLE_D3D11 | SLANG_RHI_ENABLE_D3D12
     SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
 #endif
     return SLANG_OK;
