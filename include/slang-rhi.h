@@ -1442,10 +1442,18 @@ public:
 
 struct ScissorRect
 {
-    int32_t minX;
-    int32_t minY;
-    int32_t maxX;
-    int32_t maxY;
+    int32_t minX = 0;
+    int32_t minY = 0;
+    int32_t maxX = 0;
+    int32_t maxY = 0;
+
+    ScissorRect() = default;
+
+    ScissorRect(int32_t width, int32_t height)
+        : maxX(width)
+        , maxY(height)
+    {
+    }
 };
 
 struct Viewport
@@ -1456,6 +1464,14 @@ struct Viewport
     float extentY = 0.0f;
     float minZ = 0.0f;
     float maxZ = 1.0f;
+
+    Viewport() = default;
+
+    Viewport(float width, float height)
+        : extentX(width)
+        , extentY(height)
+    {
+    }
 };
 
 enum class WindowHandleType
