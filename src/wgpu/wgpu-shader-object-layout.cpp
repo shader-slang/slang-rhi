@@ -284,6 +284,8 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
 
             BindingOffset elementOffset = subObjectRangeOffset;
             elementOffset += BindingOffset(elementVarLayout);
+
+            _addDescriptorRangesAsConstantBuffer(elementTypeLayout, containerOffset, elementOffset);
         }
         break;
         }
