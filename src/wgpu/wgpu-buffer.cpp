@@ -62,6 +62,7 @@ Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
     size_t size = rangeToRead ? rangeToRead->size : m_desc.size;
 
     m_device->m_ctx.api.wgpuBufferMapAsync(m_buffer, m_mapMode, offset, size, callback, this);
+    m_device->m_ctx.api.wgpuDeviceTick(m_device->m_ctx.device);
     if (!m_isMapped)
     {
         return SLANG_FAIL;
