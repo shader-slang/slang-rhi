@@ -1,4 +1,5 @@
 #include "metal-input-layout.h"
+#include "metal-device.h"
 #include "metal-util.h"
 
 namespace rhi::metal {
@@ -44,6 +45,16 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
     }
 
     return vertexDescriptor;
+}
+
+Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+{
+    AUTORELEASEPOOL
+
+    RefPtr<InputLayoutImpl> layoutImpl(new InputLayoutImpl);
+    SLANG_RETURN_ON_FAIL(layoutImpl->init(desc));
+    returnComPtr(outLayout, layoutImpl);
+    return SLANG_OK;
 }
 
 } // namespace rhi::metal

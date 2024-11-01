@@ -714,14 +714,14 @@ MTL::LoadAction MetalUtil::translateLoadOp(LoadOp loadOp)
     }
 }
 
-MTL::StoreAction MetalUtil::translateStoreOp(StoreOp storeOp)
+MTL::StoreAction MetalUtil::translateStoreOp(StoreOp storeOp, bool resolve)
 {
     switch (storeOp)
     {
     case StoreOp::Store:
-        return MTL::StoreActionStore;
+        return resolve ? MTL::StoreActionStoreAndMultisampleResolve : MTL::StoreActionStore;
     case StoreOp::DontCare:
-        return MTL::StoreActionDontCare;
+        return resolve ? MTL::StoreActionMultisampleResolve : MTL::StoreActionDontCare;
     default:
         return MTL::StoreAction(0);
     }

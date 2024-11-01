@@ -54,4 +54,14 @@ Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
+{
+    AUTORELEASEPOOL
+
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(desc);
+    SLANG_RETURN_ON_FAIL(samplerImpl->init(this, desc));
+    returnComPtr(outSampler, samplerImpl);
+    return SLANG_OK;
+}
+
 } // namespace rhi::metal

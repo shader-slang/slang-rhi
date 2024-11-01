@@ -53,7 +53,7 @@ struct MetalUtil
     static MTL::TriangleFillMode translateTriangleFillMode(FillMode mode);
 
     static MTL::LoadAction translateLoadOp(LoadOp loadOp);
-    static MTL::StoreAction translateStoreOp(StoreOp storeOp);
+    static MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve);
 };
 
 struct AccelerationStructureDescBuilder
