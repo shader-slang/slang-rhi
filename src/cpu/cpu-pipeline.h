@@ -7,8 +7,6 @@ namespace rhi::cpu {
 class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    RefPtr<ShaderProgramImpl> m_program;
-
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };

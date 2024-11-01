@@ -1,8 +1,6 @@
 #pragma once
 
-#include "../immediate-device.h"
-#include "../mutable-shader-object.h"
-#include "../slang-context.h"
+#include "../rhi-shared.h"
 #define SLANG_PRELUDE_NAMESPACE slang_prelude
 #include "prelude/slang-cpp-types.h"
 
@@ -16,19 +14,19 @@ namespace rhi::cpu {
 
 class BufferImpl;
 class TextureImpl;
-class ResourceViewImpl;
-class BufferViewImpl;
 class TextureViewImpl;
 class ShaderObjectLayoutImpl;
 class EntryPointLayoutImpl;
 class RootShaderObjectLayoutImpl;
 class ShaderObjectImpl;
-class MutableShaderObjectImpl;
 class EntryPointShaderObjectImpl;
 class RootShaderObjectImpl;
 class ShaderProgramImpl;
 class ComputePipelineImpl;
 class QueryPoolImpl;
+class CommandQueueImpl;
+class CommandEncoderImpl;
+class CommandBufferImpl;
 class DeviceImpl;
 
 } // namespace rhi::cpu
