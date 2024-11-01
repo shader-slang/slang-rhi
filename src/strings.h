@@ -1,6 +1,8 @@
 #pragma once
 
 #define S_INVALID "invalid"
+#define S_SEPARATOR "::"
+#define S_METHOD(cls, method) S_##cls S_SEPARATOR S_##cls##_##method
 
 // ----------------------------------------------------------------------------
 // Enums
