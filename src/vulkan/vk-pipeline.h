@@ -11,6 +11,7 @@ class RenderPipelineImpl : public RenderPipeline
 {
 public:
     DeviceImpl* m_device;
+    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 
     ~RenderPipelineImpl();
@@ -23,6 +24,7 @@ class ComputePipelineImpl : public ComputePipeline
 {
 public:
     DeviceImpl* m_device;
+    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 
     ~ComputePipelineImpl();
@@ -35,6 +37,7 @@ class RayTracingPipelineImpl : public RayTracingPipeline
 {
 public:
     DeviceImpl* m_device;
+    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::map<std::string, Index> m_shaderGroupNameToIndex;
     Int m_shaderGroupCount;

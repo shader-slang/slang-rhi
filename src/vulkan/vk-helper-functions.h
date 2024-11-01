@@ -112,25 +112,6 @@ struct BindingOffset : SimpleBindingOffset
     }
 };
 
-/// Context information required when binding shader objects to the pipeline
-struct RootBindingContext
-{
-    /// The pipeline layout being used for binding
-    VkPipelineLayout pipelineLayout;
-
-    /// An allocator to use for descriptor sets during binding
-    DescriptorSetAllocator* descriptorSetAllocator;
-
-    /// The device being used
-    DeviceImpl* device;
-
-    /// The descriptor sets that are being allocated and bound
-    std::vector<VkDescriptorSet>* descriptorSets;
-
-    /// Information about all the push-constant ranges that should be bound
-    span<const VkPushConstantRange> pushConstantRanges;
-};
-
 Size calcRowSize(Format format, int width);
 GfxCount calcNumRows(Format format, int height);
 
