@@ -1,6 +1,7 @@
 #include "vk-buffer.h"
 
 #include "vk-util.h"
+#include "vk-helper-functions.h"
 #if SLANG_WINDOWS_FAMILY
 #include <dxgi1_2.h>
 #endif
@@ -171,22 +172,6 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
-{
-    SLANG_UNUSED(rangeToRead);
-    auto api = m_buffer.m_api;
-    SLANG_VK_RETURN_ON_FAIL(api->vkMapMemory(api->m_device, m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outPointer));
-    return SLANG_OK;
-}
-
-Result BufferImpl::unmap(BufferRange* writtenRange)
-{
-    SLANG_UNUSED(writtenRange);
-    auto api = m_buffer.m_api;
-    api->vkUnmapMemory(api->m_device, m_buffer.m_memory);
-    return SLANG_OK;
-}
-
 VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
 {
     ViewKey key = {format, range};
@@ -221,6 +206,136 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
     VkResult result = m_buffer.m_api->vkCreateBufferView(m_buffer.m_api->m_device, &info, nullptr, &view);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
     return view;
+}
+
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+{
+    BufferDesc desc = fixupBufferDesc(descIn);
+
+    const Size bufferSize = desc.size;
+
+    VkMemoryPropertyFlags reqMemoryProperties = 0;
+
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
+    if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+    {
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    }
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
+        m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+    {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    }
+    if (initData)
+    {
+        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    }
+
+    if (is_set(desc.usage, BufferUsage::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
+        desc.memoryType == MemoryType::ReadBack)
+    {
+        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
+    else
+    {
+        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
+    if (desc.isShared)
+    {
+        VkExternalMemoryHandleTypeFlagsKHR extMemHandleType
+#if SLANG_WINDOWS_FAMILY
+            = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+            = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, desc.isShared, extMemHandleType)
+        );
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
+    }
+
+    _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
+
+    if (initData)
+    {
+        if (desc.memoryType == MemoryType::DeviceLocal)
+        {
+            SLANG_RETURN_ON_FAIL(buffer->m_uploadBuffer.init(
+                m_api,
+                bufferSize,
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            ));
+            // Copy into staging buffer
+            void* mappedData = nullptr;
+            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
+            ::memcpy(mappedData, initData, bufferSize);
+            m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
+
+            // Copy from staging buffer to real buffer
+            VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+
+            VkBufferCopy copyInfo = {};
+            copyInfo.size = bufferSize;
+            m_api.vkCmdCopyBuffer(
+                commandBuffer,
+                buffer->m_uploadBuffer.m_buffer,
+                buffer->m_buffer.m_buffer,
+                1,
+                &copyInfo
+            );
+            m_deviceQueue.flush();
+        }
+        else
+        {
+            // Copy into mapped buffer directly
+            void* mappedData = nullptr;
+            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData));
+            ::memcpy(mappedData, initData, bufferSize);
+            m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
+        }
+    }
+
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+{
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
+
+    if (handle.type == NativeHandleType::VkBuffer)
+    {
+        buffer->m_buffer.m_buffer = (VkBuffer)handle.value;
+    }
+    else
+    {
+        return SLANG_FAIL;
+    }
+
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    SLANG_VK_RETURN_ON_FAIL(
+        m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData)
+    );
+    return SLANG_OK;
+}
+
+Result DeviceImpl::unmapBuffer(IBuffer* buffer)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    m_api.vkUnmapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory);
+    return SLANG_OK;
 }
 
 } // namespace rhi::vk

@@ -69,4 +69,12 @@ void _writeTimestamp(VulkanApi* api, VkCommandBuffer vkCmdBuffer, IQueryPool* qu
     api->vkCmdWriteTimestamp(vkCmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPoolImpl->m_pool, (uint32_t)index);
 }
 
+Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
+{
+    RefPtr<QueryPoolImpl> result = new QueryPoolImpl();
+    SLANG_RETURN_ON_FAIL(result->init(desc, this));
+    returnComPtr(outPool, result);
+    return SLANG_OK;
+}
+
 } // namespace rhi::vk

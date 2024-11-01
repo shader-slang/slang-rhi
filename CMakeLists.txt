@@ -417,9 +417,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-acceleration-structure.cpp
         src/vulkan/vk-api.cpp
         src/vulkan/vk-buffer.cpp
-        src/vulkan/vk-command-buffer.cpp
-        src/vulkan/vk-command-encoder.cpp
-        src/vulkan/vk-command-queue.cpp
+        src/vulkan/vk-command.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
@@ -434,9 +432,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-shader-program.cpp
         src/vulkan/vk-shader-table.cpp
         src/vulkan/vk-surface.cpp
-        src/vulkan/vk-texture-view.cpp
         src/vulkan/vk-texture.cpp
-        src/vulkan/vk-transient-heap.cpp
         src/vulkan/vk-util.cpp
     )
     add_library(slang-rhi-vulkan-headers INTERFACE)
