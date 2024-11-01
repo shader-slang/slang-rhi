@@ -122,8 +122,6 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
 
     m_layout = layout;
 
-    m_constantBufferTransientHeap = nullptr;
-    m_constantBufferTransientHeapVersion = 0;
     m_isConstantBufferDirty = true;
 
     // If the layout tells us that there is any uniform data,
@@ -193,13 +191,7 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::_writeOrdinaryData(
-    PassEncoderImpl* encoder,
-    IBuffer* buffer,
-    Offset offset,
-    Size destSize,
-    ShaderObjectLayoutImpl* specializedLayout
-)
+Result ShaderObjectImpl::_writeOrdinaryData(uint8_t* destData, Size destSize, ShaderObjectLayoutImpl* specializedLayout)
 {
     auto src = m_data.getBuffer();
     // TODO: Change size_t to Count?
@@ -207,7 +199,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
 
     SLANG_RHI_ASSERT(srcSize <= destSize);
 
-    encoder->uploadBufferDataImpl(buffer, offset, srcSize, src);
+    std::memcpy(destData, src, srcSize);
 
     // In the case where this object has any sub-objects of
     // existential/interface type, we need to recurse on those objects
@@ -284,13 +276,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
 
             auto subObjectOffset = subObjectRangePendingDataOffset + i * subObjectRangePendingDataStride;
 
-            subObject->_writeOrdinaryData(
-                encoder,
-                buffer,
-                offset + subObjectOffset,
-                destSize - subObjectOffset,
-                subObjectLayout
-            );
+            subObject->_writeOrdinaryData(destData + subObjectOffset, destSize - subObjectOffset, subObjectLayout);
         }
     }
 
@@ -385,49 +371,40 @@ void ShaderObjectImpl::writeSamplerDescriptor(
     }
 }
 
-bool ShaderObjectImpl::shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap)
-{
-    return m_isConstantBufferDirty || m_constantBufferTransientHeap != transientHeap ||
-           m_constantBufferTransientHeapVersion != transientHeap->getVersion();
-}
-
 Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     PassEncoderImpl* encoder,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
-    // If data has been changed since last allocation/filling of constant buffer,
-    // we will need to allocate a new one.
-    //
-    if (!shouldAllocateConstantBuffer(encoder->m_commandBuffer->m_transientHeap))
-    {
-        return SLANG_OK;
-    }
-    m_isConstantBufferDirty = false;
-    m_constantBufferTransientHeap = encoder->m_commandBuffer->m_transientHeap;
-    m_constantBufferTransientHeapVersion = encoder->m_commandBuffer->m_transientHeap->getVersion();
-
     m_constantBufferSize = specializedLayout->getTotalOrdinaryDataSize();
     if (m_constantBufferSize == 0)
     {
         return SLANG_OK;
     }
 
-    // Once we have computed how large the buffer should be, we can allocate
-    // it from the transient resource heap.
+    // For simplicity we always create a new buffer when the data changes.
     //
-    SLANG_RETURN_ON_FAIL(encoder->m_commandBuffer->m_transientHeap
-                             ->allocateConstantBuffer(m_constantBufferSize, m_constantBuffer, m_constantBufferOffset));
-
-    // Once the buffer is allocated, we can use `_writeOrdinaryData` to fill it in.
-    //
-    // Note that `_writeOrdinaryData` is potentially recursive in the case
-    // where this object contains interface/existential-type fields, so we
-    // don't need or want to inline it into this call site.
-    //
-    SLANG_RETURN_ON_FAIL(
-        _writeOrdinaryData(encoder, m_constantBuffer, m_constantBufferOffset, m_constantBufferSize, specializedLayout)
-    );
+    if (m_isConstantBufferDirty)
+    {
+        // First, fill in a CPU buffer using `_writeOrdinaryData`.
+        //
+        // Note that `_writeOrdinaryData` is potentially recursive in the case
+        // where this object contains interface/existential-type fields, so we
+        // don't need or want to inline it into this call site.
+        //
+        m_constantBufferData.resize(m_constantBufferSize);
+        SLANG_RETURN_ON_FAIL(_writeOrdinaryData(m_constantBufferData.data(), m_constantBufferSize, specializedLayout));
+        // With all the data collected we create a new constant buffer.
+        //
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = m_constantBufferSize;
+        bufferDesc.usage = BufferUsage::ConstantBuffer;
+        bufferDesc.defaultState = ResourceState::ConstantBuffer;
+        bufferDesc.memoryType = MemoryType::DeviceLocal;
+        ComPtr<IBuffer> buffer;
+        SLANG_RETURN_ON_FAIL(encoder->m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        m_constantBuffer = checked_cast<BufferImpl*>(buffer.get());
+    }
 
     return SLANG_OK;
 }
@@ -685,8 +662,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
     //
     if (m_constantBuffer && m_constantBufferSize > 0)
     {
-        auto bufferImpl = checked_cast<BufferImpl*>(m_constantBuffer);
-        writeBufferDescriptor(context, ioOffset, bufferImpl, m_constantBufferOffset, m_constantBufferSize);
+        writeBufferDescriptor(context, ioOffset, m_constantBuffer, 0, m_constantBufferSize);
         ioOffset.binding++;
     }
 
