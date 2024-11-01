@@ -72,6 +72,8 @@ cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
+option(SLANG_RHI_FETCH_DXC "Fetch dxc (DirectX Shader Compiler)" ON)
+option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
 
 if(SLANG_RHI_BUILD_SHARED)
     add_library(slang-rhi SHARED)
@@ -147,7 +149,7 @@ unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
 
 # Fetch dxc
-if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+if(SLANG_RHI_FETCH_DXC AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     set(DXC_VERSION "1.8.2407")
     set(DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
     FetchPackage(dxc URL ${DXC_URL})
@@ -161,7 +163,7 @@ if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
 endif()
 
 # Fetch Agility SDK
-if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+if(SLANG_RHI_FETCH_AGILITY_SDK AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     set(AGILITY_SDK_VERSION "1.614.1")
     FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
     if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
