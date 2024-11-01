@@ -89,19 +89,19 @@ struct ShaderCursor
     {
     }
 
-    SlangResult setData(void const* data, Size size) const { return m_baseObject->setData(m_offset, data, size); }
+    Result setData(void const* data, Size size) const { return m_baseObject->setData(m_offset, data, size); }
 
     template<typename T>
-    SlangResult setData(T const& data) const
+    Result setData(T const& data) const
     {
         return setData(&data, sizeof(data));
     }
 
-    SlangResult setObject(IShaderObject* object) const { return m_baseObject->setObject(m_offset, object); }
+    Result setObject(IShaderObject* object) const { return m_baseObject->setObject(m_offset, object); }
 
-    SlangResult setBinding(Binding binding) const { return m_baseObject->setBinding(m_offset, binding); }
+    Result setBinding(Binding binding) const { return m_baseObject->setBinding(m_offset, binding); }
 
-    SlangResult setSpecializationArgs(const slang::SpecializationArg* args, GfxCount count) const
+    Result setSpecializationArgs(const slang::SpecializationArg* args, GfxCount count) const
     {
         return m_baseObject->setSpecializationArgs(m_offset, args, count);
     }
