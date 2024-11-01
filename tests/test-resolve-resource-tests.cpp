@@ -60,8 +60,7 @@ struct BaseResolveResourceTest
     ComPtr<ITexture> dstTexture;
     ComPtr<ITextureView> dstTextureView;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IRenderPipeline> pipeline;
 
     ComPtr<IBuffer> vertexBuffer;
 
@@ -120,10 +119,6 @@ struct BaseResolveResourceTest
 
         vertexBuffer = createVertexBuffer(device);
 
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadGraphicsProgram(
@@ -156,14 +151,11 @@ struct BaseResolveResourceTest
 
     void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto rootObject = device->createRootShaderObject(pipeline);
+        rootObject->finalize();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = msaaTextureView;
@@ -173,22 +165,25 @@ struct BaseResolveResourceTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
+        encoder->beginRenderPass(renderPass);
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        RenderState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        state.viewports[0] = Viewport(extent.width, extent.height);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect(extent.width, extent.height);
+        state.scissorRectCount = 1;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBufferCount = 1;
+        encoder->setRenderState(state);
 
-        Viewport viewport = {};
-        viewport.maxZ = 1.0f;
-        viewport.extentX = kWidth;
-        viewport.extentY = kHeight;
-        passEncoder->setViewportAndScissor(viewport);
+        DrawArguments args;
+        args.vertexCount = kVertexCount;
+        encoder->draw(args);
+        encoder->endRenderPass();
 
-        passEncoder->setVertexBuffer(0, vertexBuffer);
-        passEncoder->draw(kVertexCount, 0);
-        passEncoder->end();
-
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -284,8 +279,10 @@ TEST_CASE("resolve-resource-simple")
     runGpuTests(
         testResolveResource<ResolveResourceSimple>,
         {
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
         }
     );
 }

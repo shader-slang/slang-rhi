@@ -11,48 +11,42 @@ static void setUpAndRunShader(
     ComPtr<ISampler> sampler = nullptr
 )
 {
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "trivial-copy", entryPoint, slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
-
+        auto rootObject = device->createRootShaderObject(pipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
-
         entryPointCursor["width"].setData(tex->getDesc().size.width);
         entryPointCursor["height"].setData(tex->getDesc().size.height);
-
         // Bind texture view to the entry point
         entryPointCursor["tex"].setBinding(tex);
-
         if (sampler)
             entryPointCursor["sampler"].setBinding(sampler);
-
         // Bind buffer view to the entry point.
         entryPointCursor["buffer"].setBinding(buffer);
+        rootObject->finalize();
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        encoder->beginComputePass();
+        ComputeState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        encoder->setComputeState(state);
+        encoder->dispatchCompute(1, 1, 1);
+        encoder->endComputePass();
+
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 }

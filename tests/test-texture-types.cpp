@@ -113,29 +113,22 @@ struct TextureAccessTest : TextureTest
 
     void submitShaderWork(const char* entryPoint)
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-texture-types", entryPoint, slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        ComPtr<IPipeline> pipeline;
+        ComPtr<IComputePipeline> pipeline;
         REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
         // We have done all the set up work, now it is time to start recording a command buffer for
         // GPU execution.
         {
             auto queue = device->getQueue(QueueType::Graphics);
+            auto encoder = queue->createCommandEncoder();
 
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginComputePass();
-
-            auto rootObject = passEncoder->bindPipeline(pipeline);
+            auto rootObject = device->createRootShaderObject(pipeline);
 
             ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
@@ -154,11 +147,19 @@ struct TextureAccessTest : TextureTest
             if (sampler)
                 entryPointCursor["sampler"].setBinding(sampler); // TODO: Bind nullptr and make sure it doesn't splut
 
+            rootObject->finalize();
+
             auto bufferElementCount = width * height * depth;
-            passEncoder->dispatchCompute(bufferElementCount, 1, 1);
-            passEncoder->end();
-            commandBuffer->close();
-            queue->submit(commandBuffer);
+
+            encoder->beginComputePass();
+            ComputeState state;
+            state.pipeline = pipeline;
+            state.rootObject = rootObject;
+            encoder->setComputeState(state);
+            encoder->dispatchCompute(bufferElementCount, 1, 1);
+            encoder->endComputePass();
+
+            queue->submit(encoder->finish());
             queue->waitOnHost();
         }
     }
@@ -283,8 +284,7 @@ struct RenderTargetTests : TextureTest
 
     int sampleCount = 1;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IRenderPipeline> pipeline;
 
     ComPtr<ITexture> renderTexture;
     ComPtr<ITextureView> renderTextureView;
@@ -346,10 +346,6 @@ struct RenderTargetTests : TextureTest
         auto inputLayout = device->createInputLayout(inputLayoutDesc);
         REQUIRE(inputLayout != nullptr);
 
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadGraphicsProgram(
@@ -382,8 +378,10 @@ struct RenderTargetTests : TextureTest
     void submitShaderWork()
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto rootObject = device->createRootShaderObject(pipeline);
+        rootObject->finalize();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = renderTextureView;
@@ -396,22 +394,25 @@ struct RenderTargetTests : TextureTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
+        encoder->beginRenderPass(renderPass);
 
-        auto renderEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = renderEncoder->bindPipeline(pipeline);
+        RenderState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        state.viewports[0] = Viewport(textureInfo->extents.width, textureInfo->extents.height);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect(textureInfo->extents.width, textureInfo->extents.height);
+        state.scissorRectCount = 1;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBufferCount = 1;
+        encoder->setRenderState(state);
 
-        Viewport viewport = {};
-        // viewport.maxZ = (float)textureInfo->extents.depth;
-        viewport.extentX = (float)textureInfo->extents.width;
-        viewport.extentY = (float)textureInfo->extents.height;
-        renderEncoder->setViewportAndScissor(viewport);
+        DrawArguments args;
+        args.vertexCount = kVertexCount;
+        encoder->draw(args);
+        encoder->endRenderPass();
 
-        renderEncoder->setVertexBuffer(0, vertexBuffer);
-        renderEncoder->draw(kVertexCount, 0);
-        renderEncoder->end();
-
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -549,6 +550,7 @@ TEST_CASE("texture-types-shader")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
         }
     );
 }

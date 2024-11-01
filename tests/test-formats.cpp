@@ -43,20 +43,13 @@ Format convertTypelessFormat(Format format)
 struct TestFormats
 {
     ComPtr<IDevice> device;
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ISampler> sampler;
     ComPtr<IBuffer> resultBuffer;
-    std::map<std::string, ComPtr<IPipeline>> cachedPipelines;
+    std::map<std::string, ComPtr<IComputePipeline>> cachedPipelines;
 
     void init(GpuTestContext* ctx, DeviceType deviceType)
     {
         device = createTestingDevice(ctx, deviceType);
-
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
-        // bool isSwiftShader = isSwiftShaderDevice(device);
 
         SamplerDesc samplerDesc;
         sampler = device->createSampler(samplerDesc);
@@ -114,7 +107,7 @@ struct TestFormats
         ComPtr<ISampler> sampler = nullptr
     )
     {
-        ComPtr<IPipeline>& pipeline = cachedPipelines[entryPoint];
+        ComPtr<IComputePipeline>& pipeline = cachedPipelines[entryPoint];
         if (!pipeline)
         {
             ComPtr<IShaderProgram> shaderProgram;
@@ -130,27 +123,32 @@ struct TestFormats
         // GPU execution.
         {
             auto queue = device->getQueue(QueueType::Graphics);
+            auto encoder = queue->createCommandEncoder();
 
-            auto commandBuffer = transientHeap->createCommandBuffer();
-            auto passEncoder = commandBuffer->beginComputePass();
+            auto rootObject = device->createRootShaderObject(pipeline);
 
-            auto rootObject = passEncoder->bindPipeline(pipeline);
-
-            ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
+            ShaderCursor cursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
 
             // Bind texture view to the entry point
-            entryPointCursor.getPath("tex").setBinding(textureView);
+            cursor["tex"].setBinding(textureView);
 
             if (sampler)
-                entryPointCursor.getPath("sampler").setBinding(sampler);
+                cursor["sampler"].setBinding(sampler);
 
             // Bind buffer view to the entry point.
-            entryPointCursor.getPath("buffer").setBinding(buffer);
+            cursor["buffer"].setBinding(buffer);
 
-            passEncoder->dispatchCompute(1, 1, 1);
-            passEncoder->end();
-            commandBuffer->close();
-            queue->submit(commandBuffer);
+            rootObject->finalize();
+
+            encoder->beginComputePass();
+            ComputeState state;
+            state.pipeline = pipeline;
+            state.rootObject = rootObject;
+            encoder->setComputeState(state);
+            encoder->dispatchCompute(1, 1, 1);
+            encoder->endComputePass();
+
+            queue->submit(encoder->finish());
             queue->waitOnHost();
         }
     }
@@ -732,7 +730,7 @@ TEST_CASE("formats")
             DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
-            // DeviceType::Metal,
+            DeviceType::Metal,
             // DeviceType::CPU, // Vector types not implemented
             // DeviceType::CUDA, // GetDimensions not implemented
             DeviceType::WGPU,

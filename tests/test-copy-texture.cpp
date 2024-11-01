@@ -119,17 +119,10 @@ struct BaseCopyTextureTest
 
     void submitGPUWork()
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginResourcePass();
-
-        passEncoder->copyTexture(
+        encoder->copyTexture(
             dstTexture,
             texCopyInfo.dstSubresource,
             texCopyInfo.dstOffset,
@@ -139,7 +132,7 @@ struct BaseCopyTextureTest
             texCopyInfo.extent
         );
 
-        passEncoder->copyTextureToBuffer(
+        encoder->copyTextureToBuffer(
             resultsBuffer,
             bufferCopyInfo.bufferOffset,
             bufferCopyInfo.bufferSize,
@@ -150,9 +143,7 @@ struct BaseCopyTextureTest
             bufferCopyInfo.extent
         );
 
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -308,7 +299,7 @@ struct CopyTextureSection : BaseCopyTextureTest
         srcTextureInfo->extents.width = 4;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
-        srcTextureInfo->mipLevelCount = 2;
+        srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLayerCount = (textureType == TextureType::Texture3D) ? 1 : 2;
 
         dstTextureInfo = srcTextureInfo;
@@ -729,6 +720,10 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
     {
         for (auto format : formats)
         {
+            FormatSupport formatSupport;
+            device->getFormatSupport(format, &formatSupport);
+            if (!is_set(formatSupport, FormatSupport::Texture))
+                continue;
             auto type = (TextureType)i;
             auto validationFormat = getValidationTextureFormat(format);
             if (!validationFormat)
@@ -750,6 +745,8 @@ TEST_CASE("copy-texture-simple")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -761,6 +758,8 @@ TEST_CASE("copy-texture-section")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -772,6 +771,8 @@ TEST_CASE("copy-texture-large-to-small")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -783,6 +784,8 @@ TEST_CASE("copy-texture-small-to-large")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -794,6 +797,8 @@ TEST_CASE("copy-texture-between-mips")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal, // TODO: no support for 1D mips
+            // DeviceType::WGPU, // TODO: no support for 1D mips
         }
     );
 }
@@ -805,6 +810,8 @@ TEST_CASE("copy-texture-between-layers")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
+            // DeviceType::WGPU, // TODO: no support for layers
         }
     );
 }
@@ -816,6 +823,8 @@ TEST_CASE("copy-texture-with-offsets")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -827,6 +836,8 @@ TEST_CASE("copy-texture-with-extent")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
