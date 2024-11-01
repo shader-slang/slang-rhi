@@ -1,11 +1,15 @@
-#include "rhi-shared.h"
+#pragma once
+
+#include <slang-rhi.h>
 
 #include "core/common.h"
+
+#include <vector>
 
 namespace rhi {
 
 template<typename TDevice, typename TBuffer>
-class StagingBufferPool
+class BufferPool
 {
 public:
     struct StagingBufferPage
@@ -83,7 +87,7 @@ public:
         return SLANG_OK;
     }
 
-    Allocation allocate(size_t size, bool forceLargePage)
+    Allocation allocate(size_t size, bool forceLargePage = false)
     {
         if (forceLargePage || size >= (kStagingBufferDefaultPageSize >> 2))
         {
@@ -120,86 +124,6 @@ public:
         m_pageAllocCounter = bufferId;
         m_offsetAllocCounter = bufferAllocOffset + size;
         return result;
-    }
-};
-
-template<typename TDevice, typename TBuffer>
-class TransientResourceHeapBaseImpl : public TransientResourceHeap
-{
-public:
-    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
-
-public:
-    BreakableReference<TDevice> m_device;
-    StagingBufferPool<TDevice, TBuffer> m_constantBufferPool;
-    StagingBufferPool<TDevice, TBuffer> m_uploadBufferPool;
-    StagingBufferPool<TDevice, TBuffer> m_readbackBufferPool;
-
-    Result init(const ITransientResourceHeap::Desc& desc, uint32_t alignment, TDevice* device)
-    {
-        m_device = device;
-
-        m_constantBufferPool.init(
-            device,
-            MemoryType::Upload,
-            256,
-            BufferUsage::ConstantBuffer | BufferUsage::CopySource | BufferUsage::CopyDestination
-        );
-
-        m_uploadBufferPool
-            .init(device, MemoryType::Upload, 256, BufferUsage::CopySource | BufferUsage::CopyDestination);
-
-        m_readbackBufferPool
-            .init(device, MemoryType::ReadBack, 256, BufferUsage::CopySource | BufferUsage::CopyDestination);
-
-        m_version = getVersionCounter();
-        getVersionCounter()++;
-        return SLANG_OK;
-    }
-
-    Result allocateStagingBuffer(
-        size_t size,
-        IBuffer*& outBufferWeakPtr,
-        size_t& offset,
-        MemoryType memoryType,
-        bool forceLargePage = false
-    )
-    {
-        switch (memoryType)
-        {
-        case MemoryType::ReadBack:
-        {
-            auto allocation = m_readbackBufferPool.allocate(size, forceLargePage);
-            outBufferWeakPtr = allocation.resource;
-            offset = allocation.offset;
-        }
-        break;
-        default:
-        {
-            auto allocation = m_uploadBufferPool.allocate(size, forceLargePage);
-            outBufferWeakPtr = allocation.resource;
-            offset = allocation.offset;
-        }
-        break;
-        }
-        return SLANG_OK;
-    }
-
-    Result allocateConstantBuffer(size_t size, IBuffer*& outBufferWeakPtr, size_t& outOffset)
-    {
-        auto allocation = m_constantBufferPool.allocate(size, false);
-        outBufferWeakPtr = allocation.resource;
-        outOffset = allocation.offset;
-        return SLANG_OK;
-    }
-
-    void reset()
-    {
-        m_constantBufferPool.reset();
-        m_uploadBufferPool.reset();
-        m_readbackBufferPool.reset();
-        m_version = getVersionCounter();
-        getVersionCounter()++;
     }
 };
 

@@ -1,18 +1,9 @@
 #include "debug-device.h"
-#include "debug-buffer.h"
 #include "debug-command-queue.h"
 #include "debug-fence.h"
 #include "debug-helper-functions.h"
-#include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-sampler.h"
 #include "debug-shader-object.h"
-#include "debug-shader-program.h"
-#include "debug-shader-table.h"
-#include "debug-texture.h"
-#include "debug-texture-view.h"
-#include "debug-transient-heap.h"
-#include "debug-input-layout.h"
 
 #include "core/short_vector.h"
 
@@ -74,21 +65,6 @@ Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
     return baseObject->getSlangSession(outSlangSession);
 }
 
-Result DebugDevice::createTransientResourceHeap(
-    const ITransientResourceHeap::Desc& desc,
-    ITransientResourceHeap** outHeap
-)
-{
-    SLANG_RHI_API_FUNC;
-
-    RefPtr<DebugTransientResourceHeap> outObject = new DebugTransientResourceHeap(ctx);
-    auto result = baseObject->createTransientResourceHeap(desc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outHeap, outObject);
-    return result;
-}
-
 Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
@@ -100,13 +76,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         label = createTextureLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
-
-    RefPtr<DebugTexture> outObject = new DebugTexture(ctx);
-    auto result = baseObject->createTexture(patchedDesc, initData, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outTexture, outObject);
-    return result;
+    return baseObject->createTexture(patchedDesc, initData, outTexture);
 }
 
 Result DebugDevice::createTextureFromNativeHandle(
@@ -117,12 +87,7 @@ Result DebugDevice::createTextureFromNativeHandle(
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugTexture> outObject = new DebugTexture(ctx);
-    auto result = baseObject->createTextureFromNativeHandle(handle, srcDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outTexture, outObject);
-    return result;
+    return baseObject->createTextureFromNativeHandle(handle, srcDesc, outTexture);
 }
 
 Result DebugDevice::createTextureFromSharedHandle(
@@ -134,12 +99,7 @@ Result DebugDevice::createTextureFromSharedHandle(
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugTexture> outObject = new DebugTexture(ctx);
-    auto result = baseObject->createTextureFromSharedHandle(handle, srcDesc, size, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outTexture, outObject);
-    return result;
+    return baseObject->createTextureFromSharedHandle(handle, srcDesc, size, outTexture);
 }
 
 Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
@@ -153,37 +113,56 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         label = createBufferLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
-
-    RefPtr<DebugBuffer> outObject = new DebugBuffer(ctx);
-    auto result = baseObject->createBuffer(patchedDesc, initData, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outBuffer, outObject);
-    return result;
+    return baseObject->createBuffer(patchedDesc, initData, outBuffer);
 }
 
 Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBuffer> outObject = new DebugBuffer(ctx);
-    auto result = baseObject->createBufferFromNativeHandle(handle, srcDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outBuffer, outObject);
-    return result;
+    return baseObject->createBufferFromNativeHandle(handle, srcDesc, outBuffer);
 }
 
 Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugBuffer> outObject = new DebugBuffer(ctx);
-    auto result = baseObject->createBufferFromSharedHandle(handle, srcDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outBuffer, outObject);
-    return result;
+    return baseObject->createBufferFromSharedHandle(handle, srcDesc, outBuffer);
+}
+
+Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+{
+    SLANG_RHI_API_FUNC;
+
+    switch (mode)
+    {
+    case CpuAccessMode::Read:
+        if (buffer->getDesc().memoryType != MemoryType::ReadBack)
+        {
+            RHI_VALIDATION_ERROR("Buffer must be created with MemoryType::ReadBack to map with CpuAccessMode::Read");
+            return SLANG_E_INVALID_ARG;
+        }
+        break;
+    case CpuAccessMode::Write:
+        if (buffer->getDesc().memoryType != MemoryType::Upload)
+        {
+            RHI_VALIDATION_ERROR("Buffer must be created with MemoryType::Upload to map with CpuAccessMode::Write");
+            return SLANG_E_INVALID_ARG;
+        }
+        break;
+    default:
+        RHI_VALIDATION_ERROR("Invalid CpuAccessMode");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->mapBuffer(buffer, mode, outData);
+}
+
+Result DebugDevice::unmapBuffer(IBuffer* buffer)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->unmapBuffer(buffer);
 }
 
 Result DebugDevice::createSampler(SamplerDesc const& desc, ISampler** outSampler)
@@ -197,25 +176,14 @@ Result DebugDevice::createSampler(SamplerDesc const& desc, ISampler** outSampler
         label = createSamplerLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
-
-    RefPtr<DebugSampler> outObject = new DebugSampler(ctx);
-    auto result = baseObject->createSampler(patchedDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outSampler, outObject);
-    return result;
+    return baseObject->createSampler(patchedDesc, outSampler);
 }
 
 Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugTextureView> outObject = new DebugTextureView(ctx);
-    auto result = baseObject->createTextureView(getInnerObj(texture), desc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outView, outObject);
-    return result;
+    return baseObject->createTextureView(texture, desc, outView);
 }
 
 Result DebugDevice::getAccelerationStructureSizes(
@@ -234,12 +202,8 @@ Result DebugDevice::createAccelerationStructure(
 )
 {
     SLANG_RHI_API_FUNC;
-    RefPtr<DebugAccelerationStructure> outObject = new DebugAccelerationStructure(ctx);
-    auto result = baseObject->createAccelerationStructure(desc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outAccelerationStructure, outObject);
-    return SLANG_OK;
+
+    return baseObject->createAccelerationStructure(desc, outAccelerationStructure);
 }
 
 Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
@@ -256,12 +220,7 @@ Result DebugDevice::createInputLayout(InputLayoutDesc const& desc, IInputLayout*
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugInputLayout> outObject = new DebugInputLayout(ctx);
-    auto result = baseObject->createInputLayout(desc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outLayout, outObject);
-    return result;
+    return baseObject->createInputLayout(desc, outLayout);
 }
 
 Result DebugDevice::getQueue(QueueType type, ICommandQueue** outQueue)
@@ -277,25 +236,6 @@ Result DebugDevice::getQueue(QueueType type, ICommandQueue** outQueue)
 }
 
 Result DebugDevice::createShaderObject(
-    slang::TypeReflection* type,
-    ShaderObjectContainerType containerType,
-    IShaderObject** outShaderObject
-)
-{
-    SLANG_RHI_API_FUNC;
-
-    RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createShaderObject(type, containerType, outObject->baseObject.writeRef());
-    outObject->m_typeName = string::from_cstr(type->getName());
-    outObject->m_device = this;
-    outObject->m_slangType = type;
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outShaderObject, outObject);
-    return result;
-}
-
-Result DebugDevice::createShaderObject2(
     slang::ISession* session,
     slang::TypeReflection* type,
     ShaderObjectContainerType containerType,
@@ -305,67 +245,13 @@ Result DebugDevice::createShaderObject2(
     SLANG_RHI_API_FUNC;
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createShaderObject2(session, type, containerType, outObject->baseObject.writeRef());
+    auto result = baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef());
     outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
     if (SLANG_FAILED(result))
         return result;
     returnComPtr(outShaderObject, outObject);
-    return result;
-}
-
-Result DebugDevice::createMutableShaderObject(
-    slang::TypeReflection* type,
-    ShaderObjectContainerType containerType,
-    IShaderObject** outShaderObject
-)
-{
-    SLANG_RHI_API_FUNC;
-
-    RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createMutableShaderObject(type, containerType, outObject->baseObject.writeRef());
-    outObject->m_typeName = string::from_cstr(type->getName());
-    outObject->m_device = this;
-    outObject->m_slangType = type;
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outShaderObject, outObject);
-    return result;
-}
-
-Result DebugDevice::createMutableShaderObject2(
-    slang::ISession* session,
-    slang::TypeReflection* type,
-    ShaderObjectContainerType containerType,
-    IShaderObject** outShaderObject
-)
-{
-    SLANG_RHI_API_FUNC;
-
-    RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result =
-        baseObject->createMutableShaderObject2(session, type, containerType, outObject->baseObject.writeRef());
-    outObject->m_typeName = string::from_cstr(type->getName());
-    outObject->m_device = this;
-    outObject->m_slangType = type;
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outShaderObject, outObject);
-    return result;
-}
-
-Result DebugDevice::createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject)
-{
-    SLANG_RHI_API_FUNC;
-    RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createMutableRootShaderObject(getInnerObj(program), outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    outObject->m_device = this;
-    outObject->m_slangType = nullptr;
-    outObject->m_rootComponentType = getDebugObj(program)->m_slangProgram;
-    returnComPtr(outRootObject, outObject);
     return result;
 }
 
@@ -388,21 +274,15 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
     return result;
 }
 
-Result DebugDevice::createMutableShaderObjectFromTypeLayout(
-    slang::TypeLayoutReflection* typeLayout,
-    IShaderObject** outShaderObject
-)
+Result DebugDevice::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
     SLANG_RHI_API_FUNC;
-    RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createMutableShaderObjectFromTypeLayout(typeLayout, outObject->baseObject.writeRef());
+
+    RefPtr<DebugShaderObject> outRootObject = new DebugShaderObject(ctx);
+    auto result = baseObject->createRootShaderObject(program, outRootObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
         return result;
-    auto type = typeLayout->getType();
-    outObject->m_typeName = string::from_cstr(type->getName());
-    outObject->m_device = this;
-    outObject->m_slangType = type;
-    returnComPtr(outShaderObject, outObject);
+    returnComPtr(outObject, outRootObject);
     return result;
 }
 
@@ -414,109 +294,40 @@ Result DebugDevice::createShaderProgram(
 {
     SLANG_RHI_API_FUNC;
 
-    RefPtr<DebugShaderProgram> outObject = new DebugShaderProgram(ctx);
-    auto result = baseObject->createShaderProgram(desc, outObject->baseObject.writeRef(), outDiagnostics);
-    if (SLANG_FAILED(result))
-        return result;
-    outObject->m_slangProgram = desc.slangGlobalScope;
-    returnComPtr(outProgram, outObject);
-    return result;
+    return baseObject->createShaderProgram(desc, outProgram, outDiagnostics);
 }
 
-Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline)
+Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    RenderPipelineDesc innerDesc = desc;
-    innerDesc.program = getInnerObj(desc.program);
-    innerDesc.inputLayout = getInnerObj(desc.inputLayout);
-    RefPtr<DebugPipeline> outObject = new DebugPipeline(ctx);
-    auto result = baseObject->createRenderPipeline(innerDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outPipeline, outObject);
-    return result;
+    return baseObject->createRenderPipeline(desc, outPipeline);
 }
 
-Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline)
+Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    ComputePipelineDesc innerDesc = desc;
-    innerDesc.program = getInnerObj(desc.program);
-
-    RefPtr<DebugPipeline> outObject = new DebugPipeline(ctx);
-    auto result = baseObject->createComputePipeline(innerDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outPipeline, outObject);
-    return result;
+    return baseObject->createComputePipeline(desc, outPipeline);
 }
 
-Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline)
+Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    RayTracingPipelineDesc innerDesc = desc;
-    innerDesc.program = getInnerObj(desc.program);
-
-    RefPtr<DebugPipeline> outObject = new DebugPipeline(ctx);
-    auto result = baseObject->createRayTracingPipeline(innerDesc, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
-    returnComPtr(outPipeline, outObject);
-    return result;
-}
-
-Result DebugDevice::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
-{
-    SLANG_RHI_API_FUNC;
-
-    RenderPipelineDesc2 innerDesc = desc;
-    innerDesc.program = getInnerObj(desc.program);
-
-    RefPtr<DebugRenderPipeline> outObject = new DebugRenderPipeline(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createRenderPipeline2(innerDesc, outObject->baseObject.writeRef()));
-    returnComPtr(outPipeline, outObject);
-    return SLANG_OK;
-}
-
-Result DebugDevice::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
-{
-    SLANG_RHI_API_FUNC;
-
-    ComputePipelineDesc2 innerDesc = desc;
-    innerDesc.program = getInnerObj(desc.program);
-
-    RefPtr<DebugComputePipeline> outObject = new DebugComputePipeline(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createComputePipeline2(innerDesc, outObject->baseObject.writeRef()));
-    returnComPtr(outPipeline, outObject);
-    return SLANG_OK;
-}
-
-Result DebugDevice::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
-{
-    SLANG_RHI_API_FUNC;
-
-    RayTracingPipelineDesc2 innerDesc = desc;
-    innerDesc.program = getInnerObj(desc.program);
-
-    RefPtr<DebugRayTracingPipeline> outObject = new DebugRayTracingPipeline(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createRayTracingPipeline2(innerDesc, outObject->baseObject.writeRef()));
-    returnComPtr(outPipeline, outObject);
-    return SLANG_OK;
+    return baseObject->createRayTracingPipeline(desc, outPipeline);
 }
 
 Result DebugDevice::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->readTexture(getInnerObj(texture), outBlob, outRowPitch, outPixelSize);
+    return baseObject->readTexture(texture, outBlob, outRowPitch, outPixelSize);
 }
 
 Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->readBuffer(getInnerObj(buffer), offset, size, outBlob);
+    return baseObject->readBuffer(buffer, offset, size, outBlob);
 }
 
 const DeviceInfo& DebugDevice::getDeviceInfo() const
@@ -576,10 +387,8 @@ Result DebugDevice::getTextureRowAlignment(size_t* outAlignment)
 Result DebugDevice::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable)
 {
     SLANG_RHI_API_FUNC;
-    RefPtr<DebugShaderTable> result = new DebugShaderTable(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createShaderTable(desc, result->baseObject.writeRef()));
-    returnComPtr(outTable, result);
-    return SLANG_OK;
+
+    return baseObject->createShaderTable(desc, outTable);
 }
 
 } // namespace rhi::debug

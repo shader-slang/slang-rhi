@@ -1,72 +1,62 @@
 #include "debug-command-encoder.h"
-#include "debug-buffer.h"
 #include "debug-command-buffer.h"
 #include "debug-helper-functions.h"
-#include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-texture.h"
-#include "debug-texture-view.h"
 
 #include <vector>
 
 namespace rhi::debug {
 
-// DebugPassEncoder
-
-void DebugPassEncoder::setBufferState(IBuffer* buffer, ResourceState state)
+#if 0
+void DebugCommandEncoder::invalidateDescriptorHeapBinding()
 {
     SLANG_RHI_API_FUNC;
-    getBaseObject()->setBufferState(getInnerObj(buffer), state);
+    ComPtr<ICommandBufferD3D12> cmdBuf;
+    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
+    {
+        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface."
+        );
+        return;
+    }
+    return cmdBuf->invalidateDescriptorHeapBinding();
 }
 
-void DebugPassEncoder::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+void DebugCommandEncoder::ensureInternalDescriptorHeapsBound()
 {
     SLANG_RHI_API_FUNC;
-    getBaseObject()->setTextureState(getInnerObj(texture), subresourceRange, state);
+    ComPtr<ICommandBufferD3D12> cmdBuf;
+    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
+    {
+        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface."
+        );
+        return;
+    }
+    return cmdBuf->ensureInternalDescriptorHeapsBound();
+}
+#endif
+
+DebugCommandEncoder::DebugCommandEncoder(DebugContext* ctx)
+    : DebugObject<ICommandEncoder>(ctx)
+{
 }
 
-void DebugPassEncoder::beginDebugEvent(const char* name, float rgbColor[3])
+void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
     SLANG_RHI_API_FUNC;
-    getBaseObject()->beginDebugEvent(name, rgbColor);
+    requireOpen();
+    requireNoPass();
+    baseObject->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
-void DebugPassEncoder::endDebugEvent()
+void DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     SLANG_RHI_API_FUNC;
-    getBaseObject()->endDebugEvent();
+    requireOpen();
+    requireNoPass();
+    baseObject->uploadBufferData(dst, offset, size, data);
 }
 
-void DebugPassEncoder::writeTimestamp(IQueryPool* pool, GfxIndex index)
-{
-    getBaseObject()->writeTimestamp(getInnerObj(pool), index);
-}
-
-// DebugResourcePassEncoder
-
-void DebugResourcePassEncoder::end()
-{
-    SLANG_RHI_API_FUNC;
-    isOpen = false;
-    baseObject->end();
-}
-
-void DebugResourcePassEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
-{
-    SLANG_RHI_API_FUNC;
-    auto dstImpl = checked_cast<DebugBuffer*>(dst);
-    auto srcImpl = checked_cast<DebugBuffer*>(src);
-    baseObject->copyBuffer(dstImpl->baseObject, dstOffset, srcImpl->baseObject, srcOffset, size);
-}
-
-void DebugResourcePassEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
-{
-    SLANG_RHI_API_FUNC;
-    auto dstImpl = checked_cast<DebugBuffer*>(dst);
-    baseObject->uploadBufferData(dstImpl->baseObject, offset, size, data);
-}
-
-void DebugResourcePassEncoder::copyTexture(
+void DebugCommandEncoder::copyTexture(
     ITexture* dst,
     SubresourceRange dstSubresource,
     Offset3D dstOffset,
@@ -77,11 +67,12 @@ void DebugResourcePassEncoder::copyTexture(
 )
 {
     SLANG_RHI_API_FUNC;
-    baseObject
-        ->copyTexture(getInnerObj(dst), dstSubresource, dstOffset, getInnerObj(src), srcSubresource, srcOffset, extent);
+    requireOpen();
+    requireNoPass();
+    baseObject->copyTexture(dst, dstSubresource, dstOffset, src, srcSubresource, srcOffset, extent);
 }
 
-void DebugResourcePassEncoder::uploadTextureData(
+void DebugCommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -91,17 +82,20 @@ void DebugResourcePassEncoder::uploadTextureData(
 )
 {
     SLANG_RHI_API_FUNC;
-    baseObject
-        ->uploadTextureData(getInnerObj(dst), subresourceRange, offset, extent, subresourceData, subresourceDataCount);
+    requireOpen();
+    requireNoPass();
+    baseObject->uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
-void DebugResourcePassEncoder::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void DebugCommandEncoder::clearBuffer(IBuffer* buffer, const BufferRange* range)
 {
     SLANG_RHI_API_FUNC;
-    baseObject->clearBuffer(getInnerObj(buffer), range);
+    requireOpen();
+    requireNoPass();
+    baseObject->clearBuffer(buffer, range);
 }
 
-void DebugResourcePassEncoder::clearTexture(
+void DebugCommandEncoder::clearTexture(
     ITexture* texture,
     const ClearValue& clearValue,
     const SubresourceRange* subresourceRange,
@@ -110,10 +104,12 @@ void DebugResourcePassEncoder::clearTexture(
 )
 {
     SLANG_RHI_API_FUNC;
-    baseObject->clearTexture(getInnerObj(texture), clearValue, subresourceRange, clearDepth, clearStencil);
+    requireOpen();
+    requireNoPass();
+    baseObject->clearTexture(texture, clearValue, subresourceRange, clearDepth, clearStencil);
 }
 
-void DebugResourcePassEncoder::resolveQuery(
+void DebugCommandEncoder::resolveQuery(
     IQueryPool* queryPool,
     GfxIndex index,
     GfxCount count,
@@ -122,10 +118,12 @@ void DebugResourcePassEncoder::resolveQuery(
 )
 {
     SLANG_RHI_API_FUNC;
-    baseObject->resolveQuery(getInnerObj(queryPool), index, count, getInnerObj(buffer), offset);
+    requireOpen();
+    requireNoPass();
+    baseObject->resolveQuery(getInnerObj(queryPool), index, count, buffer, offset);
 }
 
-void DebugResourcePassEncoder::copyTextureToBuffer(
+void DebugCommandEncoder::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
@@ -137,95 +135,60 @@ void DebugResourcePassEncoder::copyTextureToBuffer(
 )
 {
     SLANG_RHI_API_FUNC;
-    baseObject->copyTextureToBuffer(
-        getInnerObj(dst),
-        dstOffset,
-        dstSize,
-        dstRowStride,
-        getInnerObj(src),
-        srcSubresource,
-        srcOffset,
-        extent
-    );
+    requireOpen();
+    requireNoPass();
+    baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowStride, src, srcSubresource, srcOffset, extent);
 }
 
-// DebugRenderPassEncoder
-
-void DebugRenderPassEncoder::end()
+void DebugCommandEncoder::beginRenderPass(const RenderPassDesc& desc)
 {
     SLANG_RHI_API_FUNC;
-    isOpen = false;
-    baseObject->end();
+    requireOpen();
+    requireNoPass();
+    m_passState = PassState::RenderPass;
+    baseObject->beginRenderPass(desc);
 }
 
-Result DebugRenderPassEncoder::bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject)
+void DebugCommandEncoder::endRenderPass()
 {
     SLANG_RHI_API_FUNC;
-
-    auto innerState = getInnerObj(state);
-    IShaderObject* innerRootObject = nullptr;
-    commandBuffer->rootObject.reset();
-    auto result = baseObject->bindPipeline(innerState, &innerRootObject);
-    commandBuffer->rootObject.baseObject.attach(innerRootObject);
-    *outRootShaderObject = &commandBuffer->rootObject;
-    return result;
+    requireOpen();
+    requireRenderPass();
+    m_passState = PassState::NoPass;
+    baseObject->endRenderPass();
 }
 
-Result DebugRenderPassEncoder::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+void DebugCommandEncoder::setRenderState(const RenderState& state)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
-}
-
-void DebugRenderPassEncoder::setViewports(GfxCount count, const Viewport* viewports)
-{
-    SLANG_RHI_API_FUNC;
-    baseObject->setViewports(count, viewports);
-}
-
-void DebugRenderPassEncoder::setScissorRects(GfxCount count, const ScissorRect* scissors)
-{
-    SLANG_RHI_API_FUNC;
-    baseObject->setScissorRects(count, scissors);
-}
-
-void DebugRenderPassEncoder::setVertexBuffers(
-    GfxIndex startSlot,
-    GfxCount slotCount,
-    IBuffer* const* buffers,
-    const Offset* offsets
-)
-{
-    SLANG_RHI_API_FUNC;
-
-    std::vector<IBuffer*> innerBuffers;
-    for (GfxIndex i = 0; i < slotCount; i++)
+    requireOpen();
+    requireRenderPass();
+    if (!state.rootObject->isFinalized())
     {
-        innerBuffers.push_back(checked_cast<DebugBuffer*>(buffers[i])->baseObject.get());
+        RHI_VALIDATION_ERROR("The render state root object must be finalized.");
     }
-    baseObject->setVertexBuffers(startSlot, slotCount, innerBuffers.data(), offsets);
+    RenderState innerState = state;
+    innerState.rootObject = getInnerObj(state.rootObject);
+    baseObject->setRenderState(innerState);
 }
 
-void DebugRenderPassEncoder::setIndexBuffer(IBuffer* buffer, IndexFormat indexFormat, Offset offset)
+void DebugCommandEncoder::draw(const DrawArguments& args)
 {
     SLANG_RHI_API_FUNC;
-    auto innerBuffer = checked_cast<DebugBuffer*>(buffer)->baseObject.get();
-    baseObject->setIndexBuffer(innerBuffer, indexFormat, offset);
+    requireOpen();
+    requireRenderPass();
+    baseObject->draw(args);
 }
 
-Result DebugRenderPassEncoder::draw(GfxCount vertexCount, GfxIndex startVertex)
+void DebugCommandEncoder::drawIndexed(const DrawArguments& args)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->draw(vertexCount, startVertex);
+    requireOpen();
+    requireRenderPass();
+    baseObject->drawIndexed(args);
 }
 
-Result DebugRenderPassEncoder::drawIndexed(GfxCount indexCount, GfxIndex startIndex, GfxIndex baseVertex)
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->drawIndexed(indexCount, startIndex, baseVertex);
-}
-
-Result DebugRenderPassEncoder::drawIndirect(
+void DebugCommandEncoder::drawIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -234,11 +197,12 @@ Result DebugRenderPassEncoder::drawIndirect(
 )
 {
     SLANG_RHI_API_FUNC;
-    return baseObject
-        ->drawIndirect(maxDrawCount, getInnerObj(argBuffer), argOffset, getInnerObj(countBuffer), countOffset);
+    requireOpen();
+    requireRenderPass();
+    baseObject->drawIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
 }
 
-Result DebugRenderPassEncoder::drawIndexedIndirect(
+void DebugCommandEncoder::drawIndexedIndirect(
     GfxCount maxDrawCount,
     IBuffer* argBuffer,
     Offset argOffset,
@@ -247,111 +211,110 @@ Result DebugRenderPassEncoder::drawIndexedIndirect(
 )
 {
     SLANG_RHI_API_FUNC;
-    return baseObject
-        ->drawIndexedIndirect(maxDrawCount, getInnerObj(argBuffer), argOffset, getInnerObj(countBuffer), countOffset);
+    requireOpen();
+    requireRenderPass();
+    baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
 }
 
-void DebugRenderPassEncoder::setStencilReference(uint32_t referenceValue)
+void DebugCommandEncoder::drawMeshTasks(int x, int y, int z)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->setStencilReference(referenceValue);
+    requireOpen();
+    requireRenderPass();
+    baseObject->drawMeshTasks(x, y, z);
 }
 
-Result DebugRenderPassEncoder::setSamplePositions(
-    GfxCount samplesPerPixel,
-    GfxCount pixelCount,
-    const SamplePosition* samplePositions
-)
+void DebugCommandEncoder::beginComputePass()
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->setSamplePositions(samplesPerPixel, pixelCount, samplePositions);
+    requireOpen();
+    requireNoPass();
+    m_passState = PassState::ComputePass;
+    baseObject->beginComputePass();
 }
 
-Result DebugRenderPassEncoder::drawInstanced(
-    GfxCount vertexCount,
-    GfxCount instanceCount,
-    GfxIndex startVertex,
-    GfxIndex startInstanceLocation
-)
+void DebugCommandEncoder::endComputePass()
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->drawInstanced(vertexCount, instanceCount, startVertex, startInstanceLocation);
+    requireOpen();
+    requireComputePass();
+    m_passState = PassState::NoPass;
+    baseObject->endComputePass();
 }
 
-Result DebugRenderPassEncoder::drawIndexedInstanced(
-    GfxCount indexCount,
-    GfxCount instanceCount,
-    GfxIndex startIndexLocation,
-    GfxIndex baseVertexLocation,
-    GfxIndex startInstanceLocation
-)
+void DebugCommandEncoder::setComputeState(const ComputeState& state)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->drawIndexedInstanced(
-        indexCount,
-        instanceCount,
-        startIndexLocation,
-        baseVertexLocation,
-        startInstanceLocation
-    );
+    requireOpen();
+    requireComputePass();
+    if (!state.rootObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The compute state root object must be finalized.");
+    }
+    ComputeState innerState = state;
+    innerState.rootObject = getInnerObj(state.rootObject);
+    baseObject->setComputeState(innerState);
 }
 
-Result DebugRenderPassEncoder::drawMeshTasks(int x, int y, int z)
+void DebugCommandEncoder::dispatchCompute(int x, int y, int z)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->drawMeshTasks(x, y, z);
+    requireOpen();
+    requireComputePass();
+    baseObject->dispatchCompute(x, y, z);
 }
 
-// DebugComputePassEncoder
-
-void DebugComputePassEncoder::end()
+void DebugCommandEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
 {
     SLANG_RHI_API_FUNC;
-    isOpen = false;
-    baseObject->end();
+    requireOpen();
+    requireComputePass();
+    baseObject->dispatchComputeIndirect(argBuffer, offset);
 }
 
-Result DebugComputePassEncoder::bindPipeline(IPipeline* state, IShaderObject** outRootShaderObject)
+void DebugCommandEncoder::beginRayTracingPass()
 {
     SLANG_RHI_API_FUNC;
-
-    auto innerState = getInnerObj(state);
-    IShaderObject* innerRootObject = nullptr;
-    commandBuffer->rootObject.reset();
-    auto result = baseObject->bindPipeline(innerState, &innerRootObject);
-    commandBuffer->rootObject.baseObject.attach(innerRootObject);
-    *outRootShaderObject = &commandBuffer->rootObject;
-    return result;
+    requireOpen();
+    requireNoPass();
+    m_passState = PassState::RayTracingPass;
+    baseObject->beginRayTracingPass();
 }
 
-Result DebugComputePassEncoder::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+void DebugCommandEncoder::endRayTracingPass()
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
+    requireOpen();
+    requireRayTracingPass();
+    m_passState = PassState::NoPass;
+    baseObject->endRayTracingPass();
 }
 
-Result DebugComputePassEncoder::dispatchCompute(int x, int y, int z)
+void DebugCommandEncoder::setRayTracingState(const RayTracingState& state)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->dispatchCompute(x, y, z);
+    requireOpen();
+    requireRayTracingPass();
+    if (!state.rootObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The raytracing state root object must be finalized.");
+    }
+    RayTracingState innerState = state;
+    innerState.rootObject = getInnerObj(state.rootObject);
+    baseObject->setRayTracingState(innerState);
 }
 
-Result DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* cmdBuffer, Offset offset)
+/// Issues a dispatch command to start ray tracing workload with a ray tracing pipeline.
+/// `rayGenShaderIndex` specifies the index into the shader table that identifies the ray generation shader.
+void DebugCommandEncoder::dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->dispatchComputeIndirect(getInnerObj(cmdBuffer), offset);
+    requireOpen();
+    requireRayTracingPass();
+    baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
 }
 
-// DebugRayTracingPassEncoder
-
-void DebugRayTracingPassEncoder::end()
-{
-    SLANG_RHI_API_FUNC;
-    isOpen = false;
-    baseObject->end();
-}
-
-void DebugRayTracingPassEncoder::buildAccelerationStructure(
+void DebugCommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
@@ -361,42 +324,8 @@ void DebugRayTracingPassEncoder::buildAccelerationStructure(
 )
 {
     SLANG_RHI_API_FUNC;
-    AccelerationStructureBuildDesc innerDesc = desc;
-    for (GfxIndex i = 0; i < innerDesc.inputCount; ++i)
-    {
-        switch ((AccelerationStructureBuildInputType&)(innerDesc.inputs[i]))
-        {
-        case AccelerationStructureBuildInputType::Instances:
-        {
-            AccelerationStructureBuildInputInstances& instances =
-                (AccelerationStructureBuildInputInstances&)innerDesc.inputs[i];
-            instances.instanceBuffer = getInnerObj(instances.instanceBuffer);
-            break;
-        }
-        case AccelerationStructureBuildInputType::Triangles:
-        {
-            AccelerationStructureBuildInputTriangles& triangles =
-                (AccelerationStructureBuildInputTriangles&)innerDesc.inputs[i];
-            for (GfxIndex j = 0; j < triangles.vertexBufferCount; ++j)
-            {
-                triangles.vertexBuffers[j] = getInnerObj(triangles.vertexBuffers[j]);
-            }
-            triangles.indexBuffer = getInnerObj(triangles.indexBuffer);
-            triangles.preTransformBuffer = getInnerObj(triangles.preTransformBuffer);
-            break;
-        }
-        case AccelerationStructureBuildInputType::ProceduralPrimitives:
-        {
-            AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
-                (AccelerationStructureBuildInputProceduralPrimitives&)innerDesc.inputs[i];
-            for (GfxIndex j = 0; j < proceduralPrimitives.aabbBufferCount; ++j)
-            {
-                proceduralPrimitives.aabbBuffers[j] = getInnerObj(proceduralPrimitives.aabbBuffers[j]);
-            }
-            break;
-        }
-        }
-    }
+    requireOpen();
+    requireNoPass();
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (size_t i = 0; i < propertyQueryCount; ++i)
     {
@@ -407,29 +336,22 @@ void DebugRayTracingPassEncoder::buildAccelerationStructure(
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
     validateAccelerationStructureBuildDesc(ctx, desc);
-    baseObject->buildAccelerationStructure(
-        innerDesc,
-        getInnerObj(dst),
-        getInnerObj(src),
-        getInnerObj(scratchBuffer),
-        propertyQueryCount,
-        innerQueryDescs.data()
-    );
+    baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
 }
 
-void DebugRayTracingPassEncoder::copyAccelerationStructure(
+void DebugCommandEncoder::copyAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     AccelerationStructureCopyMode mode
 )
 {
     SLANG_RHI_API_FUNC;
-    auto innerDst = getInnerObj(dst);
-    auto innerSrc = getInnerObj(src);
-    baseObject->copyAccelerationStructure(innerDst, innerSrc, mode);
+    requireOpen();
+    requireNoPass();
+    baseObject->copyAccelerationStructure(dst, src, mode);
 }
 
-void DebugRayTracingPassEncoder::queryAccelerationStructureProperties(
+void DebugCommandEncoder::queryAccelerationStructureProperties(
     GfxCount accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     GfxCount queryCount,
@@ -437,11 +359,8 @@ void DebugRayTracingPassEncoder::queryAccelerationStructureProperties(
 )
 {
     SLANG_RHI_API_FUNC;
-    std::vector<IAccelerationStructure*> innerAS;
-    for (GfxIndex i = 0; i < accelerationStructureCount; i++)
-    {
-        innerAS.push_back(getInnerObj(accelerationStructures[i]));
-    }
+    requireOpen();
+    requireNoPass();
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (size_t i = 0; i < queryCount; ++i)
     {
@@ -453,52 +372,123 @@ void DebugRayTracingPassEncoder::queryAccelerationStructureProperties(
     }
     baseObject->queryAccelerationStructureProperties(
         accelerationStructureCount,
-        innerAS.data(),
+        accelerationStructures,
         queryCount,
         innerQueryDescs.data()
     );
 }
 
-void DebugRayTracingPassEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
+void DebugCommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
 {
     SLANG_RHI_API_FUNC;
-    baseObject->serializeAccelerationStructure(getInnerObj(dst), getInnerObj(src));
+    requireOpen();
+    requireNoPass();
+    baseObject->serializeAccelerationStructure(dst, src);
 }
 
-void DebugRayTracingPassEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
+void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
 {
     SLANG_RHI_API_FUNC;
-    baseObject->deserializeAccelerationStructure(getInnerObj(dst), getInnerObj(src));
+    requireOpen();
+    requireNoPass();
+    baseObject->deserializeAccelerationStructure(dst, src);
 }
 
-Result DebugRayTracingPassEncoder::bindPipeline(IPipeline* state, IShaderObject** outRootObject)
+void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
 {
     SLANG_RHI_API_FUNC;
-    auto innerPipeline = getInnerObj(state);
-    IShaderObject* innerRootObject = nullptr;
-    commandBuffer->rootObject.reset();
-    Result result = baseObject->bindPipeline(innerPipeline, &innerRootObject);
-    commandBuffer->rootObject.baseObject.attach(innerRootObject);
-    *outRootObject = &commandBuffer->rootObject;
+    requireOpen();
+    baseObject->setBufferState(buffer, state);
+}
+
+void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    baseObject->setTextureState(texture, subresourceRange, state);
+}
+
+void DebugCommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    baseObject->beginDebugEvent(name, rgbColor);
+}
+
+void DebugCommandEncoder::endDebugEvent()
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    baseObject->endDebugEvent();
+}
+
+void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, GfxIndex index)
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    baseObject->writeTimestamp(getInnerObj(pool), index);
+}
+
+Result DebugCommandEncoder::finish(ICommandBuffer** outCommandBuffer)
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+#if 0
+    checkEncodersClosedBeforeFinish();
+#endif
+    RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
+    auto result = baseObject->finish(outObject->baseObject.writeRef());
+    if (SLANG_FAILED(result))
+        return result;
+    returnComPtr(outCommandBuffer, outObject);
     return result;
 }
 
-Result DebugRayTracingPassEncoder::bindPipelineWithRootObject(IPipeline* state, IShaderObject* rootObject)
+Result DebugCommandEncoder::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->bindPipelineWithRootObject(getInnerObj(state), getInnerObj(rootObject));
+    return baseObject->getNativeHandle(outHandle);
 }
 
-Result DebugRayTracingPassEncoder::dispatchRays(
-    GfxIndex rayGenShaderIndex,
-    IShaderTable* shaderTable,
-    GfxCount width,
-    GfxCount height,
-    GfxCount depth
-)
+void DebugCommandEncoder::requireOpen()
 {
-    SLANG_RHI_API_FUNC;
-    return baseObject->dispatchRays(rayGenShaderIndex, getInnerObj(shaderTable), width, height, depth);
+    if (m_state != EncoderState::Open)
+    {
+        RHI_VALIDATION_ERROR("The command encoder must not be finished.");
+    }
+}
+
+void DebugCommandEncoder::requireNoPass()
+{
+    if (m_passState != PassState::NoPass)
+    {
+        RHI_VALIDATION_ERROR("The command encoder must not be in a render, compute or ray-tracing pass.");
+    }
+}
+
+void DebugCommandEncoder::requireRenderPass()
+{
+    if (m_passState != PassState::RenderPass)
+    {
+        RHI_VALIDATION_ERROR("The command encoder must be in a render pass.");
+    }
+}
+
+void DebugCommandEncoder::requireComputePass()
+{
+    if (m_passState != PassState::ComputePass)
+    {
+        RHI_VALIDATION_ERROR("The command encoder must be in a compute pass.");
+    }
+}
+
+void DebugCommandEncoder::requireRayTracingPass()
+{
+    if (m_passState != PassState::RayTracingPass)
+    {
+        RHI_VALIDATION_ERROR("The command encoder must be in a ray-tracing pass.");
+    }
 }
 
 } // namespace rhi::debug

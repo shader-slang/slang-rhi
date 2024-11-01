@@ -14,7 +14,8 @@ public:
 public:
     ICommandQueue* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
     virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
