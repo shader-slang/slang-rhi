@@ -367,10 +367,13 @@ endif()
 if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
         src/d3d11/d3d11-buffer.cpp
+        src/d3d11/d3d11-command.cpp
         src/d3d11/d3d11-device.cpp
         src/d3d11/d3d11-helper-functions.cpp
+        src/d3d11/d3d11-input-layout.cpp
         src/d3d11/d3d11-pipeline.cpp
         src/d3d11/d3d11-query.cpp
+        src/d3d11/d3d11-sampler.cpp
         src/d3d11/d3d11-scopeNVAPI.cpp
         src/d3d11/d3d11-shader-object-layout.cpp
         src/d3d11/d3d11-shader-object.cpp

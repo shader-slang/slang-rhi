@@ -7,7 +7,7 @@ namespace rhi::d3d11 {
 class RenderPipelineImpl : public RenderPipeline
 {
 public:
-    RefPtr<ShaderProgramImpl> m_program;
+    RefPtr<ShaderProgramImpl> m_programImpl;
     RefPtr<InputLayoutImpl> m_inputLayout;
 
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
@@ -26,7 +26,7 @@ public:
 class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    RefPtr<ShaderProgramImpl> m_program;
+    RefPtr<ShaderProgramImpl> m_programImpl;
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
