@@ -1,8 +1,7 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "cuda-command-queue.h"
-#include "cuda-command-buffer.h"
+#include "cuda-command.h"
 #include "cuda-helper-functions.h"
 
 namespace rhi::cuda {
@@ -50,6 +49,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         NativeHandle handle,
         const TextureDesc& desc,
@@ -70,9 +73,7 @@ public:
 
     virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
 
-    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-
-    Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject);
+    Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
@@ -81,7 +82,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
 
     void* map(IBuffer* buffer);
 
@@ -90,20 +91,12 @@ public:
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
 public:
-    using TransientResourceHeapImpl = SimpleTransientResourceHeap<DeviceImpl, CommandBufferImpl>;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize) override;

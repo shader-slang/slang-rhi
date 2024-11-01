@@ -31,4 +31,15 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
+class TextureViewImpl : public TextureView
+{
+public:
+    TextureViewImpl(const TextureViewDesc& desc)
+        : TextureView(desc)
+    {
+    }
+
+    RefPtr<TextureImpl> m_texture;
+};
+
 } // namespace rhi::cuda

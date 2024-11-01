@@ -1,7 +1,7 @@
 #include "cuda-shader-object.h"
 #include "cuda-helper-functions.h"
-#include "cuda-texture-view.h"
 #include "cuda-shader-object-layout.h"
+#include "cuda-device.h"
 
 namespace rhi::cuda {
 
@@ -86,9 +86,9 @@ Buffer* ShaderObjectData::getBufferResource(
     return m_buffer.get();
 }
 
-Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
+Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout)
 {
-    m_data.device = checked_cast<Device*>(device);
+    m_data.device = device;
 
     m_layout = typeLayout;
 
@@ -148,6 +148,9 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayou
             SLANG_RETURN_ON_FAIL(setObject(offset, subObject));
         }
     }
+
+    m_state = State::Initialized;
+
     return SLANG_OK;
 }
 
@@ -174,6 +177,8 @@ Size ShaderObjectImpl::getSize()
 
 Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, Size size)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+
     Size temp = m_data.getCount() - (Size)offset.uniformOffset;
     size = min(size, temp);
     SLANG_CUDA_RETURN_ON_FAIL(
@@ -184,6 +189,8 @@ Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, S
 
 Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
@@ -250,6 +257,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
 Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
@@ -277,17 +285,7 @@ EntryPointShaderObjectImpl::EntryPointShaderObjectImpl()
     m_data.isHostOnly = true;
 }
 
-uint32_t RootShaderObjectImpl::addRef()
-{
-    return 1;
-}
-
-uint32_t RootShaderObjectImpl::release()
-{
-    return 1;
-}
-
-Result RootShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
+Result RootShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout)
 {
     SLANG_RETURN_ON_FAIL(ShaderObjectImpl::init(device, typeLayout));
     auto programLayout = dynamic_cast<RootShaderObjectLayoutImpl*>(typeLayout);

@@ -3,7 +3,6 @@
 #include "cuda-api.h"
 
 #include "../rhi-shared.h"
-#include "../simple-transient-resource-heap.h"
 #include "../slang-context.h"
 
 #include "core/common.h"

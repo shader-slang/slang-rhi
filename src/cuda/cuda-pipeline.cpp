@@ -9,10 +9,11 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
-    pipeline->m_program = checked_cast<ShaderProgramImpl*>(desc.program);
+    pipeline->m_program = checked_cast<ShaderProgram*>(desc.program);
+    pipeline->m_programImpl = checked_cast<ShaderProgramImpl*>(desc.program);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
