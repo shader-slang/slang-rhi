@@ -402,7 +402,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
         ComPtr<IBuffer> buffer;
-        SLANG_RETURN_ON_FAIL(encoder->m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(encoder->m_device->createBuffer(bufferDesc, m_constantBufferData.data(), buffer.writeRef()));
         m_constantBuffer = checked_cast<BufferImpl*>(buffer.get());
     }
 
