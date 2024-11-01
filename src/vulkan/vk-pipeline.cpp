@@ -28,7 +28,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
+Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     if (program->m_stageCreateInfos.empty())
@@ -239,6 +239,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRende
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -259,7 +261,7 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     if (program->m_stageCreateInfos.empty())
@@ -290,6 +292,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -323,7 +327,7 @@ inline uint32_t findEntryPointIndexByName(const std::map<std::string, Index>& en
 }
 
 
-Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
+Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     if (program->m_stageCreateInfos.empty())
@@ -434,6 +438,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
     pipeline->m_shaderGroupCount = shaderGroupInfos.size();

@@ -2,16 +2,64 @@
 
 #include "vk-base.h"
 #include "vk-helper-functions.h"
-#include "vk-texture-view.h"
+#include "vk-buffer.h"
+#include "vk-texture.h"
 #include "vk-sampler.h"
 #include "vk-shader-object-layout.h"
 #include "vk-acceleration-structure.h"
 
 #include "../state-tracking.h"
 
+#include "core/short_vector.h"
+
 #include <vector>
 
 namespace rhi::vk {
+
+struct BindableRootShaderObject
+{
+    /// Root object that this bindable object is associated with.
+    RootShaderObjectImpl* rootObject;
+    /// Vulkan pPipeline layout of the associated pipeline.
+    VkPipelineLayout pipelineLayout;
+    /// Descriptor sets that represent all the bindings the root object.
+    short_vector<VkDescriptorSet> descriptorSets;
+    struct PushConstant
+    {
+        VkPushConstantRange range;
+        void* data;
+    };
+    /// Push constants that represent all the push constants the root object.
+    short_vector<PushConstant> pushConstants;
+};
+
+/// Context information required when binding shader objects to the pipeline
+struct BindingContext
+{
+    BindableRootShaderObject* bindable;
+
+    /// The pipeline layout being used for binding
+    // VkPipelineLayout pipelineLayout;
+
+    /// The device being used
+    DeviceImpl* device;
+
+    /// An allocator to use for descriptor sets during binding
+    DescriptorSetAllocator* descriptorSetAllocator;
+
+    /// Transient resource heap for allocating transient resources (constant buffers)
+    // TransientResourceHeapImpl* transientHeap;
+
+    /// The descriptor sets that are being allocated and bound
+    // std::vector<VkDescriptorSet>* descriptorSets;
+
+    /// Information about all the push-constant ranges that should be bound
+    span<const VkPushConstantRange> pushConstantRanges;
+
+    virtual Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) = 0;
+    virtual void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) = 0;
+    // virtual void writePushConstants(VkPushConstantRange range, const void* data) = 0;
+};
 
 struct ResourceSlot
 {
@@ -36,7 +84,7 @@ struct CombinedTextureSamplerSlot
 class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
 {
 public:
-    static Result create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
+    static Result create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
 
     Device* getDevice();
 
@@ -57,24 +105,24 @@ public:
 protected:
     friend class RootShaderObjectLayout;
 
-    Result init(IDevice* device, ShaderObjectLayoutImpl* layout);
+    Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
     Result _writeOrdinaryData(
-        PassEncoderImpl* encoder,
-        IBuffer* buffer,
+        BindingContext& context,
+        BufferImpl* buffer,
         Offset offset,
         Size destSize,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
 public:
     /// Write a single descriptor using the Vulkan API
-    static void writeDescriptor(RootBindingContext& context, VkWriteDescriptorSet const& write);
+    static void writeDescriptor(BindingContext& context, VkWriteDescriptorSet const& write);
 
     static void writeBufferDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
         BufferImpl* buffer,
@@ -83,61 +131,57 @@ public:
     );
 
     static void writeBufferDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
         BufferImpl* buffer
     );
 
     static void writePlainBufferDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<ResourceSlot> slots
+        span<const ResourceSlot> slots
     );
 
     static void writeTexelBufferDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<ResourceSlot> slots
+        span<const ResourceSlot> slots
     );
 
     static void writeTextureSamplerDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<CombinedTextureSamplerSlot> slots
+        span<const CombinedTextureSamplerSlot> slots
     );
 
     static void writeAccelerationStructureDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<ResourceSlot> slots
+        span<const ResourceSlot> slots
     );
 
     static void writeTextureDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<ResourceSlot> slots
+        span<const ResourceSlot> slots
     );
 
     static void writeSamplerDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         VkDescriptorType descriptorType,
-        span<RefPtr<SamplerImpl>> samplers
+        span<const RefPtr<SamplerImpl>> samplers
     );
-
-    bool shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap);
 
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
-    Result _ensureOrdinaryDataBufferCreatedIfNeeded(
-        PassEncoderImpl* encoder,
-        ShaderObjectLayoutImpl* specializedLayout
-    );
+    Result _ensureOrdinaryDataBufferCreatedIfNeeded(BindingContext& context, ShaderObjectLayoutImpl* specializedLayout)
+        const;
 
 public:
     /// Bind this shader object as a "value"
@@ -146,66 +190,44 @@ public:
     /// fields, and is also used as part of the implementation of the
     /// parameter-block and constant-buffer cases.
     ///
-    Result bindAsValue(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
-        BindingOffset const& offset,
-        ShaderObjectLayoutImpl* specializedLayout
-    );
+    Result bindAsValue(BindingContext& context, BindingOffset const& offset, ShaderObjectLayoutImpl* specializedLayout)
+        const;
 
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
     /// blocks)
     Result allocateDescriptorSets(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
     /// Bind the ordinary data buffer if needed.
     Result bindOrdinaryDataBufferIfNeeded(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
-    void setResourceStates(StateTracking& stateTracking);
+    void setResourceStates(StateTracking& stateTracking) const;
 
     std::vector<ResourceSlot> m_resources;
     std::vector<RefPtr<SamplerImpl>> m_samplers;
     std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
     std::vector<RefPtr<AccelerationStructureImpl>> m_accelerationStructures;
-
-    // The transient constant buffer that holds the GPU copy of the constant data,
-    // weak referenced.
-    IBuffer* m_constantBuffer = nullptr;
-    // The offset into the transient constant buffer where the constant data starts.
-    Offset m_constantBufferOffset = 0;
-    Size m_constantBufferSize = 0;
-
-    /// Dirty bit tracking whether the constant buffer needs to be updated.
-    bool m_isConstantBufferDirty = true;
-    /// The transient heap from which the constant buffer is allocated.
-    TransientResourceHeapImpl* m_constantBufferTransientHeap;
-    /// The version of the transient heap when the constant buffer is allocated.
-    uint64_t m_constantBufferTransientHeapVersion;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///
@@ -228,31 +250,20 @@ class EntryPointShaderObject : public ShaderObjectImpl
     typedef ShaderObjectImpl Super;
 
 public:
-    static Result create(IDevice* device, EntryPointLayout* layout, EntryPointShaderObject** outShaderObject);
+    static Result create(DeviceImpl* device, EntryPointLayout* layout, EntryPointShaderObject** outShaderObject);
 
     EntryPointLayout* getLayout();
 
     /// Bind this shader object as an entry point
-    Result bindAsEntryPoint(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
-        BindingOffset const& inOffset,
-        EntryPointLayout* layout
-    );
+    Result bindAsEntryPoint(BindingContext& context, BindingOffset const& inOffset, EntryPointLayout* layout);
 
 protected:
-    Result init(IDevice* device, EntryPointLayout* layout);
+    Result init(DeviceImpl* device, EntryPointLayout* layout);
 };
 
 class RootShaderObjectImpl : public ShaderObjectImpl
 {
     using Super = ShaderObjectImpl;
-
-public:
-    // Override default reference counting behavior to disable lifetime management.
-    // Root objects are managed by command buffer and does not need to be freed by the user.
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
 public:
     RootShaderObjectLayout* getLayout();
@@ -264,31 +275,20 @@ public:
     virtual GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;
-
     void setResourceStates(StateTracking& stateTracking);
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(PassEncoderImpl* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);
+    Result bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout);
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
 public:
-    Result init(IDevice* device, RootShaderObjectLayout* layout);
+    Result init(DeviceImpl* device, RootShaderObjectLayout* layout);
 
 protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
     std::vector<RefPtr<EntryPointShaderObject>> m_entryPoints;
-};
-
-class MutableRootShaderObjectImpl : public RootShaderObjectImpl
-{
-public:
-    // Enable reference counting.
-    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return ShaderObjectImpl::addRef(); }
-    SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return ShaderObjectImpl::release(); }
 };
 
 } // namespace rhi::vk
