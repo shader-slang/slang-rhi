@@ -2,7 +2,7 @@
 
 #include "cuda-base.h"
 #include "cuda-buffer.h"
-#include "cuda-texture-view.h"
+#include "cuda-texture.h"
 
 namespace rhi::cuda {
 
@@ -33,7 +33,7 @@ class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObj
 public:
     std::vector<RefPtr<Resource>> m_resources;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL init(IDevice* device, ShaderObjectLayoutImpl* typeLayout);
+    virtual SLANG_NO_THROW Result SLANG_MCALL init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout);
 
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
@@ -47,9 +47,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override;
 };
 
-class MutableShaderObjectImpl : public MutableShaderObject<MutableShaderObjectImpl, ShaderObjectLayoutImpl>
-{};
-
 class EntryPointShaderObjectImpl : public ShaderObjectImpl
 {
 public:
@@ -59,12 +56,8 @@ public:
 class RootShaderObjectImpl : public ShaderObjectImpl
 {
 public:
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override;
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override;
-
-public:
     std::vector<RefPtr<EntryPointShaderObjectImpl>> entryPointObjects;
-    virtual SLANG_NO_THROW Result SLANG_MCALL init(IDevice* device, ShaderObjectLayoutImpl* typeLayout) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout) override;
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;

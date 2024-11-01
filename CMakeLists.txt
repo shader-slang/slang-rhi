@@ -476,9 +476,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-acceleration-structure.cpp
         src/cuda/cuda-api.cpp
         src/cuda/cuda-buffer.cpp
-        src/cuda/cuda-command-buffer.cpp
-        src/cuda/cuda-command-encoder.cpp
-        src/cuda/cuda-command-queue.cpp
+        src/cuda/cuda-command.cpp
         src/cuda/cuda-device.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-pipeline.cpp
