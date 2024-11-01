@@ -346,13 +346,13 @@ endif()
 if(SLANG_RHI_ENABLE_CPU)
     target_sources(slang-rhi PRIVATE
         src/cpu/cpu-buffer.cpp
+        src/cpu/cpu-command.cpp
         src/cpu/cpu-device.cpp
         src/cpu/cpu-helper-functions.cpp
         src/cpu/cpu-pipeline.cpp
         src/cpu/cpu-query.cpp
         src/cpu/cpu-shader-object-layout.cpp
         src/cpu/cpu-shader-object.cpp
-        src/cpu/cpu-texture-view.cpp
         src/cpu/cpu-texture.cpp
     )
 endif()
