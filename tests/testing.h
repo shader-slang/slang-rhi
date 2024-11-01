@@ -86,18 +86,40 @@ void compareComputeResult(
     size_t rowCount
 );
 
-void compareComputeResultFuzzy(const float* result, float* expectedResult, size_t expectedBufferSize);
+template<typename T, size_t Count>
+void compareResult(const T* result, const T* expectedResult)
+{
+    for (size_t i = 0; i < Count; i++)
+    {
+        CAPTURE(i);
+        CHECK_EQ(result[i], expectedResult[i]);
+    }
+}
 
-/// Reads back the content of `buffer` and compares it against `expectedResult` with a set tolerance.
-void compareComputeResultFuzzy(IDevice* device, IBuffer* buffer, float* expectedResult, size_t expectedBufferSize);
+inline void compareResultFuzzy(const float* result, float* expectedResult, size_t count)
+{
+    for (size_t i = 0; i < count; ++i)
+    {
+        CAPTURE(i);
+        CHECK_LE(result[i], expectedResult[i] + 0.01f);
+        CHECK_GE(result[i], expectedResult[i] - 0.01f);
+    }
+}
 
 template<typename T, size_t Count>
 void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count> expectedResult)
 {
+    size_t bufferSize = Count * sizeof(T);
+    // Read back the results.
+    ComPtr<ISlangBlob> bufferData;
+    REQUIRE(!SLANG_FAILED(device->readBuffer(buffer, 0, bufferSize, bufferData.writeRef())));
+    REQUIRE_EQ(bufferData->getBufferSize(), bufferSize);
+    const T* result = reinterpret_cast<const T*>(bufferData->getBufferPointer());
+
     if constexpr (std::is_same<T, float>::value)
-        return compareComputeResultFuzzy(device, buffer, expectedResult.data(), expectedResult.size() * sizeof(T));
+        compareResultFuzzy(result, expectedResult.data(), Count);
     else
-        return compareComputeResult(device, buffer, 0, expectedResult.data(), expectedResult.size() * sizeof(T));
+        compareResult<T, Count>(result, expectedResult.data());
 }
 
 ComPtr<IDevice> createTestingDevice(

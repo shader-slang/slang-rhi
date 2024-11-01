@@ -40,37 +40,34 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     CHECK_EQ(testDesc.size, numberCount * sizeof(float));
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
-    // Check that dstBuffer can be successfully used in a compute dispatch using dstDevice.
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(dstDevice->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(dstDevice, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(dstDevice->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     {
         auto queue = dstDevice->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
-
+        auto rootObject = dstDevice->createRootShaderObject(pipeline);
         ShaderCursor rootCursor(rootObject);
         // Bind buffer view to the entry point.
-        rootCursor.getPath("buffer").setBinding(dstBuffer);
+        rootCursor["buffer"].setBinding(dstBuffer);
+        rootObject->finalize();
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        encoder->beginComputePass();
+        ComputeState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        encoder->setComputeState(state);
+        encoder->dispatchCompute(1, 1, 1);
+        encoder->endComputePass();
+
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 

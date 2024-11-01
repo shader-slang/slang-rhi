@@ -7,18 +7,13 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
@@ -39,19 +34,22 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        auto encoder = queue->createCommandEncoder();
 
         // Bind buffer view to the entry point.
-        ShaderCursor(rootObject).getPath("buffer").setBinding(buffer);
+        auto rootObject = device->createRootShaderObject(pipeline);
+        ShaderCursor(rootObject)["buffer"].setBinding(buffer);
+        rootObject->finalize();
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        encoder->beginComputePass();
+        ComputeState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        encoder->setComputeState(state);
+        encoder->dispatchCompute(1, 1, 1);
+        encoder->endComputePass();
+
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 

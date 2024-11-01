@@ -30,11 +30,6 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(
@@ -43,11 +38,8 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
-
-    ComPtr<IShaderObject> shaderObject;
-    REQUIRE_CALL(device->createMutableRootShaderObject(shaderProgram, shaderObject.writeRef()));
 
     std::vector<ComPtr<IBuffer>> buffers;
 
@@ -58,57 +50,70 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     ComPtr<IBuffer> resultBuffer = createBuffer(device, 0, ResourceState::UnorderedAccess);
 
     ComPtr<IShaderObject> materialObject;
-    REQUIRE_CALL(device->createMutableShaderObject(
-        slangReflection->findTypeByName("MaterialSystem"),
-        ShaderObjectContainerType::None,
-        materialObject.writeRef()
-    ));
-
-    ShaderCursor materialCursor(materialObject);
-    materialCursor["cb"].setData(uint4{1000, 1000, 1000, 1000});
-    materialCursor["data"].setBinding(buffers[2]);
+    {
+        REQUIRE_CALL(device->createShaderObject(
+            nullptr,
+            slangReflection->findTypeByName("MaterialSystem"),
+            ShaderObjectContainerType::None,
+            materialObject.writeRef()
+        ));
+        ShaderCursor curor(materialObject);
+        curor["cb"].setData(uint4{1000, 1000, 1000, 1000});
+        curor["data"].setBinding(buffers[2]);
+        materialObject->finalize();
+    }
 
     ComPtr<IShaderObject> sceneObject;
-    REQUIRE_CALL(device->createMutableShaderObject(
-        slangReflection->findTypeByName("Scene"),
-        ShaderObjectContainerType::None,
-        sceneObject.writeRef()
-    ));
+    {
+        REQUIRE_CALL(device->createShaderObject(
+            nullptr,
+            slangReflection->findTypeByName("Scene"),
+            ShaderObjectContainerType::None,
+            sceneObject.writeRef()
+        ));
+        ShaderCursor cursor(sceneObject);
+        cursor["sceneCb"].setData(uint4{100, 100, 100, 100});
+        cursor["data"].setBinding(buffers[1]);
+        cursor["material"].setObject(materialObject);
+        sceneObject->finalize();
+    }
 
-    ShaderCursor sceneCursor(sceneObject);
-    sceneCursor["sceneCb"].setData(uint4{100, 100, 100, 100});
-    sceneCursor["data"].setBinding(buffers[1]);
-    sceneCursor["material"].setObject(materialObject);
+    ComPtr<IShaderObject> cbObject;
+    {
+        REQUIRE_CALL(device->createShaderObject(
+            nullptr,
+            slangReflection->findTypeByName("PerView"),
+            ShaderObjectContainerType::None,
+            cbObject.writeRef()
+        ));
+        ShaderCursor cursor(cbObject);
+        cursor["value"].setData(uint4{20, 20, 20, 20});
+        cbObject->finalize();
+    }
 
-    ShaderCursor cursor(shaderObject);
+    ComPtr<IShaderObject> rootObject;
+    REQUIRE_CALL(device->createRootShaderObject(shaderProgram, rootObject.writeRef()));
+    ShaderCursor cursor(rootObject);
     cursor["resultBuffer"].setBinding(resultBuffer);
     cursor["scene"].setObject(sceneObject);
-
-    ComPtr<IShaderObject> globalCB;
-    REQUIRE_CALL(device->createShaderObject(
-        cursor[0].getTypeLayout()->getType(),
-        ShaderObjectContainerType::None,
-        globalCB.writeRef()
-    ));
-
-    cursor[0].setObject(globalCB);
-    auto initialData = uint4{20, 20, 20, 20};
-    globalCB->setData(ShaderOffset(), &initialData, sizeof(initialData));
+    cursor["perView"].setObject(cbObject);
+    rootObject->finalize();
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        encoder->beginComputePass();
+        ComputeState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        encoder->setComputeState(state);
+        encoder->dispatchCompute(1, 1, 1);
+        encoder->endComputePass();
 
-        passEncoder->bindPipelineWithRootObject(pipeline, shaderObject);
-
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -117,12 +122,13 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("nested-parameter-block")
 {
-    // Only supported on D3D12 and Vulkan.
     runGpuTests(
         testNestedParameterBlock,
         {
+            DeviceType::CUDA,
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal,
         }
     );
 }
