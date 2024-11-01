@@ -1,10 +1,9 @@
 #pragma once
 
+#include "../rhi-shared.h"
 #include "../d3d/d3d-surface.h"
 #include "../d3d/d3d-util.h"
 #include "../flag-combiner.h"
-#include "../immediate-device.h"
-#include "../mutable-shader-object.h"
 #include "../nvapi/nvapi-util.h"
 
 #include "core/common.h"
@@ -48,11 +47,6 @@ class ShaderProgramImpl;
 class BufferImpl;
 class TextureImpl;
 class SamplerImpl;
-class ResourceViewImpl;
-class ShaderResourceViewImpl;
-class UnorderedAccessViewImpl;
-class DepthStencilViewImpl;
-class RenderTargetViewImpl;
 class SurfaceImpl;
 class InputLayoutImpl;
 class QueryPoolImpl;
@@ -61,7 +55,9 @@ class ComputePipelineImpl;
 class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
 class ShaderObjectImpl;
-class MutableShaderObjectImpl;
 class RootShaderObjectImpl;
+class CommandQueueImpl;
+class CommandEncoderImpl;
+class CommandBufferImpl;
 
 } // namespace rhi::d3d11
