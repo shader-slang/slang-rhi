@@ -65,13 +65,7 @@ protected:
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
-    Result _writeOrdinaryData(
-        PassEncoderImpl* encoder,
-        IBuffer* buffer,
-        Offset offset,
-        Size destSize,
-        ShaderObjectLayoutImpl* specializedLayout
-    );
+    Result _writeOrdinaryData(uint8_t* destData, Size destSize, ShaderObjectLayoutImpl* specializedLayout);
 
 public:
     /// Write a single descriptor using the Vulkan API
@@ -104,8 +98,6 @@ public:
         BindingOffset const& offset,
         span<RefPtr<SamplerImpl>> samplers
     );
-
-    bool shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap);
 
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(
@@ -165,19 +157,15 @@ public:
     std::vector<ResourceSlot> m_resources;
     std::vector<RefPtr<SamplerImpl>> m_samplers;
 
-    // The transient constant buffer that holds the GPU copy of the constant data,
-    // weak referenced.
-    IBuffer* m_constantBuffer = nullptr;
-    // The offset into the transient constant buffer where the constant data starts.
-    Offset m_constantBufferOffset = 0;
+    // The size of the constant buffer for this object.
     Size m_constantBufferSize = 0;
+    // The constant buffer containing all the ordinary data for this object.
+    RefPtr<BufferImpl> m_constantBuffer;
+    // A CPU memory buffer containing the ordinary data for this object.
+    std::vector<uint8_t> m_constantBufferData;
 
     /// Dirty bit tracking whether the constant buffer needs to be updated.
     bool m_isConstantBufferDirty = true;
-    /// The transient heap from which the constant buffer is allocated.
-    TransientResourceHeapImpl* m_constantBufferTransientHeap;
-    /// The version of the transient heap when the constant buffer is allocated.
-    uint64_t m_constantBufferTransientHeapVersion;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///
