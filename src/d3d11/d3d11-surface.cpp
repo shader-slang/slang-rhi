@@ -42,4 +42,12 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return D3DSurface::configure(config);
 }
 
+Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurface)
+{
+    RefPtr<SurfaceImpl> surface = new SurfaceImpl();
+    SLANG_RETURN_ON_FAIL(surface->init(this, windowHandle));
+    returnComPtr(outSurface, surface);
+    return SLANG_OK;
+}
+
 } // namespace rhi::d3d11

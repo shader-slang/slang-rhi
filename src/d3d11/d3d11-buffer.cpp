@@ -8,19 +8,6 @@ DeviceAddress BufferImpl::getDeviceAddress()
     return 0;
 }
 
-Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
-{
-    SLANG_UNUSED(rangeToRead);
-    SLANG_UNUSED(outPointer);
-    return SLANG_FAIL;
-}
-
-Result BufferImpl::unmap(BufferRange* writtenRange)
-{
-    SLANG_UNUSED(writtenRange);
-    return SLANG_FAIL;
-}
-
 ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& range)
 {
     ViewKey key = {format, range};
@@ -94,6 +81,129 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
     SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateUnorderedAccessView(m_buffer, &uavDesc, uav.writeRef()));
 
     return uav.get();
+}
+
+Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+{
+    BufferDesc srcDesc = fixupBufferDesc(descIn);
+
+    auto d3dBindFlags = _calcResourceBindFlags(srcDesc.usage);
+
+    size_t alignedSizeInBytes = srcDesc.size;
+
+    if (d3dBindFlags & D3D11_BIND_CONSTANT_BUFFER)
+    {
+        // Make aligned to 256 bytes... not sure why, but if you remove this the tests do fail.
+        alignedSizeInBytes = D3DUtil::calcAligned(alignedSizeInBytes, 256);
+    }
+
+    // Hack to make the initialization never read from out of bounds memory, by copying into a buffer
+    std::vector<uint8_t> initDataBuffer;
+    if (initData && alignedSizeInBytes > srcDesc.size)
+    {
+        initDataBuffer.resize(alignedSizeInBytes);
+        ::memcpy(initDataBuffer.data(), initData, srcDesc.size);
+        initData = initDataBuffer.data();
+    }
+
+    D3D11_BUFFER_DESC bufferDesc = {0};
+    bufferDesc.ByteWidth = UINT(alignedSizeInBytes);
+    bufferDesc.BindFlags = d3dBindFlags;
+    // For read we'll need to do some staging
+    bufferDesc.CPUAccessFlags = _calcResourceAccessFlags(descIn.memoryType);
+    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+
+    // If written by CPU, make it dynamic
+    if (descIn.memoryType == MemoryType::Upload && !is_set(descIn.usage, BufferUsage::UnorderedAccess))
+    {
+        bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+    }
+
+    if (srcDesc.memoryType == MemoryType::ReadBack)
+    {
+        bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
+        bufferDesc.Usage = D3D11_USAGE_STAGING;
+    }
+
+    if (is_set(srcDesc.usage, BufferUsage::IndirectArgument))
+    {
+        bufferDesc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+    }
+
+    switch (descIn.defaultState)
+    {
+    case ResourceState::ConstantBuffer:
+    {
+        // We'll just assume ConstantBuffers are dynamic for now
+        bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        break;
+    }
+    default:
+        break;
+    }
+
+    if (bufferDesc.BindFlags & (D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE))
+    {
+        // desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+        if (srcDesc.elementSize != 0)
+        {
+            bufferDesc.StructureByteStride = (UINT)srcDesc.elementSize;
+            bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        }
+        else
+        {
+            bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+        }
+    }
+
+    if (srcDesc.memoryType == MemoryType::Upload)
+    {
+        bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
+    }
+
+    D3D11_SUBRESOURCE_DATA subresourceData = {0};
+    subresourceData.pSysMem = initData;
+
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
+    buffer->m_device = this;
+
+    SLANG_RETURN_ON_FAIL(
+        m_device->CreateBuffer(&bufferDesc, initData ? &subresourceData : nullptr, buffer->m_buffer.writeRef())
+    );
+    buffer->m_d3dUsage = bufferDesc.Usage;
+
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    D3D11_MAP mapType;
+
+    switch (mode)
+    {
+    case CpuAccessMode::Read:
+        mapType = D3D11_MAP_READ;
+        break;
+    case CpuAccessMode::Write:
+        mapType = D3D11_MAP_WRITE_DISCARD;
+        break;
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    SLANG_RETURN_ON_FAIL(m_immediateContext->Map(bufferImpl->m_buffer, 0, mapType, 0, &mappedResource));
+    *outData = mappedResource.pData;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::unmapBuffer(IBuffer* buffer)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    m_immediateContext->Unmap(bufferImpl->m_buffer, 0);
+    return SLANG_OK;
 }
 
 } // namespace rhi::d3d11

@@ -81,17 +81,11 @@ struct ComputeBindingContext : BindingContext
     {
     }
 
-    void setCBV(UINT index, ID3D11Buffer* buffer) SLANG_OVERRIDE { context->CSSetConstantBuffers(index, 1, &buffer); }
+    void setCBV(UINT index, ID3D11Buffer* buffer) override { context->CSSetConstantBuffers(index, 1, &buffer); }
 
-    void setSRV(UINT index, ID3D11ShaderResourceView* srv) SLANG_OVERRIDE
-    {
-        context->CSSetShaderResources(index, 1, &srv);
-    }
+    void setSRV(UINT index, ID3D11ShaderResourceView* srv) override { context->CSSetShaderResources(index, 1, &srv); }
 
-    void setSampler(UINT index, ID3D11SamplerState* sampler) SLANG_OVERRIDE
-    {
-        context->CSSetSamplers(index, 1, &sampler);
-    }
+    void setSampler(UINT index, ID3D11SamplerState* sampler) override { context->CSSetSamplers(index, 1, &sampler); }
 };
 
 /// A `BindingContext` for binding to the graphics/rasterization pipeline
@@ -112,19 +106,19 @@ struct GraphicsBindingContext : BindingContext
     // entry-point parameters, we might need to support some modes where
     // a "stage mask" is passed in that applies to the bindings.
     //
-    void setCBV(UINT index, ID3D11Buffer* buffer) SLANG_OVERRIDE
+    void setCBV(UINT index, ID3D11Buffer* buffer) override
     {
         context->VSSetConstantBuffers(index, 1, &buffer);
         context->PSSetConstantBuffers(index, 1, &buffer);
     }
 
-    void setSRV(UINT index, ID3D11ShaderResourceView* srv) SLANG_OVERRIDE
+    void setSRV(UINT index, ID3D11ShaderResourceView* srv) override
     {
         context->VSSetShaderResources(index, 1, &srv);
         context->PSSetShaderResources(index, 1, &srv);
     }
 
-    void setSampler(UINT index, ID3D11SamplerState* sampler) SLANG_OVERRIDE
+    void setSampler(UINT index, ID3D11SamplerState* sampler) override
     {
         context->VSSetSamplers(index, 1, &sampler);
         context->PSSetSamplers(index, 1, &sampler);
