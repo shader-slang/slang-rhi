@@ -141,7 +141,7 @@ public:
 
         m_constantBufferPool.init(
             device,
-            MemoryType::Upload,
+            MemoryType::DeviceLocal,
             256,
             BufferUsage::ConstantBuffer | BufferUsage::CopySource | BufferUsage::CopyDestination
         );
