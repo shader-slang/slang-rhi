@@ -22,7 +22,6 @@ using namespace rhi;
 class ExampleSurface : public ExampleBase
 {
 public:
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<ICommandQueue> queue;
     float grey = 0.5f;
 
@@ -33,10 +32,6 @@ public:
         createDevice(deviceType);
         createWindow();
         createSurface();
-
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        transientHeap = device->createTransientResourceHeap(transientHeapDesc);
 
         queue = device->getQueue(QueueType::Graphics);
 
@@ -62,7 +57,7 @@ public:
         }
         ComPtr<ITextureView> view = device->createTextureView(texture, {});
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
         RenderPassColorAttachment colorAttachment;
         colorAttachment.clearValue[0] = grey;
         colorAttachment.clearValue[1] = grey;
@@ -73,17 +68,13 @@ public:
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto encoder = commandBuffer->beginRenderPass(renderPass);
-        encoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        commandEncoder->beginRenderPass(renderPass);
+        commandEncoder->endRenderPass();
+        queue->submit(commandEncoder->finish());
 
         surface->present();
 
         grey = (grey + (1.f / 60.f)) > 1.f ? 0.f : grey + (1.f / 60.f);
-
-        transientHeap->finish();
-        transientHeap->synchronizeAndReset();
     }
 };
 
