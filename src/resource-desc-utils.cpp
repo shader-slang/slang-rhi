@@ -2,20 +2,82 @@
 
 namespace rhi {
 
+inline ResourceState determineDefaultResourceState(BufferUsage usage)
+{
+    struct BufferUsageMapping
+    {
+        BufferUsage usage;
+        ResourceState state;
+    };
+    static const BufferUsageMapping kBufferUsageMappings[] = {
+        {BufferUsage::ShaderTable, ResourceState::ShaderResource},
+        {BufferUsage::VertexBuffer, ResourceState::VertexBuffer},
+        {BufferUsage::IndexBuffer, ResourceState::IndexBuffer},
+        {BufferUsage::AccelerationStructure, ResourceState::AccelerationStructure},
+        {BufferUsage::AccelerationStructureBuildInput, ResourceState::AccelerationStructureBuildInput},
+        {BufferUsage::ConstantBuffer, ResourceState::ConstantBuffer},
+        {BufferUsage::ShaderResource, ResourceState::ShaderResource},
+        {BufferUsage::UnorderedAccess, ResourceState::UnorderedAccess},
+        {BufferUsage::IndirectArgument, ResourceState::IndirectArgument},
+        {BufferUsage::CopySource, ResourceState::CopySource},
+        {BufferUsage::CopyDestination, ResourceState::CopyDestination},
+    };
+    for (const auto& mapping : kBufferUsageMappings)
+    {
+        if (is_set(usage, mapping.usage))
+            return mapping.state;
+    }
+    return ResourceState::General;
+}
+
+inline ResourceState determineDefaultResourceState(TextureUsage usage)
+{
+    struct TextureUsageMapping
+    {
+        TextureUsage usage;
+        ResourceState state;
+    };
+    static const TextureUsageMapping kTextureUsageMappings[] = {
+        {TextureUsage::ShaderResource, ResourceState::ShaderResource},
+        {TextureUsage::UnorderedAccess, ResourceState::UnorderedAccess},
+        {TextureUsage::RenderTarget, ResourceState::RenderTarget},
+        {TextureUsage::DepthRead, ResourceState::DepthRead},
+        {TextureUsage::DepthWrite, ResourceState::DepthWrite},
+        {TextureUsage::CopySource, ResourceState::CopySource},
+        {TextureUsage::CopyDestination, ResourceState::CopyDestination},
+        {TextureUsage::ResolveSource, ResourceState::ResolveSource},
+        {TextureUsage::ResolveDestination, ResourceState::ResolveDestination},
+    };
+    for (const auto& mapping : kTextureUsageMappings)
+    {
+        if (is_set(usage, mapping.usage))
+            return mapping.state;
+    }
+    return ResourceState::General;
+}
+
 BufferDesc fixupBufferDesc(const BufferDesc& desc)
 {
     BufferDesc result = desc;
+
+    if (desc.defaultState == ResourceState::Undefined)
+        result.defaultState = determineDefaultResourceState(desc.usage);
+
     return result;
 }
 
 TextureDesc fixupTextureDesc(const TextureDesc& desc)
 {
-    TextureDesc rs = desc;
+    TextureDesc result = desc;
+
     if (desc.arrayLength == 0)
-        rs.arrayLength = 1;
+        result.arrayLength = 1;
     if (desc.mipLevelCount == 0)
-        rs.mipLevelCount = calcNumMipLevels(desc.type, desc.size);
-    return rs;
+        result.mipLevelCount = calcNumMipLevels(desc.type, desc.size);
+    if (desc.defaultState == ResourceState::Undefined)
+        result.defaultState = determineDefaultResourceState(desc.usage);
+
+    return result;
 }
 
 Format srgbToLinearFormat(Format format)
