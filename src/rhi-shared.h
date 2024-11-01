@@ -437,7 +437,7 @@ public:
 
     Index getCount() { return m_ordinaryData.size(); }
     void setCount(Index count) { m_ordinaryData.resize(count); }
-    uint8_t* getBuffer() { return m_ordinaryData.data(); }
+    uint8_t* getBuffer() { return m_ordinaryData.empty() ? nullptr : m_ordinaryData.data(); }
 
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
