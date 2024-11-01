@@ -1,8 +1,7 @@
 #include "enum-strings.h"
+#include "strings.h"
 
 namespace rhi {
-
-static const char* kInvalid = "invalid";
 
 template<typename Enum>
 std::string flagsToString(Enum value)
@@ -25,21 +24,21 @@ const char* enumToString(DeviceType value)
     switch (value)
     {
     case DeviceType::Default:
-        return "Default";
+        return S_DeviceType_Default;
     case DeviceType::D3D11:
-        return "D3D11";
+        return S_DeviceType_D3D11;
     case DeviceType::D3D12:
-        return "D3D12";
+        return S_DeviceType_D3D12;
     case DeviceType::Vulkan:
-        return "Vulkan";
+        return S_DeviceType_Vulkan;
     case DeviceType::Metal:
-        return "Metal";
+        return S_DeviceType_Metal;
     case DeviceType::CPU:
-        return "CPU";
+        return S_DeviceType_CPU;
     case DeviceType::CUDA:
-        return "CUDA";
+        return S_DeviceType_CUDA;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(Format value)
@@ -50,7 +49,7 @@ const char* enumToString(Format value)
     }
     else
     {
-        return kInvalid;
+        return S_INVALID;
     }
 }
 
@@ -59,33 +58,33 @@ const char* enumToString(FormatSupport value)
     switch (value)
     {
     case FormatSupport::None:
-        return "None";
+        return S_FormatSupport_None;
     case FormatSupport::Buffer:
-        return "Buffer";
+        return S_FormatSupport_Buffer;
     case FormatSupport::IndexBuffer:
-        return "IndexBuffer";
+        return S_FormatSupport_IndexBuffer;
     case FormatSupport::VertexBuffer:
-        return "VertexBuffer";
+        return S_FormatSupport_VertexBuffer;
     case FormatSupport::Texture:
-        return "Texture";
+        return S_FormatSupport_Texture;
     case FormatSupport::DepthStencil:
-        return "DepthStencil";
+        return S_FormatSupport_DepthStencil;
     case FormatSupport::RenderTarget:
-        return "RenderTarget";
+        return S_FormatSupport_RenderTarget;
     case FormatSupport::Blendable:
-        return "Blendable";
+        return S_FormatSupport_Blendable;
     case FormatSupport::ShaderLoad:
-        return "ShaderLoad";
+        return S_FormatSupport_ShaderLoad;
     case FormatSupport::ShaderSample:
-        return "ShaderSample";
+        return S_FormatSupport_ShaderSample;
     case FormatSupport::ShaderUavLoad:
-        return "ShaderUavLoad";
+        return S_FormatSupport_ShaderUavLoad;
     case FormatSupport::ShaderUavStore:
-        return "ShaderUavStore";
+        return S_FormatSupport_ShaderUavStore;
     case FormatSupport::ShaderAtomic:
-        return "ShaderAtomic";
+        return S_FormatSupport_ShaderAtomic;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(MemoryType value)
@@ -93,13 +92,13 @@ const char* enumToString(MemoryType value)
     switch (value)
     {
     case MemoryType::DeviceLocal:
-        return "DeviceLocal";
+        return S_MemoryType_DeviceLocal;
     case MemoryType::Upload:
-        return "Upload";
+        return S_MemoryType_Upload;
     case MemoryType::ReadBack:
-        return "ReadBack";
+        return S_MemoryType_ReadBack;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(BufferUsage value)
@@ -107,31 +106,31 @@ const char* enumToString(BufferUsage value)
     switch (value)
     {
     case BufferUsage::None:
-        return "None";
+        return S_BufferUsage_None;
     case BufferUsage::VertexBuffer:
-        return "VertexBuffer";
+        return S_BufferUsage_VertexBuffer;
     case BufferUsage::IndexBuffer:
-        return "IndexBuffer";
+        return S_BufferUsage_IndexBuffer;
     case BufferUsage::ConstantBuffer:
-        return "ConstantBuffer";
+        return S_BufferUsage_ConstantBuffer;
     case BufferUsage::ShaderResource:
-        return "ShaderResource";
+        return S_BufferUsage_ShaderResource;
     case BufferUsage::UnorderedAccess:
-        return "UnorderedAccess";
+        return S_BufferUsage_UnorderedAccess;
     case BufferUsage::IndirectArgument:
-        return "IndirectArgument";
+        return S_BufferUsage_IndirectArgument;
     case BufferUsage::CopySource:
-        return "CopySource";
+        return S_BufferUsage_CopySource;
     case BufferUsage::CopyDestination:
-        return "CopyDestination";
+        return S_BufferUsage_CopyDestination;
     case BufferUsage::AccelerationStructure:
-        return "AccelerationStructure";
+        return S_BufferUsage_AccelerationStructure;
     case BufferUsage::AccelerationStructureBuildInput:
-        return "AccelerationStructureBuildInput";
+        return S_BufferUsage_AccelerationStructureBuildInput;
     case BufferUsage::ShaderTable:
-        return "ShaderTable";
+        return S_BufferUsage_ShaderTable;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 std::string flagsToString(BufferUsage value)
@@ -144,15 +143,15 @@ const char* enumToString(TextureType value)
     switch (value)
     {
     case TextureType::Texture1D:
-        return "Texture1D";
+        return S_TextureType_Texture1D;
     case TextureType::Texture2D:
-        return "Texture2D";
+        return S_TextureType_Texture2D;
     case TextureType::Texture3D:
-        return "Texture3D";
+        return S_TextureType_Texture3D;
     case TextureType::TextureCube:
-        return "TextureCube";
+        return S_TextureType_TextureCube;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(TextureUsage value)
@@ -160,29 +159,29 @@ const char* enumToString(TextureUsage value)
     switch (value)
     {
     case TextureUsage::None:
-        return "None";
+        return S_TextureUsage_None;
     case TextureUsage::ShaderResource:
-        return "ShaderResource";
+        return S_TextureUsage_ShaderResource;
     case TextureUsage::UnorderedAccess:
-        return "UnorderedAccess";
+        return S_TextureUsage_UnorderedAccess;
     case TextureUsage::RenderTarget:
-        return "RenderTarget";
+        return S_TextureUsage_RenderTarget;
     case TextureUsage::DepthRead:
-        return "DepthRead";
+        return S_TextureUsage_DepthRead;
     case TextureUsage::DepthWrite:
-        return "DepthWrite";
+        return S_TextureUsage_DepthWrite;
     case TextureUsage::Present:
-        return "Present";
+        return S_TextureUsage_Present;
     case TextureUsage::CopySource:
-        return "CopySource";
+        return S_TextureUsage_CopySource;
     case TextureUsage::CopyDestination:
-        return "CopyDestination";
+        return S_TextureUsage_CopyDestination;
     case TextureUsage::ResolveSource:
-        return "ResolveSource";
+        return S_TextureUsage_ResolveSource;
     case TextureUsage::ResolveDestination:
-        return "ResolveDestination";
+        return S_TextureUsage_ResolveDestination;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 std::string flagsToString(TextureUsage value)
@@ -195,45 +194,45 @@ const char* enumToString(ResourceState value)
     switch (value)
     {
     case ResourceState::Undefined:
-        return "Undefined";
+        return S_ResourceState_Undefined;
     case ResourceState::General:
-        return "General";
+        return S_ResourceState_General;
     case ResourceState::VertexBuffer:
-        return "VertexBuffer";
+        return S_ResourceState_VertexBuffer;
     case ResourceState::IndexBuffer:
-        return "IndexBuffer";
+        return S_ResourceState_IndexBuffer;
     case ResourceState::ConstantBuffer:
-        return "ConstantBuffer";
+        return S_ResourceState_ConstantBuffer;
     case ResourceState::StreamOutput:
-        return "StreamOutput";
+        return S_ResourceState_StreamOutput;
     case ResourceState::ShaderResource:
-        return "ShaderResource";
+        return S_ResourceState_ShaderResource;
     case ResourceState::UnorderedAccess:
-        return "UnorderedAccess";
+        return S_ResourceState_UnorderedAccess;
     case ResourceState::RenderTarget:
-        return "RenderTarget";
+        return S_ResourceState_RenderTarget;
     case ResourceState::DepthRead:
-        return "DepthRead";
+        return S_ResourceState_DepthRead;
     case ResourceState::DepthWrite:
-        return "DepthWrite";
+        return S_ResourceState_DepthWrite;
     case ResourceState::Present:
-        return "Present";
+        return S_ResourceState_Present;
     case ResourceState::IndirectArgument:
-        return "IndirectArgument";
+        return S_ResourceState_IndirectArgument;
     case ResourceState::CopySource:
-        return "CopySource";
+        return S_ResourceState_CopySource;
     case ResourceState::CopyDestination:
-        return "CopyDestination";
+        return S_ResourceState_CopyDestination;
     case ResourceState::ResolveSource:
-        return "ResolveSource";
+        return S_ResourceState_ResolveSource;
     case ResourceState::ResolveDestination:
-        return "ResolveDestination";
+        return S_ResourceState_ResolveDestination;
     case ResourceState::AccelerationStructure:
-        return "AccelerationStructure";
+        return S_ResourceState_AccelerationStructure;
     case ResourceState::AccelerationStructureBuildInput:
-        return "AccelerationStructureBuildInput";
+        return S_ResourceState_AccelerationStructureBuildInput;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(TextureFilteringMode value)
@@ -241,11 +240,11 @@ const char* enumToString(TextureFilteringMode value)
     switch (value)
     {
     case TextureFilteringMode::Point:
-        return "Point";
+        return S_TextureFilteringMode_Point;
     case TextureFilteringMode::Linear:
-        return "Linear";
+        return S_TextureFilteringMode_Linear;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(TextureAddressingMode value)
@@ -253,17 +252,17 @@ const char* enumToString(TextureAddressingMode value)
     switch (value)
     {
     case TextureAddressingMode::Wrap:
-        return "Wrap";
+        return S_TextureAddressingMode_Wrap;
     case TextureAddressingMode::ClampToEdge:
-        return "ClampToEdge";
+        return S_TextureAddressingMode_ClampToEdge;
     case TextureAddressingMode::ClampToBorder:
-        return "ClampToBorder";
+        return S_TextureAddressingMode_ClampToBorder;
     case TextureAddressingMode::MirrorRepeat:
-        return "MirrorRepeat";
+        return S_TextureAddressingMode_MirrorRepeat;
     case TextureAddressingMode::MirrorOnce:
-        return "MirrorOnce";
+        return S_TextureAddressingMode_MirrorOnce;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(ComparisonFunc value)
@@ -271,23 +270,23 @@ const char* enumToString(ComparisonFunc value)
     switch (value)
     {
     case ComparisonFunc::Never:
-        return "Never";
+        return S_ComparisonFunc_Never;
     case ComparisonFunc::Less:
-        return "Less";
+        return S_ComparisonFunc_Less;
     case ComparisonFunc::Equal:
-        return "Equal";
+        return S_ComparisonFunc_Equal;
     case ComparisonFunc::LessEqual:
-        return "LessEqual";
+        return S_ComparisonFunc_LessEqual;
     case ComparisonFunc::Greater:
-        return "Greater";
+        return S_ComparisonFunc_Greater;
     case ComparisonFunc::NotEqual:
-        return "NotEqual";
+        return S_ComparisonFunc_NotEqual;
     case ComparisonFunc::GreaterEqual:
-        return "GreaterEqual";
+        return S_ComparisonFunc_GreaterEqual;
     case ComparisonFunc::Always:
-        return "Always";
+        return S_ComparisonFunc_Always;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(TextureReductionOp value)
@@ -295,15 +294,15 @@ const char* enumToString(TextureReductionOp value)
     switch (value)
     {
     case TextureReductionOp::Average:
-        return "Average";
+        return S_TextureReductionOp_Average;
     case TextureReductionOp::Comparison:
-        return "Comparison";
+        return S_TextureReductionOp_Comparison;
     case TextureReductionOp::Minimum:
-        return "Minimum";
+        return S_TextureReductionOp_Minimum;
     case TextureReductionOp::Maximum:
-        return "Maximum";
+        return S_TextureReductionOp_Maximum;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(InputSlotClass value)
@@ -311,11 +310,11 @@ const char* enumToString(InputSlotClass value)
     switch (value)
     {
     case InputSlotClass::PerVertex:
-        return "PerVertex";
+        return S_InputSlotClass_PerVertex;
     case InputSlotClass::PerInstance:
-        return "PerInstance";
+        return S_InputSlotClass_PerInstance;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 const char* enumToString(PrimitiveTopology value)
@@ -323,19 +322,19 @@ const char* enumToString(PrimitiveTopology value)
     switch (value)
     {
     case PrimitiveTopology::PointList:
-        return "PointList";
+        return S_PrimitiveTopology_PointList;
     case PrimitiveTopology::LineList:
-        return "LineList";
+        return S_PrimitiveTopology_LineList;
     case PrimitiveTopology::LineStrip:
-        return "LineStrip";
+        return S_PrimitiveTopology_LineStrip;
     case PrimitiveTopology::TriangleList:
-        return "TriangleList";
+        return S_PrimitiveTopology_TriangleList;
     case PrimitiveTopology::TriangleStrip:
-        return "TriangleStrip";
+        return S_PrimitiveTopology_TriangleStrip;
     case PrimitiveTopology::PatchList:
-        return "PatchList";
+        return S_PrimitiveTopology_PatchList;
     }
-    return kInvalid;
+    return S_INVALID;
 }
 
 } // namespace rhi
