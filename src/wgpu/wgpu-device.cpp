@@ -33,7 +33,11 @@ Context::~Context()
     }
 }
 
-DeviceImpl::~DeviceImpl() {}
+DeviceImpl::~DeviceImpl()
+{
+    m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
+    m_queue.setNull();
+}
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
