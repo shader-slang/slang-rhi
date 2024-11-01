@@ -17,7 +17,7 @@ public:
     SLANG_COM_BASE_IUNKNOWN_ALL
 
     // ISlangCastable
-    virtual SLANG_NO_THROW void* SLANG_MCALL castAs(const SlangUUID& guid) SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW void* SLANG_MCALL castAs(const SlangUUID& guid) override;
 
 protected:
     ISlangUnknown* getInterface(const Guid& guid);

@@ -53,7 +53,7 @@ inline uint32_t ComBaseObject::_releaseImpl()
 }
 
 #define SLANG_COM_BASE_IUNKNOWN_QUERY_INTERFACE                                                                        \
-    SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE           \
+    SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override                 \
     {                                                                                                                  \
         void* intf = getInterface(uuid);                                                                               \
         if (intf)                                                                                                      \
@@ -65,12 +65,12 @@ inline uint32_t ComBaseObject::_releaseImpl()
         return SLANG_E_NO_INTERFACE;                                                                                   \
     }
 #define SLANG_COM_BASE_IUNKNOWN_ADD_REF                                                                                \
-    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() SLANG_OVERRIDE                                                        \
+    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override                                                              \
     {                                                                                                                  \
         return ++m_refCount;                                                                                           \
     }
 #define SLANG_COM_BASE_IUNKNOWN_RELEASE                                                                                \
-    SLANG_NO_THROW uint32_t SLANG_MCALL release() SLANG_OVERRIDE                                                       \
+    SLANG_NO_THROW uint32_t SLANG_MCALL release() override                                                             \
     {                                                                                                                  \
         return _releaseImpl();                                                                                         \
     }
@@ -121,7 +121,7 @@ public:
 };
 
 #define SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE                                                                      \
-    SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE           \
+    SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override                 \
     {                                                                                                                  \
         void* intf = getInterface(uuid);                                                                               \
         if (intf)                                                                                                      \
@@ -133,12 +133,12 @@ public:
         return SLANG_E_NO_INTERFACE;                                                                                   \
     }
 #define SLANG_COM_OBJECT_IUNKNOWN_ADD_REF                                                                              \
-    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() SLANG_OVERRIDE                                                        \
+    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override                                                              \
     {                                                                                                                  \
         return addRefImpl();                                                                                           \
     }
 #define SLANG_COM_OBJECT_IUNKNOWN_RELEASE                                                                              \
-    SLANG_NO_THROW uint32_t SLANG_MCALL release() SLANG_OVERRIDE                                                       \
+    SLANG_NO_THROW uint32_t SLANG_MCALL release() override                                                             \
     {                                                                                                                  \
         return releaseImpl();                                                                                          \
     }
