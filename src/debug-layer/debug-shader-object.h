@@ -38,6 +38,8 @@ public:
     SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugShaderObject);
 
     void checkCompleteness();
+    void checkFinalized();
+    void checkNotFinalized();
 
 public:
     IShaderObject* getInterface(const Guid& guid);
@@ -53,11 +55,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setSpecializationArgs(ShaderOffset const& offset, const slang::SpecializationArg* args, GfxCount count) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCurrentVersion(ITransientResourceHeap* transientHeap, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized() override;
 
 public:
     // Type name of an ordinary shader object.
@@ -90,8 +93,6 @@ public:
     {
     }
 
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setSpecializationArgs(ShaderOffset const& offset, const slang::SpecializationArg* args, GfxCount count) override;
     void reset();

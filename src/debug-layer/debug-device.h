@@ -22,8 +22,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) override;
@@ -39,6 +37,8 @@ public:
     createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
@@ -55,22 +55,6 @@ public:
     createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
-        slang::TypeReflection* type,
-        ShaderObjectContainerType container,
-        IShaderObject** outObject
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject2(
-        slang::ISession* session,
-        slang::TypeReflection* type,
-        ShaderObjectContainerType container,
-        IShaderObject** outObject
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMutableShaderObject(
-        slang::TypeReflection* type,
-        ShaderObjectContainerType container,
-        IShaderObject** outObject
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMutableShaderObject2(
         slang::ISession* session,
         slang::TypeReflection* type,
         ShaderObjectContainerType container,
@@ -78,29 +62,19 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMutableShaderObjectFromTypeLayout(
-        slang::TypeLayoutReflection* typeLayout,
-        IShaderObject** outObject
-    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
         ISlangBlob** outDiagnostics
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
+    createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
+    createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
