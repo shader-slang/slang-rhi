@@ -14,11 +14,7 @@ public:
 
     DeviceImpl* m_device;
 
-    virtual RefPtr<Buffer> createDeviceBuffer(
-        RayTracingPipeline* pipeline,
-        TransientResourceHeap* transientHeap,
-        IRayTracingPassEncoder* encoder
-    ) override;
+    virtual RefPtr<Buffer> createDeviceBuffer(RayTracingPipeline* pipeline) override;
 };
 
 } // namespace rhi::metal

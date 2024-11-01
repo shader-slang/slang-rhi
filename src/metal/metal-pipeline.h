@@ -10,6 +10,7 @@ namespace rhi::metal {
 class RenderPipelineImpl : public RenderPipeline
 {
 public:
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     NS::SharedPtr<MTL::RenderPipelineState> m_pipelineState;
     NS::SharedPtr<MTL::DepthStencilState> m_depthStencilState;
     MTL::PrimitiveType m_primitiveType;
@@ -23,6 +24,7 @@ public:
 class ComputePipelineImpl : public ComputePipeline
 {
 public:
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     NS::SharedPtr<MTL::ComputePipelineState> m_pipelineState;
     MTL::Size m_threadGroupSize;
 

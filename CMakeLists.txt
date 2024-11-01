@@ -341,6 +341,7 @@ if(APPLE)
     target_sources(slang-rhi PRIVATE
         src/cocoa-util.mm
     )
+    target_link_libraries(slang-rhi INTERFACE "-framework Foundation" "-framework QuartzCore")
 endif()
 
 if(SLANG_RHI_ENABLE_CPU)
@@ -448,9 +449,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-acceleration-structure.cpp
         src/metal/metal-api.cpp
         src/metal/metal-buffer.cpp
-        src/metal/metal-command-buffer.cpp
-        src/metal/metal-command-encoder.cpp
-        src/metal/metal-command-queue.cpp
+        src/metal/metal-command.cpp
         src/metal/metal-device.cpp
         src/metal/metal-fence.cpp
         src/metal/metal-helper-functions.cpp
@@ -463,14 +462,12 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-shader-program.cpp
         src/metal/metal-shader-table.cpp
         src/metal/metal-surface.cpp
-        src/metal/metal-texture-view.cpp
         src/metal/metal-texture.cpp
-        src/metal/metal-transient-heap.cpp
         src/metal/metal-util.cpp
     )
     add_library(slang-rhi-metal-cpp INTERFACE)
     target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
-    target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Foundation" "-framework Metal" "-framework QuartzCore")
+    target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Metal")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
 endif()
 

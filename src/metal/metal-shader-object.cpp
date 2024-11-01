@@ -1,10 +1,12 @@
 #include "metal-shader-object.h"
 #include "metal-device.h"
+#include "metal-buffer.h"
+#include "metal-texture.h"
 #include "metal-sampler.h"
 
 namespace rhi::metal {
 
-Result ShaderObjectImpl::create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject)
+Result ShaderObjectImpl::create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject)
 {
     auto object = RefPtr<ShaderObjectImpl>(new ShaderObjectImpl());
     SLANG_RETURN_ON_FAIL(object->init(device, layout));
@@ -17,6 +19,8 @@ ShaderObjectImpl::~ShaderObjectImpl() {}
 
 Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
 
@@ -46,6 +50,8 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
 
 Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
     auto layout = getLayout();
@@ -78,10 +84,9 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
+Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout)
 {
-    m_device = checked_cast<DeviceImpl*>(device);
-
+    m_device = device;
     m_layout = layout;
 
     // If the layout tells us that there is any uniform data,
@@ -137,6 +142,9 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* layout)
         }
     }
     m_isArgumentBufferDirty = true;
+
+    m_state = State::Initialized;
+
     return SLANG_OK;
 }
 
@@ -260,10 +268,8 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* de
         //
 
         BufferRange range = {0, ordinaryDataSize};
-        void* ordinaryData;
-        SLANG_RETURN_ON_FAIL(m_ordinaryDataBuffer->map(&range, &ordinaryData));
+        void* ordinaryData = m_ordinaryDataBuffer->m_buffer->contents();
         auto result = _writeOrdinaryData(ordinaryData, ordinaryDataSize, layout);
-        m_ordinaryDataBuffer->unmap(&range);
         m_isConstantBufferDirty = false;
         return result;
     }
@@ -353,8 +359,7 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
         //
         auto dataSize = typeLayout->getSize();
         BufferRange range = {0, dataSize};
-        void* argumentData;
-        SLANG_RETURN_NULL_ON_FAIL(m_argumentBuffer->map(&range, &argumentData));
+        void* argumentData = m_argumentBuffer->m_buffer->contents();
 
         // Now fill in argument values to `argumentData`.
         int bindingRangeIndex = 0;
@@ -434,7 +439,6 @@ BufferImpl* ShaderObjectImpl::_ensureArgumentBufferUpToDate(DeviceImpl* device, 
             (uint8_t*)argumentData,
             (uint8_t*)m_data.getBuffer()
         );
-        m_argumentBuffer->unmap(&range);
         m_isArgumentBufferDirty = false;
     }
 
@@ -623,7 +627,7 @@ Result ShaderObjectImpl::bindAsValue(
 }
 
 Result RootShaderObjectImpl::create(
-    IDevice* device,
+    DeviceImpl* device,
     RootShaderObjectLayoutImpl* layout,
     RootShaderObjectImpl** outShaderObject
 )
@@ -705,7 +709,7 @@ Result RootShaderObjectImpl::bindAsRoot(BindingContext* context, RootShaderObjec
     return SLANG_OK;
 }
 
-Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* layout)
+Result RootShaderObjectImpl::init(DeviceImpl* device, RootShaderObjectLayoutImpl* layout)
 {
     SLANG_RETURN_ON_FAIL(Super::init(device, layout));
 
