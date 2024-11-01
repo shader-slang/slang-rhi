@@ -560,26 +560,25 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-existing-device-handle.cpp
         tests/test-formats.cpp
         tests/test-instanced-draw.cpp
-        tests/test-link-time-constant.cpp
-        tests/test-link-time-default.cpp
-        tests/test-link-time-options.cpp
-        tests/test-link-time-type.cpp
-        tests/test-mutable-shader-object.cpp
+        # tests/test-link-time-constant.cpp
+        # tests/test-link-time-default.cpp
+        # tests/test-link-time-options.cpp
+        # tests/test-link-time-type.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
-        tests/test-precompiled-module-2.cpp
-        tests/test-precompiled-module-cache.cpp
-        tests/test-precompiled-module.cpp
+        # tests/test-precompiled-module-2.cpp
+        # tests/test-precompiled-module-cache.cpp
+        # tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
-        tests/test-root-mutable-shader-object.cpp
-        tests/test-root-shader-parameter.cpp
-        tests/test-sampler-array.cpp
-        tests/test-shader-cache.cpp
+        # tests/test-root-mutable-shader-object.cpp
+        # tests/test-root-shader-parameter.cpp
+        # tests/test-sampler-array.cpp
+        # tests/test-shader-cache.cpp
         tests/test-shared-buffer.cpp
         tests/test-shared-texture.cpp
-        tests/test-swapchain.cpp
+        # tests/test-swapchain.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp

@@ -27,11 +27,6 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler-array", "computeMain", slangReflection));
@@ -69,23 +64,8 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         samplers.push_back(sampler);
     }
 
-    ComPtr<IShaderObject> rootObject;
-    device->createMutableRootShaderObject(shaderProgram, rootObject.writeRef());
-
-    ComPtr<IShaderObject> g;
-    device->createMutableShaderObject(
-        slangReflection->findTypeByName("S0"),
-        ShaderObjectContainerType::None,
-        g.writeRef()
-    );
-
-    ComPtr<IShaderObject> s1;
-    device->createMutableShaderObject(
-        slangReflection->findTypeByName("S1"),
-        ShaderObjectContainerType::None,
-        s1.writeRef()
-    );
-
+    ComPtr<IShaderObject> s1 =
+        device->createShaderObject(slangReflection->findTypeByName("S1"), ShaderObjectContainerType::None);
     {
         auto cursor = ShaderCursor(s1);
         for (uint32_t i = 0; i < 32; i++)
@@ -95,32 +75,37 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
         }
         cursor["data"].setData(1.0f);
     }
+    s1->finalize();
 
+    ComPtr<IShaderObject> g =
+        device->createShaderObject(slangReflection->findTypeByName("S0"), ShaderObjectContainerType::None);
     {
         auto cursor = ShaderCursor(g);
         cursor["s"].setObject(s1);
         cursor["data"].setData(2.0f);
     }
+    g->finalize();
 
+    ComPtr<IShaderObject> rootObject = device->createRootShaderObject(pipeline);
     {
         auto cursor = ShaderCursor(rootObject);
         cursor["g"].setObject(g);
         cursor["buffer"].setBinding(buffer);
     }
+    rootObject->finalize();
 
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        {
-            auto passEncoder = commandBuffer->beginComputePass();
-            passEncoder->bindPipelineWithRootObject(pipeline, rootObject);
-            passEncoder->dispatchCompute(1, 1, 1);
-            passEncoder->end();
-        }
+        ComputeState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        encoder->setComputeState(state);
+        encoder->setComputeState(state);
+        encoder->dispatchCompute(1, 1, 1);
 
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 

@@ -304,42 +304,6 @@ void compareComputeResult(
     }
 }
 
-void compareComputeResult(
-    IDevice* device,
-    IBuffer* buffer,
-    size_t offset,
-    const void* expectedResult,
-    size_t expectedBufferSize
-)
-{
-    // Read back the results.
-    ComPtr<ISlangBlob> resultBlob;
-    REQUIRE_CALL(device->readBuffer(buffer, offset, expectedBufferSize, resultBlob.writeRef()));
-    CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
-    // Compare results.
-    CHECK(memcmp(resultBlob->getBufferPointer(), (uint8_t*)expectedResult, expectedBufferSize) == 0);
-}
-
-void compareComputeResultFuzzy(const float* result, float* expectedResult, size_t expectedBufferSize)
-{
-    for (size_t i = 0; i < expectedBufferSize / sizeof(float); ++i)
-    {
-        CHECK_LE(result[i], expectedResult[i] + 0.01f);
-        CHECK_GE(result[i], expectedResult[i] - 0.01f);
-    }
-}
-
-void compareComputeResultFuzzy(IDevice* device, IBuffer* buffer, float* expectedResult, size_t expectedBufferSize)
-{
-    // Read back the results.
-    ComPtr<ISlangBlob> resultBlob;
-    REQUIRE_CALL(device->readBuffer(buffer, 0, expectedBufferSize, resultBlob.writeRef()));
-    CHECK_EQ(resultBlob->getBufferSize(), expectedBufferSize);
-    // Compare results with a tolerance of 0.01.
-    auto result = (float*)resultBlob->getBufferPointer();
-    compareComputeResultFuzzy(result, expectedResult, expectedBufferSize);
-}
-
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
@@ -413,6 +377,7 @@ ComPtr<IDevice> createTestingDevice(
 void releaseCachedDevices()
 {
     gCachedDevices.clear();
+    getRHI()->reportLiveObjects();
 }
 
 ComPtr<slang::ISession> createTestingSession(

@@ -259,26 +259,21 @@ struct ShaderCacheTest
 
     void dispatchComputePipeline()
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        auto rootObject = commandEncoder->preparePipeline(pipeline);
 
         // Bind buffer view to the entry point.
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
         entryPointCursor.getPath("buffer").setBinding(buffer);
 
-        passEncoder->dispatchCompute(4, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        ComputeState state;
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(4, 1, 1);
+
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -556,35 +551,32 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 
     void dispatchComputePipeline(const char* transformerTypeName)
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        auto rootObject = commandEncoder->preparePipeline(pipeline);
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
         REQUIRE_CALL(
-            device->createShaderObject(transformerType, ShaderObjectContainerType::None, transformer.writeRef())
+            device
+                ->createShaderObject(nullptr, transformerType, ShaderObjectContainerType::None, transformer.writeRef())
         );
 
         float c = 5.f;
         ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
+        transformer->finalize();
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
         entryPointCursor.getPath("buffer").setBinding(buffer);
         entryPointCursor.getPath("transformer").setObject(transformer);
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        ComputeState state;
+        commandEncoder->prepareFinish(&state);
+        commandEncoder->setComputeState(state);
+        commandEncoder->dispatchCompute(1, 1, 1);
+
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -783,13 +775,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
     void dispatchGraphicsPipeline()
     {
-        ComPtr<ITransientResourceHeap> transientHeap;
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -798,22 +785,25 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
+        commandEncoder->beginRenderPass(renderPass);
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        auto rootObject = commandEncoder->preparePipeline(pipeline);
+        RenderState state;
+        commandEncoder->prepareFinish(&state);
+        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRectCount = 1;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBufferCount = 1;
+        commandEncoder->setRenderState(state);
 
-        Viewport viewport = {};
-        viewport.maxZ = 1.0f;
-        viewport.extentX = (float)kWidth;
-        viewport.extentY = (float)kHeight;
-        passEncoder->setViewportAndScissor(viewport);
+        DrawArguments args;
+        args.vertexCount = 3;
+        commandEncoder->draw(args);
+        commandEncoder->endRenderPass();
 
-        passEncoder->setVertexBuffer(0, vertexBuffer);
-
-        passEncoder->draw(3);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

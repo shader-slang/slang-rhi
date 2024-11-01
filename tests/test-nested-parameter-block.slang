@@ -18,10 +18,12 @@ struct Scene
     ParameterBlock<MaterialSystem> material;
 }
 
-cbuffer PerView
+struct PerView
 {
     uint4 value;
 }
+
+ConstantBuffer<PerView> perView;
 
 ParameterBlock<Scene> scene;
 
@@ -33,5 +35,5 @@ RWStructuredBuffer<uint4> resultBuffer;
 [numthreads(4,1,1)]
 void computeMain(uint3 sv_dispatchThreadID : SV_DispatchThreadID)
 {
-    resultBuffer[sv_dispatchThreadID.x] = value.x + scene.sceneCb.value.x + scene.data[0].x + scene.material.cb.value.x + scene.material.data[0].x;
+    resultBuffer[sv_dispatchThreadID.x] = perView.value.x + scene.sceneCb.value.x + scene.data[0].x + scene.material.cb.value.x + scene.material.data[0].x;
 }

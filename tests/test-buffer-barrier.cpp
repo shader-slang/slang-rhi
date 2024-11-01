@@ -8,7 +8,7 @@ struct Shader
     ComPtr<IShaderProgram> program;
     slang::ProgramLayout* reflection = nullptr;
     ComputePipelineDesc pipelineDesc = {};
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
 };
 
 ComPtr<IBuffer> createFloatBuffer(
@@ -36,11 +36,6 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     Shader programA;
     Shader programB;
     REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
@@ -59,30 +54,45 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        // Write inputBuffer to intermediateBuffer
+        {
+            auto rootObject = device->createRootShaderObject(programA.pipeline);
+            ShaderCursor cursor(rootObject->getEntryPoint(0));
+            cursor["inBuffer"].setBinding(inputBuffer);
+            cursor["outBuffer"].setBinding(intermediateBuffer);
+            rootObject->finalize();
 
-        // Write inputBuffer data to intermediateBuffer
-        auto rootObjectA = passEncoder->bindPipeline(programA.pipeline);
-        ShaderCursor entryPointCursorA(rootObjectA->getEntryPoint(0));
-        entryPointCursorA.getPath("inBuffer").setBinding(inputBuffer);
-        entryPointCursorA.getPath("outBuffer").setBinding(intermediateBuffer);
-
-        passEncoder->dispatchCompute(1, 1, 1);
+            encoder->beginComputePass();
+            ComputeState state;
+            state.pipeline = programA.pipeline;
+            state.rootObject = rootObject;
+            encoder->setComputeState(state);
+            encoder->dispatchCompute(1, 1, 1);
+            encoder->endComputePass();
+        }
 
         // Resource transition is automatically handled.
 
         // Write intermediateBuffer to outputBuffer
-        auto rootObjectB = passEncoder->bindPipeline(programB.pipeline);
-        ShaderCursor entryPointCursorB(rootObjectB->getEntryPoint(0));
-        entryPointCursorB.getPath("inBuffer").setBinding(intermediateBuffer);
-        entryPointCursorB.getPath("outBuffer").setBinding(outputBuffer);
+        {
+            auto rootObject = device->createRootShaderObject(programB.pipeline);
+            ShaderCursor cursor(rootObject->getEntryPoint(0));
+            cursor["inBuffer"].setBinding(intermediateBuffer);
+            cursor["outBuffer"].setBinding(outputBuffer);
+            rootObject->finalize();
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+            encoder->beginComputePass();
+            ComputeState state;
+            state.pipeline = programB.pipeline;
+            state.rootObject = rootObject;
+            encoder->setComputeState(state);
+            encoder->dispatchCompute(1, 1, 1);
+            encoder->endComputePass();
+        }
+
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 

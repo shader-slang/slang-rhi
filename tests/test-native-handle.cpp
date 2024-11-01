@@ -28,7 +28,9 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     NativeHandle handle;
     REQUIRE_CALL(buffer->getNativeHandle(&handle));
-    if (deviceType == DeviceType::D3D12)
+    switch (deviceType)
+    {
+    case DeviceType::D3D12:
     {
         CHECK_EQ(handle.type, NativeHandleType::D3D12Resource);
 #if SLANG_WINDOWS_FAMILY
@@ -39,11 +41,20 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
         REQUIRE_CALL(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Resource, testHandle2.get());
 #endif
+        break;
     }
-    else if (deviceType == DeviceType::Vulkan)
+    case DeviceType::Vulkan:
     {
         CHECK_EQ(handle.type, NativeHandleType::VkBuffer);
         CHECK_NE(handle.value, 0);
+        break;
+    }
+    case DeviceType::Metal:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::MTLBuffer);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
     }
 }
 
@@ -68,7 +79,9 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 
     NativeHandle handle;
     REQUIRE_CALL(texture->getNativeHandle(&handle));
-    if (deviceType == DeviceType::D3D12)
+    switch (deviceType)
+    {
+    case DeviceType::D3D12:
     {
         CHECK_EQ(handle.type, NativeHandleType::D3D12Resource);
 #if SLANG_WINDOWS_FAMILY
@@ -79,11 +92,20 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
         REQUIRE_CALL(testHandle1->QueryInterface<ID3D12Resource>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Resource, testHandle2.get());
 #endif
+        break;
     }
-    else if (deviceType == DeviceType::Vulkan)
+    case DeviceType::Vulkan:
     {
         CHECK_EQ(handle.type, NativeHandleType::VkImage);
         CHECK_NE(handle.value, 0);
+        break;
+    }
+    case DeviceType::Metal:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::MTLTexture);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
     }
 }
 
@@ -96,7 +118,9 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
     auto queue = device->getQueue(QueueType::Graphics);
     NativeHandle handle;
     REQUIRE_CALL(queue->getNativeHandle(&handle));
-    if (deviceType == DeviceType::D3D12)
+    switch (deviceType)
+    {
+    case DeviceType::D3D12:
     {
         CHECK_EQ(handle.type, NativeHandleType::D3D12CommandQueue);
 #if SLANG_WINDOWS_FAMILY
@@ -107,11 +131,20 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
         REQUIRE_CALL(testHandle1->QueryInterface<ID3D12CommandQueue>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Queue, testHandle2.get());
 #endif
+        break;
     }
-    else if (deviceType == DeviceType::Vulkan)
+    case DeviceType::Vulkan:
     {
         CHECK_EQ(handle.type, NativeHandleType::VkQueue);
         CHECK_NE(handle.value, 0);
+        break;
+    }
+    case DeviceType::Metal:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::MTLCommandQueue);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
     }
 }
 
@@ -121,21 +154,14 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
 
-    // We need to create a transient heap in order to create a command buffer.
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
-    auto commandBuffer = transientHeap->createCommandBuffer();
-    struct CloseComandBufferRAII
-    {
-        ICommandBuffer* m_commandBuffer;
-        ~CloseComandBufferRAII() { m_commandBuffer->close(); }
-    } closeCommandBufferRAII{commandBuffer};
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    auto commandBuffer = commandEncoder->finish();
     NativeHandle handle;
     REQUIRE_CALL(commandBuffer->getNativeHandle(&handle));
-    if (deviceType == DeviceType::D3D12)
+    switch (deviceType)
+    {
+    case DeviceType::D3D12:
     {
         CHECK_EQ(handle.type, NativeHandleType::D3D12GraphicsCommandList);
 #if SLANG_WINDOWS_FAMILY
@@ -146,11 +172,20 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
         REQUIRE_CALL(d3d12Handle->QueryInterface<ID3D12GraphicsCommandList>(testHandle2.writeRef()));
         CHECK_EQ(d3d12Handle, testHandle2.get());
 #endif
+        break;
     }
-    else if (deviceType == DeviceType::Vulkan)
+    case DeviceType::Vulkan:
     {
         CHECK_EQ(handle.type, NativeHandleType::VkCommandBuffer);
         CHECK_NE(handle.value, 0);
+        break;
+    }
+    case DeviceType::Metal:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::MTLCommandBuffer);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
     }
 }
 
@@ -161,6 +196,7 @@ TEST_CASE("native-handle-buffer")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
         }
     );
 }
@@ -172,6 +208,7 @@ TEST_CASE("native-handle-texture")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
         }
     );
 }
@@ -183,6 +220,7 @@ TEST_CASE("native-handle-command-queue")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
         }
     );
 }
@@ -194,6 +232,7 @@ TEST_CASE("native-handle-command-buffer")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::Metal,
         }
     );
 }

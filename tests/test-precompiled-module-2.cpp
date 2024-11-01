@@ -61,11 +61,6 @@ static Result precompileProgram(
 
 void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context, bool precompileToTarget)
 {
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     // First, load and compile the slang source.
     ComPtr<ISlangMutableFileSystem> memoryFileSystem = ComPtr<ISlangMutableFileSystem>(new Slang::MemoryFileSystem());
 
@@ -145,9 +140,8 @@ void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context,
     {
         ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
         auto queue = device->createCommandQueue(queueDesc);
-
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
 
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
@@ -157,8 +151,7 @@ void precompiledModule2TestImplCommon(IDevice* device, UnitTestContext* context,
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

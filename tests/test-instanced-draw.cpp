@@ -101,8 +101,7 @@ class BaseDrawTest
 public:
     ComPtr<IDevice> device;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IRenderPipeline> pipeline;
 
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IBuffer> instanceBuffer;
@@ -137,10 +136,6 @@ public:
         vertexBuffer = createVertexBuffer(device);
         instanceBuffer = createInstanceBuffer(device);
         colorBuffer = createColorBuffer(device);
-
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
@@ -201,7 +196,7 @@ public:
 
         float expectedResult[] =
             {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f};
-        compareComputeResultFuzzy(testResults, expectedResult, sizeof(expectedResult));
+        compareResultFuzzy(testResults, expectedResult, SLANG_COUNT_OF(expectedResult));
     }
 };
 
@@ -212,7 +207,10 @@ struct DrawInstancedTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto encoder = queue->createCommandEncoder();
+
+        auto rootObject = device->createRootShaderObject(pipeline);
+        rootObject->finalize();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -221,26 +219,27 @@ struct DrawInstancedTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
+        encoder->beginRenderPass(renderPass);
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        RenderState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRectCount = 1;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBuffers[1] = instanceBuffer;
+        state.vertexBufferCount = 2;
+        encoder->setRenderState(state);
 
-        Viewport viewport = {};
-        viewport.maxZ = 1.0f;
-        viewport.extentX = kWidth;
-        viewport.extentY = kHeight;
-        passEncoder->setViewportAndScissor(viewport);
+        DrawArguments args;
+        args.vertexCount = kVertexCount;
+        args.instanceCount = kInstanceCount;
+        encoder->draw(args);
+        encoder->endRenderPass();
 
-        uint32_t startVertex = 0;
-        uint32_t startInstanceLocation = 0;
-
-        passEncoder->setVertexBuffer(0, vertexBuffer);
-        passEncoder->setVertexBuffer(1, instanceBuffer);
-
-        passEncoder->drawInstanced(kVertexCount, kInstanceCount, startVertex, startInstanceLocation);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -267,7 +266,10 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto encoder = queue->createCommandEncoder();
+
+        auto rootObject = device->createRootShaderObject(pipeline);
+        rootObject->finalize();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -276,28 +278,29 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
+        encoder->beginRenderPass(renderPass);
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        RenderState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBuffers[1] = instanceBuffer;
+        state.vertexBufferCount = 2;
+        state.indexBuffer = indexBuffer;
+        state.indexFormat = IndexFormat::UInt32;
+        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRectCount = 1;
+        encoder->setRenderState(state);
 
-        Viewport viewport = {};
-        viewport.maxZ = 1.0f;
-        viewport.extentX = kWidth;
-        viewport.extentY = kHeight;
-        passEncoder->setViewportAndScissor(viewport);
+        DrawArguments args;
+        args.vertexCount = kVertexCount;
+        args.instanceCount = kInstanceCount;
+        encoder->drawIndexed(args);
+        encoder->endRenderPass();
 
-        uint32_t startIndex = 0;
-        int32_t startVertex = 0;
-        uint32_t startInstanceLocation = 0;
-
-        passEncoder->setVertexBuffer(0, vertexBuffer);
-        passEncoder->setVertexBuffer(1, instanceBuffer);
-        passEncoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
-
-        passEncoder->drawIndexedInstanced(kIndexCount, kInstanceCount, startIndex, startVertex, startInstanceLocation);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -348,7 +351,10 @@ struct DrawIndirectTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto encoder = queue->createCommandEncoder();
+
+        auto rootObject = device->createRootShaderObject(pipeline);
+        rootObject->finalize();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -357,26 +363,27 @@ struct DrawIndirectTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
+        encoder->beginRenderPass(renderPass);
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
-
-        Viewport viewport = {};
-        viewport.maxZ = 1.0f;
-        viewport.extentX = kWidth;
-        viewport.extentY = kHeight;
-        passEncoder->setViewportAndScissor(viewport);
-
-        passEncoder->setVertexBuffer(0, vertexBuffer);
-        passEncoder->setVertexBuffer(1, instanceBuffer);
+        RenderState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBuffers[1] = instanceBuffer;
+        state.vertexBufferCount = 2;
+        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRectCount = 1;
+        encoder->setRenderState(state);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndirectArgData, args);
 
-        passEncoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        encoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
+        encoder->endRenderPass();
+
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -428,7 +435,10 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto commandBuffer = transientHeap->createCommandBuffer();
+        auto encoder = queue->createCommandEncoder();
+
+        auto rootObject = device->createRootShaderObject(pipeline);
+        rootObject->finalize();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -437,27 +447,29 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
+        encoder->beginRenderPass(renderPass);
 
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
-
-        Viewport viewport = {};
-        viewport.maxZ = 1.0f;
-        viewport.extentX = kWidth;
-        viewport.extentY = kHeight;
-        passEncoder->setViewportAndScissor(viewport);
-
-        passEncoder->setVertexBuffer(0, vertexBuffer);
-        passEncoder->setVertexBuffer(1, instanceBuffer);
-        passEncoder->setIndexBuffer(indexBuffer, IndexFormat::UInt32);
+        RenderState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBuffers[1] = instanceBuffer;
+        state.vertexBufferCount = 2;
+        state.indexBuffer = indexBuffer;
+        state.indexFormat = IndexFormat::UInt32;
+        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRectCount = 1;
+        encoder->setRenderState(state);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndexedIndirectArgData, args);
 
-        passEncoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        encoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
+        encoder->endRenderPass();
+
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -518,6 +530,7 @@ TEST_CASE("draw-indirect")
     runGpuTests(
         testDraw<DrawIndirectTest>,
         {
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
         }
