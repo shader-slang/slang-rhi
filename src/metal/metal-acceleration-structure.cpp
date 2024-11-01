@@ -1,5 +1,6 @@
 #include "metal-acceleration-structure.h"
 #include "metal-device.h"
+#include "metal-util.h"
 
 namespace rhi::metal {
 
@@ -25,6 +26,35 @@ AccelerationStructureHandle AccelerationStructureImpl::getHandle()
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {
     return 0;
+}
+
+Result DeviceImpl::createAccelerationStructure(
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
+)
+{
+    AUTORELEASEPOOL
+
+    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
+    result->m_accelerationStructure = NS::TransferPtr(m_device->newAccelerationStructure(desc.size));
+
+    uint32_t globalIndex = 0;
+    if (!m_accelerationStructures.freeList.empty())
+    {
+        globalIndex = m_accelerationStructures.freeList.back();
+        m_accelerationStructures.freeList.pop_back();
+        m_accelerationStructures.list[globalIndex] = result->m_accelerationStructure.get();
+    }
+    else
+    {
+        globalIndex = m_accelerationStructures.list.size();
+        m_accelerationStructures.list.push_back(result->m_accelerationStructure.get());
+    }
+    m_accelerationStructures.dirty = true;
+    result->m_globalIndex = globalIndex;
+
+    returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
 }
 
 } // namespace rhi::metal

@@ -14,7 +14,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
+Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     AUTORELEASEPOOL
 
@@ -143,6 +143,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRende
     }
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_depthStencilState = depthStencilState;
     pipeline->m_primitiveType = MetalUtil::translatePrimitiveType(desc.primitiveTopology);
@@ -159,7 +161,7 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     AUTORELEASEPOOL
 
@@ -192,6 +194,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
     program->linkedProgram->getLayout()->getEntryPointByIndex(0)->getComputeThreadGroupSize(3, threadGroupSize);
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_threadGroupSize = MTL::Size(threadGroupSize[0], threadGroupSize[1], threadGroupSize[2]);
     returnComPtr(outPipeline, pipeline);
@@ -204,7 +208,7 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
+Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     AUTORELEASEPOOL
 
