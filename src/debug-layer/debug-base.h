@@ -3,7 +3,6 @@
 #include <slang-com-ptr.h>
 #include <slang-rhi.h>
 
-#include "../pass-encoder-com-forward.h"
 #include "../rhi-shared.h"
 
 #include "core/common.h"
@@ -66,28 +65,13 @@ public:
     }
 
 class DebugDevice;
-class DebugShaderTable;
 class DebugQueryPool;
-class DebugBuffer;
-class DebugTexture;
-class DebugResourceView;
-class DebugAccelerationStructure;
-class DebugSampler;
 class DebugShaderObject;
 class DebugRootShaderObject;
 class DebugCommandBuffer;
-template<typename TEncoderInterface>
-class DebugPassEncoderImpl;
-class DebugResourcePassEncoder;
-class DebugRenderPassEncoder;
-class DebugComputePassEncoder;
-class DebugRayTracingPassEncoder;
+class DebugCommandEncoder;
 class DebugFence;
 class DebugCommandQueue;
-class DebugFramebuffer;
-class DebugInputLayout;
-class DebugPipeline;
-class DebugShaderProgram;
 class DebugTransientResourceHeap;
 class DebugSurface;
 

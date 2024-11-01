@@ -113,7 +113,7 @@ endmacro()
 
 # Fetch slang binary release if this is the master project
 if(SLANG_RHI_MASTER_PROJECT)
-    set(SLANG_VERSION "2024.14")
+    set(SLANG_VERSION "2024.14.4")
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -317,31 +317,24 @@ endif()
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
 
 target_sources(slang-rhi PRIVATE
+    src/command-list.cpp
     src/enum-strings.cpp
     src/flag-combiner.cpp
-    src/immediate-device.cpp
     src/resource-desc-utils.cpp
     src/rhi.cpp
     src/rhi-shared.cpp
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/platform.cpp
-    src/debug-layer/debug-buffer.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
     src/debug-layer/debug-command-queue.cpp
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
     src/debug-layer/debug-helper-functions.cpp
-    src/debug-layer/debug-pipeline.cpp
     src/debug-layer/debug-query.cpp
-    src/debug-layer/debug-sampler.cpp
     src/debug-layer/debug-shader-object.cpp
-    src/debug-layer/debug-shader-program.cpp
     src/debug-layer/debug-surface.cpp
-    src/debug-layer/debug-texture-view.cpp
-    src/debug-layer/debug-texture.cpp
-    src/debug-layer/debug-transient-heap.cpp
 )
 
 if(APPLE)
