@@ -2,6 +2,7 @@
 
 #include "cpu-base.h"
 #include "cpu-shader-object-layout.h"
+#include "cpu-buffer.h"
 
 namespace rhi::cpu {
 
@@ -34,7 +35,7 @@ class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObj
 public:
     std::vector<RefPtr<Resource>> m_resources;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL init(IDevice* device, ShaderObjectLayoutImpl* typeLayout);
+    virtual SLANG_NO_THROW Result SLANG_MCALL init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout);
 
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
@@ -51,9 +52,6 @@ public:
     uint8_t* getDataBuffer();
 };
 
-class MutableShaderObjectImpl : public MutableShaderObject<MutableShaderObjectImpl, ShaderObjectLayoutImpl>
-{};
-
 class EntryPointShaderObjectImpl : public ShaderObjectImpl
 {
 public:
@@ -63,11 +61,8 @@ public:
 class RootShaderObjectImpl : public ShaderObjectImpl
 {
 public:
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override;
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override;
-
     // An overload for the `init` virtual function, with a more specific type
-    Result init(IDevice* device, RootShaderObjectLayoutImpl* programLayout);
+    Result init(DeviceImpl* device, RootShaderObjectLayoutImpl* programLayout);
     using ShaderObjectImpl::init;
 
     RootShaderObjectLayoutImpl* getLayout();
