@@ -47,6 +47,14 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 void DeviceImpl::handleError(WGPUErrorType type, char const* message)
 {
     fprintf(stderr, "WGPU error: %s\n", message);
+    this->m_lastError = type;
+}
+
+WGPUErrorType DeviceImpl::getAndClearLastError()
+{
+    WGPUErrorType lastError = this->m_lastError;
+    this->m_lastError = WGPUErrorType_NoError;
+    return lastError;
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
