@@ -488,9 +488,7 @@ if(SLANG_RHI_ENABLE_WGPU)
     target_sources(slang-rhi PRIVATE
         src/wgpu/wgpu-api.cpp
         src/wgpu/wgpu-buffer.cpp
-        src/wgpu/wgpu-command-buffer.cpp
-        src/wgpu/wgpu-command-encoder.cpp
-        src/wgpu/wgpu-command-queue.cpp
+        src/wgpu/wgpu-command.cpp
         src/wgpu/wgpu-device.cpp
         src/wgpu/wgpu-fence.cpp
         src/wgpu/wgpu-helper-functions.cpp
@@ -503,7 +501,6 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-shader-program.cpp
         src/wgpu/wgpu-surface.cpp
         src/wgpu/wgpu-texture.cpp
-        src/wgpu/wgpu-transient-resource-heap.cpp
         src/wgpu/wgpu-util.cpp
     )
 endif()

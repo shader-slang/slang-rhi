@@ -11,7 +11,7 @@
 namespace rhi::wgpu {
 
 /// Context information required when binding shader objects to the pipeline
-struct RootBindingContext
+struct BindingContext
 {
     /// The device being used
     DeviceImpl* device;
@@ -40,7 +40,7 @@ struct ResourceSlot
 class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
 {
 public:
-    static Result create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
+    static Result create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
 
     Device* getDevice();
 
@@ -61,49 +61,47 @@ public:
 protected:
     friend class RootShaderObjectLayout;
 
-    Result init(IDevice* device, ShaderObjectLayoutImpl* layout);
+    Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
-    Result _writeOrdinaryData(uint8_t* destData, Size destSize, ShaderObjectLayoutImpl* specializedLayout);
+    Result _writeOrdinaryData(uint8_t* destData, Size destSize, ShaderObjectLayoutImpl* specializedLayout) const;
 
 public:
     /// Write a single descriptor using the Vulkan API
-    static void writeDescriptor(RootBindingContext& context, Index bindingSet, WGPUBindGroupEntry const& write);
+    static void writeDescriptor(BindingContext& context, Index bindingSet, WGPUBindGroupEntry const& write);
 
     static void writeBufferDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         BufferImpl* buffer,
         Offset bufferOffset,
         Size bufferSize
     );
 
-    static void writeBufferDescriptor(RootBindingContext& context, BindingOffset const& offset, BufferImpl* buffer);
+    static void writeBufferDescriptor(BindingContext& context, BindingOffset const& offset, BufferImpl* buffer);
 
     static void writeBufferDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
-        span<ResourceSlot> slots
+        span<const ResourceSlot> slots
     );
 
     static void writeTextureDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
-        span<ResourceSlot> slots
+        span<const ResourceSlot> slots
     );
 
     static void writeSamplerDescriptor(
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
-        span<RefPtr<SamplerImpl>> samplers
+        span<const RefPtr<SamplerImpl>> samplers
     );
 
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
-    Result _ensureOrdinaryDataBufferCreatedIfNeeded(
-        PassEncoderImpl* encoder,
-        ShaderObjectLayoutImpl* specializedLayout
-    );
+    Result _ensureOrdinaryDataBufferCreatedIfNeeded(BindingContext& context, ShaderObjectLayoutImpl* specializedLayout)
+        const;
 
 public:
     /// Bind this shader object as a "value"
@@ -112,57 +110,49 @@ public:
     /// fields, and is also used as part of the implementation of the
     /// parameter-block and constant-buffer cases.
     ///
-    Result bindAsValue(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
-        BindingOffset const& offset,
-        ShaderObjectLayoutImpl* specializedLayout
-    );
+    Result bindAsValue(BindingContext& context, BindingOffset const& offset, ShaderObjectLayoutImpl* specializedLayout)
+        const;
 
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
     /// blocks)
     Result allocateDescriptorSets(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
-    Result createBindGroups(RootBindingContext& context);
+    Result createBindGroups(BindingContext& context) const;
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
     /// Bind the ordinary data buffer if needed.
     Result bindOrdinaryDataBufferIfNeeded(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
+        BindingContext& context,
         BindingOffset const& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
-    );
+    ) const;
 
     std::vector<ResourceSlot> m_resources;
     std::vector<RefPtr<SamplerImpl>> m_samplers;
 
     // The size of the constant buffer for this object.
-    Size m_constantBufferSize = 0;
+    mutable Size m_constantBufferSize = 0;
     // The constant buffer containing all the ordinary data for this object.
-    RefPtr<BufferImpl> m_constantBuffer;
+    mutable RefPtr<BufferImpl> m_constantBuffer;
     // A CPU memory buffer containing the ordinary data for this object.
-    std::vector<uint8_t> m_constantBufferData;
+    mutable std::vector<uint8_t> m_constantBufferData;
 
     /// Dirty bit tracking whether the constant buffer needs to be updated.
     bool m_isConstantBufferDirty = true;
@@ -188,20 +178,15 @@ class EntryPointShaderObject : public ShaderObjectImpl
     typedef ShaderObjectImpl Super;
 
 public:
-    static Result create(IDevice* device, EntryPointLayout* layout, EntryPointShaderObject** outShaderObject);
+    static Result create(DeviceImpl* device, EntryPointLayout* layout, EntryPointShaderObject** outShaderObject);
 
     EntryPointLayout* getLayout();
 
     /// Bind this shader object as an entry point
-    Result bindAsEntryPoint(
-        PassEncoderImpl* encoder,
-        RootBindingContext& context,
-        BindingOffset const& inOffset,
-        EntryPointLayout* layout
-    );
+    Result bindAsEntryPoint(BindingContext& context, BindingOffset const& inOffset, EntryPointLayout* layout) const;
 
 protected:
-    Result init(IDevice* device, EntryPointLayout* layout);
+    Result init(DeviceImpl* device, EntryPointLayout* layout);
 };
 
 class RootShaderObjectImpl : public ShaderObjectImpl
@@ -211,8 +196,8 @@ class RootShaderObjectImpl : public ShaderObjectImpl
 public:
     // Override default reference counting behavior to disable lifetime management.
     // Root objects are managed by command buffer and does not need to be freed by the user.
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
+    // virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
+    // virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
 public:
     RootShaderObjectLayout* getLayout();
@@ -224,29 +209,18 @@ public:
     virtual GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;
-
     /// Bind this object as a root shader object
-    Result bindAsRoot(PassEncoderImpl* encoder, RootBindingContext& context, RootShaderObjectLayout* layout);
+    Result bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout) const;
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
 public:
-    Result init(IDevice* device, RootShaderObjectLayout* layout);
+    Result init(DeviceImpl* device, RootShaderObjectLayout* layout);
 
 protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
     std::vector<RefPtr<EntryPointShaderObject>> m_entryPoints;
-};
-
-class MutableRootShaderObjectImpl : public RootShaderObjectImpl
-{
-public:
-    // Enable reference counting.
-    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return ShaderObjectImpl::addRef(); }
-    SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return ShaderObjectImpl::release(); }
 };
 
 } // namespace rhi::wgpu
