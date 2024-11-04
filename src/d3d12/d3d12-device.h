@@ -1,9 +1,7 @@
 #pragma once
 
-#include "d3d12-command-buffer.h"
-#include "d3d12-command-queue.h"
+#include "d3d12-command.h"
 #include "d3d12-texture.h"
-#include "d3d12-transient-heap.h"
 
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
@@ -62,8 +60,6 @@ public:
 
     RefPtr<CommandQueueImpl> m_queue;
 
-    RefPtr<TransientResourceHeapImpl> m_resourceCommandTransientHeap;
-
     RefPtr<D3D12GeneralExpandingDescriptorHeap> m_rtvAllocator;
     RefPtr<D3D12GeneralExpandingDescriptorHeap> m_dsvAllocator;
 
@@ -99,8 +95,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
@@ -113,6 +107,10 @@ public:
     createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
@@ -128,9 +126,8 @@ public:
         ShaderObjectLayout** outLayout
     ) override;
     virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable) override;
@@ -140,11 +137,11 @@ public:
         ISlangBlob** outDiagnostics
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
+    createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
+    createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createQueryPool(const QueryPoolDesc& desc, IQueryPool** outState) override;
@@ -179,14 +176,6 @@ public:
 public:
     static void* loadProc(SharedLibraryHandle module, char const* name);
 
-    Result createTransientResourceHeapImpl(
-        ITransientResourceHeap::Flags::Enum flags,
-        Size constantBufferSize,
-        uint32_t viewDescriptors,
-        uint32_t samplerDescriptors,
-        TransientResourceHeapImpl** outHeap
-    );
-
     Result createBuffer(
         const D3D12_RESOURCE_DESC& resourceDesc,
         const void* srcData,
@@ -204,13 +193,15 @@ public:
         D3D12DeviceInfo& outDeviceInfo
     );
 
-    struct ResourceCommandRecordInfo
+    struct
     {
-        ComPtr<ICommandBuffer> commandBuffer;
-        ID3D12GraphicsCommandList* d3dCommandList;
-    };
-    ResourceCommandRecordInfo encodeResourceCommands();
-    void submitResourceCommandsAndWait(const ResourceCommandRecordInfo& info);
+        std::mutex mutex;
+        ComPtr<ID3D12CommandAllocator> commandAllocator;
+        ComPtr<ID3D12GraphicsCommandList> commandList;
+    } m_immediateCommandList;
+
+    ID3D12GraphicsCommandList* beginImmediateCommandList();
+    void endImmediateCommandList();
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* desc);

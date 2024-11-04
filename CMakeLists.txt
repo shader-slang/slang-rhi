@@ -388,9 +388,7 @@ if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
         src/d3d12/d3d12-buffer.cpp
-        src/d3d12/d3d12-command-buffer.cpp
-        src/d3d12/d3d12-command-encoder.cpp
-        src/d3d12/d3d12-command-queue.cpp
+        src/d3d12/d3d12-command.cpp
         src/d3d12/d3d12-descriptor-heap.cpp
         src/d3d12/d3d12-device.cpp
         src/d3d12/d3d12-fence.cpp
@@ -406,9 +404,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-shader-table.cpp
         src/d3d12/d3d12-submitter.cpp
         src/d3d12/d3d12-surface.cpp
-        src/d3d12/d3d12-texture-view.cpp
         src/d3d12/d3d12-texture.cpp
-        src/d3d12/d3d12-transient-heap.cpp
     )
 endif()
 

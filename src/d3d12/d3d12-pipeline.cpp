@@ -26,7 +26,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
+Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
@@ -228,7 +228,9 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRende
     }
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    pipeline->m_program = program;
     pipeline->m_inputLayout = inputLayout;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_primitiveTopology = D3DUtil::getPrimitiveTopology(desc.primitiveTopology);
     returnComPtr(outPipeline, pipeline);
@@ -242,7 +244,7 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
 
@@ -307,6 +309,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
     }
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -319,7 +323,7 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
+Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     if (!m_device5)
     {
@@ -479,6 +483,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc
     }
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;

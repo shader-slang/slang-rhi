@@ -1,7 +1,6 @@
 #include "d3d12-helper-functions.h"
 #include "d3d12-buffer.h"
 #include "d3d12-query.h"
-#include "d3d12-transient-heap.h"
 
 #if SLANG_RHI_ENABLE_NVAPI
 #include "../nvapi/nvapi-include.h"
@@ -188,17 +187,6 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
     }
 }
 
-uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc)
-{
-    return max(
-        {desc.srvDescriptorCount,
-         desc.uavDescriptorCount,
-         desc.accelerationStructureDescriptorCount,
-         desc.constantBufferDescriptorCount,
-         GfxCount(2048)}
-    );
-}
-
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc)
 {
     const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
@@ -261,57 +249,6 @@ void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
     out.SampleDesc.Quality = 0;
     out.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     out.Flags = D3D12_RESOURCE_FLAG_NONE;
-}
-
-Result uploadBufferDataImpl(
-    ID3D12Device* device,
-    ID3D12GraphicsCommandList* cmdList,
-    TransientResourceHeapImpl* transientHeap,
-    BufferImpl* buffer,
-    Offset offset,
-    Size size,
-    void* data
-)
-{
-    IBuffer* uploadResource;
-    Offset uploadResourceOffset = 0;
-    if (buffer->m_desc.memoryType != MemoryType::Upload)
-    {
-        SLANG_RETURN_ON_FAIL(
-            transientHeap->allocateStagingBuffer(size, uploadResource, uploadResourceOffset, MemoryType::Upload)
-        );
-    }
-    else
-    {
-        uploadResourceOffset = offset;
-    }
-    D3D12Resource& uploadResourceRef = (buffer->m_desc.memoryType == MemoryType::Upload)
-                                           ? buffer->m_resource
-                                           : checked_cast<BufferImpl*>(uploadResource)->m_resource;
-
-    D3D12_RANGE readRange = {};
-    readRange.Begin = 0;
-    readRange.End = 0;
-    void* uploadData;
-    SLANG_RETURN_ON_FAIL(uploadResourceRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&uploadData)));
-    memcpy((uint8_t*)uploadData + uploadResourceOffset, data, size);
-    D3D12_RANGE writtenRange = {};
-    writtenRange.Begin = uploadResourceOffset;
-    writtenRange.End = uploadResourceOffset + size;
-    uploadResourceRef.getResource()->Unmap(0, &writtenRange);
-
-    if (buffer->m_desc.memoryType != MemoryType::Upload)
-    {
-        cmdList->CopyBufferRegion(
-            buffer->m_resource.getResource(),
-            offset,
-            uploadResourceRef.getResource(),
-            uploadResourceOffset,
-            size
-        );
-    }
-
-    return SLANG_OK;
 }
 
 Result createNullDescriptor(

@@ -5,7 +5,6 @@
 #include "d3d12-helper-functions.h"
 #include "d3d12-pipeline.h"
 #include "d3d12-query.h"
-#include "d3d12-texture-view.h"
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object.h"
 #include "d3d12-shader-program.h"
@@ -156,9 +155,9 @@ Result DeviceImpl::createBuffer(
 
         if (memoryType == MemoryType::DeviceLocal)
         {
-            auto encodeInfo = encodeResourceCommands();
-            encodeInfo.d3dCommandList->CopyBufferRegion(resourceOut, 0, uploadResourceRef, 0, bufferSize);
-            submitResourceCommandsAndWait(encodeInfo);
+            ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
+            commandList->CopyBufferRegion(resourceOut, 0, uploadResourceRef, 0, bufferSize);
+            endImmediateCommandList();
         }
     }
 
@@ -700,17 +699,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.limits = limits;
     }
 
-    SLANG_RETURN_ON_FAIL(createTransientResourceHeapImpl(
-        ITransientResourceHeap::Flags::AllowResizing,
-        0,
-        8,
-        4,
-        m_resourceCommandTransientHeap.writeRef()
-    ));
-    // `TransientResourceHeap` holds a back reference to `D3D12Device`, make it a weak reference
-    // here since this object is already owned by `D3D12Device`.
-    m_resourceCommandTransientHeap->breakStrongReferenceToDevice();
-
     m_cpuViewHeap = new D3D12GeneralExpandingDescriptorHeap();
     SLANG_RETURN_ON_FAIL(
         m_cpuViewHeap
@@ -834,23 +822,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTransientResourceHeap(
-    const ITransientResourceHeap::Desc& desc,
-    ITransientResourceHeap** outHeap
-)
-{
-    RefPtr<TransientResourceHeapImpl> heap;
-    SLANG_RETURN_ON_FAIL(createTransientResourceHeapImpl(
-        desc.flags,
-        desc.constantBufferSize,
-        getViewDescriptorCount(desc),
-        max(1024, desc.samplerDescriptorCount),
-        heap.writeRef()
-    ));
-    returnComPtr(outHeap, heap);
-    return SLANG_OK;
-}
-
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)
@@ -919,11 +890,11 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         ));
     }
 
-    auto encodeInfo = encodeResourceCommands();
+    ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
     auto defaultState = D3DUtil::getResourceState(rhiDesc.defaultState);
     {
-        D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
+        D3D12BarrierSubmitter submitter(commandList);
         resource.transition(defaultState, D3D12_RESOURCE_STATE_COPY_SOURCE, submitter);
     }
 
@@ -944,16 +915,16 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         dstLoc.PlacedFootprint.Footprint.Depth = UINT(desc.DepthOrArraySize);
         dstLoc.PlacedFootprint.Footprint.RowPitch = UINT(rowPitch);
 
-        encodeInfo.d3dCommandList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+        commandList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
     }
 
     {
-        D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
+        D3D12BarrierSubmitter submitter(commandList);
         resource.transition(D3D12_RESOURCE_STATE_COPY_SOURCE, defaultState, submitter);
     }
 
     // Submit the copy, and wait for copy to complete
-    submitResourceCommandsAndWait(encodeInfo);
+    endImmediateCommandList();
 
     {
         ID3D12Resource* dxResource = stagingResource;
@@ -1174,7 +1145,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             }
             uploadResource->Unmap(0, nullptr);
 
-            auto encodeInfo = encodeResourceCommands();
+            ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
+
             for (int mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
             {
                 // https://msdn.microsoft.com/en-us/library/windows/desktop/dn903862(v=vs.85).aspx
@@ -1188,22 +1160,22 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 dst.pResource = texture->m_resource;
                 dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
                 dst.SubresourceIndex = subresourceIndex;
-                encodeInfo.d3dCommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+                commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
                 subresourceIndex++;
             }
 
             // Block - waiting for copy to complete (so can drop upload texture)
-            submitResourceCommandsAndWait(encodeInfo);
+            endImmediateCommandList();
         }
     }
     {
-        auto encodeInfo = encodeResourceCommands();
+        ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
         {
-            D3D12BarrierSubmitter submitter(encodeInfo.d3dCommandList);
+            D3D12BarrierSubmitter submitter(commandList);
             texture->m_resource.transition(D3D12_RESOURCE_STATE_COPY_DEST, texture->m_defaultState, submitter);
         }
-        submitResourceCommandsAndWait(encodeInfo);
+        endImmediateCommandList();
     }
 
     returnComPtr(outTexture, texture);
@@ -1448,7 +1420,7 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
     D3D12Resource stageBuf;
     if (buffer->m_desc.memoryType != MemoryType::ReadBack)
     {
-        auto encodeInfo = encodeResourceCommands();
+        ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
         // Readback heap
         D3D12_HEAP_PROPERTIES heapProps;
@@ -1472,10 +1444,10 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
         ));
 
         // Do the copy
-        encodeInfo.d3dCommandList->CopyBufferRegion(stageBuf, 0, resource, offset, size);
+        commandList->CopyBufferRegion(stageBuf, 0, resource, offset, size);
 
         // Wait until complete
-        submitResourceCommandsAndWait(encodeInfo);
+        endImmediateCommandList();
     }
 
     D3D12Resource& stageBufRef = buffer->m_desc.memoryType != MemoryType::ReadBack ? stageBuf : resource;
@@ -1555,21 +1527,11 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
-    auto result = createShaderObject(layout, outObject);
-    SLANG_RETURN_ON_FAIL(result);
-    checked_cast<ShaderObjectImpl*>(*outObject)->m_isMutable = true;
-    return result;
-}
-
-Result DeviceImpl::createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    RefPtr<MutableRootShaderObjectImpl> result = new MutableRootShaderObjectImpl();
-    result->init(this);
-    auto programImpl = checked_cast<ShaderProgramImpl*>(program);
-    result->resetImpl(this, programImpl->m_rootObjectLayout, m_cpuViewHeap.Ptr(), m_cpuSamplerHeap.Ptr(), true);
-    returnComPtr(outObject, result);
+    RefPtr<RootShaderObjectImpl> object = new RootShaderObjectImpl();
+    SLANG_RETURN_ON_FAIL(object->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
+    returnComPtr(outObject, object);
     return SLANG_OK;
 }
 
@@ -1582,21 +1544,44 @@ Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTabl
     return SLANG_OK;
 }
 
-DeviceImpl::ResourceCommandRecordInfo DeviceImpl::encodeResourceCommands()
+ID3D12GraphicsCommandList* DeviceImpl::beginImmediateCommandList()
 {
-    ResourceCommandRecordInfo info;
-    m_resourceCommandTransientHeap->createCommandBuffer(info.commandBuffer.writeRef());
-    info.d3dCommandList = checked_cast<CommandBufferImpl*>(info.commandBuffer.get())->m_cmdList;
-    return info;
+    m_immediateCommandList.mutex.lock();
+    if (!m_immediateCommandList.commandAllocator)
+    {
+        SLANG_RETURN_NULL_ON_FAIL(m_device->CreateCommandAllocator(
+            D3D12_COMMAND_LIST_TYPE_DIRECT,
+            IID_PPV_ARGS(m_immediateCommandList.commandAllocator.writeRef())
+        ));
+    }
+    else
+    {
+        m_immediateCommandList.commandAllocator->Reset();
+    }
+    if (!m_immediateCommandList.commandList)
+    {
+        SLANG_RETURN_NULL_ON_FAIL(m_device->CreateCommandList(
+            0,
+            D3D12_COMMAND_LIST_TYPE_DIRECT,
+            m_immediateCommandList.commandAllocator,
+            nullptr,
+            IID_PPV_ARGS(m_immediateCommandList.commandList.writeRef())
+        ));
+    }
+    else
+    {
+        m_immediateCommandList.commandList->Reset(m_immediateCommandList.commandAllocator, nullptr);
+    }
+    return m_immediateCommandList.commandList;
 }
 
-void DeviceImpl::submitResourceCommandsAndWait(const DeviceImpl::ResourceCommandRecordInfo& info)
+void DeviceImpl::endImmediateCommandList()
 {
-    info.commandBuffer->close();
-    ICommandBuffer* commandBuffer = info.commandBuffer.get();
-    m_queue->submit(1, &commandBuffer, nullptr, 0);
-    m_resourceCommandTransientHeap->finish();
-    m_resourceCommandTransientHeap->synchronizeAndReset();
+    m_immediateCommandList.commandList->Close();
+    ID3D12CommandList* commandLists[] = {m_immediateCommandList.commandList.get()};
+    m_queue->m_d3dQueue->ExecuteCommandLists(1, commandLists);
+    m_queue->waitOnHost();
+    m_immediateCommandList.mutex.unlock();
 }
 
 void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* inDesc)
@@ -1746,28 +1731,6 @@ Result DeviceImpl::createAccelerationStructure(
     *outAccelerationStructure = nullptr;
     return SLANG_FAIL;
 #endif
-}
-
-Result DeviceImpl::createTransientResourceHeapImpl(
-    ITransientResourceHeap::Flags::Enum flags,
-    Size constantBufferSize,
-    uint32_t viewDescriptors,
-    uint32_t samplerDescriptors,
-    TransientResourceHeapImpl** outHeap
-)
-{
-    RefPtr<TransientResourceHeapImpl> result = new TransientResourceHeapImpl();
-    ITransientResourceHeap::Desc desc = {};
-    desc.flags = flags;
-    desc.samplerDescriptorCount = samplerDescriptors;
-    desc.constantBufferSize = constantBufferSize;
-    desc.constantBufferDescriptorCount = viewDescriptors;
-    desc.accelerationStructureDescriptorCount = viewDescriptors;
-    desc.srvDescriptorCount = viewDescriptors;
-    desc.uavDescriptorCount = viewDescriptors;
-    SLANG_RETURN_ON_FAIL(result->init(desc, this, viewDescriptors, samplerDescriptors));
-    returnRefPtrMove(outHeap, result);
-    return SLANG_OK;
 }
 
 void* DeviceImpl::loadProc(SharedLibraryHandle module, char const* name)
