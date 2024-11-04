@@ -1,5 +1,5 @@
 #include "d3d12-query.h"
-#include "d3d12-command-queue.h"
+#include "d3d12-command.h"
 #include "d3d12-helper-functions.h"
 
 namespace rhi::d3d12 {
@@ -138,14 +138,14 @@ Result PlainBufferProxyQueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl
 Result PlainBufferProxyQueryPoolImpl::reset()
 {
     m_resultDirty = true;
-    auto encodeInfo = m_device->encodeResourceCommands();
+    ID3D12GraphicsCommandList* commandList = m_device->beginImmediateCommandList();
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     barrier.Transition.pResource = m_buffer->m_resource.getResource();
-    encodeInfo.d3dCommandList->ResourceBarrier(1, &barrier);
-    m_device->submitResourceCommandsAndWait(encodeInfo);
+    commandList->ResourceBarrier(1, &barrier);
+    m_device->endImmediateCommandList();
     return SLANG_OK;
 }
 
@@ -153,13 +153,13 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
 {
     if (m_resultDirty)
     {
-        auto encodeInfo = m_device->encodeResourceCommands();
+        ID3D12GraphicsCommandList* commandList = m_device->beginImmediateCommandList();
         D3D12_RESOURCE_BARRIER barrier = {};
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
         barrier.Transition.pResource = m_buffer->m_resource.getResource();
-        encodeInfo.d3dCommandList->ResourceBarrier(1, &barrier);
+        commandList->ResourceBarrier(1, &barrier);
 
         D3D12Resource stageBuf;
 
@@ -183,8 +183,8 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
             nullptr
         ));
 
-        encodeInfo.d3dCommandList->CopyBufferRegion(stageBuf, 0, m_buffer->m_resource.getResource(), 0, size);
-        m_device->submitResourceCommandsAndWait(encodeInfo);
+        commandList->CopyBufferRegion(stageBuf, 0, m_buffer->m_resource.getResource(), 0, size);
+        m_device->endImmediateCommandList();
         void* ptr = nullptr;
         stageBuf.getResource()->Map(0, nullptr, &ptr);
         m_result.resize(m_count * m_stride);
