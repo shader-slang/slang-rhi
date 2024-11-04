@@ -1,7 +1,9 @@
 #include "wgpu-device.h"
 #include "wgpu-buffer.h"
+#include "wgpu-shader-program.h"
 #include "wgpu-shader-object.h"
 #include "wgpu-shader-object-layout.h"
+#include "wgpu-util.h"
 
 #include "core/common.h"
 #include "core/deferred.h"
@@ -413,12 +415,37 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
 
 Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    *outAlignment = 256;
+    return SLANG_OK;
 }
 
 Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    FormatSupport support = FormatSupport::None;
+
+    if (translateTextureFormat(format) != WGPUTextureFormat_Undefined)
+    {
+        support |= FormatSupport::Texture;
+        if (isDepthFormat(format))
+            support |= FormatSupport::DepthStencil;
+        support |= FormatSupport::RenderTarget;
+        support |= FormatSupport::Blendable;
+        support |= FormatSupport::ShaderLoad;
+        support |= FormatSupport::ShaderSample;
+        support |= FormatSupport::ShaderUavLoad;
+        support |= FormatSupport::ShaderUavStore;
+        support |= FormatSupport::ShaderAtomic;
+    }
+    if (translateVertexFormat(format) != WGPUVertexFormat(0))
+    {
+        support |= FormatSupport::VertexBuffer;
+    }
+    if (format == Format::R32_UINT || format == Format::R16_UINT)
+    {
+        support |= FormatSupport::IndexBuffer;
+    }
+    *outFormatSupport = support;
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createShaderObjectLayout(
@@ -443,14 +470,12 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
     return SLANG_OK;
 }
 
-Result DeviceImpl::createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
-}
-
-Result DeviceImpl::createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    return SLANG_E_NOT_IMPLEMENTED;
+    RefPtr<RootShaderObjectImpl> object = new RootShaderObjectImpl();
+    SLANG_RETURN_ON_FAIL(object->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
+    returnComPtr(outObject, object);
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)

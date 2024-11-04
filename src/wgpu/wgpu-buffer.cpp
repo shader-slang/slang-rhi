@@ -38,51 +38,6 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
-{
-    if (m_isMapped)
-    {
-        return SLANG_FAIL;
-    }
-
-    auto callback = [](WGPUBufferMapAsyncStatus status, void* data)
-    {
-        BufferImpl* buffer = static_cast<BufferImpl*>(data);
-        if (status == WGPUBufferMapAsyncStatus_Success)
-        {
-            buffer->m_isMapped = true;
-        }
-        else
-        {
-            buffer->m_isMapped = false;
-        }
-    };
-
-    size_t offset = rangeToRead ? rangeToRead->offset : 0;
-    size_t size = rangeToRead ? rangeToRead->size : m_desc.size;
-
-    m_device->m_ctx.api.wgpuBufferMapAsync(m_buffer, m_mapMode, offset, size, callback, this);
-    m_device->m_ctx.api.wgpuDeviceTick(m_device->m_ctx.device);
-    if (!m_isMapped)
-    {
-        return SLANG_FAIL;
-    }
-    *outPointer = m_device->m_ctx.api.wgpuBufferGetMappedRange(m_buffer, offset, size);
-    return SLANG_OK;
-}
-
-Result BufferImpl::unmap(BufferRange* writtenRange)
-{
-    if (!m_isMapped)
-    {
-        return SLANG_FAIL;
-    }
-
-    m_device->m_ctx.api.wgpuBufferUnmap(m_buffer);
-    m_isMapped = false;
-    return SLANG_OK;
-}
-
 Result DeviceImpl::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
 {
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
@@ -95,12 +50,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc, const void* initData, IB
     if (desc.memoryType == MemoryType::Upload)
     {
         bufferDesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
-        buffer->m_mapMode = WGPUMapMode_Write;
     }
     else if (desc.memoryType == MemoryType::ReadBack)
     {
         bufferDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
-        buffer->m_mapMode = WGPUMapMode_Read;
     }
     if (initData)
     {
@@ -147,6 +100,45 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc, const void* initData, IB
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
 {
     return SLANG_E_NOT_IMPLEMENTED;
+}
+
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+
+    WGPUMapMode mapMode = WGPUMapMode_None;
+    switch (mode)
+    {
+    case CpuAccessMode::Read:
+        mapMode = WGPUMapMode_Read;
+        break;
+    case CpuAccessMode::Write:
+        mapMode = WGPUMapMode_Write;
+        break;
+    }
+
+    auto callback = [](WGPUBufferMapAsyncStatus status, void* data)
+    { *reinterpret_cast<WGPUBufferMapAsyncStatus*>(data) = status; };
+
+    size_t offset = 0;
+    size_t size = bufferImpl->m_desc.size;
+
+    WGPUBufferMapAsyncStatus status;
+    m_ctx.api.wgpuBufferMapAsync(bufferImpl->m_buffer, mapMode, offset, size, callback, &status);
+    m_ctx.api.wgpuDeviceTick(m_ctx.device);
+    if (status != WGPUBufferMapAsyncStatus_Success)
+    {
+        return SLANG_FAIL;
+    }
+    *outData = m_ctx.api.wgpuBufferGetMappedRange(bufferImpl->m_buffer, offset, size);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::unmapBuffer(IBuffer* buffer)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    m_ctx.api.wgpuBufferUnmap(bufferImpl->m_buffer);
+    return SLANG_OK;
 }
 
 } // namespace rhi::wgpu

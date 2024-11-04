@@ -1,7 +1,7 @@
 #pragma once
 
 #include "wgpu-base.h"
-#include "wgpu-command-queue.h"
+#include "wgpu-command.h"
 
 #include <unordered_set>
 
@@ -37,8 +37,6 @@ public:
 
     // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTransientResourceHeap(const ITransientResourceHeap::Desc& desc, ITransientResourceHeap** outHeap) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -48,6 +46,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
@@ -61,9 +62,9 @@ public:
         ShaderObjectLayout** outLayout
     ) override;
     virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable) override;
@@ -73,11 +74,11 @@ public:
         ISlangBlob** outDiagnosticBlob
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
+    createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
+    createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

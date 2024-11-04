@@ -22,7 +22,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline)
+Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
@@ -108,6 +108,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc2& desc, IRende
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_renderPipeline = m_ctx.api.wgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
     if (!pipeline->m_renderPipeline)
     {
@@ -132,7 +134,7 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline)
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_COMPUTE);
@@ -148,6 +150,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
     pipeline->m_device = this;
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_computePipeline = m_ctx.api.wgpuDeviceCreateComputePipeline(m_ctx.device, &pipelineDesc);
     if (!pipeline->m_computePipeline)
     {
@@ -157,9 +161,9 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc2& desc, ICom
     return SLANG_OK;
 }
 
-Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline)
+Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 } // namespace rhi::wgpu
