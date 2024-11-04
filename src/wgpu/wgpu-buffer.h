@@ -9,8 +9,6 @@ class BufferImpl : public Buffer
 public:
     DeviceImpl* m_device;
     WGPUBuffer m_buffer = nullptr;
-    WGPUMapMode m_mapMode = WGPUMapMode_None;
-    bool m_isMapped = false;
 
     BufferImpl(DeviceImpl* device, const BufferDesc& desc);
     ~BufferImpl();
@@ -19,8 +17,6 @@ public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL map(BufferRange* rangeToRead, void** outPointer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL unmap(BufferRange* writtenRange) override;
 };
 
 } // namespace rhi::wgpu
