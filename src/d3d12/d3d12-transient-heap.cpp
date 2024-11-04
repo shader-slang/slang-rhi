@@ -1,6 +1,5 @@
 #include "d3d12-transient-heap.h"
 #include "d3d12-buffer.h"
-#include "d3d12-command-buffer.h"
 #include "d3d12-device.h"
 
 namespace rhi::d3d12 {
@@ -134,6 +133,35 @@ Result TransientResourceHeapImpl::init(
     return SLANG_OK;
 }
 
+Result TransientResourceHeapImpl::allocateCommandBuffer(CommandBufferImpl** outCmdBuffer)
+{
+    if ((Index)m_commandListAllocId < m_commandBufferPool.size())
+    {
+        RefPtr<CommandBufferImpl> result =
+            checked_cast<CommandBufferImpl*>(m_commandBufferPool[m_commandListAllocId].Ptr());
+        m_d3dCommandListPool[m_commandListAllocId]->Reset(m_commandAllocator, nullptr);
+        ++m_commandListAllocId;
+        returnRefPtr(outCmdBuffer, result);
+        return SLANG_OK;
+    }
+    ComPtr<ID3D12GraphicsCommandList> cmdList;
+    SLANG_RETURN_ON_FAIL(m_device->m_device->CreateCommandList(
+        0,
+        D3D12_COMMAND_LIST_TYPE_DIRECT,
+        m_commandAllocator,
+        nullptr,
+        IID_PPV_ARGS(cmdList.writeRef())
+    ));
+
+    m_d3dCommandListPool.push_back(cmdList);
+    RefPtr<CommandBufferImpl> cmdBuffer = new CommandBufferImpl();
+    cmdBuffer->m_cmdList = cmdList;
+    m_commandBufferPool.push_back(cmdBuffer);
+    ++m_commandListAllocId;
+    returnRefPtr(outCmdBuffer, cmdBuffer);
+    return SLANG_OK;
+}
+
 Result TransientResourceHeapImpl::allocateNewViewDescriptorHeap(DeviceImpl* device)
 {
     auto nextHeapIndex = m_currentViewHeapIndex + 1;
@@ -175,35 +203,6 @@ Result TransientResourceHeapImpl::allocateNewSamplerDescriptorHeap(DeviceImpl* d
     ));
     m_currentSamplerHeapIndex = (int32_t)m_samplerHeaps.size();
     m_samplerHeaps.push_back(_Move(samplerHeap));
-    return SLANG_OK;
-}
-
-Result TransientResourceHeapImpl::createCommandBuffer(ICommandBuffer** outCmdBuffer)
-{
-    if ((Index)m_commandListAllocId < m_commandBufferPool.size())
-    {
-        auto result = checked_cast<CommandBufferImpl*>(m_commandBufferPool[m_commandListAllocId].Ptr());
-        m_d3dCommandListPool[m_commandListAllocId]->Reset(m_commandAllocator, nullptr);
-        result->reinit();
-        ++m_commandListAllocId;
-        returnComPtr(outCmdBuffer, result);
-        return SLANG_OK;
-    }
-    ComPtr<ID3D12GraphicsCommandList> cmdList;
-    SLANG_RETURN_ON_FAIL(m_device->m_device->CreateCommandList(
-        0,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        m_commandAllocator,
-        nullptr,
-        IID_PPV_ARGS(cmdList.writeRef())
-    ));
-
-    m_d3dCommandListPool.push_back(cmdList);
-    RefPtr<CommandBufferImpl> cmdBuffer = new CommandBufferImpl();
-    cmdBuffer->init(m_device, cmdList, this);
-    m_commandBufferPool.push_back(cmdBuffer);
-    ++m_commandListAllocId;
-    returnComPtr(outCmdBuffer, cmdBuffer);
     return SLANG_OK;
 }
 

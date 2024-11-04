@@ -18,23 +18,6 @@ struct ID3D12GraphicsCommandList1
 #endif
 
 namespace rhi::d3d12 {
-struct PendingDescriptorTableBinding
-{
-    uint32_t rootIndex;
-    D3D12_GPU_DESCRIPTOR_HANDLE handle;
-};
-
-/// Contextual data and operations required when binding shader objects to the pipeline state
-struct BindingContext
-{
-    PassEncoderImpl* encoder;
-    Submitter* submitter;
-    TransientResourceHeapImpl* transientHeap;
-    DeviceImpl* device;
-    /// The type of descriptor heap that is OOM during binding.
-    D3D12_DESCRIPTOR_HEAP_TYPE outOfMemoryHeap;
-    short_vector<PendingDescriptorTableBinding>* pendingTableBindings;
-};
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op);
 
@@ -50,18 +33,8 @@ D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op);
 D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode);
 D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
 
-uint32_t getViewDescriptorCount(const ITransientResourceHeap::Desc& desc);
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
-Result uploadBufferDataImpl(
-    ID3D12Device* device,
-    ID3D12GraphicsCommandList* cmdList,
-    TransientResourceHeapImpl* transientHeap,
-    BufferImpl* buffer,
-    Offset offset,
-    Size size,
-    void* data
-);
 
 Result createNullDescriptor(
     ID3D12Device* d3dDevice,
