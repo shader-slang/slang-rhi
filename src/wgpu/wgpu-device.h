@@ -33,6 +33,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
     void handleError(WGPUErrorType type, char const* message);
+    WGPUErrorType getAndClearLastError();
 
     // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
@@ -99,6 +100,9 @@ public:
     // void waitForGpu();
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
+
+private:
+    WGPUErrorType m_lastError = WGPUErrorType_NoError;
 };
 
 } // namespace rhi::wgpu
