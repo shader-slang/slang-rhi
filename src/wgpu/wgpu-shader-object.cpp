@@ -579,11 +579,11 @@ Result ShaderObjectImpl::allocateDescriptorSets(
     SLANG_RHI_ASSERT(specializedLayout->getOwnDescriptorSets().size() <= 1);
 
     const auto& descriptorSets = specializedLayout->getOwnDescriptorSets();
-    context.entries.resize(descriptorSets.size());
     for (size_t i = 0; i < descriptorSets.size(); ++i)
     {
-        context.entries[i].clear();
-        context.entries[i].reserve(descriptorSets[i].entries.size());
+        context.entries.push_back(std::vector<WGPUBindGroupEntry>());
+        auto& newEntries = context.entries.back();
+        newEntries.reserve(descriptorSets[i].entries.size());
     }
     return SLANG_OK;
 }
@@ -620,7 +620,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     // not the sets for any parent object(s).
     //
     BindingOffset offset = inOffset;
-    offset.bindingSet = (uint32_t)context.bindGroups.size();
+    offset.bindingSet = (uint32_t)context.entries.size();
     offset.binding = 0;
 
     // TODO: We should also be writing to `offset.pending` here,
@@ -637,10 +637,8 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     //
     SLANG_RETURN_ON_FAIL(allocateDescriptorSets(encoder, context, offset, specializedLayout));
 
-    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)context.bindGroups.size());
+    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)context.entries.size());
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(encoder, context, offset, specializedLayout));
-
-    SLANG_RETURN_ON_FAIL(createBindGroups(context));
 
     return SLANG_OK;
 }
