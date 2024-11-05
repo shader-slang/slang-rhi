@@ -51,7 +51,7 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
     case slang::TypeReflection::ScalarType::Float16:
     case slang::TypeReflection::ScalarType::Float32:
     case slang::TypeReflection::ScalarType::Float64:
-        return WGPUTextureSampleType_UnfilterableFloat;
+        return WGPUTextureSampleType_Float;
     }
     return WGPUTextureSampleType_Undefined;
 }
