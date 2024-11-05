@@ -31,6 +31,11 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
         return SLANG_FAIL;
     }
 
+    if (m_device->getAndClearLastError() != WGPUErrorType_NoError)
+    {
+        return SLANG_FAIL;
+    }
+
     m_modules.push_back(module);
     return SLANG_OK;
 }
