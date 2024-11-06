@@ -402,7 +402,8 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         bufferDesc.defaultState = ResourceState::ConstantBuffer;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
         ComPtr<IBuffer> buffer;
-        SLANG_RETURN_ON_FAIL(encoder->m_device->createBuffer(bufferDesc, m_constantBufferData.data(), buffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(encoder->m_device->createBuffer(bufferDesc, m_constantBufferData.data(), buffer.writeRef())
+        );
         m_constantBuffer = checked_cast<BufferImpl*>(buffer.get());
     }
 
@@ -743,56 +744,20 @@ Result EntryPointShaderObject::bindAsEntryPoint(
     EntryPointLayout* layout
 )
 {
-    BindingOffset offset = inOffset;
-
-#if 0
-    // Any ordinary data in an entry point is assumed to be allocated
-    // as a push-constant range.
-    //
-    // TODO: Can we make this operation not bake in that assumption?
-    //
-    // TODO: Can/should this function be renamed as just `bindAsPushConstantBuffer`?
-    //
-    if (m_data.getCount())
+    // First bind the constant buffer for ordinary uniform parameters defined in the entry point.
     {
-        // The index of the push constant range to bind should be
-        // passed down as part of the `offset`, and we will increment
-        // it here so that any further recursively-contained push-constant
-        // ranges use the next index.
-        //
-        auto pushConstantRangeIndex = offset.pushConstantRange++;
-
-        // Information about the push constant ranges (including offsets
-        // and stage flags) was pre-computed for the entire program and
-        // stored on the binding context.
-        //
-        auto const& pushConstantRange = context.pushConstantRanges[pushConstantRangeIndex];
-
-        // We expect that the size of the range as reflected matches the
-        // amount of ordinary data stored on this object.
-        //
-        // TODO: This would not be the case if specialization for interface-type
-        // parameters led to the entry point having "pending" ordinary data.
-        //
-        SLANG_RHI_ASSERT(pushConstantRange.size == (uint32_t)m_data.getCount());
-
-        auto pushConstantData = m_data.getBuffer();
-
-        encoder->m_api->vkCmdPushConstants(
-            encoder->m_commandBuffer->m_commandBuffer,
-            context.pipelineLayout,
-            pushConstantRange.stageFlags,
-            pushConstantRange.offset,
-            pushConstantRange.size,
-            pushConstantData
-        );
+        BindingOffset offset = inOffset;
+        SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(encoder, context, /*inout*/ offset, layout));
     }
-#endif
 
-    // Any remaining bindings in the object can be handled through the
-    // "value" case.
-    //
-    SLANG_RETURN_ON_FAIL(bindAsValue(encoder, context, offset, layout));
+    // Bind the remaining resource parameters.
+    {
+        // The binding layout for a non-resource entrypoint parameter already has offset baked in for
+        // the builtin constant buffer for the ordinary uniform parameters (if any), so we use the
+        // initial offset as-is.
+        BindingOffset offset1 = inOffset;
+        SLANG_RETURN_ON_FAIL(bindAsValue(encoder, context, offset1, layout));
+    }
     return SLANG_OK;
 }
 
