@@ -34,6 +34,8 @@ void cleanupTestTempDirectories();
 struct GpuTestContext
 {
     slang::IGlobalSession* slangGlobalSession;
+    ComPtr<IDevice> device;
+    DeviceType deviceType;
 };
 
 /// Helper function for print out diagnostic messages output by Slang compiler.
@@ -123,7 +125,7 @@ void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count>
 }
 
 ComPtr<IDevice> createTestingDevice(
-    GpuTestContext* ctx,
+    GpuTestContext& ctx,
     DeviceType deviceType,
     bool useCachedDevice = true,
     std::vector<const char*> additionalSearchPaths = {}
@@ -132,12 +134,14 @@ ComPtr<IDevice> createTestingDevice(
 void releaseCachedDevices();
 
 ComPtr<slang::ISession> createTestingSession(
-    GpuTestContext* ctx,
+    GpuTestContext& ctx,
     DeviceType deviceType,
     std::vector<const char*> additionalSearchPaths = {}
 );
 
 bool isSwiftShaderDevice(IDevice* device);
+
+slang::IGlobalSession* getSlangGlobalSession();
 
 std::vector<const char*> getSlangSearchPaths();
 
@@ -151,11 +155,73 @@ auto makeArray(Args... args)
     return std::array<T, sizeof...(Args)>{static_cast<T>(args)...};
 }
 
-using GpuTestFunc = void (*)(GpuTestContext*, DeviceType);
+using GpuTestFunc = void (*)(GpuTestContext&);
 
-void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes);
+inline const char* deviceTypeToString(DeviceType deviceType)
+{
+    switch (deviceType)
+    {
+    case DeviceType::D3D11:
+        return "d3d11";
+    case DeviceType::D3D12:
+        return "d3d12";
+    case DeviceType::Vulkan:
+        return "vulkan";
+    case DeviceType::Metal:
+        return "metal";
+    case DeviceType::CPU:
+        return "cpu";
+    case DeviceType::CUDA:
+        return "cuda";
+    case DeviceType::WGPU:
+        return "wgpu";
+    default:
+        return "unknown";
+    }
+}
+
+enum DeviceTypeFlag
+{
+    D3D11 = (1 << (int)DeviceType::D3D11),
+    D3D12 = (1 << (int)DeviceType::D3D12),
+    Vulkan = (1 << (int)DeviceType::Vulkan),
+    Metal = (1 << (int)DeviceType::Metal),
+    CPU = (1 << (int)DeviceType::CPU),
+    CUDA = (1 << (int)DeviceType::CUDA),
+    WGPU = (1 << (int)DeviceType::WGPU),
+    ALL = D3D11 | D3D12 | Vulkan | Metal | CPU | CUDA | WGPU,
+};
 
 } // namespace rhi::testing
+
+#define GPU_TEST_CASE_IMPL(name, func, deviceTypes)                                                                    \
+    static void func(::rhi::testing::GpuTestContext& ctx);                                                             \
+    TEST_CASE(name)                                                                                                    \
+    {                                                                                                                  \
+        for (int i = 0; i < 7; ++i)                                                                                    \
+        {                                                                                                              \
+            ::rhi::DeviceType deviceType = ::rhi::DeviceType(i);                                                       \
+            if (((deviceTypes) & (1 << i)) == 0)                                                                       \
+            {                                                                                                          \
+                continue;                                                                                              \
+            }                                                                                                          \
+            if (!getRHI()->isDeviceTypeSupported(deviceType))                                                          \
+            {                                                                                                          \
+                continue;                                                                                              \
+            }                                                                                                          \
+            SUBCASE(deviceTypeToString(deviceType))                                                                    \
+            {                                                                                                          \
+                ::rhi::testing::GpuTestContext ctx;                                                                    \
+                ctx.slangGlobalSession = ::rhi::testing::getSlangGlobalSession();                                      \
+                ctx.device = ::rhi::testing::createTestingDevice(ctx, deviceType);                                     \
+                ctx.deviceType = deviceType;                                                                           \
+                func(ctx);                                                                                             \
+            }                                                                                                          \
+        }                                                                                                              \
+    }                                                                                                                  \
+    static void func(::rhi::testing::GpuTestContext& ctx)
+
+#define GPU_TEST_CASE(name, deviceTypes) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), deviceTypes)
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))

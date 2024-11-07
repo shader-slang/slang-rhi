@@ -305,7 +305,7 @@ void compareComputeResult(
 }
 
 ComPtr<IDevice> createTestingDevice(
-    GpuTestContext* ctx,
+    GpuTestContext& ctx,
     DeviceType deviceType,
     bool useCachedDevice,
     std::vector<const char*> additionalSearchPaths
@@ -323,7 +323,7 @@ ComPtr<IDevice> createTestingDevice(
     ComPtr<IDevice> device;
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
-    deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
+    deviceDesc.slang.slangGlobalSession = ctx.slangGlobalSession;
     auto searchPaths = getSlangSearchPaths();
     for (const char* path : searchPaths)
         additionalSearchPaths.push_back(path);
@@ -381,7 +381,7 @@ void releaseCachedDevices()
 }
 
 ComPtr<slang::ISession> createTestingSession(
-    GpuTestContext* ctx,
+    GpuTestContext& ctx,
     DeviceType deviceType,
     std::vector<const char*> additionalSearchPaths
 )
@@ -406,7 +406,7 @@ ComPtr<slang::ISession> createTestingSession(
         break;
     }
     sessionDesc.targets = &targetDesc;
-    ctx->slangGlobalSession->createSession(sessionDesc, session.writeRef());
+    ctx.slangGlobalSession->createSession(sessionDesc, session.writeRef());
     return session;
 }
 
@@ -461,7 +461,7 @@ bool isSwiftShaderDevice(IDevice* device)
     return adapterName.find("swiftshader") != std::string::npos;
 }
 
-static slang::IGlobalSession* getSlangGlobalSession()
+slang::IGlobalSession* getSlangGlobalSession()
 {
     static slang::IGlobalSession* slangGlobalSession = []()
     {
@@ -470,46 +470,6 @@ static slang::IGlobalSession* getSlangGlobalSession()
         return session;
     }();
     return slangGlobalSession;
-}
-
-inline const char* deviceTypeToString(DeviceType deviceType)
-{
-    switch (deviceType)
-    {
-    case DeviceType::D3D11:
-        return "d3d11";
-    case DeviceType::D3D12:
-        return "d3d12";
-    case DeviceType::Vulkan:
-        return "vulkan";
-    case DeviceType::Metal:
-        return "metal";
-    case DeviceType::CPU:
-        return "cpu";
-    case DeviceType::CUDA:
-        return "cuda";
-    case DeviceType::WGPU:
-        return "wgpu";
-    default:
-        return "unknown";
-    }
-}
-
-void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes)
-{
-    for (auto deviceType : deviceTypes)
-    {
-        if (!getRHI()->isDeviceTypeSupported(deviceType))
-        {
-            continue;
-        }
-        SUBCASE(deviceTypeToString(deviceType))
-        {
-            GpuTestContext ctx;
-            ctx.slangGlobalSession = getSlangGlobalSession();
-            func(&ctx, deviceType);
-        }
-    }
 }
 
 } // namespace rhi::testing

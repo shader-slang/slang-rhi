@@ -32,9 +32,10 @@ ComPtr<IBuffer> createFloatBuffer(
     return buffer;
 }
 
-void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
+// D3D11 and Metal don't work
+GPU_TEST_CASE("buffer-barrier", D3D12 | Vulkan | CUDA | CPU | WGPU | ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    IDevice* device = ctx.device;
 
     Shader programA;
     Shader programB;
@@ -97,19 +98,4 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, outputBuffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
-}
-
-TEST_CASE("buffer-barrier")
-{
-    // D3D11 and Metal don't work
-    runGpuTests(
-        testBufferBarrier,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-            DeviceType::WGPU,
-        }
-    );
 }
