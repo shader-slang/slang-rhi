@@ -17,37 +17,6 @@
 
 namespace rhi {
 
-struct GUID
-{
-    static const Guid IID_ISlangUnknown;
-    static const Guid IID_IShaderProgram;
-    static const Guid IID_IPipeline;
-    static const Guid IID_IRenderPipeline;
-    static const Guid IID_IComputePipeline;
-    static const Guid IID_IRayTracingPipeline;
-    static const Guid IID_IFramebuffer;
-    static const Guid IID_ISurface;
-    static const Guid IID_ISampler;
-    static const Guid IID_IResource;
-    static const Guid IID_IBuffer;
-    static const Guid IID_ITexture;
-    static const Guid IID_ITextureView;
-    static const Guid IID_IInputLayout;
-    static const Guid IID_IDevice;
-    static const Guid IID_IPersistentShaderCache;
-    static const Guid IID_IShaderObjectLayout;
-    static const Guid IID_IShaderObject;
-    static const Guid IID_ICommandEncoder;
-    static const Guid IID_ICommandBuffer;
-    static const Guid IID_ICommandBufferD3D12;
-    static const Guid IID_ICommandQueue;
-    static const Guid IID_IQueryPool;
-    static const Guid IID_IAccelerationStructure;
-    static const Guid IID_IFence;
-    static const Guid IID_IShaderTable;
-    static const Guid IID_IPipelineCreationAPIDispatcher;
-};
-
 class Device;
 class CommandList;
 
@@ -460,7 +429,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderObject* getInterface(const Guid& guid)
     {
-        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderObject)
+        if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderObject::getTypeGuid())
             return static_cast<IShaderObject*>(this);
         return nullptr;
     }
@@ -905,7 +874,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ICommandQueue* getInterface(const Guid& guid)
     {
-        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandQueue)
+        if (guid == ISlangUnknown::getTypeGuid() || guid == ICommandQueue::getTypeGuid())
             return static_cast<ICommandQueue*>(this);
         return nullptr;
     }
@@ -1294,7 +1263,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid)
     {
-        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderTable)
+        if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderTable::getTypeGuid())
             return static_cast<IShaderTable*>(this);
         return nullptr;
     }
