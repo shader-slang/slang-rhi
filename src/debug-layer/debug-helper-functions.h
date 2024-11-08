@@ -110,13 +110,6 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
         return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_I##typeName) ? static_cast<I##typeName*>(this)    \
                                                                                   : nullptr;                           \
     }
-#define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL_PARENT(typeName, parentType)                                                \
-    I##typeName* Debug##typeName::getInterface(const Guid& guid)                                                       \
-    {                                                                                                                  \
-        return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_I##typeName || guid == GUID::IID_I##parentType)   \
-                   ? static_cast<I##typeName*>(this)                                                                   \
-                   : nullptr;                                                                                          \
-    }
 
 // Utility conversion functions to get Debug* object or the inner object from a user provided
 // pointer.
