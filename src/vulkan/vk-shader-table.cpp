@@ -1,20 +1,17 @@
 #include "vk-shader-table.h"
 #include "vk-device.h"
 #include "vk-helper-functions.h"
-#include "vk-transient-heap.h"
+#include "vk-pipeline.h"
+#include "vk-command.h"
 
 #include <vector>
 
 namespace rhi::vk {
 
-RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
-    RayTracingPipeline* pipeline,
-    TransientResourceHeap* transientHeap,
-    IRayTracingPassEncoder* encoder
-)
+RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
 {
-    auto vkApi = m_device->m_api;
-    auto rtProps = vkApi.m_rtProperties;
+    auto& api = m_device->m_api;
+    const auto& rtProps = api.m_rtProperties;
     uint32_t handleSize = rtProps.shaderGroupHandleSize;
     m_raygenTableSize = m_rayGenShaderCount * rtProps.shaderGroupBaseAlignment;
     m_missTableSize =
@@ -25,29 +22,13 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
     auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);
-    ComPtr<IBuffer> buffer;
-    BufferDesc bufferDesc = {};
-    bufferDesc.memoryType = MemoryType::DeviceLocal;
-    bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
-    bufferDesc.defaultState = ResourceState::General;
-    bufferDesc.size = tableSize;
-    m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef());
-
-    TransientResourceHeapImpl* transientHeapImpl = checked_cast<TransientResourceHeapImpl*>(transientHeap);
-
-    IBuffer* stagingBuffer = nullptr;
-    Offset stagingBufferOffset = 0;
-    transientHeapImpl->allocateStagingBuffer(tableSize, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
-
-    SLANG_RHI_ASSERT(stagingBuffer);
-    void* stagingPtr = nullptr;
-    stagingBuffer->map(nullptr, &stagingPtr);
+    auto tableData = std::make_unique<uint8_t[]>(tableSize);
 
     std::vector<uint8_t> handles;
     auto handleCount = pipelineImpl->m_shaderGroupCount;
     auto totalHandleSize = handleSize * handleCount;
     handles.resize(totalHandleSize);
-    auto result = vkApi.vkGetRayTracingShaderGroupHandlesKHR(
+    auto result = api.vkGetRayTracingShaderGroupHandlesKHR(
         m_device->m_device,
         pipelineImpl->m_pipeline,
         0,
@@ -56,8 +37,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
         handles.data()
     );
 
-    uint8_t* stagingBufferPtr = (uint8_t*)stagingPtr + stagingBufferOffset;
-    auto subTablePtr = stagingBufferPtr;
+    uint8_t* subTablePtr = tableData.get();
     Int shaderTableEntryCounter = 0;
 
     // Each loop calculates the copy source and destination locations by fetching the name
@@ -116,22 +96,16 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(
     }
     subTablePtr += m_callableTableSize;
 
-    stagingBuffer->unmap(nullptr);
+    ComPtr<IBuffer> buffer;
+    BufferDesc bufferDesc = {};
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
+    bufferDesc.defaultState = ResourceState::General;
+    bufferDesc.size = tableSize;
+    m_device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef());
 
-    VkBufferCopy copyRegion;
-    copyRegion.dstOffset = 0;
-    copyRegion.srcOffset = stagingBufferOffset;
-    copyRegion.size = tableSize;
-    vkApi.vkCmdCopyBuffer(
-        checked_cast<RayTracingPassEncoderImpl*>(encoder)->m_commandBuffer->m_commandBuffer,
-        checked_cast<BufferImpl*>(stagingBuffer)->m_buffer.m_buffer,
-        checked_cast<BufferImpl*>(buffer.get())->m_buffer.m_buffer,
-        /* regionCount: */ 1,
-        &copyRegion
-    );
-    encoder->setBufferState(buffer, ResourceState::ShaderResource);
     RefPtr<Buffer> resultPtr = checked_cast<Buffer*>(buffer.get());
-    return _Move(resultPtr);
+    return std::move(resultPtr);
 }
 
 } // namespace rhi::vk

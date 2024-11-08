@@ -15,23 +15,6 @@ private:
     typedef TransientResourceHeapBaseImpl<DeviceImpl, BufferImpl> Super;
 
 public:
-    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-    std::vector<ComPtr<ID3D12GraphicsCommandList>> m_d3dCommandListPool;
-    std::vector<RefPtr<RefObject>> m_commandBufferPool;
-    uint32_t m_commandListAllocId = 0;
-    // Wait values for each command queue.
-    struct QueueWaitInfo
-    {
-        uint64_t waitValue;
-        HANDLE fenceEvent;
-        ComPtr<ID3D12CommandQueue> queue;
-        ComPtr<ID3D12Fence> fence = nullptr;
-    };
-    short_vector<QueueWaitInfo, 4> m_waitInfos;
-    short_vector<HANDLE, 4> m_waitHandles;
-
-    QueueWaitInfo& getQueueWaitInfo(uint32_t queueIndex);
-
     // During command submission, we need all the descriptor tables that get
     // used to come from a single heap (for each descriptor heap type).
     //
@@ -78,8 +61,6 @@ public:
     Result allocateNewViewDescriptorHeap(DeviceImpl* device);
 
     Result allocateNewSamplerDescriptorHeap(DeviceImpl* device);
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandBuffer(ICommandBuffer** outCommandBuffer) override;
 
     Result synchronize();
 

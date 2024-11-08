@@ -18,6 +18,7 @@ class DescriptorSetAllocator
 public:
     std::vector<VkDescriptorPool> pools;
     const VulkanApi* m_api;
+    void init(VulkanApi* api) { m_api = api; }
     VkDescriptorPool newPool();
     VkDescriptorPool getPool()
     {

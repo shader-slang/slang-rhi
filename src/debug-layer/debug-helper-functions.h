@@ -1,21 +1,13 @@
 #pragma once
 #include "debug-base.h"
-#include "debug-buffer.h"
 #include "debug-command-buffer.h"
 #include "debug-command-queue.h"
+#include "debug-command-encoder.h"
 #include "debug-device.h"
 #include "debug-fence.h"
-#include "debug-pipeline.h"
 #include "debug-query.h"
-#include "debug-sampler.h"
 #include "debug-shader-object.h"
-#include "debug-shader-program.h"
-#include "debug-shader-table.h"
 #include "debug-surface.h"
-#include "debug-texture.h"
-#include "debug-texture-view.h"
-#include "debug-transient-heap.h"
-#include "debug-input-layout.h"
 
 #include <vector>
 
@@ -155,34 +147,13 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
     }
 
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Device)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(Buffer)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(Texture)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(TextureView)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandBuffer)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandQueue)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ResourcePassEncoder)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RenderPassEncoder)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputePassEncoder)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RayTracingPassEncoder)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(InputLayout)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(Pipeline)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(RenderPipeline)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(ComputePipeline)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(RayTracingPipeline)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(Sampler)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(CommandEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderObject)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderProgram)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Surface)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(TransientResourceHeap)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(QueryPool)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(AccelerationStructure)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
-SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderTable)
-
-inline BufferWithOffset getInnerObj(BufferWithOffset buffer)
-{
-    return BufferWithOffset{getInnerObj(buffer.buffer), buffer.offset};
-}
 
 std::string createBufferLabel(const BufferDesc& desc);
 std::string createTextureLabel(const TextureDesc& desc);

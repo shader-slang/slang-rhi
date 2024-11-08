@@ -124,4 +124,42 @@ public:
     void* m_data = nullptr;
 };
 
+class TextureViewImpl : public TextureView, public slang_prelude::IRWTexture
+{
+public:
+    TextureViewImpl(const TextureViewDesc& desc)
+        : TextureView(desc)
+    {
+    }
+
+    //
+    // ITexture interface
+    //
+
+    slang_prelude::TextureDimensions GetDimensions(int mipLevel = -1) override;
+
+    void Load(const int32_t* texelCoords, void* outData, size_t dataSize) override;
+
+    void Sample(slang_prelude::SamplerState samplerState, const float* coords, void* outData, size_t dataSize) override;
+
+    void SampleLevel(
+        slang_prelude::SamplerState samplerState,
+        const float* coords,
+        float level,
+        void* outData,
+        size_t dataSize
+    ) override;
+
+    //
+    // IRWTexture interface
+    //
+
+    void* refAt(const uint32_t* texelCoords) override;
+
+public:
+    RefPtr<TextureImpl> m_texture;
+
+    void* _getTexelPtr(int32_t const* texelCoords);
+};
+
 } // namespace rhi::cpu

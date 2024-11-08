@@ -70,30 +70,6 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
-Result BufferImpl::map(BufferRange* rangeToRead, void** outPointer)
-{
-    D3D12_RANGE range = {};
-    if (rangeToRead)
-    {
-        range.Begin = (SIZE_T)rangeToRead->offset;
-        range.End = (SIZE_T)(rangeToRead->offset + rangeToRead->size);
-    }
-    SLANG_RETURN_ON_FAIL(m_resource.getResource()->Map(0, rangeToRead ? &range : nullptr, outPointer));
-    return SLANG_OK;
-}
-
-Result BufferImpl::unmap(BufferRange* writtenRange)
-{
-    D3D12_RANGE range = {};
-    if (writtenRange)
-    {
-        range.Begin = (SIZE_T)writtenRange->offset;
-        range.End = (SIZE_T)(writtenRange->offset + writtenRange->size);
-    }
-    m_resource.getResource()->Unmap(0, writtenRange ? &range : nullptr);
-    return SLANG_OK;
-}
-
 D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
 {
     ViewKey key = {format, stride, range, nullptr};
@@ -169,6 +145,20 @@ D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferR
         ->CreateUnorderedAccessView(m_resource.getResource(), counterResource, &viewDesc, descriptor.cpuHandle);
 
     return descriptor;
+}
+
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    SLANG_RETURN_ON_FAIL(bufferImpl->m_resource.getResource()->Map(0, nullptr, outData));
+    return SLANG_OK;
+}
+
+Result DeviceImpl::unmapBuffer(IBuffer* buffer)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    bufferImpl->m_resource.getResource()->Unmap(0, nullptr);
+    return SLANG_OK;
 }
 
 } // namespace rhi::d3d12

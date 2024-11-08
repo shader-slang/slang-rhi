@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 #include <initializer_list>
+#include <mutex>
 
 #include <cstring>
 #include <cstdint>

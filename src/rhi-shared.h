@@ -3,8 +3,8 @@
 #include <slang-rhi.h>
 
 #include "slang-context.h"
-
 #include "resource-desc-utils.h"
+#include "command-list.h"
 
 #include "core/common.h"
 #include "core/short_vector.h"
@@ -21,7 +21,6 @@ struct GUID
 {
     static const Guid IID_ISlangUnknown;
     static const Guid IID_IShaderProgram;
-    static const Guid IID_ITransientResourceHeap;
     static const Guid IID_IPipeline;
     static const Guid IID_IRenderPipeline;
     static const Guid IID_IComputePipeline;
@@ -38,11 +37,7 @@ struct GUID
     static const Guid IID_IPersistentShaderCache;
     static const Guid IID_IShaderObjectLayout;
     static const Guid IID_IShaderObject;
-    static const Guid IID_IPassEncoder;
-    static const Guid IID_IRenderPassEncoder;
-    static const Guid IID_IComputePassEncoder;
-    static const Guid IID_IResourcePassEncoder;
-    static const Guid IID_IRayTracingPassEncoder;
+    static const Guid IID_ICommandEncoder;
     static const Guid IID_ICommandBuffer;
     static const Guid IID_ICommandBufferD3D12;
     static const Guid IID_ICommandQueue;
@@ -51,10 +46,10 @@ struct GUID
     static const Guid IID_IFence;
     static const Guid IID_IShaderTable;
     static const Guid IID_IPipelineCreationAPIDispatcher;
-    static const Guid IID_ITransientResourceHeapD3D12;
 };
 
 class Device;
+class CommandList;
 
 // We use a `BreakableReference` to avoid the cyclic reference situation in rhi implementation.
 // It is a common scenario where objects created from an `IDevice` implementation needs to hold
@@ -217,11 +212,12 @@ public:
         m_descHolder.holdString(m_desc.label);
     }
 
-    virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
-
     BufferRange resolveBufferRange(const BufferRange& range);
+
+    // IBuffer interface
+    virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
 
 public:
     BufferDesc m_desc;
@@ -242,12 +238,13 @@ public:
         m_descHolder.holdString(m_desc.label);
     }
 
-    virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
-
     SubresourceRange resolveSubresourceRange(const SubresourceRange& range);
     bool isEntireTexture(const SubresourceRange& range);
+
+    // ITexture interface
+    virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
 
 public:
     TextureDesc m_desc;
@@ -268,7 +265,8 @@ public:
         m_descHolder.holdString(m_desc.label);
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) SLANG_OVERRIDE;
+    // ITextureView interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
     TextureViewDesc m_desc;
@@ -288,6 +286,7 @@ public:
         m_descHolder.holdString(m_desc.label);
     }
 
+    // ISampler interface
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
@@ -309,6 +308,7 @@ public:
         m_descHolder.holdString(m_desc.label);
     }
 
+    // IAccelerationStructure interface
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
 
 public:
@@ -435,9 +435,10 @@ public:
     // The structured buffer resource used when the object represents a structured buffer.
     RefPtr<Buffer> m_structuredBuffer;
 
-    Index getCount() { return m_ordinaryData.size(); }
+    Index getCount() const { return m_ordinaryData.size(); }
     void setCount(Index count) { m_ordinaryData.resize(count); }
-    uint8_t* getBuffer() { return m_ordinaryData.empty() ? nullptr : m_ordinaryData.data(); }
+    uint8_t* getBuffer() { return m_ordinaryData.data(); }
+    const uint8_t* getBuffer() const { return m_ordinaryData.data(); }
 
     /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
     /// Creates a StructuredBuffer resource if it has not been created.
@@ -475,6 +476,23 @@ protected:
     // The specialized shader object type.
     ExtendedShaderObjectType shaderObjectType = {nullptr, kInvalidComponentID};
 
+    // True if the shader object has been finalized and is immutable.
+    enum class State
+    {
+        /// Initial state after a shader object is created on the heap.
+        /// In this state we allow sub-objects to be added that are not yet finalized.
+        Initial,
+        /// State after the shader object has been initialized, i.e. all sub-objects have been added.
+        /// In this state we disallow sub-objects to be added that are not yet finalized.
+        Initialized,
+        /// State after the shader object has been finalized (using finalize()).
+        /// In this state we disallow any further changes to the shader object.
+        Finalized
+    };
+    State m_state = State::Initial;
+
+    inline Result requireNotFinalized() { return m_state == State::Finalized ? SLANG_FAIL : SLANG_OK; }
+
     Result _getSpecializedShaderObjectType(ExtendedShaderObjectType* outType);
     slang::TypeLayoutReflection* _getElementTypeLayout() { return m_layout->getElementTypeLayout(); }
 
@@ -502,32 +520,23 @@ public:
     );
 
 public:
-    SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() SLANG_OVERRIDE { return 0; }
+    SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override { return 0; }
 
-    SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) SLANG_OVERRIDE
+    SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override
     {
         *outEntryPoint = nullptr;
         return SLANG_OK;
     }
 
-    SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() SLANG_OVERRIDE
+    SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() override
     {
         return m_layout->getElementTypeLayout();
     }
 
-    virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() SLANG_OVERRIDE
+    virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override
     {
         return m_layout->getContainerType();
     }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCurrentVersion(ITransientResourceHeap* transientHeap, IShaderObject** outObject) override
-    {
-        returnComPtr(outObject, this);
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap);
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override { return nullptr; }
 
@@ -535,6 +544,8 @@ public:
     {
         return SLANG_E_NOT_AVAILABLE;
     }
+
+    virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized() override { return m_state == State::Finalized; }
 };
 
 template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
@@ -554,8 +565,7 @@ public:
     void* getBuffer() { return m_data.getBuffer(); }
     size_t getBufferSize() { return (size_t)m_data.getCount(); } // TODO: Change size_t to Count?
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(ShaderOffset const& offset, IShaderObject** outObject)
-        SLANG_OVERRIDE
+    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(ShaderOffset const& offset, IShaderObject** outObject) override
     {
         SLANG_RHI_ASSERT(outObject);
         if (offset.bindingRangeIndex < 0)
@@ -578,9 +588,22 @@ public:
         return bindingRange.subObjectIndex + offset.bindingArrayIndex;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object)
-        SLANG_OVERRIDE
+    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override
     {
+        switch (m_state)
+        {
+        case State::Initial:
+            break;
+        case State::Initialized:
+            if (!object->isFinalized())
+            {
+                return SLANG_FAIL;
+            }
+            break;
+        case State::Finalized:
+            return SLANG_FAIL;
+        }
+
         auto layout = getLayout();
         auto subObject = checked_cast<TShaderObjectImpl*>(object);
         // There are three different cases in `setObject`.
@@ -748,6 +771,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setSpecializationArgs(ShaderOffset const& offset, const slang::SpecializationArg* args, GfxCount count) override
     {
+        if (isFinalized())
+            return SLANG_FAIL;
+
         auto layout = getLayout();
 
         // If the shader object is a container, delegate the processing to
@@ -787,6 +813,22 @@ public:
     // Appends all types that are used to specialize the element type of this shader object in
     // `args` list.
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override
+    {
+        SLANG_RHI_ASSERT(m_state == State::Initialized);
+        if (m_state == State::Finalized)
+        {
+            return SLANG_FAIL;
+        }
+        for (const auto& object : m_objects)
+        {
+            if (object && object->isFinalized() == false)
+                SLANG_RETURN_ON_FAIL(object->finalize());
+        }
+        m_state = State::Finalized;
+        return SLANG_OK;
+    }
 };
 
 class ShaderProgram : public IShaderProgram, public ComObject
@@ -848,8 +890,11 @@ class QueryPool : public IQueryPool, public ComObject
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IQueryPool* getInterface(const Guid& guid);
+
+public:
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
 
+public:
     QueryPoolDesc m_desc;
 };
 
@@ -868,9 +913,6 @@ public:
     virtual void comFree() override { breakStrongReferenceToDevice(); }
 
 public:
-    BreakableReference<TDevice> m_device;
-    QueueType m_type;
-
     CommandQueue(TDevice* device, QueueType type)
     {
         m_device.setWeakReference(device);
@@ -882,30 +924,167 @@ public:
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
+
+public:
+    BreakableReference<TDevice> m_device;
+    QueueType m_type;
 };
 
-class RenderPipeline : public IRenderPipeline, public ComObject
+class CommandEncoder : public ICommandEncoder, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
+    ICommandEncoder* getInterface(const Guid& guid);
 
-    IRenderPipeline* getInterface(const Guid& guid);
+public:
+    // Current command list to write to. Must be set by the derived class.
+    CommandList* m_commandList;
+
+    // ICommandEncoder implementation (generic part)
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
+        ITexture* dst,
+        SubresourceRange dstSubresource,
+        Offset3D dstOffset,
+        ITexture* src,
+        SubresourceRange srcSubresource,
+        Offset3D srcOffset,
+        Extents extent
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
+        IBuffer* dst,
+        Offset dstOffset,
+        Size dstSize,
+        Size dstRowStride,
+        ITexture* src,
+        SubresourceRange srcSubresource,
+        Offset3D srcOffset,
+        Extents extent
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
+        ITexture* dst,
+        SubresourceRange subresourceRange,
+        Offset3D offset,
+        Extents extent,
+        SubresourceData* subresourceData,
+        GfxCount subresourceDataCount
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range = nullptr) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTexture(
+        ITexture* texture,
+        const ClearValue& clearValue = ClearValue(),
+        const SubresourceRange* subresourceRange = nullptr,
+        bool clearDepth = true,
+        bool clearStencil = true
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL endRenderPass() override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
+        GfxCount maxDrawCount,
+        IBuffer* argBuffer,
+        Offset argOffset,
+        IBuffer* countBuffer = nullptr,
+        Offset countOffset = 0
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
+        GfxCount maxDrawCount,
+        IBuffer* argBuffer,
+        Offset argOffset,
+        IBuffer* countBuffer = nullptr,
+        Offset countOffset = 0
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(int x, int y, int z) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL beginComputePass() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL endComputePass() override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(int x, int y, int z) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL beginRayTracingPass() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL endRayTracingPass() override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
+        const AccelerationStructureBuildDesc& desc,
+        IAccelerationStructure* dst,
+        IAccelerationStructure* src,
+        BufferWithOffset scratchBuffer,
+        GfxCount propertyQueryCount,
+        AccelerationStructureQueryDesc* queryDescs
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
+        IAccelerationStructure* dst,
+        IAccelerationStructure* src,
+        AccelerationStructureCopyMode mode
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
+        GfxCount accelerationStructureCount,
+        IAccelerationStructure* const* accelerationStructures,
+        GfxCount queryCount,
+        AccelerationStructureQueryDesc* queryDescs
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+
+protected:
+    Result resolvePipelines(Device* device);
 };
 
-class ComputePipeline : public IComputePipeline, public ComObject
+class CommandBuffer : public ICommandBuffer, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
+    ICommandBuffer* getInterface(const Guid& guid);
 
-    IComputePipeline* getInterface(const Guid& guid);
-};
-
-class RayTracingPipeline : public IRayTracingPipeline, public ComObject
-{
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-
-    IRayTracingPipeline* getInterface(const Guid& guid);
+    RefPtr<CommandList> m_commandList;
 };
 
 enum class PipelineType
@@ -915,44 +1094,97 @@ enum class PipelineType
     RayTracing,
 };
 
-class Pipeline : public IPipeline, public ComObject
+class Pipeline : public ComObject
+{
+public:
+    RefPtr<ShaderProgram> m_program;
+
+    virtual PipelineType getType() const = 0;
+    virtual bool isVirtual() const { return false; }
+};
+
+class RenderPipeline : public IRenderPipeline, public Pipeline
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IPipeline* getInterface(const Guid& guid);
 
+public:
+    virtual PipelineType getType() const override { return PipelineType::Render; }
+
+    // IPipeline interface
+    virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
+};
+
+class VirtualRenderPipeline : public RenderPipeline
+{
+public:
     Device* m_device;
-
+    RenderPipelineDesc m_desc;
     StructHolder m_descHolder;
-
-    // We need to hold inputLayout object alive, since we may use it to
-    // create specialized pipeline states later.
     RefPtr<InputLayout> m_inputLayout;
 
-    // The pipeline state from which this pipeline state is specialized.
-    // If null, this pipeline is either an unspecialized pipeline.
-    RefPtr<Pipeline> m_unspecializedPipeline;
-
-    // Indicates whether this is a specializable pipeline. A specializable
-    // pipeline cannot be used directly and must be specialized first.
-    bool m_isSpecializable = false;
-    RefPtr<ShaderProgram> m_program;
-
-    PipelineType m_type;
-    RenderPipelineDesc m_renderPipelineDesc;
-    RefPtr<RenderPipeline> m_renderPipeline;
-    ComputePipelineDesc m_computePipelineDesc;
-    RefPtr<ComputePipeline> m_computePipeline;
-    RayTracingPipelineDesc m_rayTracingPipelineDesc;
-    RefPtr<RayTracingPipeline> m_rayTracingPipeline;
-
     Result init(Device* device, const RenderPipelineDesc& desc);
-    Result init(Device* device, const ComputePipelineDesc& desc);
-    Result init(Device* device, const RayTracingPipelineDesc& desc);
-    Result initSpecialized(Pipeline* unspecializedPipeline, ShaderProgram* specializedProgram);
-    Result initCommon();
 
-    Result ensurePipelineCreated();
+    virtual bool isVirtual() const override { return true; }
+
+    // IRenderPipeline interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
+
+class ComputePipeline : public IComputePipeline, public Pipeline
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IPipeline* getInterface(const Guid& guid);
+
+public:
+    virtual PipelineType getType() const override { return PipelineType::Compute; }
+
+    // IPipeline interface
+    virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
+};
+
+class VirtualComputePipeline : public ComputePipeline
+{
+public:
+    Device* m_device;
+    ComputePipelineDesc m_desc;
+
+    Result init(Device* device, const ComputePipelineDesc& desc);
+
+    virtual bool isVirtual() const override { return true; }
+
+    // IComputePipeline interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
+
+class RayTracingPipeline : public IRayTracingPipeline, public Pipeline
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IPipeline* getInterface(const Guid& guid);
+
+public:
+    virtual PipelineType getType() const override { return PipelineType::RayTracing; }
+
+    // IPipeline interface
+    virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
+};
+
+class VirtualRayTracingPipeline : public RayTracingPipeline
+{
+public:
+    Device* m_device;
+    RayTracingPipelineDesc m_desc;
+    StructHolder m_descHolder;
+
+    Result init(Device* device, const RayTracingPipelineDesc& desc);
+
+    virtual bool isVirtual() const override { return true; }
+
+    // IRayTracingPipeline interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
 struct ComponentKey
@@ -1044,31 +1276,6 @@ protected:
     std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
 
-class TransientResourceHeap : public ITransientResourceHeap, public ComObject
-{
-public:
-    uint64_t m_version = 0;
-    uint64_t getVersion() { return m_version; }
-    uint64_t& getVersionCounter()
-    {
-        static uint64_t version = 1;
-        return version;
-    }
-    TransientResourceHeap() { m_version = getVersionCounter()++; }
-    virtual ~TransientResourceHeap() {}
-
-public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    ITransientResourceHeap* getInterface(const Guid& guid)
-    {
-        if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ITransientResourceHeap)
-            return static_cast<ITransientResourceHeap*>(this);
-        return nullptr;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish() override { return SLANG_OK; }
-};
-
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
 class ShaderTable : public IShaderTable, public ComObject
@@ -1092,22 +1299,15 @@ public:
         return nullptr;
     }
 
-    virtual RefPtr<Buffer> createDeviceBuffer(
-        RayTracingPipeline* pipeline,
-        TransientResourceHeap* transientHeap,
-        IRayTracingPassEncoder* encoder
-    ) = 0;
+    virtual RefPtr<Buffer> createDeviceBuffer(RayTracingPipeline* pipeline) = 0;
 
-    Buffer* getOrCreateBuffer(
-        RayTracingPipeline* pipeline,
-        TransientResourceHeap* transientHeap,
-        IRayTracingPassEncoder* encoder
-    )
+    Buffer* getOrCreateBuffer(RayTracingPipeline* pipeline)
     {
+        // TODO: NOT THREADSAFE
         auto it = m_deviceBuffers.find(pipeline);
         if (it != m_deviceBuffers.end())
             return it->second.Ptr();
-        auto result = createDeviceBuffer(pipeline, transientHeap, encoder);
+        auto result = createDeviceBuffer(pipeline);
         m_deviceBuffers.emplace(pipeline, result);
         return result;
     }
@@ -1146,80 +1346,50 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* featureName) SLANG_OVERRIDE;
+    getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* featureName) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) SLANG_OVERRIDE;
-    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) SLANG_OVERRIDE;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
     IDevice* getInterface(const Guid& guid);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
-        SLANG_OVERRIDE;
+    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         NativeHandle handle,
         const TextureDesc& srcDesc,
         const Size size,
         ITexture** outTexture
-    ) SLANG_OVERRIDE;
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) SLANG_OVERRIDE;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) SLANG_OVERRIDE;
+    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IPipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IPipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IPipeline** outPipeline) override;
-
-    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline2(const RenderPipelineDesc2& desc, IRenderPipeline** outPipeline) override;
-    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
-    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline2(const RayTracingPipelineDesc2& desc, IRayTracingPipeline** outPipeline) override;
+    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderObject(slang::TypeReflection* type, ShaderObjectContainerType containerType, IShaderObject** outObject)
-        SLANG_OVERRIDE;
+    createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject2(
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
         slang::ISession* session,
         slang::TypeReflection* type,
         ShaderObjectContainerType containerType,
         IShaderObject** outObject
-    ) SLANG_OVERRIDE;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMutableShaderObject(
-        slang::TypeReflection* type,
-        ShaderObjectContainerType containerType,
-        IShaderObject** outObject
-    ) SLANG_OVERRIDE;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMutableShaderObject2(
-        slang::ISession* session,
-        slang::TypeReflection* type,
-        ShaderObjectContainerType containerType,
-        IShaderObject** outObject
-    ) SLANG_OVERRIDE;
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMutableShaderObjectFromTypeLayout(
-        slang::TypeLayoutReflection* typeLayout,
-        IShaderObject** outObject
-    ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
@@ -1239,10 +1409,6 @@ public:
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) override;
-
-    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createMutableRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
@@ -1289,6 +1455,20 @@ public:
         m_debugCallback->handleMessage(type, source, message);
     }
 
+    inline void warning(const char* message)
+    {
+        handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, message);
+    }
+
+    Result specializeProgram(
+        ShaderProgram* program,
+        const ExtendedShaderObjectTypeList& specializationArgs,
+        ShaderProgram** outSpecializedProgram
+    );
+
+    Result getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObject, Pipeline*& outPipeline);
+
+#if 0
     ExtendedShaderObjectTypeList specializationArgs;
     // Given current pipeline and root shader object binding, generate and bind a specialized pipeline if necessary.
     // The newly specialized pipeline is held alive by the pipeline cache so users of `outNewPipeline` do not
@@ -1298,6 +1478,7 @@ public:
         ShaderObjectBase* rootObject,
         RefPtr<Pipeline>& outNewPipeline
     );
+#endif
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
@@ -1307,7 +1488,9 @@ public:
 
     virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
 
-    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
+    virtual Result createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline);
+    virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);
+    virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);
 
 protected:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc);

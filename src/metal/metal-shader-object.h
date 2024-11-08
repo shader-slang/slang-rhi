@@ -2,8 +2,6 @@
 
 #include "metal-base.h"
 #include "metal-helper-functions.h"
-#include "metal-texture-view.h"
-#include "metal-sampler.h"
 #include "metal-shader-object-layout.h"
 
 #include <vector>
@@ -13,15 +11,15 @@ namespace rhi::metal {
 class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
 {
 public:
-    static Result create(IDevice* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
+    static Result create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
 
     ~ShaderObjectImpl();
 
     Device* getDevice() { return m_layout->getDevice(); }
 
-    SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() SLANG_OVERRIDE { return 0; }
+    SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override { return 0; }
 
-    SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) SLANG_OVERRIDE
+    SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override
     {
         *outEntryPoint = nullptr;
         return SLANG_OK;
@@ -31,16 +29,15 @@ public:
 
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override { return (size_t)m_data.getCount(); }
 
-    SLANG_NO_THROW Result SLANG_MCALL setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
-        SLANG_OVERRIDE;
+    SLANG_NO_THROW Result SLANG_MCALL setData(ShaderOffset const& inOffset, void const* data, size_t inSize) override;
 
-    SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) SLANG_OVERRIDE;
+    SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
 
 public:
 protected:
     friend class ProgramVars;
 
-    Result init(IDevice* device, ShaderObjectLayoutImpl* layout);
+    Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given `offset`
     Result _writeOrdinaryData(void* dest, size_t destSize, ShaderObjectLayoutImpl* layout);
@@ -116,25 +113,26 @@ public:
     bool m_isArgumentBufferDirty = true;
 };
 
-class MutableShaderObjectImpl : public MutableShaderObject<MutableShaderObjectImpl, ShaderObjectLayoutImpl>
-{};
-
 class RootShaderObjectImpl : public ShaderObjectImpl
 {
     typedef ShaderObjectImpl Super;
 
 public:
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
+    // virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
+    // virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-    static Result create(IDevice* device, RootShaderObjectLayoutImpl* layout, RootShaderObjectImpl** outShaderObject);
+    static Result create(
+        DeviceImpl* device,
+        RootShaderObjectLayoutImpl* layout,
+        RootShaderObjectImpl** outShaderObject
+    );
 
-    Result init(IDevice* device, RootShaderObjectLayoutImpl* layout);
+    Result init(DeviceImpl* device, RootShaderObjectLayoutImpl* layout);
 
     RootShaderObjectLayoutImpl* getLayout() { return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr()); }
 
-    GfxCount SLANG_MCALL getEntryPointCount() SLANG_OVERRIDE { return (GfxCount)m_entryPoints.size(); }
-    Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) SLANG_OVERRIDE
+    GfxCount SLANG_MCALL getEntryPointCount() override { return (GfxCount)m_entryPoints.size(); }
+    Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override
     {
         returnComPtr(outEntryPoint, m_entryPoints[index]);
         return SLANG_OK;

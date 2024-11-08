@@ -1,6 +1,8 @@
 #pragma once
 
 #define S_INVALID "invalid"
+#define S_SEPARATOR "::"
+#define S_METHOD(cls, method) S_##cls S_SEPARATOR S_##cls##_##method
 
 // ----------------------------------------------------------------------------
 // Enums
@@ -132,6 +134,55 @@
 // Functions
 // ----------------------------------------------------------------------------
 
+// Device
+#define S_Device "Device"
+#define S_Device_getNativeDeviceHandles "getNativeDeviceHandles"
+#define S_Device_hasFeature "hasFeature"
+#define S_Device_getFeatures "getFeatures"
+#define S_Device_getFormatSupport "getFormatSupport"
+#define S_Device_getSlangSession "getSlangSession"
+#define S_Device_createTransientResourceHeap "createTransientResourceHeap"
+#define S_Device_createTexture "createTexture"
+#define S_Device_createTextureFromNativeHandle "createTextureFromNativeHandle"
+#define S_Device_createTextureFromSharedHandle "createTextureFromSharedHandle"
+#define S_Device_createBuffer "createBuffer"
+#define S_Device_createBufferFromNativeHandle "createBufferFromNativeHandle"
+#define S_Device_createBufferFromSharedHandle "createBufferFromSharedHandle"
+#define S_Device_mapBuffer "mapBuffer"
+#define S_Device_unmapBuffer "unmapBuffer"
+#define S_Device_createSampler "createSampler"
+#define S_Device_createTextureView "createTextureView"
+#define S_Device_createSurface "createSurface"
+#define S_Device_createInputLayout "createInputLayout"
+#define S_Device_getQueue "getQueue"
+#define S_Device_createShaderObject "createShaderObject"
+#define S_Device_createShaderObjectFromTypeLayout "createShaderObjectFromTypeLayout"
+#define S_Device_createRootShaderObject "createRootShaderObject"
+#define S_Device_createShaderTable "createShaderTable"
+#define S_Device_createShaderProgram "createShaderProgram"
+#define S_Device_createRenderPipeline "createRenderPipeline"
+#define S_Device_createComputePipeline "createComputePipeline"
+#define S_Device_createRayTracingPipeline "createRayTracingPipeline"
+#define S_Device_readTexture "readTexture"
+#define S_Device_readBuffer "readBuffer"
+#define S_Device_getDeviceInfo "getDeviceInfo"
+#define S_Device_createQueryPool "createQueryPool"
+#define S_Device_getAccelerationStructureSizes "getAccelerationStructureSizes"
+#define S_Device_createAccelerationStructure "createAccelerationStructure"
+#define S_Device_createFence "createFence"
+#define S_Device_waitForFences "waitForFences"
+#define S_Device_getTextureAllocationInfo "getTextureAllocationInfo"
+#define S_Device_getTextureRowAlignment "getTextureRowAlignment"
+
+// CommandQueue
+#define S_CommandQueue "CommandQueue"
+#define S_CommandQueue_getType "getType"
+#define S_CommandQueue_createCommandEncoder "createCommandEncoder"
+#define S_CommandQueue_submit "submit"
+#define S_CommandQueue_getNativeHandle "getNativeHandle"
+#define S_CommandQueue_waitOnHost "waitOnHost"
+#define S_CommandQueue_waitForFenceValuesOnDevice "waitForFenceValuesOnDevice"
+
 // CommandEncoder
 #define S_CommandEncoder "CommandEncoder"
 #define S_CommandEncoder_copyBuffer "copyBuffer"
@@ -150,9 +201,13 @@
 #define S_CommandEncoder_drawIndirect "drawIndirect"
 #define S_CommandEncoder_drawIndexedIndirect "drawIndexedIndirect"
 #define S_CommandEncoder_drawMeshTasks "drawMeshTasks"
+#define S_CommandEncoder_beginComputePass "beginComputePass"
+#define S_CommandEncoder_endComputePass "endComputePass"
 #define S_CommandEncoder_setComputeState "setComputeState"
 #define S_CommandEncoder_dispatchCompute "dispatchCompute"
 #define S_CommandEncoder_dispatchComputeIndirect "dispatchComputeIndirect"
+#define S_CommandEncoder_beginRayTracingPass "beginRayTracingPass"
+#define S_CommandEncoder_endRayTracingPass "endRayTracingPass"
 #define S_CommandEncoder_setRayTracingState "setRayTracingState"
 #define S_CommandEncoder_dispatchRays "dispatchRays"
 #define S_CommandEncoder_buildAccelerationStructure "buildAccelerationStructure"
@@ -166,3 +221,24 @@
 #define S_CommandEncoder_endDebugEvent "endDebugEvent"
 #define S_CommandEncoder_writeTimestamp "writeTimestamp"
 #define S_CommandEncoder_executeCallback "executeCallback"
+
+// CommandBuffer
+#define S_CommandBuffer "CommandBuffer"
+#define S_CommandBuffer_getNativeHandle "getNativeHandle"
+
+// ShaderObject
+#define S_ShaderObject "ShaderObject"
+#define S_ShaderObject_getElementTypeLayout "getElementTypeLayout"
+#define S_ShaderObject_getContainerType "getContainerType"
+#define S_ShaderObject_getEntryPointCount "getEntryPointCount"
+#define S_ShaderObject_getEntryPoint "getEntryPoint"
+#define S_ShaderObject_setData "setData"
+#define S_ShaderObject_getObject "getObject"
+#define S_ShaderObject_setObject "setObject"
+#define S_ShaderObject_setBinding "setBinding"
+#define S_ShaderObject_setSpecializationArgs "setSpecializationArgs"
+#define S_ShaderObject_getRawData "getRawData"
+#define S_ShaderObject_getSize "getSize"
+#define S_ShaderObject_setConstantBufferOverride "setConstantBufferOverride"
+#define S_ShaderObject_finalize "finalize"
+#define S_ShaderObject_isFinalized "isFinalized"

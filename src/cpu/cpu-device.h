@@ -1,12 +1,13 @@
 #pragma once
 
 #include "cpu-base.h"
+#include "cpu-command.h"
 #include "cpu-pipeline.h"
 #include "cpu-shader-object.h"
 
 namespace rhi::cpu {
 
-class DeviceImpl : public ImmediateComputeDeviceBase
+class DeviceImpl : public Device
 {
 public:
     ~DeviceImpl();
@@ -19,6 +20,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* inTexture, const TextureViewDesc& desc, ITextureView** outView) override;
 
@@ -30,9 +35,7 @@ public:
 
     virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
 
-    virtual Result createMutableShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-
-    virtual Result createRootShaderObject(IShaderProgram* program, ShaderObjectBase** outObject) override;
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
@@ -41,33 +44,26 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc2& desc, IComputePipeline** outPipeline) override;
+    createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
-
-    virtual void writeTimestamp(IQueryPool* pool, GfxIndex index) override;
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
 
-    virtual void submitGpuWork() override {}
-    virtual void waitForGpu() override {}
-    virtual void* map(IBuffer* buffer, MapFlavor flavor) override;
-    virtual void unmap(IBuffer* buffer, size_t offsetWritten, size_t sizeWritten) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 
 private:
-    RefPtr<Pipeline> m_currentPipeline = nullptr;
-    RefPtr<RootShaderObjectImpl> m_currentRootObject = nullptr;
     DeviceInfo m_info;
 
-    virtual void setPipeline(IPipeline* state) override;
-
-    virtual void bindRootShaderObject(IShaderObject* object) override;
-
-    virtual void dispatchCompute(int x, int y, int z) override;
-
-    virtual void copyBuffer(IBuffer* dst, size_t dstOffset, IBuffer* src, size_t srcOffset, size_t size) override;
+    RefPtr<CommandQueueImpl> m_queue;
 };
 
 } // namespace rhi::cpu

@@ -1,12 +1,7 @@
 #include "cpu-query.h"
+#include "cpu-device.h"
 
 namespace rhi::cpu {
-
-Result QueryPoolImpl::init(const QueryPoolDesc& desc)
-{
-    m_queries.resize(desc.count);
-    return SLANG_OK;
-}
 
 Result QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
 {
@@ -14,6 +9,14 @@ Result QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* d
     {
         data[i] = m_queries[queryIndex + i];
     }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
+{
+    RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
+    pool->m_queries.resize(desc.count);
+    returnComPtr(outPool, pool);
     return SLANG_OK;
 }
 

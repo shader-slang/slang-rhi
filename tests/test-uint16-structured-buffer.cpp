@@ -7,18 +7,13 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    ComPtr<ITransientResourceHeap> transientHeap;
-    ITransientResourceHeap::Desc transientHeapDesc = {};
-    transientHeapDesc.constantBufferSize = 4096;
-    REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-uint16-buffer", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
@@ -41,19 +36,24 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
 
-        auto commandBuffer = transientHeap->createCommandBuffer();
-        auto passEncoder = commandBuffer->beginComputePass();
-
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        auto rootObject = device->createRootShaderObject(pipeline);
 
         // Bind buffer view to the entry point.
-        ShaderCursor(rootObject).getPath("buffer").setBinding(buffer);
+        ShaderCursor(rootObject)["buffer"].setBinding(buffer);
 
-        passEncoder->dispatchCompute(1, 1, 1);
-        passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        rootObject->finalize();
+
+        encoder->beginComputePass();
+        ComputeState state;
+        state.pipeline = pipeline;
+        state.rootObject = rootObject;
+        encoder->setComputeState(state);
+        encoder->dispatchCompute(1, 1, 1);
+        encoder->endComputePass();
+
+        queue->submit(encoder->finish());
         queue->waitOnHost();
     }
 
@@ -68,7 +68,7 @@ TEST_CASE("uint16-structured-buffer")
             // DeviceType::D3D11, // fxc doesn't support uint16_t
             DeviceType::D3D12,
             DeviceType::Vulkan,
-            // DeviceType::Metal,
+            DeviceType::Metal,
             DeviceType::CPU,
             DeviceType::CUDA,
             // DeviceType::WGPU, // crashes

@@ -27,7 +27,6 @@ struct SwapchainResizeTest
     ComPtr<ICommandQueue> queue;
     ComPtr<ISwapchain> swapchain;
 
-    ComPtr<ITransientResourceHeap> transientHeap;
     ComPtr<gfx::IFramebufferLayout> framebufferLayout;
     ComPtr<IPipeline> pipeline;
     ComPtr<IRenderPassLayout> renderPass;
@@ -123,10 +122,6 @@ struct SwapchainResizeTest
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         SLANG_CHECK_ABORT(vertexBuffer != nullptr);
 
-        ITransientResourceHeap::Desc transientHeapDesc = {};
-        transientHeapDesc.constantBufferSize = 4096 * 1024;
-        REQUIRE_CALL(device->createTransientResourceHeap(transientHeapDesc, transientHeap.writeRef()));
-
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
         REQUIRE_CALL(loadGraphicsProgram(
@@ -172,9 +167,8 @@ struct SwapchainResizeTest
 
     void renderFrame(GfxIndex framebufferIndex)
     {
-        auto commandBuffer = transientHeap->createCommandBuffer();
-
-        auto passEncoder = commandBuffer->beginRenderPass(renderPass, framebuffers[framebufferIndex]);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass, framebuffers[framebufferIndex]);
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         gfx::Viewport viewport = {};
@@ -189,8 +183,7 @@ struct SwapchainResizeTest
         swapchain->acquireNextImage();
         passEncoder->draw(kVertexCount);
         passEncoder->end();
-        commandBuffer->close();
-        queue->submit(commandBuffer);
+        queue->submit(commandEncoder->finish());
         swapchain->present();
     }
 

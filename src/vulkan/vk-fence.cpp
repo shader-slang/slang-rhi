@@ -135,4 +135,12 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
+{
+    RefPtr<FenceImpl> fence = new FenceImpl(this);
+    SLANG_RETURN_ON_FAIL(fence->init(desc));
+    returnComPtr(outFence, fence);
+    return SLANG_OK;
+}
+
 } // namespace rhi::vk

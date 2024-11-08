@@ -1,7 +1,7 @@
 #include "cpu-shader-object.h"
 #include "cpu-device.h"
 #include "cpu-buffer.h"
-#include "cpu-texture-view.h"
+#include "cpu-texture.h"
 #include "cpu-shader-object-layout.h"
 
 namespace rhi::cpu {
@@ -49,11 +49,10 @@ Buffer* CPUShaderObjectData::getBufferResource(
     return m_buffer.get();
 }
 
-Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayout)
+Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout)
 {
-    m_device = checked_cast<DeviceImpl*>(device);
+    m_device = device;
     m_device.breakStrongReference();
-
     m_layout = typeLayout;
 
     // If the layout tells us that there is any uniform data,
@@ -110,6 +109,9 @@ Result ShaderObjectImpl::init(IDevice* device, ShaderObjectLayoutImpl* typeLayou
             SLANG_RETURN_ON_FAIL(setObject(offset, subObject));
         }
     }
+
+    m_state = State::Initialized;
+
     return SLANG_OK;
 }
 
@@ -136,6 +138,8 @@ size_t ShaderObjectImpl::getSize()
 
 Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, size_t size)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+
     size = min(size, size_t(m_data.getCount() - offset.uniformOffset));
     memcpy((char*)m_data.getBuffer() + offset.uniformOffset, data, size);
     return SLANG_OK;
@@ -143,6 +147,8 @@ Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, s
 
 Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
@@ -206,6 +212,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
 Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
 {
+    SLANG_RETURN_ON_FAIL(requireNotFinalized());
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
@@ -239,17 +246,7 @@ EntryPointLayoutImpl* EntryPointShaderObjectImpl::getLayout()
     return checked_cast<EntryPointLayoutImpl*>(m_layout.Ptr());
 }
 
-uint32_t RootShaderObjectImpl::addRef()
-{
-    return 1;
-}
-
-uint32_t RootShaderObjectImpl::release()
-{
-    return 1;
-}
-
-Result RootShaderObjectImpl::init(IDevice* device, RootShaderObjectLayoutImpl* programLayout)
+Result RootShaderObjectImpl::init(DeviceImpl* device, RootShaderObjectLayoutImpl* programLayout)
 {
     SLANG_RETURN_ON_FAIL(ShaderObjectImpl::init(device, programLayout));
     for (auto& entryPoint : programLayout->m_entryPointLayouts)

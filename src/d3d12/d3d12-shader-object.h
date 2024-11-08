@@ -12,6 +12,30 @@
 
 namespace rhi::d3d12 {
 
+struct PendingDescriptorTableBinding
+{
+    uint32_t rootIndex;
+    D3D12_GPU_DESCRIPTOR_HANDLE handle;
+};
+
+/// Contextual data and operations required when binding shader objects to the pipeline state
+struct BindingContext
+{
+    // CommandEncoderImpl* encoder;
+    Submitter* submitter;
+    DeviceImpl* device;
+
+    D3D12DescriptorHeap* viewHeap;
+    D3D12DescriptorHeap* samplerHeap;
+
+    /// The type of descriptor heap that is OOM during binding.
+    D3D12_DESCRIPTOR_HEAP_TYPE outOfMemoryHeap;
+    short_vector<PendingDescriptorTableBinding>* pendingTableBindings;
+
+    virtual Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) = 0;
+    virtual Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) = 0;
+};
+
 struct DescriptorTable
 {
     DescriptorHeapReference m_heap;
@@ -133,23 +157,17 @@ protected:
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
     /// `offset`
     Result _writeOrdinaryData(
-        PassEncoderImpl* encoder,
+        BindingContext& context,
         BufferImpl* buffer,
         Offset offset,
         Size destSize,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
-    bool shouldAllocateConstantBuffer(TransientResourceHeapImpl* transientHeap);
-
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
-    Result _ensureOrdinaryDataBufferCreatedIfNeeded(
-        PassEncoderImpl* encoder,
-        ShaderObjectLayoutImpl* specializedLayout
-    );
+    Result _ensureOrdinaryDataBufferCreatedIfNeeded(BindingContext& context, ShaderObjectLayoutImpl* specializedLayout);
 
 public:
-    void updateSubObjectsRecursive();
     /// Prepare to bind this object as a parameter block.
     ///
     /// This involves allocating and binding any descriptor tables necessary
@@ -163,24 +181,22 @@ public:
     ///   SLANG_E_OUT_OF_MEMORY when descriptor heap is full.
     ///
     Result prepareToBindAsParameterBlock(
-        BindingContext* context,
+        BindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout,
         DescriptorSet& outDescriptorSet
     );
 
-    bool checkIfCachedDescriptorSetIsValidRecursive(BindingContext* context);
-
     /// Bind this object as a `ParameterBlock<X>`
     Result bindAsParameterBlock(
-        BindingContext* context,
+        BindingContext& context,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
     /// Bind this object as a `ConstantBuffer<X>`
     Result bindAsConstantBuffer(
-        BindingContext* context,
+        BindingContext& context,
         DescriptorSet const& descriptorSet,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -188,7 +204,7 @@ public:
 
     /// Bind this object as a value (for an interface-type parameter)
     Result bindAsValue(
-        BindingContext* context,
+        BindingContext& context,
         DescriptorSet const& descriptorSet,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -196,13 +212,13 @@ public:
 
     /// Shared logic for `bindAsConstantBuffer()` and `bindAsValue()`
     Result _bindImpl(
-        BindingContext* context,
+        BindingContext& context,
         DescriptorSet const& descriptorSet,
         BindingOffset const& offset,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
-    Result bindRootArguments(BindingContext* context, uint32_t& index);
+    Result bindRootArguments(BindingContext& context, uint32_t& index);
 
     void setResourceStates(StateTracking& stateTracking);
 
@@ -218,26 +234,12 @@ public:
     /// and existential-type sub-objects.
     ///
     /// Allocated from transient heap on demand with `_createOrdinaryDataBufferIfNeeded()`
-    IBuffer* m_constantBufferWeakPtr = nullptr;
+    BufferImpl* m_constantBufferWeakPtr = nullptr;
     Offset m_constantBufferOffset = 0;
     Size m_constantBufferSize = 0;
 
     /// Dirty bit tracking whether the constant buffer needs to be updated.
     bool m_isConstantBufferDirty = true;
-    /// The transient heap from which the constant buffer and descriptor set is allocated.
-    TransientResourceHeapImpl* m_cachedTransientHeap;
-    /// The version of the transient heap when the constant buffer and descriptor set is
-    /// allocated.
-    uint64_t m_cachedTransientHeapVersion;
-
-    /// Whether this shader object is allowed to be mutable.
-    bool m_isMutable = false;
-    /// The version of a mutable shader object.
-    uint32_t m_version = 0;
-    /// The version of this mutable shader object when the gpu descriptor table is cached.
-    uint32_t m_cachedGPUDescriptorSetVersion = -1;
-    /// The versions of bound subobjects.
-    std::vector<uint32_t> m_subObjectVersions;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///
@@ -260,50 +262,24 @@ class RootShaderObjectImpl : public ShaderObjectImpl
     typedef ShaderObjectImpl Super;
 
 public:
-    // Override default reference counting behavior to disable lifetime management via ComPtr.
-    // Root objects are managed by command buffer and does not need to be freed by the user.
-    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
-
-public:
     RootShaderObjectLayoutImpl* getLayout();
 
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    copyFrom(IShaderObject* object, ITransientResourceHeap* transientHeap) override;
 
 public:
     void setResourceStates(StateTracking& stateTracking);
 
-    Result bindAsRoot(BindingContext* context, RootShaderObjectLayoutImpl* specializedLayout);
+    Result bindAsRoot(BindingContext& context, RootShaderObjectLayoutImpl* specializedLayout);
 
 public:
-    Result init(DeviceImpl* device) { return SLANG_OK; }
-
-    Result resetImpl(
-        DeviceImpl* device,
-        RootShaderObjectLayoutImpl* layout,
-        DescriptorHeapReference viewHeap,
-        DescriptorHeapReference samplerHeap,
-        bool isMutable
-    );
-
-    Result reset(DeviceImpl* device, RootShaderObjectLayoutImpl* layout, TransientResourceHeapImpl* heap);
+    Result init(DeviceImpl* device, RootShaderObjectLayoutImpl* layout);
 
 protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
     std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
-};
-
-class MutableRootShaderObjectImpl : public RootShaderObjectImpl
-{
-public:
-    // Enable reference counting.
-    SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return ShaderObjectBase::addRef(); }
-    SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return ShaderObjectBase::release(); }
 };
 
 } // namespace rhi::d3d12
