@@ -111,7 +111,7 @@ void QueryPoolImpl::writeTimestamp(ID3D12GraphicsCommandList* cmdList, GfxIndex 
 
 IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IQueryPool::getTypeGuid())
         return static_cast<IQueryPool*>(this);
     return nullptr;
 }

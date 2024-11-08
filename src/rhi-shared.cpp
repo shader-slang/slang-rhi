@@ -13,34 +13,6 @@
 
 namespace rhi {
 
-const Guid GUID::IID_ISlangUnknown = SLANG_UUID_ISlangUnknown;
-const Guid GUID::IID_IShaderProgram = IShaderProgram::getTypeGuid();
-const Guid GUID::IID_IInputLayout = IInputLayout::getTypeGuid();
-const Guid GUID::IID_IPipeline = IPipeline::getTypeGuid();
-const Guid GUID::IID_IRenderPipeline = IRenderPipeline::getTypeGuid();
-const Guid GUID::IID_IComputePipeline = IComputePipeline::getTypeGuid();
-const Guid GUID::IID_IRayTracingPipeline = IRayTracingPipeline::getTypeGuid();
-
-const Guid GUID::IID_ISurface = ISurface::getTypeGuid();
-const Guid GUID::IID_ISampler = ISampler::getTypeGuid();
-const Guid GUID::IID_IResource = IResource::getTypeGuid();
-const Guid GUID::IID_IBuffer = IBuffer::getTypeGuid();
-const Guid GUID::IID_ITexture = ITexture::getTypeGuid();
-const Guid GUID::IID_ITextureView = ITextureView::getTypeGuid();
-const Guid GUID::IID_IDevice = IDevice::getTypeGuid();
-const Guid GUID::IID_IPersistentShaderCache = IPersistentShaderCache::getTypeGuid();
-const Guid GUID::IID_IShaderObject = IShaderObject::getTypeGuid();
-
-const Guid GUID::IID_ICommandEncoder = ICommandEncoder::getTypeGuid();
-const Guid GUID::IID_ICommandBuffer = ICommandBuffer::getTypeGuid();
-
-const Guid GUID::IID_ICommandQueue = ICommandQueue::getTypeGuid();
-const Guid GUID::IID_IQueryPool = IQueryPool::getTypeGuid();
-const Guid GUID::IID_IAccelerationStructure = IAccelerationStructure::getTypeGuid();
-const Guid GUID::IID_IFence = IFence::getTypeGuid();
-const Guid GUID::IID_IShaderTable = IShaderTable::getTypeGuid();
-const Guid GUID::IID_IPipelineCreationAPIDispatcher = IPipelineCreationAPIDispatcher::getTypeGuid();
-
 class NullDebugCallback : public IDebugCallback
 {
 public:
@@ -60,14 +32,14 @@ public:
 
 IFence* Fence::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IFence)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IFence::getTypeGuid())
         return static_cast<IFence*>(this);
     return nullptr;
 }
 
 IResource* Buffer::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IBuffer)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == IBuffer::getTypeGuid())
         return static_cast<IBuffer*>(this);
     return nullptr;
 }
@@ -99,7 +71,7 @@ Result Buffer::getSharedHandle(NativeHandle* outHandle)
 
 IResource* Texture::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITexture)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == ITexture::getTypeGuid())
         return static_cast<ITexture*>(this);
     return nullptr;
 }
@@ -148,7 +120,7 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
 
 ITextureView* TextureView::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ITextureView)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == ITextureView::getTypeGuid())
         return static_cast<ITextureView*>(this);
     return nullptr;
 }
@@ -161,7 +133,7 @@ Result TextureView::getNativeHandle(NativeHandle* outHandle)
 
 ISampler* Sampler::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_ISampler)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == ISampler::getTypeGuid())
         return static_cast<ISampler*>(this);
     return nullptr;
 }
@@ -179,7 +151,8 @@ Result Sampler::getNativeHandle(NativeHandle* outHandle)
 
 IAccelerationStructure* AccelerationStructure::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IResource || guid == GUID::IID_IAccelerationStructure)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() ||
+        guid == IAccelerationStructure::getTypeGuid())
         return static_cast<IAccelerationStructure*>(this);
     return nullptr;
 }
@@ -251,28 +224,28 @@ bool _doesValueFitInExistentialPayload(
 
 IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IShaderProgram)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
         return static_cast<IShaderProgram*>(this);
     return nullptr;
 }
 
 IInputLayout* InputLayout::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IInputLayout)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IInputLayout::getTypeGuid())
         return static_cast<IInputLayout*>(this);
     return nullptr;
 }
 
 IQueryPool* QueryPool::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IQueryPool)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IQueryPool::getTypeGuid())
         return static_cast<IQueryPool*>(this);
     return nullptr;
 }
 
 ICommandEncoder* CommandEncoder::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandEncoder)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == ICommandEncoder::getTypeGuid())
         return static_cast<ICommandEncoder*>(this);
     return nullptr;
 }
@@ -691,14 +664,15 @@ Result CommandEncoder::resolvePipelines(Device* device)
 
 ICommandBuffer* CommandBuffer::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ICommandBuffer)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == ICommandBuffer::getTypeGuid())
         return static_cast<ICommandBuffer*>(this);
     return nullptr;
 }
 
 IPipeline* RenderPipeline::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline || guid == GUID::IID_IRenderPipeline)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IRenderPipeline::getTypeGuid())
         return static_cast<IRenderPipeline*>(this);
     return nullptr;
 }
@@ -721,7 +695,8 @@ Result VirtualRenderPipeline::getNativeHandle(NativeHandle* outHandle)
 
 IPipeline* ComputePipeline::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline || guid == GUID::IID_IComputePipeline)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IComputePipeline::getTypeGuid())
         return static_cast<IComputePipeline*>(this);
     return nullptr;
 }
@@ -742,7 +717,8 @@ Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
 
 IPipeline* RayTracingPipeline::getInterface(const Guid& guid)
 {
-    if (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IPipeline || guid == GUID::IID_IRayTracingPipeline)
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IRayTracingPipeline::getTypeGuid())
         return static_cast<IRayTracingPipeline*>(this);
     return nullptr;
 }
@@ -811,7 +787,9 @@ Result Device::queryInterface(SlangUUID const& uuid, void** outObject)
 
 IDevice* Device::getInterface(const Guid& guid)
 {
-    return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_IDevice) ? static_cast<IDevice*>(this) : nullptr;
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IDevice::getTypeGuid())
+        return static_cast<IDevice*>(this);
+    return nullptr;
 }
 
 Result Device::initialize(const DeviceDesc& desc)
@@ -823,7 +801,7 @@ Result Device::initialize(const DeviceDesc& desc)
     if (desc.apiCommandDispatcher)
     {
         desc.apiCommandDispatcher->queryInterface(
-            GUID::IID_IPipelineCreationAPIDispatcher,
+            IPipelineCreationAPIDispatcher::getTypeGuid(),
             (void**)m_pipelineCreationAPIDispatcher.writeRef()
         );
     }
@@ -1618,7 +1596,9 @@ Result ShaderTable::init(const IShaderTable::Desc& desc)
 
 ISurface* Surface::getInterface(const Guid& guid)
 {
-    return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_ISurface) ? static_cast<ISurface*>(this) : nullptr;
+    if (guid == ISlangUnknown::getTypeGuid() || guid == ISurface::getTypeGuid())
+        return static_cast<ISurface*>(this);
+    return nullptr;
 }
 
 void Surface::setInfo(const SurfaceInfo& info)

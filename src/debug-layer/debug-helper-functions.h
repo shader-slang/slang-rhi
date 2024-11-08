@@ -107,8 +107,9 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                                                   \
     I##typeName* Debug##typeName::getInterface(const Guid& guid)                                                       \
     {                                                                                                                  \
-        return (guid == GUID::IID_ISlangUnknown || guid == GUID::IID_I##typeName) ? static_cast<I##typeName*>(this)    \
-                                                                                  : nullptr;                           \
+        if (guid == ISlangUnknown::getTypeGuid() || guid == I##typeName::getTypeGuid())                                \
+            return static_cast<I##typeName*>(this);                                                                    \
+        return nullptr;                                                                                                \
     }
 
 // Utility conversion functions to get Debug* object or the inner object from a user provided
