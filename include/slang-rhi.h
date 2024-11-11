@@ -1847,7 +1847,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitOnHost() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() = 0;
 
     /// Queues a device side wait for the given fences.
     virtual SLANG_NO_THROW Result SLANG_MCALL

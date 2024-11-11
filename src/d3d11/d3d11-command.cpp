@@ -732,7 +732,10 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-void CommandQueueImpl::waitOnHost() {}
+Result CommandQueueImpl::waitOnHost()
+{
+    return SLANG_OK;
+}
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
 {

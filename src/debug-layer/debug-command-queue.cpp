@@ -48,10 +48,10 @@ Result DebugCommandQueue::submit(
     return result;
 }
 
-void DebugCommandQueue::waitOnHost()
+Result DebugCommandQueue::waitOnHost()
 {
     SLANG_RHI_API_FUNC;
-    baseObject->waitOnHost();
+    return baseObject->waitOnHost();
 }
 
 Result DebugCommandQueue::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
