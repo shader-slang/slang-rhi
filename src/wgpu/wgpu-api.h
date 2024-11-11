@@ -197,7 +197,6 @@
     /* Procs of Queue */ \
     x(QueueCopyExternalTextureForBrowser) \
     x(QueueCopyTextureForBrowser) \
-    x(QueueOnSubmittedWorkDone) \
     x(QueueOnSubmittedWorkDone2) \
     x(QueueOnSubmittedWorkDoneF) \
     x(QueueSetLabel) \

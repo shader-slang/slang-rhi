@@ -103,15 +103,28 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         // TODO: we should switch to the new async API
         {
             WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
-            m_ctx.api.wgpuQueueOnSubmittedWorkDone(
-                queue,
-                [](WGPUQueueWorkDoneStatus status, void* userdata) { *(WGPUQueueWorkDoneStatus*)userdata = status; },
-                &status
-            );
-            while (status == WGPUQueueWorkDoneStatus_Unknown)
+            WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
+            callbackInfo.nextInChain = nullptr;
+            callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+            callbackInfo.callback =
+                [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2)
+                {
+                    *(WGPUQueueWorkDoneStatus*)userdata1 = status;
+                };
+            callbackInfo.userdata1 = &status;
+            callbackInfo.userdata2 = nullptr;
+            WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue,
+                callbackInfo);
+            constexpr size_t futureCount = size_t{1};
+            WGPUFutureWaitInfo futures[futureCount] = {future};
+            uint64_t timeoutNS = UINT64_MAX;
+            WGPUWaitStatus waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance,
+                futureCount, futures, timeoutNS);
+            if (waitStatus != WGPUWaitStatus_Success)
             {
-                m_ctx.api.wgpuDeviceTick(m_ctx.device);
+                return SLANG_FAIL;
             }
+
             if (status != WGPUQueueWorkDoneStatus_Success)
             {
                 return SLANG_FAIL;
