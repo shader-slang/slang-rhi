@@ -1542,11 +1542,12 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-void CommandQueueImpl::waitOnHost()
+Result CommandQueueImpl::waitOnHost()
 {
     auto& api = m_device->m_api;
     api.vkQueueWaitIdle(m_queue);
     retireCommandBuffers();
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)

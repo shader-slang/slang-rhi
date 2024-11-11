@@ -805,9 +805,10 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-void CommandQueueImpl::waitOnHost()
+Result CommandQueueImpl::waitOnHost()
 {
     // TODO implement
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)

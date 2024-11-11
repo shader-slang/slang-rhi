@@ -681,7 +681,7 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-void CommandQueueImpl::waitOnHost()
+Result CommandQueueImpl::waitOnHost()
 {
     // Wait for the command buffer to finish executing
     // TODO: we should switch to the new async API
@@ -703,10 +703,11 @@ void CommandQueueImpl::waitOnHost()
         SLANG_RHI_ASSERT(waitStatus == WGPUWaitStatus_Success);
         SLANG_RHI_ASSERT(status == WGPUQueueWorkDoneStatus_Success);
         if (waitStatus != WGPUWaitStatus_Success)
-            ::exit(1);
+            return SLANG_FAIL;
         if (status != WGPUQueueWorkDoneStatus_Success)
-            ::exit(1);
+            return SLANG_FAIL;
     }
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)

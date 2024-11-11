@@ -493,11 +493,11 @@ Result CommandQueueImpl::submit(
     return SLANG_OK;
 }
 
-void CommandQueueImpl::waitOnHost()
+Result CommandQueueImpl::waitOnHost()
 {
     auto resultCode = cuStreamSynchronize(m_stream);
-    if (resultCode != CUDA_SUCCESS)
-        SLANG_CUDA_HANDLE_ERROR(resultCode);
+    SLANG_CUDA_RETURN_ON_FAIL(resultCode);
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)

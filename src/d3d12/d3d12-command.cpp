@@ -1548,7 +1548,7 @@ Result CommandQueueImpl::submit(
     return SLANG_OK;
 }
 
-void CommandQueueImpl::waitOnHost()
+Result CommandQueueImpl::waitOnHost()
 {
     m_lastSubmittedID++;
     m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID);
@@ -1556,6 +1556,7 @@ void CommandQueueImpl::waitOnHost()
     m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle);
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
     retireCommandBuffers();
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
