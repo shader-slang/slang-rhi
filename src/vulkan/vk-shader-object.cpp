@@ -92,7 +92,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
         slot.format = slot.format != Format::Unknown ? slot.format : buffer->m_desc.format;
@@ -112,13 +112,13 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
         slot.type = BindingType::TextureView;
-        slot.resource = checked_cast<TextureViewImpl*>(binding.resource.get());
+        slot.resource = checked_cast<TextureViewImpl*>(binding.resource);
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::Texture:
@@ -131,20 +131,24 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource);
         break;
     case BindingType::CombinedTextureSampler:
     {
-        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
-        m_combinedTextureSamplers[bindingIndex] = CombinedTextureSamplerSlot{
-            checked_cast<TextureViewImpl*>(m_device->createTextureView(texture, {}).get()),
-            checked_cast<SamplerImpl*>(binding.resource2.get())
-        };
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2);
+        return setBinding(offset, Binding(m_device->createTextureView(texture, {}), sampler));
+    }
+    case BindingType::CombinedTextureViewSampler:
+    {
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2);
+        m_combinedTextureSamplers[bindingIndex] = CombinedTextureSamplerSlot{textureView, sampler};
         break;
     }
     case BindingType::AccelerationStructure:
         slot.type = BindingType::AccelerationStructure;
-        slot.resource = checked_cast<AccelerationStructureImpl*>(binding.resource.get());
+        slot.resource = checked_cast<AccelerationStructureImpl*>(binding.resource);
         break;
     }
 

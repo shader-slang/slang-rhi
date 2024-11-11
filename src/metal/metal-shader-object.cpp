@@ -64,19 +64,19 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     switch (binding.type)
     {
     case BindingType::Buffer:
-        m_buffers[bindingIndex] = checked_cast<BufferImpl*>(binding.resource.get());
+        m_buffers[bindingIndex] = checked_cast<BufferImpl*>(binding.resource);
         m_bufferOffsets[bindingIndex] = binding.bufferRange.offset;
         break;
     case BindingType::Texture:
     {
-        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
-        m_textureViews[bindingIndex] = checked_cast<TextureViewImpl*>(binding.resource.get());
+        m_textureViews[bindingIndex] = checked_cast<TextureViewImpl*>(binding.resource);
         break;
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource);
         break;
     }
 

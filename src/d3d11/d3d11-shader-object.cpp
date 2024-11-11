@@ -58,7 +58,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         m_resources.emplace(buffer);
         if (D3DUtil::isUAVBinding(bindingRange.bindingType))
@@ -73,12 +73,12 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
-        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource.get());
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
         m_resources.emplace(textureView);
         if (D3DUtil::isUAVBinding(bindingRange.bindingType))
         {
@@ -91,9 +91,11 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource);
         break;
     case BindingType::CombinedTextureSampler:
+        break;
+    case BindingType::CombinedTextureViewSampler:
         break;
     case BindingType::AccelerationStructure:
         break;
