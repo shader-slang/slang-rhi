@@ -72,4 +72,4 @@ jobs:
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
-        run: ctest --test-dir build --verbose
+        run: ctest --test-dir build --build-config ${{matrix.config}} --verbose
