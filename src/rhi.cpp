@@ -233,7 +233,6 @@ public:
     virtual const FormatInfo& getFormatInfo(Format format) override { return s_formatInfoMap.get(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
-    virtual bool isDeviceTypeAvailable(DeviceType type) override;
 
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
@@ -283,12 +282,7 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     case DeviceType::Metal:
         return SLANG_RHI_ENABLE_METAL;
     case DeviceType::CPU:
-#if SLANG_LINUX_FAMILY
-        // Known issues with CPU backend on linux.
-        return false;
-#else
         return SLANG_RHI_ENABLE_CPU;
-#endif
     case DeviceType::CUDA:
 #if SLANG_RHI_ENABLE_CUDA
         return rhiCudaApiInit();
@@ -300,47 +294,6 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     default:
         return false;
     }
-}
-
-bool RHI::isDeviceTypeAvailable(DeviceType type)
-{
-    if (!isDeviceTypeSupported(type))
-        return false;
-
-    // Try creating a device.
-    ComPtr<IDevice> device;
-    DeviceDesc desc;
-    desc.deviceType = type;
-    SLANG_RETURN_FALSE_ON_FAIL(createDevice(desc, device.writeRef()));
-
-    // Try compiling a trivial shader.
-    ComPtr<slang::ISession> session = device->getSlangSession();
-    if (!session)
-        return false;
-
-    const char* source = "[shader(\"compute\")] [numthreads(1,1,1)] void main(uint3 tid : SV_DispatchThreadID) {}";
-    slang::IModule* module = session->loadModuleFromSourceString("test", "test", source);
-    if (!module)
-        return false;
-
-    ComPtr<slang::IEntryPoint> entryPoint;
-    SLANG_RETURN_FALSE_ON_FAIL(module->findEntryPointByName("main", entryPoint.writeRef()));
-
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-    componentTypes.push_back(entryPoint);
-    ComPtr<slang::IComponentType> composedProgram;
-    SLANG_RETURN_FALSE_ON_FAIL(
-        session->createCompositeComponentType(componentTypes.data(), componentTypes.size(), composedProgram.writeRef())
-    );
-
-    ComPtr<slang::IComponentType> linkedProgram;
-    SLANG_RETURN_FALSE_ON_FAIL(composedProgram->link(linkedProgram.writeRef()));
-
-    ComPtr<slang::IBlob> code;
-    SLANG_RETURN_FALSE_ON_FAIL(linkedProgram->getEntryPointCode(0, 0, code.writeRef()));
-
-    return true;
 }
 
 Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)

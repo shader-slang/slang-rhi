@@ -2409,8 +2409,6 @@ public:
 
     virtual SLANG_NO_THROW bool SLANG_MCALL isDeviceTypeSupported(DeviceType type) = 0;
 
-    virtual SLANG_NO_THROW bool SLANG_MCALL isDeviceTypeAvailable(DeviceType type) = 0;
-
     /// Gets a list of available adapters for a given device type.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
 
