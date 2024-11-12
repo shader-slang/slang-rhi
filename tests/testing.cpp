@@ -515,7 +515,7 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     slang::IModule* module = nullptr;
     {
         ComPtr<slang::IBlob> diagnostics;
-        const char* source = "[shader(\"compute\")] [numthreads(1,1,1)] void main(uint3 tid : SV_DispatchThreadID) {}";
+        const char* source = "[shader(\"compute\")] [numthreads(1,1,1)] void computeMain(uint3 tid : SV_DispatchThreadID) {}";
         module = session->loadModuleFromSourceString("test", "test", source, diagnostics.writeRef());
         if (verbose && diagnostics)
             MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
@@ -524,7 +524,7 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     }
 
     ComPtr<slang::IEntryPoint> entryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName("main", entryPoint.writeRef())))
+    if (!SLANG_SUCCEEDED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
         RETURN_NOT_AVAILABLE("failed to find entry point");
 
     ComPtr<slang::IComponentType> composedProgram;
