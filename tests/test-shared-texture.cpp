@@ -150,7 +150,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
 #if SLANG_WIN64
 TEST_CASE("shared-texture-cuda")
 {
-    if (isDeviceTypeAvailable(DeviceType::CUDA))
+    if (!isDeviceTypeAvailable(DeviceType::CUDA))
         SKIP("CUDA not available");
 
     runGpuTests(
