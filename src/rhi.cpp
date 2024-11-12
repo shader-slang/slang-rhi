@@ -283,7 +283,12 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     case DeviceType::Metal:
         return SLANG_RHI_ENABLE_METAL;
     case DeviceType::CPU:
+#if SLANG_LINUX_FAMILY
+        // Known issues with CPU backend on linux.
+        return false;
+#else
         return SLANG_RHI_ENABLE_CPU;
+#endif
     case DeviceType::CUDA:
 #if SLANG_RHI_ENABLE_CUDA
         return rhiCudaApiInit();
