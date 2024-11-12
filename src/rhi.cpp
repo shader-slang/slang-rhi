@@ -233,6 +233,8 @@ public:
     virtual const FormatInfo& getFormatInfo(Format format) override { return s_formatInfoMap.get(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
+    virtual bool isDeviceTypeAvailable(DeviceType type) override;
+
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
     Result reportLiveObjects() override;
@@ -293,6 +295,16 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     default:
         return false;
     }
+}
+
+bool RHI::isDeviceTypeAvailable(DeviceType type)
+{
+    if (!isDeviceTypeSupported(type))
+        return false;
+    ComPtr<IDevice> device;
+    DeviceDesc desc;
+    desc.deviceType = type;
+    return SLANG_SUCCEEDED(createDevice(desc, device.writeRef()));
 }
 
 Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)

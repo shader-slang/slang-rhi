@@ -449,29 +449,6 @@ void renderDocBeginFrame() {}
 void renderDocEndFrame() {}
 #endif
 
-bool isSwiftShaderDevice(IDevice* device)
-{
-    std::string adapterName = device->getDeviceInfo().adapterName;
-    std::transform(
-        adapterName.begin(),
-        adapterName.end(),
-        adapterName.begin(),
-        [](unsigned char c) { return std::tolower(c); }
-    );
-    return adapterName.find("swiftshader") != std::string::npos;
-}
-
-static slang::IGlobalSession* getSlangGlobalSession()
-{
-    static slang::IGlobalSession* slangGlobalSession = []()
-    {
-        slang::IGlobalSession* session;
-        REQUIRE_CALL(slang::createGlobalSession(&session));
-        return session;
-    }();
-    return slangGlobalSession;
-}
-
 inline const char* deviceTypeToString(DeviceType deviceType)
 {
     switch (deviceType)
@@ -495,11 +472,45 @@ inline const char* deviceTypeToString(DeviceType deviceType)
     }
 }
 
+bool isDeviceTypeAvailable(DeviceType deviceType)
+{
+    static std::map<DeviceType, bool> available;
+    auto it = available.find(deviceType);
+    if (it == available.end())
+    {
+        available[deviceType] = getRHI()->isDeviceTypeAvailable(deviceType);
+    }
+    return available[deviceType];
+}
+
+bool isSwiftShaderDevice(IDevice* device)
+{
+    std::string adapterName = device->getDeviceInfo().adapterName;
+    std::transform(
+        adapterName.begin(),
+        adapterName.end(),
+        adapterName.begin(),
+        [](unsigned char c) { return std::tolower(c); }
+    );
+    return adapterName.find("swiftshader") != std::string::npos;
+}
+
+static slang::IGlobalSession* getSlangGlobalSession()
+{
+    static slang::IGlobalSession* slangGlobalSession = []()
+    {
+        slang::IGlobalSession* session;
+        REQUIRE_CALL(slang::createGlobalSession(&session));
+        return session;
+    }();
+    return slangGlobalSession;
+}
+
 void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes)
 {
     for (auto deviceType : deviceTypes)
     {
-        if (!getRHI()->isDeviceTypeSupported(deviceType))
+        if (!isDeviceTypeAvailable(deviceType))
         {
             continue;
         }
