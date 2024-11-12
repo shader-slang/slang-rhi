@@ -68,7 +68,7 @@ jobs:
         run: cmake --preset default -S . -B build ${{env.CMAKE_ARGS}}
 
       - name: Build
-        run: cmake --build build -C ${{matrix.config}}
+        run: cmake --build build --config ${{matrix.config}}
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
