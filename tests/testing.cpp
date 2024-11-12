@@ -475,16 +475,23 @@ inline const char* deviceTypeToString(DeviceType deviceType)
 inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
 {
 #define RETURN_NOT_AVAILABLE(msg)                                                                                      \
-    if (verbose)                                                                                                       \
-        MESSAGE(doctest::String(deviceTypeToString(deviceType)), " is not available (", doctest::String(msg), ")");    \
-    return false;
+    {                                                                                                                  \
+        if (verbose)                                                                                                   \
+            MESSAGE(                                                                                                   \
+                doctest::String(deviceTypeToString(deviceType)),                                                       \
+                " is not available (",                                                                                 \
+                doctest::String(msg),                                                                                  \
+                ")"                                                                                                    \
+            );                                                                                                         \
+        return false;                                                                                                  \
+    }
 
     if (verbose)
         MESSAGE("Checking for ", doctest::String(deviceTypeToString(deviceType)));
 
 
     if (!rhi::getRHI()->isDeviceTypeSupported(deviceType))
-        RETURN_NOT_AVAILABLE("Device type not supported");
+        RETURN_NOT_AVAILABLE("backend not supported");
 
 #if SLANG_LINUX_FAMILY
     if (deviceType == DeviceType::CPU)
@@ -497,28 +504,28 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     DeviceDesc desc;
     desc.deviceType = deviceType;
     if (!SLANG_SUCCEEDED(rhi::getRHI()->createDevice(desc, device.writeRef())))
-        RETURN_NOT_AVAILABLE("Failed to create device");
+        RETURN_NOT_AVAILABLE("failed to create device");
 
     // Try compiling a trivial shader.
     ComPtr<slang::ISession> session = device->getSlangSession();
     if (!session)
-        return false;
+        RETURN_NOT_AVAILABLE("failed to get slang session");
 
     // Load shader module.
     slang::IModule* module = nullptr;
     {
         ComPtr<slang::IBlob> diagnostics;
         const char* source = "[shader(\"compute\")] [numthreads(1,1,1)] void main(uint3 tid : SV_DispatchThreadID) {}";
-        slang::IModule* module = session->loadModuleFromSourceString("test", "test", source, diagnostics.writeRef());
+        module = session->loadModuleFromSourceString("test", "test", source, diagnostics.writeRef());
         if (verbose && diagnostics)
             MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (!module)
-            RETURN_NOT_AVAILABLE("Failed to load module");
+            RETURN_NOT_AVAILABLE("failed to load module");
     }
 
     ComPtr<slang::IEntryPoint> entryPoint;
     if (!SLANG_SUCCEEDED(module->findEntryPointByName("main", entryPoint.writeRef())))
-        RETURN_NOT_AVAILABLE("Failed to find entry point");
+        RETURN_NOT_AVAILABLE("failed to find entry point");
 
     ComPtr<slang::IComponentType> composedProgram;
     {
@@ -535,7 +542,7 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
         if (verbose && diagnostics)
             MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (!composedProgram)
-            RETURN_NOT_AVAILABLE("Failed to create composite component type");
+            RETURN_NOT_AVAILABLE("failed to create composite component type");
     }
 
     ComPtr<slang::IComponentType> linkedProgram;
@@ -545,7 +552,7 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
         if (verbose && diagnostics)
             MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (!linkedProgram)
-            RETURN_NOT_AVAILABLE("Failed to link program");
+            RETURN_NOT_AVAILABLE("failed to link program");
     }
 
     ComPtr<slang::IBlob> code;
@@ -555,14 +562,14 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
         if (verbose && diagnostics)
             MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (!code)
-            RETURN_NOT_AVAILABLE("Failed to get entry point code");
+            RETURN_NOT_AVAILABLE("failed to get entry point code");
     }
 
     if (verbose)
         MESSAGE(doctest::String(deviceTypeToString(deviceType)), " is available.");
+
     return true;
 }
-
 
 bool isDeviceTypeAvailable(DeviceType deviceType)
 {
