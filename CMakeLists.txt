@@ -10,6 +10,7 @@ endif()
 # Add the cmake directory to the module path.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+include(CTest)
 include(CMakeDependentOption)
 include(FetchPackage)
 include(DetermineTargetArchitecture)
@@ -572,6 +573,8 @@ if(SLANG_RHI_BUILD_TESTS)
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests)
     target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi)
+
+    add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)

@@ -72,4 +72,4 @@ jobs:
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
-        run: ./build/slang-rhi-tests
+        run: ctest --test-dir build --verbose
