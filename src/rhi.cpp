@@ -306,10 +306,41 @@ bool RHI::isDeviceTypeAvailable(DeviceType type)
 {
     if (!isDeviceTypeSupported(type))
         return false;
+
+    // Try creating a device.
     ComPtr<IDevice> device;
     DeviceDesc desc;
     desc.deviceType = type;
-    return SLANG_SUCCEEDED(createDevice(desc, device.writeRef()));
+    SLANG_RETURN_FALSE_ON_FAIL(createDevice(desc, device.writeRef()));
+
+    // Try compiling a trivial shader.
+    ComPtr<slang::ISession> session = device->getSlangSession();
+    if (!session)
+        return false;
+
+    const char* source = "[shader(\"compute\")] [numthreads(1,1,1)] void main(uint3 tid : SV_DispatchThreadID) {}";
+    slang::IModule* module = session->loadModuleFromSourceString("test", "test", source);
+    if (!module)
+        return false;
+
+    ComPtr<slang::IEntryPoint> entryPoint;
+    SLANG_RETURN_FALSE_ON_FAIL(module->findEntryPointByName("main", entryPoint.writeRef()));
+
+    std::vector<slang::IComponentType*> componentTypes;
+    componentTypes.push_back(module);
+    componentTypes.push_back(entryPoint);
+    ComPtr<slang::IComponentType> composedProgram;
+    SLANG_RETURN_FALSE_ON_FAIL(
+        session->createCompositeComponentType(componentTypes.data(), componentTypes.size(), composedProgram.writeRef())
+    );
+
+    ComPtr<slang::IComponentType> linkedProgram;
+    SLANG_RETURN_FALSE_ON_FAIL(composedProgram->link(linkedProgram.writeRef()));
+
+    ComPtr<slang::IBlob> code;
+    SLANG_RETURN_FALSE_ON_FAIL(linkedProgram->getEntryPointCode(0, 0, code.writeRef()));
+
+    return true;
 }
 
 Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
