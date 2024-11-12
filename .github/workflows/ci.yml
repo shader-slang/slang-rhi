@@ -68,8 +68,8 @@ jobs:
         run: cmake --preset default -S . -B build ${{env.CMAKE_ARGS}}
 
       - name: Build
-        run: cmake --build build -j 2
+        run: cmake --build build
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
-        run: echo "Unit Tests"
+        run: ./build/slang-rhi-tests
