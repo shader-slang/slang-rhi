@@ -137,6 +137,8 @@ ComPtr<slang::ISession> createTestingSession(
     std::vector<const char*> additionalSearchPaths = {}
 );
 
+bool isDeviceTypeAvailable(DeviceType deviceType);
+
 bool isSwiftShaderDevice(IDevice* device);
 
 std::vector<const char*> getSlangSearchPaths();

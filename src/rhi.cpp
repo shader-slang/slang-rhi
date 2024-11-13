@@ -233,6 +233,7 @@ public:
     virtual const FormatInfo& getFormatInfo(Format format) override { return s_formatInfoMap.get(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
+
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
     Result reportLiveObjects() override;

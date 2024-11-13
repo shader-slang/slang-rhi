@@ -77,8 +77,8 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 #if SLANG_WIN64
 TEST_CASE("shared-buffer-cuda")
 {
-    if (!getRHI()->isDeviceTypeSupported(DeviceType::CUDA))
-        SKIP("CUDA not supported");
+    if (!isDeviceTypeAvailable(DeviceType::CUDA))
+        SKIP("CUDA not available");
 
     runGpuTests(
         testSharedBuffer<DeviceType::CUDA>,

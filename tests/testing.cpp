@@ -449,29 +449,6 @@ void renderDocBeginFrame() {}
 void renderDocEndFrame() {}
 #endif
 
-bool isSwiftShaderDevice(IDevice* device)
-{
-    std::string adapterName = device->getDeviceInfo().adapterName;
-    std::transform(
-        adapterName.begin(),
-        adapterName.end(),
-        adapterName.begin(),
-        [](unsigned char c) { return std::tolower(c); }
-    );
-    return adapterName.find("swiftshader") != std::string::npos;
-}
-
-static slang::IGlobalSession* getSlangGlobalSession()
-{
-    static slang::IGlobalSession* slangGlobalSession = []()
-    {
-        slang::IGlobalSession* session;
-        REQUIRE_CALL(slang::createGlobalSession(&session));
-        return session;
-    }();
-    return slangGlobalSession;
-}
-
 inline const char* deviceTypeToString(DeviceType deviceType)
 {
     switch (deviceType)
@@ -495,11 +472,144 @@ inline const char* deviceTypeToString(DeviceType deviceType)
     }
 }
 
+inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
+{
+#define RETURN_NOT_AVAILABLE(msg)                                                                                      \
+    {                                                                                                                  \
+        if (verbose)                                                                                                   \
+            MESSAGE(                                                                                                   \
+                doctest::String(deviceTypeToString(deviceType)),                                                       \
+                " is not available (",                                                                                 \
+                doctest::String(msg),                                                                                  \
+                ")"                                                                                                    \
+            );                                                                                                         \
+        return false;                                                                                                  \
+    }
+
+    if (verbose)
+        MESSAGE("Checking for ", doctest::String(deviceTypeToString(deviceType)));
+
+
+    if (!rhi::getRHI()->isDeviceTypeSupported(deviceType))
+        RETURN_NOT_AVAILABLE("backend not supported");
+
+#if SLANG_LINUX_FAMILY
+    if (deviceType == DeviceType::CPU)
+        // Known issues with CPU backend on linux.
+        RETURN_NOT_AVAILABLE("CPU backend not supported on linux");
+#endif
+
+    // Try creating a device.
+    ComPtr<IDevice> device;
+    DeviceDesc desc;
+    desc.deviceType = deviceType;
+    if (!SLANG_SUCCEEDED(rhi::getRHI()->createDevice(desc, device.writeRef())))
+        RETURN_NOT_AVAILABLE("failed to create device");
+
+    // Try compiling a trivial shader.
+    ComPtr<slang::ISession> session = device->getSlangSession();
+    if (!session)
+        RETURN_NOT_AVAILABLE("failed to get slang session");
+
+    // Load shader module.
+    slang::IModule* module = nullptr;
+    {
+        ComPtr<slang::IBlob> diagnostics;
+        const char* source = "[shader(\"compute\")] [numthreads(1,1,1)] void computeMain(uint3 tid : SV_DispatchThreadID) {}";
+        module = session->loadModuleFromSourceString("test", "test", source, diagnostics.writeRef());
+        if (verbose && diagnostics)
+            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
+        if (!module)
+            RETURN_NOT_AVAILABLE("failed to load module");
+    }
+
+    ComPtr<slang::IEntryPoint> entryPoint;
+    if (!SLANG_SUCCEEDED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
+        RETURN_NOT_AVAILABLE("failed to find entry point");
+
+    ComPtr<slang::IComponentType> composedProgram;
+    {
+        ComPtr<slang::IBlob> diagnostics;
+        std::vector<slang::IComponentType*> componentTypes;
+        componentTypes.push_back(module);
+        componentTypes.push_back(entryPoint);
+        session->createCompositeComponentType(
+            componentTypes.data(),
+            componentTypes.size(),
+            composedProgram.writeRef(),
+            diagnostics.writeRef()
+        );
+        if (verbose && diagnostics)
+            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
+        if (!composedProgram)
+            RETURN_NOT_AVAILABLE("failed to create composite component type");
+    }
+
+    ComPtr<slang::IComponentType> linkedProgram;
+    {
+        ComPtr<slang::IBlob> diagnostics;
+        composedProgram->link(linkedProgram.writeRef(), diagnostics.writeRef());
+        if (verbose && diagnostics)
+            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
+        if (!linkedProgram)
+            RETURN_NOT_AVAILABLE("failed to link program");
+    }
+
+    ComPtr<slang::IBlob> code;
+    {
+        ComPtr<slang::IBlob> diagnostics;
+        linkedProgram->getEntryPointCode(0, 0, code.writeRef(), diagnostics.writeRef());
+        if (verbose && diagnostics)
+            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
+        if (!code)
+            RETURN_NOT_AVAILABLE("failed to get entry point code");
+    }
+
+    if (verbose)
+        MESSAGE(doctest::String(deviceTypeToString(deviceType)), " is available.");
+
+    return true;
+}
+
+bool isDeviceTypeAvailable(DeviceType deviceType)
+{
+    static std::map<DeviceType, bool> available;
+    auto it = available.find(deviceType);
+    if (it == available.end())
+    {
+        available[deviceType] = checkDeviceTypeAvailable(deviceType);
+    }
+    return available[deviceType];
+}
+
+bool isSwiftShaderDevice(IDevice* device)
+{
+    std::string adapterName = device->getDeviceInfo().adapterName;
+    std::transform(
+        adapterName.begin(),
+        adapterName.end(),
+        adapterName.begin(),
+        [](unsigned char c) { return std::tolower(c); }
+    );
+    return adapterName.find("swiftshader") != std::string::npos;
+}
+
+static slang::IGlobalSession* getSlangGlobalSession()
+{
+    static slang::IGlobalSession* slangGlobalSession = []()
+    {
+        slang::IGlobalSession* session;
+        REQUIRE_CALL(slang::createGlobalSession(&session));
+        return session;
+    }();
+    return slangGlobalSession;
+}
+
 void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes)
 {
     for (auto deviceType : deviceTypes)
     {
-        if (!getRHI()->isDeviceTypeSupported(deviceType))
+        if (!isDeviceTypeAvailable(deviceType))
         {
             continue;
         }

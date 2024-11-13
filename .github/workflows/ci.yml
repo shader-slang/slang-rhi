@@ -14,13 +14,27 @@ jobs:
       matrix:
         os: ["windows", "linux", "macos"]
         platform: ["x86_64", "aarch64"]
+        compiler: ["msvc", "gcc", "clang"]
         config: ["Debug", "Release"]
-        include:
-          - {os: windows, runs-on: windows-latest}
-          - {os: linux, runs-on: ubuntu-latest}
-          - {os: macos, runs-on: macos-latest}
         exclude:
+          # Exclude x86_64 for macos
           - {os: macos, platform: x86_64}
+          # Exclude unavailable compilers
+          - { os: windows, compiler: gcc }
+          - { os: windows, compiler: clang }
+          - { os: linux, compiler: msvc }
+          - { os: macos, compiler: msvc }
+          - { os: macos, compiler: gcc }
+        include:
+          # Builds running on self-hosted runners (build + tests)
+          - {os: windows, platform: "x86_64", compiler: msvc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
+          - {os: linux, platform: "x86_64", compiler: gcc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
+          # Builds running on GitHub hosted runners (build + tests)
+          - { os: macos, platform: "aarch64", compiler: clang, flags: "unit-test", runs-on: [macos-latest] }
+          # Builds running on GitHub hosted runners (build only)
+          - { os: linux, platform: "x86_64", compiler: clang, runs-on: [ubuntu-latest] }
+          - { os: windows, platform: "aarch64", runs-on: [windows-latest] }
+          - { os: linux, platform: "aarch64", runs-on: [ubuntu-latest] }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -30,7 +44,7 @@ jobs:
           submodules: true
 
       - name: Setup Linux
-        if: matrix.os == 'linux'
+        if: matrix.os == 'linux' && contains(matrix.runs-on, 'ubuntu-latest')
         run: sudo apt-get update && sudo apt-get install -y xorg-dev
 
       - name: Setup Linux (aarch64 cross-compilation)
@@ -54,4 +68,8 @@ jobs:
         run: cmake --preset default -S . -B build ${{env.CMAKE_ARGS}}
 
       - name: Build
-        run: cmake --build build -j 2
+        run: cmake --build build --config ${{matrix.config}}
+
+      - name: Unit Tests
+        if: contains(matrix.flags, 'unit-test')
+        run: ctest --test-dir build --build-config ${{matrix.config}} --verbose
