@@ -47,7 +47,6 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
         // Set the `c` field of the `AddTransformer`.
         float c = 1.0f;
         ShaderCursor(transformer)["c"].setData(&c, sizeof(float));
-        transformer->finalize();
 
         auto rootObject = device->createRootShaderObject(pipeline);
         ShaderCursor cursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
@@ -55,13 +54,9 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
         cursor["buffer"].setBinding(buffer);
         // Bind the previously created transformer object to root object.
         cursor["transformer"].setObject(transformer);
-        rootObject->finalize();
 
         auto passEncoder = encoder->beginComputePass();
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        passEncoder->setComputeState(state);
+        passEncoder->bindPipeline(pipeline, rootObject);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 

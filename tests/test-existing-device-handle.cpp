@@ -53,17 +53,9 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
-        ShaderCursor rootCursor(rootObject);
-        // Bind buffer view to the root.
-        rootCursor["buffer"].setBinding(buffer);
-        rootObject->finalize();
-
         auto passEncoder = encoder->beginComputePass();
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        passEncoder->setComputeState(state);
+        auto rootObject = passEncoder->bindPipeline(pipeline);
+        ShaderCursor(rootObject)["buffer"].setBinding(buffer);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
