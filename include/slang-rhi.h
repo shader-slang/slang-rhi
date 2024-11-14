@@ -1642,11 +1642,68 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
+class IPassEncoder : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x159cd708, 0x4762, 0x4f30, {0xb5, 0x3f, 0xbe, 0x2a, 0xb5, 0x7d, 0x7c, 0x46});
+
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
+};
+
+class IRenderPassEncoder : public IPassEncoder
+{
+    SLANG_COM_INTERFACE(0x4f904e1a, 0xa5ed, 0x4496, {0xaa, 0xc6, 0xde, 0xcf, 0x68, 0x1e, 0x6c, 0x74});
+
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
+        GfxCount maxDrawCount,
+        IBuffer* argBuffer,
+        Offset argOffset,
+        IBuffer* countBuffer = nullptr,
+        Offset countOffset = 0
+    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
+        GfxCount maxDrawCount,
+        IBuffer* argBuffer,
+        Offset argOffset,
+        IBuffer* countBuffer = nullptr,
+        Offset countOffset = 0
+    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) = 0;
+};
+
+class IComputePassEncoder : public IPassEncoder
+{
+    SLANG_COM_INTERFACE(0x8479334f, 0xfb45, 0x471c, {0xb7, 0x75, 0x94, 0xa5, 0x76, 0x72, 0x32, 0xc8});
+
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) = 0;
+};
+
+class IRayTracingPassEncoder : public IPassEncoder
+{
+    SLANG_COM_INTERFACE(0x4fe41081, 0x819c, 0x4fdc, {0x80, 0x78, 0x40, 0x31, 0x9c, 0x01, 0xff, 0xad});
+
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) = 0;
+};
+
 class ICommandEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
 
 public:
+    virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) = 0;
+    virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() = 0;
+    virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) = 0;
 
@@ -1704,51 +1761,6 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL endRenderPass() = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
-        GfxCount maxDrawCount,
-        IBuffer* argBuffer,
-        Offset argOffset,
-        IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
-    ) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
-        GfxCount maxDrawCount,
-        IBuffer* argBuffer,
-        Offset argOffset,
-        IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
-    ) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(int x, int y, int z) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL beginComputePass() = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL endComputePass() = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(int x, int y, int z) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL beginRayTracingPass() = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL endRayTracingPass() = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) = 0;
-
-    /// Issues a dispatch command to start ray tracing workload with a ray tracing pipeline.
-    /// `rayGenShaderIndex` specifies the index into the shader table that identifies the ray generation shader.
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,

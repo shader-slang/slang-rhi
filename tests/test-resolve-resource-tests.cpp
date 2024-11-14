@@ -165,7 +165,7 @@ struct BaseResolveResourceTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        encoder->beginRenderPass(renderPass);
+        auto passEncoder = encoder->beginRenderPass(renderPass);
 
         RenderState state;
         state.pipeline = pipeline;
@@ -176,12 +176,12 @@ struct BaseResolveResourceTest
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBufferCount = 1;
-        encoder->setRenderState(state);
+        passEncoder->setRenderState(state);
 
         DrawArguments args;
         args.vertexCount = kVertexCount;
-        encoder->draw(args);
-        encoder->endRenderPass();
+        passEncoder->draw(args);
+        passEncoder->end();
 
         queue->submit(encoder->finish());
         queue->waitOnHost();

@@ -64,13 +64,13 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
             cursor["outBuffer"].setBinding(intermediateBuffer);
             rootObject->finalize();
 
-            encoder->beginComputePass();
+            auto passEncoder = encoder->beginComputePass();
             ComputeState state;
             state.pipeline = programA.pipeline;
             state.rootObject = rootObject;
-            encoder->setComputeState(state);
-            encoder->dispatchCompute(1, 1, 1);
-            encoder->endComputePass();
+            passEncoder->setComputeState(state);
+            passEncoder->dispatchCompute(1, 1, 1);
+            passEncoder->end();
         }
 
         // Resource transition is automatically handled.
@@ -83,13 +83,13 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
             cursor["outBuffer"].setBinding(outputBuffer);
             rootObject->finalize();
 
-            encoder->beginComputePass();
+            auto passEncoder = encoder->beginComputePass();
             ComputeState state;
             state.pipeline = programB.pipeline;
             state.rootObject = rootObject;
-            encoder->setComputeState(state);
-            encoder->dispatchCompute(1, 1, 1);
-            encoder->endComputePass();
+            passEncoder->setComputeState(state);
+            passEncoder->dispatchCompute(1, 1, 1);
+            passEncoder->end();
         }
 
         queue->submit(encoder->finish());

@@ -181,9 +181,9 @@ struct DrawIndexedIndirect
 
 struct DrawMeshTasks
 {
-    int x;
-    int y;
-    int z;
+    GfxCount x;
+    GfxCount y;
+    GfxCount z;
 };
 
 struct BeginComputePass
@@ -199,9 +199,9 @@ struct SetComputeState
 
 struct DispatchCompute
 {
-    int x;
-    int y;
-    int z;
+    GfxCount x;
+    GfxCount y;
+    GfxCount z;
 };
 
 struct DispatchComputeIndirect
