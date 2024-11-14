@@ -426,6 +426,7 @@ void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
+    requireNoPass();
     baseObject->setBufferState(buffer, state);
 }
 
@@ -433,6 +434,7 @@ void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange su
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
+    requireNoPass();
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
@@ -440,6 +442,7 @@ void DebugCommandEncoder::pushDebugGroup(const char* name, float rgbColor[3])
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
+    requireNoPass();
     baseObject->pushDebugGroup(name, rgbColor);
 }
 
@@ -447,6 +450,7 @@ void DebugCommandEncoder::popDebugGroup()
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
+    requireNoPass();
     baseObject->popDebugGroup();
 }
 
@@ -454,6 +458,7 @@ void DebugCommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
+    requireNoPass();
     baseObject->insertDebugMarker(name, rgbColor);
 }
 
@@ -469,9 +474,6 @@ Result DebugCommandEncoder::finish(ICommandBuffer** outCommandBuffer)
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-#if 0
-    checkEncodersClosedBeforeFinish();
-#endif
     RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
     auto result = baseObject->finish(outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))
