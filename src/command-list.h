@@ -43,6 +43,7 @@
     x(SetTextureState) \
     x(PushDebugGroup) \
     x(PopDebugGroup) \
+    x(InsertDebugMarker) \
     x(WriteTimestamp) \
     x(ExecuteCallback)
 // clang-format on
@@ -288,6 +289,12 @@ struct PushDebugGroup
 struct PopDebugGroup
 {};
 
+struct InsertDebugMarker
+{
+    const char* name;
+    float rgbColor[3];
+};
+
 struct WriteTimestamp
 {
     IQueryPool* queryPool;
@@ -398,6 +405,7 @@ public:
     void write(commands::SetTextureState&& cmd);
     void write(commands::PushDebugGroup&& cmd);
     void write(commands::PopDebugGroup&& cmd);
+    void write(commands::InsertDebugMarker&& cmd);
     void write(commands::WriteTimestamp&& cmd);
     void write(commands::ExecuteCallback&& cmd);
 

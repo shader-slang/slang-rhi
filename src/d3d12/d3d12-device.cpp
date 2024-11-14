@@ -387,6 +387,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_BeginEventOnCommandList =
             (PFN_BeginEventOnCommandList)GetProcAddress(pixModule, "PIXBeginEventOnCommandList");
         m_EndEventOnCommandList = (PFN_EndEventOnCommandList)GetProcAddress(pixModule, "PIXEndEventOnCommandList");
+        m_SetMarkerOnCommandList = (PFN_SetMarkerOnCommandList)GetProcAddress(pixModule, "PIXSetMarkerOnCommandList");
     }
 #endif
 

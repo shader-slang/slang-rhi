@@ -450,6 +450,13 @@ void DebugCommandEncoder::popDebugGroup()
     baseObject->popDebugGroup();
 }
 
+void DebugCommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    baseObject->insertDebugMarker(name, rgbColor);
+}
+
 void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, GfxIndex index)
 {
     SLANG_RHI_API_FUNC;

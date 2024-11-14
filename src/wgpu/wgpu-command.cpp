@@ -85,6 +85,7 @@ public:
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
+    void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
@@ -612,6 +613,11 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
     m_ctx.api.wgpuCommandEncoderPopDebugGroup(m_commandEncoder);
+}
+
+void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
+{
+    m_ctx.api.wgpuCommandEncoderInsertDebugMarker(m_commandEncoder, cmd.name);
 }
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)

@@ -61,6 +61,7 @@ public:
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
+    void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 };
@@ -438,6 +439,11 @@ void CommandExecutor::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 }
 
 void CommandExecutor::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
 {
     SLANG_UNUSED(cmd);
 }

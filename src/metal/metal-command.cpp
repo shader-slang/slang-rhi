@@ -95,6 +95,7 @@ public:
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
+    void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
@@ -694,6 +695,12 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
     m_commandBuffer->popDebugGroup();
+}
+
+void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
+{
+    NS::SharedPtr<NS::String> string = MetalUtil::createString(cmd.name);
+    m_commandBuffer->insertDebugSignpost(string.get());
 }
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)

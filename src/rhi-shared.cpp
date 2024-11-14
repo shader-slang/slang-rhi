@@ -676,6 +676,16 @@ void CommandEncoder::popDebugGroup()
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    commands::InsertDebugMarker cmd;
+    cmd.name = name;
+    cmd.rgbColor[0] = rgbColor[0];
+    cmd.rgbColor[1] = rgbColor[1];
+    cmd.rgbColor[2] = rgbColor[2];
+    m_commandList->write(std::move(cmd));
+}
+
 void CommandEncoder::writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex)
 {
     commands::WriteTimestamp cmd;

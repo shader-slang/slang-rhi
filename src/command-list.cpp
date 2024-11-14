@@ -322,6 +322,13 @@ void CommandList::write(commands::PopDebugGroup&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::InsertDebugMarker&& cmd)
+{
+    if (cmd.name)
+        cmd.name = (const char*)writeData(cmd.name, strlen(cmd.name) + 1);
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::WriteTimestamp&& cmd)
 {
     retainResource(cmd.queryPool);
