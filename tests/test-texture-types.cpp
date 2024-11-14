@@ -128,34 +128,20 @@ struct TextureAccessTest : TextureTest
             auto queue = device->getQueue(QueueType::Graphics);
             auto encoder = queue->createCommandEncoder();
 
-            auto rootObject = device->createRootShaderObject(pipeline);
-
+            auto passEncoder = encoder->beginComputePass();
+            auto rootObject = passEncoder->bindPipeline(pipeline);
             ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
-
             auto width = textureInfo->extents.width;
             auto height = textureInfo->extents.height;
             auto depth = textureInfo->extents.depth;
-
             entryPointCursor["width"].setData(width);
             entryPointCursor["height"].setData(height);
             entryPointCursor["depth"].setData(depth);
-
-            // Bind texture view to the entry point
             entryPointCursor["texture"].setBinding(texture);
             entryPointCursor["results"].setBinding(resultsBuffer);
-
             if (sampler)
                 entryPointCursor["sampler"].setBinding(sampler); // TODO: Bind nullptr and make sure it doesn't splut
-
-            rootObject->finalize();
-
             auto bufferElementCount = width * height * depth;
-
-            auto passEncoder = encoder->beginComputePass();
-            ComputeState state;
-            state.pipeline = pipeline;
-            state.rootObject = rootObject;
-            passEncoder->setComputeState(state);
             passEncoder->dispatchCompute(bufferElementCount, 1, 1);
             passEncoder->end();
 
@@ -380,9 +366,6 @@ struct RenderTargetTests : TextureTest
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
-        rootObject->finalize();
-
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = renderTextureView;
         if (sampleCount > 1)
@@ -396,9 +379,9 @@ struct RenderTargetTests : TextureTest
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = encoder->beginRenderPass(renderPass);
 
+        passEncoder->bindPipeline(pipeline);
+
         RenderState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
         state.viewports[0] = Viewport(textureInfo->extents.width, textureInfo->extents.height);
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect(textureInfo->extents.width, textureInfo->extents.height);

@@ -326,19 +326,15 @@ struct RayTracingTestA : BaseRayTracingTest
     void renderFrame()
     {
         auto encoder = queue->createCommandEncoder();
-        auto rootObject = device->createRootShaderObject(raytracingPipeline);
+
+        auto passEncoder = encoder->beginRayTracingPass();
+        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
-        rootObject->finalize();
-        auto passEncoder = encoder->beginRayTracingPass();
-        RayTracingState state;
-        state.pipeline = raytracingPipeline;
-        state.rootObject = rootObject;
-        state.shaderTable = shaderTable;
-        passEncoder->setRayTracingState(state);
         passEncoder->dispatchRays(0, width, height, 1);
         passEncoder->end();
+
         queue->submit(encoder->finish());
         queue->waitOnHost();
     }
@@ -358,19 +354,15 @@ struct RayTracingTestB : BaseRayTracingTest
     void renderFrame()
     {
         auto encoder = queue->createCommandEncoder();
-        auto rootObject = device->createRootShaderObject(raytracingPipeline);
+
+        auto passEncoder = encoder->beginRayTracingPass();
+        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
-        rootObject->finalize();
-        auto passEncoder = encoder->beginRayTracingPass();
-        RayTracingState state;
-        state.pipeline = raytracingPipeline;
-        state.rootObject = rootObject;
-        state.shaderTable = shaderTable;
-        passEncoder->setRayTracingState(state);
         passEncoder->dispatchRays(1, width, height, 1);
         passEncoder->end();
+
         queue->submit(encoder->finish());
         queue->waitOnHost();
     }
