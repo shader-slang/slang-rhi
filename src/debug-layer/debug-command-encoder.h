@@ -184,8 +184,8 @@ public:
         setTextureState(texture, kEntireTexture, state);
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL beginDebugEvent(const char* name, float rgbColor[3]) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL endDebugEvent() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) override;
 

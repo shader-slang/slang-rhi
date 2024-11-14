@@ -436,18 +436,18 @@ void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange su
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
-void DebugCommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
+void DebugCommandEncoder::pushDebugGroup(const char* name, float rgbColor[3])
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
-    baseObject->beginDebugEvent(name, rgbColor);
+    baseObject->pushDebugGroup(name, rgbColor);
 }
 
-void DebugCommandEncoder::endDebugEvent()
+void DebugCommandEncoder::popDebugGroup()
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
-    baseObject->endDebugEvent();
+    baseObject->popDebugGroup();
 }
 
 void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, GfxIndex index)

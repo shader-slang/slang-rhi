@@ -41,8 +41,8 @@
     x(DeserializeAccelerationStructure) \
     x(SetBufferState) \
     x(SetTextureState) \
-    x(BeginDebugEvent) \
-    x(EndDebugEvent) \
+    x(PushDebugGroup) \
+    x(PopDebugGroup) \
     x(WriteTimestamp) \
     x(ExecuteCallback)
 // clang-format on
@@ -279,13 +279,13 @@ struct SetTextureState
     ResourceState state;
 };
 
-struct BeginDebugEvent
+struct PushDebugGroup
 {
     const char* name;
     float rgbColor[3];
 };
 
-struct EndDebugEvent
+struct PopDebugGroup
 {};
 
 struct WriteTimestamp
@@ -396,8 +396,8 @@ public:
     void write(commands::DeserializeAccelerationStructure&& cmd);
     void write(commands::SetBufferState&& cmd);
     void write(commands::SetTextureState&& cmd);
-    void write(commands::BeginDebugEvent&& cmd);
-    void write(commands::EndDebugEvent&& cmd);
+    void write(commands::PushDebugGroup&& cmd);
+    void write(commands::PopDebugGroup&& cmd);
     void write(commands::WriteTimestamp&& cmd);
     void write(commands::ExecuteCallback&& cmd);
 

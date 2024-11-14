@@ -83,8 +83,8 @@ public:
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
-    void cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd);
-    void cmdEndDebugEvent(const commands::EndDebugEvent& cmd);
+    void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
+    void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
@@ -604,12 +604,12 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     SLANG_UNUSED(cmd);
 }
 
-void CommandRecorder::cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd)
+void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, cmd.name);
 }
 
-void CommandRecorder::cmdEndDebugEvent(const commands::EndDebugEvent& cmd)
+void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
     m_ctx.api.wgpuCommandEncoderPopDebugGroup(m_commandEncoder);
 }

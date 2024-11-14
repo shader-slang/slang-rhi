@@ -660,9 +660,9 @@ void CommandEncoder::setTextureState(ITexture* texture, SubresourceRange subreso
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
+void CommandEncoder::pushDebugGroup(const char* name, float rgbColor[3])
 {
-    commands::BeginDebugEvent cmd;
+    commands::PushDebugGroup cmd;
     cmd.name = name;
     cmd.rgbColor[0] = rgbColor[0];
     cmd.rgbColor[1] = rgbColor[1];
@@ -670,9 +670,9 @@ void CommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::endDebugEvent()
+void CommandEncoder::popDebugGroup()
 {
-    commands::EndDebugEvent cmd;
+    commands::PopDebugGroup cmd;
     m_commandList->write(std::move(cmd));
 }
 

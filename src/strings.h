@@ -217,8 +217,8 @@
 #define S_CommandEncoder_deserializeAccelerationStructure "deserializeAccelerationStructure"
 #define S_CommandEncoder_setBufferState "setBufferState"
 #define S_CommandEncoder_setTextureState "setTextureState"
-#define S_CommandEncoder_beginDebugEvent "beginDebugEvent"
-#define S_CommandEncoder_endDebugEvent "endDebugEvent"
+#define S_CommandEncoder_pushDebugGroup "pushDebugGroup"
+#define S_CommandEncoder_popDebugGroup "popDebugGroup"
 #define S_CommandEncoder_writeTimestamp "writeTimestamp"
 #define S_CommandEncoder_executeCallback "executeCallback"
 

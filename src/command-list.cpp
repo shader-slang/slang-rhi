@@ -310,14 +310,14 @@ void CommandList::write(commands::SetTextureState&& cmd)
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::BeginDebugEvent&& cmd)
+void CommandList::write(commands::PushDebugGroup&& cmd)
 {
     if (cmd.name)
         cmd.name = (const char*)writeData(cmd.name, strlen(cmd.name) + 1);
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::EndDebugEvent&& cmd)
+void CommandList::write(commands::PopDebugGroup&& cmd)
 {
     writeCommand(std::move(cmd));
 }
