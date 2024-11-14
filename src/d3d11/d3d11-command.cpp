@@ -77,8 +77,9 @@ public:
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
-    void cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd);
-    void cmdEndDebugEvent(const commands::EndDebugEvent& cmd);
+    void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
+    void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
+    void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
@@ -658,12 +659,17 @@ void CommandExecutor::cmdSetTextureState(const commands::SetTextureState& cmd)
     SLANG_UNUSED(cmd);
 }
 
-void CommandExecutor::cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd)
+void CommandExecutor::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     SLANG_UNUSED(cmd);
 }
 
-void CommandExecutor::cmdEndDebugEvent(const commands::EndDebugEvent& cmd)
+void CommandExecutor::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
 {
     SLANG_UNUSED(cmd);
 }

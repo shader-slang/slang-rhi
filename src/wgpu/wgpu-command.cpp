@@ -83,8 +83,9 @@ public:
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
-    void cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd);
-    void cmdEndDebugEvent(const commands::EndDebugEvent& cmd);
+    void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
+    void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
+    void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
@@ -604,14 +605,34 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     SLANG_UNUSED(cmd);
 }
 
-void CommandRecorder::cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd)
+void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
-    m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, cmd.name);
+    if (m_renderPassEncoder)
+        m_ctx.api.wgpuRenderPassEncoderPushDebugGroup(m_renderPassEncoder, cmd.name);
+    else if (m_computePassEncoder)
+        m_ctx.api.wgpuComputePassEncoderPushDebugGroup(m_computePassEncoder, cmd.name);
+    else
+        m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, cmd.name);
 }
 
-void CommandRecorder::cmdEndDebugEvent(const commands::EndDebugEvent& cmd)
+void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
-    m_ctx.api.wgpuCommandEncoderPopDebugGroup(m_commandEncoder);
+    if (m_renderPassEncoder)
+        m_ctx.api.wgpuRenderPassEncoderPopDebugGroup(m_renderPassEncoder);
+    else if (m_computePassEncoder)
+        m_ctx.api.wgpuComputePassEncoderPopDebugGroup(m_computePassEncoder);
+    else
+        m_ctx.api.wgpuCommandEncoderPopDebugGroup(m_commandEncoder);
+}
+
+void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
+{
+    if (m_renderPassEncoder)
+        m_ctx.api.wgpuRenderPassEncoderInsertDebugMarker(m_renderPassEncoder, cmd.name);
+    else if (m_computePassEncoder)
+        m_ctx.api.wgpuComputePassEncoderInsertDebugMarker(m_computePassEncoder, cmd.name);
+    else
+        m_ctx.api.wgpuCommandEncoderInsertDebugMarker(m_commandEncoder, cmd.name);
 }
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)

@@ -243,11 +243,330 @@ IQueryPool* QueryPool::getInterface(const Guid& guid)
     return nullptr;
 }
 
+IRenderPassEncoder* RenderPassEncoder::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IRenderPassEncoder::getTypeGuid())
+        return static_cast<IRenderPassEncoder*>(this);
+    return nullptr;
+}
+
+void RenderPassEncoder::setRenderState(const RenderState& state)
+{
+    if (m_commandList)
+    {
+        commands::SetRenderState cmd;
+        cmd.state = state;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::draw(const DrawArguments& args)
+{
+    if (m_commandList)
+    {
+        commands::Draw cmd;
+        cmd.args = args;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::drawIndexed(const DrawArguments& args)
+{
+    if (m_commandList)
+    {
+        commands::DrawIndexed cmd;
+        cmd.args = args;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::drawIndirect(
+    GfxCount maxDrawCount,
+    IBuffer* argBuffer,
+    Offset argOffset,
+    IBuffer* countBuffer,
+    Offset countOffset
+)
+{
+    if (m_commandList)
+    {
+        commands::DrawIndirect cmd;
+        cmd.maxDrawCount = maxDrawCount;
+        cmd.argBuffer = argBuffer;
+        cmd.argOffset = argOffset;
+        cmd.countBuffer = countBuffer;
+        cmd.countOffset = countOffset;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::drawIndexedIndirect(
+    GfxCount maxDrawCount,
+    IBuffer* argBuffer,
+    Offset argOffset,
+    IBuffer* countBuffer,
+    Offset countOffset
+)
+{
+    if (m_commandList)
+    {
+        commands::DrawIndexedIndirect cmd;
+        cmd.maxDrawCount = maxDrawCount;
+        cmd.argBuffer = argBuffer;
+        cmd.argOffset = argOffset;
+        cmd.countBuffer = countBuffer;
+        cmd.countOffset = countOffset;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
+{
+    if (m_commandList)
+    {
+        commands::DrawMeshTasks cmd;
+        cmd.x = x;
+        cmd.y = y;
+        cmd.z = z;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::PushDebugGroup cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::popDebugGroup()
+{
+    if (m_commandList)
+    {
+        commands::PopDebugGroup cmd;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::InsertDebugMarker cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::end()
+{
+    if (m_commandList)
+    {
+        commands::EndRenderPass cmd;
+        m_commandList->write(std::move(cmd));
+        m_commandList = nullptr;
+    }
+}
+
+IComputePassEncoder* ComputePassEncoder::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IComputePassEncoder::getTypeGuid())
+        return static_cast<IComputePassEncoder*>(this);
+    return nullptr;
+}
+
+void ComputePassEncoder::setComputeState(const ComputeState& state)
+{
+    if (m_commandList)
+    {
+        commands::SetComputeState cmd;
+        cmd.state = state;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
+{
+    if (m_commandList)
+    {
+        commands::DispatchCompute cmd;
+        cmd.x = x;
+        cmd.y = y;
+        cmd.z = z;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+{
+    if (m_commandList)
+    {
+        commands::DispatchComputeIndirect cmd;
+        cmd.argBuffer = argBuffer;
+        cmd.offset = offset;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::PushDebugGroup cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::popDebugGroup()
+{
+    if (m_commandList)
+    {
+        commands::PopDebugGroup cmd;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::InsertDebugMarker cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::end()
+{
+    if (m_commandList)
+    {
+        commands::EndComputePass cmd;
+        m_commandList->write(std::move(cmd));
+        m_commandList = nullptr;
+    }
+}
+
+IRayTracingPassEncoder* RayTracingPassEncoder::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IRayTracingPassEncoder::getTypeGuid())
+        return static_cast<IRayTracingPassEncoder*>(this);
+    return nullptr;
+}
+
+void RayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
+{
+    if (m_commandList)
+    {
+        commands::SetRayTracingState cmd;
+        cmd.state = state;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth)
+{
+    if (m_commandList)
+    {
+        commands::DispatchRays cmd;
+        cmd.rayGenShaderIndex = rayGenShaderIndex;
+        cmd.width = width;
+        cmd.height = height;
+        cmd.depth = depth;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::PushDebugGroup cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::popDebugGroup()
+{
+    if (m_commandList)
+    {
+        commands::PopDebugGroup cmd;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::InsertDebugMarker cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::end()
+{
+    if (m_commandList)
+    {
+        commands::EndRayTracingPass cmd;
+        m_commandList->write(std::move(cmd));
+        m_commandList = nullptr;
+    }
+}
+
 ICommandEncoder* CommandEncoder::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == ICommandEncoder::getTypeGuid())
         return static_cast<ICommandEncoder*>(this);
     return nullptr;
+}
+
+IRenderPassEncoder* CommandEncoder::beginRenderPass(const RenderPassDesc& desc)
+{
+    commands::BeginRenderPass cmd;
+    cmd.desc = desc;
+    m_commandList->write(std::move(cmd));
+    m_renderPassEncoder.m_commandList = m_commandList;
+    return &m_renderPassEncoder;
+}
+
+IComputePassEncoder* CommandEncoder::beginComputePass()
+{
+    commands::BeginComputePass cmd;
+    m_commandList->write(std::move(cmd));
+    m_computePassEncoder.m_commandList = m_commandList;
+    return &m_computePassEncoder;
+}
+
+IRayTracingPassEncoder* CommandEncoder::beginRayTracingPass()
+{
+    commands::BeginRayTracingPass cmd;
+    m_commandList->write(std::move(cmd));
+    m_rayTracingPassEncoder.m_commandList = m_commandList;
+    return &m_rayTracingPassEncoder;
 }
 
 void CommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
@@ -371,148 +690,6 @@ void CommandEncoder::resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCoun
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::beginRenderPass(const RenderPassDesc& desc)
-{
-    commands::BeginRenderPass cmd;
-    cmd.desc = desc;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::endRenderPass()
-{
-    commands::EndRenderPass cmd;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::setRenderState(const RenderState& state)
-{
-    commands::SetRenderState cmd;
-    cmd.state = state;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::draw(const DrawArguments& args)
-{
-    commands::Draw cmd;
-    cmd.args = args;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::drawIndexed(const DrawArguments& args)
-{
-    commands::DrawIndexed cmd;
-    cmd.args = args;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::drawIndirect(
-    GfxCount maxDrawCount,
-    IBuffer* argBuffer,
-    Offset argOffset,
-    IBuffer* countBuffer,
-    Offset countOffset
-)
-{
-    commands::DrawIndirect cmd;
-    cmd.maxDrawCount = maxDrawCount;
-    cmd.argBuffer = argBuffer;
-    cmd.argOffset = argOffset;
-    cmd.countBuffer = countBuffer;
-    cmd.countOffset = countOffset;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::drawIndexedIndirect(
-    GfxCount maxDrawCount,
-    IBuffer* argBuffer,
-    Offset argOffset,
-    IBuffer* countBuffer,
-    Offset countOffset
-)
-{
-    commands::DrawIndexedIndirect cmd;
-    cmd.maxDrawCount = maxDrawCount;
-    cmd.argBuffer = argBuffer;
-    cmd.argOffset = argOffset;
-    cmd.countBuffer = countBuffer;
-    cmd.countOffset = countOffset;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::drawMeshTasks(int x, int y, int z)
-{
-    commands::DrawMeshTasks cmd;
-    cmd.x = x;
-    cmd.y = y;
-    cmd.z = z;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::beginComputePass()
-{
-    commands::BeginComputePass cmd;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::endComputePass()
-{
-    commands::EndComputePass cmd;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::setComputeState(const ComputeState& state)
-{
-    commands::SetComputeState cmd;
-    cmd.state = state;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::dispatchCompute(int x, int y, int z)
-{
-    commands::DispatchCompute cmd;
-    cmd.x = x;
-    cmd.y = y;
-    cmd.z = z;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
-{
-    commands::DispatchComputeIndirect cmd;
-    cmd.argBuffer = argBuffer;
-    cmd.offset = offset;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::beginRayTracingPass()
-{
-    commands::BeginRayTracingPass cmd;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::endRayTracingPass()
-{
-    commands::EndRayTracingPass cmd;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::setRayTracingState(const RayTracingState& state)
-{
-    commands::SetRayTracingState cmd;
-    cmd.state = state;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth)
-{
-    commands::DispatchRays cmd;
-    cmd.rayGenShaderIndex = rayGenShaderIndex;
-    cmd.width = width;
-    cmd.height = height;
-    cmd.depth = depth;
-    m_commandList->write(std::move(cmd));
-}
-
 void CommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
@@ -588,9 +765,9 @@ void CommandEncoder::setTextureState(ITexture* texture, SubresourceRange subreso
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
+void CommandEncoder::pushDebugGroup(const char* name, float rgbColor[3])
 {
-    commands::BeginDebugEvent cmd;
+    commands::PushDebugGroup cmd;
     cmd.name = name;
     cmd.rgbColor[0] = rgbColor[0];
     cmd.rgbColor[1] = rgbColor[1];
@@ -598,9 +775,19 @@ void CommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::endDebugEvent()
+void CommandEncoder::popDebugGroup()
 {
-    commands::EndDebugEvent cmd;
+    commands::PopDebugGroup cmd;
+    m_commandList->write(std::move(cmd));
+}
+
+void CommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    commands::InsertDebugMarker cmd;
+    cmd.name = name;
+    cmd.rgbColor[0] = rgbColor[0];
+    cmd.rgbColor[1] = rgbColor[1];
+    cmd.rgbColor[2] = rgbColor[2];
     m_commandList->write(std::move(cmd));
 }
 

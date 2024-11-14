@@ -68,8 +68,8 @@ public:
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        commandEncoder->beginRenderPass(renderPass);
-        commandEncoder->endRenderPass();
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
+        passEncoder->end();
         queue->submit(commandEncoder->finish());
 
         surface->present();

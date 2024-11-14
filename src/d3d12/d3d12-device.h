@@ -15,6 +15,11 @@ typedef HRESULT(WINAPI* PFN_BeginEventOnCommandList)(
     PCSTR formatString
 );
 typedef HRESULT(WINAPI* PFN_EndEventOnCommandList)(ID3D12GraphicsCommandList* commandList);
+typedef HRESULT(WINAPI* PFN_SetMarkerOnCommandList)(
+    ID3D12GraphicsCommandList* commandList,
+    UINT64 color,
+    PCSTR formatString
+);
 
 struct D3D12DeviceInfo
 {
@@ -80,6 +85,7 @@ public:
     PFN_D3D12_SERIALIZE_VERSIONED_ROOT_SIGNATURE m_D3D12SerializeVersionedRootSignature = nullptr;
     PFN_BeginEventOnCommandList m_BeginEventOnCommandList = nullptr;
     PFN_EndEventOnCommandList m_EndEventOnCommandList = nullptr;
+    PFN_SetMarkerOnCommandList m_SetMarkerOnCommandList = nullptr;
 
     bool m_nvapi = false;
 

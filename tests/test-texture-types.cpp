@@ -151,13 +151,13 @@ struct TextureAccessTest : TextureTest
 
             auto bufferElementCount = width * height * depth;
 
-            encoder->beginComputePass();
+            auto passEncoder = encoder->beginComputePass();
             ComputeState state;
             state.pipeline = pipeline;
             state.rootObject = rootObject;
-            encoder->setComputeState(state);
-            encoder->dispatchCompute(bufferElementCount, 1, 1);
-            encoder->endComputePass();
+            passEncoder->setComputeState(state);
+            passEncoder->dispatchCompute(bufferElementCount, 1, 1);
+            passEncoder->end();
 
             queue->submit(encoder->finish());
             queue->waitOnHost();
@@ -394,7 +394,7 @@ struct RenderTargetTests : TextureTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        encoder->beginRenderPass(renderPass);
+        auto passEncoder = encoder->beginRenderPass(renderPass);
 
         RenderState state;
         state.pipeline = pipeline;
@@ -405,12 +405,12 @@ struct RenderTargetTests : TextureTest
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBufferCount = 1;
-        encoder->setRenderState(state);
+        passEncoder->setRenderState(state);
 
         DrawArguments args;
         args.vertexCount = kVertexCount;
-        encoder->draw(args);
-        encoder->endRenderPass();
+        passEncoder->draw(args);
+        passEncoder->end();
 
         queue->submit(encoder->finish());
         queue->waitOnHost();

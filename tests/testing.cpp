@@ -515,7 +515,8 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     slang::IModule* module = nullptr;
     {
         ComPtr<slang::IBlob> diagnostics;
-        const char* source = "[shader(\"compute\")] [numthreads(1,1,1)] void computeMain(uint3 tid : SV_DispatchThreadID) {}";
+        const char* source =
+            "[shader(\"compute\")] [numthreads(1,1,1)] void computeMain(uint3 tid : SV_DispatchThreadID) {}";
         module = session->loadModuleFromSourceString("test", "test", source, diagnostics.writeRef());
         if (verbose && diagnostics)
             MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));

@@ -213,6 +213,7 @@ namespace rhi::vk {
     x(vkCmdSetSampleLocationsEXT) \
     x(vkCmdBeginDebugUtilsLabelEXT) \
     x(vkCmdEndDebugUtilsLabelEXT) \
+    x(vkCmdInsertDebugUtilsLabelEXT) \
     x(vkSetDebugUtilsObjectNameEXT) \
     x(vkCmdDrawMeshTasksEXT) \
     /* */

@@ -140,13 +140,13 @@ struct TestFormats
 
             rootObject->finalize();
 
-            encoder->beginComputePass();
+            auto passEncoder = encoder->beginComputePass();
             ComputeState state;
             state.pipeline = pipeline;
             state.rootObject = rootObject;
-            encoder->setComputeState(state);
-            encoder->dispatchCompute(1, 1, 1);
-            encoder->endComputePass();
+            passEncoder->setComputeState(state);
+            passEncoder->dispatchCompute(1, 1, 1);
+            passEncoder->end();
 
             queue->submit(encoder->finish());
             queue->waitOnHost();

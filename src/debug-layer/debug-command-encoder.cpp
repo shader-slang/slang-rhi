@@ -35,9 +35,282 @@ void DebugCommandEncoder::ensureInternalDescriptorHeapsBound()
 }
 #endif
 
+DebugRenderPassEncoder::DebugRenderPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
+    : UnownedDebugObject<IRenderPassEncoder>(ctx)
+    , m_commandEncoder(commandEncoder)
+{
+}
+
+void DebugRenderPassEncoder::setRenderState(const RenderState& state)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    if (!state.rootObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The render state root object must be finalized.");
+    }
+    RenderState innerState = state;
+    innerState.rootObject = getInnerObj(state.rootObject);
+    baseObject->setRenderState(innerState);
+}
+
+void DebugRenderPassEncoder::draw(const DrawArguments& args)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->draw(args);
+}
+
+void DebugRenderPassEncoder::drawIndexed(const DrawArguments& args)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->drawIndexed(args);
+}
+
+void DebugRenderPassEncoder::drawIndirect(
+    GfxCount maxDrawCount,
+    IBuffer* argBuffer,
+    Offset argOffset,
+    IBuffer* countBuffer,
+    Offset countOffset
+)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->drawIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
+}
+
+void DebugRenderPassEncoder::drawIndexedIndirect(
+    GfxCount maxDrawCount,
+    IBuffer* argBuffer,
+    Offset argOffset,
+    IBuffer* countBuffer,
+    Offset countOffset
+)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
+}
+
+void DebugRenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->drawMeshTasks(x, y, z);
+}
+
+void DebugRenderPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->pushDebugGroup(name, rgbColor);
+}
+
+void DebugRenderPassEncoder::popDebugGroup()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->popDebugGroup();
+}
+
+void DebugRenderPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->insertDebugMarker(name, rgbColor);
+}
+
+void DebugRenderPassEncoder::end()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+    baseObject->end();
+}
+
+DebugComputePassEncoder::DebugComputePassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
+    : UnownedDebugObject<IComputePassEncoder>(ctx)
+    , m_commandEncoder(commandEncoder)
+{
+}
+
+void DebugComputePassEncoder::setComputeState(const ComputeState& state)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    if (!state.rootObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The compute state root object must be finalized.");
+    }
+    ComputeState innerState = state;
+    innerState.rootObject = getInnerObj(state.rootObject);
+    baseObject->setComputeState(innerState);
+}
+
+void DebugComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->dispatchCompute(x, y, z);
+}
+
+void DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->dispatchComputeIndirect(argBuffer, offset);
+}
+
+void DebugComputePassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->pushDebugGroup(name, rgbColor);
+}
+
+void DebugComputePassEncoder::popDebugGroup()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->popDebugGroup();
+}
+
+void DebugComputePassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->insertDebugMarker(name, rgbColor);
+}
+
+void DebugComputePassEncoder::end()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+    baseObject->end();
+}
+
+DebugRayTracingPassEncoder::DebugRayTracingPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
+    : UnownedDebugObject<IRayTracingPassEncoder>(ctx)
+    , m_commandEncoder(commandEncoder)
+{
+}
+
+void DebugRayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    if (!state.rootObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The raytracing state root object must be finalized.");
+    }
+    RayTracingState innerState = state;
+    innerState.rootObject = getInnerObj(state.rootObject);
+    baseObject->setRayTracingState(innerState);
+}
+
+void DebugRayTracingPassEncoder::dispatchRays(
+    GfxIndex rayGenShaderIndex,
+    GfxCount width,
+    GfxCount height,
+    GfxCount depth
+)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
+}
+
+void DebugRayTracingPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->pushDebugGroup(name, rgbColor);
+}
+
+void DebugRayTracingPassEncoder::popDebugGroup()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->popDebugGroup();
+}
+
+void DebugRayTracingPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->insertDebugMarker(name, rgbColor);
+}
+
+void DebugRayTracingPassEncoder::end()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+    baseObject->end();
+}
+
 DebugCommandEncoder::DebugCommandEncoder(DebugContext* ctx)
     : DebugObject<ICommandEncoder>(ctx)
+    , m_renderPassEncoder(ctx, this)
+    , m_computePassEncoder(ctx, this)
+    , m_rayTracingPassEncoder(ctx, this)
 {
+}
+
+IRenderPassEncoder* DebugCommandEncoder::beginRenderPass(const RenderPassDesc& desc)
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    m_passState = PassState::RenderPass;
+    m_renderPassEncoder.baseObject = baseObject->beginRenderPass(desc);
+    return &m_renderPassEncoder;
+}
+
+IComputePassEncoder* DebugCommandEncoder::beginComputePass()
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    m_passState = PassState::ComputePass;
+    m_computePassEncoder.baseObject = baseObject->beginComputePass();
+    return &m_computePassEncoder;
+}
+
+IRayTracingPassEncoder* DebugCommandEncoder::beginRayTracingPass()
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    m_passState = PassState::RayTracingPass;
+    m_rayTracingPassEncoder.baseObject = baseObject->beginRayTracingPass();
+    return &m_rayTracingPassEncoder;
 }
 
 void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
@@ -140,180 +413,6 @@ void DebugCommandEncoder::copyTextureToBuffer(
     baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowStride, src, srcSubresource, srcOffset, extent);
 }
 
-void DebugCommandEncoder::beginRenderPass(const RenderPassDesc& desc)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireNoPass();
-    m_passState = PassState::RenderPass;
-    baseObject->beginRenderPass(desc);
-}
-
-void DebugCommandEncoder::endRenderPass()
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRenderPass();
-    m_passState = PassState::NoPass;
-    baseObject->endRenderPass();
-}
-
-void DebugCommandEncoder::setRenderState(const RenderState& state)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRenderPass();
-    if (!state.rootObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The render state root object must be finalized.");
-    }
-    RenderState innerState = state;
-    innerState.rootObject = getInnerObj(state.rootObject);
-    baseObject->setRenderState(innerState);
-}
-
-void DebugCommandEncoder::draw(const DrawArguments& args)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRenderPass();
-    baseObject->draw(args);
-}
-
-void DebugCommandEncoder::drawIndexed(const DrawArguments& args)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRenderPass();
-    baseObject->drawIndexed(args);
-}
-
-void DebugCommandEncoder::drawIndirect(
-    GfxCount maxDrawCount,
-    IBuffer* argBuffer,
-    Offset argOffset,
-    IBuffer* countBuffer,
-    Offset countOffset
-)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRenderPass();
-    baseObject->drawIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
-}
-
-void DebugCommandEncoder::drawIndexedIndirect(
-    GfxCount maxDrawCount,
-    IBuffer* argBuffer,
-    Offset argOffset,
-    IBuffer* countBuffer,
-    Offset countOffset
-)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRenderPass();
-    baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
-}
-
-void DebugCommandEncoder::drawMeshTasks(int x, int y, int z)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRenderPass();
-    baseObject->drawMeshTasks(x, y, z);
-}
-
-void DebugCommandEncoder::beginComputePass()
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireNoPass();
-    m_passState = PassState::ComputePass;
-    baseObject->beginComputePass();
-}
-
-void DebugCommandEncoder::endComputePass()
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireComputePass();
-    m_passState = PassState::NoPass;
-    baseObject->endComputePass();
-}
-
-void DebugCommandEncoder::setComputeState(const ComputeState& state)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireComputePass();
-    if (!state.rootObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The compute state root object must be finalized.");
-    }
-    ComputeState innerState = state;
-    innerState.rootObject = getInnerObj(state.rootObject);
-    baseObject->setComputeState(innerState);
-}
-
-void DebugCommandEncoder::dispatchCompute(int x, int y, int z)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireComputePass();
-    baseObject->dispatchCompute(x, y, z);
-}
-
-void DebugCommandEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireComputePass();
-    baseObject->dispatchComputeIndirect(argBuffer, offset);
-}
-
-void DebugCommandEncoder::beginRayTracingPass()
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireNoPass();
-    m_passState = PassState::RayTracingPass;
-    baseObject->beginRayTracingPass();
-}
-
-void DebugCommandEncoder::endRayTracingPass()
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRayTracingPass();
-    m_passState = PassState::NoPass;
-    baseObject->endRayTracingPass();
-}
-
-void DebugCommandEncoder::setRayTracingState(const RayTracingState& state)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRayTracingPass();
-    if (!state.rootObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The raytracing state root object must be finalized.");
-    }
-    RayTracingState innerState = state;
-    innerState.rootObject = getInnerObj(state.rootObject);
-    baseObject->setRayTracingState(innerState);
-}
-
-/// Issues a dispatch command to start ray tracing workload with a ray tracing pipeline.
-/// `rayGenShaderIndex` specifies the index into the shader table that identifies the ray generation shader.
-void DebugCommandEncoder::dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireRayTracingPass();
-    baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
-}
-
 void DebugCommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
@@ -398,6 +497,7 @@ void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
+    requireNoPass();
     baseObject->setBufferState(buffer, state);
 }
 
@@ -405,21 +505,32 @@ void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange su
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
+    requireNoPass();
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
-void DebugCommandEncoder::beginDebugEvent(const char* name, float rgbColor[3])
+void DebugCommandEncoder::pushDebugGroup(const char* name, float rgbColor[3])
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
-    baseObject->beginDebugEvent(name, rgbColor);
+    requireNoPass();
+    baseObject->pushDebugGroup(name, rgbColor);
 }
 
-void DebugCommandEncoder::endDebugEvent()
+void DebugCommandEncoder::popDebugGroup()
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
-    baseObject->endDebugEvent();
+    requireNoPass();
+    baseObject->popDebugGroup();
+}
+
+void DebugCommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    baseObject->insertDebugMarker(name, rgbColor);
 }
 
 void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, GfxIndex index)
@@ -434,9 +545,6 @@ Result DebugCommandEncoder::finish(ICommandBuffer** outCommandBuffer)
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-#if 0
-    checkEncodersClosedBeforeFinish();
-#endif
     RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
     auto result = baseObject->finish(outObject->baseObject.writeRef());
     if (SLANG_FAILED(result))

@@ -219,7 +219,7 @@ struct DrawInstancedTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        encoder->beginRenderPass(renderPass);
+        auto passEncoder = encoder->beginRenderPass(renderPass);
 
         RenderState state;
         state.pipeline = pipeline;
@@ -231,13 +231,13 @@ struct DrawInstancedTest : BaseDrawTest
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBuffers[1] = instanceBuffer;
         state.vertexBufferCount = 2;
-        encoder->setRenderState(state);
+        passEncoder->setRenderState(state);
 
         DrawArguments args;
         args.vertexCount = kVertexCount;
         args.instanceCount = kInstanceCount;
-        encoder->draw(args);
-        encoder->endRenderPass();
+        passEncoder->draw(args);
+        passEncoder->end();
 
         queue->submit(encoder->finish());
         queue->waitOnHost();
@@ -278,7 +278,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        encoder->beginRenderPass(renderPass);
+        auto passEncoder = encoder->beginRenderPass(renderPass);
 
         RenderState state;
         state.pipeline = pipeline;
@@ -292,13 +292,13 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect(kWidth, kHeight);
         state.scissorRectCount = 1;
-        encoder->setRenderState(state);
+        passEncoder->setRenderState(state);
 
         DrawArguments args;
         args.vertexCount = kVertexCount;
         args.instanceCount = kInstanceCount;
-        encoder->drawIndexed(args);
-        encoder->endRenderPass();
+        passEncoder->drawIndexed(args);
+        passEncoder->end();
 
         queue->submit(encoder->finish());
         queue->waitOnHost();
@@ -363,7 +363,7 @@ struct DrawIndirectTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        encoder->beginRenderPass(renderPass);
+        auto passEncoder = encoder->beginRenderPass(renderPass);
 
         RenderState state;
         state.pipeline = pipeline;
@@ -375,13 +375,13 @@ struct DrawIndirectTest : BaseDrawTest
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect(kWidth, kHeight);
         state.scissorRectCount = 1;
-        encoder->setRenderState(state);
+        passEncoder->setRenderState(state);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndirectArgData, args);
 
-        encoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
-        encoder->endRenderPass();
+        passEncoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
+        passEncoder->end();
 
         queue->submit(encoder->finish());
         queue->waitOnHost();
@@ -447,7 +447,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        encoder->beginRenderPass(renderPass);
+        auto passEncoder = encoder->beginRenderPass(renderPass);
 
         RenderState state;
         state.pipeline = pipeline;
@@ -461,13 +461,13 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect(kWidth, kHeight);
         state.scissorRectCount = 1;
-        encoder->setRenderState(state);
+        passEncoder->setRenderState(state);
 
         uint32_t maxDrawCount = 1;
         Offset argOffset = offsetof(IndexedIndirectArgData, args);
 
-        encoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
-        encoder->endRenderPass();
+        passEncoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
+        passEncoder->end();
 
         queue->submit(encoder->finish());
         queue->waitOnHost();

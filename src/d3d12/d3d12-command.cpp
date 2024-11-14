@@ -104,8 +104,9 @@ public:
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
-    void cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd);
-    void cmdEndDebugEvent(const commands::EndDebugEvent& cmd);
+    void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
+    void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
+    void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
@@ -1166,7 +1167,7 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
 }
 
-void CommandRecorder::cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd)
+void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     auto beginEvent = m_device->m_BeginEventOnCommandList;
     if (beginEvent)
@@ -1179,12 +1180,25 @@ void CommandRecorder::cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd)
     }
 }
 
-void CommandRecorder::cmdEndDebugEvent(const commands::EndDebugEvent& cmd)
+void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
     auto endEvent = m_device->m_EndEventOnCommandList;
     if (endEvent)
     {
         endEvent(m_cmdList);
+    }
+}
+
+void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
+{
+    auto setMarker = m_device->m_SetMarkerOnCommandList;
+    if (setMarker)
+    {
+        UINT64 color = 0xff000000;
+        color |= uint8_t(cmd.rgbColor[0] * 255.0f) << 16;
+        color |= uint8_t(cmd.rgbColor[1] * 255.0f) << 8;
+        color |= uint8_t(cmd.rgbColor[2] * 255.0f);
+        setMarker(m_cmdList, color, cmd.name);
     }
 }
 

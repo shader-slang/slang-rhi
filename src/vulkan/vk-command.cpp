@@ -104,8 +104,9 @@ public:
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
-    void cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd);
-    void cmdEndDebugEvent(const commands::EndDebugEvent& cmd);
+    void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
+    void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
+    void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
@@ -1010,7 +1011,7 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
 }
 
-void CommandRecorder::cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd)
+void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     if (!m_api.vkCmdBeginDebugUtilsLabelEXT)
         return;
@@ -1024,12 +1025,27 @@ void CommandRecorder::cmdBeginDebugEvent(const commands::BeginDebugEvent& cmd)
     m_api.vkCmdBeginDebugUtilsLabelEXT(m_cmdBuffer, &label);
 }
 
-void CommandRecorder::cmdEndDebugEvent(const commands::EndDebugEvent& cmd)
+void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
     if (!m_api.vkCmdEndDebugUtilsLabelEXT)
         return;
 
     m_api.vkCmdEndDebugUtilsLabelEXT(m_cmdBuffer);
+}
+
+void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
+{
+    SLANG_UNUSED(cmd);
+    if (!m_api.vkCmdInsertDebugUtilsLabelEXT)
+        return;
+
+    VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+    label.pLabelName = cmd.name;
+    label.color[0] = cmd.rgbColor[0];
+    label.color[1] = cmd.rgbColor[1];
+    label.color[2] = cmd.rgbColor[2];
+    label.color[3] = 1.0f;
+    m_api.vkCmdInsertDebugUtilsLabelEXT(m_cmdBuffer, &label);
 }
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
