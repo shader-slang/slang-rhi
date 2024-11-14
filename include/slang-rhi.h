@@ -1161,8 +1161,8 @@ public:
     /// Use the provided constant buffer instead of the internally created one.
     virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) = 0;
 
-    /// Finalizes the shader object, preparing it for use.
-    /// This function must be called after all data has been set on the shader object.
+    /// Finalizes the shader object. No further modifications are allowed after this.
+    /// This can be used to optimize shader objects that are used multiple times.
     virtual SLANG_NO_THROW Result SLANG_MCALL finalize() = 0;
 
     /// Returns true if the shader object has been finalized.
@@ -1174,6 +1174,7 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(getObject(offset, object.writeRef()));
         return object;
     }
+
     inline ComPtr<IShaderObject> getEntryPoint(GfxIndex index)
     {
         ComPtr<IShaderObject> entryPoint = nullptr;
@@ -1611,8 +1612,6 @@ struct SamplePosition
 
 struct RenderState
 {
-    IRenderPipeline* pipeline = nullptr;
-    IShaderObject* rootObject = nullptr;
     uint32_t stencilRef = 0;
     Viewport viewports[16];
     GfxCount viewportCount = 0;
@@ -1622,19 +1621,6 @@ struct RenderState
     GfxCount vertexBufferCount = 0;
     BufferWithOffset indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
-};
-
-struct ComputeState
-{
-    IComputePipeline* pipeline = nullptr;
-    IShaderObject* rootObject = nullptr;
-};
-
-struct RayTracingState
-{
-    IRayTracingPipeline* pipeline = nullptr;
-    IShaderTable* shaderTable = nullptr;
-    IShaderObject* rootObject = nullptr;
 };
 
 enum class AccelerationStructureCopyMode
@@ -1677,6 +1663,9 @@ class IRenderPassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x4f904e1a, 0xa5ed, 0x4496, {0xaa, 0xc6, 0xde, 0xcf, 0x68, 0x1e, 0x6c, 0x74});
 
 public:
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IRenderPipeline* pipeline) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
@@ -1702,7 +1691,9 @@ class IComputePassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x8479334f, 0xfb45, 0x471c, {0xb7, 0x75, 0x94, 0xa5, 0x76, 0x72, 0x32, 0xc8});
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) = 0;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) = 0;
 };
@@ -1712,7 +1703,11 @@ class IRayTracingPassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x4fe41081, 0x819c, 0x4fdc, {0x80, 0x78, 0x40, 0x31, 0x9c, 0x01, 0xff, 0xad});
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) = 0;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL
+    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable, IShaderObject* rootObject) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) = 0;
 };
