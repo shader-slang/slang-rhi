@@ -29,19 +29,11 @@ void DebugShaderObject::checkCompleteness()
     }
 }
 
-void DebugShaderObject::checkFinalized()
-{
-    if (!baseObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The shader object must be finalized.");
-    }
-}
-
 void DebugShaderObject::checkNotFinalized()
 {
     if (baseObject->isFinalized())
     {
-        RHI_VALIDATION_ERROR("The shader object must not be finalized.");
+        RHI_VALIDATION_ERROR("The shader object is finalized and must not be modified.");
     }
 }
 
@@ -115,10 +107,6 @@ Result DebugShaderObject::setObject(ShaderOffset const& offset, IShaderObject* o
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();
-    if (!object->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The assigned sub-object must be finalized.");
-    }
     auto objectImpl = getDebugObj(object);
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
     m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
@@ -168,7 +156,10 @@ Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 Result DebugShaderObject::finalize()
 {
     SLANG_RHI_API_FUNC;
-    checkNotFinalized();
+    if (!baseObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The shader object is already finalized.");
+    }
     return baseObject->finalize();
 }
 
