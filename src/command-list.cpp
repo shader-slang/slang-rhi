@@ -108,11 +108,10 @@ void CommandList::write(commands::EndRenderPass&& cmd)
 
 void CommandList::write(commands::SetRenderState&& cmd)
 {
-    retainResource(cmd.state.pipeline);
-    retainResource(cmd.state.rootObject);
     for (Index i = 0; i < cmd.state.vertexBufferCount; ++i)
         retainResource(cmd.state.vertexBuffers[i].buffer);
     retainResource(cmd.state.indexBuffer.buffer);
+    retainResource(cmd.pipeline);
     writeCommand(std::move(cmd));
 }
 
@@ -157,8 +156,7 @@ void CommandList::write(commands::EndComputePass&& cmd)
 
 void CommandList::write(commands::SetComputeState&& cmd)
 {
-    retainResource(cmd.state.pipeline);
-    retainResource(cmd.state.rootObject);
+    retainResource(cmd.pipeline);
     writeCommand(std::move(cmd));
 }
 
@@ -185,9 +183,8 @@ void CommandList::write(commands::EndRayTracingPass&& cmd)
 
 void CommandList::write(commands::SetRayTracingState&& cmd)
 {
-    retainResource(cmd.state.pipeline);
-    retainResource(cmd.state.shaderTable);
-    retainResource(cmd.state.rootObject);
+    retainResource(cmd.pipeline);
+    retainResource(cmd.shaderTable);
     writeCommand(std::move(cmd));
 }
 

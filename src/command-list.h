@@ -51,6 +51,8 @@
 
 namespace rhi {
 
+class BakedShaderObject;
+
 #define SLANG_RHI_COMMAND_ENUM_X(x) x,
 
 enum class CommandID : uint32_t
@@ -150,6 +152,8 @@ struct EndRenderPass
 struct SetRenderState
 {
     RenderState state;
+    IRenderPipeline* pipeline;
+    BakedShaderObject* rootObject;
 };
 
 struct Draw
@@ -195,7 +199,8 @@ struct EndComputePass
 
 struct SetComputeState
 {
-    ComputeState state;
+    IComputePipeline* pipeline;
+    BakedShaderObject* rootObject;
 };
 
 struct DispatchCompute
@@ -219,7 +224,9 @@ struct EndRayTracingPass
 
 struct SetRayTracingState
 {
-    RayTracingState state;
+    IRayTracingPipeline* pipeline;
+    IShaderTable* shaderTable;
+    BakedShaderObject* rootObject;
 };
 
 struct DispatchRays
