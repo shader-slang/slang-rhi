@@ -699,8 +699,9 @@ void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 
 void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
 {
-    NS::SharedPtr<NS::String> string = MetalUtil::createString(cmd.name);
-    m_commandBuffer->insertDebugSignpost(string.get());
+    SLANG_UNUSED(cmd);
+    // NS::SharedPtr<NS::String> string = MetalUtil::createString(cmd.name);
+    // m_commandBuffer->insertDebugSignpost(string.get());
 }
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)

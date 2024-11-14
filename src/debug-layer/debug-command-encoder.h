@@ -13,7 +13,6 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-
 public:
     DebugCommandEncoder* m_commandEncoder;
 
