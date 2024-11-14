@@ -5,7 +5,7 @@
 
 namespace rhi::debug {
 
-class DebugRenderPassEncoder : public DebugObject<IRenderPassEncoder>
+class DebugRenderPassEncoder : public UnownedDebugObject<IRenderPassEncoder>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE;
@@ -37,10 +37,15 @@ public:
         Offset countOffset = 0
     ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 
-class DebugComputePassEncoder : public DebugObject<IComputePassEncoder>
+class DebugComputePassEncoder : public UnownedDebugObject<IComputePassEncoder>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE;
@@ -56,10 +61,15 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 
-class DebugRayTracingPassEncoder : public DebugObject<IRayTracingPassEncoder>
+class DebugRayTracingPassEncoder : public UnownedDebugObject<IRayTracingPassEncoder>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE;
@@ -75,6 +85,11 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
     dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 

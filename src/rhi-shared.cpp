@@ -250,16 +250,6 @@ IRenderPassEncoder* RenderPassEncoder::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void RenderPassEncoder::end()
-{
-    if (m_commandList)
-    {
-        commands::EndRenderPass cmd;
-        m_commandList->write(std::move(cmd));
-        m_commandList = nullptr;
-    }
-}
-
 void RenderPassEncoder::setRenderState(const RenderState& state)
 {
     if (m_commandList)
@@ -342,21 +332,56 @@ void RenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
     }
 }
 
+void RenderPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::PushDebugGroup cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::popDebugGroup()
+{
+    if (m_commandList)
+    {
+        commands::PopDebugGroup cmd;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::InsertDebugMarker cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RenderPassEncoder::end()
+{
+    if (m_commandList)
+    {
+        commands::EndRenderPass cmd;
+        m_commandList->write(std::move(cmd));
+        m_commandList = nullptr;
+    }
+}
+
 IComputePassEncoder* ComputePassEncoder::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IComputePassEncoder::getTypeGuid())
         return static_cast<IComputePassEncoder*>(this);
     return nullptr;
-}
-
-void ComputePassEncoder::end()
-{
-    if (m_commandList)
-    {
-        commands::EndComputePass cmd;
-        m_commandList->write(std::move(cmd));
-        m_commandList = nullptr;
-    }
 }
 
 void ComputePassEncoder::setComputeState(const ComputeState& state)
@@ -392,21 +417,56 @@ void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offs
     }
 }
 
+void ComputePassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::PushDebugGroup cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::popDebugGroup()
+{
+    if (m_commandList)
+    {
+        commands::PopDebugGroup cmd;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::InsertDebugMarker cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void ComputePassEncoder::end()
+{
+    if (m_commandList)
+    {
+        commands::EndComputePass cmd;
+        m_commandList->write(std::move(cmd));
+        m_commandList = nullptr;
+    }
+}
+
 IRayTracingPassEncoder* RayTracingPassEncoder::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IRayTracingPassEncoder::getTypeGuid())
         return static_cast<IRayTracingPassEncoder*>(this);
     return nullptr;
-}
-
-void RayTracingPassEncoder::end()
-{
-    if (m_commandList)
-    {
-        commands::EndRayTracingPass cmd;
-        m_commandList->write(std::move(cmd));
-        m_commandList = nullptr;
-    }
 }
 
 void RayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
@@ -429,6 +489,51 @@ void RayTracingPassEncoder::dispatchRays(GfxIndex rayGenShaderIndex, GfxCount wi
         cmd.height = height;
         cmd.depth = depth;
         m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::PushDebugGroup cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::popDebugGroup()
+{
+    if (m_commandList)
+    {
+        commands::PopDebugGroup cmd;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    if (m_commandList)
+    {
+        commands::InsertDebugMarker cmd;
+        cmd.name = name;
+        cmd.rgbColor[0] = rgbColor[0];
+        cmd.rgbColor[1] = rgbColor[1];
+        cmd.rgbColor[2] = rgbColor[2];
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::end()
+{
+    if (m_commandList)
+    {
+        commands::EndRayTracingPass cmd;
+        m_commandList->write(std::move(cmd));
+        m_commandList = nullptr;
     }
 }
 

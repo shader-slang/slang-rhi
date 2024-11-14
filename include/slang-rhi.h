@@ -1647,6 +1647,10 @@ class IPassEncoder : public ISlangUnknown
     SLANG_COM_INTERFACE(0x159cd708, 0x4762, 0x4f30, {0xb5, 0x3f, 0xbe, 0x2a, 0xb5, 0x7d, 0x7c, 0x46});
 
 public:
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
 };
 

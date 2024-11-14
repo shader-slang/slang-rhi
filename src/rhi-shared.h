@@ -910,9 +910,6 @@ public:
 public:
     CommandList* m_commandList;
 
-    // IPassEncoder implementation
-    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
-
     // IRenderPassEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
@@ -932,6 +929,13 @@ public:
         Offset countOffset = 0
     ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) override;
+
+    // IPassEncoder implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 
 class ComputePassEncoder : public IComputePassEncoder
@@ -945,13 +949,17 @@ public:
 public:
     CommandList* m_commandList;
 
-    // IPassEncoder implementation
-    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
-
     // IComputePassEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
+
+    // IPassEncoder implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 
 class RayTracingPassEncoder : public IRayTracingPassEncoder
@@ -965,13 +973,17 @@ public:
 public:
     CommandList* m_commandList;
 
-    // IPassEncoder implementation
-    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
-
     // IRayTracingPassEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
     dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) override;
+
+    // IPassEncoder implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 
 class CommandEncoder : public ICommandEncoder, public ComObject

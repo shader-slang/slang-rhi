@@ -36,18 +36,9 @@ void DebugCommandEncoder::ensureInternalDescriptorHeapsBound()
 #endif
 
 DebugRenderPassEncoder::DebugRenderPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
-    : DebugObject<IRenderPassEncoder>(ctx)
+    : UnownedDebugObject<IRenderPassEncoder>(ctx)
     , m_commandEncoder(commandEncoder)
 {
-}
-
-void DebugRenderPassEncoder::end()
-{
-    SLANG_RHI_API_FUNC;
-    m_commandEncoder->requireOpen();
-    m_commandEncoder->requireRenderPass();
-    m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
-    baseObject->end();
 }
 
 void DebugRenderPassEncoder::setRenderState(const RenderState& state)
@@ -116,20 +107,43 @@ void DebugRenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
     baseObject->drawMeshTasks(x, y, z);
 }
 
-
-DebugComputePassEncoder::DebugComputePassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
-    : DebugObject<IComputePassEncoder>(ctx)
-    , m_commandEncoder(commandEncoder)
-{
-}
-
-void DebugComputePassEncoder::end()
+void DebugRenderPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
-    m_commandEncoder->requireComputePass();
+    m_commandEncoder->requireRenderPass();
+    baseObject->pushDebugGroup(name, rgbColor);
+}
+
+void DebugRenderPassEncoder::popDebugGroup()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->popDebugGroup();
+}
+
+void DebugRenderPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->insertDebugMarker(name, rgbColor);
+}
+
+void DebugRenderPassEncoder::end()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
     m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
     baseObject->end();
+}
+
+DebugComputePassEncoder::DebugComputePassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
+    : UnownedDebugObject<IComputePassEncoder>(ctx)
+    , m_commandEncoder(commandEncoder)
+{
 }
 
 void DebugComputePassEncoder::setComputeState(const ComputeState& state)
@@ -162,19 +176,43 @@ void DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset
     baseObject->dispatchComputeIndirect(argBuffer, offset);
 }
 
-DebugRayTracingPassEncoder::DebugRayTracingPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
-    : DebugObject<IRayTracingPassEncoder>(ctx)
-    , m_commandEncoder(commandEncoder)
-{
-}
-
-void DebugRayTracingPassEncoder::end()
+void DebugComputePassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
-    m_commandEncoder->requireRayTracingPass();
+    m_commandEncoder->requireComputePass();
+    baseObject->pushDebugGroup(name, rgbColor);
+}
+
+void DebugComputePassEncoder::popDebugGroup()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->popDebugGroup();
+}
+
+void DebugComputePassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->insertDebugMarker(name, rgbColor);
+}
+
+void DebugComputePassEncoder::end()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
     m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
     baseObject->end();
+}
+
+DebugRayTracingPassEncoder::DebugRayTracingPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
+    : UnownedDebugObject<IRayTracingPassEncoder>(ctx)
+    , m_commandEncoder(commandEncoder)
+{
 }
 
 void DebugRayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
@@ -202,6 +240,39 @@ void DebugRayTracingPassEncoder::dispatchRays(
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
     baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
+}
+
+void DebugRayTracingPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->pushDebugGroup(name, rgbColor);
+}
+
+void DebugRayTracingPassEncoder::popDebugGroup()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->popDebugGroup();
+}
+
+void DebugRayTracingPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->insertDebugMarker(name, rgbColor);
+}
+
+void DebugRayTracingPassEncoder::end()
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+    baseObject->end();
 }
 
 DebugCommandEncoder::DebugCommandEncoder(DebugContext* ctx)
