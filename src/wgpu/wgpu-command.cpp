@@ -38,10 +38,9 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputeState m_computeState;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
-    RefPtr<RootShaderObjectImpl> m_rootObject;
+    RefPtr<BindingDataImpl> m_bindingData;
 
     CommandRecorder(DeviceImpl* device)
         : m_device(device)
@@ -131,7 +130,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
 
 void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -199,22 +198,22 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 {
-    NOT_SUPPORTED(clearTexture);
+    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
-    NOT_SUPPORTED(uploadTextureData);
+    NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
 }
 
 void CommandRecorder::cmdUploadBufferData(const commands::UploadBufferData& cmd)
 {
-    NOT_SUPPORTED(uploadBufferData);
+    NOT_SUPPORTED(S_CommandEncoder_uploadBufferData);
 }
 
 void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
 {
-    NOT_SUPPORTED(resolveQuery);
+    NOT_SUPPORTED(S_CommandEncoder_resolveQuery);
 }
 
 void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
@@ -279,8 +278,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     const RenderState& state = cmd.state;
 
-    bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateStencilRef = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
     bool updateVertexBuffers = !m_renderStateValid || !arraysEqual(
                                                           state.vertexBufferCount,
@@ -304,27 +303,18 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updatePipeline)
     {
-        m_renderPipeline = checked_cast<RenderPipelineImpl*>(state.pipeline);
+        m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
         m_ctx.api.wgpuRenderPassEncoderSetPipeline(encoder, m_renderPipeline->m_renderPipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
-        auto specializedLayout = m_rootObject->getSpecializedLayout();
-        BindingContext bindingContext;
-        bindingContext.device = m_device;
-        bindingContext.bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
-        m_rootObject->bindAsRoot(bindingContext, m_renderPipeline->m_rootObjectLayout);
-        for (uint32_t groupIndex = 0; groupIndex < bindingContext.bindGroups.size(); groupIndex++)
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+        const auto& bindGroups = m_bindingData->bindGroups;
+        for (uint32_t groupIndex = 0; groupIndex < bindGroups.size(); groupIndex++)
         {
-            m_ctx.api.wgpuRenderPassEncoderSetBindGroup(
-                m_renderPassEncoder,
-                groupIndex,
-                bindingContext.bindGroups[groupIndex],
-                0,
-                nullptr
-            );
+            m_ctx.api
+                .wgpuRenderPassEncoderSetBindGroup(m_renderPassEncoder, groupIndex, bindGroups[groupIndex], 0, nullptr);
         }
     }
 
@@ -395,7 +385,6 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     m_renderState = state;
 
     m_computeStateValid = false;
-    m_computeState = {};
     m_computePipeline = nullptr;
 }
 
@@ -461,7 +450,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawMeshTasks);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawMeshTasks);
 }
 
 void CommandRecorder::cmdBeginComputePass(const commands::BeginComputePass& cmd)
@@ -479,10 +468,8 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (!m_computePassActive)
         return;
 
-    const ComputeState& state = cmd.state;
-
-    bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_computeState.rootObject;
+    bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     if (!m_computePassEncoder)
     {
@@ -493,24 +480,20 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
 
     if (updatePipeline)
     {
-        m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+        m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
         m_ctx.api.wgpuComputePassEncoderSetPipeline(encoder, m_computePipeline->m_computePipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
-        auto specializedLayout = m_rootObject->getSpecializedLayout();
-        BindingContext bindingContext;
-        bindingContext.device = m_device;
-        bindingContext.bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
-        m_rootObject->bindAsRoot(bindingContext, specializedLayout);
-        for (uint32_t groupIndex = 0; groupIndex < bindingContext.bindGroups.size(); groupIndex++)
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+        const auto& bindGroups = m_bindingData->bindGroups;
+        for (uint32_t groupIndex = 0; groupIndex < bindGroups.size(); groupIndex++)
         {
             m_ctx.api.wgpuComputePassEncoderSetBindGroup(
                 m_computePassEncoder,
                 groupIndex,
-                bindingContext.bindGroups[groupIndex],
+                bindGroups[groupIndex],
                 0,
                 nullptr
             );
@@ -518,7 +501,6 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     }
 
     m_computeStateValid = true;
-    m_computeState = state;
 }
 
 void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -544,55 +526,53 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
 void CommandRecorder::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(beginRayTracingPass);
+    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
 }
 
 void CommandRecorder::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(endRayTracingPass);
 }
 
 void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(setRayTracingState);
 }
 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(dispatchRays);
+    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
 }
 
 void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(buildAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_buildAccelerationStructure);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_copyAccelerationStructure);
 }
 
 void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(queryAccelerationStructureProperties);
+    NOT_SUPPORTED(S_CommandEncoder_queryAccelerationStructureProperties);
 }
 
 void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(serializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_serializeAccelerationStructure);
 }
 
 void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(deserializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
@@ -638,7 +618,7 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(writeTimestamp);
+    NOT_SUPPORTED(S_CommandEncoder_writeTimestamp);
 }
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -665,11 +645,10 @@ void CommandRecorder::endPassEncoder()
         m_computePassEncoder = nullptr;
 
         m_computeStateValid = false;
-        m_computeState = {};
         m_computePipeline = nullptr;
     }
 
-    m_rootObject = nullptr;
+    m_bindingData = nullptr;
 }
 
 // CommandQueueImpl
@@ -782,10 +761,29 @@ CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* que
 {
     m_commandBuffer = new CommandBufferImpl(device, queue);
     m_commandBuffer->m_commandList = new CommandList();
+    m_commandBuffer->m_bindingCache = new BindingCache();
     m_commandList = m_commandBuffer->m_commandList;
 }
 
 CommandEncoderImpl::~CommandEncoderImpl() {}
+
+Result CommandEncoderImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject)
+{
+    return m_device->createRootShaderObject(program, outRootObject);
+}
+
+Result CommandEncoderImpl::getBindingData(IShaderObject* object, BindingData*& outBindingData)
+{
+    RootShaderObjectImpl* rootObject = checked_cast<RootShaderObjectImpl*>(object);
+    RefPtr<ShaderObjectLayoutImpl> specializedLayout;
+    SLANG_RETURN_ON_FAIL(rootObject->_getSpecializedLayout(specializedLayout.writeRef()));
+    RootShaderObjectLayout* specializedRootLayout = checked_cast<RootShaderObjectLayout*>(specializedLayout.get());
+    BindingContext bindingContext(m_device, m_commandBuffer->m_bindingCache);
+    SLANG_RETURN_ON_FAIL(
+        rootObject->bindAsRoot(bindingContext, specializedRootLayout, (BindingDataImpl*&)outBindingData)
+    );
+    return SLANG_OK;
+}
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {

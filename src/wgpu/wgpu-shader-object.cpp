@@ -42,7 +42,7 @@ Size ShaderObjectImpl::getSize()
 // TODO: Change size_t and Index to Size?
 Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+    SLANG_RETURN_ON_FAIL(checkFinalized());
 
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
@@ -66,14 +66,12 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
 
     memcpy(dest + offset, data, size);
 
-    m_isConstantBufferDirty = true;
-
     return SLANG_OK;
 }
 
 Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+    SLANG_RETURN_ON_FAIL(checkFinalized());
 
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -122,8 +120,6 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
 {
     m_device = device;
     m_layout = layout;
-
-    m_isConstantBufferDirty = true;
 
     // If the layout tells us that there is any uniform data,
     // then we will allocate a CPU memory buffer to hold that data
@@ -188,8 +184,6 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
             m_objects[bindingRangeInfo.subObjectIndex + i] = subObject;
         }
     }
-
-    m_state = State::Initialized;
 
     return SLANG_OK;
 }
@@ -369,44 +363,6 @@ void ShaderObjectImpl::writeSamplerDescriptor(
         entry.sampler = sampler->m_sampler;
         writeDescriptor(context, offset.bindingSet, entry);
     }
-}
-
-Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
-    BindingContext& context,
-    ShaderObjectLayoutImpl* specializedLayout
-) const
-{
-    m_constantBufferSize = specializedLayout->getTotalOrdinaryDataSize();
-    if (m_constantBufferSize == 0)
-    {
-        return SLANG_OK;
-    }
-
-    // For simplicity we always create a new buffer when the data changes.
-    //
-    if (m_isConstantBufferDirty)
-    {
-        // First, fill in a CPU buffer using `_writeOrdinaryData`.
-        //
-        // Note that `_writeOrdinaryData` is potentially recursive in the case
-        // where this object contains interface/existential-type fields, so we
-        // don't need or want to inline it into this call site.
-        //
-        m_constantBufferData.resize(m_constantBufferSize);
-        SLANG_RETURN_ON_FAIL(_writeOrdinaryData(m_constantBufferData.data(), m_constantBufferSize, specializedLayout));
-        // With all the data collected we create a new constant buffer.
-        //
-        BufferDesc bufferDesc = {};
-        bufferDesc.size = m_constantBufferSize;
-        bufferDesc.usage = BufferUsage::ConstantBuffer;
-        bufferDesc.defaultState = ResourceState::ConstantBuffer;
-        bufferDesc.memoryType = MemoryType::DeviceLocal;
-        ComPtr<IBuffer> buffer;
-        SLANG_RETURN_ON_FAIL(context.device->createBuffer(bufferDesc, m_constantBufferData.data(), buffer.writeRef()));
-        m_constantBuffer = checked_cast<BufferImpl*>(buffer.get());
-    }
-
-    return SLANG_OK;
 }
 
 Result ShaderObjectImpl::bindAsValue(
@@ -594,10 +550,10 @@ Result ShaderObjectImpl::createBindGroups(BindingContext& context) const
         desc.layout = context.bindGroupLayouts[i];
         desc.entries = context.entries[i].data();
         desc.entryCount = (uint32_t)context.entries[i].size();
-        context.bindGroups.push_back(
+        context.currentBindingData->bindGroups.push_back(
             context.device->m_ctx.api.wgpuDeviceCreateBindGroup(context.device->m_ctx.device, &desc)
         );
-        if (!context.bindGroups.back())
+        if (!context.currentBindingData->bindGroups.back())
         {
             return SLANG_FAIL;
         }
@@ -646,19 +602,37 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
-    // We start by ensuring that the buffer is created, if it is needed.
+    auto bufferSize = specializedLayout->getTotalOrdinaryDataSize();
+    if (bufferSize == 0)
+        return SLANG_OK;
+
+    // First, fill in a CPU buffer using `_writeOrdinaryData`.
     //
-    SLANG_RETURN_ON_FAIL(_ensureOrdinaryDataBufferCreatedIfNeeded(context, specializedLayout));
+    // Note that `_writeOrdinaryData` is potentially recursive in the case
+    // where this object contains interface/existential-type fields, so we
+    // don't need or want to inline it into this call site.
+    //
+    std::unique_ptr<uint8_t[]> bufferData(new uint8_t[bufferSize]);
+    SLANG_RETURN_ON_FAIL(_writeOrdinaryData(bufferData.get(), bufferSize, specializedLayout));
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = bufferSize;
+    bufferDesc.usage = BufferUsage::ConstantBuffer;
+    bufferDesc.defaultState = ResourceState::ConstantBuffer;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    ComPtr<IBuffer> buffer;
+    SLANG_RETURN_ON_FAIL(context.device->createBuffer(bufferDesc, bufferData.get(), buffer.writeRef()));
+
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
 
     // If we did indeed need/create a buffer, then we must bind it into
     // the given `descriptorSet` and update the base range index for
     // subsequent binding operations to account for it.
     //
-    if (m_constantBuffer && m_constantBufferSize > 0)
-    {
-        writeBufferDescriptor(context, ioOffset, m_constantBuffer, 0, m_constantBufferSize);
-        ioOffset.binding++;
-    }
+    writeBufferDescriptor(context, ioOffset, bufferImpl, 0, bufferSize);
+    ioOffset.binding++;
+
+    // Pass ownership of the buffer to the binding cache.
+    context.bindingCache->buffers.push_back(bufferImpl);
 
     return SLANG_OK;
 }
@@ -788,8 +762,20 @@ Result RootShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntry
     return SLANG_OK;
 }
 
-Result RootShaderObjectImpl::bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout) const
+Result RootShaderObjectImpl::bindAsRoot(
+    BindingContext& context,
+    RootShaderObjectLayout* layout,
+    BindingDataImpl*& outBindingData
+) const
 {
+    // Create a new set of binding data to populate.
+    // TODO: In the future we should lookup the cache for existing
+    // binding data and reuse that if possible.
+    RefPtr<BindingDataImpl> bindingData = new BindingDataImpl();
+    context.bindingCache->bindingData.push_back(bindingData);
+    context.currentBindingData = bindingData;
+    context.bindGroupLayouts = layout->m_bindGroupLayouts;
+
     BindingOffset offset = {};
     offset.pending = layout->getPendingDataOffset();
 
@@ -829,6 +815,8 @@ Result RootShaderObjectImpl::bindAsRoot(BindingContext& context, RootShaderObjec
     }
 
     SLANG_RETURN_ON_FAIL(createBindGroups(context));
+
+    outBindingData = bindingData;
 
     return SLANG_OK;
 }

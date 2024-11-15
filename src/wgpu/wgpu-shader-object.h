@@ -10,21 +10,6 @@
 
 namespace rhi::wgpu {
 
-/// Context information required when binding shader objects to the pipeline
-struct BindingContext
-{
-    /// The device being used
-    DeviceImpl* device;
-
-    span<WGPUBindGroupLayout> bindGroupLayouts;
-
-    /// The bind group entries for every descriptor set
-    std::vector<std::vector<WGPUBindGroupEntry>> entries;
-
-    /// The descriptor sets that are being allocated and bound
-    std::vector<WGPUBindGroup> bindGroups;
-};
-
 struct ResourceSlot
 {
     BindingType type = BindingType::Unknown;
@@ -147,16 +132,6 @@ public:
     std::vector<ResourceSlot> m_resources;
     std::vector<RefPtr<SamplerImpl>> m_samplers;
 
-    // The size of the constant buffer for this object.
-    mutable Size m_constantBufferSize = 0;
-    // The constant buffer containing all the ordinary data for this object.
-    mutable RefPtr<BufferImpl> m_constantBuffer;
-    // A CPU memory buffer containing the ordinary data for this object.
-    mutable std::vector<uint8_t> m_constantBufferData;
-
-    /// Dirty bit tracking whether the constant buffer needs to be updated.
-    bool m_isConstantBufferDirty = true;
-
     /// Get the layout of this shader object with specialization arguments considered
     ///
     /// This operation should only be called after the shader object has been
@@ -194,12 +169,6 @@ class RootShaderObjectImpl : public ShaderObjectImpl
     using Super = ShaderObjectImpl;
 
 public:
-    // Override default reference counting behavior to disable lifetime management.
-    // Root objects are managed by command buffer and does not need to be freed by the user.
-    // virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
-    // virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
-
-public:
     RootShaderObjectLayout* getLayout();
 
     RootShaderObjectLayout* getSpecializedLayout();
@@ -210,7 +179,7 @@ public:
     virtual Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout) const;
+    Result bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout, BindingDataImpl*& outBindingData) const;
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
@@ -221,6 +190,38 @@ protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
     std::vector<RefPtr<EntryPointShaderObject>> m_entryPoints;
+};
+
+class BindingDataImpl : public BindingData
+{
+public:
+    short_vector<WGPUBindGroup> bindGroups;
+};
+
+struct BindingCache : public RefObject
+{
+    std::vector<RefPtr<BindingData>> bindingData;
+    std::vector<RefPtr<BufferImpl>> buffers;
+};
+
+/// Context information required when binding shader objects to the pipeline
+struct BindingContext
+{
+    /// The device being used
+    DeviceImpl* device;
+    BindingCache* bindingCache;
+    BindingDataImpl* currentBindingData = nullptr;
+
+    span<WGPUBindGroupLayout> bindGroupLayouts;
+
+    /// The bind group entries for every descriptor set
+    std::vector<std::vector<WGPUBindGroupEntry>> entries;
+
+    BindingContext(DeviceImpl* device, BindingCache* bindingCache)
+        : device(device)
+        , bindingCache(bindingCache)
+    {
+    }
 };
 
 } // namespace rhi::wgpu
