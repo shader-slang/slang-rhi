@@ -41,7 +41,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     WGPUTextureDescriptor textureDesc = {};
     textureDesc.size.width = desc.size.width;
     textureDesc.size.height = desc.size.height;
-    if (desc_.type == TextureType::Texture3D)
+    if (desc.type == TextureType::Texture3D)
     {
         textureDesc.size.depthOrArrayLayers = desc.size.depth;
     }
