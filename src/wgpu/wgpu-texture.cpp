@@ -48,7 +48,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     else
     {
         uint32_t arrayLayers = std::max(1, desc.arrayLength);
-        switch (desc_.type)
+        switch (desc.type)
         {
         case TextureType::TextureCube:
             arrayLayers *= 6U;
