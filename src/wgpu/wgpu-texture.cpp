@@ -41,7 +41,24 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     WGPUTextureDescriptor textureDesc = {};
     textureDesc.size.width = desc.size.width;
     textureDesc.size.height = desc.size.height;
-    textureDesc.size.depthOrArrayLayers = desc.size.depth;
+    if (desc.type == TextureType::Texture3D)
+    {
+        textureDesc.size.depthOrArrayLayers = desc.size.depth;
+    }
+    else
+    {
+        uint32_t arrayLayers = std::max(1, desc.arrayLength);
+        switch (desc.type)
+        {
+        case TextureType::TextureCube:
+            arrayLayers *= 6U;
+            break;
+        case TextureType::Texture1D:
+            arrayLayers = 1U;
+            break;
+        }
+        textureDesc.size.depthOrArrayLayers = arrayLayers;
+    }
     textureDesc.usage = translateTextureUsage(desc.usage);
     if (initData)
     {
