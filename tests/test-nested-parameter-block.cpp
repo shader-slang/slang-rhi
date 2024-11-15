@@ -123,6 +123,7 @@ TEST_CASE("nested-parameter-block")
         {
             DeviceType::CPU,
             DeviceType::CUDA,
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
             // DeviceType::Metal,
