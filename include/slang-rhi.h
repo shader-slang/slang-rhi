@@ -1106,28 +1106,28 @@ struct Binding
     Binding() : type(BindingType::Unknown) {}
 
     Binding(IBuffer* buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer), bufferRange(range) {}
-    Binding(ComPtr<IBuffer> buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer.get()), bufferRange(range) {}
+    Binding(const ComPtr<IBuffer>& buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer.get()), bufferRange(range) {}
 
     Binding(IBuffer* buffer, IBuffer* counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
-    Binding(ComPtr<IBuffer> buffer, ComPtr<IBuffer> counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer.get()), resource2(counter.get()), bufferRange(range) {}
+    Binding(const ComPtr<IBuffer>& buffer, const ComPtr<IBuffer>& counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer.get()), resource2(counter.get()), bufferRange(range) {}
 
     Binding(ITexture* texture) : type(BindingType::Texture), resource(texture) {}
-    Binding(ComPtr<ITexture> texture) : type(BindingType::Texture), resource(texture.get()) {}
+    Binding(const ComPtr<ITexture>& texture) : type(BindingType::Texture), resource(texture.get()) {}
 
     Binding(ITextureView* textureView) : type(BindingType::TextureView), resource(textureView) {}
-    Binding(ComPtr<ITextureView> textureView) : type(BindingType::TextureView), resource(textureView.get()) {}
+    Binding(const ComPtr<ITextureView>& textureView) : type(BindingType::TextureView), resource(textureView.get()) {}
 
     Binding(ISampler* sampler) : type(BindingType::Sampler) , resource(sampler) {}
-    Binding(ComPtr<ISampler> sampler) : type(BindingType::Sampler) , resource(sampler.get()) {}
+    Binding(const ComPtr<ISampler>& sampler) : type(BindingType::Sampler) , resource(sampler.get()) {}
 
     Binding(ITexture* texture, ISampler* sampler) : type(BindingType::CombinedTextureSampler), resource(texture), resource2(sampler) {}
-    Binding(ComPtr<ITexture> texture, ComPtr<ISampler> sampler) : type(BindingType::CombinedTextureSampler), resource(texture.get()), resource2(sampler.get()) {}
+    Binding(const ComPtr<ITexture>& texture, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureSampler), resource(texture.get()), resource2(sampler.get()) {}
 
     Binding(ITextureView* textureView, ISampler* sampler) : type(BindingType::CombinedTextureViewSampler) , resource(textureView), resource2(sampler) {}
-    Binding(ComPtr<ITextureView> textureView, ComPtr<ISampler> sampler) : type(BindingType::CombinedTextureViewSampler) , resource(textureView.get()), resource2(sampler.get()) {}
+    Binding(const ComPtr<ITextureView>& textureView, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureViewSampler) , resource(textureView.get()), resource2(sampler.get()) {}
 
     Binding(IAccelerationStructure* as) : type(BindingType::AccelerationStructure), resource(as) {}
-    Binding(ComPtr<IAccelerationStructure> as) : type(BindingType::AccelerationStructure), resource(as.get()) {}
+    Binding(const ComPtr<IAccelerationStructure>& as) : type(BindingType::AccelerationStructure), resource(as.get()) {}
     // clang-format on
 };
 
