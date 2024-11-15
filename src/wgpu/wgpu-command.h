@@ -34,10 +34,11 @@ public:
 
     Result init();
 
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject) override;
+    virtual Result getBindingData(IShaderObject* rootObject, BindingData*& outBindingData) override;
+
     // ICommandEncoder implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
@@ -47,6 +48,7 @@ public:
     DeviceImpl* m_device;
     CommandQueueImpl* m_queue;
     WGPUCommandBuffer m_commandBuffer = nullptr;
+    RefPtr<BindingCache> m_bindingCache;
 
     CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
