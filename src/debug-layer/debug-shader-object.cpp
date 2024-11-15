@@ -156,7 +156,7 @@ Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 Result DebugShaderObject::finalize()
 {
     SLANG_RHI_API_FUNC;
-    if (!baseObject->isFinalized())
+    if (baseObject->isFinalized())
     {
         RHI_VALIDATION_ERROR("The shader object is already finalized.");
     }
