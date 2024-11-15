@@ -88,7 +88,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         ResourceSlot slot;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
@@ -99,19 +99,19 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
         ResourceSlot slot;
         slot.type = BindingType::TextureView;
-        slot.resource = checked_cast<TextureViewImpl*>(binding.resource.get());
+        slot.resource = checked_cast<TextureViewImpl*>(binding.resource);
         m_resources[bindingIndex] = slot;
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource.get());
+        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource);
         break;
     }
 

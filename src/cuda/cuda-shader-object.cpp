@@ -205,7 +205,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     {
     case BindingType::Buffer:
     {
-        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource.get());
+        BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         const BufferDesc& desc = buffer->m_desc;
         BufferRange range = buffer->resolveBufferRange(binding.bufferRange);
         m_resources[viewIndex] = buffer;
@@ -222,7 +222,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::Texture:
     {
-        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource.get());
+        TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
         m_resources[viewIndex] = texture;
         switch (bindingRange.bindingType)
         {
@@ -237,7 +237,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     }
     case BindingType::TextureView:
     {
-        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource.get());
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
         m_resources[viewIndex] = textureView;
         TextureImpl* texture = textureView->m_texture;
         switch (bindingRange.bindingType)
