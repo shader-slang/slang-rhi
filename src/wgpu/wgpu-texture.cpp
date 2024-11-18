@@ -37,6 +37,13 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 {
     TextureDesc desc = fixupTextureDesc(desc_);
 
+    // WebGPU only supports 1 MIP level for 1d textures
+    // https://www.w3.org/TR/webgpu/#abstract-opdef-maximum-miplevel-count
+    if ((desc.type == TextureType::Texture1D) && (desc.mipLevelCount > 1))
+    {
+        return SLANG_FAIL;
+    }
+
     RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
     WGPUTextureDescriptor textureDesc = {};
     textureDesc.size.width = desc.size.width;
