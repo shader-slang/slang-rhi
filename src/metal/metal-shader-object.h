@@ -40,23 +40,16 @@ protected:
     Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given `offset`
-    Result _writeOrdinaryData(void* dest, size_t destSize, ShaderObjectLayoutImpl* layout);
+    Result _writeOrdinaryData(void* dest, size_t destSize, ShaderObjectLayoutImpl* layout) const;
 
-    /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
-    ///
-    /// The `layout` type must represent a specialized layout for this
-    /// type that includes any "pending" data.
-    ///
-    Result _ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
-
-    BufferImpl* _ensureArgumentBufferUpToDate(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
+    BufferImpl* _ensureArgumentBufferUpToDate(BindingContext& context, ShaderObjectLayoutImpl* layout) const;
 
     void writeOrdinaryDataIntoArgumentBuffer(
         slang::TypeLayoutReflection* argumentBufferTypeLayout,
         slang::TypeLayoutReflection* defaultTypeLayout,
         uint8_t* argumentBuffer,
         uint8_t* srcData
-    );
+    ) const;
 
     /// Bind the buffer for ordinary/uniform data, if needed
     ///
@@ -64,17 +57,19 @@ protected:
     /// register consumed by the ordinary data buffer, if one was bound.
     ///
     Result _bindOrdinaryDataBufferIfNeeded(
-        BindingContext* context,
+        BindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* layout
-    );
+    ) const;
 
 public:
     /// Bind this object as if it was declared as a `ConstantBuffer<T>` in Slang
-    Result bindAsConstantBuffer(BindingContext* context, BindingOffset const& inOffset, ShaderObjectLayoutImpl* layout);
+    Result bindAsConstantBuffer(BindingContext& context, BindingOffset const& inOffset, ShaderObjectLayoutImpl* layout)
+        const;
 
     /// Bind this object as if it was declared as a `ParameterBlock<T>` in Slang
-    Result bindAsParameterBlock(BindingContext* context, BindingOffset const& inOffset, ShaderObjectLayoutImpl* layout);
+    Result bindAsParameterBlock(BindingContext& context, BindingOffset const& inOffset, ShaderObjectLayoutImpl* layout)
+        const;
 
     /// Bind this object as a value that appears in the body of another object.
     ///
@@ -83,7 +78,7 @@ public:
     /// indirectly when binding sub-objects to constant buffer or parameter
     /// block ranges.
     ///
-    Result bindAsValue(BindingContext* context, BindingOffset const& offset, ShaderObjectLayoutImpl* layout);
+    Result bindAsValue(BindingContext& context, BindingOffset const& offset, ShaderObjectLayoutImpl* layout) const;
 
     // Because the binding ranges have already been reflected
     // and organized as part of each shader object layout,
@@ -104,13 +99,13 @@ public:
     /// and existential-type sub-objects.
     ///
     /// Created on demand with `_createOrdinaryDataBufferIfNeeded()`
-    RefPtr<BufferImpl> m_ordinaryDataBuffer;
+    // RefPtr<BufferImpl> m_ordinaryDataBuffer;
 
     /// Argument buffer created on demand to bind as a parameter block.
-    RefPtr<BufferImpl> m_argumentBuffer;
+    // RefPtr<BufferImpl> m_argumentBuffer;
 
-    bool m_isConstantBufferDirty = true;
-    bool m_isArgumentBufferDirty = true;
+    // bool m_isConstantBufferDirty = true;
+    // bool m_isArgumentBufferDirty = true;
 };
 
 class RootShaderObjectImpl : public ShaderObjectImpl
@@ -141,10 +136,60 @@ public:
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(BindingContext* context, RootShaderObjectLayoutImpl* specializedLayout);
+    Result bindAsRoot(BindingContext& context, RootShaderObjectLayoutImpl* specializedLayout) const;
 
 protected:
     std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
+};
+
+class BindingDataImpl : public BindingData
+{
+public:
+    short_vector<MTL::Buffer*> buffers;
+    short_vector<MTL::Texture*> textures;
+    short_vector<MTL::SamplerState*> samplers;
+};
+
+struct BindingCache : public RefObject
+{
+    std::vector<RefPtr<BindingDataImpl>> bindingData;
+    std::vector<RefPtr<BufferImpl>> buffers;
+};
+
+/// Contextual data and operations required when binding shader objects to the pipeline state
+struct BindingContext
+{
+    DeviceImpl* device;
+    BindingCache* bindingCache;
+
+    BindingDataImpl* currentBindingData = nullptr;
+
+    BindingContext(DeviceImpl* device, BindingCache* bindingCache)
+        : device(device)
+        , bindingCache(bindingCache)
+    {
+    }
+
+    void setBuffer(MTL::Buffer* buffer, NS::UInteger index)
+    {
+        if (index >= currentBindingData->buffers.size())
+            currentBindingData->buffers.resize(index + 1);
+        currentBindingData->buffers[index] = buffer;
+    }
+
+    void setTexture(MTL::Texture* texture, NS::UInteger index)
+    {
+        if (index >= currentBindingData->textures.size())
+            currentBindingData->textures.resize(index + 1);
+        currentBindingData->textures[index] = texture;
+    }
+
+    void setSampler(MTL::SamplerState* sampler, NS::UInteger index)
+    {
+        if (index >= currentBindingData->samplers.size())
+            currentBindingData->samplers.resize(index + 1);
+        currentBindingData->samplers[index] = sampler;
+    }
 };
 
 } // namespace rhi::metal

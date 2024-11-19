@@ -42,7 +42,7 @@ Size ShaderObjectImpl::getSize()
 // TODO: Change size_t and Index to Size?
 Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+    SLANG_RETURN_ON_FAIL(checkFinalized());
 
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
@@ -75,7 +75,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
 
 Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+    SLANG_RETURN_ON_FAIL(checkFinalized());
 
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;
@@ -225,8 +225,6 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
         }
     }
 
-    m_state = State::Initialized;
-
     return SLANG_OK;
 }
 
@@ -349,7 +347,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
     Size bufferSize
 )
 {
-    VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
+    VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
     VkDescriptorBufferInfo bufferInfo = {};
     if (buffer)
@@ -388,7 +386,7 @@ void ShaderObjectImpl::writePlainBufferDescriptor(
     span<const ResourceSlot> slots
 )
 {
-    VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
+    VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
     Index count = slots.size();
     for (Index i = 0; i < count; ++i)
@@ -428,7 +426,7 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
     span<const ResourceSlot> slots
 )
 {
-    VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
+    VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
     Index count = slots.size();
     for (Index i = 0; i < count; ++i)
@@ -463,7 +461,7 @@ void ShaderObjectImpl::writeTextureSamplerDescriptor(
     span<const CombinedTextureSamplerSlot> slots
 )
 {
-    VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
+    VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
     Index count = slots.size();
     for (Index i = 0; i < count; ++i)
@@ -497,7 +495,7 @@ void ShaderObjectImpl::writeAccelerationStructureDescriptor(
     span<const ResourceSlot> slots
 )
 {
-    VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
+    VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
     Index count = slots.size();
     for (Index i = 0; i < count; ++i)
@@ -540,7 +538,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
     span<const ResourceSlot> slots
 )
 {
-    VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
+    VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
     Index count = slots.size();
     for (Index i = 0; i < count; ++i)
@@ -579,7 +577,7 @@ void ShaderObjectImpl::writeSamplerDescriptor(
     span<const RefPtr<SamplerImpl>> samplers
 )
 {
-    VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
+    VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
     Index count = samplers.size();
     for (Index i = 0; i < count; ++i)
@@ -900,7 +898,7 @@ Result ShaderObjectImpl::allocateDescriptorSets(
         // we can bind all the descriptor sets to the pipeline when the
         // time comes.
         //
-        context.bindable->descriptorSets.push_back(descriptorSetHandle);
+        context.currentBindingData->descriptorSets.push_back(descriptorSetHandle);
     }
 
     return SLANG_OK;
@@ -918,7 +916,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     // not the sets for any parent object(s).
     //
     BindingOffset offset = inOffset;
-    offset.bindingSet = (uint32_t)context.bindable->descriptorSets.size();
+    offset.bindingSet = (uint32_t)context.currentBindingData->descriptorSets.size();
     offset.binding = 0;
 
     // TODO: We should also be writing to `offset.pending` here,
@@ -935,7 +933,7 @@ Result ShaderObjectImpl::bindAsParameterBlock(
     //
     SLANG_RETURN_ON_FAIL(allocateDescriptorSets(context, offset, specializedLayout));
 
-    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)context.bindable->descriptorSets.size());
+    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)context.currentBindingData->descriptorSets.size());
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(context, offset, specializedLayout));
 
     return SLANG_OK;
@@ -1008,20 +1006,22 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
     return SLANG_OK;
 }
 
-void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking) const
+void ShaderObjectImpl::setResourceStates(BindingContext& context) const
 {
     for (const ResourceSlot& slot : m_resources)
     {
         switch (slot.type)
         {
         case BindingType::Buffer:
-            stateTracking.setBufferState(checked_cast<BufferImpl*>(slot.resource.get()), slot.requiredState);
+        {
+            BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
+            context.setBufferState(buffer, slot.requiredState);
             break;
+        }
         case BindingType::TextureView:
         {
             TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-            stateTracking
-                .setTextureState(textureView->m_texture, textureView->m_desc.subresourceRange, slot.requiredState);
+            context.setTextureState(textureView, slot.requiredState);
             break;
         }
         case BindingType::AccelerationStructure:
@@ -1034,11 +1034,7 @@ void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking) const
     {
         if (slot.textureView)
         {
-            stateTracking.setTextureState(
-                slot.textureView->m_texture,
-                slot.textureView->m_desc.subresourceRange,
-                ResourceState::ShaderResource
-            );
+            context.setTextureState(slot.textureView, ResourceState::ShaderResource);
         }
     }
 
@@ -1046,7 +1042,7 @@ void ShaderObjectImpl::setResourceStates(StateTracking& stateTracking) const
     {
         if (subObject)
         {
-            subObject->setResourceStates(stateTracking);
+            subObject->setResourceStates(context);
         }
     }
 }
@@ -1135,9 +1131,7 @@ Result EntryPointShaderObject::bindAsEntryPoint(
         //
         SLANG_RHI_ASSERT(pushConstantRange.size == (uint32_t)m_data.getCount());
 
-        auto pushConstantData = m_data.getBuffer();
-
-        context.bindable->pushConstants.push_back({pushConstantRange, pushConstantData});
+        context.writePushConstants(pushConstantRange, m_data.getBuffer());
     }
 
     // Any remaining bindings in the object can be handled through the
@@ -1181,17 +1175,30 @@ Result RootShaderObjectImpl::getEntryPoint(Index index, IShaderObject** outEntry
     return SLANG_OK;
 }
 
-void RootShaderObjectImpl::setResourceStates(StateTracking& stateTracking)
+void RootShaderObjectImpl::setResourceStates(BindingContext& context) const
 {
-    ShaderObjectImpl::setResourceStates(stateTracking);
+    ShaderObjectImpl::setResourceStates(context);
     for (auto& entryPoint : m_entryPoints)
     {
-        entryPoint->setResourceStates(stateTracking);
+        entryPoint->setResourceStates(context);
     }
 }
 
-Result RootShaderObjectImpl::bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout)
+Result RootShaderObjectImpl::bindAsRoot(
+    BindingContext& context,
+    RootShaderObjectLayout* layout,
+    BindingDataImpl*& outBindingData
+)
 {
+    // Create a new set of binding data to populate.
+    // TODO: In the future we should lookup the cache for existing
+    // binding data and reuse that if possible.
+    RefPtr<BindingDataImpl> bindingData = new BindingDataImpl();
+    bindingData->pipelineLayout = layout->m_pipelineLayout;
+    context.bindingCache->bindingData.push_back(bindingData);
+    context.currentBindingData = bindingData;
+    context.pushConstantRanges = layout->getAllPushConstantRanges();
+
     BindingOffset offset = {};
     offset.pending = layout->getPendingDataOffset();
 
@@ -1229,6 +1236,8 @@ Result RootShaderObjectImpl::bindAsRoot(BindingContext& context, RootShaderObjec
 
         entryPoint->bindAsEntryPoint(context, entryPointInfo.offset, entryPointInfo.layout);
     }
+
+    outBindingData = bindingData;
 
     return SLANG_OK;
 }

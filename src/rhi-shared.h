@@ -424,6 +424,14 @@ bool _doesValueFitInExistentialPayload(
     slang::TypeLayoutReflection* existentialFieldLayout
 );
 
+struct ShaderObjectID
+{
+    uint32_t uid;
+    uint32_t version;
+    bool operator==(const ShaderObjectID& rhs) const { return uid == rhs.uid && version == rhs.version; }
+    bool operator!=(const ShaderObjectID& rhs) const { return !(*this == rhs); }
+};
+
 class ShaderObjectBase : public IShaderObject, public ComObject
 {
 public:
@@ -443,8 +451,11 @@ protected:
     // The shader object layout used to create this shader object.
     RefPtr<ShaderObjectLayout> m_layout = nullptr;
 
-    // The specialized shader object type.
-    ExtendedShaderObjectType shaderObjectType = {nullptr, kInvalidComponentID};
+    // Unique ID of the shader object (generated on construction).
+    uint32_t m_uid;
+
+    // Version of the shader object. Incremented on every modification.
+    uint32_t m_version = 0;
 
     // True if the shader object is finalized and no further modifications are allowed.
     bool m_finalized = false;
@@ -459,6 +470,8 @@ public:
     void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
 
 public:
+    inline void incrementVersion() { m_version++; }
+
     inline Result checkFinalized() { return m_finalized ? SLANG_FAIL : SLANG_OK; }
 
     ShaderComponentID getComponentID() { return m_shaderObjectType.componentID; }
@@ -566,6 +579,8 @@ public:
     {
         if (m_finalized)
             return SLANG_FAIL;
+
+        incrementVersion();
 
         auto layout = getLayout();
         auto subObject = checked_cast<TShaderObjectImpl*>(object);

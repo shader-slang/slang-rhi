@@ -22,16 +22,11 @@ public:
     void init(NS::SharedPtr<MTL::CommandQueue> commandQueue);
 
     // ICommandQueue implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
@@ -48,10 +43,11 @@ public:
 
     Result init();
 
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject) override;
+    virtual Result getBindingData(IShaderObject* rootObject, BindingData*& outBindingData) override;
+
     // ICommandEncoder implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

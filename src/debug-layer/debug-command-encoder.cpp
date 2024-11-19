@@ -231,6 +231,7 @@ DebugRayTracingPassEncoder::DebugRayTracingPassEncoder(DebugContext* ctx, DebugC
     : UnownedDebugObject<IRayTracingPassEncoder>(ctx)
     , m_commandEncoder(commandEncoder)
 {
+    m_rootObject = new DebugRootShaderObject(ctx);
 }
 
 IShaderObject* DebugRayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable)

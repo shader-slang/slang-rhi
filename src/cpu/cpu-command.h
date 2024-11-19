@@ -2,6 +2,7 @@
 
 #include "cpu-base.h"
 #include "cpu-device.h"
+#include "cpu-shader-object.h"
 
 namespace rhi::cpu {
 
@@ -31,10 +32,14 @@ class CommandEncoderImpl : public CommandEncoder
 public:
     DeviceImpl* m_device;
     RefPtr<CommandBufferImpl> m_commandBuffer;
+    Baker m_baker;
 
     CommandEncoderImpl(DeviceImpl* device);
 
     Result init();
+
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    virtual Result bakeRootShaderObject(IShaderObject* object, BakedShaderObject*& outBakedObject) override;
 
     // ICommandEncoder implementation
 

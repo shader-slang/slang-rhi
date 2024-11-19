@@ -6,21 +6,6 @@
 
 namespace rhi::cpu {
 
-Index CPUShaderObjectData::getCount()
-{
-    return m_ordinaryData.size();
-}
-
-void CPUShaderObjectData::setCount(Index count)
-{
-    m_ordinaryData.resize(count);
-}
-
-uint8_t* CPUShaderObjectData::getBuffer()
-{
-    return m_ordinaryData.data();
-}
-
 CPUShaderObjectData::~CPUShaderObjectData()
 {
     // m_buffer's data is managed by m_ordinaryData so we
@@ -110,10 +95,17 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLa
         }
     }
 
-    m_state = State::Initialized;
-
     return SLANG_OK;
 }
+
+Result ShaderObjectImpl::bake(Baker& baker, BakedShaderObjectImpl** outBakedObject) const
+{
+    RefPtr<BakedShaderObjectImpl> bakedObject = new BakedShaderObjectImpl();
+    bakedObject->m_data.reset(new uint8_t[m_data.getCount()]);
+    std::memcpy(bakedObject->m_data.get(), m_data.getBuffer(), m_data.getCount());
+    returnRefPtr(outBakedObject, bakedObject);
+    return SLANG_OK;
+};
 
 GfxCount ShaderObjectImpl::getEntryPointCount()
 {
@@ -138,8 +130,6 @@ size_t ShaderObjectImpl::getSize()
 
 Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, size_t size)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
-
     size = min(size, size_t(m_data.getCount() - offset.uniformOffset));
     memcpy((char*)m_data.getBuffer() + offset.uniformOffset, data, size);
     return SLANG_OK;
@@ -147,8 +137,6 @@ Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, s
 
 Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
-
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
@@ -216,7 +204,6 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 
 Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
@@ -247,7 +234,7 @@ uint8_t* ShaderObjectImpl::getDataBuffer()
 
 EntryPointLayoutImpl* EntryPointShaderObjectImpl::getLayout()
 {
-    return checked_cast<EntryPointLayoutImpl*>(m_layout.Ptr());
+    return checked_cast<EntryPointLayoutImpl*>(m_layout.get());
 }
 
 Result RootShaderObjectImpl::init(DeviceImpl* device, RootShaderObjectLayoutImpl* programLayout)
@@ -262,9 +249,28 @@ Result RootShaderObjectImpl::init(DeviceImpl* device, RootShaderObjectLayoutImpl
     return SLANG_OK;
 }
 
+Result RootShaderObjectImpl::bake(Baker& baker, BakedRootShaderObjectImpl** outBakedObject) const
+{
+    RefPtr<BakedRootShaderObjectImpl> bakedObject = new BakedRootShaderObjectImpl();
+    bakedObject->m_layout = checked_cast<RootShaderObjectLayoutImpl*>(m_layout.get());
+    bakedObject->m_data.reset(new uint8_t[m_data.getCount()]);
+    std::memcpy(bakedObject->m_data.get(), m_data.getBuffer(), m_data.getCount());
+    for (auto& entryPoint : m_entryPoints)
+    {
+        RefPtr<BakedShaderObjectImpl> bakedEntryPoint;
+        SLANG_RETURN_ON_FAIL(entryPoint->bake(baker, bakedEntryPoint.writeRef()));
+        bakedObject->m_entryPoints.push_back(bakedEntryPoint);
+    }
+
+    baker.m_bakedRootObjects.push_back(bakedObject);
+
+    returnRefPtr(outBakedObject, bakedObject);
+    return SLANG_OK;
+};
+
 RootShaderObjectLayoutImpl* RootShaderObjectImpl::getLayout()
 {
-    return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr());
+    return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.get());
 }
 
 EntryPointShaderObjectImpl* RootShaderObjectImpl::getEntryPoint(Index index)

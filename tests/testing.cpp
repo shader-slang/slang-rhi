@@ -610,12 +610,12 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 {
     for (auto deviceType : deviceTypes)
     {
-        if (!isDeviceTypeAvailable(deviceType))
-        {
-            continue;
-        }
         SUBCASE(deviceTypeToString(deviceType))
         {
+            if (!isDeviceTypeAvailable(deviceType))
+            {
+                continue;
+            }
             GpuTestContext ctx;
             ctx.slangGlobalSession = getSlangGlobalSession();
             func(&ctx, deviceType);

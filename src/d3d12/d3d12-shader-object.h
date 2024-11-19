@@ -5,6 +5,7 @@
 #include "d3d12-submitter.h"
 
 #include "../state-tracking.h"
+#include "../buffer-pool.h"
 
 #include "core/short_vector.h"
 
@@ -18,6 +19,7 @@ struct PendingDescriptorTableBinding
     D3D12_GPU_DESCRIPTOR_HANDLE handle;
 };
 
+#if 0
 /// Contextual data and operations required when binding shader objects to the pipeline state
 struct BindingContext
 {
@@ -35,6 +37,7 @@ struct BindingContext
     virtual Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) = 0;
     virtual Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) = 0;
 };
+#endif
 
 struct DescriptorTable
 {
@@ -280,6 +283,149 @@ protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
     std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
+};
+
+class BindingDataImpl : public BindingData
+{
+public:
+    struct RootCBV
+    {
+        UINT index;
+        D3D12_GPU_VIRTUAL_ADDRESS bufferLocation;
+    };
+    struct RootUAV
+    {
+        UINT index;
+        D3D12_GPU_VIRTUAL_ADDRESS bufferLocation;
+    };
+    struct RootSRV
+    {
+        UINT index;
+        D3D12_GPU_VIRTUAL_ADDRESS bufferLocation;
+    };
+    struct RootDescriptorTable
+    {
+        UINT index;
+        D3D12_GPU_DESCRIPTOR_HANDLE baseDescriptor;
+    };
+
+    short_vector<RootCBV> rootCbvs;
+    short_vector<RootUAV> rootUavs;
+    short_vector<RootSRV> rootSrvs;
+    short_vector<RootDescriptorTable> rootDescriptorTables;
+};
+
+class BindingCache : public RefObject
+{};
+
+struct BindingContext
+{
+    DeviceImpl* device;
+
+    BufferPool<DeviceImpl, BufferImpl>* constantBufferPool;
+    BufferPool<DeviceImpl, BufferImpl>* uploadBufferPool;
+
+    D3D12DescriptorHeap* viewHeap;
+    D3D12DescriptorHeap* samplerHeap;
+    D3D12_DESCRIPTOR_HEAP_TYPE outOfMemoryHeap;
+
+    short_vector<PendingDescriptorTableBinding>* pendingTableBindings;
+
+    BindingDataImpl* currentBindingData;
+
+    Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset)
+    {
+        auto allocation = constantBufferPool->allocate(size);
+        outBufferWeakPtr = allocation.resource;
+        outOffset = allocation.offset;
+        return SLANG_OK;
+    }
+
+    Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data)
+    {
+        auto allocation = uploadBufferPool->allocate(size);
+        ID3D12Resource* stagingBuffer = allocation.resource->m_resource.getResource();
+        D3D12_RANGE readRange = {};
+        readRange.Begin = 0;
+        readRange.End = 0;
+        void* uploadData;
+        SLANG_RETURN_ON_FAIL(stagingBuffer->Map(0, &readRange, reinterpret_cast<void**>(&uploadData)));
+        memcpy((uint8_t*)uploadData + allocation.offset, data, size);
+        D3D12_RANGE writtenRange = {};
+        writtenRange.Begin = allocation.offset;
+        writtenRange.End = allocation.offset + size;
+        stagingBuffer->Unmap(0, &writtenRange);
+
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+        barrier.Transition.pResource = buffer->m_resource.getResource();
+        recorder->m_cmdList->ResourceBarrier(1, &barrier);
+
+        recorder->m_cmdList
+            ->CopyBufferRegion(buffer->m_resource.getResource(), offset, stagingBuffer, allocation.offset, size);
+
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+        recorder->m_cmdList->ResourceBarrier(1, &barrier);
+
+        return SLANG_OK;
+    }
+
+    void copyDescriptors(
+        UINT count,
+        D3D12_CPU_DESCRIPTOR_HANDLE dst,
+        D3D12_CPU_DESCRIPTOR_HANDLE src,
+        D3D12_DESCRIPTOR_HEAP_TYPE type
+    )
+    {
+        // device->m_device->CopyDescriptorsSimple(count, dst, src, type);
+    }
+
+    void createConstantBufferView(
+        D3D12_GPU_VIRTUAL_ADDRESS gpuBufferLocation,
+        UINT size,
+        D3D12_CPU_DESCRIPTOR_HANDLE dst
+    )
+    {
+        D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
+        viewDesc.BufferLocation = gpuBufferLocation;
+        viewDesc.SizeInBytes = size;
+        // device->m_device->CreateConstantBufferView(&viewDesc, dst);
+    }
+
+    void setRootConstantBufferView(UINT index, D3D12_GPU_VIRTUAL_ADDRESS bufferLocation)
+    {
+        auto& rootCbvs = currentBindingData->rootCbvs;
+        if (index >= rootCbvs.size())
+            rootCbvs.resize(index + 1);
+        rootCbvs[index] = {index, bufferLocation};
+    }
+
+    void setRootUAV(UINT index, D3D12_GPU_VIRTUAL_ADDRESS bufferLocation)
+    {
+        auto& rootUavs = currentBindingData->rootUavs;
+        if (index >= rootUavs.size())
+            rootUavs.resize(index + 1);
+        rootUavs[index] = {index, bufferLocation};
+    }
+
+    void setRootSRV(UINT index, D3D12_GPU_VIRTUAL_ADDRESS bufferLocation)
+    {
+        auto& rootSrvs = currentBindingData->rootSrvs;
+        if (index >= rootSrvs.size())
+            rootSrvs.resize(index + 1);
+        rootSrvs[index] = {index, bufferLocation};
+    }
+
+    void setRootDescriptorTable(UINT index, D3D12_GPU_DESCRIPTOR_HANDLE descriptor)
+    {
+        auto& rootDescriptorTables = currentBindingData->rootDescriptorTables;
+        if (index >= rootDescriptorTables.size())
+            rootDescriptorTables.resize(index + 1);
+        rootDescriptorTables[index] = {index, descriptor};
+    }
 };
 
 } // namespace rhi::d3d12

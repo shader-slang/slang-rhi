@@ -54,16 +54,16 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputeState m_computeState;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
-    RayTracingState m_rayTracingState;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
     D3D12_DISPATCH_RAYS_DESC m_dispatchRaysDesc = {};
     UINT64 m_rayGenTableAddr = 0;
+
+    RefPtr<BindingDataImpl> m_bindingData;
 
     CommandRecorder(DeviceImpl* device)
         : m_device(device)
@@ -693,8 +693,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     const RenderState& state = cmd.state;
 
-    bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateStencilRef = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
     bool updateVertexBuffers = !m_renderStateValid || !arraysEqual(
                                                           state.vertexBufferCount,
@@ -716,15 +716,25 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updatePipeline)
     {
-        m_renderPipeline = checked_cast<RenderPipelineImpl*>(state.pipeline);
+        m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
         m_cmdList->SetGraphicsRootSignature(m_renderPipeline->m_rootObjectLayout->m_rootSignature);
         m_cmdList->SetPipelineState(m_renderPipeline->m_pipelineState);
         m_cmdList->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        auto rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+
+        for (const auto& cbv : m_bindingData->rootCbvs)
+            m_cmdList->SetGraphicsRootConstantBufferView(cbv.index, cbv.bufferLocation);
+        for (const auto& uav : m_bindingData->rootUavs)
+            m_cmdList->SetGraphicsRootUnorderedAccessView(uav.index, uav.bufferLocation);
+        for (const auto& srv : m_bindingData->rootSrvs)
+            m_cmdList->SetGraphicsRootShaderResourceView(srv.index, srv.bufferLocation);
+        for (const auto& table : m_bindingData->rootDescriptorTables)
+            m_cmdList->SetGraphicsRootDescriptorTable(table.index, table.baseDescriptor);
+
         GraphicsSubmitter submitter(m_device->m_device, m_cmdList);
         if (bindRootObject(rootObject, m_renderPipeline->m_rootObjectLayout, &submitter) != SLANG_OK)
         {
@@ -827,11 +837,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     m_renderState = state;
 
     m_computeStateValid = false;
-    m_computeState = {};
     m_computePipeline = nullptr;
 
     m_rayTracingStateValid = false;
-    m_rayTracingState = {};
     m_rayTracingPipeline = nullptr;
 }
 
@@ -933,21 +941,29 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (!m_computePassActive)
         return;
 
-    const ComputeState& state = cmd.state;
-
-    bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_computeState.rootObject;
+    bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     if (updatePipeline)
     {
-        m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+        m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
         m_cmdList->SetComputeRootSignature(m_computePipeline->m_rootObjectLayout->m_rootSignature);
         m_cmdList->SetPipelineState(m_computePipeline->m_pipelineState);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        auto rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+
+        for (const auto& cbv : m_bindingData->rootCbvs)
+            m_cmdList->SetComputeRootConstantBufferView(cbv.index, cbv.bufferLocation);
+        for (const auto& uav : m_bindingData->rootUavs)
+            m_cmdList->SetComputeRootUnorderedAccessView(uav.index, uav.bufferLocation);
+        for (const auto& srv : m_bindingData->rootSrvs)
+            m_cmdList->SetComputeRootShaderResourceView(srv.index, srv.bufferLocation);
+        for (const auto& table : m_bindingData->rootDescriptorTables)
+            m_cmdList->SetComputeRootDescriptorTable(table.index, table.baseDescriptor);
+
         ComputeSubmitter submitter(m_device->m_device, m_cmdList);
         if (bindRootObject(rootObject, m_computePipeline->m_rootObjectLayout, &submitter) != SLANG_OK)
         {
@@ -957,7 +973,6 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     }
 
     m_computeStateValid = true;
-    m_computeState = state;
 }
 
 void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -1003,23 +1018,30 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (!m_rayTracingPassActive)
         return;
 
-    const RayTracingState& state = cmd.state;
-
-    bool updatePipeline = !m_rayTracingStateValid || state.pipeline != m_rayTracingState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_rayTracingState.rootObject;
-    bool updateShaderTable = updatePipeline || state.shaderTable != m_rayTracingState.shaderTable;
+    bool updatePipeline = !m_rayTracingStateValid || cmd.pipeline != m_rayTracingPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
+    bool updateShaderTable = updatePipeline || cmd.shaderTable != m_shaderTable;
 
     if (updatePipeline)
     {
-        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(state.pipeline);
+        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
         m_cmdList->SetComputeRootSignature(m_rayTracingPipeline->m_rootObjectLayout->m_rootSignature);
         m_cmdList4->SetPipelineState1(m_rayTracingPipeline->m_stateObject);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        auto rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
-        ComputeSubmitter submitter(m_device->m_device, m_cmdList);
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+
+        for (const auto& cbv : m_bindingData->rootCbvs)
+            m_cmdList->SetComputeRootConstantBufferView(cbv.index, cbv.bufferLocation);
+        for (const auto& uav : m_bindingData->rootUavs)
+            m_cmdList->SetComputeRootUnorderedAccessView(uav.index, uav.bufferLocation);
+        for (const auto& srv : m_bindingData->rootSrvs)
+            m_cmdList->SetComputeRootShaderResourceView(srv.index, srv.bufferLocation);
+        for (const auto& table : m_bindingData->rootDescriptorTables)
+            m_cmdList->SetComputeRootDescriptorTable(table.index, table.baseDescriptor);
+
         if (bindRootObject(rootObject, m_rayTracingPipeline->m_rootObjectLayout, &submitter) != SLANG_OK)
         {
             // TODO issue a message?
@@ -1029,7 +1051,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
 
     if (updateShaderTable)
     {
-        m_shaderTable = checked_cast<ShaderTableImpl*>(state.shaderTable);
+        m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
         Buffer* shaderTableBuffer = m_shaderTable->getOrCreateBuffer(m_rayTracingPipeline);
         DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
@@ -1068,7 +1090,6 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     }
 
     m_rayTracingStateValid = true;
-    m_rayTracingState = state;
 }
 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
@@ -1615,6 +1636,10 @@ Result CommandEncoderImpl::init()
     m_commandList = m_commandBuffer->m_commandList;
     return SLANG_OK;
 }
+
+Result CommandEncoderImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject) {}
+
+Result CommandEncoderImpl::getBindingData(IShaderObject* rootObject, BindingData*& outBindingData) {}
 
 void CommandEncoderImpl::uploadTextureData(
     ITexture* dst,

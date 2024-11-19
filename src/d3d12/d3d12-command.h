@@ -36,17 +36,12 @@ public:
     uint64_t updateLastFinishedID();
 
     // ICommandQueue implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
@@ -62,8 +57,10 @@ public:
 
     Result init();
 
-    // ICommandEncoder implementation
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject) override;
+    virtual Result getBindingData(IShaderObject* rootObject, BindingData*& outBindingData) override;
 
+    // ICommandEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subresourceRange,
@@ -72,12 +69,9 @@ public:
         SubresourceData* subresourceData,
         GfxCount subresourceDataCount
     ) override;
-
     virtual SLANG_NO_THROW void SLANG_MCALL
     uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

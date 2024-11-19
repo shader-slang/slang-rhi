@@ -38,6 +38,8 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
 
     memcpy(dest + offset, data, size);
 
+    incrementVersion();
+
     return SLANG_OK;
 }
 
@@ -101,6 +103,8 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     default:
         return SLANG_FAIL;
     }
+
+    incrementVersion();
 
     return SLANG_OK;
 }

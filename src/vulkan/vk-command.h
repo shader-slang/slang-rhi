@@ -72,6 +72,9 @@ public:
 
     Result init();
 
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject) override;
+    virtual Result getBindingData(IShaderObject* rootObject, BindingData*& outBindingData) override;
+
     // ICommandEncoder implementation
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
@@ -101,6 +104,7 @@ public:
     DescriptorSetAllocator m_descriptorSetAllocator;
     BufferPool<DeviceImpl, BufferImpl> m_constantBufferPool;
     BufferPool<DeviceImpl, BufferImpl> m_uploadBufferPool;
+    RefPtr<BindingCache> m_bindingCache;
     uint64_t m_submissionID = 0;
 
     CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);
