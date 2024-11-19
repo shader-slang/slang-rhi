@@ -102,7 +102,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 WGPUImageCopyTexture imageCopyTexture = {};
                 imageCopyTexture.texture = texture->m_texture;
                 imageCopyTexture.mipLevel = mipLevel;
-                imageCopyTexture.origin = {0, 0, 0};
+                imageCopyTexture.origin = {0, 0, desc.type == TextureType::TextureCube ? arrayLayer : 0U};
                 imageCopyTexture.aspect = WGPUTextureAspect_All;
 
                 WGPUExtent3D writeSize = {};
