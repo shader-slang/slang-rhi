@@ -1,0 +1,21 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Slang Render Hardware Interface
+Upstream-Contact: The Khronos Group, Inc.
+Source: https://github.com/MilesHarding/slang-rhi
+
+Files: *
+Copyright: 2016, Carnegie Mellon University and NVIDIA Corporation
+           2024 The Khronos Group, Inc.
+License: Apache-2.0 WITH LLVM-exception
+
+Files: src/core/span.h
+Copyright: Tristan Brindle 2018
+License: BSL-1.0
+
+Files: external/doctest/doctest.h
+Copyright: 2016-2023 Viktor Kirilov
+License: MIT
+
+Files: CODE_OF_CONDUCT.md CONTRIBUTING.md README.md
+Copyright: 2024 The Khronos Group, Inc.
+License: CC-BY-4.0
