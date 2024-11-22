@@ -612,26 +612,12 @@ public:
                 SLANG_RETURN_ON_FAIL(subObject->getSpecializedShaderObjectType(&concreteType));
                 SLANG_RETURN_ON_FAIL(setExistentialHeader(existentialType, concreteType.slangType, offset));
                 payloadOffset.uniformOffset += 16;
-
-                // If this object is a `StructuredBuffer<ISomeInterface>`, then the
-                // specialization argument should be the specialized type of the sub object
-                // itself.
-                specializationArgs.add(concreteType);
-            }
-            else
-            {
-                // If this object is a `StructuredBuffer<SomeConcreteType>`, then the
-                // specialization
-                // argument should come recursively from the sub object.
-                subObject->collectSpecializationArgs(specializationArgs);
             }
             SLANG_RETURN_ON_FAIL(setData(
                 payloadOffset,
                 subObject->m_data.getBuffer(),
                 (size_t)subObject->m_data.getCount()
             )); // TODO: Change size_t to Count?
-
-            setSpecializationArgsForContainerElement(specializationArgs);
             return SLANG_OK;
         }
 
@@ -1659,8 +1645,6 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
             }
             case slang::BindingType::ParameterBlock:
             case slang::BindingType::ConstantBuffer:
-            case slang::BindingType::RawBuffer:
-            case slang::BindingType::MutableRawBuffer:
                 // If the field's type is `ParameterBlock<IFoo>`, we want to pull in the type argument
                 // from the sub object for specialization.
                 if (bindingRange.isSpecializable)
