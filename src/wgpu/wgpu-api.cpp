@@ -13,14 +13,22 @@ API::~API()
 Result API::init()
 {
 #if SLANG_WINDOWS_FAMILY
-    SLANG_RETURN_ON_FAIL(loadSharedLibrary("dawn.dll", m_module));
+    char const* libraryNames[] = {"dawn.dll", "webgpu_dawn.dll"};
 #elif SLANG_LINUX_FAMILY
-    SLANG_RETURN_ON_FAIL(loadSharedLibrary("libdawn.so", m_module));
+    char const* libraryNames[] = {"libdawn.so"};
 #elif SLANG_APPLE_FAMILY
-    SLANG_RETURN_ON_FAIL(loadSharedLibrary("libdawn.dylib", m_module));
+    char const* libraryNames[] = {"libdawn.dylib"};
 #else
-    return SLANG_FAIL;
+    char const* libraryNames[] = {};
 #endif
+
+    for (char const* name : libraryNames)
+    {
+        if (loadSharedLibrary(name, m_module) == SLANG_OK)
+            break;
+    }
+    if (!m_module)
+        return SLANG_FAIL;
 
 #define LOAD_PROC(name) wgpu##name = (WGPUProc##name)findSymbolAddressByName(m_module, "wgpu" #name);
     SLANG_RHI_WGPU_PROCS(LOAD_PROC)
