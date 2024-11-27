@@ -122,6 +122,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     std::vector<WGPUFeatureName> adapterFeatures(adapterFeatureCount);
     api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, adapterFeatures.data());
 
+    if (api.wgpuAdapterHasFeature(m_ctx.adapter, WGPUFeatureName_ShaderF16))
+        m_features.push_back("half");
+
     auto requestDeviceCallback =
         [](WGPURequestDeviceStatus status, WGPUDevice device, char const* message, void* userdata)
     {
