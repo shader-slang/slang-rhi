@@ -86,8 +86,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}}
     ));
 
+    std::vector<char const*> const enabledToggles = {"use_dxc"};
+    WGPUDawnTogglesDescriptor togglesDesc = {};
+    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
+    togglesDesc.enabledToggleCount = enabledToggles.size();
+    togglesDesc.enabledToggles = enabledToggles.data();
+
     WGPUInstanceDescriptor instanceDesc = {};
     instanceDesc.features.timedWaitAnyEnable = WGPUBool(true);
+    instanceDesc.nextInChain = &togglesDesc.chain;
     m_ctx.instance = api.wgpuCreateInstance(&instanceDesc);
 
     auto requestAdapterCallback =
@@ -107,6 +114,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
+    options.nextInChain = &togglesDesc.chain;
     api.wgpuInstanceRequestAdapter(m_ctx.instance, &options, requestAdapterCallback, &m_ctx);
     if (!m_ctx.adapter)
     {
@@ -121,9 +129,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     size_t adapterFeatureCount = api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, nullptr);
     std::vector<WGPUFeatureName> adapterFeatures(adapterFeatureCount);
     api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, adapterFeatures.data());
-
-    if (api.wgpuAdapterHasFeature(m_ctx.adapter, WGPUFeatureName_ShaderF16))
-        m_features.push_back("half");
 
     auto requestDeviceCallback =
         [](WGPURequestDeviceStatus status, WGPUDevice device, char const* message, void* userdata)
@@ -144,6 +149,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.uncapturedErrorCallbackInfo.callback = errorCallback;
     deviceDesc.uncapturedErrorCallbackInfo.userdata = this;
+    deviceDesc.nextInChain = &togglesDesc.chain;
     api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, requestDeviceCallback, &m_ctx);
     if (!m_ctx.device)
     {
@@ -162,6 +168,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     std::vector<WGPUFeatureName> deviceFeatures(deviceFeatureCount);
     api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
     m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
+
+    if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_ShaderF16))
+        m_features.push_back("half");
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
