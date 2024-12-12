@@ -43,7 +43,7 @@ void unloadSharedLibrary(SharedLibraryHandle handle)
 void* findSymbolAddressByName(SharedLibraryHandle handle, char const* name)
 {
 #if SLANG_WINDOWS_FAMILY
-    return GetProcAddress(static_cast<HMODULE>(handle), name);
+    return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle), name));
 #elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
     return dlsym(handle, name);
 #else
