@@ -4,7 +4,7 @@
 
 #if SLANG_WINDOWS_FAMILY
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <windows.h>
 #elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
 #include <dlfcn.h>
 #else
