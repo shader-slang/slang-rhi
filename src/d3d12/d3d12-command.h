@@ -4,6 +4,7 @@
 #include "../buffer-pool.h"
 
 #include <deque>
+#include <list>
 
 namespace rhi::d3d12 {
 
