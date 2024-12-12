@@ -65,6 +65,10 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(SLANG_RHI_HAS_WGPU ON)
 endif()
 
+if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64") AND MSVC)
+    set(SLANG_RHI_HAS_NVAPI ON)
+endif()
+
 # Backend options
 option(SLANG_RHI_ENABLE_CPU "Enable CPU backend" ON)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D11 "Enable D3D11 backend" ON "SLANG_RHI_HAS_D3D11" OFF)
@@ -73,6 +77,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
+cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_NVAPI" OFF)
 option(SLANG_RHI_FETCH_DXC "Fetch dxc (DirectX Shader Compiler)" ON)
 option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
 
@@ -183,7 +188,7 @@ else()
 endif()
 
 # Fetch NVAPI
-if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
+if(SLANG_RHI_ENABLE_NVAPI)
     # NVAPI
     set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
     FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
@@ -193,9 +198,6 @@ if((SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_ENABLE_D3D12) AND (CMAKE_SYSTEM_NAME STR
     target_include_directories(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR})
     target_link_libraries(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR}/amd64/nvapi64.lib)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-nvapi)
-    set(SLANG_RHI_ENABLE_NVAPI ON)
-else()
-    set(SLANG_RHI_ENABLE_NVAPI OFF)
 endif()
 
 # Fetch and setup Google Dawn library (WebGPU implementation)
