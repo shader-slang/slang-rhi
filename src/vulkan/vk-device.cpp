@@ -318,12 +318,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         );
 
         // Use first physical device by default.
-        Index selectedDeviceIndex = 0;
+        Index selectedDeviceIndex = -1;
 
         // Search for requested adapter.
         if (m_desc.adapterLUID)
         {
-            selectedDeviceIndex = -1;
             for (Index i = 0; i < physicalDevices.size(); ++i)
             {
                 if (vk::getAdapterLUID(m_api, physicalDevices[i]) == *m_desc.adapterLUID)
@@ -334,6 +333,24 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
             }
             if (selectedDeviceIndex < 0)
                 return SLANG_E_NOT_FOUND;
+        }
+
+        if (selectedDeviceIndex == -1)
+        {
+            // If no device is explicitly selected by the user,
+            // we will select the device with most amount of extensions.
+            selectedDeviceIndex = 0;
+            uint32_t currentMaxExtensionCount = 0;
+            for (Index i = 0; i < physicalDevices.size(); ++i)
+            {
+                uint32_t propCount = 0;
+                m_api.vkEnumerateDeviceExtensionProperties(physicalDevices[i], NULL, &propCount, nullptr);
+                if (propCount > currentMaxExtensionCount)
+                {
+                    selectedDeviceIndex = i;
+                    currentMaxExtensionCount = propCount;
+                }
+            }
         }
 
         if (selectedDeviceIndex >= physicalDevices.size())
