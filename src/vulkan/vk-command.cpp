@@ -110,6 +110,8 @@ public:
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
+    void prepareSetRenderState(const commands::SetRenderState& cmd);
+
     Result bindRootObject(
         RootShaderObjectImpl* rootObject,
         RootShaderObjectLayout* rootObjectLayout,
@@ -190,6 +192,27 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     for (const CommandList::CommandSlot* slot = commandList->getCommands(); slot; slot = slot->next)
     {
+        // Vulkan generally does not allow barrier commands to be recorded inside a render pass.
+        // To work around this, we collect all barriers needed for the render pass before entering it.
+        // We can do so by checking all SetRenderState commands inside the render pass, so we can queue
+        // the barrier commands before entering the render pass.
+        //
+        if (slot->id == CommandID::BeginRenderPass)
+        {
+            for (auto subCmdSlot = slot->next; subCmdSlot; subCmdSlot = subCmdSlot->next)
+            {
+                switch (subCmdSlot->id)
+                {
+                case CommandID::SetRenderState:
+                    prepareSetRenderState(commandList->getCommand<commands::SetRenderState>(subCmdSlot));
+                    break;
+                }
+                if (subCmdSlot->id == CommandID::EndRenderPass)
+                    break;
+            }
+            commitBarriers();
+        }
+
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
         cmd##x(commandList->getCommand<commands::x>(slot));                                                            \
@@ -543,6 +566,38 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
     m_renderPassActive = false;
 }
 
+void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
+{
+    const RenderState& state = cmd.state;
+
+    bool updateVertexBuffers = !arraysEqual(
+        state.vertexBufferCount,
+        m_renderState.vertexBufferCount,
+        state.vertexBuffers,
+        m_renderState.vertexBuffers
+    );
+    bool updateIndexBuffer =
+        state.indexFormat != m_renderState.indexFormat || state.indexBuffer != m_renderState.indexBuffer;
+
+    if (updateVertexBuffers)
+    {
+        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        {
+            BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
+            requireBufferState(buffer, ResourceState::VertexBuffer);
+        }
+    }
+
+    if (updateIndexBuffer)
+    {
+        if (state.indexBuffer.buffer)
+        {
+            BufferImpl* buffer = checked_cast<BufferImpl*>(state.indexBuffer.buffer);
+            requireBufferState(buffer, ResourceState::IndexBuffer);
+        }
+    }
+}
+
 void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 {
     if (!m_renderPassActive)
@@ -611,7 +666,6 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         for (Index i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
-            requireBufferState(buffer, ResourceState::VertexBuffer);
 
             vertexBuffers[i] = buffer->m_buffer.m_buffer;
             offsets[i] = state.vertexBuffers[i].offset;
@@ -625,7 +679,6 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.indexBuffer.buffer);
             Offset offset = state.indexBuffer.offset;
-            requireBufferState(buffer, ResourceState::IndexBuffer);
 
             VkIndexType indexType =
                 state.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
@@ -669,8 +722,6 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         }
         api.vkCmdSetScissor(m_cmdBuffer, 0, uint32_t(state.scissorRectCount), scissorRects);
     }
-
-    commitBarriers();
 
     m_renderStateValid = true;
     m_renderState = state;
@@ -1212,7 +1263,9 @@ void CommandRecorder::bindRootObject(BindableRootShaderObject* bindable, VkPipel
 {
     // First, we transition all resources to the required states.
     bindable->rootObject->setResourceStates(m_stateTracking);
-    commitBarriers();
+
+    if (bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS)
+        commitBarriers();
 
     // Then we set all push constants.
     for (const auto& pushConstant : bindable->pushConstants)

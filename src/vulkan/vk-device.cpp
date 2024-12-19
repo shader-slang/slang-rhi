@@ -541,6 +541,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         extendedFeatures.dynamicRenderingFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingFeatures;
 
+        extendedFeatures.dynamicRenderingLocalReadFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingLocalReadFeatures;
+
         extendedFeatures.formats4444Features.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.formats4444Features;
 
@@ -616,6 +619,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
             extendedFeatures.dynamicRenderingFeatures,
             dynamicRendering,
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+            "dynamic-rendering"
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.dynamicRenderingLocalReadFeatures,
+            dynamicRenderingLocalRead,
+            VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME,
             "dynamic-rendering"
         );
 
