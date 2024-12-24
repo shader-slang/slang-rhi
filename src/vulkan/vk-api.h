@@ -89,6 +89,8 @@ namespace rhi::vk {
     x(vkCmdDrawIndexed) \
     x(vkCmdDrawIndirect) \
     x(vkCmdDrawIndexedIndirect) \
+    x(vkCmdDrawIndirectCount) \
+    x(vkCmdDrawIndexedIndirectCount) \
     x(vkCmdSetScissor) \
     x(vkCmdSetViewport) \
     x(vkCmdBindVertexBuffers) \
