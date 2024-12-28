@@ -670,7 +670,16 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             vertexBuffers[i] = buffer->m_buffer.m_buffer;
             offsets[i] = state.vertexBuffers[i].offset;
         }
-        api.vkCmdBindVertexBuffers(m_cmdBuffer, (uint32_t)0, (uint32_t)state.vertexBufferCount, vertexBuffers, offsets);
+        if (state.vertexBufferCount > 0)
+        {
+            api.vkCmdBindVertexBuffers(
+                m_cmdBuffer,
+                (uint32_t)0,
+                (uint32_t)state.vertexBufferCount,
+                vertexBuffers,
+                offsets
+            );
+        }
     }
 
     if (updateIndexBuffer)
