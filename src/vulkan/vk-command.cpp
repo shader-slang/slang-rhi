@@ -779,24 +779,38 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     if (!m_renderStateValid)
         return;
 
-    // Vulkan does not support sourcing the count from a buffer.
-    if (cmd.countBuffer)
-    {
-        m_device->warning(S_CommandEncoder_drawIndirect " with countBuffer not supported");
-        return;
-    }
-
     auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
+    auto countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer);
+
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
+    if (countBuffer)
+    {
+        requireBufferState(countBuffer, ResourceState::IndirectArgument);
+    }
     commitBarriers();
 
-    m_api.vkCmdDrawIndirect(
-        m_cmdBuffer,
-        argBuffer->m_buffer.m_buffer,
-        cmd.argOffset,
-        cmd.maxDrawCount,
-        sizeof(VkDrawIndirectCommand)
-    );
+    if (countBuffer)
+    {
+        m_api.vkCmdDrawIndirectCount(
+            m_cmdBuffer,
+            argBuffer->m_buffer.m_buffer,
+            cmd.argOffset,
+            countBuffer->m_buffer.m_buffer,
+            cmd.countOffset,
+            cmd.maxDrawCount,
+            sizeof(VkDrawIndirectCommand)
+        );
+    }
+    else
+    {
+        m_api.vkCmdDrawIndirect(
+            m_cmdBuffer,
+            argBuffer->m_buffer.m_buffer,
+            cmd.argOffset,
+            cmd.maxDrawCount,
+            sizeof(VkDrawIndirectCommand)
+        );
+    }
 }
 
 void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
@@ -804,25 +818,38 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     if (!m_renderStateValid)
         return;
 
-    // Vulkan does not support sourcing the count from a buffer.
-    if (cmd.countBuffer)
-    {
-        m_device->warning(S_CommandEncoder_drawIndexedIndirect " with countBuffer not supported");
-        return;
-    }
-
     auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
+    auto countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer);
+
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
+    if (countBuffer)
+    {
+        requireBufferState(countBuffer, ResourceState::IndirectArgument);
+    }
     commitBarriers();
 
-    auto& api = m_device->m_api;
-    api.vkCmdDrawIndexedIndirect(
-        m_cmdBuffer,
-        argBuffer->m_buffer.m_buffer,
-        cmd.argOffset,
-        cmd.maxDrawCount,
-        sizeof(VkDrawIndexedIndirectCommand)
-    );
+    if (countBuffer)
+    {
+        m_api.vkCmdDrawIndexedIndirectCount(
+            m_cmdBuffer,
+            argBuffer->m_buffer.m_buffer,
+            cmd.argOffset,
+            countBuffer->m_buffer.m_buffer,
+            cmd.countOffset,
+            cmd.maxDrawCount,
+            sizeof(VkDrawIndexedIndirectCommand)
+        );
+    }
+    else
+    {
+        m_api.vkCmdDrawIndexedIndirect(
+            m_cmdBuffer,
+            argBuffer->m_buffer.m_buffer,
+            cmd.argOffset,
+            cmd.maxDrawCount,
+            sizeof(VkDrawIndexedIndirectCommand)
+        );
+    }
 }
 
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
