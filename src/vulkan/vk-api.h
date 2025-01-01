@@ -334,6 +334,16 @@ struct VulkanExtendedFeatureProperties
     VkPhysicalDeviceRayTracingValidationFeaturesNV rayTracingValidationFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_VALIDATION_FEATURES_NV
     };
+
+    // Maximal reconvergence features.
+    VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR shaderMaximalReconvergenceFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MAXIMAL_RECONVERGENCE_FEATURES_KHR
+    };
+
+    // Quad control features.
+    VkPhysicalDeviceShaderQuadControlFeaturesKHR shaderQuadControlFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_QUAD_CONTROL_FEATURES_KHR
+    };
 };
 
 struct VulkanApi

@@ -547,6 +547,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         extendedFeatures.formats4444Features.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.formats4444Features;
 
+        extendedFeatures.shaderMaximalReconvergenceFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.shaderMaximalReconvergenceFeatures;
+
+        extendedFeatures.shaderQuadControlFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.shaderQuadControlFeatures;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
@@ -772,6 +778,21 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
                 "ray-tracing-validation"
             );
         }
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderMaximalReconvergenceFeatures,
+            shaderMaximalReconvergence,
+            VK_KHR_SHADER_MAXIMAL_RECONVERGENCE_EXTENSION_NAME,
+            "shader-maximal-reconvergence"
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderQuadControlFeatures,
+            shaderQuadControl,
+            VK_KHR_SHADER_QUAD_CONTROL_EXTENSION_NAME,
+            "shader-quad-control"
+        );
+
 
 #undef SIMPLE_EXTENSION_FEATURE
 
