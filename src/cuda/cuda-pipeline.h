@@ -8,6 +8,7 @@ namespace rhi::cuda {
 class ComputePipelineImpl : public ComputePipeline
 {
 public:
+    RefPtr<DeviceImpl> m_device;
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     CUmodule m_module = nullptr;
     CUfunction m_function = nullptr;
@@ -24,6 +25,7 @@ public:
 class RayTracingPipelineImpl : public RayTracingPipeline
 {
 public:
+    RefPtr<DeviceImpl> m_device;
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<OptixModule> m_modules;
     std::vector<OptixProgramGroup> m_programGroups;

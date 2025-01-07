@@ -22,6 +22,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     const auto& module = program->m_modules[0];
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    pipeline->m_device = this;
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
 
@@ -197,6 +198,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     ));
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
+    pipeline->m_device = this;
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_modules = std::move(optixModules);

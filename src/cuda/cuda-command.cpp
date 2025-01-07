@@ -249,17 +249,22 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     {
         CUdeviceptr globalParamsSymbol = 0;
         size_t globalParamsSymbolSize = 0;
-        SLANG_CUDA_ASSERT_ON_FAIL(cuModuleGetGlobal(
+        CUresult result = cuModuleGetGlobal(
             &globalParamsSymbol,
             &globalParamsSymbolSize,
             computePipeline->m_module,
             "SLANG_globalParams"
-        ));
-
-        CUdeviceptr globalParamsCUDAData = (CUdeviceptr)rootObject->getBuffer();
-        SLANG_CUDA_ASSERT_ON_FAIL(
-            cuMemcpyAsync((CUdeviceptr)globalParamsSymbol, (CUdeviceptr)globalParamsCUDAData, globalParamsSymbolSize, 0)
         );
+        if (result == CUDA_SUCCESS)
+        {
+            CUdeviceptr globalParamsCUDAData = (CUdeviceptr)rootObject->getBuffer();
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
+                (CUdeviceptr)globalParamsSymbol,
+                (CUdeviceptr)globalParamsCUDAData,
+                globalParamsSymbolSize,
+                0
+            ));
+        }
     }
     //
     // The argument data for the entry-point parameters are already
