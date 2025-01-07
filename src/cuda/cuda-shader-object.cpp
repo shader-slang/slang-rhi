@@ -252,6 +252,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         }
         break;
     }
+#if SLANG_RHI_ENABLE_OPTIX
     case BindingType::AccelerationStructure:
     {
         AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(binding.resource);
@@ -259,6 +260,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         setData(offset, &as->m_handle, sizeof(as->m_handle));
         break;
     }
+#endif
     }
     return SLANG_OK;
 }
