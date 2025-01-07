@@ -14,10 +14,11 @@ public:
     DeviceImpl* m_device;
     CUstream m_stream;
 
+    RefPtr<RootShaderObjectImpl> m_rootObject;
+
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputePipelineImpl* m_computePipeline = nullptr;
-    RootShaderObjectImpl* m_rootObject = nullptr;
+    RefPtr<ComputePipelineImpl> m_computePipeline;
 
     CommandExecutor(DeviceImpl* device, CUstream stream)
         : m_device(device)
@@ -227,12 +228,11 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     RootShaderObjectImpl* rootObject = m_rootObject;
 
     // Find out thread group size from program reflection.
-    auto& kernelName = computePipeline->m_programImpl->kernelName;
     auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(rootObject->getLayout());
-    int kernelId = programLayout->getKernelIndex(kernelName);
-    SLANG_RHI_ASSERT(kernelId != -1);
+    int kernelIndex = programLayout->getKernelIndex(computePipeline->m_kernelName);
+    SLANG_RHI_ASSERT(kernelIndex != -1);
     UInt threadGroupSize[3];
-    programLayout->getKernelThreadGroupSize(kernelId, threadGroupSize);
+    programLayout->getKernelThreadGroupSize(kernelIndex, threadGroupSize);
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.
     {
@@ -241,7 +241,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         cuModuleGetGlobal(
             &globalParamsSymbol,
             &globalParamsSymbolSize,
-            computePipeline->m_programImpl->cudaModule,
+            computePipeline->m_module,
             "SLANG_globalParams"
         );
 
@@ -252,8 +252,8 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     // The argument data for the entry-point parameters are already
     // stored in host memory in a CUDAEntryPointShaderObject, as expected by cuLaunchKernel.
     //
-    auto entryPointBuffer = rootObject->entryPointObjects[kernelId]->getBuffer();
-    auto entryPointDataSize = rootObject->entryPointObjects[kernelId]->getBufferSize();
+    auto entryPointBuffer = rootObject->entryPointObjects[kernelIndex]->getBuffer();
+    auto entryPointDataSize = rootObject->entryPointObjects[kernelIndex]->getBufferSize();
 
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
@@ -267,7 +267,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     // set up, we can launch the kernel and see what happens.
     //
     auto cudaLaunchResult = cuLaunchKernel(
-        computePipeline->m_programImpl->cudaKernel,
+        computePipeline->m_function,
         cmd.x,
         cmd.y,
         cmd.z,

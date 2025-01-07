@@ -8,11 +8,21 @@ namespace rhi::cuda {
 class ShaderProgramImpl : public ShaderProgram
 {
 public:
-    CUmodule cudaModule = nullptr;
-    CUfunction cudaKernel;
-    std::string kernelName;
-    RefPtr<RootShaderObjectLayoutImpl> layout;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
+
+    struct Module
+    {
+        SlangStage stage;
+        std::string entryPointName;
+        ComPtr<ISlangBlob> code;
+    };
+
+    std::vector<Module> m_modules;
+
     ~ShaderProgramImpl();
+
+    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+        override;
 };
 
 } // namespace rhi::cuda

@@ -402,11 +402,8 @@ Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject*
 
 Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
-    auto cudaProgram = dynamic_cast<ShaderProgramImpl*>(program);
-    auto cudaLayout = cudaProgram->layout;
-
     RefPtr<RootShaderObjectImpl> result = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, cudaLayout));
+    SLANG_RETURN_ON_FAIL(result->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
     returnComPtr(outObject, result);
     return SLANG_OK;
 }
@@ -417,61 +414,16 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    // If this is a specializable program, we just keep a reference to the slang program and
-    // don't actually create any kernels. This program will be specialized later when we know
-    // the shader object bindings.
-    RefPtr<ShaderProgramImpl> cudaProgram = new ShaderProgramImpl();
-    cudaProgram->init(desc);
-    if (desc.slangGlobalScope->getSpecializationParamCount() != 0)
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+    shaderProgram->init(desc);
+    shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
+
+    if (!shaderProgram->isSpecializable())
     {
-        cudaProgram->layout = new RootShaderObjectLayoutImpl(this, desc.slangGlobalScope->getLayout());
-        returnComPtr(outProgram, cudaProgram);
-        return SLANG_OK;
+        SLANG_RETURN_ON_FAIL(shaderProgram->compileShaders(this));
     }
 
-    ComPtr<ISlangBlob> kernelCode;
-    ComPtr<ISlangBlob> diagnostics;
-    auto compileResult = getEntryPointCodeFromShaderCache(
-        desc.slangGlobalScope,
-        (SlangInt)0,
-        0,
-        kernelCode.writeRef(),
-        diagnostics.writeRef()
-    );
-    if (diagnostics)
-    {
-        handleMessage(
-            compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
-            DebugMessageSource::Slang,
-            (char*)diagnostics->getBufferPointer()
-        );
-        if (outDiagnosticBlob)
-            returnComPtr(outDiagnosticBlob, diagnostics);
-    }
-    SLANG_RETURN_ON_FAIL(compileResult);
-
-    SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&cudaProgram->cudaModule, kernelCode->getBufferPointer()));
-    cudaProgram->kernelName = string::from_cstr(desc.slangGlobalScope->getLayout()->getEntryPointByIndex(0)->getName());
-    SLANG_CUDA_RETURN_ON_FAIL(
-        cuModuleGetFunction(&cudaProgram->cudaKernel, cudaProgram->cudaModule, cudaProgram->kernelName.data())
-    );
-
-    auto slangGlobalScope = desc.slangGlobalScope;
-    if (slangGlobalScope)
-    {
-        cudaProgram->slangGlobalScope = slangGlobalScope;
-
-        auto slangProgramLayout = slangGlobalScope->getLayout();
-        if (!slangProgramLayout)
-            return SLANG_FAIL;
-
-        RefPtr<RootShaderObjectLayoutImpl> cudaLayout;
-        cudaLayout = new RootShaderObjectLayoutImpl(this, slangProgramLayout);
-        cudaLayout->programLayout = slangProgramLayout;
-        cudaProgram->layout = cudaLayout;
-    }
-
-    returnComPtr(outProgram, cudaProgram);
+    returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
 
