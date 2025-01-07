@@ -411,10 +411,16 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
 
 Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
 {
+#if SLANG_RHI_ENABLE_OPTIX
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
     SLANG_RETURN_ON_FAIL(result->init(desc));
     returnComPtr(outShaderTable, result);
     return SLANG_OK;
+#else
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outShaderTable);
+    return SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 Result DeviceImpl::createShaderProgram(
