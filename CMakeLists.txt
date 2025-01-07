@@ -479,6 +479,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-shader-object-layout.cpp
         src/cuda/cuda-shader-object.cpp
         src/cuda/cuda-shader-program.cpp
+        src/cuda/cuda-shader-table.cpp
         src/cuda/cuda-texture.cpp
     )
 endif()

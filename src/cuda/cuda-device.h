@@ -75,6 +75,9 @@ public:
 
     Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject);
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
@@ -83,6 +86,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
 
     void* map(IBuffer* buffer);
 

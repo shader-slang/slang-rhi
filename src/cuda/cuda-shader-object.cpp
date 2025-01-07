@@ -2,6 +2,7 @@
 #include "cuda-helper-functions.h"
 #include "cuda-shader-object-layout.h"
 #include "cuda-device.h"
+#include "cuda-acceleration-structure.h"
 
 namespace rhi::cuda {
 
@@ -45,7 +46,7 @@ Result ShaderObjectData::setCount(Index count)
                     cuMemcpy((CUdeviceptr)newMemory, (CUdeviceptr)m_buffer->m_cudaMemory, min((size_t)count, oldSize))
                 );
             }
-            cuMemFree((CUdeviceptr)m_buffer->m_cudaMemory);
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree((CUdeviceptr)m_buffer->m_cudaMemory));
             m_buffer->m_cudaMemory = newMemory;
             m_buffer->m_desc.size = count;
         }
@@ -251,6 +252,13 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
         }
         break;
     }
+    case BindingType::AccelerationStructure:
+    {
+        AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(binding.resource);
+        m_resources[viewIndex] = as;
+        setData(offset, &as->m_handle, sizeof(as->m_handle));
+        break;
+    }
     }
     return SLANG_OK;
 }
@@ -288,7 +296,7 @@ EntryPointShaderObjectImpl::EntryPointShaderObjectImpl()
 Result RootShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout)
 {
     SLANG_RETURN_ON_FAIL(ShaderObjectImpl::init(device, typeLayout));
-    auto programLayout = dynamic_cast<RootShaderObjectLayoutImpl*>(typeLayout);
+    auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(typeLayout);
     for (auto& entryPoint : programLayout->entryPointLayouts)
     {
         RefPtr<EntryPointShaderObjectImpl> object = new EntryPointShaderObjectImpl();

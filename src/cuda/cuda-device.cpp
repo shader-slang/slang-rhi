@@ -7,6 +7,7 @@
 #include "cuda-shader-program.h"
 #include "cuda-texture.h"
 #include "cuda-acceleration-structure.h"
+#include "cuda-shader-table.h"
 
 namespace rhi::cuda {
 
@@ -139,7 +140,7 @@ DeviceImpl::~DeviceImpl()
 
     if (m_ctx.context)
     {
-        cuCtxDestroy(m_ctx.context);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxDestroy(m_ctx.context));
     }
 }
 
@@ -176,7 +177,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     if (desc.adapterLUID)
     {
         int deviceCount = -1;
-        cuDeviceGetCount(&deviceCount);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetCount(&deviceCount));
         for (int deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
         {
             if (cuda::getAdapterLUID(deviceIndex) == *desc.adapterLUID)
@@ -235,7 +236,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
         char deviceName[256];
-        cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device));
         m_adapterName = deviceName;
         m_info.adapterName = m_adapterName.data();
         m_info.timestampFrequency = 1000000;
@@ -395,7 +396,7 @@ Result DeviceImpl::createShaderObjectLayout(
 Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectImpl> result = new ShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, dynamic_cast<ShaderObjectLayoutImpl*>(layout)));
+    SLANG_RETURN_ON_FAIL(result->init(this, checked_cast<ShaderObjectLayoutImpl*>(layout)));
     returnComPtr(outObject, result);
     return SLANG_OK;
 }
@@ -405,6 +406,14 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
     RefPtr<RootShaderObjectImpl> result = new RootShaderObjectImpl();
     SLANG_RETURN_ON_FAIL(result->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
     returnComPtr(outObject, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+{
+    RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
+    SLANG_RETURN_ON_FAIL(result->init(desc));
+    returnComPtr(outShaderTable, result);
     return SLANG_OK;
 }
 
@@ -504,7 +513,11 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlan
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     auto blob = OwnedBlob::create(size);
-    cuMemcpy((CUdeviceptr)blob->getBufferPointer(), (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size);
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
+        (CUdeviceptr)blob->getBufferPointer(),
+        (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset),
+        size
+    ));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

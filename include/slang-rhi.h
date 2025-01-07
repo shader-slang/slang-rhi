@@ -403,6 +403,8 @@ enum class NativeHandleType
 
     OptixDeviceContext = 0x00060001,
     OptixTraversableHandle = 0x00060002,
+    OptixModule = 0x00060003,
+    OptixPipeline = 0x00060004,
 
     WGPUDevice = 0x00070001,
     WGPUBuffer = 0x00070002,

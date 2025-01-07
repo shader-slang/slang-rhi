@@ -23,11 +23,13 @@ class EntryPointShaderObjectImpl;
 class RootShaderObjectImpl;
 class ShaderProgramImpl;
 class ComputePipelineImpl;
+class RayTracingPipelineImpl;
 class QueryPoolImpl;
 class DeviceImpl;
 class CommandBufferImpl;
 class CommandEncoderImpl;
 class CommandQueueImpl;
 class AccelerationStructureImpl;
+class ShaderTableImpl;
 
 } // namespace rhi::cuda
