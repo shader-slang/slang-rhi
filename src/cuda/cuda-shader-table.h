@@ -11,7 +11,8 @@ namespace rhi::cuda {
 class ShaderTableImpl : public ShaderTable
 {
 public:
-    struct Instance {
+    struct Instance
+    {
         CUdeviceptr buffer;
         OptixShaderBindingTable sbt;
         size_t raygenRecordSize;
