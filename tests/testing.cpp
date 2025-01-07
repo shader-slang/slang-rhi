@@ -8,9 +8,9 @@
 #include <map>
 #include <string>
 
-#define SLANG_RHI_ENABLE_RENDERDOC 0
-#define SLANG_RHI_DEBUG_SPIRV 0
-
+#define ENABLE_RENDERDOC 0
+#define DEBUG_SPIRV 0
+#define DUMP_INTERMEDIATES 0
 #define ENABLE_SHADER_CACHE 0
 
 
@@ -342,11 +342,17 @@ ComPtr<IDevice> createTestingDevice(
     emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
     emitSpirvDirectlyEntry.value.intValue0 = 1;
     entries.push_back(emitSpirvDirectlyEntry);
-#if SLANG_RHI_DEBUG_SPIRV
+#if DEBUG_SPIRV
     slang::CompilerOptionEntry debugLevelCompilerOptionEntry;
     debugLevelCompilerOptionEntry.name = slang::CompilerOptionName::DebugInformation;
     debugLevelCompilerOptionEntry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_STANDARD;
     entries.push_back(debugLevelCompilerOptionEntry);
+#endif
+#if DUMP_INTERMEDIATES
+    slang::CompilerOptionEntry dumpIntermediatesOptionEntry;
+    dumpIntermediatesOptionEntry.name = slang::CompilerOptionName::DumpIntermediates;
+    dumpIntermediatesOptionEntry.value.intValue0 = 1;
+    entries.push_back(dumpIntermediatesOptionEntry);
 #endif
     slangExtDesc.compilerOptionEntries = entries.data();
     slangExtDesc.compilerOptionEntryCount = entries.size();
@@ -419,7 +425,7 @@ std::vector<const char*> getSlangSearchPaths()
     };
 }
 
-#if SLANG_RHI_ENABLE_RENDERDOC
+#if ENABLE_RENDERDOC
 RENDERDOC_API_1_1_2* rdoc_api = NULL;
 void initializeRenderDoc()
 {
@@ -610,12 +616,12 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
 {
     for (auto deviceType : deviceTypes)
     {
-        if (!isDeviceTypeAvailable(deviceType))
-        {
-            continue;
-        }
         SUBCASE(deviceTypeToString(deviceType))
         {
+            if (!isDeviceTypeAvailable(deviceType))
+            {
+                continue;
+            }
             GpuTestContext ctx;
             ctx.slangGlobalSession = getSlangGlobalSession();
             func(&ctx, deviceType);
