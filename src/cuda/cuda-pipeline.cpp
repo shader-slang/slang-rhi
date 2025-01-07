@@ -35,6 +35,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     return SLANG_OK;
 }
 
+#if SLANG_RHI_ENABLE_OPTIX
+
 RayTracingPipelineImpl::~RayTracingPipelineImpl()
 {
     if (m_pipeline)
@@ -204,5 +206,16 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
+
+#else // SLANG_RHI_ENABLE_OPTIX
+
+Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+#endif // SLANG_RHI_ENABLE_OPTIX
 
 } // namespace rhi::cuda

@@ -21,11 +21,13 @@ public:
     bool m_computeStateValid = false;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
+#if SLANG_RHI_ENABLE_OPTIX
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
     ShaderTableImpl::Instance* m_shaderTableInstance = nullptr;
+#endif
 
     CommandExecutor(DeviceImpl* device, CUstream stream)
         : m_device(device)

@@ -19,6 +19,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
+#if SLANG_RHI_ENABLE_OPTIX
+
 class RayTracingPipelineImpl : public RayTracingPipeline
 {
 public:
@@ -33,5 +35,7 @@ public:
     // IRayTracingPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
+
+#endif // SLANG_RHI_ENABLE_OPTIX
 
 } // namespace rhi::cuda
