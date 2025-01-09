@@ -19,11 +19,6 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line)
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-bool _isError(OptixResult result)
-{
-    return result != OPTIX_SUCCESS;
-}
-
 #if 1
 Result _handleOptixError(OptixResult result, char const* file, int line)
 {
@@ -41,10 +36,10 @@ void _optixLogCallback(unsigned int level, const char* tag, const char* message,
 AdapterLUID getAdapterLUID(int deviceIndex)
 {
     CUdevice device;
-    cuDeviceGet(&device, deviceIndex);
+    SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGet(&device, deviceIndex));
     AdapterLUID luid = {};
     unsigned int deviceNodeMask;
-    cuDeviceGetLuid((char*)&luid, &deviceNodeMask, device);
+    SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetLuid((char*)&luid, &deviceNodeMask, device));
     return luid;
 }
 

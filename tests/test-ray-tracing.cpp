@@ -403,6 +403,7 @@ TEST_CASE("ray-tracing-a")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::CUDA,
         }
     );
 }
@@ -414,6 +415,7 @@ TEST_CASE("ray-tracing-b")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            DeviceType::CUDA,
         }
     );
 }

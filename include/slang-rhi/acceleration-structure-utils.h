@@ -75,7 +75,7 @@ inline void convertAccelerationStructureInstanceDesc(
     case AccelerationStructureInstanceDescType::Optix:
     {
         auto dstOptix = reinterpret_cast<AccelerationStructureInstanceDescOptix*>(dst);
-        ::memcpy(dstOptix->transform, src->transform, 36);
+        ::memcpy(dstOptix->transform, src->transform, 4 * 3 * sizeof(float));
         dstOptix->instanceId = src->instanceID;
         dstOptix->sbtOffset = src->instanceContributionToHitGroupIndex;
         dstOptix->visibilityMask = src->instanceMask;

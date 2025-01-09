@@ -7,6 +7,7 @@
 #include "cuda-shader-program.h"
 #include "cuda-texture.h"
 #include "cuda-acceleration-structure.h"
+#include "cuda-shader-table.h"
 
 namespace rhi::cuda {
 
@@ -139,7 +140,7 @@ DeviceImpl::~DeviceImpl()
 
     if (m_ctx.context)
     {
-        cuCtxDestroy(m_ctx.context);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxDestroy(m_ctx.context));
     }
 }
 
@@ -176,7 +177,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     if (desc.adapterLUID)
     {
         int deviceCount = -1;
-        cuDeviceGetCount(&deviceCount);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetCount(&deviceCount));
         for (int deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
         {
             if (cuda::getAdapterLUID(deviceIndex) == *desc.adapterLUID)
@@ -235,7 +236,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
         char deviceName[256];
-        cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device));
         m_adapterName = deviceName;
         m_info.adapterName = m_adapterName.data();
         m_info.timestampFrequency = 1000000;
@@ -395,20 +396,31 @@ Result DeviceImpl::createShaderObjectLayout(
 Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectImpl> result = new ShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, dynamic_cast<ShaderObjectLayoutImpl*>(layout)));
+    SLANG_RETURN_ON_FAIL(result->init(this, checked_cast<ShaderObjectLayoutImpl*>(layout)));
     returnComPtr(outObject, result);
     return SLANG_OK;
 }
 
 Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
-    auto cudaProgram = dynamic_cast<ShaderProgramImpl*>(program);
-    auto cudaLayout = cudaProgram->layout;
-
     RefPtr<RootShaderObjectImpl> result = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, cudaLayout));
+    SLANG_RETURN_ON_FAIL(result->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
     returnComPtr(outObject, result);
     return SLANG_OK;
+}
+
+Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+{
+#if SLANG_RHI_ENABLE_OPTIX
+    RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
+    SLANG_RETURN_ON_FAIL(result->init(desc));
+    returnComPtr(outShaderTable, result);
+    return SLANG_OK;
+#else
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outShaderTable);
+    return SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 Result DeviceImpl::createShaderProgram(
@@ -417,61 +429,16 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    // If this is a specializable program, we just keep a reference to the slang program and
-    // don't actually create any kernels. This program will be specialized later when we know
-    // the shader object bindings.
-    RefPtr<ShaderProgramImpl> cudaProgram = new ShaderProgramImpl();
-    cudaProgram->init(desc);
-    if (desc.slangGlobalScope->getSpecializationParamCount() != 0)
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+    shaderProgram->init(desc);
+    shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
+
+    if (!shaderProgram->isSpecializable())
     {
-        cudaProgram->layout = new RootShaderObjectLayoutImpl(this, desc.slangGlobalScope->getLayout());
-        returnComPtr(outProgram, cudaProgram);
-        return SLANG_OK;
+        SLANG_RETURN_ON_FAIL(shaderProgram->compileShaders(this));
     }
 
-    ComPtr<ISlangBlob> kernelCode;
-    ComPtr<ISlangBlob> diagnostics;
-    auto compileResult = getEntryPointCodeFromShaderCache(
-        desc.slangGlobalScope,
-        (SlangInt)0,
-        0,
-        kernelCode.writeRef(),
-        diagnostics.writeRef()
-    );
-    if (diagnostics)
-    {
-        handleMessage(
-            compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
-            DebugMessageSource::Slang,
-            (char*)diagnostics->getBufferPointer()
-        );
-        if (outDiagnosticBlob)
-            returnComPtr(outDiagnosticBlob, diagnostics);
-    }
-    SLANG_RETURN_ON_FAIL(compileResult);
-
-    SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&cudaProgram->cudaModule, kernelCode->getBufferPointer()));
-    cudaProgram->kernelName = string::from_cstr(desc.slangGlobalScope->getLayout()->getEntryPointByIndex(0)->getName());
-    SLANG_CUDA_RETURN_ON_FAIL(
-        cuModuleGetFunction(&cudaProgram->cudaKernel, cudaProgram->cudaModule, cudaProgram->kernelName.data())
-    );
-
-    auto slangGlobalScope = desc.slangGlobalScope;
-    if (slangGlobalScope)
-    {
-        cudaProgram->slangGlobalScope = slangGlobalScope;
-
-        auto slangProgramLayout = slangGlobalScope->getLayout();
-        if (!slangProgramLayout)
-            return SLANG_FAIL;
-
-        RefPtr<RootShaderObjectLayoutImpl> cudaLayout;
-        cudaLayout = new RootShaderObjectLayoutImpl(this, slangProgramLayout);
-        cudaLayout->programLayout = slangProgramLayout;
-        cudaProgram->layout = cudaLayout;
-    }
-
-    returnComPtr(outProgram, cudaProgram);
+    returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
 
@@ -552,7 +519,11 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlan
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     auto blob = OwnedBlob::create(size);
-    cuMemcpy((CUdeviceptr)blob->getBufferPointer(), (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size);
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
+        (CUdeviceptr)blob->getBufferPointer(),
+        (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset),
+        size
+    ));
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

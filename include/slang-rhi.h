@@ -399,9 +399,12 @@ enum class NativeHandleType
     CUdeviceptr = 0x00050002,
     CUtexObject = 0x00050003,
     CUstream = 0x00050004,
+    CUmodule = 0x00050005,
 
     OptixDeviceContext = 0x00060001,
     OptixTraversableHandle = 0x00060002,
+    OptixModule = 0x00060003,
+    OptixPipeline = 0x00060004,
 
     WGPUDevice = 0x00070001,
     WGPUBuffer = 0x00070002,

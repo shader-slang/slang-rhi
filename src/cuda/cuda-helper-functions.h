@@ -4,7 +4,7 @@
 
 namespace rhi::cuda {
 
-SLANG_FORCE_INLINE bool _isError(CUresult result)
+inline bool _isError(CUresult result)
 {
     return result != 0;
 }
@@ -66,7 +66,10 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line);
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-bool _isError(OptixResult result);
+inline bool _isError(OptixResult result)
+{
+    return result != OPTIX_SUCCESS;
+}
 
 #if 1
 Result _handleOptixError(OptixResult result, char const* file, int line);
@@ -76,14 +79,21 @@ Result _handleOptixError(OptixResult result, char const* file, int line);
 #define SLANG_OPTIX_HANDLE_ERROR(RESULT) SLANG_FAIL
 #endif
 
-#define SLANG_OPTIX_RETURN_ON_FAIL(EXPR)                                                                               \
-    do                                                                                                                 \
+#define SLANG_OPTIX_RETURN_ON_FAIL(x)                                                                                  \
     {                                                                                                                  \
-        auto _res = EXPR;                                                                                              \
+        auto _res = x;                                                                                                 \
         if (_isError(_res))                                                                                            \
             return SLANG_OPTIX_HANDLE_ERROR(_res);                                                                     \
-    }                                                                                                                  \
-    while (0)
+    }
+
+#define SLANG_OPTIX_ASSERT_ON_FAIL(x)                                                                                  \
+    {                                                                                                                  \
+        auto _res = x;                                                                                                 \
+        if (_isError(_res))                                                                                            \
+        {                                                                                                              \
+            SLANG_RHI_ASSERT_FAILURE("Failed OptiX call");                                                             \
+        };                                                                                                             \
+    }
 
 void _optixLogCallback(unsigned int level, const char* tag, const char* message, void* userData);
 

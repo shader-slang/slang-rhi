@@ -258,7 +258,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_CUDA)
     # Find Optix
-    set(Optix_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/optix CACHE STRING "Optix root directory")
+    set(Optix_ROOT_DIR "C:/ProgramData/NVIDIA Corporation/OptiX SDK 8.1.0" CACHE STRING "Optix root directory")
     find_package(OptiX)
     set(SLANG_RHI_ENABLE_OPTIX ${OptiX_FOUND})
     if(${SLANG_RHI_ENABLE_OPTIX})
@@ -479,6 +479,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-shader-object-layout.cpp
         src/cuda/cuda-shader-object.cpp
         src/cuda/cuda-shader-program.cpp
+        src/cuda/cuda-shader-table.cpp
         src/cuda/cuda-texture.cpp
     )
 endif()

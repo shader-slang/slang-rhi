@@ -3,6 +3,7 @@
 #include "cuda-query.h"
 #include "cuda-shader-object-layout.h"
 #include "cuda-acceleration-structure.h"
+#include "cuda-shader-table.h"
 #include "../command-list.h"
 #include "../strings.h"
 
@@ -14,10 +15,19 @@ public:
     DeviceImpl* m_device;
     CUstream m_stream;
 
+    RefPtr<RootShaderObjectImpl> m_rootObject;
+
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputePipelineImpl* m_computePipeline = nullptr;
-    RootShaderObjectImpl* m_rootObject = nullptr;
+    RefPtr<ComputePipelineImpl> m_computePipeline;
+
+#if SLANG_RHI_ENABLE_OPTIX
+    bool m_rayTracingPassActive = false;
+    bool m_rayTracingStateValid = false;
+    RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
+    RefPtr<ShaderTableImpl> m_shaderTable;
+    ShaderTableImpl::Instance* m_shaderTableInstance = nullptr;
+#endif
 
     CommandExecutor(DeviceImpl* device, CUstream stream)
         : m_device(device)
@@ -101,11 +111,11 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     BufferImpl* src = checked_cast<BufferImpl*>(cmd.src);
-    cuMemcpy(
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy(
         (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + cmd.dstOffset),
         (CUdeviceptr)((uint8_t*)src->m_cudaMemory + cmd.srcOffset),
         cmd.size
-    );
+    ));
 }
 
 void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
@@ -123,7 +133,7 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
-    cuMemsetD32((CUdeviceptr)buffer->m_cudaMemory + cmd.range.offset, 0, cmd.range.size);
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemsetD32((CUdeviceptr)buffer->m_cudaMemory + cmd.range.offset, 0, cmd.range.size));
 }
 
 void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
@@ -141,7 +151,9 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
 void CommandExecutor::cmdUploadBufferData(const commands::UploadBufferData& cmd)
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
-    cuMemcpy((CUdeviceptr)((uint8_t*)dst->m_cudaMemory + cmd.offset), (CUdeviceptr)cmd.data, cmd.size);
+    SLANG_CUDA_ASSERT_ON_FAIL(
+        cuMemcpy((CUdeviceptr)((uint8_t*)dst->m_cudaMemory + cmd.offset), (CUdeviceptr)cmd.data, cmd.size)
+    );
 }
 
 void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)
@@ -227,33 +239,39 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     RootShaderObjectImpl* rootObject = m_rootObject;
 
     // Find out thread group size from program reflection.
-    auto& kernelName = computePipeline->m_programImpl->kernelName;
     auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(rootObject->getLayout());
-    int kernelId = programLayout->getKernelIndex(kernelName);
-    SLANG_RHI_ASSERT(kernelId != -1);
+    int kernelIndex = programLayout->getKernelIndex(computePipeline->m_kernelName);
+    SLANG_RHI_ASSERT(kernelIndex != -1);
     UInt threadGroupSize[3];
-    programLayout->getKernelThreadGroupSize(kernelId, threadGroupSize);
+    programLayout->getKernelThreadGroupSize(kernelIndex, threadGroupSize);
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.
     {
         CUdeviceptr globalParamsSymbol = 0;
         size_t globalParamsSymbolSize = 0;
-        cuModuleGetGlobal(
+        CUresult result = cuModuleGetGlobal(
             &globalParamsSymbol,
             &globalParamsSymbolSize,
-            computePipeline->m_programImpl->cudaModule,
+            computePipeline->m_module,
             "SLANG_globalParams"
         );
-
-        CUdeviceptr globalParamsCUDAData = (CUdeviceptr)rootObject->getBuffer();
-        cuMemcpyAsync((CUdeviceptr)globalParamsSymbol, (CUdeviceptr)globalParamsCUDAData, globalParamsSymbolSize, 0);
+        if (result == CUDA_SUCCESS)
+        {
+            CUdeviceptr globalParamsCUDAData = (CUdeviceptr)rootObject->getBuffer();
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
+                (CUdeviceptr)globalParamsSymbol,
+                (CUdeviceptr)globalParamsCUDAData,
+                globalParamsSymbolSize,
+                0
+            ));
+        }
     }
     //
     // The argument data for the entry-point parameters are already
     // stored in host memory in a CUDAEntryPointShaderObject, as expected by cuLaunchKernel.
     //
-    auto entryPointBuffer = rootObject->entryPointObjects[kernelId]->getBuffer();
-    auto entryPointDataSize = rootObject->entryPointObjects[kernelId]->getBufferSize();
+    auto entryPointBuffer = rootObject->entryPointObjects[kernelIndex]->getBuffer();
+    auto entryPointDataSize = rootObject->entryPointObjects[kernelIndex]->getBufferSize();
 
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
@@ -266,8 +284,8 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     // Once we have all the necessary data extracted and/or
     // set up, we can launch the kernel and see what happens.
     //
-    auto cudaLaunchResult = cuLaunchKernel(
-        computePipeline->m_programImpl->cudaKernel,
+    SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
+        computePipeline->m_function,
         cmd.x,
         cmd.y,
         cmd.z,
@@ -278,9 +296,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         m_stream,
         nullptr,
         extraOptions
-    );
-
-    SLANG_RHI_ASSERT(cudaLaunchResult == CUDA_SUCCESS);
+    ));
 }
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
@@ -292,25 +308,77 @@ void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchCompute
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
+#if SLANG_RHI_ENABLE_OPTIX
+    m_rayTracingPassActive = true;
+#else
     NOT_SUPPORTED(beginRayTracingPass);
+#endif
 }
 
 void CommandExecutor::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
+#if SLANG_RHI_ENABLE_OPTIX
+    m_rayTracingPassActive = false;
+#else
     NOT_SUPPORTED(endRayTracingPass);
+#endif
 }
 
 void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& cmd)
 {
+#if SLANG_RHI_ENABLE_OPTIX
+    if (!m_rayTracingPassActive)
+        return;
+
+    m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.state.pipeline);
+    m_rootObject = checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject);
+    m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.state.shaderTable);
+    m_shaderTableInstance = m_shaderTable ? m_shaderTable->getInstance(m_rayTracingPipeline) : nullptr;
+    m_rayTracingStateValid = m_rayTracingPipeline && m_rootObject && m_shaderTable;
+#else
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(setRayTracingState);
+#endif
 }
 
 void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
+#if SLANG_RHI_ENABLE_OPTIX
+    if (!m_rayTracingStateValid)
+        return;
+
+    CUdeviceptr paramsData = (CUdeviceptr)m_rootObject->getBuffer();
+    size_t paramsSize = m_rootObject->getBufferSize();
+
+    // TODO: slang returns 16 bytes for OptixTraversableHandle which is incorrect!
+    paramsSize = 0;
+    int fieldCount = m_rootObject->getLayout()->getElementTypeLayout()->getFieldCount();
+    for (int fieldIndex = 0; fieldIndex < fieldCount; ++fieldIndex)
+    {
+        auto field = m_rootObject->getLayout()->getElementTypeLayout()->getFieldByIndex(fieldIndex);
+        bool isOptixTraversableHandle =
+            std::strcmp(field->getType()->getName(), "RaytracingAccelerationStructure") == 0;
+        paramsSize += isOptixTraversableHandle ? 8 : field->getTypeLayout()->getSize();
+    }
+
+    OptixShaderBindingTable sbt = m_shaderTableInstance->sbt;
+    sbt.raygenRecord += cmd.rayGenShaderIndex * m_shaderTableInstance->raygenRecordSize;
+
+    SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
+        m_rayTracingPipeline->m_pipeline,
+        m_stream,
+        paramsData,
+        paramsSize,
+        &sbt,
+        cmd.width,
+        cmd.height,
+        cmd.depth
+    ));
+#else
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(dispatchRays);
+#endif
 }
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
@@ -336,7 +404,7 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
         }
     }
 
-    optixAccelBuild(
+    SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelBuild(
         m_device->m_ctx.optixContext,
         m_stream,
         &builder.buildOptions,
@@ -347,9 +415,9 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
         dst->m_buffer,
         dst->m_desc.size,
         &dst->m_handle,
-        emittedProperties.data(),
+        emittedProperties.empty() ? nullptr : emittedProperties.data(),
         emittedProperties.size()
-    );
+    ));
 #else  // SLANG_RHI_ENABLE_OPTIX
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(buildAccelerationStructure);
@@ -389,14 +457,14 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
 #endif
     }
     case AccelerationStructureCopyMode::Compact:
-        optixAccelCompact(
+        SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelCompact(
             m_device->m_ctx.optixContext,
             m_stream,
             src->m_handle,
             dst->m_buffer,
             dst->m_desc.size,
             &dst->m_handle
-        );
+        ));
         break;
     }
 #else  // SLANG_RHI_ENABLE_OPTIX
@@ -451,7 +519,7 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    cuEventRecord(queryPool->m_events[cmd.queryIndex], m_stream);
+    SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(queryPool->m_events[cmd.queryIndex], m_stream));
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -464,13 +532,13 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
     : CommandQueue(device, type)
 {
-    cuStreamCreate(&m_stream, 0);
+    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_stream, 0));
 }
 
 CommandQueueImpl::~CommandQueueImpl()
 {
-    cuStreamSynchronize(m_stream);
-    cuStreamDestroy(m_stream);
+    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
+    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
 }
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
@@ -496,13 +564,14 @@ Result CommandQueueImpl::submit(
         CommandExecutor executor(m_device, m_stream);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));
     }
+    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
     return SLANG_OK;
 }
 
 Result CommandQueueImpl::waitOnHost()
 {
-    auto resultCode = cuStreamSynchronize(m_stream);
-    SLANG_CUDA_RETURN_ON_FAIL(resultCode);
+    SLANG_CUDA_RETURN_ON_FAIL(cuStreamSynchronize(m_stream));
+    SLANG_CUDA_RETURN_ON_FAIL(cuCtxSynchronize());
     return SLANG_OK;
 }
 
