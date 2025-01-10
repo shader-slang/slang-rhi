@@ -33,7 +33,7 @@ Size ShaderObjectImpl::getSize()
 // TODO: Change Index to Offset/Size?
 Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+    SLANG_RETURN_ON_FAIL(checkFinalized());
 
     Index offset = inOffset.uniformOffset;
     Index size = inSize;
@@ -64,7 +64,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
 
 Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+    SLANG_RETURN_ON_FAIL(checkFinalized());
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));
     return SLANG_OK;
 }
@@ -157,8 +157,6 @@ Result ShaderObjectImpl::init(
             m_objects[bindingRangeInfo.subObjectIndex + i] = subObject;
         }
     }
-
-    m_state = State::Initialized;
 
     return SLANG_OK;
 }
@@ -325,7 +323,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
         // in the table of resource views.
         //
         auto descriptorTable = m_descriptorSet.resourceTable;
-        context.submitter->createConstantBufferView(
+        context.createConstantBufferView(
             m_constantBufferWeakPtr->getDeviceAddress() + m_constantBufferOffset,
             alignedConstantBufferSize,
             descriptorTable.getCpuHandle()
@@ -339,7 +337,7 @@ static void bindPendingTables(BindingContext& context)
 {
     for (auto& binding : *context.pendingTableBindings)
     {
-        context.submitter->setRootDescriptorTable(binding.rootIndex, binding.handle);
+        context.setRootDescriptorTable(binding.rootIndex, binding.handle);
     }
 }
 
@@ -363,8 +361,6 @@ Result ShaderObjectImpl::prepareToBindAsParameterBlock(
     DescriptorSet& outDescriptorSet
 )
 {
-    auto submitter = context.submitter;
-
     // When writing into the new descriptor set, resource and sampler
     // descriptors will need to start at index zero in the respective
     // tables.
@@ -486,7 +482,7 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
         auto& dstTable = descriptorSet.resourceTable;
         auto& srcTable = m_descriptorSet.resourceTable;
 
-        context.submitter->copyDescriptors(
+        context.copyDescriptors(
             UINT(resourceCount),
             dstTable.getCpuHandle(offset.resource),
             srcTable.getCpuHandle(),
@@ -528,7 +524,7 @@ Result ShaderObjectImpl::bindAsValue(
         auto& dstTable = descriptorSet.resourceTable;
         auto& srcTable = m_descriptorSet.resourceTable;
 
-        context.submitter->copyDescriptors(
+        context.copyDescriptors(
             UINT(resourceCount),
             dstTable.getCpuHandle(offset.resource),
             srcTable.getCpuHandle(skipResourceCount),
@@ -573,7 +569,7 @@ Result ShaderObjectImpl::_bindImpl(
         auto& dstTable = descriptorSet.samplerTable;
         auto& srcTable = m_descriptorSet.samplerTable;
 
-        context.submitter->copyDescriptors(
+        context.copyDescriptors(
             UINT(samplerCount),
             dstTable.getCpuHandle(offset.sampler),
             srcTable.getCpuHandle(),
@@ -648,11 +644,11 @@ Result ShaderObjectImpl::bindRootArguments(BindingContext& context, uint32_t& in
     {
         if (layoutImpl->getRootParameterInfo(i).isUAV)
         {
-            context.submitter->setRootUAV(index, m_rootArguments[i]);
+            context.setRootUAV(index, m_rootArguments[i]);
         }
         else
         {
-            context.submitter->setRootSRV(index, m_rootArguments[i]);
+            context.setRootSRV(index, m_rootArguments[i]);
         }
         index++;
     }
@@ -744,7 +740,7 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
 
 Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
 {
-    SLANG_RETURN_ON_FAIL(requireNotFinalized());
+    SLANG_RETURN_ON_FAIL(checkFinalized());
 
     if (offset.bindingRangeIndex < 0)
         return SLANG_E_INVALID_ARG;

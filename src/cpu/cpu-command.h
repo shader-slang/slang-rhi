@@ -2,6 +2,7 @@
 
 #include "cpu-base.h"
 #include "cpu-device.h"
+#include "cpu-shader-object.h"
 
 namespace rhi::cpu {
 
@@ -36,6 +37,9 @@ public:
 
     Result init();
 
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    virtual Result getBindingData(IShaderObject* rootObject, BindingData*& outBindingData) override;
+
     // ICommandEncoder implementation
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
@@ -46,6 +50,8 @@ public:
 class CommandBufferImpl : public CommandBuffer
 {
 public:
+    RefPtr<BindingCache> m_bindingCache;
+
     // ICommandBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };

@@ -13,11 +13,6 @@ Result ShaderObjectImpl::create(DeviceImpl* device, ShaderObjectLayoutImpl* layo
     return SLANG_OK;
 }
 
-Device* ShaderObjectImpl::getDevice()
-{
-    return m_layout->getDevice();
-}
-
 GfxCount ShaderObjectImpl::getEntryPointCount()
 {
     return 0;
