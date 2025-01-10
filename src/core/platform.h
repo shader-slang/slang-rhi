@@ -13,4 +13,7 @@ void unloadSharedLibrary(SharedLibraryHandle handle);
 /// Return nullptr if object is not found.
 void* findSymbolAddressByName(SharedLibraryHandle handle, char const* name);
 
+/// Given a symbol from a loaded shared library, return the library's path.
+const char* findSharedLibraryPath(void* symbolAddress);
+
 } // namespace rhi

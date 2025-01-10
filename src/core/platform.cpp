@@ -51,4 +51,27 @@ void* findSymbolAddressByName(SharedLibraryHandle handle, char const* name)
 #endif
 }
 
+const char* findSharedLibraryPath(void* symbolAddress)
+{
+#if SLANG_WINDOWS_FAMILY
+    HMODULE module;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)symbolAddress, &module))
+    {
+        return nullptr;
+    }
+    static char path[1024];
+    GetModuleFileNameA(module, path, sizeof(path));
+    return path;
+#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
+    Dl_info info;
+    if (dladdr(symbolAddress, &info) == 0)
+    {
+        return nullptr;
+    }
+    return info.dli_fname;
+#else
+    SLANG_RHI_ASSERT_FAILURE("Not implemented");
+#endif
+}
+
 } // namespace rhi
