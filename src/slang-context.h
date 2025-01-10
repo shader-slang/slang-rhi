@@ -19,7 +19,8 @@ public:
         void** extendedDescs,
         SlangCompileTarget compileTarget,
         const char* defaultProfileName,
-        span<const slang::PreprocessorMacroDesc> additionalMacros
+        span<const slang::PreprocessorMacroDesc> additionalPreprocessorMacros = {},
+        span<const slang::CompilerOptionEntry> additionalCompilerOptions = {}
     )
     {
         if (desc.slangGlobalSession)
@@ -35,17 +36,31 @@ public:
         slangSessionDesc.defaultMatrixLayoutMode = desc.defaultMatrixLayoutMode;
         slangSessionDesc.searchPathCount = desc.searchPathCount;
         slangSessionDesc.searchPaths = desc.searchPaths;
-        slangSessionDesc.preprocessorMacroCount = desc.preprocessorMacroCount + additionalMacros.size();
-        std::vector<slang::PreprocessorMacroDesc> macros;
-        for (GfxCount i = 0; i < desc.preprocessorMacroCount; i++)
+
+        std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
+        for (Index i = 0; i < desc.preprocessorMacroCount; i++)
         {
-            macros.push_back(desc.preprocessorMacros[i]);
+            preprocessorMacros.push_back(desc.preprocessorMacros[i]);
         }
-        for (GfxCount i = 0; i < additionalMacros.size(); i++)
+        for (Index i = 0; i < additionalPreprocessorMacros.size(); i++)
         {
-            macros.push_back(additionalMacros[i]);
+            preprocessorMacros.push_back(additionalPreprocessorMacros[i]);
         }
-        slangSessionDesc.preprocessorMacros = macros.data();
+        slangSessionDesc.preprocessorMacros = preprocessorMacros.data();
+        slangSessionDesc.preprocessorMacroCount = preprocessorMacros.size();
+
+        std::vector<slang::CompilerOptionEntry> compilerOptions;
+        for (Index i = 0; i < desc.compilerOptionEntryCount; i++)
+        {
+            compilerOptions.push_back(desc.compilerOptionEntries[i]);
+        }
+        for (Index i = 0; i < additionalCompilerOptions.size(); i++)
+        {
+            compilerOptions.push_back(additionalCompilerOptions[i]);
+        }
+        slangSessionDesc.compilerOptionEntries = compilerOptions.data();
+        slangSessionDesc.compilerOptionEntryCount = compilerOptions.size();
+
         slang::TargetDesc targetDesc = {};
         targetDesc.format = compileTarget;
         auto targetProfile = desc.targetProfile;
@@ -59,17 +74,6 @@ public:
 
         slangSessionDesc.targets = &targetDesc;
         slangSessionDesc.targetCount = 1;
-
-        for (uint32_t i = 0; i < extendedDescCount; i++)
-        {
-            if ((*(StructType*)extendedDescs[i]) == StructType::SlangSessionExtendedDesc)
-            {
-                auto extDesc = (SlangSessionExtendedDesc*)extendedDescs[i];
-                slangSessionDesc.compilerOptionEntryCount = extDesc->compilerOptionEntryCount;
-                slangSessionDesc.compilerOptionEntries = extDesc->compilerOptionEntries;
-                break;
-            }
-        }
 
         SLANG_RETURN_ON_FAIL(globalSession->createSession(slangSessionDesc, session.writeRef()));
         return SLANG_OK;
