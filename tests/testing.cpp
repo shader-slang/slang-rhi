@@ -618,7 +618,7 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
         {
             if (!isDeviceTypeAvailable(deviceType))
             {
-                continue;
+                SKIP("device not available");
             }
             GpuTestContext ctx;
             ctx.slangGlobalSession = getSlangGlobalSession();
