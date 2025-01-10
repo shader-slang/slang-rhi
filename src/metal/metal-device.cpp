@@ -65,8 +65,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
-        desc.extendedDescCount,
-        desc.extendedDescs,
         SLANG_METAL_LIB,
         "",
         std::array{slang::PreprocessorMacroDesc{"__METAL__", "1"}}

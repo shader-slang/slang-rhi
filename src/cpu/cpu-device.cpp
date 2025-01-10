@@ -14,8 +14,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
-        desc.extendedDescCount,
-        desc.extendedDescs,
         SLANG_SHADER_HOST_CALLABLE,
         "sm_5_1",
         std::array{slang::PreprocessorMacroDesc{"__CPU__", "1"}}

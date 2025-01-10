@@ -15,8 +15,6 @@ public:
     ComPtr<slang::ISession> session;
     Result initialize(
         const SlangDesc& desc,
-        uint32_t extendedDescCount,
-        void** extendedDescs,
         SlangCompileTarget compileTarget,
         const char* defaultProfileName,
         span<const slang::PreprocessorMacroDesc> additionalPreprocessorMacros = {},
