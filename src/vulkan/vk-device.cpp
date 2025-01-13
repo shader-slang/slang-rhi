@@ -1094,7 +1094,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
         SLANG_SPIRV,
-        "sm_5_1",
+        "sm_6_0",
         std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}}
     ));
 
