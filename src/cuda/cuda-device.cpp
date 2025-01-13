@@ -234,7 +234,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             SLANG_OPTIX_RETURN_ON_FAIL(optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext));
 
             m_features.push_back("ray-tracing");
-        } else {
+        }
+        else
+        {
             SLANG_OPTIX_HANDLE_ERROR(result);
         }
     }
