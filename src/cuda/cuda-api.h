@@ -13,7 +13,7 @@ void rhiCudaApiShutdown();
 using cuuint32_t = uint32_t;
 using cuuint64_t = uint64_t;
 
-using CUdeviceptr = uintptr_t;
+using CUdeviceptr = long long unsigned int;
 using CUdevice = int;
 using CUcontext = struct CUctx_st*;
 using CUmodule = struct CUmod_st*;

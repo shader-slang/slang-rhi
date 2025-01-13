@@ -187,21 +187,19 @@ struct ShaderCacheTest
         deviceDesc.slang.searchPathCount = searchPaths.size();
         deviceDesc.persistentShaderCache = &shaderCache;
 
-        D3D12DeviceExtendedDesc extDesc = {};
-        extDesc.rootParameterShaderAttributeName = "root";
-
-        SlangSessionExtendedDesc slangExtDesc = {};
         std::vector<slang::CompilerOptionEntry> entries;
         slang::CompilerOptionEntry emitSpirvDirectlyEntry;
         emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
         emitSpirvDirectlyEntry.value.intValue0 = 1;
         entries.push_back(emitSpirvDirectlyEntry);
-        slangExtDesc.compilerOptionEntries = entries.data();
-        slangExtDesc.compilerOptionEntryCount = entries.size();
+        deviceDesc.slang.compilerOptionEntries = entries.data();
+        deviceDesc.slang.compilerOptionEntryCount = entries.size();
 
-        deviceDesc.extendedDescCount = 2;
-        void* extDescPtrs[2] = {&extDesc, &slangExtDesc};
+        D3D12DeviceExtendedDesc extDesc = {};
+        extDesc.rootParameterShaderAttributeName = "root";
+        void* extDescPtrs[] = {&extDesc};
         deviceDesc.extendedDescs = extDescPtrs;
+        deviceDesc.extendedDescCount = SLANG_COUNT_OF(extDescPtrs);
 
         // TODO: We should also set the debug callback
         // (And in general reduce the differences (and duplication) between

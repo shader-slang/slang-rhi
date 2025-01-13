@@ -70,7 +70,6 @@ enum class StructType
 {
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
-    SlangSessionExtendedDesc,
     RayTracingValidationDesc
 };
 
@@ -2061,6 +2060,9 @@ struct SlangDesc
     slang::PreprocessorMacroDesc const* preprocessorMacros = nullptr;
     GfxCount preprocessorMacroCount = 0;
 
+    slang::CompilerOptionEntry* compilerOptionEntries = nullptr;
+    GfxCount compilerOptionEntryCount = 0;
+
     /// (optional) Target shader profile. If null this will be set to platform dependent default.
     const char* targetProfile = nullptr;
 
@@ -2498,13 +2500,6 @@ struct D3D12DeviceExtendedDesc
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
     uint32_t highestShaderModel = 0;
-};
-
-struct SlangSessionExtendedDesc
-{
-    StructType structType = StructType::SlangSessionExtendedDesc;
-    uint32_t compilerOptionEntryCount = 0;
-    slang::CompilerOptionEntry* compilerOptionEntries = nullptr;
 };
 
 /// Whether to enable ray tracing validation (currently only Vulkan - D3D requires app layer to use NVAPI)

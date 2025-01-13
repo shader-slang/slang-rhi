@@ -79,8 +79,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     Result initDeviceResult = SLANG_OK;
     SLANG_RETURN_ON_FAIL(slangContext.initialize(
         desc.slang,
-        desc.extendedDescCount,
-        desc.extendedDescs,
         SLANG_WGSL,
         "",
         std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}}

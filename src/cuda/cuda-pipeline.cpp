@@ -57,6 +57,11 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
+    if (!m_ctx.optixContext)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
 
     OptixPipelineCompileOptions optixPipelineCompileOptions = {};

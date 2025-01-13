@@ -256,18 +256,23 @@ if(SLANG_RHI_ENABLE_WGPU)
 endif()
 
 
+# Fetch and setup OptiX library
 if(SLANG_RHI_ENABLE_CUDA)
-    # Find Optix
-    set(Optix_ROOT_DIR "C:/ProgramData/NVIDIA Corporation/OptiX SDK 8.1.0" CACHE STRING "Optix root directory")
-    find_package(OptiX)
-    set(SLANG_RHI_ENABLE_OPTIX ${OptiX_FOUND})
-    if(${SLANG_RHI_ENABLE_OPTIX})
+    set(OPTIX_VERSION "8.1.0")
+    set(OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.1/OptiX-${OPTIX_VERSION}-Include.zip")
+    FetchPackage(optix URL ${OPTIX_URL})
+
+    set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR} CACHE STRING "OptiX include directory")
+    unset(SLANG_RHI_OPTIX_INCLUDE_DIR)
+
+    if(EXISTS ${SLANG_RHI_OPTIX_INCLUDE_DIR}/optix.h)
         add_library(slang-rhi-optix INTERFACE)
-        target_include_directories(slang-rhi-optix INTERFACE ${OptiX_INCLUDE_DIRS})
+        target_include_directories(slang-rhi-optix INTERFACE ${SLANG_RHI_OPTIX_INCLUDE_DIR})
         target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
+        set(SLANG_RHI_ENABLE_OPTIX ON)
+    else()
+        set(SLANG_RHI_ENABLE_OPTIX OFF)
     endif()
-else()
-    set(SLANG_RHI_ENABLE_OPTIX OFF)
 endif()
 
 # Fetch glfw
@@ -519,6 +524,7 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_ENABLE_AGILITY_SDK=$<BOOL:${SLANG_RHI_ENABLE_AGILITY_SDK}>
     SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
     SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
+    SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
