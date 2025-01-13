@@ -64,6 +64,11 @@ jobs:
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
 
+      - name: Setup CUDA
+        uses: Jimver/cuda-toolkit@v0.2.19
+        with:
+          cuda: '12.6.0'
+
       - name: Configure
         run: cmake --preset default -S . -B build ${{env.CMAKE_ARGS}}
 
