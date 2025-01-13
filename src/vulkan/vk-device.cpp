@@ -553,6 +553,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
         extendedFeatures.shaderQuadControlFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.shaderQuadControlFeatures;
 
+        extendedFeatures.shaderIntegerDotProductFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.shaderIntegerDotProductFeatures;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
@@ -793,6 +796,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
             "shader-quad-control"
         );
 
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderIntegerDotProductFeatures,
+            shaderIntegerDotProduct,
+            VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME,
+            "integer-dot-product"
+        );
 
 #undef SIMPLE_EXTENSION_FEATURE
 
