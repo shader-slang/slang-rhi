@@ -65,6 +65,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Setup CUDA
+        if: matrix.os == 'windows' || matrix.os == 'linux'
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
           cuda: '12.6.0'
