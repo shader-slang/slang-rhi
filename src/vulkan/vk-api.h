@@ -346,6 +346,11 @@ struct VulkanExtendedFeatureProperties
     VkPhysicalDeviceShaderQuadControlFeaturesKHR shaderQuadControlFeatures{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_QUAD_CONTROL_FEATURES_KHR
     };
+
+    // Integer dot product features.
+    VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR shaderIntegerDotProductFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES_KHR,
+    };
 };
 
 struct VulkanApi
