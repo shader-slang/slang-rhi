@@ -258,8 +258,8 @@ endif()
 
 # Fetch and setup OptiX library
 if(SLANG_RHI_ENABLE_CUDA)
-    set(OPTIX_VERSION "8.1.0")
-    set(OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.1/OptiX-${OPTIX_VERSION}-Include.zip")
+    set(OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.0/OptiX-8.0-Include.zip")
+    # set(OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.1/OptiX-8.1.0-Include.zip")
     FetchPackage(optix URL ${OPTIX_URL})
 
     set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR} CACHE STRING "OptiX include directory")
