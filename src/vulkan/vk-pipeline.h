@@ -10,11 +10,13 @@ namespace rhi::vk {
 class RenderPipelineImpl : public RenderPipeline
 {
 public:
-    DeviceImpl* m_device;
+    BreakableReference<DeviceImpl> m_device;
     RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 
     ~RenderPipelineImpl();
+
+    virtual void comFree() override { m_device.breakStrongReference(); }
 
     // IRenderPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -23,11 +25,13 @@ public:
 class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    DeviceImpl* m_device;
+    BreakableReference<DeviceImpl> m_device;
     RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 
     ~ComputePipelineImpl();
+
+    virtual void comFree() override { m_device.breakStrongReference(); }
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -36,13 +40,15 @@ public:
 class RayTracingPipelineImpl : public RayTracingPipeline
 {
 public:
-    DeviceImpl* m_device;
+    BreakableReference<DeviceImpl> m_device;
     RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::map<std::string, Index> m_shaderGroupNameToIndex;
     Int m_shaderGroupCount;
 
     ~RayTracingPipelineImpl();
+
+    virtual void comFree() override { m_device.breakStrongReference(); }
 
     // IRayTracingPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

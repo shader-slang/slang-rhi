@@ -68,6 +68,8 @@ public:
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
         page.resource = checked_cast<TBuffer*>(bufferPtr.get());
+        // The buffer is owned by the pool.
+        page.resource->comFree();
         page.size = pageSize;
         m_pages.push_back(page);
         return SLANG_OK;
@@ -84,6 +86,8 @@ public:
         SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
         auto bufferImpl = checked_cast<TBuffer*>(bufferPtr.get());
         m_largeAllocations.push_back(bufferImpl);
+        // The buffer is owned by the pool.
+        m_largeAllocations.back()->comFree();
         return SLANG_OK;
     }
 
