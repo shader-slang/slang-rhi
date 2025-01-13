@@ -46,5 +46,17 @@ int main(int argc, char** argv)
 
     rhi::testing::cleanupTestTempDirectories();
 
+#if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
+    if (!rhi::RefObjectTracker::instance().objects.empty())
+    {
+        std::cerr << "Leaked objects detected!" << std::endl;
+        for (auto obj : rhi::RefObjectTracker::instance().objects)
+        {
+            std::cerr << "Leaked object: " << obj << std::endl;
+        }
+        return 1;
+    }
+#endif
+
     return result;
 }

@@ -47,9 +47,11 @@ public:
 
     ~BufferImpl();
 
-    DeviceImpl* m_device;
+    BreakableReference<DeviceImpl> m_device;
     VKBufferHandleRAII m_buffer;
     VKBufferHandleRAII m_uploadBuffer;
+
+    virtual void comFree() override { m_device.breakStrongReference(); }
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 

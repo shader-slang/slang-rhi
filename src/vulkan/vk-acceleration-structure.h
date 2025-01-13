@@ -7,7 +7,7 @@ namespace rhi::vk {
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
-    DeviceImpl* m_device;
+    RefPtr<DeviceImpl> m_device;
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
     RefPtr<BufferImpl> m_buffer;
 

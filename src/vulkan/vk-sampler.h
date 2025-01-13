@@ -13,7 +13,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
-    DeviceImpl* m_device;
+    RefPtr<DeviceImpl> m_device;
     VkSampler m_sampler;
 };
 

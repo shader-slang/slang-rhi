@@ -1658,6 +1658,8 @@ Result Device::getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObj
             RefPtr<ShaderProgram> specializedProgram;
             SLANG_RETURN_ON_FAIL(specializeProgram(program, specializationArgs, specializedProgram.writeRef()));
             program = specializedProgram;
+            // Program is owned by the specialized pipeline.
+            program->comFree();
         }
 
         switch (pipeline->getType())

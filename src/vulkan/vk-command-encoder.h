@@ -15,7 +15,7 @@ namespace rhi::vk {
 class CommandEncoderImpl : public CommandEncoder
 {
 public:
-    DeviceImpl* m_device;
+    RefPtr<DeviceImpl> m_device;
     CommandQueueImpl* m_queue;
     RefPtr<CommandBufferImpl> m_commandBuffer;
     RefPtr<TransientResourceHeapImpl> m_transientHeap;
