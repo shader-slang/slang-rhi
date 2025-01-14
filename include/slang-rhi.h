@@ -68,6 +68,21 @@ const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
 enum class StructType
 {
+    ShaderProgramDesc,
+    InputLayoutDesc,
+    BufferDesc,
+    TextureDesc,
+    TextureViewDesc,
+    SamplerDesc,
+    AccelerationStructureDesc,
+    FenceDesc,
+    RenderPipelineDesc,
+    ComputePipelineDesc,
+    RayTracingPipelineDesc,
+    ShaderTableDesc,
+    QueryPoolDesc,
+    DeviceDesc,
+
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
     RayTracingValidationDesc
@@ -109,6 +124,9 @@ enum class LinkingStyle
 
 struct ShaderProgramDesc
 {
+    StructType type = StructType::ShaderProgramDesc;
+    void* next = nullptr;
+
     // TODO: Tess doesn't like this but doesn't know what to do about it
     // The linking style of this program.
     LinkingStyle linkingStyle = LinkingStyle::SingleProgram;
@@ -452,6 +470,9 @@ struct VertexStreamDesc
 
 struct InputLayoutDesc
 {
+    StructType structType = StructType::InputLayoutDesc;
+    void* next = nullptr;
+
     InputElementDesc const* inputElements = nullptr;
     GfxCount inputElementCount = 0;
     VertexStreamDesc const* vertexStreams = nullptr;
@@ -510,6 +531,9 @@ SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 
 struct BufferDesc
 {
+    StructType structType = StructType::BufferDesc;
+    void* next = nullptr;
+
     /// Total size in bytes.
     Size size = 0;
     /// Get the element stride. If > 0, this is a structured buffer.
@@ -675,6 +699,9 @@ struct Extents
 };
 struct TextureDesc
 {
+    StructType structType = StructType::TextureDesc;
+    void* next = nullptr;
+
     TextureType type = TextureType::Texture2D;
 
     MemoryType memoryType = MemoryType::DeviceLocal;
@@ -712,6 +739,9 @@ public:
 
 struct TextureViewDesc
 {
+    StructType structType = StructType::TextureViewDesc;
+    void* next = nullptr;
+
     Format format = Format::Unknown;
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
@@ -760,6 +790,9 @@ enum class TextureReductionOp
 
 struct SamplerDesc
 {
+    StructType structType = StructType::SamplerDesc;
+    void* next = nullptr;
+
     TextureFilteringMode minFilter = TextureFilteringMode::Linear;
     TextureFilteringMode magFilter = TextureFilteringMode::Linear;
     TextureFilteringMode mipFilter = TextureFilteringMode::Linear;
@@ -1008,6 +1041,9 @@ struct AccelerationStructureSizes
 
 struct AccelerationStructureDesc
 {
+    StructType structType = StructType::AccelerationStructureDesc;
+    void* next = nullptr;
+
     Size size;
 
     const char* label = nullptr;
@@ -1024,6 +1060,9 @@ public:
 
 struct FenceDesc
 {
+    StructType structType = StructType::FenceDesc;
+    void* next = nullptr;
+
     uint64_t initialValue = 0;
     bool isShared = false;
 
@@ -1329,6 +1368,9 @@ struct MultisampleState
 
 struct RenderPipelineDesc
 {
+    StructType structType = StructType::RenderPipelineDesc;
+    void* next = nullptr;
+
     IShaderProgram* program = nullptr;
     IInputLayout* inputLayout = nullptr;
     PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
@@ -1341,6 +1383,9 @@ struct RenderPipelineDesc
 
 struct ComputePipelineDesc
 {
+    StructType structType = StructType::ComputePipelineDesc;
+    void* next = nullptr;
+
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
 };
@@ -1363,6 +1408,9 @@ struct HitGroupDesc
 
 struct RayTracingPipelineDesc
 {
+    StructType structType = StructType::RayTracingPipelineDesc;
+    void* next = nullptr;
+
     IShaderProgram* program = nullptr;
     GfxCount hitGroupCount = 0;
     HitGroupDesc* hitGroups = nullptr;
@@ -1385,6 +1433,9 @@ struct ShaderRecordOverwrite
 
 struct ShaderTableDesc
 {
+    StructType structType = StructType::ShaderTableDesc;
+    void* next = nullptr;
+
     GfxCount rayGenShaderCount;
     const char** rayGenShaderEntryPointNames;
     const ShaderRecordOverwrite* rayGenShaderRecordOverwrites;
@@ -1556,6 +1607,9 @@ enum class QueryType
 
 struct QueryPoolDesc
 {
+    StructType structType = StructType::QueryPoolDesc;
+    void* next = nullptr;
+
     QueryType type;
     GfxCount count;
 
@@ -2081,6 +2135,9 @@ struct DeviceNativeHandles
 
 struct DeviceDesc
 {
+    StructType structType = StructType::DeviceDesc;
+    void* next = nullptr;
+
     // The underlying API/Platform of the device.
     DeviceType deviceType = DeviceType::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
