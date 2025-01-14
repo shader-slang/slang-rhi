@@ -41,8 +41,6 @@ public:
     virtual void shutdown() override
     {
         queue->waitOnHost();
-        surface.setNull();
-        device.setNull();
     }
 
     virtual void update() override {}
