@@ -88,6 +88,9 @@ public:
     PFN_SetMarkerOnCommandList m_SetMarkerOnCommandList = nullptr;
 
     bool m_nvapi = false;
+#if SLANG_RHI_ENABLE_NVAPI && SLANG_RHI_DXR
+    void* m_raytracingValidationHandle = nullptr;
+#endif
 
     // Command signatures required for indirect draws. These indicate the format of the indirect
     // as well as the command type to be used (DrawInstanced and DrawIndexedInstanced, in this
@@ -208,6 +211,8 @@ public:
 
     ID3D12GraphicsCommandList* beginImmediateCommandList();
     void endImmediateCommandList();
+
+    void flushValidationMessages();
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* desc);

@@ -22,7 +22,7 @@
 #define ENABLE_DEBUG_LAYER 0
 #endif
 
-#ifdef SLANG_RHI_NVAPI
+#ifdef SLANG_RHI_ENABLE_NVAPI
 #include "../nvapi/nvapi-include.h"
 #endif
 
@@ -64,6 +64,41 @@ static ShaderModelInfo kKnownShaderModels[] = {
     SHADER_MODEL_INFO_DXIL(6, 7)
 #undef SHADER_MODEL_INFO_DXIL
 };
+
+#if SLANG_RHI_ENABLE_NVAPI
+// Raytracing validation callback
+static void __stdcall raytracingValidationMessageCallback(
+    void* userData,
+    NVAPI_D3D12_RAYTRACING_VALIDATION_MESSAGE_SEVERITY severity,
+    const char* messageCode,
+    const char* message,
+    const char* messageDetails
+)
+{
+    DeviceImpl* device = static_cast<DeviceImpl*>(userData);
+    DebugMessageType type = DebugMessageType::Info;
+    switch (severity)
+    {
+    case NVAPI_D3D12_RAYTRACING_VALIDATION_MESSAGE_SEVERITY_ERROR:
+        type = DebugMessageType::Error;
+        break;
+    case NVAPI_D3D12_RAYTRACING_VALIDATION_MESSAGE_SEVERITY_WARNING:
+        type = DebugMessageType::Warning;
+        break;
+    default:
+        return;
+    }
+
+    char msg[4096];
+    int msgSize = snprintf(msg, sizeof(msg), "[%s] %s\n%s", messageCode, message, messageDetails);
+    if (msgSize < 0)
+        return;
+    else if (msgSize >= int(sizeof(msg)))
+        msg[sizeof(msg) - 1] = 0;
+
+    device->m_debugCallback->handleMessage(type, DebugMessageSource::Driver, msg);
+}
+#endif // SLANG_RHI_ENABLE_NVAPI
 
 Result DeviceImpl::createBuffer(
     const D3D12_RESOURCE_DESC& resourceDesc,
@@ -475,6 +510,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Set the device
     m_device = m_deviceInfo.m_device;
 
+    // Initialize DXR interface.
+#if SLANG_RHI_DXR
+    m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
+    m_device5 = m_deviceInfo.m_device5.get();
+#endif
+
+
     if (m_deviceInfo.m_isSoftware)
     {
         m_features.push_back("software-device");
@@ -484,7 +526,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_features.push_back("hardware-device");
     }
 
-    // NVAPI
+    // Initialize NVAPI
     if (desc.nvapiExtnSlot >= 0)
     {
         if (SLANG_FAILED(NVAPIUtil::initialize()))
@@ -492,7 +534,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             return SLANG_E_NOT_AVAILABLE;
         }
 
-#ifdef SLANG_RHI_NVAPI
+#ifdef SLANG_RHI_ENABLE_NVAPI
         // From DOCS: Applications are expected to bind null UAV to this slot.
         // NOTE! We don't currently do this, but doesn't seem to be a problem.
 
@@ -517,8 +559,22 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             m_features.push_back("realtime-clock");
         }
 
+        // Enable ray tracing validation if requested
+#if SLANG_RHI_DXR
+        if (m_desc.enableRayTracingValidation)
+        {
+            NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE);
+            NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
+                m_device5,
+                &raytracingValidationMessageCallback,
+                this,
+                &m_raytracingValidationHandle
+            );
+        }
+#endif // SLANG_RHI_DXR
+
         m_nvapi = true;
-#endif
+#endif // SLANG_RHI_ENABLE_NVAPI
     }
 
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
@@ -726,11 +782,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.adapterName = m_adapterName.data();
     }
 
-    // Initialize DXR interface.
-#if SLANG_RHI_DXR
-    m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
-    m_device5 = m_deviceInfo.m_device5.get();
-#endif
     // Check shader model version.
     SlangCompileTarget compileTarget = SLANG_DXBC;
     const char* profileName = "sm_5_1";
@@ -1579,6 +1630,16 @@ void DeviceImpl::endImmediateCommandList()
     m_queue->m_d3dQueue->ExecuteCommandLists(1, commandLists);
     m_queue->waitOnHost();
     m_immediateCommandList.mutex.unlock();
+}
+
+void DeviceImpl::flushValidationMessages()
+{
+#if SLANG_RHI_ENABLE_NVAPI && SLANG_RHI_DXR
+    if (m_raytracingValidationHandle)
+    {
+        NvAPI_D3D12_FlushRaytracingValidationMessages(m_device5);
+    }
+#endif
 }
 
 void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* inDesc)

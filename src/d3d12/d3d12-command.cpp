@@ -1569,6 +1569,7 @@ Result CommandQueueImpl::waitOnHost()
     ResetEvent(m_globalWaitHandle);
     m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle);
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
+    m_device->flushValidationMessages();
     retireCommandBuffers();
     return SLANG_OK;
 }

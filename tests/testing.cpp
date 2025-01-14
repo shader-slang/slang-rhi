@@ -78,7 +78,7 @@ public:
         {
         case DebugMessageType::Info:
         {
-            INFO("Validation info: ", doctest::String(message));
+            MESSAGE("Validation info: ", doctest::String(message));
             break;
         }
         case DebugMessageType::Warning:
@@ -363,6 +363,7 @@ ComPtr<IDevice> createTestingDevice(
 #ifdef _DEBUG
     deviceDesc.enableValidation = true;
     deviceDesc.enableBackendValidation = true;
+    deviceDesc.enableRayTracingValidation = true;
     deviceDesc.debugCallback = &sDebugCallback;
 #endif
 
