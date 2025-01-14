@@ -22,7 +22,7 @@
 #define ENABLE_DEBUG_LAYER 0
 #endif
 
-#ifdef SLANG_RHI_ENABLE_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
 #include "../nvapi/nvapi-include.h"
 #endif
 
@@ -534,7 +534,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             return SLANG_E_NOT_AVAILABLE;
         }
 
-#ifdef SLANG_RHI_ENABLE_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
         // From DOCS: Applications are expected to bind null UAV to this slot.
         // NOTE! We don't currently do this, but doesn't seem to be a problem.
 
