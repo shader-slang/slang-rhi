@@ -198,12 +198,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
         if (enableValidationLayer)
         {
-            // Depending on driver version, validation layer may or may not exist.
-            // Newer drivers comes with "VK_LAYER_KHRONOS_validation", while older
-            // drivers provide only the deprecated
-            // "VK_LAYER_LUNARG_standard_validation" layer.
-            // We will check what layers are available, and use the newer
-            // "VK_LAYER_KHRONOS_validation" layer when possible.
             uint32_t layerCount;
             m_api.vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -219,23 +213,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                     break;
                 }
             }
-            // On older drivers, only "VK_LAYER_LUNARG_standard_validation" exists,
-            // so we try to use it if we can't find "VK_LAYER_KHRONOS_validation".
-            if (!layerNames[0])
-            {
-                for (auto& layer : availableLayers)
-                {
-                    if (strncmp(
-                            layer.layerName,
-                            "VK_LAYER_LUNARG_standard_validation",
-                            sizeof("VK_LAYER_LUNARG_standard_validation")
-                        ) == 0)
-                    {
-                        layerNames[0] = "VK_LAYER_LUNARG_standard_validation";
-                        break;
-                    }
-                }
-            }
             if (layerNames[0])
             {
                 instanceCreateInfo.enabledLayerCount = SLANG_COUNT_OF(layerNames);
@@ -248,7 +225,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 instanceCreateInfo.pNext = &validationFeatures;
             }
         }
-        uint32_t apiVersionsToTry[] = {VK_API_VERSION_1_2, VK_API_VERSION_1_1, VK_API_VERSION_1_0};
+        uint32_t apiVersionsToTry[] = {VK_API_VERSION_1_3, VK_API_VERSION_1_2, VK_API_VERSION_1_1, VK_API_VERSION_1_0};
         for (auto apiVersion : apiVersionsToTry)
         {
             applicationInfo.apiVersion = apiVersion;

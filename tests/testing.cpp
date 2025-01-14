@@ -74,21 +74,19 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
     {
+        if (!doctest::is_running_in_test)
+            return;
         switch (type)
         {
         case DebugMessageType::Info:
-        {
-            MESSAGE("Validation info: ", doctest::String(message));
-            break;
-        }
         case DebugMessageType::Warning:
         {
-            MESSAGE("Validation warning: ", doctest::String(message));
+            MESSAGE(doctest::String(message));
             break;
         }
         case DebugMessageType::Error:
         {
-            FAIL("Validation error: ", doctest::String(message));
+            FAIL(doctest::String(message));
             break;
         }
         }
@@ -489,10 +487,6 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
         return false;                                                                                                  \
     }
 
-    if (verbose)
-        MESSAGE("Checking for ", doctest::String(deviceTypeToString(deviceType)));
-
-
     if (!rhi::getRHI()->isDeviceTypeSupported(deviceType))
         RETURN_NOT_AVAILABLE("backend not supported");
 
@@ -568,9 +562,6 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
         if (!code)
             RETURN_NOT_AVAILABLE("failed to get entry point code");
     }
-
-    if (verbose)
-        MESSAGE(doctest::String(deviceTypeToString(deviceType)), " is available.");
 
     return true;
 }
