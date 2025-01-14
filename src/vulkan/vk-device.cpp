@@ -142,16 +142,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool
 
     bool enableRayTracingValidation = false;
 
-    // Read properties from extended device descriptions
-    for (Index i = 0; i < m_desc.extendedDescCount; i++)
+    // Process chained descs
+    for (StructHeader* header = static_cast<StructHeader*>(m_desc.next); header; header = header->next)
     {
-        StructType stype;
-        memcpy(&stype, m_desc.extendedDescs[i], sizeof(stype));
-        switch (stype)
+        switch (header->type)
         {
         case StructType::RayTracingValidationDesc:
             enableRayTracingValidation =
-                static_cast<RayTracingValidationDesc*>(m_desc.extendedDescs[i])->enableRaytracingValidation;
+                reinterpret_cast<RayTracingValidationDesc*>(header)->enableRaytracingValidation;
             break;
         }
     }

@@ -341,18 +341,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         return SLANG_FAIL;
     }
 
-    // Find extended desc.
-    for (GfxIndex i = 0; i < desc.extendedDescCount; i++)
+    // Process chained descs
+    for (StructHeader* header = static_cast<StructHeader*>(desc.next); header; header = header->next)
     {
-        StructType stype;
-        memcpy(&stype, desc.extendedDescs[i], sizeof(stype));
-        switch (stype)
+        switch (header->type)
         {
         case StructType::D3D12DeviceExtendedDesc:
-            memcpy(&m_extendedDesc, desc.extendedDescs[i], sizeof(m_extendedDesc));
+            memcpy(&m_extendedDesc, header, sizeof(m_extendedDesc));
             break;
         case StructType::D3D12ExperimentalFeaturesDesc:
-            processExperimentalFeaturesDesc(d3dModule, desc.extendedDescs[i]);
+            processExperimentalFeaturesDesc(d3dModule, header);
             break;
         }
     }

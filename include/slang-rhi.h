@@ -88,6 +88,12 @@ enum class StructType
     RayTracingValidationDesc
 };
 
+struct StructHeader
+{
+    StructType type;
+    StructHeader* next;
+};
+
 // TODO: Implementation or backend or something else?
 enum class DeviceType
 {
@@ -2161,9 +2167,6 @@ struct DeviceDesc
     // Interface to persistent shader cache.
     IPersistentShaderCache* persistentShaderCache = nullptr;
 
-    GfxCount extendedDescCount = 0;
-    void** extendedDescs = nullptr;
-
     /// Enable RHI validation layer.
     bool enableValidation = false;
     /// Enable backend API validation layer.
@@ -2547,15 +2550,19 @@ inline const FormatInfo& getFormatInfo(Format format)
 struct D3D12ExperimentalFeaturesDesc
 {
     StructType structType = StructType::D3D12ExperimentalFeaturesDesc;
-    uint32_t featureCount;
-    const void* featureIIDs;
-    void* configurationStructs;
-    uint32_t* configurationStructSizes;
+    void* next = nullptr;
+
+    uint32_t featureCount = 0;
+    const void* featureIIDs = nullptr;
+    void* configurationStructs = nullptr;
+    uint32_t* configurationStructSizes = nullptr;
 };
 
 struct D3D12DeviceExtendedDesc
 {
     StructType structType = StructType::D3D12DeviceExtendedDesc;
+    void* next = nullptr;
+
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
     uint32_t highestShaderModel = 0;
@@ -2565,6 +2572,8 @@ struct D3D12DeviceExtendedDesc
 struct RayTracingValidationDesc
 {
     StructType structType = StructType::RayTracingValidationDesc;
+    void* next = nullptr;
+
     bool enableRaytracingValidation = false;
 };
 

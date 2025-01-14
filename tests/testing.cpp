@@ -355,9 +355,7 @@ ComPtr<IDevice> createTestingDevice(
 
     D3D12DeviceExtendedDesc extDesc = {};
     extDesc.rootParameterShaderAttributeName = "root";
-    void* extDescPtrs[] = {&extDesc};
-    deviceDesc.extendedDescs = extDescPtrs;
-    deviceDesc.extendedDescCount = SLANG_COUNT_OF(extDescPtrs);
+    deviceDesc.next = &extDesc;
 
     // TODO: We should also set the debug callback
     // (And in general reduce the differences (and duplication) between
