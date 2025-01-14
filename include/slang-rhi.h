@@ -85,7 +85,6 @@ enum class StructType
 
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
-    RayTracingValidationDesc
 };
 
 struct StructHeader
