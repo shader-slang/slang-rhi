@@ -67,7 +67,7 @@ public:
     createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable) override;
+    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,

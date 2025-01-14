@@ -1534,7 +1534,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
     result->m_device = this;

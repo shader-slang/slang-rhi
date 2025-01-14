@@ -1091,12 +1091,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         SLANG_RETURN_ON_FAIL(m_deviceQueue.init(m_api, queue, m_queueFamilyIndex));
     }
 
-    SLANG_RETURN_ON_FAIL(slangContext.initialize(
-        desc.slang,
-        SLANG_SPIRV,
-        "sm_6_0",
-        std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}}
-    ));
+    SLANG_RETURN_ON_FAIL(
+        slangContext
+            .initialize(desc.slang, SLANG_SPIRV, "sm_6_0", std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}})
+    );
 
     // Create default sampler.
     {
@@ -1707,7 +1705,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
     result->m_device = this;

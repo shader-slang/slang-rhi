@@ -1372,39 +1372,41 @@ struct RayTracingPipelineDesc
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
 };
 
+// Specifies the bytes to overwrite into a record in the shader table.
+struct ShaderRecordOverwrite
+{
+    /// Offset within the shader record.
+    Offset offset;
+    /// Number of bytes to overwrite.
+    Size size;
+    /// Content to overwrite.
+    uint8_t data[8];
+};
+
+struct ShaderTableDesc
+{
+    GfxCount rayGenShaderCount;
+    const char** rayGenShaderEntryPointNames;
+    const ShaderRecordOverwrite* rayGenShaderRecordOverwrites;
+
+    GfxCount missShaderCount;
+    const char** missShaderEntryPointNames;
+    const ShaderRecordOverwrite* missShaderRecordOverwrites;
+
+    GfxCount hitGroupCount;
+    const char** hitGroupNames;
+    const ShaderRecordOverwrite* hitGroupRecordOverwrites;
+
+    GfxCount callableShaderCount;
+    const char** callableShaderEntryPointNames;
+    const ShaderRecordOverwrite* callableShaderRecordOverwrites;
+
+    IShaderProgram* program;
+};
+
 class IShaderTable : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x348abe3f, 0x5075, 0x4b3d, {0x88, 0xcf, 0x54, 0x83, 0xdc, 0x62, 0xb3, 0xb9});
-
-public:
-    // Specifies the bytes to overwrite into a record in the shader table.
-    struct ShaderRecordOverwrite
-    {
-        Offset offset;   // Offset within the shader record.
-        Size size;       // Number of bytes to overwrite.
-        uint8_t data[8]; // Content to overwrite.
-    };
-
-    struct Desc
-    {
-        GfxCount rayGenShaderCount;
-        const char** rayGenShaderEntryPointNames;
-        const ShaderRecordOverwrite* rayGenShaderRecordOverwrites;
-
-        GfxCount missShaderCount;
-        const char** missShaderEntryPointNames;
-        const ShaderRecordOverwrite* missShaderRecordOverwrites;
-
-        GfxCount hitGroupCount;
-        const char** hitGroupNames;
-        const ShaderRecordOverwrite* hitGroupRecordOverwrites;
-
-        GfxCount callableShaderCount;
-        const char** callableShaderEntryPointNames;
-        const ShaderRecordOverwrite* callableShaderRecordOverwrites;
-
-        IShaderProgram* program;
-    };
 };
 
 class IPipeline : public ISlangUnknown
@@ -2308,7 +2310,7 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) = 0;
+    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,

@@ -63,12 +63,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_features.push_back("argument-buffer-tier-2");
     }
 
-    SLANG_RETURN_ON_FAIL(slangContext.initialize(
-        desc.slang,
-        SLANG_METAL_LIB,
-        "",
-        std::array{slang::PreprocessorMacroDesc{"__METAL__", "1"}}
-    ));
+    SLANG_RETURN_ON_FAIL(
+        slangContext
+            .initialize(desc.slang, SLANG_METAL_LIB, "", std::array{slang::PreprocessorMacroDesc{"__METAL__", "1"}})
+    );
 
     // TODO: expose via some other means
     if (captureEnabled())
@@ -368,7 +366,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
     AUTORELEASEPOOL
 

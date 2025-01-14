@@ -384,7 +384,7 @@ Result DebugDevice::getTextureRowAlignment(size_t* outAlignment)
     return baseObject->getTextureRowAlignment(outAlignment);
 }
 
-Result DebugDevice::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable)
+Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
 {
     SLANG_RHI_API_FUNC;
 
