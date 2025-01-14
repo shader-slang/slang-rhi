@@ -136,25 +136,13 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool enableValidationLayer)
+Result DeviceImpl::initVulkanInstanceAndDevice(
+    const NativeHandle* handles,
+    bool enableValidationLayer,
+    bool enableRayTracingValidation
+)
 {
     m_features.clear();
-
-    bool enableRayTracingValidation = false;
-
-    // Read properties from extended device descriptions
-    for (Index i = 0; i < m_desc.extendedDescCount; i++)
-    {
-        StructType stype;
-        memcpy(&stype, m_desc.extendedDescs[i], sizeof(stype));
-        switch (stype)
-        {
-        case StructType::RayTracingValidationDesc:
-            enableRayTracingValidation =
-                static_cast<RayTracingValidationDesc*>(m_desc.extendedDescs[i])->enableRaytracingValidation;
-            break;
-        }
-    }
 
     VkInstance instance = VK_NULL_HANDLE;
     if (!handles[0])
@@ -1078,8 +1066,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         if (initDeviceResult != SLANG_OK)
             continue;
         descriptorSetAllocator.m_api = &m_api;
-        initDeviceResult =
-            initVulkanInstanceAndDevice(desc.existingDeviceHandles.handles, desc.enableBackendValidation);
+        initDeviceResult = initVulkanInstanceAndDevice(
+            desc.existingDeviceHandles.handles,
+            desc.enableBackendValidation,
+            desc.enableRayTracingValidation
+        );
         if (initDeviceResult == SLANG_OK)
             break;
     }
@@ -1091,12 +1082,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         SLANG_RETURN_ON_FAIL(m_deviceQueue.init(m_api, queue, m_queueFamilyIndex));
     }
 
-    SLANG_RETURN_ON_FAIL(slangContext.initialize(
-        desc.slang,
-        SLANG_SPIRV,
-        "sm_6_0",
-        std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}}
-    ));
+    SLANG_RETURN_ON_FAIL(
+        slangContext
+            .initialize(desc.slang, SLANG_SPIRV, "sm_6_0", std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}})
+    );
 
     // Create default sampler.
     {
@@ -1707,7 +1696,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
     result->m_device = this;

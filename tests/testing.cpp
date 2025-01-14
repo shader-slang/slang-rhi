@@ -78,7 +78,7 @@ public:
         {
         case DebugMessageType::Info:
         {
-            INFO("Validation info: ", doctest::String(message));
+            MESSAGE("Validation info: ", doctest::String(message));
             break;
         }
         case DebugMessageType::Warning:
@@ -355,9 +355,7 @@ ComPtr<IDevice> createTestingDevice(
 
     D3D12DeviceExtendedDesc extDesc = {};
     extDesc.rootParameterShaderAttributeName = "root";
-    void* extDescPtrs[] = {&extDesc};
-    deviceDesc.extendedDescs = extDescPtrs;
-    deviceDesc.extendedDescCount = SLANG_COUNT_OF(extDescPtrs);
+    deviceDesc.next = &extDesc;
 
     // TODO: We should also set the debug callback
     // (And in general reduce the differences (and duplication) between
@@ -365,6 +363,7 @@ ComPtr<IDevice> createTestingDevice(
 #ifdef _DEBUG
     deviceDesc.enableValidation = true;
     deviceDesc.enableBackendValidation = true;
+    deviceDesc.enableRayTracingValidation = true;
     deviceDesc.debugCallback = &sDebugCallback;
 #endif
 

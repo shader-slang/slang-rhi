@@ -219,18 +219,45 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         OptixResult result = optixInit();
         if (result == OPTIX_SUCCESS)
         {
-            static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* /*cbdata */)
+            static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* userData)
             {
-                printf("[%2u][%12s]: %s\n", level, tag, message);
-                fflush(stdout);
+                DeviceImpl* device = static_cast<DeviceImpl*>(userData);
+                DebugMessageType type;
+                switch (level)
+                {
+                case 1: // fatal
+                    type = DebugMessageType::Error;
+                    break;
+                case 2: // error
+                    type = DebugMessageType::Error;
+                    break;
+                case 3: // warning
+                    type = DebugMessageType::Warning;
+                    break;
+                case 4: // print
+                    type = DebugMessageType::Info;
+                    break;
+                default:
+                    return;
+                }
+
+                char msg[4096];
+                int msgSize = snprintf(msg, sizeof(msg), "[%s]: %s", tag, message);
+                if (msgSize < 0)
+                    return;
+                else if (msgSize >= int(sizeof(msg)))
+                    msg[sizeof(msg) - 1] = 0;
+
+                device->handleMessage(type, DebugMessageSource::Driver, msg);
             };
 
             OptixDeviceContextOptions options = {};
             options.logCallbackFunction = logCallback;
             options.logCallbackLevel = 4;
-#ifdef _DEBUG
-            options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
-#endif
+            options.logCallbackData = this;
+            options.validationMode = desc.enableRayTracingValidation ? OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL
+                                                                     : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
+
             SLANG_OPTIX_RETURN_ON_FAIL(optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext));
 
             m_features.push_back("ray-tracing");
@@ -422,7 +449,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
 #if SLANG_RHI_ENABLE_OPTIX
     if (!m_ctx.optixContext)

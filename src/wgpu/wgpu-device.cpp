@@ -77,12 +77,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
     Result initDeviceResult = SLANG_OK;
-    SLANG_RETURN_ON_FAIL(slangContext.initialize(
-        desc.slang,
-        SLANG_WGSL,
-        "",
-        std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}}
-    ));
+    SLANG_RETURN_ON_FAIL(
+        slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
+    );
 
     std::vector<char const*> const enabledToggles = {"use_dxc"};
     WGPUDawnTogglesDescriptor togglesDesc = {};
@@ -489,7 +486,7 @@ Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outShaderTable)
+Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }

@@ -68,9 +68,23 @@ const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
 enum class StructType
 {
+    ShaderProgramDesc,
+    InputLayoutDesc,
+    BufferDesc,
+    TextureDesc,
+    TextureViewDesc,
+    SamplerDesc,
+    AccelerationStructureDesc,
+    FenceDesc,
+    RenderPipelineDesc,
+    ComputePipelineDesc,
+    RayTracingPipelineDesc,
+    ShaderTableDesc,
+    QueryPoolDesc,
+    DeviceDesc,
+
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
-    RayTracingValidationDesc
 };
 
 // TODO: Implementation or backend or something else?
@@ -109,12 +123,15 @@ enum class LinkingStyle
 
 struct ShaderProgramDesc
 {
+    StructType type = StructType::ShaderProgramDesc;
+    void* next = nullptr;
+
     // TODO: Tess doesn't like this but doesn't know what to do about it
     // The linking style of this program.
     LinkingStyle linkingStyle = LinkingStyle::SingleProgram;
 
     // The global scope or a Slang composite component that represents the entire program.
-    slang::IComponentType* slangGlobalScope;
+    slang::IComponentType* slangGlobalScope = nullptr;
 
     // An array of Slang entry points. The size of the array must be `slangEntryPointCount`.
     // Each element must define only 1 Slang EntryPoint.
@@ -452,6 +469,9 @@ struct VertexStreamDesc
 
 struct InputLayoutDesc
 {
+    StructType structType = StructType::InputLayoutDesc;
+    void* next = nullptr;
+
     InputElementDesc const* inputElements = nullptr;
     GfxCount inputElementCount = 0;
     VertexStreamDesc const* vertexStreams = nullptr;
@@ -510,6 +530,9 @@ SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 
 struct BufferDesc
 {
+    StructType structType = StructType::BufferDesc;
+    void* next = nullptr;
+
     /// Total size in bytes.
     Size size = 0;
     /// Get the element stride. If > 0, this is a structured buffer.
@@ -675,6 +698,9 @@ struct Extents
 };
 struct TextureDesc
 {
+    StructType structType = StructType::TextureDesc;
+    void* next = nullptr;
+
     TextureType type = TextureType::Texture2D;
 
     MemoryType memoryType = MemoryType::DeviceLocal;
@@ -712,6 +738,9 @@ public:
 
 struct TextureViewDesc
 {
+    StructType structType = StructType::TextureViewDesc;
+    void* next = nullptr;
+
     Format format = Format::Unknown;
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
@@ -760,6 +789,9 @@ enum class TextureReductionOp
 
 struct SamplerDesc
 {
+    StructType structType = StructType::SamplerDesc;
+    void* next = nullptr;
+
     TextureFilteringMode minFilter = TextureFilteringMode::Linear;
     TextureFilteringMode magFilter = TextureFilteringMode::Linear;
     TextureFilteringMode mipFilter = TextureFilteringMode::Linear;
@@ -1008,6 +1040,9 @@ struct AccelerationStructureSizes
 
 struct AccelerationStructureDesc
 {
+    StructType structType = StructType::AccelerationStructureDesc;
+    void* next = nullptr;
+
     Size size;
 
     const char* label = nullptr;
@@ -1024,6 +1059,9 @@ public:
 
 struct FenceDesc
 {
+    StructType structType = StructType::FenceDesc;
+    void* next = nullptr;
+
     uint64_t initialValue = 0;
     bool isShared = false;
 
@@ -1329,6 +1367,9 @@ struct MultisampleState
 
 struct RenderPipelineDesc
 {
+    StructType structType = StructType::RenderPipelineDesc;
+    void* next = nullptr;
+
     IShaderProgram* program = nullptr;
     IInputLayout* inputLayout = nullptr;
     PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
@@ -1341,6 +1382,9 @@ struct RenderPipelineDesc
 
 struct ComputePipelineDesc
 {
+    StructType structType = StructType::ComputePipelineDesc;
+    void* next = nullptr;
+
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
 };
@@ -1363,6 +1407,9 @@ struct HitGroupDesc
 
 struct RayTracingPipelineDesc
 {
+    StructType structType = StructType::RayTracingPipelineDesc;
+    void* next = nullptr;
+
     IShaderProgram* program = nullptr;
     GfxCount hitGroupCount = 0;
     HitGroupDesc* hitGroups = nullptr;
@@ -1372,39 +1419,44 @@ struct RayTracingPipelineDesc
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
 };
 
+// Specifies the bytes to overwrite into a record in the shader table.
+struct ShaderRecordOverwrite
+{
+    /// Offset within the shader record.
+    Offset offset;
+    /// Number of bytes to overwrite.
+    Size size;
+    /// Content to overwrite.
+    uint8_t data[8];
+};
+
+struct ShaderTableDesc
+{
+    StructType structType = StructType::ShaderTableDesc;
+    void* next = nullptr;
+
+    GfxCount rayGenShaderCount = 0;
+    const char** rayGenShaderEntryPointNames = nullptr;
+    const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
+
+    GfxCount missShaderCount = 0;
+    const char** missShaderEntryPointNames = nullptr;
+    const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
+
+    GfxCount hitGroupCount = 0;
+    const char** hitGroupNames = nullptr;
+    const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
+
+    GfxCount callableShaderCount = 0;
+    const char** callableShaderEntryPointNames = nullptr;
+    const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
+
+    IShaderProgram* program = nullptr;
+};
+
 class IShaderTable : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x348abe3f, 0x5075, 0x4b3d, {0x88, 0xcf, 0x54, 0x83, 0xdc, 0x62, 0xb3, 0xb9});
-
-public:
-    // Specifies the bytes to overwrite into a record in the shader table.
-    struct ShaderRecordOverwrite
-    {
-        Offset offset;   // Offset within the shader record.
-        Size size;       // Number of bytes to overwrite.
-        uint8_t data[8]; // Content to overwrite.
-    };
-
-    struct Desc
-    {
-        GfxCount rayGenShaderCount;
-        const char** rayGenShaderEntryPointNames;
-        const ShaderRecordOverwrite* rayGenShaderRecordOverwrites;
-
-        GfxCount missShaderCount;
-        const char** missShaderEntryPointNames;
-        const ShaderRecordOverwrite* missShaderRecordOverwrites;
-
-        GfxCount hitGroupCount;
-        const char** hitGroupNames;
-        const ShaderRecordOverwrite* hitGroupRecordOverwrites;
-
-        GfxCount callableShaderCount;
-        const char** callableShaderEntryPointNames;
-        const ShaderRecordOverwrite* callableShaderRecordOverwrites;
-
-        IShaderProgram* program;
-    };
 };
 
 class IPipeline : public ISlangUnknown
@@ -1554,8 +1606,11 @@ enum class QueryType
 
 struct QueryPoolDesc
 {
-    QueryType type;
-    GfxCount count;
+    StructType structType = StructType::QueryPoolDesc;
+    void* next = nullptr;
+
+    QueryType type = QueryType::Timestamp;
+    GfxCount count = 0;
 
     const char* label = nullptr;
 };
@@ -2079,6 +2134,9 @@ struct DeviceNativeHandles
 
 struct DeviceDesc
 {
+    StructType structType = StructType::DeviceDesc;
+    void* next = nullptr;
+
     // The underlying API/Platform of the device.
     DeviceType deviceType = DeviceType::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
@@ -2102,13 +2160,12 @@ struct DeviceDesc
     // Interface to persistent shader cache.
     IPersistentShaderCache* persistentShaderCache = nullptr;
 
-    GfxCount extendedDescCount = 0;
-    void** extendedDescs = nullptr;
-
     /// Enable RHI validation layer.
     bool enableValidation = false;
     /// Enable backend API validation layer.
     bool enableBackendValidation = false;
+    /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
+    bool enableRayTracingValidation = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
 };
@@ -2308,7 +2365,7 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) = 0;
+    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
@@ -2488,25 +2545,22 @@ inline const FormatInfo& getFormatInfo(Format format)
 struct D3D12ExperimentalFeaturesDesc
 {
     StructType structType = StructType::D3D12ExperimentalFeaturesDesc;
-    uint32_t featureCount;
-    const void* featureIIDs;
-    void* configurationStructs;
-    uint32_t* configurationStructSizes;
+    void* next = nullptr;
+
+    uint32_t featureCount = 0;
+    const void* featureIIDs = nullptr;
+    void* configurationStructs = nullptr;
+    uint32_t* configurationStructSizes = nullptr;
 };
 
 struct D3D12DeviceExtendedDesc
 {
     StructType structType = StructType::D3D12DeviceExtendedDesc;
+    void* next = nullptr;
+
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
     uint32_t highestShaderModel = 0;
-};
-
-/// Whether to enable ray tracing validation (currently only Vulkan - D3D requires app layer to use NVAPI)
-struct RayTracingValidationDesc
-{
-    StructType structType = StructType::RayTracingValidationDesc;
-    bool enableRaytracingValidation = false;
 };
 
 } // namespace rhi

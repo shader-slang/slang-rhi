@@ -20,6 +20,13 @@ namespace rhi {
 class Device;
 class CommandList;
 
+/// Common header for Desc struct types.
+struct DescStructHeader
+{
+    StructType type;
+    DescStructHeader* next;
+};
+
 // We use a `BreakableReference` to avoid the cyclic reference situation in rhi implementation.
 // It is a common scenario where objects created from an `IDevice` implementation needs to hold
 // a strong reference to the device object that creates them. For example, a `Buffer` or a
@@ -1320,7 +1327,7 @@ public:
         return result;
     }
 
-    Result init(const IShaderTable::Desc& desc);
+    Result init(const ShaderTableDesc& desc);
 };
 
 class Surface : public ISurface, public ComObject
@@ -1416,7 +1423,7 @@ public:
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) override;
+    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;

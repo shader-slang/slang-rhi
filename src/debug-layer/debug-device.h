@@ -88,7 +88,7 @@ public:
     getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable) override;
+    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable) override;
 
 private:
     DebugContext m_ctx;

@@ -295,7 +295,7 @@ struct BaseRayTracingTest
         const char* raygenNames[] = {"rayGenShaderA", "rayGenShaderB"};
         const char* missNames[] = {"missShaderA", "missShaderB"};
 
-        IShaderTable::Desc shaderTableDesc = {};
+        ShaderTableDesc shaderTableDesc = {};
         shaderTableDesc.program = rayTracingProgram;
         shaderTableDesc.hitGroupCount = 2;
         shaderTableDesc.hitGroupNames = hitgroupNames;

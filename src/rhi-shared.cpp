@@ -1187,7 +1187,7 @@ Result Device::createAccelerationStructure(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::createShaderTable(const IShaderTable::Desc& desc, IShaderTable** outTable)
+Result Device::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outTable);
@@ -1720,7 +1720,7 @@ Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRa
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result ShaderTable::init(const IShaderTable::Desc& desc)
+Result ShaderTable::init(const ShaderTableDesc& desc)
 {
     m_rayGenShaderCount = desc.rayGenShaderCount;
     m_missShaderCount = desc.missShaderCount;
