@@ -5,7 +5,11 @@
 
 namespace rhi::cuda {
 
-AccelerationStructureImpl::~AccelerationStructureImpl() {}
+AccelerationStructureImpl::~AccelerationStructureImpl()
+{
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_propertyBuffer));
+}
 
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {

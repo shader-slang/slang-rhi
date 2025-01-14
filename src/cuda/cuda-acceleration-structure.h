@@ -11,7 +11,7 @@ namespace rhi::cuda {
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
-    DeviceImpl* m_device;
+    BreakableReference<DeviceImpl> m_device;
     CUdeviceptr m_buffer;
     CUdeviceptr m_propertyBuffer;
     OptixTraversableHandle m_handle;
@@ -24,6 +24,8 @@ public:
     }
 
     ~AccelerationStructureImpl();
+
+    virtual void comFree() override { m_device.breakStrongReference(); }
 
     // IAccelerationStructure implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
