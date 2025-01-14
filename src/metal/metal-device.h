@@ -116,18 +116,6 @@ public:
     NS::Array* getAccelerationStructureArray();
 
     bool m_hasArgumentBufferTier2 = false;
-
-    // A list to hold objects that may have a strong back reference to the device
-    // instance. Because of the pipeline cache in `Device`, there could be a reference
-    // cycle among `DeviceImpl`->`PipelineImpl`->`ShaderProgramImpl`->`DeviceImpl`.
-    // Depending on whether a `PipelineState` objects gets stored in pipeline cache, there
-    // may or may not be such a reference cycle.
-    // We need to hold strong references to any objects that may become part of the reference
-    // cycle here, so that when objects like `ShaderProgramImpl` lost all public refernces, we
-    // can always safely break the strong reference in `ShaderProgramImpl::m_device` without
-    // worrying the `ShaderProgramImpl` object getting destroyed after the completion of
-    // `DeviceImpl::~DeviceImpl()'.
-    stable_vector<RefPtr<RefObject>, 1024> m_deviceObjectsWithPotentialBackReferences;
 };
 
 } // namespace rhi::metal

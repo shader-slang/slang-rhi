@@ -941,7 +941,7 @@ Result Device::getEntryPointCodeFromShaderCache(
 )
 {
     // Immediately call getEntryPointCode if shader cache is not available.
-    if (!persistentShaderCache)
+    if (!m_persistentShaderCache)
     {
         return program->getEntryPointCode(entryPointIndex, targetIndex, outCode, outDiagnostics);
     }
@@ -953,13 +953,13 @@ Result Device::getEntryPointCodeFromShaderCache(
 
     // Query the shader cache.
     ComPtr<ISlangBlob> codeBlob;
-    if (persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef()) != SLANG_OK)
+    if (m_persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef()) != SLANG_OK)
     {
         // No cached entry found. Generate the code and add it to the cache.
         SLANG_RETURN_ON_FAIL(
             program->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics)
         );
-        persistentShaderCache->writeCache(hashBlob, codeBlob);
+        m_persistentShaderCache->writeCache(hashBlob, codeBlob);
     }
 
     *outCode = codeBlob.detach();
@@ -983,7 +983,7 @@ Result Device::initialize(const DeviceDesc& desc)
 {
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
-    persistentShaderCache = desc.persistentShaderCache;
+    m_persistentShaderCache = desc.persistentShaderCache;
 
     if (desc.apiCommandDispatcher)
     {
@@ -1045,8 +1045,8 @@ Result Device::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 
 Result Device::getSlangSession(slang::ISession** outSlangSession)
 {
-    *outSlangSession = slangContext.session.get();
-    slangContext.session->addRef();
+    *outSlangSession = m_slangContext.session.get();
+    m_slangContext.session->addRef();
     return SLANG_OK;
 }
 
@@ -1154,7 +1154,7 @@ Result Device::createShaderObject(
 )
 {
     if (slangSession == nullptr)
-        slangSession = slangContext.session.get();
+        slangSession = m_slangContext.session.get();
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, container, shaderObjectLayout.writeRef()));
     return createShaderObject(shaderObjectLayout, outObject);
@@ -1163,7 +1163,7 @@ Result Device::createShaderObject(
 Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
-    SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
+    SLANG_RETURN_ON_FAIL(getShaderObjectLayout(m_slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     return createShaderObject(shaderObjectLayout, outObject);
 }
 
@@ -1357,7 +1357,7 @@ void ShaderObjectLayout::initBase(
     m_device = device;
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
-    m_componentID = m_device->shaderCache.getComponentId(m_elementTypeLayout->getType());
+    m_componentID = m_device->m_shaderCache.getComponentId(m_elementTypeLayout->getType());
 }
 
 // Get the final type this shader object represents. If the shader object's type has existential fields,
@@ -1380,12 +1380,12 @@ Result ShaderObjectBase::_getSpecializedShaderObjectType(ExtendedShaderObjectTyp
     }
     else
     {
-        shaderObjectType.slangType = getDevice()->slangContext.session->specializeType(
+        shaderObjectType.slangType = getDevice()->m_slangContext.session->specializeType(
             _getElementTypeLayout()->getType(),
             specializationArgs.components.data(),
             specializationArgs.getCount()
         );
-        shaderObjectType.componentID = getDevice()->shaderCache.getComponentId(shaderObjectType.slangType);
+        shaderObjectType.componentID = getDevice()->m_shaderCache.getComponentId(shaderObjectType.slangType);
     }
     *outType = shaderObjectType;
     return SLANG_OK;
@@ -1648,7 +1648,7 @@ Result Device::getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObj
 
     // Look up pipeline in cache.
     pipelineKey.updateHash();
-    RefPtr<Pipeline> concretePipeline = shaderCache.getSpecializedPipeline(pipelineKey);
+    RefPtr<Pipeline> concretePipeline = m_shaderCache.getSpecializedPipeline(pipelineKey);
     if (!concretePipeline)
     {
         // Specialize program if needed.
@@ -1692,7 +1692,9 @@ Result Device::getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObj
             break;
         }
         }
-        shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
+        m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
+        // Pipeline is owned by the cache.
+        concretePipeline->comFree();
     }
 
     outPipeline = concretePipeline;

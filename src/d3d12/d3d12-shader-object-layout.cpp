@@ -113,7 +113,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         bindingRangeInfo.resourceShape = slangLeafTypeLayout->getResourceShape();
         bindingRangeInfo.count = count;
         bindingRangeInfo.isRootParameter = isBindingRangeRootParameter(
-            m_device->slangContext.globalSession,
+            m_device->m_slangContext.globalSession,
             checked_cast<DeviceImpl*>(m_device)->m_extendedDesc.rootParameterShaderAttributeName,
             typeLayout,
             r
@@ -621,7 +621,7 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addBindingRange(
     auto firstDescriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
     Index descriptorRangeCount = typeLayout->getBindingRangeDescriptorRangeCount(bindingRangeIndex);
     bool isRootParameter = isBindingRangeRootParameter(
-        m_device->slangContext.globalSession,
+        m_device->m_slangContext.globalSession,
         m_device->m_extendedDesc.rootParameterShaderAttributeName,
         typeLayout,
         bindingRangeIndex

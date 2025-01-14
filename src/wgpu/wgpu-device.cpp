@@ -78,7 +78,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
     Result initDeviceResult = SLANG_OK;
     SLANG_RETURN_ON_FAIL(
-        slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
+        m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
     );
 
     std::vector<char const*> const enabledToggles = {"use_dxc"};

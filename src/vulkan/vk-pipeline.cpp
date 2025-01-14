@@ -244,9 +244,6 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
-
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipeline);
-
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
@@ -300,9 +297,6 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipeline = vkPipeline;
-
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipeline);
-
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
@@ -451,9 +445,6 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_pipeline = vkPipeline;
     pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
     pipeline->m_shaderGroupCount = shaderGroupInfos.size();
-
-    m_deviceObjectsWithPotentialBackReferences.push_back(pipeline);
-
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
