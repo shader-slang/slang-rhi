@@ -2171,6 +2171,8 @@ struct DeviceDesc
     bool enableValidation = false;
     /// Enable backend API validation layer.
     bool enableBackendValidation = false;
+    /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
+    bool enableRayTracingValidation = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
 };
@@ -2566,15 +2568,6 @@ struct D3D12DeviceExtendedDesc
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
     uint32_t highestShaderModel = 0;
-};
-
-/// Whether to enable ray tracing validation (currently only Vulkan - D3D requires app layer to use NVAPI)
-struct RayTracingValidationDesc
-{
-    StructType structType = StructType::RayTracingValidationDesc;
-    void* next = nullptr;
-
-    bool enableRaytracingValidation = false;
 };
 
 } // namespace rhi

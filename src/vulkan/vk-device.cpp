@@ -136,23 +136,13 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(const NativeHandle* handles, bool enableValidationLayer)
+Result DeviceImpl::initVulkanInstanceAndDevice(
+    const NativeHandle* handles,
+    bool enableValidationLayer,
+    bool enableRayTracingValidation
+)
 {
     m_features.clear();
-
-    bool enableRayTracingValidation = false;
-
-    // Process chained descs
-    for (StructHeader* header = static_cast<StructHeader*>(m_desc.next); header; header = header->next)
-    {
-        switch (header->type)
-        {
-        case StructType::RayTracingValidationDesc:
-            enableRayTracingValidation =
-                reinterpret_cast<RayTracingValidationDesc*>(header)->enableRaytracingValidation;
-            break;
-        }
-    }
 
     VkInstance instance = VK_NULL_HANDLE;
     if (!handles[0])
@@ -1076,8 +1066,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         if (initDeviceResult != SLANG_OK)
             continue;
         descriptorSetAllocator.m_api = &m_api;
-        initDeviceResult =
-            initVulkanInstanceAndDevice(desc.existingDeviceHandles.handles, desc.enableBackendValidation);
+        initDeviceResult = initVulkanInstanceAndDevice(
+            desc.existingDeviceHandles.handles,
+            desc.enableBackendValidation,
+            desc.enableRayTracingValidation
+        );
         if (initDeviceResult == SLANG_OK)
             break;
     }
