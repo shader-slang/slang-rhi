@@ -164,7 +164,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // In the future we need to either embed these into the slang compiler or slang-rhi.
     const char* optixIncludeOption = "-I" SLANG_RHI_OPTIX_INCLUDE_DIR;
 
-    SLANG_RETURN_ON_FAIL(slangContext.initialize(
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_PTX,
         "sm_5_1",

@@ -809,7 +809,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         );
         return SLANG_E_NOT_AVAILABLE;
     }
-    SLANG_RETURN_ON_FAIL(slangContext.initialize(
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         compileTarget,
         profileName,

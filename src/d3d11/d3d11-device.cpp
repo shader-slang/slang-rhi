@@ -25,7 +25,7 @@ namespace rhi::d3d11 {
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
-    SLANG_RETURN_ON_FAIL(slangContext.initialize(
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_DXBC,
         "sm_5_0",

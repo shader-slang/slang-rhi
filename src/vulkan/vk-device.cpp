@@ -38,7 +38,7 @@ DeviceImpl::~DeviceImpl()
     }
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
-    shaderCache.free();
+    m_shaderCache.free();
     m_deviceObjectsWithPotentialBackReferences.clear();
 
     if (m_api.vkDestroySampler)
@@ -1060,7 +1060,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     SLANG_RETURN_ON_FAIL(
-        slangContext
+        m_slangContext
             .initialize(desc.slang, SLANG_SPIRV, "sm_6_0", std::array{slang::PreprocessorMacroDesc{"__VK__", "1"}})
     );
 

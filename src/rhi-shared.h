@@ -1514,10 +1514,10 @@ protected:
     std::vector<std::string> m_features;
 
 public:
-    SlangContext slangContext;
-    ShaderCache shaderCache;
+    SlangContext m_slangContext;
+    ShaderCache m_shaderCache;
 
-    ComPtr<IPersistentShaderCache> persistentShaderCache;
+    ComPtr<IPersistentShaderCache> m_persistentShaderCache;
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
     ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
@@ -1553,8 +1553,8 @@ void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObj
         {
             if (m_structuredBufferSpecializationArgs[i].componentID != specializationArgs[i].componentID)
             {
-                auto dynamicType = device->slangContext.session->getDynamicType();
-                m_structuredBufferSpecializationArgs.componentIDs[i] = device->shaderCache.getComponentId(dynamicType);
+                auto dynamicType = device->m_slangContext.session->getDynamicType();
+                m_structuredBufferSpecializationArgs.componentIDs[i] = device->m_shaderCache.getComponentId(dynamicType);
                 m_structuredBufferSpecializationArgs.components[i] = slang::SpecializationArg::fromType(dynamicType);
             }
         }
@@ -1578,7 +1578,7 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
         {
         case slang::SpecializationArg::Kind::Type:
             extendedType.slangType = args[i].type;
-            extendedType.componentID = device->shaderCache.getComponentId(args[i].type);
+            extendedType.componentID = device->m_shaderCache.getComponentId(args[i].type);
             break;
         default:
             SLANG_RHI_ASSERT_FAILURE("Unexpected specialization argument kind.");
@@ -1682,8 +1682,8 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
                 {
                     if (args[i + oldArgsCount].componentID != typeArgs[i].componentID)
                     {
-                        auto dynamicType = device->slangContext.session->getDynamicType();
-                        args.componentIDs[i + oldArgsCount] = device->shaderCache.getComponentId(dynamicType);
+                        auto dynamicType = device->m_slangContext.session->getDynamicType();
+                        args.componentIDs[i + oldArgsCount] = device->m_shaderCache.getComponentId(dynamicType);
                         args.components[i + oldArgsCount] = slang::SpecializationArg::fromType(dynamicType);
                     }
                 }
