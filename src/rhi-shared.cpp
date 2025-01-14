@@ -1693,6 +1693,8 @@ Result Device::getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObj
         }
         }
         m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
+        // Pipeline is owned by the cache.
+        concretePipeline->comFree();
     }
 
     outPipeline = concretePipeline;

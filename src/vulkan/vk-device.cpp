@@ -39,7 +39,6 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_shaderCache.free();
-    m_deviceObjectsWithPotentialBackReferences.clear();
 
     if (m_api.vkDestroySampler)
     {
@@ -1624,8 +1623,6 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
-
-    m_deviceObjectsWithPotentialBackReferences.push_back(shaderProgram);
 
     RootShaderObjectLayout::create(
         this,
