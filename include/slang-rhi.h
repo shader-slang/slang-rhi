@@ -138,7 +138,7 @@ struct ShaderProgramDesc
     LinkingStyle linkingStyle = LinkingStyle::SingleProgram;
 
     // The global scope or a Slang composite component that represents the entire program.
-    slang::IComponentType* slangGlobalScope;
+    slang::IComponentType* slangGlobalScope = nullptr;
 
     // An array of Slang entry points. The size of the array must be `slangEntryPointCount`.
     // Each element must define only 1 Slang EntryPoint.
@@ -1442,23 +1442,23 @@ struct ShaderTableDesc
     StructType structType = StructType::ShaderTableDesc;
     void* next = nullptr;
 
-    GfxCount rayGenShaderCount;
-    const char** rayGenShaderEntryPointNames;
-    const ShaderRecordOverwrite* rayGenShaderRecordOverwrites;
+    GfxCount rayGenShaderCount = 0;
+    const char** rayGenShaderEntryPointNames = nullptr;
+    const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
 
-    GfxCount missShaderCount;
-    const char** missShaderEntryPointNames;
-    const ShaderRecordOverwrite* missShaderRecordOverwrites;
+    GfxCount missShaderCount = 0;
+    const char** missShaderEntryPointNames = nullptr;
+    const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
 
-    GfxCount hitGroupCount;
-    const char** hitGroupNames;
-    const ShaderRecordOverwrite* hitGroupRecordOverwrites;
+    GfxCount hitGroupCount = 0;
+    const char** hitGroupNames = nullptr;
+    const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
 
-    GfxCount callableShaderCount;
-    const char** callableShaderEntryPointNames;
-    const ShaderRecordOverwrite* callableShaderRecordOverwrites;
+    GfxCount callableShaderCount = 0;
+    const char** callableShaderEntryPointNames = nullptr;
+    const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
-    IShaderProgram* program;
+    IShaderProgram* program = nullptr;
 };
 
 class IShaderTable : public ISlangUnknown
@@ -1616,8 +1616,8 @@ struct QueryPoolDesc
     StructType structType = StructType::QueryPoolDesc;
     void* next = nullptr;
 
-    QueryType type;
-    GfxCount count;
+    QueryType type = QueryType::Timestamp;
+    GfxCount count = 0;
 
     const char* label = nullptr;
 };
