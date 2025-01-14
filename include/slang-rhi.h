@@ -87,12 +87,6 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 };
 
-struct StructHeader
-{
-    StructType type;
-    StructHeader* next;
-};
-
 // TODO: Implementation or backend or something else?
 enum class DeviceType
 {

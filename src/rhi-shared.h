@@ -20,6 +20,13 @@ namespace rhi {
 class Device;
 class CommandList;
 
+/// Common header for Desc struct types.
+struct DescStructHeader
+{
+    StructType type;
+    DescStructHeader* next;
+};
+
 // We use a `BreakableReference` to avoid the cyclic reference situation in rhi implementation.
 // It is a common scenario where objects created from an `IDevice` implementation needs to hold
 // a strong reference to the device object that creates them. For example, a `Buffer` or a

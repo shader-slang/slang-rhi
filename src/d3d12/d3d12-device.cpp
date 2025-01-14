@@ -377,7 +377,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Process chained descs
-    for (StructHeader* header = static_cast<StructHeader*>(desc.next); header; header = header->next)
+    for (DescStructHeader* header = static_cast<DescStructHeader*>(desc.next); header; header = header->next)
     {
         switch (header->type)
         {
