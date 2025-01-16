@@ -1,8 +1,5 @@
 #pragma once
 
-#include <assert.h>
-#include <float.h>
-
 #include <slang-com-ptr.h>
 #include <slang.h>
 
