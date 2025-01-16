@@ -367,6 +367,20 @@ ComPtr<IDevice> createTestingDevice(
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
 
+#ifdef _DEBUG
+    const char* features[128];
+    GfxCount featureCount;
+    REQUIRE_CALL(device->getFeatures(features, SLANG_COUNT_OF(features), &featureCount));
+    std::string featureStr;
+    for (GfxIndex i = 0; i < featureCount; i++)
+    {
+        featureStr += features[i];
+        if (i < featureCount - 1)
+            featureStr += " ";
+    }
+    MESSAGE("Device features: ", featureStr);
+#endif
+
     if (useCachedDevice)
     {
         gCachedDevices[deviceType] = device;
