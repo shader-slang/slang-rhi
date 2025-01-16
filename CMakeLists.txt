@@ -191,7 +191,7 @@ endif()
 # Fetch NVAPI
 if(SLANG_RHI_ENABLE_NVAPI)
     # NVAPI
-    set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
+    set(NVAPI_VERSION "67af97007f59c248c01e520d8c8fb70e243a3240")
     FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
     set(NVAPI_ROOT_DIR ${nvapi_SOURCE_DIR})
 
