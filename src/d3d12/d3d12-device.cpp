@@ -528,42 +528,53 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
-    if (SLANG_FAILED(NVAPIUtil::initialize()))
     {
-        return SLANG_E_NOT_AVAILABLE;
-    }
+        if (SLANG_FAILED(NVAPIUtil::initialize()))
+        {
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+        {
+            m_features.push_back("atomic-int64");
+        }
+        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
+        {
+            m_features.push_back("atomic-half");
+        }
+        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
+        {
+            m_features.push_back("atomic-float");
+        }
+        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
+        {
+            m_features.push_back("realtime-clock");
+        }
+        NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
+        if (NvAPI_D3D12_GetRaytracingCaps(
+                m_device,
+                NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
+                &reorderingCaps,
+                sizeof(reorderingCaps)
+            ) == NVAPI_OK &&
+            reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
+        {
+            m_features.push_back("ray-tracing-reordering");
+        }
 
-    if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
-    {
-        m_features.push_back("atomic-int64");
-    }
-    if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
-    {
-        m_features.push_back("atomic-half");
-    }
-    if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
-    {
-        m_features.push_back("atomic-float");
-    }
-
-    // If we have NVAPI well assume we have realtime clock
-    {
-        m_features.push_back("realtime-clock");
-    }
-
-    // Enable ray tracing validation if requested
+        // Enable ray tracing validation if requested
 #if SLANG_RHI_DXR
-    if (m_desc.enableRayTracingValidation)
-    {
-        NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE);
-        NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
-            m_device5,
-            &raytracingValidationMessageCallback,
-            this,
-            &m_raytracingValidationHandle
-        );
-    }
+        if (m_desc.enableRayTracingValidation)
+        {
+            NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE);
+            NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
+                m_device5,
+                &raytracingValidationMessageCallback,
+                this,
+                &m_raytracingValidationHandle
+            );
+        }
 #endif // SLANG_RHI_DXR
+    }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
