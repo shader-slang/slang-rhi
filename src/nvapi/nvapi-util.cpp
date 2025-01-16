@@ -26,4 +26,20 @@ bool NVAPIUtil::isAvailable()
     return SLANG_SUCCEEDED(g_initStatus);
 }
 
+NVAPIShaderExtension NVAPIUtil::findShaderExtension(slang::ProgramLayout* layout)
+{
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!layout || !NVAPIUtil::isAvailable())
+        return {};
+    slang::TypeLayoutReflection* globalTypeLayout = layout->getGlobalParamsVarLayout()->getTypeLayout();
+    int index = globalTypeLayout->findFieldIndexByName("g_NvidiaExt");
+    if (index != -1)
+    {
+        slang::VariableLayoutReflection* field = globalTypeLayout->getFieldByIndex((unsigned int)index);
+        return {field->getBindingSpace(), field->getBindingIndex()};
+    }
+#endif
+    return {};
+}
+
 } // namespace rhi

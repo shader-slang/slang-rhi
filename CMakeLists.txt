@@ -384,7 +384,6 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-pipeline.cpp
         src/d3d11/d3d11-query.cpp
         src/d3d11/d3d11-sampler.cpp
-        src/d3d11/d3d11-scopeNVAPI.cpp
         src/d3d11/d3d11-shader-object-layout.cpp
         src/d3d11/d3d11-shader-object.cpp
         src/d3d11/d3d11-shader-program.cpp

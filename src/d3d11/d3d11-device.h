@@ -74,8 +74,6 @@ public:
     ComPtr<ID3D11Query> m_disjointQuery;
 
     DeviceDesc m_desc;
-
-    bool m_nvapi = false;
 };
 
 } // namespace rhi::d3d11

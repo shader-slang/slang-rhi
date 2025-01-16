@@ -87,7 +87,6 @@ public:
     PFN_EndEventOnCommandList m_EndEventOnCommandList = nullptr;
     PFN_SetMarkerOnCommandList m_SetMarkerOnCommandList = nullptr;
 
-    bool m_nvapi = false;
 #if SLANG_RHI_ENABLE_NVAPI && SLANG_RHI_DXR
     void* m_raytracingValidationHandle = nullptr;
 #endif
