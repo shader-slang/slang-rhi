@@ -1,12 +1,12 @@
 #include "testing.h"
+#include <slang-rhi/agility-sdk.h>
 
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest.h>
 
 #include "doctest-reporter.h"
 
-// TODO_TESTING
-// SLANG_RHI_EXPORT_AGILITY_SDK
+SLANG_RHI_EXPORT_AGILITY_SDK
 
 namespace rhi::testing {
 
