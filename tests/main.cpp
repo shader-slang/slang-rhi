@@ -1,11 +1,12 @@
 #include "testing.h"
+#include <slang-rhi/agility-sdk.h>
 
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest.h>
 
 #include "doctest-reporter.h"
 
-// TODO_TESTING
+// Due to current issues in slang we don't enable Agility SDK yet
 // SLANG_RHI_EXPORT_AGILITY_SDK
 
 namespace rhi::testing {
