@@ -331,33 +331,77 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.persistentShaderCache = &gShaderCache;
 #endif
 
-    std::vector<slang::CompilerOptionEntry> entries;
+    std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
+
     slang::CompilerOptionEntry emitSpirvDirectlyEntry;
     emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
     emitSpirvDirectlyEntry.value.intValue0 = 1;
-    entries.push_back(emitSpirvDirectlyEntry);
+    compilerOptions.push_back(emitSpirvDirectlyEntry);
 #if DEBUG_SPIRV
     slang::CompilerOptionEntry debugLevelCompilerOptionEntry;
     debugLevelCompilerOptionEntry.name = slang::CompilerOptionName::DebugInformation;
     debugLevelCompilerOptionEntry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_STANDARD;
-    entries.push_back(debugLevelCompilerOptionEntry);
+    compilerOptions.push_back(debugLevelCompilerOptionEntry);
 #endif
 #if DUMP_INTERMEDIATES
     slang::CompilerOptionEntry dumpIntermediatesOptionEntry;
     dumpIntermediatesOptionEntry.name = slang::CompilerOptionName::DumpIntermediates;
     dumpIntermediatesOptionEntry.value.intValue0 = 1;
-    entries.push_back(dumpIntermediatesOptionEntry);
+    compilerOptions.push_back(dumpIntermediatesOptionEntry);
 #endif
-    deviceDesc.slang.compilerOptionEntries = entries.data();
-    deviceDesc.slang.compilerOptionEntryCount = entries.size();
+
+#if SLANG_RHI_ENABLE_NVAPI
+    // Setup NVAPI shader extension
+    if (deviceType == DeviceType::D3D11)
+    {
+        deviceDesc.nvapiExtUavSlot = 999;
+        preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
+        slang::CompilerOptionEntry nvapiSearchPath;
+        nvapiSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
+        nvapiSearchPath.value.kind = slang::CompilerOptionValueKind::String;
+        nvapiSearchPath.value.stringValue0 = "fxc";
+        nvapiSearchPath.value.stringValue1 = "/I" SLANG_RHI_NVAPI_INCLUDE_DIR;
+        compilerOptions.push_back(nvapiSearchPath);
+    }
+    if (deviceType == DeviceType::D3D12)
+    {
+        deviceDesc.nvapiExtUavSlot = 999;
+        preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
+        slang::CompilerOptionEntry nvapiSearchPath;
+        nvapiSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
+        nvapiSearchPath.value.kind = slang::CompilerOptionValueKind::String;
+        nvapiSearchPath.value.stringValue0 = "dxc";
+        nvapiSearchPath.value.stringValue1 = "-I" SLANG_RHI_NVAPI_INCLUDE_DIR;
+        compilerOptions.push_back(nvapiSearchPath);
+    }
+#endif
+
+#if SLANG_RHI_ENABLE_OPTIX
+    // Setup Optix headers
+    if (deviceType == DeviceType::CUDA)
+    {
+        slang::CompilerOptionEntry optixSearchPath;
+        optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
+        optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
+        optixSearchPath.value.stringValue0 = "nvrtc";
+        optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_INCLUDE_DIR;
+        compilerOptions.push_back(optixSearchPath);
+    }
+
+    deviceDesc.slang.preprocessorMacros = preprocessorMacros.data();
+    deviceDesc.slang.preprocessorMacroCount = preprocessorMacros.size();
+    deviceDesc.slang.compilerOptionEntries = compilerOptions.data();
+    deviceDesc.slang.compilerOptionEntryCount = compilerOptions.size();
+#endif
 
     D3D12DeviceExtendedDesc extDesc = {};
-    extDesc.rootParameterShaderAttributeName = "root";
-    deviceDesc.next = &extDesc;
+    if (deviceType == DeviceType::D3D12)
+    {
+        extDesc.rootParameterShaderAttributeName = "root";
+        deviceDesc.next = &extDesc;
+    }
 
-    // TODO: We should also set the debug callback
-    // (And in general reduce the differences (and duplication) between
-    // here and render-test-main.cpp)
 #ifdef _DEBUG
     deviceDesc.enableValidation = true;
     deviceDesc.enableBackendValidation = true;
