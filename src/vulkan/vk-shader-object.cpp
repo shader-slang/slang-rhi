@@ -77,12 +77,12 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
     auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
+
+    auto bindingRangeIndex = offset.bindingArrayIndex;
+    if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
+    const auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
     Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
@@ -216,7 +216,7 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
         // in each entry in this range, based on the layout
         // information we already have.
 
-        auto& bindingRangeInfo = layout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
+        const auto& bindingRangeInfo = layout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
         for (Index i = 0; i < bindingRangeInfo.count; ++i)
         {
             RefPtr<ShaderObjectImpl> subObject;

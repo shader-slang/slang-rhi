@@ -112,37 +112,6 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
     }
 }
 
-size_t ShaderObjectLayoutImpl::getSize()
-{
-    return m_size;
-}
-
-Index ShaderObjectLayoutImpl::getResourceCount() const
-{
-    return m_resourceCount;
-}
-Index ShaderObjectLayoutImpl::getSubObjectCount() const
-{
-    return m_subObjectCount;
-}
-std::vector<SubObjectRangeInfo>& ShaderObjectLayoutImpl::getSubObjectRanges()
-{
-    return subObjectRanges;
-}
-BindingRangeInfo ShaderObjectLayoutImpl::getBindingRange(Index index)
-{
-    return m_bindingRanges[index];
-}
-Index ShaderObjectLayoutImpl::getBindingRangeCount() const
-{
-    return m_bindingRanges.size();
-}
-
-const char* EntryPointLayoutImpl::getEntryPointName()
-{
-    return m_entryPointLayout->getName();
-}
-
 RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
     Device* device,
     slang::ISession* session,

@@ -152,11 +152,10 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
-    SLANG_RHI_ASSERT(bindingRangeIndex >= 0);
-    SLANG_RHI_ASSERT(bindingRangeIndex < layout->m_bindingRanges.size());
-
-    auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
-    auto viewIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+    if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
+        return SLANG_E_INVALID_ARG;
+    const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
+    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
     switch (binding.type)
     {

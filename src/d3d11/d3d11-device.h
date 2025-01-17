@@ -79,7 +79,6 @@ public:
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;
 #endif
-
 };
 
 } // namespace rhi::d3d11

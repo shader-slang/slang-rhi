@@ -816,7 +816,7 @@ Result RootShaderObjectLayout::addChildDescriptorSetsRec(ShaderObjectLayoutImpl*
 {
     for (auto& subObject : layout->getSubObjectRanges())
     {
-        auto bindingRange = layout->getBindingRange(subObject.bindingRangeIndex);
+        const auto& bindingRange = layout->getBindingRange(subObject.bindingRangeIndex);
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::ParameterBlock:

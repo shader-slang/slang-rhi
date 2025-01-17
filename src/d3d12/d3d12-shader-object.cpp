@@ -149,7 +149,7 @@ Result ShaderObjectImpl::init(
         // in each entry in this range, based on the layout
         // information we already have.
 
-        auto& bindingRangeInfo = layout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
+        const auto& bindingRangeInfo = layout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
         for (uint32_t i = 0; i < bindingRangeInfo.count; ++i)
         {
             RefPtr<ShaderObjectImpl> subObject;
@@ -588,7 +588,7 @@ Result ShaderObjectImpl::_bindImpl(
     for (Index i = 0; i < subObjectRangeCount; i++)
     {
         auto& subObjectRange = specializedLayout->getSubObjectRange(i);
-        auto& bindingRange = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
+        const auto& bindingRange = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
         auto subObjectIndex = bindingRange.subObjectIndex;
         auto subObjectLayout = subObjectRange.layout.get();
 

@@ -107,27 +107,6 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
     }
 }
 
-Index ShaderObjectLayoutImpl::getResourceCount() const
-{
-    return m_resourceCount;
-}
-Index ShaderObjectLayoutImpl::getSubObjectCount() const
-{
-    return m_subObjectCount;
-}
-std::vector<SubObjectRangeInfo>& ShaderObjectLayoutImpl::getSubObjectRanges()
-{
-    return subObjectRanges;
-}
-BindingRangeInfo ShaderObjectLayoutImpl::getBindingRange(Index index)
-{
-    return m_bindingRanges[index];
-}
-Index ShaderObjectLayoutImpl::getBindingRangeCount() const
-{
-    return m_bindingRanges.size();
-}
-
 RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* inProgramLayout)
     : ShaderObjectLayoutImpl(device, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout())
     , programLayout(inProgramLayout)
