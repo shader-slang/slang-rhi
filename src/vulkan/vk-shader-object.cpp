@@ -92,6 +92,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Buffer:
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
+        if (!buffer)
+            return SLANG_E_INVALID_ARG;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
         slot.format = slot.format != Format::Unknown ? slot.format : buffer->m_desc.format;
@@ -112,12 +114,17 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Texture:
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
+        if (!texture)
+            return SLANG_E_INVALID_ARG;
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
+        if (!textureView)
+            return SLANG_E_INVALID_ARG;
         slot.type = BindingType::TextureView;
-        slot.resource = checked_cast<TextureViewImpl*>(binding.resource);
+        slot.resource = textureView;
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::Texture:
@@ -130,25 +137,41 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource);
+    {
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
+        if (!sampler)
+            return SLANG_E_INVALID_ARG;
+        m_samplers[bindingIndex] = sampler;
         break;
+    }
     case BindingType::CombinedTextureSampler:
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2);
+        if (!texture || !sampler)
+            return SLANG_E_INVALID_ARG;
         return setBinding(offset, Binding(m_device->createTextureView(texture, {}), sampler));
     }
     case BindingType::CombinedTextureViewSampler:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2);
+        if (!textureView || !sampler)
+            return SLANG_E_INVALID_ARG;
         m_combinedTextureSamplers[bindingIndex] = CombinedTextureSamplerSlot{textureView, sampler};
         break;
     }
     case BindingType::AccelerationStructure:
+    {
+        AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(binding.resource);
+        if (!as)
+            return SLANG_E_INVALID_ARG;
         slot.type = BindingType::AccelerationStructure;
-        slot.resource = checked_cast<AccelerationStructureImpl*>(binding.resource);
+        slot.resource = as;
         break;
+    }
+    default:
+        return SLANG_E_INVALID_ARG;
     }
 
     return SLANG_OK;

@@ -162,52 +162,48 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Buffer:
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
+        if (!buffer)
+            return SLANG_E_INVALID_ARG;
+        m_resources[bindingIndex] = buffer;
         const BufferDesc& desc = buffer->m_desc;
         BufferRange range = buffer->resolveBufferRange(binding.bufferRange);
-        m_resources[bindingIndex] = buffer;
-
-        void* dataPtr = (uint8_t*)buffer->m_data + range.offset;
+        void* data = (uint8_t*)buffer->m_data + range.offset;
         size_t size = range.size;
         if (desc.elementSize > 1)
             size /= desc.elementSize;
-
-        auto ptrOffset = offset;
-        SLANG_RETURN_ON_FAIL(setData(ptrOffset, &dataPtr, sizeof(dataPtr)));
-
+        SLANG_RETURN_ON_FAIL(setData(offset, &data, sizeof(data)));
         auto sizeOffset = offset;
-        sizeOffset.uniformOffset += sizeof(dataPtr);
+        sizeOffset.uniformOffset += sizeof(data);
         SLANG_RETURN_ON_FAIL(setData(sizeOffset, &size, sizeof(size)));
         break;
     }
     case BindingType::Texture:
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
+        if (!texture)
+            return SLANG_E_INVALID_ARG;
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
-        auto textureView = checked_cast<TextureViewImpl*>(binding.resource);
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
+        if (!textureView)
+            return SLANG_E_INVALID_ARG;
         m_resources[bindingIndex] = textureView;
         slang_prelude::IRWTexture* textureObj = textureView;
         SLANG_RETURN_ON_FAIL(setData(offset, &textureObj, sizeof(textureObj)));
         break;
     }
     case BindingType::Sampler:
-    {
-        break;
-    }
     case BindingType::CombinedTextureSampler:
-    {
-        break;
-    }
     case BindingType::CombinedTextureViewSampler:
-    {
-        break;
-    }
     case BindingType::AccelerationStructure:
     {
+        // discard these, avoids some tests to fail
         break;
     }
+    default:
+        return SLANG_E_INVALID_ARG;
     }
 
     return SLANG_OK;

@@ -81,7 +81,8 @@ public:
         const;
 
     // Set of resources to keep alive while this object is alive.
-    std::set<RefPtr<Resource>> m_resources;
+    std::vector<RefPtr<Resource>> m_srvResources;
+    std::vector<RefPtr<Resource>> m_uavResources;
 
     // Because the binding ranges have already been reflected
     // and organized as part of each shader object layout,

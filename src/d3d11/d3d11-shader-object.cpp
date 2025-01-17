@@ -58,14 +58,17 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Buffer:
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
+        if (!buffer)
+            return SLANG_E_INVALID_ARG;
         BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
-        m_resources.emplace(buffer);
         if (D3DUtil::isUAVBinding(bindingRange.bindingType))
         {
+            m_uavResources[bindingIndex] = buffer;
             m_uavs[bindingIndex] = buffer->getUAV(buffer->m_desc.format, bufferRange);
         }
         else
         {
+            m_srvResources[bindingIndex] = buffer;
             m_srvs[bindingIndex] = buffer->getSRV(buffer->m_desc.format, bufferRange);
         }
         break;
@@ -73,31 +76,42 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Texture:
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
+        if (!texture)
+            return SLANG_E_INVALID_ARG;
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
-        m_resources.emplace(textureView);
+        if (!textureView)
+            return SLANG_E_INVALID_ARG;
         if (D3DUtil::isUAVBinding(bindingRange.bindingType))
         {
+            m_uavResources[bindingIndex] = textureView;
             m_uavs[bindingIndex] = textureView->getUAV();
         }
         else
         {
+            m_srvResources[bindingIndex] = textureView;
             m_srvs[bindingIndex] = textureView->getSRV();
         }
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource);
+    {
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
+        if (!sampler)
+            return SLANG_E_INVALID_ARG;
+        m_samplers[bindingIndex] = sampler;
         break;
+    }
     case BindingType::CombinedTextureSampler:
-        break;
     case BindingType::CombinedTextureViewSampler:
-        break;
     case BindingType::AccelerationStructure:
+        // discard these, avoids some tests to fail
         break;
+    default:
+        return SLANG_E_INVALID_ARG;
     }
 
     return SLANG_OK;
@@ -125,9 +139,11 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
         memset(m_data.getBuffer(), 0, uniformSize);
     }
 
+    m_uavResources.resize(layout->getUAVCount());
+    m_srvResources.resize(layout->getSRVCount());
+    m_uavs.resize(layout->getUAVCount());
     m_srvs.resize(layout->getSRVCount());
     m_samplers.resize(layout->getSamplerCount());
-    m_uavs.resize(layout->getUAVCount());
 
     // If the layout specifies that we have any sub-objects, then
     // we need to size the array to account for them.

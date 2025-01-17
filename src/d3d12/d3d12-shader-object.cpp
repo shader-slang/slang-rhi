@@ -754,9 +754,10 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
     auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
-    ID3D12Device* d3dDevice = checked_cast<DeviceImpl*>(getDevice())->m_device;
-
     BoundResource& boundResource = m_boundResources[bindingIndex];
+
+    DeviceImpl* device = checked_cast<DeviceImpl*>(m_device.get());
+    ID3D12Device* d3dDevice = device->m_device;
 
     switch (binding.type)
     {
@@ -765,10 +766,14 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         BufferImpl* counterBuffer = checked_cast<BufferImpl*>(binding.resource2);
-        BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        if (!buffer)
+            return SLANG_E_INVALID_ARG;
+        if (binding.type == BindingType::BufferWithCounter && !counterBuffer)
+            return SLANG_E_INVALID_ARG;
         boundResource.type = BoundResourceType::Buffer;
         boundResource.resource = buffer;
         boundResource.counterResource = counterBuffer;
+        BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         if (bindingRange.isRootParameter)
         {
             m_rootArguments[bindingRange.baseIndex] = buffer->getDeviceAddress() + bufferRange.offset;
@@ -810,11 +815,15 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Texture:
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
+        if (!texture)
+            return SLANG_E_INVALID_ARG;
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
+        if (!textureView)
+            return SLANG_E_INVALID_ARG;
         boundResource.type = BoundResourceType::TextureView;
         boundResource.resource = textureView;
         D3D12Descriptor descriptor;
@@ -842,6 +851,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Sampler:
     {
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
+        if (!sampler)
+            return SLANG_E_INVALID_ARG;
         d3dDevice->CopyDescriptorsSimple(
             1,
             m_descriptorSet.samplerTable.getCpuHandle(bindingIndex),
@@ -854,12 +865,16 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2);
+        if (!texture || !sampler)
+            return SLANG_E_INVALID_ARG;
         return setBinding(offset, Binding(m_device->createTextureView(texture, {}), sampler));
     }
     case BindingType::CombinedTextureViewSampler:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2);
+        if (!textureView || !sampler)
+            return SLANG_E_INVALID_ARG;
         boundResource.type = BoundResourceType::TextureView;
         boundResource.resource = textureView;
         boundResource.requiredState = ResourceState::ShaderResource;
@@ -880,6 +895,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::AccelerationStructure:
     {
         AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(binding.resource);
+        if (!as)
+            return SLANG_E_INVALID_ARG;
         boundResource.type = BoundResourceType::AccelerationStructure;
         boundResource.resource = as;
         if (bindingRange.isRootParameter)
@@ -897,6 +914,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         }
         break;
     }
+    default:
+        return SLANG_E_INVALID_ARG;
     }
 
     return SLANG_OK;
