@@ -423,6 +423,21 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
 {
     setElementTypeLayout(globalsLayout->getTypeLayout());
+
+#if 0
+    auto index = globalsLayout->getTypeLayout()->findFieldIndexByName("g_NvidiaExt");
+    if (index < 0)
+    {
+        BindingRangeInfo bindingRangeInfo = {};
+        bindingRangeInfo.bindingType = slang::BindingType::MutableRawBuffer;
+        bindingRangeInfo.resourceShape = SlangResourceShape::SLANG_STRUCTURED_BUFFER;
+        bindingRangeInfo.count = 1;
+        bindingRangeInfo.baseIndex = m_ownCounts.resource;
+        bindingRangeInfo.subObjectIndex = checked_cast<DeviceImpl*>(m_device)->m_nvapiShaderExtension.uavSlot;
+        m_bindingRanges.push_back(bindingRangeInfo);
+        m_ownCounts.resource++;
+    }
+#endif
 }
 
 void RootShaderObjectLayoutImpl::Builder::addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout)
@@ -930,6 +945,41 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         auto entryPoint = layout->getEntryPointByIndex(i);
         builder.addAsValue(entryPoint->getVarLayout(), rootDescriptorSetIndex);
     }
+
+    // This is a bit of a hack.
+    // If a shader is compiled that uses NVAPI shader extensions through slang stblib
+    // intrinsics, then the downstream prelude adds the NVAPI includes.
+    // In that case the NVAPI UAV `g_NvidiaExt` is not reflected through slang's reflection API.
+    // We add the UAV to the root signature here instead.
+#if 0 // SLANG_RHI_ENABLE_NVAPI
+    if (device->m_nvapiShaderExtension)
+    {
+        bool found = false;
+        for (const auto& resourceRange : builder.m_descriptorSets[0].m_resourceRanges)
+        {
+            if (resourceRange.RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_UAV &&
+                resourceRange.BaseShaderRegister == device->m_nvapiShaderExtension.uavSlot &&
+                resourceRange.RegisterSpace == device->m_nvapiShaderExtension.registerSpace)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            builder.addDescriptorRange(
+                0,
+                D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+                device->m_nvapiShaderExtension.uavSlot,
+                device->m_nvapiShaderExtension.registerSpace,
+                1,
+                false
+            );
+            builder.m_descriptorSets[0].m_resourceCount++;
+            rootLayout->m_totalCounts.resource++;
+        }
+    }
+#endif
 
     auto& rootSignatureDesc = builder.build();
     D3D12_VERSIONED_ROOT_SIGNATURE_DESC versionedDesc = {};
