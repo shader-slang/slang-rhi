@@ -48,7 +48,7 @@ struct SimpleBindingOffset
     }
 
     /// Add any values in the given `offset`
-    void operator+=(SimpleBindingOffset const& offset)
+    void operator+=(const SimpleBindingOffset& offset)
     {
         binding += offset.binding;
         bindingSet += offset.bindingSet;
@@ -78,7 +78,7 @@ struct BindingOffset : SimpleBindingOffset
     BindingOffset() {}
 
     /// Create an offset from a simple offset
-    explicit BindingOffset(SimpleBindingOffset const& offset)
+    explicit BindingOffset(const SimpleBindingOffset& offset)
         : SimpleBindingOffset(offset)
     {
     }
@@ -91,10 +91,10 @@ struct BindingOffset : SimpleBindingOffset
     }
 
     /// Add any values in the given `offset`
-    void operator+=(SimpleBindingOffset const& offset) { SimpleBindingOffset::operator+=(offset); }
+    void operator+=(const SimpleBindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
 
     /// Add any values in the given `offset`
-    void operator+=(BindingOffset const& offset)
+    void operator+=(const BindingOffset& offset)
     {
         SimpleBindingOffset::operator+=(offset);
         pending += offset.pending;
@@ -254,7 +254,7 @@ public:
 
         /// Add any descriptor ranges implied by this object containing a leaf
         /// sub-object described by `typeLayout`, at the given `offset`.
-        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, BindingOffset const& offset);
+        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, const BindingOffset& offset);
 
         /// Add the descriptor ranges implied by a `ConstantBuffer<X>` where `X` is
         /// described by `elementTypeLayout`.
@@ -264,8 +264,8 @@ public:
         ///
         void _addDescriptorRangesAsConstantBuffer(
             slang::TypeLayoutReflection* elementTypeLayout,
-            BindingOffset const& containerOffset,
-            BindingOffset const& elementOffset
+            const BindingOffset& containerOffset,
+            const BindingOffset& elementOffset
         );
 
         /// Add binding ranges to this shader object layout, as implied by the given
@@ -294,7 +294,7 @@ public:
     /// Get information about the descriptor sets that would be allocated to
     /// represent this object itself as a parameter block.
     ///
-    std::vector<DescriptorSetInfo> const& getOwnDescriptorSets() { return m_descriptorSetInfos; }
+    const std::vector<DescriptorSetInfo>& getOwnDescriptorSets() { return m_descriptorSetInfos; }
 
     /// Get the number of descriptor sets that would need to be allocated and bound
     /// to represent the children of this object if it were bound as a parameter
@@ -321,25 +321,25 @@ public:
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
-    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
 
     Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
-    BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
+    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
     Index getResourceCount() { return m_resourceCount; }
     Index getSamplerCount() { return m_samplerCount; }
     Index getSubObjectCount() { return m_subObjectCount; }
 
-    SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
+    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
 
     DeviceImpl* getDevice();
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     std::vector<DescriptorSetInfo> m_descriptorSetInfos;
     std::vector<BindingRangeInfo> m_bindingRanges;
@@ -374,7 +374,7 @@ public:
         SlangStage m_shaderStageFlag;
     };
 
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     SlangStage getShaderStageFlag() const { return m_shaderStageFlag; }
 
@@ -426,9 +426,9 @@ public:
 
     Index findEntryPointIndex(SlangStage stage);
 
-    EntryPointInfo const& getEntryPoint(Index index) { return m_entryPoints[index]; }
+    const EntryPointInfo& getEntryPoint(Index index) { return m_entryPoints[index]; }
 
-    std::vector<EntryPointInfo> const& getEntryPoints() const { return m_entryPoints; }
+    const std::vector<EntryPointInfo>& getEntryPoints() const { return m_entryPoints; }
 
     static Result create(
         DeviceImpl* device,
@@ -437,13 +437,13 @@ public:
         RootShaderObjectLayout** outLayout
     );
 
-    SimpleBindingOffset const& getPendingDataOffset() const { return m_pendingDataOffset; }
+    const SimpleBindingOffset& getPendingDataOffset() const { return m_pendingDataOffset; }
 
     slang::IComponentType* getSlangProgram() const { return m_program; }
     slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     /// Add all the descriptor sets implied by this root object and sub-objects
     Result addAllDescriptorSets();

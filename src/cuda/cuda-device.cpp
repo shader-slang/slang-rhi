@@ -512,14 +512,14 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
+Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
     *outSampler = nullptr;
     return SLANG_OK;
 }
 
-Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outLayout);

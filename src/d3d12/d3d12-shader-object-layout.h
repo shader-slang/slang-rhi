@@ -22,7 +22,7 @@ struct BindingOffset
     uint32_t resource = 0;
     uint32_t sampler = 0;
 
-    void operator+=(BindingOffset const& offset)
+    void operator+=(const BindingOffset& offset)
     {
         rootParam += offset.rootParam;
         resource += offset.resource;
@@ -174,11 +174,11 @@ public:
         ShaderObjectLayoutImpl** outLayout
     );
 
-    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
 
     Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
-    BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
+    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
     uint32_t getResourceSlotCount() { return m_ownCounts.resource; }
     uint32_t getSamplerSlotCount() { return m_ownCounts.sampler; }
@@ -202,8 +202,8 @@ public:
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
-    SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
+    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
 
     Device* getDevice() { return m_device; }
 
@@ -332,7 +332,7 @@ public:
                 }
             }
 
-            void operator+=(BindingRegisterOffset const& other)
+            void operator+=(const BindingRegisterOffset& other)
             {
                 spaceOffset += other.spaceOffset;
                 for (int i = 0; i < kRangeTypeCount; ++i)
@@ -355,7 +355,7 @@ public:
             {
             }
 
-            void operator+=(BindingRegisterOffsetPair const& other)
+            void operator+=(const BindingRegisterOffsetPair& other)
             {
                 primary += other.primary;
                 pending += other.pending;
@@ -400,8 +400,8 @@ public:
         Result addDescriptorRange(
             slang::TypeLayoutReflection* typeLayout,
             Index physicalDescriptorSetIndex,
-            BindingRegisterOffset const& containerOffset,
-            BindingRegisterOffset const& elementOffset,
+            const BindingRegisterOffset& containerOffset,
+            const BindingRegisterOffset& elementOffset,
             Index logicalDescriptorSetIndex,
             Index descriptorRangeIndex,
             bool isRootParameter
@@ -423,8 +423,8 @@ public:
         void addBindingRange(
             slang::TypeLayoutReflection* typeLayout,
             Index physicalDescriptorSetIndex,
-            BindingRegisterOffset const& containerOffset,
-            BindingRegisterOffset const& elementOffset,
+            const BindingRegisterOffset& containerOffset,
+            const BindingRegisterOffset& elementOffset,
             Index bindingRangeIndex
         );
 

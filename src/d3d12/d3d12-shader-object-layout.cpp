@@ -568,8 +568,8 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
 Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
     slang::TypeLayoutReflection* typeLayout,
     Index physicalDescriptorSetIndex,
-    BindingRegisterOffset const& containerOffset,
-    BindingRegisterOffset const& elementOffset,
+    const BindingRegisterOffset& containerOffset,
+    const BindingRegisterOffset& elementOffset,
     Index logicalDescriptorSetIndex,
     Index descriptorRangeIndex,
     bool isRootParameter
@@ -612,8 +612,8 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
 void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addBindingRange(
     slang::TypeLayoutReflection* typeLayout,
     Index physicalDescriptorSetIndex,
-    BindingRegisterOffset const& containerOffset,
-    BindingRegisterOffset const& elementOffset,
+    const BindingRegisterOffset& containerOffset,
+    const BindingRegisterOffset& elementOffset,
     Index bindingRangeIndex
 )
 {

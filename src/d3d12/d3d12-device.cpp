@@ -1295,7 +1295,7 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
+Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     D3D12_FILTER_REDUCTION_TYPE dxReduction = translateFilterReduction(desc.reductionOp);
     D3D12_FILTER dxFilter;
@@ -1392,7 +1392,7 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     return SLANG_OK;
 }
 
-Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);
 
@@ -1791,7 +1791,7 @@ Result DeviceImpl::createAccelerationStructure(
 #endif
 }
 
-void* DeviceImpl::loadProc(SharedLibraryHandle module, char const* name)
+void* DeviceImpl::loadProc(SharedLibraryHandle module, const char* name)
 {
     void* proc = findSymbolAddressByName(module, name);
     if (!proc)

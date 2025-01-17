@@ -40,7 +40,7 @@ Size ShaderObjectImpl::getSize()
 }
 
 // TODO: Change size_t and Index to Size?
-Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
+Result ShaderObjectImpl::setData(const ShaderOffset& inOffset, const void* data, size_t inSize)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -73,7 +73,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
+Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -261,10 +261,10 @@ Result ShaderObjectImpl::_writeOrdinaryData(
     // others handled here.
     //
     Index subObjectRangeCounter = 0;
-    for (auto const& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
+    for (const auto& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
     {
         Index subObjectRangeIndex = subObjectRangeCounter++;
-        auto const& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
+        const auto& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
 
         // We only need to handle sub-object ranges for interface/existential-type fields,
         // because fields of constant-buffer or parameter-block type are responsible for
@@ -334,7 +334,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(
     return SLANG_OK;
 }
 
-void ShaderObjectImpl::writeDescriptor(BindingContext& context, VkWriteDescriptorSet const& write)
+void ShaderObjectImpl::writeDescriptor(BindingContext& context, const VkWriteDescriptorSet& write)
 {
     auto device = context.device;
     device->m_api.vkUpdateDescriptorSets(device->m_device, 1, &write, 0, nullptr);
@@ -342,7 +342,7 @@ void ShaderObjectImpl::writeDescriptor(BindingContext& context, VkWriteDescripto
 
 void ShaderObjectImpl::writeBufferDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     BufferImpl* buffer,
     Offset bufferOffset,
@@ -373,7 +373,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
 
 void ShaderObjectImpl::writeBufferDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     BufferImpl* buffer
 )
@@ -383,7 +383,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
 
 void ShaderObjectImpl::writePlainBufferDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     span<const ResourceSlot> slots
 )
@@ -423,7 +423,7 @@ void ShaderObjectImpl::writePlainBufferDescriptor(
 
 void ShaderObjectImpl::writeTexelBufferDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     span<const ResourceSlot> slots
 )
@@ -458,7 +458,7 @@ void ShaderObjectImpl::writeTexelBufferDescriptor(
 
 void ShaderObjectImpl::writeTextureSamplerDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     span<const CombinedTextureSamplerSlot> slots
 )
@@ -492,7 +492,7 @@ void ShaderObjectImpl::writeTextureSamplerDescriptor(
 
 void ShaderObjectImpl::writeAccelerationStructureDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     span<const ResourceSlot> slots
 )
@@ -535,7 +535,7 @@ void ShaderObjectImpl::writeAccelerationStructureDescriptor(
 
 void ShaderObjectImpl::writeTextureDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     span<const ResourceSlot> slots
 )
@@ -574,7 +574,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
 
 void ShaderObjectImpl::writeSamplerDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     VkDescriptorType descriptorType,
     span<const RefPtr<SamplerImpl>> samplers
 )
@@ -658,7 +658,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
 
 Result ShaderObjectImpl::bindAsValue(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -777,9 +777,9 @@ Result ShaderObjectImpl::bindAsValue(
     // Once we've handled the simple binding ranges, we move on to the
     // sub-object ranges, which are generally more involved.
     //
-    for (auto const& subObjectRange : specializedLayout->getSubObjectRanges())
+    for (const auto& subObjectRange : specializedLayout->getSubObjectRanges())
     {
-        auto const& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
+        const auto& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
         auto count = bindingRangeInfo.count;
         auto subObjectIndex = bindingRangeInfo.subObjectIndex;
 
@@ -881,7 +881,7 @@ Result ShaderObjectImpl::bindAsValue(
 
 Result ShaderObjectImpl::allocateDescriptorSets(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -908,7 +908,7 @@ Result ShaderObjectImpl::allocateDescriptorSets(
 
 Result ShaderObjectImpl::bindAsParameterBlock(
     BindingContext& context,
-    BindingOffset const& inOffset,
+    const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -988,7 +988,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
 
 Result ShaderObjectImpl::bindAsConstantBuffer(
     BindingContext& context,
-    BindingOffset const& inOffset,
+    const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -1099,7 +1099,7 @@ EntryPointLayout* EntryPointShaderObject::getLayout()
 
 Result EntryPointShaderObject::bindAsEntryPoint(
     BindingContext& context,
-    BindingOffset const& inOffset,
+    const BindingOffset& inOffset,
     EntryPointLayout* layout
 )
 {
@@ -1125,7 +1125,7 @@ Result EntryPointShaderObject::bindAsEntryPoint(
         // and stage flags) was pre-computed for the entire program and
         // stored on the binding context.
         //
-        auto const& pushConstantRange = context.pushConstantRanges[pushConstantRangeIndex];
+        const auto& pushConstantRange = context.pushConstantRanges[pushConstantRangeIndex];
 
         // We expect that the size of the range as reflected matches the
         // amount of ordinary data stored on this object.
@@ -1165,7 +1165,7 @@ RootShaderObjectLayout* RootShaderObjectImpl::getSpecializedLayout()
     return checked_cast<RootShaderObjectLayout*>(m_specializedLayout.Ptr());
 }
 
-std::vector<RefPtr<EntryPointShaderObject>> const& RootShaderObjectImpl::getEntryPoints() const
+const std::vector<RefPtr<EntryPointShaderObject>>& RootShaderObjectImpl::getEntryPoints() const
 {
     return m_entryPoints;
 }
@@ -1220,7 +1220,7 @@ Result RootShaderObjectImpl::bindAsRoot(BindingContext& context, RootShaderObjec
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = m_entryPoints[i];
-        auto const& entryPointInfo = layout->getEntryPoint(i);
+        const auto& entryPointInfo = layout->getEntryPoint(i);
 
         // Note: we do *not* need to add the entry point offset
         // information to the global `offset` because the

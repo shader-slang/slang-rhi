@@ -143,11 +143,11 @@ public:
         ShaderObjectLayoutImpl** outLayout
     );
 
-    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
 
     Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
-    BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
+    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
     Index getSRVCount() { return m_srvCount; }
     Index getSamplerCount() { return m_samplerCount; }
@@ -155,26 +155,26 @@ public:
     Index getSubObjectCount() { return m_subObjectCount; }
     Index getVaryingOutputCount() { return m_varyingOutputCount; }
 
-    SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
+    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
 
     Device* getDevice() { return m_device; }
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
     /// Get the indices that represent all the SRV ranges in this type
-    std::vector<Index> const& getSRVRanges() const { return m_srvRanges; }
+    const std::vector<Index>& getSRVRanges() const { return m_srvRanges; }
 
     /// Get the indices that reprsent all the UAV ranges in this type
-    std::vector<Index> const& getUAVRanges() const { return m_uavRanges; }
+    const std::vector<Index>& getUAVRanges() const { return m_uavRanges; }
 
     /// Get the indices that represnet all the sampler ranges in this type
-    std::vector<Index> const& getSamplerRanges() const { return m_samplerRanges; }
+    const std::vector<Index>& getSamplerRanges() const { return m_samplerRanges; }
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     std::vector<BindingRangeInfo> m_bindingRanges;
     std::vector<Index> m_srvRanges;
@@ -241,10 +241,10 @@ public:
     slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
 
     /// Get the offset at which "pending" shader parameters for this program start
-    SimpleBindingOffset const& getPendingDataOffset() const { return m_pendingDataOffset; }
+    const SimpleBindingOffset& getPendingDataOffset() const { return m_pendingDataOffset; }
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;

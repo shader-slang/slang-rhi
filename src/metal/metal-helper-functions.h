@@ -39,7 +39,7 @@ struct BindingOffset
     }
 
     /// Add any values in the given `offset`
-    void operator+=(BindingOffset const& offset)
+    void operator+=(const BindingOffset& offset)
     {
         buffer += offset.buffer;
         texture += offset.texture;

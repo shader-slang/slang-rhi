@@ -25,7 +25,7 @@ Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
+Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     RefPtr<SamplerImpl> sampler = new SamplerImpl(this, desc);
     WGPUSamplerDescriptor samplerDesc = {};

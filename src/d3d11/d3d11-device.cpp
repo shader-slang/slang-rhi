@@ -25,12 +25,10 @@ namespace rhi::d3d11 {
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
-    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
-        desc.slang,
-        SLANG_DXBC,
-        "sm_5_0",
-        std::array{slang::PreprocessorMacroDesc{"__D3D11__", "1"}}
-    ));
+    SLANG_RETURN_ON_FAIL(
+        m_slangContext
+            .initialize(desc.slang, SLANG_DXBC, "sm_5_0", std::array{slang::PreprocessorMacroDesc{"__D3D11__", "1"}})
+    );
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 

@@ -87,7 +87,7 @@ public:
 
     BreakableReference(T* p) { *this = p; }
 
-    BreakableReference(RefPtr<T> const& p) { *this = p; }
+    BreakableReference(const RefPtr<T>& p) { *this = p; }
 
     void setWeakReference(T* p)
     {
@@ -541,7 +541,7 @@ public:
     void* getBuffer() { return m_data.getBuffer(); }
     size_t getBufferSize() { return (size_t)m_data.getCount(); } // TODO: Change size_t to Count?
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(ShaderOffset const& offset, IShaderObject** outObject) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override
     {
         SLANG_RHI_ASSERT(outObject);
         if (offset.bindingRangeIndex < 0)
@@ -564,7 +564,7 @@ public:
         return bindingRange.subObjectIndex + offset.bindingArrayIndex;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override
     {
         switch (m_state)
         {
@@ -731,7 +731,7 @@ public:
     );
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(ShaderOffset const& offset, const slang::SpecializationArg* args, GfxCount count) override
+    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, GfxCount count) override
     {
         if (isFinalized())
             return SLANG_FAIL;
@@ -1367,7 +1367,7 @@ public:
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* featureName) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override;
     IDevice* getInterface(const Guid& guid);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -1387,7 +1387,7 @@ public:
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
+    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
@@ -1554,7 +1554,8 @@ void ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderObj
             if (m_structuredBufferSpecializationArgs[i].componentID != specializationArgs[i].componentID)
             {
                 auto dynamicType = device->m_slangContext.session->getDynamicType();
-                m_structuredBufferSpecializationArgs.componentIDs[i] = device->m_shaderCache.getComponentId(dynamicType);
+                m_structuredBufferSpecializationArgs.componentIDs[i] =
+                    device->m_shaderCache.getComponentId(dynamicType);
                 m_structuredBufferSpecializationArgs.components[i] = slang::SpecializationArg::fromType(dynamicType);
             }
         }
@@ -1611,8 +1612,8 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
 
     for (Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount; subObjectRangeIndex++)
     {
-        auto const& subObjectRange = subObjectRanges[subObjectRangeIndex];
-        auto const& bindingRange = getLayout()->getBindingRange(subObjectRange.bindingRangeIndex);
+        const auto& subObjectRange = subObjectRanges[subObjectRangeIndex];
+        const auto& bindingRange = getLayout()->getBindingRange(subObjectRange.bindingRangeIndex);
 
         Index oldArgsCount = args.getCount();
 

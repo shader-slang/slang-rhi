@@ -57,7 +57,7 @@ struct BindingContext
     span<const VkPushConstantRange> pushConstantRanges;
 
     virtual Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) = 0;
-    virtual void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) = 0;
+    virtual void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) = 0;
     // virtual void writePushConstants(VkPushConstantRange range, const void* data) = 0;
 };
 
@@ -98,9 +98,9 @@ public:
 
     // TODO: Changed size_t to Size? inSize assigned to an Index variable inside implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setData(ShaderOffset const& inOffset, void const* data, size_t inSize) override;
+    setData(const ShaderOffset& inOffset, const void* data, size_t inSize) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
 protected:
     friend class RootShaderObjectLayout;
@@ -119,11 +119,11 @@ protected:
 
 public:
     /// Write a single descriptor using the Vulkan API
-    static void writeDescriptor(BindingContext& context, VkWriteDescriptorSet const& write);
+    static void writeDescriptor(BindingContext& context, const VkWriteDescriptorSet& write);
 
     static void writeBufferDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         BufferImpl* buffer,
         Offset bufferOffset,
@@ -132,49 +132,49 @@ public:
 
     static void writeBufferDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         BufferImpl* buffer
     );
 
     static void writePlainBufferDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         span<const ResourceSlot> slots
     );
 
     static void writeTexelBufferDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         span<const ResourceSlot> slots
     );
 
     static void writeTextureSamplerDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         span<const CombinedTextureSamplerSlot> slots
     );
 
     static void writeAccelerationStructureDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         span<const ResourceSlot> slots
     );
 
     static void writeTextureDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         span<const ResourceSlot> slots
     );
 
     static void writeSamplerDescriptor(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         VkDescriptorType descriptorType,
         span<const RefPtr<SamplerImpl>> samplers
     );
@@ -190,21 +190,21 @@ public:
     /// fields, and is also used as part of the implementation of the
     /// parameter-block and constant-buffer cases.
     ///
-    Result bindAsValue(BindingContext& context, BindingOffset const& offset, ShaderObjectLayoutImpl* specializedLayout)
+    Result bindAsValue(BindingContext& context, const BindingOffset& offset, ShaderObjectLayoutImpl* specializedLayout)
         const;
 
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
     /// blocks)
     Result allocateDescriptorSets(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
         BindingContext& context,
-        BindingOffset const& inOffset,
+        const BindingOffset& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
 
@@ -218,7 +218,7 @@ public:
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
         BindingContext& context,
-        BindingOffset const& inOffset,
+        const BindingOffset& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
 
@@ -255,7 +255,7 @@ public:
     EntryPointLayout* getLayout();
 
     /// Bind this shader object as an entry point
-    Result bindAsEntryPoint(BindingContext& context, BindingOffset const& inOffset, EntryPointLayout* layout);
+    Result bindAsEntryPoint(BindingContext& context, const BindingOffset& inOffset, EntryPointLayout* layout);
 
 protected:
     Result init(DeviceImpl* device, EntryPointLayout* layout);
@@ -270,7 +270,7 @@ public:
 
     RootShaderObjectLayout* getSpecializedLayout();
 
-    std::vector<RefPtr<EntryPointShaderObject>> const& getEntryPoints() const;
+    const std::vector<RefPtr<EntryPointShaderObject>>& getEntryPoints() const;
 
     virtual GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;

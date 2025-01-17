@@ -146,7 +146,7 @@ struct SLANG_RHI_API RefPtr
         addReference(p);
     }
 
-    RefPtr(RefPtr<T> const& p)
+    RefPtr(const RefPtr<T>& p)
         : pointer(p.pointer)
     {
         addReference(p.pointer);
@@ -159,7 +159,7 @@ struct SLANG_RHI_API RefPtr
     }
 
     template<typename U>
-    RefPtr(RefPtr<U> const& p, typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0)
+    RefPtr(const RefPtr<U>& p, typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0)
         : pointer(static_cast<U*>(p))
     {
         addReference(static_cast<U*>(p));
@@ -175,7 +175,7 @@ struct SLANG_RHI_API RefPtr
         }
 #endif
 
-    void operator=(RefPtr<T> const& p)
+    void operator=(const RefPtr<T>& p)
     {
         T* old = pointer;
         addReference(p.pointer);
@@ -191,7 +191,7 @@ struct SLANG_RHI_API RefPtr
     }
 
     template<typename U>
-    typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type operator=(RefPtr<U> const& p)
+    typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type operator=(const RefPtr<U>& p)
     {
         T* old = pointer;
         addReference(p.pointer);
@@ -203,9 +203,9 @@ struct SLANG_RHI_API RefPtr
 
     bool operator!=(const T* ptr) const { return pointer != ptr; }
 
-    bool operator==(RefPtr<T> const& ptr) const { return pointer == ptr.pointer; }
+    bool operator==(const RefPtr<T>& ptr) const { return pointer == ptr.pointer; }
 
-    bool operator!=(RefPtr<T> const& ptr) const { return pointer != ptr.pointer; }
+    bool operator!=(const RefPtr<T>& ptr) const { return pointer != ptr.pointer; }
 
     template<typename U>
     RefPtr<U> dynamicCast() const

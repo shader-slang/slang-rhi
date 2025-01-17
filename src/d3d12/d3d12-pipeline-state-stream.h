@@ -331,21 +331,21 @@ public:
         , pssInner(DefaultArg())
     {
     }
-    CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT(InnerStructType const& i) noexcept
+    CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT(const InnerStructType& i) noexcept
         : pssType(Type)
         , pssInner(i)
     {
     }
-    CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT& operator=(InnerStructType const& i) noexcept
+    CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT& operator=(const InnerStructType& i) noexcept
     {
         pssType = Type;
         pssInner = i;
         return *this;
     }
-    operator InnerStructType const&() const noexcept { return pssInner; }
+    operator const InnerStructType&() const noexcept { return pssInner; }
     operator InnerStructType&() noexcept { return pssInner; }
     InnerStructType* operator&() noexcept { return &pssInner; }
-    InnerStructType const* operator&() const noexcept { return &pssInner; }
+    const InnerStructType* operator&() const noexcept { return &pssInner; }
 };
 #ifdef _MSC_VER
 #pragma warning(pop)

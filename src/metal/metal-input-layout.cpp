@@ -47,7 +47,7 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
     return vertexDescriptor;
 }
 
-Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     AUTORELEASEPOOL
 

@@ -30,9 +30,9 @@ public:
 
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override { return (size_t)m_data.getCount(); }
 
-    SLANG_NO_THROW Result SLANG_MCALL setData(ShaderOffset const& inOffset, void const* data, size_t inSize) override;
+    SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& inOffset, const void* data, size_t inSize) override;
 
-    SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
+    SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
 public:
 protected:
@@ -66,7 +66,7 @@ public:
     /// Bind this object as if it was declared as a `ConstantBuffer<T>` in Slang
     Result bindAsConstantBuffer(
         BindingContext* context,
-        BindingOffset const& inOffset,
+        const BindingOffset& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
 
@@ -77,7 +77,7 @@ public:
     /// indirectly when binding sub-objects to constant buffer or parameter
     /// block ranges.
     ///
-    Result bindAsValue(BindingContext* context, BindingOffset const& offset, ShaderObjectLayoutImpl* specializedLayout)
+    Result bindAsValue(BindingContext* context, const BindingOffset& offset, ShaderObjectLayoutImpl* specializedLayout)
         const;
 
     // Set of resources to keep alive while this object is alive.

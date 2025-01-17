@@ -225,7 +225,7 @@ Result ShaderObjectLayoutImpl::createForElementType(
     return builder.build(outLayout);
 }
 
-Result ShaderObjectLayoutImpl::_init(Builder const* builder)
+Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 {
     auto device = builder->m_device;
 
@@ -303,7 +303,7 @@ Result RootShaderObjectLayoutImpl::create(
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayoutImpl::_init(Builder const* builder)
+Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 {
     auto device = builder->m_device;
 

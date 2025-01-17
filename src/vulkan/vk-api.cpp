@@ -114,7 +114,7 @@ int VulkanApi::findMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags prop
     uint32_t bit = 1;
     for (int i = 0; i < numMemoryTypes; ++i, bit += bit)
     {
-        auto const& memoryType = m_deviceMemoryProperties.memoryTypes[i];
+        const auto& memoryType = m_deviceMemoryProperties.memoryTypes[i];
         if ((typeBits & bit) && (memoryType.propertyFlags & properties) == properties)
         {
             return i;

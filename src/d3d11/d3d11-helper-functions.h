@@ -172,7 +172,7 @@ struct SimpleBindingOffset
     }
 
     /// Add any values in the given `offset`
-    void operator+=(SimpleBindingOffset const& offset)
+    void operator+=(const SimpleBindingOffset& offset)
     {
         cbv += offset.cbv;
         srv += offset.srv;
@@ -204,7 +204,7 @@ struct BindingOffset : SimpleBindingOffset
     BindingOffset() {}
 
     /// Create an offset from a simple offset
-    explicit BindingOffset(SimpleBindingOffset const& offset)
+    explicit BindingOffset(const SimpleBindingOffset& offset)
         : SimpleBindingOffset(offset)
     {
     }
@@ -224,10 +224,10 @@ struct BindingOffset : SimpleBindingOffset
     }
 
     /// Add any values in the given `offset`
-    void operator+=(SimpleBindingOffset const& offset) { SimpleBindingOffset::operator+=(offset); }
+    void operator+=(const SimpleBindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
 
     /// Add any values in the given `offset`
-    void operator+=(BindingOffset const& offset)
+    void operator+=(const BindingOffset& offset)
     {
         SimpleBindingOffset::operator+=(offset);
         pending += offset.pending;
@@ -248,8 +248,8 @@ D3D11_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
 D3D11_STENCIL_OP translateStencilOp(StencilOp op);
 D3D11_FILL_MODE translateFillMode(FillMode mode);
 D3D11_CULL_MODE translateCullMode(CullMode mode);
-bool isBlendDisabled(AspectBlendDesc const& desc);
-bool isBlendDisabled(ColorTargetState const& desc);
+bool isBlendDisabled(const AspectBlendDesc& desc);
+bool isBlendDisabled(const ColorTargetState& desc);
 D3D11_BLEND_OP translateBlendOp(BlendOp op);
 D3D11_BLEND translateBlendFactor(BlendFactor factor);
 D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT mask);

@@ -57,7 +57,7 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
 
 void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
     slang::TypeLayoutReflection* typeLayout,
-    BindingOffset const& offset
+    const BindingOffset& offset
 )
 {
     // First we will scan through all the descriptor sets that the Slang reflection
@@ -254,8 +254,8 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
 
 void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
     slang::TypeLayoutReflection* elementTypeLayout,
-    BindingOffset const& containerOffset,
-    BindingOffset const& elementOffset
+    const BindingOffset& containerOffset,
+    const BindingOffset& elementOffset
 )
 {
     // If the type has ordinary uniform data fields, we need to make sure to create
@@ -285,8 +285,8 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
 
 void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsPushConstantBuffer(
     slang::TypeLayoutReflection* elementTypeLayout,
-    BindingOffset const& containerOffset,
-    BindingOffset const& elementOffset
+    const BindingOffset& containerOffset,
+    const BindingOffset& elementOffset
 )
 {
     // If the type has ordinary uniform data fields, we need to make sure to create
@@ -606,7 +606,7 @@ ShaderObjectLayoutImpl::~ShaderObjectLayoutImpl()
     }
 }
 
-Result ShaderObjectLayoutImpl::_init(Builder const* builder)
+Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 {
     auto device = builder->m_device;
 
@@ -669,7 +669,7 @@ void EntryPointLayout::Builder::addEntryPointParams(slang::EntryPointLayout* ent
     // shader object.
 }
 
-Result EntryPointLayout::_init(Builder const* builder)
+Result EntryPointLayout::_init(const Builder* builder)
 {
     auto device = builder->m_device;
 
@@ -729,7 +729,7 @@ Result RootShaderObjectLayout::create(
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayout::_init(Builder const* builder)
+Result RootShaderObjectLayout::_init(const Builder* builder)
 {
     auto device = builder->m_device;
 

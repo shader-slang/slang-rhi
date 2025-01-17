@@ -20,7 +20,7 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line)
 #if SLANG_RHI_ENABLE_OPTIX
 
 #if 1
-Result _handleOptixError(OptixResult result, char const* file, int line)
+Result _handleOptixError(OptixResult result, const char* file, int line)
 {
     fprintf(stderr, "%s(%d): optix: %s (%s)\n", file, line, optixGetErrorString(result), optixGetErrorName(result));
     return SLANG_FAIL;

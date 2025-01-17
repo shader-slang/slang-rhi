@@ -45,9 +45,9 @@ public:
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setData(ShaderOffset const& offset, void const* data, size_t size) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
+    setData(const ShaderOffset& offset, const void* data, size_t size) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
     uint8_t* getDataBuffer();
 };

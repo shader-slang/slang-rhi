@@ -966,7 +966,7 @@ Result Device::getEntryPointCodeFromShaderCache(
     return SLANG_OK;
 }
 
-Result Device::queryInterface(SlangUUID const& uuid, void** outObject)
+Result Device::queryInterface(const SlangUUID& uuid, void** outObject)
 {
     *outObject = getInterface(uuid);
     return SLANG_OK;
@@ -1088,7 +1088,7 @@ Result Device::createBufferFromSharedHandle(NativeHandle handle, const BufferDes
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result Device::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outLayout);
