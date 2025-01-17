@@ -2149,13 +2149,16 @@ struct DeviceDesc
     const char** requiredFeatures = nullptr;
     // A command dispatcher object that intercepts and handles actual low-level API call.
     ISlangUnknown* apiCommandDispatcher = nullptr;
-    // The slot (typically UAV) used to identify NVAPI intrinsics. If >=0 NVAPI is required.
-    GfxIndex nvapiExtnSlot = -1;
     // Configurations for Slang compiler.
     SlangDesc slang = {};
 
     // Interface to persistent shader cache.
     IPersistentShaderCache* persistentShaderCache = nullptr;
+
+    /// NVAPI shader extension uav slot (-1 disables the extension).
+    uint32_t nvapiExtUavSlot = uint32_t(-1);
+    /// NVAPI shader extension register space.
+    uint32_t nvapiExtRegisterSpace = 0;
 
     /// Enable RHI validation layer.
     bool enableValidation = false;

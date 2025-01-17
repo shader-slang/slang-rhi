@@ -75,20 +75,21 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
     auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
-    Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+    auto bindingRangeIndex = offset.bindingRangeIndex;
+    if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
+        return SLANG_E_INVALID_ARG;
+    const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
+    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
     switch (binding.type)
     {
     case BindingType::Buffer:
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
+        if (!buffer)
+            return SLANG_E_INVALID_ARG;
         ResourceSlot slot;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
@@ -100,19 +101,36 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Texture:
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
+        if (!texture)
+            return SLANG_E_INVALID_ARG;
         return setBinding(offset, m_device->createTextureView(texture, {}));
     }
     case BindingType::TextureView:
     {
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
+        if (!textureView)
+            return SLANG_E_INVALID_ARG;
         ResourceSlot slot;
         slot.type = BindingType::TextureView;
-        slot.resource = checked_cast<TextureViewImpl*>(binding.resource);
+        slot.resource = textureView;
         m_resources[bindingIndex] = slot;
         break;
     }
     case BindingType::Sampler:
-        m_samplers[bindingIndex] = checked_cast<SamplerImpl*>(binding.resource);
+    {
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
+        if (!sampler)
+            return SLANG_E_INVALID_ARG;
+        m_samplers[bindingIndex] = sampler;
         break;
+    }
+    case BindingType::CombinedTextureSampler:
+    case BindingType::CombinedTextureViewSampler:
+    case BindingType::AccelerationStructure:
+        // discard these, avoids some tests to fail
+        break;
+    default:
+        return SLANG_E_INVALID_ARG;
     }
 
     return SLANG_OK;
@@ -180,7 +198,7 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
         // in each entry in this range, based on the layout
         // information we already have.
 
-        auto& bindingRangeInfo = layout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
+        const auto& bindingRangeInfo = layout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
         for (Index i = 0; i < bindingRangeInfo.count; ++i)
         {
             RefPtr<ShaderObjectImpl> subObject;

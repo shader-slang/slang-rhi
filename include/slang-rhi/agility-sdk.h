@@ -6,7 +6,7 @@
 // D3D12 Agility SDK
 // -------------------------------------------------------------------------------------------------
 
-#if SLANG_RHI_ENABLE_AGILITY_SDK && SLANG_WINDOWS_FAMILY
+#if SLANG_WINDOWS_FAMILY
 
 #include <d3d12.h>
 

@@ -4,7 +4,6 @@
 #include "d3d11-helper-functions.h"
 #include "d3d11-query.h"
 #include "d3d11-sampler.h"
-#include "d3d11-scopeNVAPI.h"
 #include "d3d11-shader-object-layout.h"
 #include "d3d11-shader-object.h"
 #include "d3d11-shader-program.h"
@@ -14,6 +13,7 @@
 #include "d3d11-command.h"
 
 #include "core/string.h"
+#include "core/deferred.h"
 
 #if SLANG_RHI_ENABLE_AFTERMATH
 #include "GFSDK_Aftermath.h"
@@ -209,36 +209,34 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // NVAPI
-    if (desc.nvapiExtnSlot >= 0)
+#if SLANG_RHI_ENABLE_NVAPI
     {
         if (SLANG_FAILED(NVAPIUtil::initialize()))
         {
             return SLANG_E_NOT_AVAILABLE;
         }
-
-#if SLANG_RHI_ENABLE_NVAPI
-        if (NvAPI_D3D11_SetNvShaderExtnSlot(m_device, NvU32(desc.nvapiExtnSlot)) != NVAPI_OK)
+        m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
+        if (m_nvapiShaderExtension)
         {
-            return SLANG_E_NOT_AVAILABLE;
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+            {
+                m_features.push_back("atomic-int64");
+            }
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
+            {
+                m_features.push_back("atomic-half");
+            }
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
+            {
+                m_features.push_back("atomic-float");
+            }
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
+            {
+                m_features.push_back("realtime-clock");
+            }
         }
-
-        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
-        {
-            m_features.push_back("atomic-int64");
-        }
-        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
-        {
-            m_features.push_back("atomic-float");
-        }
-
-        // If we have NVAPI well assume we have realtime clock
-        {
-            m_features.push_back("realtime-clock");
-        }
-
-        m_nvapi = true;
-#endif
     }
+#endif // SLANG_RHI_ENABLE_NVAPI
 
     {
         // Create a TIMESTAMP_DISJOINT query object to query/update frequency info.
@@ -562,8 +560,16 @@ Result DeviceImpl::createShaderProgram(
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
     shaderProgram->slangGlobalScope = desc.slangGlobalScope;
 
-    ScopeNVAPI scopeNVAPI;
-    SLANG_RETURN_ON_FAIL(scopeNVAPI.init(this, 0));
+#if SLANG_RHI_ENABLE_NVAPI
+    if (m_nvapiShaderExtension)
+    {
+        if (NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot) != NVAPI_OK)
+        {
+            return SLANG_FAIL;
+        }
+        SLANG_RHI_DEFERRED({ SLANG_RHI_ASSERT(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0) == NVAPI_OK); });
+    }
+#endif // SLANG_RHI_ENABLE_NVAPI
     for (SlangUInt i = 0; i < entryPointCount; i++)
     {
         ComPtr<ISlangBlob> kernelCode;

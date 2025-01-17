@@ -131,12 +131,6 @@ ComPtr<IDevice> createTestingDevice(
 
 void releaseCachedDevices();
 
-ComPtr<slang::ISession> createTestingSession(
-    GpuTestContext* ctx,
-    DeviceType deviceType,
-    std::vector<const char*> additionalSearchPaths = {}
-);
-
 bool isDeviceTypeAvailable(DeviceType deviceType);
 
 bool isSwiftShaderDevice(IDevice* device);

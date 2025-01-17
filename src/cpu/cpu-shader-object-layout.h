@@ -51,12 +51,12 @@ public:
 
     ShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::TypeLayoutReflection* layout);
 
-    size_t getSize();
-    Index getResourceCount() const;
-    Index getSubObjectCount() const;
-    std::vector<SubObjectRangeInfo>& getSubObjectRanges();
-    BindingRangeInfo getBindingRange(Index index);
-    Index getBindingRangeCount() const;
+    size_t getSize() { return m_size; }
+    Index getResourceCount() const { return m_resourceCount; }
+    Index getSubObjectCount() const { return m_subObjectCount; }
+    std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return subObjectRanges; }
+    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
+    Index getBindingRangeCount() const { return m_bindingRanges.size(); }
 };
 
 class EntryPointLayoutImpl : public ShaderObjectLayoutImpl
@@ -71,7 +71,7 @@ public:
     {
     }
 
-    const char* getEntryPointName();
+    const char* getEntryPointName() { return m_entryPointLayout->getName(); }
 };
 
 class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl

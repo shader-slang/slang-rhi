@@ -191,7 +191,7 @@ endif()
 # Fetch NVAPI
 if(SLANG_RHI_ENABLE_NVAPI)
     # NVAPI
-    set(NVAPI_VERSION "4ba3384657149d63aa193f5a34e20efe1e42bf31")
+    set(NVAPI_VERSION "67af97007f59c248c01e520d8c8fb70e243a3240")
     FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
     set(NVAPI_ROOT_DIR ${nvapi_SOURCE_DIR})
 
@@ -199,6 +199,7 @@ if(SLANG_RHI_ENABLE_NVAPI)
     target_include_directories(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR})
     target_link_libraries(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR}/amd64/nvapi64.lib)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-nvapi)
+    set(SLANG_RHI_NVAPI_INCLUDE_DIR ${NVAPI_ROOT_DIR})
 endif()
 
 # Fetch and setup Google Dawn library (WebGPU implementation)
@@ -384,7 +385,6 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-pipeline.cpp
         src/d3d11/d3d11-query.cpp
         src/d3d11/d3d11-sampler.cpp
-        src/d3d11/d3d11-scopeNVAPI.cpp
         src/d3d11/d3d11-shader-object-layout.cpp
         src/d3d11/d3d11-shader-object.cpp
         src/d3d11/d3d11-shader-program.cpp
@@ -514,8 +514,6 @@ endif()
 target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
 target_compile_definitions(slang-rhi
-    PUBLIC
-    SLANG_RHI_ENABLE_AGILITY_SDK=$<BOOL:${SLANG_RHI_ENABLE_AGILITY_SDK}>
     PRIVATE
     SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
     SLANG_RHI_ENABLE_D3D11=$<BOOL:${SLANG_RHI_ENABLE_D3D11}>
@@ -524,9 +522,9 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
     SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
     SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
+    SLANG_RHI_ENABLE_AGILITY_SDK=$<BOOL:${SLANG_RHI_ENABLE_AGILITY_SDK}>
     SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
     SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
-    SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
@@ -578,6 +576,10 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
+        SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
+        SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+        SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
+        SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )

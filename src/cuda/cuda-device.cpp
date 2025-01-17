@@ -162,20 +162,11 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
-    // TODO: This is a temporary solution to pass the optix header directory to nvrtc.
-    // In the future we need to either embed these into the slang compiler or slang-rhi.
-    const char* optixIncludeOption = "-I" SLANG_RHI_OPTIX_INCLUDE_DIR;
-
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_PTX,
         "sm_5_1",
-        std::array{slang::PreprocessorMacroDesc{"__CUDA_COMPUTE__", "1"}},
-        // Pass directory to optix headers to the nvrtc downstream compiler
-        std::array{slang::CompilerOptionEntry{
-            slang::CompilerOptionName::DownstreamArgs,
-            {slang::CompilerOptionValueKind::String, 0, 0, "nvrtc", optixIncludeOption}
-        }}
+        std::array{slang::PreprocessorMacroDesc{"__CUDA_COMPUTE__", "1"}}
     ));
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));

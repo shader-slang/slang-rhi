@@ -46,11 +46,11 @@ public:
 
     ShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::TypeLayoutReflection* layout);
 
-    Index getResourceCount() const;
-    Index getSubObjectCount() const;
-    std::vector<SubObjectRangeInfo>& getSubObjectRanges();
-    BindingRangeInfo getBindingRange(Index index);
-    Index getBindingRangeCount() const;
+    Index getResourceCount() const { return m_resourceCount; }
+    Index getSubObjectCount() const { return m_subObjectCount; }
+    std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return subObjectRanges; }
+    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
+    Index getBindingRangeCount() const { return m_bindingRanges.size(); }
 };
 
 class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl

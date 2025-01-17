@@ -549,7 +549,7 @@ public:
         auto layout = getLayout();
         if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
             return SLANG_E_INVALID_ARG;
-        auto bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
+        const auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
 
         returnComPtr(outObject, m_objects[bindingRange.subObjectIndex + offset.bindingArrayIndex]);
         return SLANG_OK;
@@ -560,7 +560,7 @@ public:
     GfxIndex getSubObjectIndex(ShaderOffset offset)
     {
         auto layout = getLayout();
-        auto bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
+        const auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
         return bindingRange.subObjectIndex + offset.bindingArrayIndex;
     }
 
@@ -637,7 +637,7 @@ public:
             return SLANG_E_INVALID_ARG;
 
         auto bindingRangeIndex = offset.bindingRangeIndex;
-        auto bindingRange = layout->getBindingRange(bindingRangeIndex);
+        const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
 
         m_objects[bindingRange.subObjectIndex + offset.bindingArrayIndex] = subObject;
 
@@ -754,7 +754,7 @@ public:
             return SLANG_E_INVALID_ARG;
 
         auto bindingRangeIndex = offset.bindingRangeIndex;
-        auto bindingRange = layout->getBindingRange(bindingRangeIndex);
+        const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
         Index objectIndex = bindingRange.subObjectIndex + offset.bindingArrayIndex;
         if (objectIndex >= m_userProvidedSpecializationArgs.size())
             m_userProvidedSpecializationArgs.resize(objectIndex + 1);

@@ -527,36 +527,42 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize NVAPI
-    if (desc.nvapiExtnSlot >= 0)
+#if SLANG_RHI_ENABLE_NVAPI
     {
         if (SLANG_FAILED(NVAPIUtil::initialize()))
         {
             return SLANG_E_NOT_AVAILABLE;
         }
-
-#if SLANG_RHI_ENABLE_NVAPI
-        // From DOCS: Applications are expected to bind null UAV to this slot.
-        // NOTE! We don't currently do this, but doesn't seem to be a problem.
-
-        const NvAPI_Status status = NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, NvU32(desc.nvapiExtnSlot), NvU32(0));
-
-        if (status != NVAPI_OK)
+        m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
+        if (m_nvapiShaderExtension)
         {
-            return SLANG_E_NOT_AVAILABLE;
-        }
-
-        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
-        {
-            m_features.push_back("atomic-int64");
-        }
-        if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
-        {
-            m_features.push_back("atomic-float");
-        }
-
-        // If we have NVAPI well assume we have realtime clock
-        {
-            m_features.push_back("realtime-clock");
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+            {
+                m_features.push_back("atomic-int64");
+            }
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
+            {
+                m_features.push_back("atomic-half");
+            }
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
+            {
+                m_features.push_back("atomic-float");
+            }
+            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
+            {
+                m_features.push_back("realtime-clock");
+            }
+            NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
+                    &reorderingCaps,
+                    sizeof(reorderingCaps)
+                ) == NVAPI_OK &&
+                reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
+            {
+                m_features.push_back("ray-tracing-reordering");
+            }
         }
 
         // Enable ray tracing validation if requested
@@ -572,10 +578,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             );
         }
 #endif // SLANG_RHI_DXR
-
-        m_nvapi = true;
-#endif // SLANG_RHI_ENABLE_NVAPI
     }
+#endif // SLANG_RHI_ENABLE_NVAPI
 
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
 

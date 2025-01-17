@@ -2,6 +2,7 @@
 
 #include "d3d12-command.h"
 #include "d3d12-texture.h"
+#include "nvapi/nvapi-util.h"
 
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
@@ -87,9 +88,11 @@ public:
     PFN_EndEventOnCommandList m_EndEventOnCommandList = nullptr;
     PFN_SetMarkerOnCommandList m_SetMarkerOnCommandList = nullptr;
 
-    bool m_nvapi = false;
-#if SLANG_RHI_ENABLE_NVAPI && SLANG_RHI_DXR
+#if SLANG_RHI_ENABLE_NVAPI
+    NVAPIShaderExtension m_nvapiShaderExtension;
+#if SLANG_RHI_DXR
     void* m_raytracingValidationHandle = nullptr;
+#endif
 #endif
 
     // Command signatures required for indirect draws. These indicate the format of the indirect

@@ -221,9 +221,38 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         }
         else
         {
-            SLANG_RETURN_ON_FAIL(
-                m_device->CreateGraphicsPipelineState(&graphicsDesc, IID_PPV_ARGS(pipelineState.writeRef()))
-            );
+#if SLANG_RHI_ENABLE_NVAPI
+            if (m_nvapiShaderExtension)
+            {
+                NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC extensionDesc;
+                extensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
+                extensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
+                extensionDesc.uavSlot = m_nvapiShaderExtension.uavSlot;
+                extensionDesc.registerSpace = m_nvapiShaderExtension.registerSpace;
+
+                const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
+
+                // Now create the PSO.
+                const NvAPI_Status nvapiStatus = NvAPI_D3D12_CreateGraphicsPipelineState(
+                    m_device,
+                    &graphicsDesc,
+                    SLANG_COUNT_OF(extensions),
+                    extensions,
+                    pipelineState.writeRef()
+                );
+
+                if (nvapiStatus != NVAPI_OK)
+                {
+                    return SLANG_FAIL;
+                }
+            }
+            else
+#endif // SLANG_RHI_ENABLE_NVAPI
+            {
+                SLANG_RETURN_ON_FAIL(
+                    m_device->CreateGraphicsPipelineState(&graphicsDesc, IID_PPV_ARGS(pipelineState.writeRef()))
+                );
+            }
         }
     }
 
@@ -257,50 +286,44 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
                                      : program->m_rootObjectLayout->m_rootSignature;
     computeDesc.CS = {program->m_shaders[0].code.data(), SIZE_T(program->m_shaders[0].code.size())};
 
-#if SLANG_RHI_ENABLE_NVAPI
-    if (m_nvapi)
+    if (m_pipelineCreationAPIDispatcher)
     {
-        // Also fill the extension structure.
-        // Use the same UAV slot index and register space that are declared in the shader.
-
-        // For simplicities sake we just use u0
-        NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC extensionDesc;
-        extensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
-        extensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
-        extensionDesc.uavSlot = 0;
-        extensionDesc.registerSpace = 0;
-
-        // Put the pointer to the extension into an array - there can be multiple extensions
-        // enabled at once.
-        const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
-
-        // Now create the PSO.
-        const NvAPI_Status nvapiStatus = NvAPI_D3D12_CreateComputePipelineState(
-            m_device,
+        SLANG_RETURN_ON_FAIL(m_pipelineCreationAPIDispatcher->createComputePipeline(
+            this,
+            program->linkedProgram.get(),
             &computeDesc,
-            SLANG_COUNT_OF(extensions),
-            extensions,
-            pipelineState.writeRef()
-        );
-
-        if (nvapiStatus != NVAPI_OK)
-        {
-            return SLANG_FAIL;
-        }
+            (void**)pipelineState.writeRef()
+        ));
     }
     else
-#endif
     {
-        if (m_pipelineCreationAPIDispatcher)
+#if SLANG_RHI_ENABLE_NVAPI
+        if (m_nvapiShaderExtension)
         {
-            SLANG_RETURN_ON_FAIL(m_pipelineCreationAPIDispatcher->createComputePipeline(
-                this,
-                program->linkedProgram.get(),
+            NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC extensionDesc;
+            extensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
+            extensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
+            extensionDesc.uavSlot = m_nvapiShaderExtension.uavSlot;
+            extensionDesc.registerSpace = m_nvapiShaderExtension.registerSpace;
+
+            const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
+
+            // Now create the PSO.
+            const NvAPI_Status nvapiStatus = NvAPI_D3D12_CreateComputePipelineState(
+                m_device,
                 &computeDesc,
-                (void**)pipelineState.writeRef()
-            ));
+                SLANG_COUNT_OF(extensions),
+                extensions,
+                pipelineState.writeRef()
+            );
+
+            if (nvapiStatus != NVAPI_OK)
+            {
+                return SLANG_FAIL;
+            }
         }
         else
+#endif // SLANG_RHI_ENABLE_NVAPI
         {
             SLANG_RETURN_ON_FAIL(
                 m_device->CreateComputePipelineState(&computeDesc, IID_PPV_ARGS(pipelineState.writeRef()))
@@ -470,6 +493,22 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     {
         SLANG_RETURN_ON_FAIL(m_pipelineCreationAPIDispatcher->beforeCreateRayTracingState(this, slangGlobalScope));
     }
+    else
+    {
+#if SLANG_RHI_ENABLE_NVAPI
+        if (m_nvapiShaderExtension)
+        {
+            if (NvAPI_D3D12_SetNvShaderExtnSlotSpace(
+                    m_device,
+                    m_nvapiShaderExtension.uavSlot,
+                    m_nvapiShaderExtension.registerSpace
+                ) != NVAPI_OK)
+            {
+                return SLANG_FAIL;
+            }
+        }
+#endif // SLANG_RHI_ENABLE_NVAPI
+    }
 
     D3D12_STATE_OBJECT_DESC rtpsoDesc = {};
     rtpsoDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
@@ -480,6 +519,18 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     if (m_pipelineCreationAPIDispatcher)
     {
         SLANG_RETURN_ON_FAIL(m_pipelineCreationAPIDispatcher->afterCreateRayTracingState(this, slangGlobalScope));
+    }
+    else
+    {
+#if SLANG_RHI_ENABLE_NVAPI
+        if (m_nvapiShaderExtension)
+        {
+            if (NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, 0xffffffff, 0) != NVAPI_OK)
+            {
+                return SLANG_FAIL;
+            }
+        }
+#endif // SLANG_RHI_ENABLE_NVAPI
     }
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
