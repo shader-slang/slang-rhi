@@ -195,10 +195,9 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     auto layout = getLayout();
 
     auto bindingRangeIndex = offset.bindingRangeIndex;
-    if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->m_bindingRanges.size())
+    if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
-
-    auto& bindingRange = layout->m_bindingRanges[bindingRangeIndex];
+    const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
     auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
     switch (binding.type)
@@ -208,7 +207,7 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         const BufferDesc& desc = buffer->m_desc;
         BufferRange range = buffer->resolveBufferRange(binding.bufferRange);
-        m_resources[viewIndex] = buffer;
+        m_resources[bindingIndex] = buffer;
         uint64_t handle = buffer->m_cpuBuffer ? (uint64_t)buffer->m_cpuBuffer : (uint64_t)buffer->m_cudaMemory;
         handle += range.offset;
         setData(offset, &handle, sizeof(handle));
@@ -223,7 +222,7 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Texture:
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(binding.resource);
-        m_resources[viewIndex] = texture;
+        m_resources[bindingIndex] = texture;
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::Texture:
@@ -238,7 +237,7 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::TextureView:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
-        m_resources[viewIndex] = textureView;
+        m_resources[bindingIndex] = textureView;
         TextureImpl* texture = textureView->m_texture;
         switch (bindingRange.bindingType)
         {
@@ -255,7 +254,7 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::AccelerationStructure:
     {
         AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(binding.resource);
-        m_resources[viewIndex] = as;
+        m_resources[bindingIndex] = as;
         setData(offset, &as->m_handle, sizeof(as->m_handle));
         break;
     }

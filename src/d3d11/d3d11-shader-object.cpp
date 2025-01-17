@@ -47,12 +47,11 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 
     auto layout = getLayout();
 
-    auto bindingRangeIndex = offset.bindingArrayIndex;
+    auto bindingRangeIndex = offset.bindingRangeIndex;
     if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
-    const auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-
-    Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+    const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
+    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
     switch (binding.type)
     {

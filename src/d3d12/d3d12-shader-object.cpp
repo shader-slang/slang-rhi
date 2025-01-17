@@ -746,17 +746,15 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
-    if (offset.bindingRangeIndex < 0)
-        return SLANG_E_INVALID_ARG;
     auto layout = getLayout();
-    if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
+
+    auto bindingRangeIndex = offset.bindingRangeIndex;
+    if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
+    const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
+    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
     ID3D12Device* d3dDevice = checked_cast<DeviceImpl*>(getDevice())->m_device;
-
-    auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-
-    Index bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
 
     BoundResource& boundResource = m_boundResources[bindingIndex];
 

@@ -164,7 +164,7 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         const BufferDesc& desc = buffer->m_desc;
         BufferRange range = buffer->resolveBufferRange(binding.bufferRange);
-        m_resources[viewIndex] = buffer;
+        m_resources[bindingIndex] = buffer;
 
         void* dataPtr = (uint8_t*)buffer->m_data + range.offset;
         size_t size = range.size;
@@ -187,7 +187,7 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::TextureView:
     {
         auto textureView = checked_cast<TextureViewImpl*>(binding.resource);
-        m_resources[viewIndex] = textureView;
+        m_resources[bindingIndex] = textureView;
         slang_prelude::IRWTexture* textureObj = textureView;
         SLANG_RETURN_ON_FAIL(setData(offset, &textureObj, sizeof(textureObj)));
         break;
