@@ -63,10 +63,10 @@ public:
 
     /// Compile HLSL code to DXBC
     static Result compileHLSLShader(
-        char const* sourcePath,
-        char const* source,
-        char const* entryPointName,
-        char const* dxProfileName,
+        const char* sourcePath,
+        const char* source,
+        const char* entryPointName,
+        const char* dxProfileName,
         ComPtr<ID3DBlob>& shaderBlobOut
     );
 

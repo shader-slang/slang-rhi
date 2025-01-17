@@ -40,7 +40,7 @@ void unloadSharedLibrary(SharedLibraryHandle handle)
 #endif
 }
 
-void* findSymbolAddressByName(SharedLibraryHandle handle, char const* name)
+void* findSymbolAddressByName(SharedLibraryHandle handle, const char* name)
 {
 #if SLANG_WINDOWS_FAMILY
     return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle), name));

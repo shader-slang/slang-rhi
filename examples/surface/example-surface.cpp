@@ -38,10 +38,7 @@ public:
         return SLANG_OK;
     }
 
-    virtual void shutdown() override
-    {
-        queue->waitOnHost();
-    }
+    virtual void shutdown() override { queue->waitOnHost(); }
 
     virtual void update() override {}
 

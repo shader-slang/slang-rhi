@@ -11,7 +11,7 @@
 
 namespace rhi::debug {
 
-Result DebugDevice::queryInterface(SlangUUID const& uuid, void** outObject) noexcept
+Result DebugDevice::queryInterface(const SlangUUID& uuid, void** outObject) noexcept
 {
     void* intf = getInterface(uuid);
     if (intf)
@@ -165,7 +165,7 @@ Result DebugDevice::unmapBuffer(IBuffer* buffer)
     return baseObject->unmapBuffer(buffer);
 }
 
-Result DebugDevice::createSampler(SamplerDesc const& desc, ISampler** outSampler)
+Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     SLANG_RHI_API_FUNC;
 
@@ -216,7 +216,7 @@ Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurfa
     return SLANG_OK;
 }
 
-Result DebugDevice::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result DebugDevice::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     SLANG_RHI_API_FUNC;
 

@@ -35,7 +35,7 @@ public:
     D3D12LinearExpandingDescriptorHeap m_stagingCpuViewHeap;
     D3D12LinearExpandingDescriptorHeap m_stagingCpuSamplerHeap;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override;
 
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return Super::addRef(); }
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return Super::release(); }

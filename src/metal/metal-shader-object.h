@@ -29,9 +29,9 @@ public:
 
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override { return (size_t)m_data.getCount(); }
 
-    SLANG_NO_THROW Result SLANG_MCALL setData(ShaderOffset const& inOffset, void const* data, size_t inSize) override;
+    SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& inOffset, const void* data, size_t inSize) override;
 
-    SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
+    SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
 public:
 protected:
@@ -71,10 +71,10 @@ protected:
 
 public:
     /// Bind this object as if it was declared as a `ConstantBuffer<T>` in Slang
-    Result bindAsConstantBuffer(BindingContext* context, BindingOffset const& inOffset, ShaderObjectLayoutImpl* layout);
+    Result bindAsConstantBuffer(BindingContext* context, const BindingOffset& inOffset, ShaderObjectLayoutImpl* layout);
 
     /// Bind this object as if it was declared as a `ParameterBlock<T>` in Slang
-    Result bindAsParameterBlock(BindingContext* context, BindingOffset const& inOffset, ShaderObjectLayoutImpl* layout);
+    Result bindAsParameterBlock(BindingContext* context, const BindingOffset& inOffset, ShaderObjectLayoutImpl* layout);
 
     /// Bind this object as a value that appears in the body of another object.
     ///
@@ -83,7 +83,7 @@ public:
     /// indirectly when binding sub-objects to constant buffer or parameter
     /// block ranges.
     ///
-    Result bindAsValue(BindingContext* context, BindingOffset const& offset, ShaderObjectLayoutImpl* layout);
+    Result bindAsValue(BindingContext* context, const BindingOffset& offset, ShaderObjectLayoutImpl* layout);
 
     // Because the binding ranges have already been reflected
     // and organized as part of each shader object layout,

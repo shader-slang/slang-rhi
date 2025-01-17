@@ -3,7 +3,7 @@
 
 namespace rhi::d3d11 {
 
-Result DeviceImpl::createSampler(SamplerDesc const& desc, ISampler** outSampler)
+Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     D3D11_FILTER_REDUCTION_TYPE dxReduction = translateFilterReduction(desc.reductionOp);
     D3D11_FILTER dxFilter;

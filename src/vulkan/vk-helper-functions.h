@@ -58,7 +58,7 @@ struct SimpleBindingOffset
     }
 
     /// Add any values in the given `offset`
-    void operator+=(SimpleBindingOffset const& offset)
+    void operator+=(const SimpleBindingOffset& offset)
     {
         binding += offset.binding;
         bindingSet += offset.bindingSet;
@@ -89,7 +89,7 @@ struct BindingOffset : SimpleBindingOffset
     BindingOffset() {}
 
     /// Create an offset from a simple offset
-    explicit BindingOffset(SimpleBindingOffset const& offset)
+    explicit BindingOffset(const SimpleBindingOffset& offset)
         : SimpleBindingOffset(offset)
     {
     }
@@ -102,10 +102,10 @@ struct BindingOffset : SimpleBindingOffset
     }
 
     /// Add any values in the given `offset`
-    void operator+=(SimpleBindingOffset const& offset) { SimpleBindingOffset::operator+=(offset); }
+    void operator+=(const SimpleBindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
 
     /// Add any values in the given `offset`
-    void operator+=(BindingOffset const& offset)
+    void operator+=(const BindingOffset& offset)
     {
         SimpleBindingOffset::operator+=(offset);
         pending += offset.pending;

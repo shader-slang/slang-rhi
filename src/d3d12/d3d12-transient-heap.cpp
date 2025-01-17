@@ -69,7 +69,7 @@ D3D12DescriptorHeap& TransientResourceHeapImpl::getCurrentSamplerHeap()
     return m_samplerHeaps[m_currentSamplerHeapIndex];
 }
 
-Result TransientResourceHeapImpl::queryInterface(SlangUUID const& uuid, void** outObject)
+Result TransientResourceHeapImpl::queryInterface(const SlangUUID& uuid, void** outObject)
 {
     if (uuid == GUID::IID_ITransientResourceHeapD3D12)
     {

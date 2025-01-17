@@ -13,7 +13,7 @@
 
 namespace rhi::wgpu {
 
-static void errorCallback(WGPUErrorType type, char const* message, void* userdata)
+static void errorCallback(WGPUErrorType type, const char* message, void* userdata)
 {
     DeviceImpl* device = static_cast<DeviceImpl*>(userdata);
     device->handleError(type, message);
@@ -46,7 +46,7 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void DeviceImpl::handleError(WGPUErrorType type, char const* message)
+void DeviceImpl::handleError(WGPUErrorType type, const char* message)
 {
     fprintf(stderr, "WGPU error: %s\n", message);
     this->m_lastError = type;
@@ -81,7 +81,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
     );
 
-    std::vector<char const*> const enabledToggles = {"use_dxc"};
+    const std::vector<const char*> enabledToggles = {"use_dxc"};
     WGPUDawnTogglesDescriptor togglesDesc = {};
     togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
     togglesDesc.enabledToggleCount = enabledToggles.size();
@@ -93,7 +93,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_ctx.instance = api.wgpuCreateInstance(&instanceDesc);
 
     auto requestAdapterCallback =
-        [](WGPURequestAdapterStatus status, WGPUAdapter adapter, char const* message, WGPU_NULLABLE void* userdata)
+        [](WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, WGPU_NULLABLE void* userdata)
     {
         Context* ctx = (Context*)userdata;
         if (status == WGPURequestAdapterStatus_Success)
@@ -126,7 +126,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, adapterFeatures.data());
 
     auto requestDeviceCallback =
-        [](WGPURequestDeviceStatus status, WGPUDevice device, char const* message, void* userdata)
+        [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userdata)
     {
         Context* ctx = (Context*)userdata;
         if (status == WGPURequestDeviceStatus_Success)

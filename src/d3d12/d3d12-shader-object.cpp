@@ -31,7 +31,7 @@ Size ShaderObjectImpl::getSize()
 }
 
 // TODO: Change Index to Offset/Size?
-Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
+Result ShaderObjectImpl::setData(const ShaderOffset& inOffset, const void* data, size_t inSize)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -62,7 +62,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
+Result ShaderObjectImpl::setObject(const ShaderOffset& offset, IShaderObject* object)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));
@@ -196,10 +196,10 @@ Result ShaderObjectImpl::_writeOrdinaryData(
     // others handled here.
     //
     Index subObjectRangeCounter = 0;
-    for (auto const& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
+    for (const auto& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
     {
         Index subObjectRangeIndex = subObjectRangeCounter++;
-        auto const& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
+        const auto& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
 
         // We only need to handle sub-object ranges for interface/existential-type fields,
         // because fields of constant-buffer or parameter-block type are responsible for
@@ -435,7 +435,7 @@ Result ShaderObjectImpl::prepareToBindAsParameterBlock(
 
 Result ShaderObjectImpl::bindAsParameterBlock(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
@@ -467,8 +467,8 @@ Result ShaderObjectImpl::bindAsParameterBlock(
 
 Result ShaderObjectImpl::bindAsConstantBuffer(
     BindingContext& context,
-    DescriptorSet const& descriptorSet,
-    BindingOffset const& offset,
+    const DescriptorSet& descriptorSet,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
@@ -505,8 +505,8 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
 
 Result ShaderObjectImpl::bindAsValue(
     BindingContext& context,
-    DescriptorSet const& descriptorSet,
-    BindingOffset const& offset,
+    const DescriptorSet& descriptorSet,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
@@ -558,8 +558,8 @@ Result ShaderObjectImpl::bindAsValue(
 
 Result ShaderObjectImpl::_bindImpl(
     BindingContext& context,
-    DescriptorSet const& descriptorSet,
-    BindingOffset const& offset,
+    const DescriptorSet& descriptorSet,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
@@ -742,7 +742,7 @@ Result ShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** outLa
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
+Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 

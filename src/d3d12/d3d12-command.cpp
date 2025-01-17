@@ -1225,7 +1225,7 @@ struct BindingContextImpl : public BindingContext
         return SLANG_OK;
     }
 
-    virtual Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) override
+    virtual Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) override
     {
         auto allocation = recorder->m_uploadBufferPool->allocate(size);
         ID3D12Resource* stagingBuffer = allocation.resource->m_resource.getResource();

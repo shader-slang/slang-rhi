@@ -89,10 +89,10 @@ struct ShaderCursor
     {
     }
 
-    Result setData(void const* data, Size size) const { return m_baseObject->setData(m_offset, data, size); }
+    Result setData(const void* data, Size size) const { return m_baseObject->setData(m_offset, data, size); }
 
     template<typename T>
-    Result setData(T const& data) const
+    Result setData(const T& data) const
     {
         return setData(&data, sizeof(data));
     }
@@ -479,7 +479,7 @@ inline Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
                 }
                 break;
             }
-            char const* nameEnd = rest;
+            const char* nameEnd = rest;
             ShaderCursor newCursor;
             cursor.getField(nameBegin, nameEnd, newCursor);
             cursor = newCursor;

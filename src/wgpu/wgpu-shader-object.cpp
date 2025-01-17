@@ -40,7 +40,7 @@ Size ShaderObjectImpl::getSize()
 }
 
 // TODO: Change size_t and Index to Size?
-Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
+Result ShaderObjectImpl::setData(const ShaderOffset& inOffset, const void* data, size_t inSize)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -71,7 +71,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
+Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -220,10 +220,10 @@ Result ShaderObjectImpl::_writeOrdinaryData(uint8_t* destData, Size destSize, Sh
     // others handled here.
     //
     Index subObjectRangeCounter = 0;
-    for (auto const& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
+    for (const auto& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
     {
         Index subObjectRangeIndex = subObjectRangeCounter++;
-        auto const& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
+        const auto& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
 
         // We only need to handle sub-object ranges for interface/existential-type fields,
         // because fields of constant-buffer or parameter-block type are responsible for
@@ -287,7 +287,7 @@ Result ShaderObjectImpl::_writeOrdinaryData(uint8_t* destData, Size destSize, Sh
     return SLANG_OK;
 }
 
-void ShaderObjectImpl::writeDescriptor(BindingContext& context, Index bindingSet, WGPUBindGroupEntry const& write)
+void ShaderObjectImpl::writeDescriptor(BindingContext& context, Index bindingSet, const WGPUBindGroupEntry& write)
 {
     auto device = context.device;
     SLANG_RHI_ASSERT(bindingSet < context.entries.size());
@@ -296,7 +296,7 @@ void ShaderObjectImpl::writeDescriptor(BindingContext& context, Index bindingSet
 
 void ShaderObjectImpl::writeBufferDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     BufferImpl* buffer,
     Offset bufferOffset,
     Size bufferSize
@@ -310,14 +310,14 @@ void ShaderObjectImpl::writeBufferDescriptor(
     writeDescriptor(context, offset.bindingSet, entry);
 }
 
-void ShaderObjectImpl::writeBufferDescriptor(BindingContext& context, BindingOffset const& offset, BufferImpl* buffer)
+void ShaderObjectImpl::writeBufferDescriptor(BindingContext& context, const BindingOffset& offset, BufferImpl* buffer)
 {
     writeBufferDescriptor(context, offset, buffer, 0, buffer->m_desc.size);
 }
 
 void ShaderObjectImpl::writeBufferDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     span<const ResourceSlot> slots
 )
 {
@@ -337,7 +337,7 @@ void ShaderObjectImpl::writeBufferDescriptor(
 
 void ShaderObjectImpl::writeTextureDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     span<const ResourceSlot> slots
 )
 {
@@ -355,7 +355,7 @@ void ShaderObjectImpl::writeTextureDescriptor(
 
 void ShaderObjectImpl::writeSamplerDescriptor(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     span<const RefPtr<SamplerImpl>> samplers
 )
 {
@@ -411,7 +411,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
 
 Result ShaderObjectImpl::bindAsValue(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -466,9 +466,9 @@ Result ShaderObjectImpl::bindAsValue(
     // Once we've handled the simple binding ranges, we move on to the
     // sub-object ranges, which are generally more involved.
     //
-    for (auto const& subObjectRange : specializedLayout->getSubObjectRanges())
+    for (const auto& subObjectRange : specializedLayout->getSubObjectRanges())
     {
-        auto const& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
+        const auto& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
         auto count = bindingRangeInfo.count;
         auto subObjectIndex = bindingRangeInfo.subObjectIndex;
 
@@ -570,7 +570,7 @@ Result ShaderObjectImpl::bindAsValue(
 
 Result ShaderObjectImpl::allocateDescriptorSets(
     BindingContext& context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -607,7 +607,7 @@ Result ShaderObjectImpl::createBindGroups(BindingContext& context) const
 
 Result ShaderObjectImpl::bindAsParameterBlock(
     BindingContext& context,
-    BindingOffset const& inOffset,
+    const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -665,7 +665,7 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
 
 Result ShaderObjectImpl::bindAsConstantBuffer(
     BindingContext& context,
-    BindingOffset const& inOffset,
+    const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -733,7 +733,7 @@ EntryPointLayout* EntryPointShaderObject::getLayout()
 
 Result EntryPointShaderObject::bindAsEntryPoint(
     BindingContext& context,
-    BindingOffset const& inOffset,
+    const BindingOffset& inOffset,
     EntryPointLayout* layout
 ) const
 {
@@ -772,7 +772,7 @@ RootShaderObjectLayout* RootShaderObjectImpl::getSpecializedLayout()
     return checked_cast<RootShaderObjectLayout*>(m_specializedLayout.Ptr());
 }
 
-std::vector<RefPtr<EntryPointShaderObject>> const& RootShaderObjectImpl::getEntryPoints() const
+const std::vector<RefPtr<EntryPointShaderObject>>& RootShaderObjectImpl::getEntryPoints() const
 {
     return m_entryPoints;
 }
@@ -818,7 +818,7 @@ Result RootShaderObjectImpl::bindAsRoot(BindingContext& context, RootShaderObjec
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = m_entryPoints[i];
-        auto const& entryPointInfo = layout->getEntryPoint(i);
+        const auto& entryPointInfo = layout->getEntryPoint(i);
 
         // Note: we do *not* need to add the entry point offset
         // information to the global `offset` because the

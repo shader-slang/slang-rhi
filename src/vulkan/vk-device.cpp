@@ -71,7 +71,7 @@ VkBool32 DeviceImpl::handleDebugMessage(
 {
     DebugMessageType msgType = DebugMessageType::Info;
 
-    char const* severity = "message";
+    const char* severity = "message";
     if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {
         severity = "warning";
@@ -1566,7 +1566,7 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     return SLANG_OK;
 }
 
-Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);
 

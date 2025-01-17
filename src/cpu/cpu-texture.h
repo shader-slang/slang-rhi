@@ -18,9 +18,9 @@ static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[] = {
     /* TextureCube */ {2, 3, 6},
 };
 
-static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(TextureType baseShape);
+static const CPUTextureBaseShapeInfo* _getBaseShapeInfo(TextureType baseShape);
 
-typedef void (*CPUTextureUnpackFunc)(void const* texelData, void* outData, size_t outSize);
+typedef void (*CPUTextureUnpackFunc)(const void* texelData, void* outData, size_t outSize);
 
 struct CPUTextureFormatInfo
 {
@@ -28,23 +28,23 @@ struct CPUTextureFormatInfo
 };
 
 template<int N>
-void _unpackFloatTexel(void const* texelData, void* outData, size_t outSize);
+void _unpackFloatTexel(const void* texelData, void* outData, size_t outSize);
 
 template<int N>
-void _unpackFloat16Texel(void const* texelData, void* outData, size_t outSize);
+void _unpackFloat16Texel(const void* texelData, void* outData, size_t outSize);
 
 static inline float _unpackUnorm8Value(uint8_t value);
 
 template<int N>
-void _unpackUnorm8Texel(void const* texelData, void* outData, size_t outSize);
+void _unpackUnorm8Texel(const void* texelData, void* outData, size_t outSize);
 
-void _unpackUnormBGRA8Texel(void const* texelData, void* outData, size_t outSize);
-
-template<int N>
-void _unpackUInt16Texel(void const* texelData, void* outData, size_t outSize);
+void _unpackUnormBGRA8Texel(const void* texelData, void* outData, size_t outSize);
 
 template<int N>
-void _unpackUInt32Texel(void const* texelData, void* outData, size_t outSize);
+void _unpackUInt16Texel(const void* texelData, void* outData, size_t outSize);
+
+template<int N>
+void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize);
 
 struct CPUFormatInfoMap
 {
@@ -82,7 +82,7 @@ struct CPUFormatInfoMap
 
 static const CPUFormatInfoMap g_formatInfoMap;
 
-static CPUTextureFormatInfo const* _getFormatInfo(Format format)
+static const CPUTextureFormatInfo* _getFormatInfo(Format format)
 {
     const CPUTextureFormatInfo& info = g_formatInfoMap.get(format);
     return info.unpackFunc ? &info : nullptr;
@@ -103,14 +103,14 @@ public:
 
     ~TextureImpl();
 
-    Result init(SubresourceData const* initData);
+    Result init(const SubresourceData* initData);
 
-    TextureDesc const& _getDesc() { return m_desc; }
+    const TextureDesc& _getDesc() { return m_desc; }
     Format getFormat() { return m_desc.format; }
     int32_t getRank() { return m_baseShape->rank; }
 
-    CPUTextureBaseShapeInfo const* m_baseShape;
-    CPUTextureFormatInfo const* m_formatInfo;
+    const CPUTextureBaseShapeInfo* m_baseShape;
+    const CPUTextureFormatInfo* m_formatInfo;
     int32_t m_effectiveArrayElementCount = 0;
     uint32_t m_texelSize = 0;
 
@@ -159,7 +159,7 @@ public:
 public:
     RefPtr<TextureImpl> m_texture;
 
-    void* _getTexelPtr(int32_t const* texelCoords);
+    void* _getTexelPtr(const int32_t* texelCoords);
 };
 
 } // namespace rhi::cpu

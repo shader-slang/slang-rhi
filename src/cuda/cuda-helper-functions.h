@@ -72,7 +72,7 @@ inline bool _isError(OptixResult result)
 }
 
 #if 1
-Result _handleOptixError(OptixResult result, char const* file, int line);
+Result _handleOptixError(OptixResult result, const char* file, int line);
 
 #define SLANG_OPTIX_HANDLE_ERROR(RESULT) _handleOptixError(RESULT, __FILE__, __LINE__)
 #else

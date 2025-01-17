@@ -3,7 +3,7 @@
 
 namespace rhi::d3d11 {
 
-Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     D3D11_INPUT_ELEMENT_DESC inputElements[16] = {};
 
@@ -34,7 +34,7 @@ Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout**
             hlslCursor += sprintf(hlslCursor, ",\n");
         }
 
-        char const* typeName = "Unknown";
+        const char* typeName = "Unknown";
         switch (inputElementsIn[ii].format)
         {
         case Format::R32G32B32A32_FLOAT:

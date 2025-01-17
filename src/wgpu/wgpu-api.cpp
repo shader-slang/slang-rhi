@@ -13,16 +13,16 @@ API::~API()
 Result API::init()
 {
 #if SLANG_WINDOWS_FAMILY
-    char const* libraryNames[] = {"dawn.dll", "webgpu_dawn.dll"};
+    const char* libraryNames[] = {"dawn.dll", "webgpu_dawn.dll"};
 #elif SLANG_LINUX_FAMILY
-    char const* libraryNames[] = {"libdawn.so"};
+    const char* libraryNames[] = {"libdawn.so"};
 #elif SLANG_APPLE_FAMILY
-    char const* libraryNames[] = {"libdawn.dylib"};
+    const char* libraryNames[] = {"libdawn.dylib"};
 #else
-    char const* libraryNames[] = {};
+    const char* libraryNames[] = {};
 #endif
 
-    for (char const* name : libraryNames)
+    for (const char* name : libraryNames)
     {
         if (loadSharedLibrary(name, m_module) == SLANG_OK)
             break;

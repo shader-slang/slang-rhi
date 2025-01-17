@@ -141,39 +141,39 @@ public:
         ShaderObjectLayoutImpl** outLayout
     );
 
-    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
 
     Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
-    BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
+    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
     Index getBufferCount() { return m_bufferCount; }
     Index getTextureCount() { return m_textureCount; }
     Index getSamplerCount() { return m_samplerCount; }
     Index getSubObjectCount() { return m_subObjectCount; }
 
-    SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
+    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
 
     Device* getDevice() { return m_device; }
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
     /// Get the indices that represent all the buffer ranges in this type
-    std::vector<Index> const& getBufferRanges() const { return m_bufferRanges; }
+    const std::vector<Index>& getBufferRanges() const { return m_bufferRanges; }
 
     /// Get the indices that reprsent all the texture ranges in this type
-    std::vector<Index> const& getTextureRanges() const { return m_textureRanges; }
+    const std::vector<Index>& getTextureRanges() const { return m_textureRanges; }
 
     /// Get the indices that represnet all the sampler ranges in this type
-    std::vector<Index> const& getSamplerRanges() const { return m_samplerRanges; }
+    const std::vector<Index>& getSamplerRanges() const { return m_samplerRanges; }
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
     slang::TypeLayoutReflection* getParameterBlockTypeLayout();
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     std::vector<BindingRangeInfo> m_bindingRanges;
     std::vector<Index> m_bufferRanges;
@@ -239,7 +239,7 @@ public:
     slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;

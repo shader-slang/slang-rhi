@@ -176,7 +176,7 @@ Size ShaderObjectImpl::getSize()
     return (Size)m_data.getCount();
 }
 
-Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, Size size)
+Result ShaderObjectImpl::setData(const ShaderOffset& offset, const void* data, Size size)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -188,7 +188,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& offset, void const* data, S
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
+Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -265,7 +265,7 @@ Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setObject(ShaderOffset const& offset, IShaderObject* object)
+Result ShaderObjectImpl::setObject(const ShaderOffset& offset, IShaderObject* object)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
     SLANG_RETURN_ON_FAIL(Super::setObject(offset, object));

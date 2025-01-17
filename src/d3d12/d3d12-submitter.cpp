@@ -50,7 +50,7 @@ void GraphicsSubmitter::setRootConstants(
     Index rootParamIndex,
     Index dstOffsetIn32BitValues,
     Index countOf32BitValues,
-    void const* srcData
+    const void* srcData
 )
 {
     m_commandList->SetGraphicsRoot32BitConstants(
@@ -85,7 +85,7 @@ void ComputeSubmitter::setRootConstants(
     Index rootParamIndex,
     Index dstOffsetIn32BitValues,
     Index countOf32BitValues,
-    void const* srcData
+    const void* srcData
 )
 {
     m_commandList->SetComputeRoot32BitConstants(

@@ -12,7 +12,7 @@ Result ShaderObjectImpl::create(DeviceImpl* device, ShaderObjectLayoutImpl* layo
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data, size_t inSize)
+Result ShaderObjectImpl::setData(const ShaderOffset& inOffset, const void* data, size_t inSize)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -41,7 +41,7 @@ Result ShaderObjectImpl::setData(ShaderOffset const& inOffset, void const* data,
     return SLANG_OK;
 }
 
-Result ShaderObjectImpl::setBinding(ShaderOffset const& offset, Binding binding)
+Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RETURN_ON_FAIL(requireNotFinalized());
 
@@ -192,10 +192,10 @@ Result ShaderObjectImpl::_writeOrdinaryData(void* dest, size_t destSize, ShaderO
     // others handled here.
     //
     Index subObjectRangeCounter = 0;
-    for (auto const& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
+    for (const auto& subObjectRangeInfo : specializedLayout->getSubObjectRanges())
     {
         Index subObjectRangeIndex = subObjectRangeCounter++;
-        auto const& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
+        const auto& bindingRangeInfo = specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
 
         // We only need to handle sub-object ranges for interface/existential-type fields,
         // because fields of constant-buffer or parameter-block type are responsible for
@@ -321,7 +321,7 @@ Result ShaderObjectImpl::_bindOrdinaryDataBufferIfNeeded(
 
 Result ShaderObjectImpl::bindAsConstantBuffer(
     BindingContext* context,
-    BindingOffset const& inOffset,
+    const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -348,7 +348,7 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
 
 Result ShaderObjectImpl::bindAsValue(
     BindingContext* context,
-    BindingOffset const& offset,
+    const BindingOffset& offset,
     ShaderObjectLayoutImpl* specializedLayout
 ) const
 {
@@ -372,7 +372,7 @@ Result ShaderObjectImpl::bindAsValue(
 
     for (auto bindingRangeIndex : specializedLayout->getSRVRanges())
     {
-        auto const& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
+        const auto& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
         auto count = (uint32_t)bindingRange.count;
         auto baseIndex = (uint32_t)bindingRange.baseIndex;
         auto registerOffset = bindingRange.registerOffset + offset.srv;
@@ -385,7 +385,7 @@ Result ShaderObjectImpl::bindAsValue(
 
     for (auto bindingRangeIndex : specializedLayout->getUAVRanges())
     {
-        auto const& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
+        const auto& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
         auto count = (uint32_t)bindingRange.count;
         auto baseIndex = (uint32_t)bindingRange.baseIndex;
         auto registerOffset = bindingRange.registerOffset + offset.uav;
@@ -398,7 +398,7 @@ Result ShaderObjectImpl::bindAsValue(
 
     for (auto bindingRangeIndex : specializedLayout->getSamplerRanges())
     {
-        auto const& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
+        const auto& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
         auto count = (uint32_t)bindingRange.count;
         auto baseIndex = (uint32_t)bindingRange.baseIndex;
         auto registerOffset = bindingRange.registerOffset + offset.sampler;
@@ -412,10 +412,10 @@ Result ShaderObjectImpl::bindAsValue(
     // Once all the simple binding ranges are dealt with, we will bind
     // all of the sub-objects in sub-object ranges.
     //
-    for (auto const& subObjectRange : specializedLayout->getSubObjectRanges())
+    for (const auto& subObjectRange : specializedLayout->getSubObjectRanges())
     {
         auto subObjectLayout = subObjectRange.layout;
-        auto const& bindingRange = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
+        const auto& bindingRange = specializedLayout->getBindingRange(subObjectRange.bindingRangeIndex);
         Index count = bindingRange.count;
         Index subObjectIndex = bindingRange.subObjectIndex;
 
@@ -575,7 +575,7 @@ Result RootShaderObjectImpl::bindAsRoot(BindingContext* context, RootShaderObjec
     for (Index i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = m_entryPoints[i];
-        auto const& entryPointInfo = specializedLayout->getEntryPoint(i);
+        const auto& entryPointInfo = specializedLayout->getEntryPoint(i);
 
         // Each entry point will be bound at some offset relative to where
         // the root shader parameters start.

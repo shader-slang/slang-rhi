@@ -442,7 +442,7 @@ struct NativeHandle
 struct InputElementDesc
 {
     /// The name of the corresponding parameter in shader code.
-    char const* semanticName;
+    const char* semanticName;
     /// The index of the corresponding parameter in shader code. Only needed if multiple parameters share a semantic
     /// name.
     GfxIndex semanticIndex;
@@ -469,9 +469,9 @@ struct InputLayoutDesc
     StructType structType = StructType::InputLayoutDesc;
     void* next = nullptr;
 
-    InputElementDesc const* inputElements = nullptr;
+    const InputElementDesc* inputElements = nullptr;
     GfxCount inputElementCount = 0;
-    VertexStreamDesc const* vertexStreams = nullptr;
+    const VertexStreamDesc* vertexStreams = nullptr;
     GfxCount vertexStreamCount = 0;
 };
 
@@ -646,7 +646,7 @@ static const SubresourceRange kEntireTexture = SubresourceRange{0l, 0x7fffffffl,
 struct SubresourceData
 {
     /// Pointer to texel data for the subresource tensor.
-    void const* data;
+    const void* data;
 
     /// Stride in bytes between rows of the subresource tensor.
     ///
@@ -1177,16 +1177,16 @@ public:
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() = 0;
     virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** entryPoint) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setData(ShaderOffset const& offset, void const* data, Size size) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(ShaderOffset const& offset, IShaderObject** object) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** object) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
     /// of interface-typed shader parameters.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(ShaderOffset const& offset, const slang::SpecializationArg* args, GfxCount count) = 0;
+    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, GfxCount count) = 0;
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() = 0;
 
@@ -1202,7 +1202,7 @@ public:
     /// Returns true if the shader object has been finalized.
     virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized() = 0;
 
-    inline ComPtr<IShaderObject> getObject(ShaderOffset const& offset)
+    inline ComPtr<IShaderObject> getObject(const ShaderOffset& offset)
     {
         ComPtr<IShaderObject> object = nullptr;
         SLANG_RETURN_NULL_ON_FAIL(getObject(offset, object.writeRef()));
@@ -2106,10 +2106,10 @@ struct SlangDesc
 
     SlangMatrixLayoutMode defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;
 
-    char const* const* searchPaths = nullptr;
+    const char* const* searchPaths = nullptr;
     GfxCount searchPathCount = 0;
 
-    slang::PreprocessorMacroDesc const* preprocessorMacros = nullptr;
+    const slang::PreprocessorMacroDesc* preprocessorMacros = nullptr;
     GfxCount preprocessorMacroCount = 0;
 
     slang::CompilerOptionEntry* compilerOptionEntries = nullptr;
@@ -2250,9 +2250,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) = 0;
 
-    inline ComPtr<ISampler> createSampler(SamplerDesc const& desc)
+    inline ComPtr<ISampler> createSampler(const SamplerDesc& desc)
     {
         ComPtr<ISampler> sampler;
         SLANG_RETURN_NULL_ON_FAIL(createSampler(desc, sampler.writeRef()));
@@ -2279,9 +2279,9 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) = 0;
+    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) = 0;
 
-    inline ComPtr<IInputLayout> createInputLayout(InputLayoutDesc const& desc)
+    inline ComPtr<IInputLayout> createInputLayout(const InputLayoutDesc& desc)
     {
         ComPtr<IInputLayout> layout;
         SLANG_RETURN_NULL_ON_FAIL(createInputLayout(desc, layout.writeRef()));
@@ -2290,7 +2290,7 @@ public:
 
     inline Result createInputLayout(
         Size vertexSize,
-        InputElementDesc const* inputElements,
+        const InputElementDesc* inputElements,
         GfxCount inputElementCount,
         IInputLayout** outLayout
     )
@@ -2307,7 +2307,7 @@ public:
 
     inline ComPtr<IInputLayout> createInputLayout(
         Size vertexSize,
-        InputElementDesc const* inputElements,
+        const InputElementDesc* inputElements,
         GfxCount inputElementCount
     )
     {

@@ -3,15 +3,15 @@
 
 namespace rhi::cpu {
 
-static CPUTextureBaseShapeInfo const* _getBaseShapeInfo(TextureType baseShape)
+static const CPUTextureBaseShapeInfo* _getBaseShapeInfo(TextureType baseShape)
 {
     return &kCPUTextureBaseShapeInfos[(int)baseShape];
 }
 
 template<int N>
-void _unpackFloatTexel(void const* texelData, void* outData, size_t outSize)
+void _unpackFloatTexel(const void* texelData, void* outData, size_t outSize)
 {
-    auto input = (float const*)texelData;
+    auto input = (const float*)texelData;
 
     float temp[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     for (int i = 0; i < N; ++i)
@@ -21,9 +21,9 @@ void _unpackFloatTexel(void const* texelData, void* outData, size_t outSize)
 }
 
 template<int N>
-void _unpackFloat16Texel(void const* texelData, void* outData, size_t outSize)
+void _unpackFloat16Texel(const void* texelData, void* outData, size_t outSize)
 {
-    auto input = (int16_t const*)texelData;
+    auto input = (const int16_t*)texelData;
 
     float temp[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     for (int i = 0; i < N; ++i)
@@ -38,9 +38,9 @@ static inline float _unpackUnorm8Value(uint8_t value)
 }
 
 template<int N>
-void _unpackUnorm8Texel(void const* texelData, void* outData, size_t outSize)
+void _unpackUnorm8Texel(const void* texelData, void* outData, size_t outSize)
 {
-    auto input = (uint8_t const*)texelData;
+    auto input = (const uint8_t*)texelData;
 
     float temp[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     for (int i = 0; i < N; ++i)
@@ -49,9 +49,9 @@ void _unpackUnorm8Texel(void const* texelData, void* outData, size_t outSize)
     memcpy(outData, temp, outSize);
 }
 
-void _unpackUnormBGRA8Texel(void const* texelData, void* outData, size_t outSize)
+void _unpackUnormBGRA8Texel(const void* texelData, void* outData, size_t outSize)
 {
-    auto input = (uint8_t const*)texelData;
+    auto input = (const uint8_t*)texelData;
 
     float temp[4];
     temp[0] = _unpackUnorm8Value(input[2]);
@@ -63,9 +63,9 @@ void _unpackUnormBGRA8Texel(void const* texelData, void* outData, size_t outSize
 }
 
 template<int N>
-void _unpackUInt16Texel(void const* texelData, void* outData, size_t outSize)
+void _unpackUInt16Texel(const void* texelData, void* outData, size_t outSize)
 {
-    auto input = (uint16_t const*)texelData;
+    auto input = (const uint16_t*)texelData;
 
     uint32_t temp[4] = {0, 0, 0, 0};
     for (int i = 0; i < N; ++i)
@@ -75,9 +75,9 @@ void _unpackUInt16Texel(void const* texelData, void* outData, size_t outSize)
 }
 
 template<int N>
-void _unpackUInt32Texel(void const* texelData, void* outData, size_t outSize)
+void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize)
 {
-    auto input = (uint32_t const*)texelData;
+    auto input = (const uint32_t*)texelData;
 
     uint32_t temp[4] = {0, 0, 0, 0};
     for (int i = 0; i < N; ++i)
@@ -91,7 +91,7 @@ TextureImpl::~TextureImpl()
     free(m_data);
 }
 
-Result TextureImpl::init(SubresourceData const* initData)
+Result TextureImpl::init(const SubresourceData* initData)
 {
     auto desc = m_desc;
 
@@ -316,17 +316,17 @@ void TextureViewImpl::SampleLevel(
         texelOffset += integerCoord * mipLevelInfo.strides[axis];
     }
 
-    auto texelPtr = (char const*)texture->m_data + texelOffset;
+    auto texelPtr = (const char*)texture->m_data + texelOffset;
 
     m_texture->m_formatInfo->unpackFunc(texelPtr, outData, dataSize);
 }
 
 void* TextureViewImpl::refAt(const uint32_t* texelCoords)
 {
-    return _getTexelPtr((int32_t const*)texelCoords);
+    return _getTexelPtr((const int32_t*)texelCoords);
 }
 
-void* TextureViewImpl::_getTexelPtr(int32_t const* texelCoords)
+void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
 {
     TextureImpl* texture = m_texture;
     auto baseShape = texture->m_baseShape;

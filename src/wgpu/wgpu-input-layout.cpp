@@ -4,7 +4,7 @@
 
 namespace rhi::wgpu {
 
-Result DeviceImpl::createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout)
+Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     RefPtr<InputLayoutImpl> layout = new InputLayoutImpl();
     layout->m_device = this;

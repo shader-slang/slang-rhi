@@ -25,7 +25,7 @@ struct BindingContextImpl : public RootBindingContext
     CommandEncoderImpl* encoder;
     VkPipelineLayout pipelineLayout;
 
-    void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) override
+    void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) override
     {
         IBuffer* stagingBuffer = nullptr;
         Offset stagingBufferOffset = 0;

@@ -69,7 +69,7 @@ struct BaseResolveResourceTest
         Extents extent;
         int mipLevelCount;
         int arrayLength;
-        SubresourceData const* initData;
+        const SubresourceData* initData;
     };
 
     void init(IDevice* device) { this->device = device; }

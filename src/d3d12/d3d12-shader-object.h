@@ -33,7 +33,7 @@ struct BindingContext
     short_vector<PendingDescriptorTableBinding>* pendingTableBindings;
 
     virtual Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) = 0;
-    virtual Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) = 0;
+    virtual Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) = 0;
 };
 
 struct DescriptorTable
@@ -141,10 +141,10 @@ public:
 
     // TODO: What to do with size_t?
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setData(ShaderOffset const& inOffset, void const* data, size_t inSize) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(ShaderOffset const& offset, IShaderObject* object) override;
+    setData(const ShaderOffset& inOffset, const void* data, size_t inSize) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(ShaderOffset const& offset, Binding binding) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
 protected:
     Result init(
@@ -190,31 +190,31 @@ public:
     /// Bind this object as a `ParameterBlock<X>`
     Result bindAsParameterBlock(
         BindingContext& context,
-        BindingOffset const& offset,
+        const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
     /// Bind this object as a `ConstantBuffer<X>`
     Result bindAsConstantBuffer(
         BindingContext& context,
-        DescriptorSet const& descriptorSet,
-        BindingOffset const& offset,
+        const DescriptorSet& descriptorSet,
+        const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
     /// Bind this object as a value (for an interface-type parameter)
     Result bindAsValue(
         BindingContext& context,
-        DescriptorSet const& descriptorSet,
-        BindingOffset const& offset,
+        const DescriptorSet& descriptorSet,
+        const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
     );
 
     /// Shared logic for `bindAsConstantBuffer()` and `bindAsValue()`
     Result _bindImpl(
         BindingContext& context,
-        DescriptorSet const& descriptorSet,
-        BindingOffset const& offset,
+        const DescriptorSet& descriptorSet,
+        const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
     );
 

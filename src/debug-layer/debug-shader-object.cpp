@@ -78,14 +78,14 @@ Result DebugShaderObject::getEntryPoint(GfxIndex index, IShaderObject** entryPoi
     return SLANG_OK;
 }
 
-Result DebugShaderObject::setData(ShaderOffset const& offset, void const* data, Size size)
+Result DebugShaderObject::setData(const ShaderOffset& offset, const void* data, Size size)
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();
     return baseObject->setData(offset, data, size);
 }
 
-Result DebugShaderObject::getObject(ShaderOffset const& offset, IShaderObject** object)
+Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** object)
 {
     SLANG_RHI_API_FUNC;
 
@@ -111,7 +111,7 @@ Result DebugShaderObject::getObject(ShaderOffset const& offset, IShaderObject** 
     return resultCode;
 }
 
-Result DebugShaderObject::setObject(ShaderOffset const& offset, IShaderObject* object)
+Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object)
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();
@@ -126,7 +126,7 @@ Result DebugShaderObject::setObject(ShaderOffset const& offset, IShaderObject* o
     return baseObject->setObject(offset, getInnerObj(object));
 }
 
-Result DebugShaderObject::setBinding(ShaderOffset const& offset, Binding binding)
+Result DebugShaderObject::setBinding(const ShaderOffset& offset, Binding binding)
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();
@@ -136,7 +136,7 @@ Result DebugShaderObject::setBinding(ShaderOffset const& offset, Binding binding
 }
 
 Result DebugShaderObject::setSpecializationArgs(
-    ShaderOffset const& offset,
+    const ShaderOffset& offset,
     const slang::SpecializationArg* args,
     GfxCount count
 )
@@ -179,7 +179,7 @@ bool DebugShaderObject::isFinalized()
 }
 
 Result DebugRootShaderObject::setSpecializationArgs(
-    ShaderOffset const& offset,
+    const ShaderOffset& offset,
     const slang::SpecializationArg* args,
     GfxCount count
 )

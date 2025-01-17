@@ -50,3 +50,5 @@ AlwaysBreakBeforeMultilineStrings: true
 
 IndentAccessModifiers: false
 AccessModifierOffset: -4
+
+QualifierAlignment: Left

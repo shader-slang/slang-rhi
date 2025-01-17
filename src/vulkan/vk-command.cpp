@@ -1160,7 +1160,7 @@ struct BindingContextImpl : public BindingContext
         return SLANG_OK;
     }
 
-    void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, void const* data) override
+    void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) override
     {
         if (size <= 0)
             return;

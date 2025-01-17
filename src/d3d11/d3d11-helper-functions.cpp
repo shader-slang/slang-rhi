@@ -205,12 +205,12 @@ D3D11_CULL_MODE translateCullMode(CullMode mode)
     }
 }
 
-bool isBlendDisabled(AspectBlendDesc const& desc)
+bool isBlendDisabled(const AspectBlendDesc& desc)
 {
     return desc.op == BlendOp::Add && desc.srcFactor == BlendFactor::One && desc.dstFactor == BlendFactor::Zero;
 }
 
-bool isBlendDisabled(ColorTargetState const& desc)
+bool isBlendDisabled(const ColorTargetState& desc)
 {
     return isBlendDisabled(desc.color) && isBlendDisabled(desc.alpha);
 }

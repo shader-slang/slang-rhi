@@ -178,7 +178,7 @@ public:
 
         /// Add any descriptor ranges implied by this object containing a leaf
         /// sub-object described by `typeLayout`, at the given `offset`.
-        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, BindingOffset const& offset);
+        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, const BindingOffset& offset);
 
         /// Add the descriptor ranges implied by a `ConstantBuffer<X>` where `X` is
         /// described by `elementTypeLayout`.
@@ -188,8 +188,8 @@ public:
         ///
         void _addDescriptorRangesAsConstantBuffer(
             slang::TypeLayoutReflection* elementTypeLayout,
-            BindingOffset const& containerOffset,
-            BindingOffset const& elementOffset
+            const BindingOffset& containerOffset,
+            const BindingOffset& elementOffset
         );
 
         /// Add the descriptor ranges implied by a `PushConstantBuffer<X>` where `X` is
@@ -200,8 +200,8 @@ public:
         ///
         void _addDescriptorRangesAsPushConstantBuffer(
             slang::TypeLayoutReflection* elementTypeLayout,
-            BindingOffset const& containerOffset,
-            BindingOffset const& elementOffset
+            const BindingOffset& containerOffset,
+            const BindingOffset& elementOffset
         );
 
         /// Add binding ranges to this shader object layout, as implied by the given
@@ -230,7 +230,7 @@ public:
     /// Get information about the descriptor sets that would be allocated to
     /// represent this object itself as a parameter block.
     ///
-    std::vector<DescriptorSetInfo> const& getOwnDescriptorSets() { return m_descriptorSetInfos; }
+    const std::vector<DescriptorSetInfo>& getOwnDescriptorSets() { return m_descriptorSetInfos; }
 
     /// Get the number of descriptor sets that would need to be allocated and bound
     /// to represent the children of this object if it were bound as a parameter
@@ -256,7 +256,7 @@ public:
     uint32_t getTotalBindingCount() { return m_totalBindingCount; }
 
     /// Get the list of push constant ranges required to bind the state of this object itself.
-    std::vector<VkPushConstantRange> const& getOwnPushConstantRanges() const { return m_ownPushConstantRanges; }
+    const std::vector<VkPushConstantRange>& getOwnPushConstantRanges() const { return m_ownPushConstantRanges; }
 
     /// Get the number of push constant ranges required to bind the state of this object itself.
     uint32_t getOwnPushConstantRangeCount() { return (uint32_t)m_ownPushConstantRanges.size(); }
@@ -274,26 +274,26 @@ public:
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
-    std::vector<BindingRangeInfo> const& getBindingRanges() { return m_bindingRanges; }
+    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
 
     Index getBindingRangeCount() { return m_bindingRanges.size(); }
 
-    BindingRangeInfo const& getBindingRange(Index index) { return m_bindingRanges[index]; }
+    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
     Index getResourceCount() { return m_resourceCount; }
     Index getSamplerCount() { return m_samplerCount; }
     Index getCombinedTextureSamplerCount() { return m_combinedTextureSamplerCount; }
     Index getSubObjectCount() { return m_subObjectCount; }
 
-    SubObjectRangeInfo const& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    std::vector<SubObjectRangeInfo> const& getSubObjectRanges() { return m_subObjectRanges; }
+    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
+    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
 
     DeviceImpl* getDevice();
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     std::vector<DescriptorSetInfo> m_descriptorSetInfos;
     std::vector<BindingRangeInfo> m_bindingRanges;
@@ -332,7 +332,7 @@ public:
         VkShaderStageFlags m_shaderStageFlag;
     };
 
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     VkShaderStageFlags getShaderStageFlag() const { return m_shaderStageFlag; }
 
@@ -384,9 +384,9 @@ public:
 
     Index findEntryPointIndex(VkShaderStageFlags stage);
 
-    EntryPointInfo const& getEntryPoint(Index index) { return m_entryPoints[index]; }
+    const EntryPointInfo& getEntryPoint(Index index) { return m_entryPoints[index]; }
 
-    std::vector<EntryPointInfo> const& getEntryPoints() const { return m_entryPoints; }
+    const std::vector<EntryPointInfo>& getEntryPoints() const { return m_entryPoints; }
 
     static Result create(
         DeviceImpl* device,
@@ -395,17 +395,17 @@ public:
         RootShaderObjectLayout** outLayout
     );
 
-    SimpleBindingOffset const& getPendingDataOffset() const { return m_pendingDataOffset; }
+    const SimpleBindingOffset& getPendingDataOffset() const { return m_pendingDataOffset; }
 
     slang::IComponentType* getSlangProgram() const { return m_program; }
     slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
 
     /// Get all of the push constant ranges that will be bound for this object and all
     /// (transitive) sub-objects
-    std::vector<VkPushConstantRange> const& getAllPushConstantRanges() { return m_allPushConstantRanges; }
+    const std::vector<VkPushConstantRange>& getAllPushConstantRanges() { return m_allPushConstantRanges; }
 
 protected:
-    Result _init(Builder const* builder);
+    Result _init(const Builder* builder);
 
     /// Add all the descriptor sets implied by this root object and sub-objects
     Result addAllDescriptorSets();

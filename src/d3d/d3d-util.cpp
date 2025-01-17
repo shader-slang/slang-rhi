@@ -519,10 +519,10 @@ Int D3DUtil::getNumColorChannelBits(DXGI_FORMAT fmt)
 // TODO: we can probably remove that code completely by switching to a PSO-like model across all APIs.
 //
 Result D3DUtil::compileHLSLShader(
-    char const* sourcePath,
-    char const* source,
-    char const* entryPointName,
-    char const* dxProfileName,
+    const char* sourcePath,
+    const char* source,
+    const char* entryPointName,
+    const char* dxProfileName,
     ComPtr<ID3DBlob>& shaderBlobOut
 )
 {

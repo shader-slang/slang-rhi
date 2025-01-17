@@ -36,7 +36,7 @@ struct Submitter
         Index rootParamIndex,
         Index dstOffsetIn32BitValues,
         Index countOf32BitValues,
-        void const* srcData
+        const void* srcData
     ) = 0;
 };
 
@@ -50,7 +50,7 @@ struct GraphicsSubmitter : public Submitter
         Index rootParamIndex,
         Index dstOffsetIn32BitValues,
         Index countOf32BitValues,
-        void const* srcData
+        const void* srcData
     ) override;
 
     GraphicsSubmitter(ID3D12Device* device, ID3D12GraphicsCommandList* commandList)
@@ -69,7 +69,7 @@ struct ComputeSubmitter : public Submitter
         Index rootParamIndex,
         Index dstOffsetIn32BitValues,
         Index countOf32BitValues,
-        void const* srcData
+        const void* srcData
     ) override;
 
     ComputeSubmitter(ID3D12Device* device, ID3D12GraphicsCommandList* commandList)

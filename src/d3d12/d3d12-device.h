@@ -121,13 +121,13 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
+    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
@@ -183,7 +183,7 @@ public:
     ) override;
 
 public:
-    static void* loadProc(SharedLibraryHandle module, char const* name);
+    static void* loadProc(SharedLibraryHandle module, const char* name);
 
     Result createBuffer(
         const D3D12_RESOURCE_DESC& resourceDesc,

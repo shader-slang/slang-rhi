@@ -7,7 +7,7 @@ namespace rhi::debug {
 class DebugDevice : public DebugObject<IDevice>
 {
 public:
-    Result SLANG_MCALL queryInterface(SlangUUID const& uuid, void** outObject) noexcept override;
+    Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) noexcept override;
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF;
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
 
@@ -39,7 +39,7 @@ public:
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(SamplerDesc const& desc, ISampler** outSampler) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
@@ -52,7 +52,7 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(InputLayoutDesc const& desc, IInputLayout** outLayout) override;
+    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
         slang::ISession* session,
