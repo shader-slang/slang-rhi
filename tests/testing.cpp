@@ -321,15 +321,13 @@ ComPtr<IDevice> createTestingDevice(
     ComPtr<IDevice> device;
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
-    deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
-    auto searchPaths = getSlangSearchPaths();
-    for (const char* path : searchPaths)
-        additionalSearchPaths.push_back(path);
-    deviceDesc.slang.searchPaths = searchPaths.data();
-    deviceDesc.slang.searchPathCount = searchPaths.size();
 #if ENABLE_SHADER_CACHE
     deviceDesc.persistentShaderCache = &gShaderCache;
 #endif
+
+    std::vector<const char*> searchPaths = getSlangSearchPaths();
+    for (const char* path : additionalSearchPaths)
+        searchPaths.push_back(path);
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
     std::vector<slang::CompilerOptionEntry> compilerOptions;
@@ -353,6 +351,8 @@ ComPtr<IDevice> createTestingDevice(
 
 #if SLANG_RHI_ENABLE_NVAPI
     // Setup NVAPI shader extension
+#if 0
+    // Current NVAPI headers are not compatible with fxc anymore (HitObject API)
     if (deviceType == DeviceType::D3D11)
     {
         deviceDesc.nvapiExtUavSlot = 999;
@@ -361,9 +361,10 @@ ComPtr<IDevice> createTestingDevice(
         nvapiSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         nvapiSearchPath.value.kind = slang::CompilerOptionValueKind::String;
         nvapiSearchPath.value.stringValue0 = "fxc";
-        nvapiSearchPath.value.stringValue1 = "/I" SLANG_RHI_NVAPI_INCLUDE_DIR;
+        nvapiSearchPath.value.stringValue1 = "-I" SLANG_RHI_NVAPI_INCLUDE_DIR;
         compilerOptions.push_back(nvapiSearchPath);
     }
+#endif
     if (deviceType == DeviceType::D3D12)
     {
         deviceDesc.nvapiExtUavSlot = 999;
@@ -389,6 +390,9 @@ ComPtr<IDevice> createTestingDevice(
         compilerOptions.push_back(optixSearchPath);
     }
 
+    deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
+    deviceDesc.slang.searchPaths = searchPaths.data();
+    deviceDesc.slang.searchPathCount = searchPaths.size();
     deviceDesc.slang.preprocessorMacros = preprocessorMacros.data();
     deviceDesc.slang.preprocessorMacroCount = preprocessorMacros.size();
     deviceDesc.slang.compilerOptionEntries = compilerOptions.data();
