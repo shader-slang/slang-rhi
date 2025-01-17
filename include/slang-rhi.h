@@ -2155,6 +2155,11 @@ struct DeviceDesc
     // Interface to persistent shader cache.
     IPersistentShaderCache* persistentShaderCache = nullptr;
 
+    /// NVAPI shader extension uav slot (-1 disables the extension).
+    uint32_t nvapiExtUavSlot = uint32_t(-1);
+    /// NVAPI shader extension register space.
+    uint32_t nvapiExtRegisterSpace = 0;
+
     /// Enable RHI validation layer.
     bool enableValidation = false;
     /// Enable backend API validation layer.

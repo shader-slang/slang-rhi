@@ -3,6 +3,7 @@
 #include "d3d11-pipeline.h"
 #include "d3d11-shader-object.h"
 #include "d3d11-command.h"
+#include "nvapi/nvapi-util.h"
 
 namespace rhi::d3d11 {
 
@@ -74,6 +75,11 @@ public:
     ComPtr<ID3D11Query> m_disjointQuery;
 
     DeviceDesc m_desc;
+
+#if SLANG_RHI_ENABLE_NVAPI
+    NVAPIShaderExtension m_nvapiShaderExtension;
+#endif
+
 };
 
 } // namespace rhi::d3d11

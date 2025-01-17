@@ -222,14 +222,13 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         else
         {
 #if SLANG_RHI_ENABLE_NVAPI
-            NVAPIShaderExtension shaderExtension = NVAPIUtil::findShaderExtension(program->m_rootObjectLayout->getSlangProgramLayout());
-            if (shaderExtension)
+            if (m_nvapiShaderExtension)
             {
                 NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC extensionDesc;
                 extensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
                 extensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
-                extensionDesc.uavSlot = shaderExtension.uavSlot;
-                extensionDesc.registerSpace = shaderExtension.uavSpace;
+                extensionDesc.uavSlot = m_nvapiShaderExtension.uavSlot;
+                extensionDesc.registerSpace = m_nvapiShaderExtension.registerSpace;
 
                 const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
 
@@ -299,14 +298,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     else
     {
 #if SLANG_RHI_ENABLE_NVAPI
-        NVAPIShaderExtension shaderExtension = NVAPIUtil::findShaderExtension(program->m_rootObjectLayout->getSlangProgramLayout());
-        if (shaderExtension)
+        if (m_nvapiShaderExtension)
         {
             NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC extensionDesc;
             extensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
             extensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
-            extensionDesc.uavSlot = shaderExtension.uavSlot;
-            extensionDesc.registerSpace = shaderExtension.uavSpace;
+            extensionDesc.uavSlot = m_nvapiShaderExtension.uavSlot;
+            extensionDesc.registerSpace = m_nvapiShaderExtension.registerSpace;
 
             const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
 
@@ -491,8 +489,6 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     globalSignatureSubobject.pDesc = &globalSignatureDesc;
     subObjects.push_back(globalSignatureSubobject);
 
-    NVAPIShaderExtension shaderExtension;
-
     if (m_pipelineCreationAPIDispatcher)
     {
         SLANG_RETURN_ON_FAIL(m_pipelineCreationAPIDispatcher->beforeCreateRayTracingState(this, slangGlobalScope));
@@ -500,11 +496,13 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     else
     {
 #if SLANG_RHI_ENABLE_NVAPI
-        shaderExtension = NVAPIUtil::findShaderExtension(program->m_rootObjectLayout->getSlangProgramLayout());
-        if (shaderExtension)
+        if (m_nvapiShaderExtension)
         {
-            if (NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, shaderExtension.uavSlot, shaderExtension.uavSpace) !=
-                NVAPI_OK)
+            if (NvAPI_D3D12_SetNvShaderExtnSlotSpace(
+                    m_device,
+                    m_nvapiShaderExtension.uavSlot,
+                    m_nvapiShaderExtension.registerSpace
+                ) != NVAPI_OK)
             {
                 return SLANG_FAIL;
             }
@@ -525,7 +523,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     else
     {
 #if SLANG_RHI_ENABLE_NVAPI
-        if (shaderExtension)
+        if (m_nvapiShaderExtension)
         {
             if (NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, 0xffffffff, 0) != NVAPI_OK)
             {

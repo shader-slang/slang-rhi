@@ -8,9 +8,9 @@ namespace rhi {
 
 struct NVAPIShaderExtension
 {
-    uint32_t uavSpace = uint32_t(-1);
-    uint32_t uavSlot = 0;
-    operator bool() const { return uavSpace != uint32_t(-1); }
+    uint32_t uavSlot = uint32_t(-1);
+    uint32_t registerSpace = 0;
+    operator bool() const { return uavSlot != uint32_t(-1); }
 };
 
 struct NVAPIUtil
