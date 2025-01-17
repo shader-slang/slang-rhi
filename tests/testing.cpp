@@ -389,6 +389,7 @@ ComPtr<IDevice> createTestingDevice(
         optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_INCLUDE_DIR;
         compilerOptions.push_back(optixSearchPath);
     }
+#endif
 
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
     deviceDesc.slang.searchPaths = searchPaths.data();
@@ -397,7 +398,6 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.slang.preprocessorMacroCount = preprocessorMacros.size();
     deviceDesc.slang.compilerOptionEntries = compilerOptions.data();
     deviceDesc.slang.compilerOptionEntryCount = compilerOptions.size();
-#endif
 
     D3D12DeviceExtendedDesc extDesc = {};
     if (deviceType == DeviceType::D3D12)
