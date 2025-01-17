@@ -439,36 +439,6 @@ void releaseCachedDevices()
     getRHI()->reportLiveObjects();
 }
 
-ComPtr<slang::ISession> createTestingSession(
-    GpuTestContext* ctx,
-    DeviceType deviceType,
-    std::vector<const char*> additionalSearchPaths
-)
-{
-    // Next, load the precompiled slang program.
-    ComPtr<slang::ISession> session;
-    slang::SessionDesc sessionDesc = {};
-    auto searchPaths = getSlangSearchPaths();
-    for (const char* path : searchPaths)
-        additionalSearchPaths.push_back(path);
-    sessionDesc.searchPaths = searchPaths.data();
-    sessionDesc.searchPathCount = searchPaths.size();
-    sessionDesc.targetCount = 1;
-    slang::TargetDesc targetDesc = {};
-    switch (deviceType)
-    {
-    case DeviceType::D3D12:
-        targetDesc.format = SLANG_DXIL;
-        break;
-    case DeviceType::Vulkan:
-        targetDesc.format = SLANG_SPIRV;
-        break;
-    }
-    sessionDesc.targets = &targetDesc;
-    ctx->slangGlobalSession->createSession(sessionDesc, session.writeRef());
-    return session;
-}
-
 std::vector<const char*> getSlangSearchPaths()
 {
     return {
