@@ -779,7 +779,7 @@ public:
 
         for (auto& object : m_objects)
         {
-            if (!object->isFinalized())
+            if (object && !object->isFinalized())
                 SLANG_RETURN_ON_FAIL(object->finalize());
         }
 

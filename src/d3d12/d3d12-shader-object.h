@@ -415,6 +415,8 @@ struct BindingContext
         cmd.size = size;
         commandList->write(std::move(cmd));
 
+        commandList->write(commands::SetBufferState{buffer, ResourceState::ConstantBuffer});
+
         return SLANG_OK;
     }
 

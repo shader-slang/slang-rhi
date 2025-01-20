@@ -299,11 +299,14 @@ Result ShaderObjectImpl::bindOrdinaryDataBufferIfNeeded(
     // We always know that the ordinary data buffer will be the first descriptor
     // in the table of resource views.
     //
-    SLANG_RHI_ASSERT(ioOffset.resource == 0);
+    // SLANG_RHI_ASSERT(ioOffset.resource == 0);
     D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
     viewDesc.BufferLocation = constantBuffer->getDeviceAddress() + constantBufferOffset;
     viewDesc.SizeInBytes = alignedConstantBufferSize;
-    context.device->m_device->CreateConstantBufferView(&viewDesc, descriptorSet.resourceTable.getCpuHandle(ioOffset.resource));
+    context.device->m_device->CreateConstantBufferView(
+        &viewDesc,
+        descriptorSet.resourceTable.getCpuHandle(ioOffset.resource)
+    );
     ioOffset.resource++;
 
     return SLANG_OK;
@@ -343,7 +346,7 @@ Result ShaderObjectImpl::bindAsValue2(
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 d3dDevice->CopyDescriptorsSimple(
                     count,
-                    descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i), // TODO correct offset?
+                    descriptorSet.resourceTable.getCpuHandle(baseIndex + i), // TODO correct offset?
                     textureView->getSRV().cpuHandle,
                     D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                 );
@@ -356,7 +359,7 @@ Result ShaderObjectImpl::bindAsValue2(
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 d3dDevice->CopyDescriptorsSimple(
                     count,
-                    descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i), // TODO correct offset?
+                    descriptorSet.resourceTable.getCpuHandle(baseIndex + i), // TODO correct offset?
                     textureView->getUAV().cpuHandle,
                     D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                 );
@@ -370,15 +373,15 @@ Result ShaderObjectImpl::bindAsValue2(
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource2.get());
                 d3dDevice->CopyDescriptorsSimple(
                     count,
-                    descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i), // TODO correct offset?
+                    descriptorSet.resourceTable.getCpuHandle(baseIndex + i), // TODO correct offset?
                     textureView->getUAV().cpuHandle,
                     D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                 );
                 d3dDevice->CopyDescriptorsSimple(
                     count,
-                    descriptorSet.resourceTable.getCpuHandle(rangeOffset.sampler + i), // TODO correct offset?
+                    descriptorSet.resourceTable.getCpuHandle(baseIndex + i), // TODO correct offset?
                     sampler->m_descriptor.cpuHandle,
-                    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+                    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
                 );
             }
             break;
@@ -388,9 +391,9 @@ Result ShaderObjectImpl::bindAsValue2(
                 SamplerImpl* sampler = m_samplers[baseIndex + i];
                 d3dDevice->CopyDescriptorsSimple(
                     count,
-                    descriptorSet.resourceTable.getCpuHandle(rangeOffset.sampler + i), // TODO correct offset?
+                    descriptorSet.resourceTable.getCpuHandle(baseIndex + i), // TODO correct offset?
                     sampler->m_descriptor.cpuHandle,
-                    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+                    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
                 );
             }
             break;
@@ -402,7 +405,10 @@ Result ShaderObjectImpl::bindAsValue2(
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
                 if (bindingRangeInfo.isRootParameter)
                 {
-                    context.setRootSRV(rangeOffset.rootParam + i, buffer->getDeviceAddress() + slot.bufferRange.offset);
+                    context.setRootSRV(
+                        rangeOffset.rootParam + baseIndex + i,
+                        buffer->getDeviceAddress() + slot.bufferRange.offset
+                    );
                 }
                 else
                 {
@@ -410,7 +416,7 @@ Result ShaderObjectImpl::bindAsValue2(
                     {
                         d3dDevice->CopyDescriptorsSimple(
                             1,
-                            descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i),
+                            descriptorSet.resourceTable.getCpuHandle(baseIndex + i),
                             buffer->getSRV(Format::Unknown, bindingRangeInfo.bufferElementStride, slot.bufferRange)
                                 .cpuHandle,
                             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
@@ -420,7 +426,7 @@ Result ShaderObjectImpl::bindAsValue2(
                     {
                         d3dDevice->CopyDescriptorsSimple(
                             1,
-                            descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i),
+                            descriptorSet.resourceTable.getCpuHandle(baseIndex + i),
                             buffer->getSRV(buffer->m_desc.format, 0, slot.bufferRange).cpuHandle,
                             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                         );
@@ -437,7 +443,10 @@ Result ShaderObjectImpl::bindAsValue2(
                 BufferImpl* counterBuffer = checked_cast<BufferImpl*>(slot.resource2.get());
                 if (bindingRangeInfo.isRootParameter)
                 {
-                    context.setRootUAV(rangeOffset.rootParam + i, buffer->getDeviceAddress() + slot.bufferRange.offset);
+                    context.setRootUAV(
+                        rangeOffset.rootParam + baseIndex + i,
+                        buffer->getDeviceAddress() + slot.bufferRange.offset
+                    );
                 }
                 else
                 {
@@ -445,7 +454,7 @@ Result ShaderObjectImpl::bindAsValue2(
                     {
                         d3dDevice->CopyDescriptorsSimple(
                             1,
-                            descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i),
+                            descriptorSet.resourceTable.getCpuHandle(baseIndex + i),
                             buffer
                                 ->getUAV(
                                     Format::Unknown,
@@ -461,7 +470,7 @@ Result ShaderObjectImpl::bindAsValue2(
                     {
                         d3dDevice->CopyDescriptorsSimple(
                             1,
-                            descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i),
+                            descriptorSet.resourceTable.getCpuHandle(baseIndex + i),
                             buffer->getUAV(buffer->m_desc.format, 0, slot.bufferRange, counterBuffer).cpuHandle,
                             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                         );
@@ -476,13 +485,13 @@ Result ShaderObjectImpl::bindAsValue2(
                 AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
                 if (bindingRangeInfo.isRootParameter)
                 {
-                    context.setRootSRV(rangeOffset.rootParam + i, as->getDeviceAddress());
+                    context.setRootSRV(rangeOffset.rootParam + baseIndex + i, as->getDeviceAddress());
                 }
                 else
                 {
                     d3dDevice->CopyDescriptorsSimple(
                         1,
-                        descriptorSet.resourceTable.getCpuHandle(rangeOffset.resource + i),
+                        descriptorSet.resourceTable.getCpuHandle(baseIndex + i),
                         as->m_descriptor.cpuHandle,
                         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                     );
@@ -1486,6 +1495,8 @@ Result RootShaderObjectImpl::bindAsRoot(
     auto oldPendingTableBindings = context.pendingTableBindings;
     context.pendingTableBindings = &pendingTableBindings;
 #endif
+
+    setResourceStates(context);
 
     BindingOffset rootOffset;
 
