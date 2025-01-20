@@ -7,6 +7,47 @@
 
 namespace rhi::metal {
 
+/// A "simple" binding offset that records an offset in buffer/texture/sampler slots
+struct BindingOffset
+{
+    uint32_t buffer = 0;
+    uint32_t texture = 0;
+    uint32_t sampler = 0;
+
+    /// Create a default (zero) offset
+    BindingOffset() = default;
+
+    /// Create an offset based on offset information in the given Slang `varLayout`
+    BindingOffset(slang::VariableLayoutReflection* varLayout)
+    {
+        if (varLayout)
+        {
+            buffer = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_METAL_BUFFER);
+            texture = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_METAL_TEXTURE);
+            sampler = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_METAL_SAMPLER);
+        }
+    }
+
+    /// Create an offset based on size/stride information in the given Slang `typeLayout`
+    BindingOffset(slang::TypeLayoutReflection* typeLayout)
+    {
+        if (typeLayout)
+        {
+            buffer = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_METAL_BUFFER);
+            texture = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_METAL_TEXTURE);
+            sampler = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_METAL_SAMPLER);
+        }
+    }
+
+    /// Add any values in the given `offset`
+    void operator+=(const BindingOffset& offset)
+    {
+        buffer += offset.buffer;
+        texture += offset.texture;
+        sampler += offset.sampler;
+    }
+};
+
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:

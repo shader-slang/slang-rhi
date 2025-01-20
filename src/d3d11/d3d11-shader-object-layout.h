@@ -5,6 +5,115 @@
 
 namespace rhi::d3d11 {
 
+// In order to bind shader parameters to the correct locations, we need to
+// be able to describe those locations. Most shader parameters will
+// only consume a single type of D3D11-visible regsiter (e.g., a `t`
+// register for a txture, or an `s` register for a sampler), and scalar
+// integers suffice for these cases.
+//
+// In more complex cases we might be binding an entire "sub-object" like
+// a parameter block, an entry point, etc. For the general case, we need
+// to be able to represent a composite offset that includes offsets for
+// each of the register classes known to D3D11.
+
+/// A "simple" binding offset that records an offset in CBV/SRV/UAV/Sampler slots
+struct SimpleBindingOffset
+{
+    uint32_t cbv = 0;
+    uint32_t srv = 0;
+    uint32_t uav = 0;
+    uint32_t sampler = 0;
+
+    /// Create a default (zero) offset
+    SimpleBindingOffset() {}
+
+    /// Create an offset based on offset information in the given Slang `varLayout`
+    SimpleBindingOffset(slang::VariableLayoutReflection* varLayout)
+    {
+        if (varLayout)
+        {
+            cbv = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_CONSTANT_BUFFER);
+            srv = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_SHADER_RESOURCE);
+            uav = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_UNORDERED_ACCESS);
+            sampler = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_SAMPLER_STATE);
+        }
+    }
+
+    /// Create an offset based on size/stride information in the given Slang `typeLayout`
+    SimpleBindingOffset(slang::TypeLayoutReflection* typeLayout)
+    {
+        if (typeLayout)
+        {
+            cbv = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_CONSTANT_BUFFER);
+            srv = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_SHADER_RESOURCE);
+            uav = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_UNORDERED_ACCESS);
+            sampler = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_SAMPLER_STATE);
+        }
+    }
+
+    /// Add any values in the given `offset`
+    void operator+=(const SimpleBindingOffset& offset)
+    {
+        cbv += offset.cbv;
+        srv += offset.srv;
+        uav += offset.uav;
+        sampler += offset.sampler;
+    }
+};
+
+// While a "simple" binding offset representation will work in many cases,
+// once we need to deal with layout for programs with interface-type parameters
+// that have been statically specialized, we also need to track the offset
+// for where to bind any "pending" data that arises from the process of static
+// specialization.
+//
+// In order to conveniently track both the "primary" and "pending" offset information,
+// we will define a more complete `BindingOffset` type that combines simple
+// binding offsets for the primary and pending parts.
+
+/// A representation of the offset at which to bind a shader parameter or sub-object
+struct BindingOffset : SimpleBindingOffset
+{
+    // Offsets for "primary" data are stored directly in the `BindingOffset`
+    // via the inheritance from `SimpleBindingOffset`.
+
+    /// Offset for any "pending" data
+    SimpleBindingOffset pending;
+
+    /// Create a default (zero) offset
+    BindingOffset() {}
+
+    /// Create an offset from a simple offset
+    explicit BindingOffset(const SimpleBindingOffset& offset)
+        : SimpleBindingOffset(offset)
+    {
+    }
+
+    /// Create an offset based on offset information in the given Slang `varLayout`
+    BindingOffset(slang::VariableLayoutReflection* varLayout)
+        : SimpleBindingOffset(varLayout)
+        , pending(varLayout->getPendingDataLayout())
+    {
+    }
+
+    /// Create an offset based on size/stride information in the given Slang `typeLayout`
+    BindingOffset(slang::TypeLayoutReflection* typeLayout)
+        : SimpleBindingOffset(typeLayout)
+        , pending(typeLayout->getPendingDataTypeLayout())
+    {
+    }
+
+    /// Add any values in the given `offset`
+    void operator+=(const SimpleBindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
+
+    /// Add any values in the given `offset`
+    void operator+=(const BindingOffset& offset)
+    {
+        SimpleBindingOffset::operator+=(offset);
+        pending += offset.pending;
+    }
+};
+
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
 public:

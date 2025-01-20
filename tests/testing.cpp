@@ -446,7 +446,7 @@ void releaseCachedDevices()
 std::vector<const char*> getSlangSearchPaths()
 {
     return {
-        "",
+        ".",
         "../../tests",
         "tests",
     };

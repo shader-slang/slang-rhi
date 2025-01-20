@@ -16,51 +16,6 @@
 
 namespace rhi::vk {
 
-struct BindableRootShaderObject
-{
-    /// Root object that this bindable object is associated with.
-    RootShaderObjectImpl* rootObject;
-    /// Vulkan pPipeline layout of the associated pipeline.
-    VkPipelineLayout pipelineLayout;
-    /// Descriptor sets that represent all the bindings the root object.
-    short_vector<VkDescriptorSet> descriptorSets;
-    struct PushConstant
-    {
-        VkPushConstantRange range;
-        void* data;
-    };
-    /// Push constants that represent all the push constants the root object.
-    short_vector<PushConstant> pushConstants;
-};
-
-/// Context information required when binding shader objects to the pipeline
-struct BindingContext
-{
-    BindableRootShaderObject* bindable;
-
-    /// The pipeline layout being used for binding
-    // VkPipelineLayout pipelineLayout;
-
-    /// The device being used
-    DeviceImpl* device;
-
-    /// An allocator to use for descriptor sets during binding
-    DescriptorSetAllocator* descriptorSetAllocator;
-
-    /// Transient resource heap for allocating transient resources (constant buffers)
-    // TransientResourceHeapImpl* transientHeap;
-
-    /// The descriptor sets that are being allocated and bound
-    // std::vector<VkDescriptorSet>* descriptorSets;
-
-    /// Information about all the push-constant ranges that should be bound
-    span<const VkPushConstantRange> pushConstantRanges;
-
-    virtual Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) = 0;
-    virtual void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) = 0;
-    // virtual void writePushConstants(VkPushConstantRange range, const void* data) = 0;
-};
-
 struct ResourceSlot
 {
     BindingType type = BindingType::Unknown;
@@ -103,8 +58,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
 protected:
-    friend class RootShaderObjectLayout;
-
     Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
@@ -118,72 +71,13 @@ protected:
     ) const;
 
 public:
-    /// Write a single descriptor using the Vulkan API
-    static void writeDescriptor(BindingContext& context, const VkWriteDescriptorSet& write);
-
-    static void writeBufferDescriptor(
+    /// Bind the ordinary data buffer if needed.
+    Result bindOrdinaryDataBufferIfNeeded(
         BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        BufferImpl* buffer,
-        Offset bufferOffset,
-        Size bufferSize
-    );
+        BindingOffset& ioOffset,
+        ShaderObjectLayoutImpl* specializedLayout
+    ) const;
 
-    static void writeBufferDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        BufferImpl* buffer
-    );
-
-    static void writePlainBufferDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        span<const ResourceSlot> slots
-    );
-
-    static void writeTexelBufferDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        span<const ResourceSlot> slots
-    );
-
-    static void writeTextureSamplerDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        span<const CombinedTextureSamplerSlot> slots
-    );
-
-    static void writeAccelerationStructureDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        span<const ResourceSlot> slots
-    );
-
-    static void writeTextureDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        span<const ResourceSlot> slots
-    );
-
-    static void writeSamplerDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        VkDescriptorType descriptorType,
-        span<const RefPtr<SamplerImpl>> samplers
-    );
-
-    /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
-    Result _ensureOrdinaryDataBufferCreatedIfNeeded(BindingContext& context, ShaderObjectLayoutImpl* specializedLayout)
-        const;
-
-public:
     /// Bind this shader object as a "value"
     ///
     /// This is the mode used for binding sub-objects for existential-type
@@ -208,13 +102,6 @@ public:
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
 
-    /// Bind the ordinary data buffer if needed.
-    Result bindOrdinaryDataBufferIfNeeded(
-        BindingContext& context,
-        BindingOffset& ioOffset,
-        ShaderObjectLayoutImpl* specializedLayout
-    ) const;
-
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
         BindingContext& context,
@@ -222,12 +109,11 @@ public:
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
 
-    void setResourceStates(StateTracking& stateTracking) const;
+    void setResourceStates(BindingContext& context) const;
 
     std::vector<ResourceSlot> m_resources;
     std::vector<RefPtr<SamplerImpl>> m_samplers;
     std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
-    std::vector<RefPtr<AccelerationStructureImpl>> m_accelerationStructures;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///
@@ -274,13 +160,12 @@ public:
 
     virtual GfxCount SLANG_MCALL getEntryPointCount() override;
     virtual Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
+    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
-    void setResourceStates(StateTracking& stateTracking);
+    void setResourceStates(BindingContext& context) const;
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout);
-
-    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
+    Result bindAsRoot(BindingContext& context, RootShaderObjectLayout* layout, BindingDataImpl*& outBindingData);
 
 public:
     Result init(DeviceImpl* device, RootShaderObjectLayout* layout);
@@ -289,6 +174,144 @@ protected:
     virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
     std::vector<RefPtr<EntryPointShaderObject>> m_entryPoints;
+};
+
+class BindingDataImpl : public BindingData
+{
+public:
+    struct BufferInfo
+    {
+        RefPtr<BufferImpl> buffer;
+        ResourceState state;
+    };
+    struct TextureInfo
+    {
+        RefPtr<TextureViewImpl> textureView;
+        ResourceState state;
+    };
+
+    short_vector<BufferInfo> buffers;
+    short_vector<TextureInfo> textures;
+
+    /// Layout associated with the root object.
+    RefPtr<RootShaderObjectLayout> layout;
+    /// Descriptor sets that represent all the bindings the root object.
+    short_vector<VkDescriptorSet> descriptorSets;
+    struct PushConstant
+    {
+        VkPushConstantRange range;
+        const void* data;
+    };
+    /// Push constants that represent all the push constants the root object.
+    short_vector<PushConstant> pushConstants;
+};
+
+struct BindingCache : public RefObject
+{
+    std::vector<RefPtr<BindingData>> bindingData;
+
+    PagedAllocator allocator;
+
+    void reset()
+    {
+        bindingData.clear();
+        allocator.reset();
+    }
+};
+
+/// Context information required when binding shader objects to the pipeline
+struct BindingContext
+{
+    DeviceImpl* device;
+
+    CommandList* commandList;
+
+    BindingCache* bindingCache;
+
+    /// An allocator to use for descriptor sets during binding
+    DescriptorSetAllocator* descriptorSetAllocator;
+
+    BufferPool<DeviceImpl, BufferImpl>* constantBufferPool;
+    BufferPool<DeviceImpl, BufferImpl>* uploadBufferPool;
+
+    BindingDataImpl* currentBindingData;
+
+    span<const VkPushConstantRange> pushConstantRanges;
+
+    BindingContext(
+        DeviceImpl* device,
+        CommandList* commandList,
+        BindingCache* bindingCache,
+        DescriptorSetAllocator* descriptorSetAllocator,
+        BufferPool<DeviceImpl, BufferImpl>* constantBufferPool,
+        BufferPool<DeviceImpl, BufferImpl>* uploadBufferPool
+    )
+        : device(device)
+        , commandList(commandList)
+        , bindingCache(bindingCache)
+        , descriptorSetAllocator(descriptorSetAllocator)
+        , constantBufferPool(constantBufferPool)
+        , uploadBufferPool(uploadBufferPool)
+    {
+    }
+
+    void setBufferState(BufferImpl* buffer, ResourceState state)
+    {
+        currentBindingData->buffers.push_back({buffer, state});
+    }
+
+    void setTextureState(TextureViewImpl* textureView, ResourceState state)
+    {
+        currentBindingData->textures.push_back({textureView, state});
+    }
+
+    Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset)
+    {
+        auto allocation = constantBufferPool->allocate(size);
+        outBufferWeakPtr = allocation.resource;
+        outOffset = allocation.offset;
+        return SLANG_OK;
+    }
+
+    Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data)
+    {
+        if (size <= 0)
+            return SLANG_OK;
+
+        auto allocation = uploadBufferPool->allocate(size);
+
+        auto& api = device->m_api;
+
+        void* mappedData = nullptr;
+        SLANG_VK_RETURN_ON_FAIL(api.vkMapMemory(
+            api.m_device,
+            allocation.resource->m_buffer.m_memory,
+            allocation.offset,
+            size,
+            0,
+            &mappedData
+        ));
+        memcpy((char*)mappedData, data, size);
+        api.vkUnmapMemory(api.m_device, allocation.resource->m_buffer.m_memory);
+
+        // Write a command to copy the data from the staging buffer to the real buffer
+        commands::CopyBuffer cmd;
+        cmd.dst = buffer;
+        cmd.dstOffset = offset;
+        cmd.src = allocation.resource;
+        cmd.srcOffset = allocation.offset;
+        cmd.size = size;
+        commandList->write(std::move(cmd));
+
+        return SLANG_OK;
+    }
+
+    void writePushConstants(VkPushConstantRange range, const void* data)
+    {
+        void* dataCopy = bindingCache->allocator.allocate(range.size);
+        std::memcpy(dataCopy, data, range.size);
+        currentBindingData->pushConstants.push_back({range, dataCopy});
+    }
 };
 
 } // namespace rhi::vk

@@ -37,14 +37,11 @@ public:
     uint64_t updateLastFinishedID();
 
     // ICommandQueue implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) override;
 
@@ -63,8 +60,10 @@ public:
 
     Result init();
 
-    // ICommandEncoder implementation
+    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject) override;
+    virtual Result getBindingData(IShaderObject* rootObject, BindingData*& outBindingData) override;
 
+    // ICommandEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subresourceRange,
@@ -73,12 +72,9 @@ public:
         SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) override;
-
     virtual SLANG_NO_THROW void SLANG_MCALL
     uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
@@ -93,6 +89,7 @@ public:
     D3D12DescriptorHeap m_samplerDescriptorHeap;
     BufferPool<DeviceImpl, BufferImpl> m_constantBufferPool;
     BufferPool<DeviceImpl, BufferImpl> m_uploadBufferPool;
+    RefPtr<BindingCache> m_bindingCache;
     uint64_t m_submissionID = 0;
 
     CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);

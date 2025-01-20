@@ -411,7 +411,6 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-shader-object.cpp
         src/d3d12/d3d12-shader-program.cpp
         src/d3d12/d3d12-shader-table.cpp
-        src/d3d12/d3d12-submitter.cpp
         src/d3d12/d3d12-surface.cpp
         src/d3d12/d3d12-texture.cpp
     )

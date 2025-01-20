@@ -34,22 +34,11 @@ public:
 
     SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
-public:
 protected:
-    friend class ProgramVars;
-
     Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given `offset`
     Result _writeOrdinaryData(void* dest, size_t destSize, ShaderObjectLayoutImpl* specializedLayout) const;
-
-    /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
-    ///
-    /// The `specializedLayout` type must represent a specialized layout for this
-    /// type that includes any "pending" data.
-    ///
-    Result _ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* device, ShaderObjectLayoutImpl* specializedLayout)
-        const;
 
     /// Bind the buffer for ordinary/uniform data, if needed
     ///
@@ -57,7 +46,7 @@ protected:
     /// register consumed by the ordinary data buffer, if one was bound.
     ///
     Result _bindOrdinaryDataBufferIfNeeded(
-        BindingContext* context,
+        BindingContext& context,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
@@ -65,7 +54,7 @@ protected:
 public:
     /// Bind this object as if it was declared as a `ConstantBuffer<T>` in Slang
     Result bindAsConstantBuffer(
-        BindingContext* context,
+        BindingContext& context,
         const BindingOffset& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
@@ -77,7 +66,7 @@ public:
     /// indirectly when binding sub-objects to constant buffer or parameter
     /// block ranges.
     ///
-    Result bindAsValue(BindingContext* context, const BindingOffset& offset, ShaderObjectLayoutImpl* specializedLayout)
+    Result bindAsValue(BindingContext& context, const BindingOffset& offset, ShaderObjectLayoutImpl* specializedLayout)
         const;
 
     // Set of resources to keep alive while this object is alive.
@@ -96,12 +85,6 @@ public:
 
     /// The samplers that are part of the state of this object
     std::vector<RefPtr<SamplerImpl>> m_samplers;
-
-    /// A constant buffer used to stored ordinary data for this object
-    /// and existential-type sub-objects.
-    ///
-    /// Created on demand with `_createOrdinaryDataBufferIfNeeded()`
-    mutable RefPtr<BufferImpl> m_ordinaryDataBuffer;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///
@@ -142,7 +125,11 @@ public:
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
     /// Bind this object as a root shader object
-    Result bindAsRoot(BindingContext* context, RootShaderObjectLayoutImpl* specializedLayout) const;
+    Result bindAsRoot(
+        BindingContext& context,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
+    ) const;
 
 protected:
     Result init(DeviceImpl* device, RootShaderObjectLayoutImpl* layout);
@@ -150,6 +137,40 @@ protected:
     Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
 
     std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
+};
+
+/// Contextual data and operations required when building binding data from shader objects.
+struct BindingContext
+{
+    DeviceImpl* device;
+    BindingCache* bindingCache;
+    BindingDataImpl* currentBindingData = nullptr;
+
+    void setCBV(UINT index, ID3D11Buffer* buffer);
+    void setSRV(UINT index, ID3D11ShaderResourceView* srv);
+    void setUAV(UINT index, ID3D11UnorderedAccessView* uav);
+    void setSampler(UINT index, ID3D11SamplerState* sampler);
+
+    BindingContext(DeviceImpl* device, BindingCache* bindingCache)
+        : device(device)
+        , bindingCache(bindingCache)
+    {
+    }
+};
+
+class BindingDataImpl : public BindingData
+{
+public:
+    short_vector<ID3D11Buffer*, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> cbvs;
+    short_vector<ID3D11UnorderedAccessView*, D3D11_PS_CS_UAV_REGISTER_COUNT> uavs;
+    short_vector<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> srvs;
+    short_vector<ID3D11SamplerState*, D3D11_COMMONSHADER_SAMPLER_REGISTER_COUNT> samplers;
+};
+
+struct BindingCache : public RefObject
+{
+    std::vector<RefPtr<BindingDataImpl>> bindingData;
+    std::vector<RefPtr<BufferImpl>> constantBuffers;
 };
 
 } // namespace rhi::d3d11

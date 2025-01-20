@@ -51,6 +51,9 @@
 
 namespace rhi {
 
+class BindingData;
+class ExtendedShaderObjectTypeListObject;
+
 #define SLANG_RHI_COMMAND_ENUM_X(x) x,
 
 enum class CommandID : uint32_t
@@ -150,6 +153,9 @@ struct EndRenderPass
 struct SetRenderState
 {
     RenderState state;
+    IRenderPipeline* pipeline;
+    ExtendedShaderObjectTypeListObject* specializationArgs;
+    BindingData* bindingData;
 };
 
 struct Draw
@@ -195,7 +201,9 @@ struct EndComputePass
 
 struct SetComputeState
 {
-    ComputeState state;
+    IComputePipeline* pipeline;
+    ExtendedShaderObjectTypeListObject* specializationArgs;
+    BindingData* bindingData;
 };
 
 struct DispatchCompute
@@ -219,7 +227,10 @@ struct EndRayTracingPass
 
 struct SetRayTracingState
 {
-    RayTracingState state;
+    IRayTracingPipeline* pipeline;
+    ExtendedShaderObjectTypeListObject* specializationArgs;
+    IShaderTable* shaderTable;
+    BindingData* bindingData;
 };
 
 struct DispatchRays

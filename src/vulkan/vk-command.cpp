@@ -34,8 +34,6 @@ public:
     BufferPool<DeviceImpl, BufferImpl>* m_constantBufferPool;
     BufferPool<DeviceImpl, BufferImpl>* m_uploadBufferPool;
 
-    std::unordered_map<IShaderObject*, BindableRootShaderObject> m_bindableRootObjects;
-
     StateTracking m_stateTracking;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
@@ -49,14 +47,14 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputeState m_computeState;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
-    RayTracingState m_rayTracingState;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
+
+    RefPtr<BindingDataImpl> m_bindingData;
 
     uint64_t m_rayGenTableAddr = 0;
     VkStridedDeviceAddressRegionKHR m_raygenSBT;
@@ -112,15 +110,7 @@ public:
 
     void prepareSetRenderState(const commands::SetRenderState& cmd);
 
-    Result bindRootObject(
-        RootShaderObjectImpl* rootObject,
-        RootShaderObjectLayout* rootObjectLayout,
-        VkPipelineBindPoint bindPoint
-    );
-
-    Result prepareRootObject(RootShaderObjectImpl* rootObject, RootShaderObjectLayout* rootObjectLayout);
-
-    void bindRootObject(BindableRootShaderObject* bindable, VkPipelineBindPoint bindPoint);
+    void setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
@@ -153,42 +143,6 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
     CommandList* commandList = commandBuffer->m_commandList;
-
-    // First, we setup all the root objects.
-    for (const CommandList::CommandSlot* slot = commandList->getCommands(); slot; slot = slot->next)
-    {
-        IShaderObject* rootObject = nullptr;
-        switch (slot->id)
-        {
-        case CommandID::SetRenderState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetRenderState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<RenderPipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        case CommandID::SetComputeState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetComputeState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<ComputePipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        case CommandID::SetRayTracingState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetRayTracingState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<RayTracingPipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        }
-    }
 
     for (const CommandList::CommandSlot* slot = commandList->getCommands(); slot; slot = slot->next)
     {
@@ -236,7 +190,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
 
 void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -605,8 +559,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     const RenderState& state = cmd.state;
 
-    bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateStencilRef = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
     bool updateVertexBuffers = !m_renderStateValid || !arraysEqual(
                                                           state.vertexBufferCount,
@@ -630,13 +584,14 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updatePipeline)
     {
-        m_renderPipeline = checked_cast<RenderPipelineImpl*>(state.pipeline);
+        m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPipeline->m_pipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        bindRootObject(&m_bindableRootObjects[state.rootObject], VK_PIPELINE_BIND_POINT_GRAPHICS);
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_GRAPHICS);
     }
 
     // TODO support setting sample positions
@@ -730,11 +685,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     m_renderState = state;
 
     m_computeStateValid = false;
-    m_computeState = {};
     m_computePipeline = nullptr;
 
     m_rayTracingStateValid = false;
-    m_rayTracingState = {};
     m_rayTracingPipeline = nullptr;
 }
 
@@ -869,26 +822,24 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (!m_computePassActive)
         return;
 
-    const ComputeState& state = cmd.state;
-
-    bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_computeState.rootObject;
+    bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     auto& api = m_device->m_api;
 
     if (updatePipeline)
     {
-        m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+        m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline->m_pipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        bindRootObject(&m_bindableRootObjects[state.rootObject], VK_PIPELINE_BIND_POINT_COMPUTE);
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);
     }
 
     m_computeStateValid = true;
-    m_computeState = state;
 }
 
 void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -926,28 +877,27 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (!m_rayTracingPassActive)
         return;
 
-    const RayTracingState& state = cmd.state;
-
-    bool updatePipeline = !m_rayTracingStateValid || state.pipeline != m_rayTracingState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_rayTracingState.rootObject;
-    bool updateShaderTable = !m_rayTracingStateValid || state.shaderTable != m_rayTracingState.shaderTable;
+    bool updatePipeline = !m_rayTracingStateValid || cmd.pipeline != m_rayTracingPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
+    bool updateShaderTable = !m_rayTracingStateValid || cmd.shaderTable != m_shaderTable;
 
     auto& api = m_device->m_api;
 
     if (updatePipeline)
     {
-        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(state.pipeline);
+        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rayTracingPipeline->m_pipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        bindRootObject(&m_bindableRootObjects[state.rootObject], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
+        m_bindingData = checked_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
     }
 
     if (updateShaderTable)
     {
-        m_shaderTable = checked_cast<ShaderTableImpl*>(state.shaderTable);
+        m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
         Buffer* shaderTableBuffer = m_shaderTable->getOrCreateBuffer(m_rayTracingPipeline);
         DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
@@ -976,7 +926,6 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     }
 
     m_rayTracingStateValid = true;
-    m_rayTracingState = state;
 }
 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
@@ -1142,167 +1091,29 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     cmd.callback(cmd.userData);
 }
 
-struct BindingContextImpl : public BindingContext
-{
-    CommandRecorder* recorder;
-
-    Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) override
-    {
-        auto allocation = recorder->m_constantBufferPool->allocate(size);
-        outBufferWeakPtr = allocation.resource;
-        outOffset = allocation.offset;
-        return SLANG_OK;
-    }
-
-    void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) override
-    {
-        if (size <= 0)
-            return;
-
-        auto allocation = recorder->m_uploadBufferPool->allocate(size);
-
-        auto& api = recorder->m_device->m_api;
-
-        void* mappedData = nullptr;
-        if (api.vkMapMemory(
-                api.m_device,
-                allocation.resource->m_buffer.m_memory,
-                allocation.offset,
-                size,
-                0,
-                &mappedData
-            ) != VK_SUCCESS)
-        {
-            // TODO issue error message?
-            return;
-        }
-        memcpy((char*)mappedData, data, size);
-        api.vkUnmapMemory(api.m_device, allocation.resource->m_buffer.m_memory);
-
-        // Copy from staging buffer to real buffer
-        VkBufferCopy copyInfo = {};
-        copyInfo.size = size;
-        copyInfo.dstOffset = offset;
-        copyInfo.srcOffset = allocation.offset;
-        recorder->m_api.vkCmdCopyBuffer(
-            recorder->m_cmdBuffer,
-            allocation.resource->m_buffer.m_buffer,
-            buffer->m_buffer.m_buffer,
-            1,
-            &copyInfo
-        );
-    }
-
-    // void writePushConstants(VkPushConstantRange range, const void* data) override
-    // {
-    //     auto& api = recorder->m_device->m_api;
-    //     api.vkCmdPushConstants(recorder->m_cmdBuffer, pipelineLayout, range.stageFlags, range.offset, range.size,
-    //     data);
-    // }
-};
-
-#if 0
-Result CommandRecorder::bindRootObject(
-    RootShaderObjectImpl* rootObject,
-    RootShaderObjectLayout* rootObjectLayout,
-    VkPipelineBindPoint bindPoint
-)
-{
-    // We will set up the context required when binding shader objects
-    // to the pipeline. Note that this is mostly just being packaged
-    // together to minimize the number of parameters that have to
-    // be dealt with in the complex recursive call chains.
-    //
-    BindingContextImpl context;
-    context.pipelineLayout = rootObjectLayout->m_pipelineLayout;
-    context.device = m_device;
-    context.transientHeap = m_transientHeap;
-    context.recorder = this;
-    context.descriptorSetAllocator = &m_transientHeap->m_descSetAllocator;
-    context.pushConstantRanges = span(rootObjectLayout->getAllPushConstantRanges());
-
-    // The context includes storage for the descriptor sets we will bind,
-    // and the number of sets we need to make space for is determined
-    // by the specialized program layout.
-    //
-    std::vector<VkDescriptorSet> descriptorSetsStorage;
-
-    context.descriptorSets = &descriptorSetsStorage;
-
-    rootObject->setResourceStates(m_stateTracking);
-    commitBarriers();
-
-    // We kick off recursive binding of shader objects to the pipeline (plus
-    // the state in `context`).
-    //
-    // Note: this logic will directly write any push-constant ranges needed,
-    // and will also fill in any descriptor sets. Currently it does not
-    // *bind* the descriptor sets it fills in.
-    //
-    // TODO: It could probably bind the descriptor sets as well.
-    //
-    SLANG_RETURN_ON_FAIL(rootObject->bindAsRoot(context, rootObjectLayout));
-
-    // Once we've filled in all the descriptor sets, we bind them
-    // to the pipeline at once.
-    //
-    if (descriptorSetsStorage.size() > 0)
-    {
-        m_api.vkCmdBindDescriptorSets(
-            m_cmdBuffer,
-            bindPoint,
-            rootObjectLayout->m_pipelineLayout,
-            0,
-            (uint32_t)descriptorSetsStorage.size(),
-            descriptorSetsStorage.data(),
-            0,
-            nullptr
-        );
-    }
-
-    return SLANG_OK;
-}
-#endif
-
-Result CommandRecorder::prepareRootObject(RootShaderObjectImpl* rootObject, RootShaderObjectLayout* rootObjectLayout)
-{
-    auto it = m_bindableRootObjects.find(rootObject);
-    if (it != m_bindableRootObjects.end())
-    {
-        return SLANG_OK;
-    }
-
-    BindableRootShaderObject bindable;
-    bindable.rootObject = rootObject;
-    bindable.pipelineLayout = rootObjectLayout->m_pipelineLayout;
-    BindingContextImpl context;
-    context.bindable = &bindable;
-    context.device = m_device;
-    context.descriptorSetAllocator = m_descriptorSetAllocator;
-    context.pushConstantRanges = rootObjectLayout->getAllPushConstantRanges();
-    context.recorder = this;
-    SLANG_RETURN_ON_FAIL(rootObject->bindAsRoot(context, rootObjectLayout));
-
-    m_bindableRootObjects[rootObject] = std::move(bindable);
-
-    return SLANG_OK;
-}
-
-
-void CommandRecorder::bindRootObject(BindableRootShaderObject* bindable, VkPipelineBindPoint bindPoint)
+void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint)
 {
     // First, we transition all resources to the required states.
-    bindable->rootObject->setResourceStates(m_stateTracking);
-
-    if (bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS)
-        commitBarriers();
+    for (const auto& bufferInfo : bindingData->buffers)
+    {
+        requireBufferState(bufferInfo.buffer, bufferInfo.state);
+    }
+    for (const auto& textureInfo : bindingData->textures)
+    {
+        requireTextureState(
+            textureInfo.textureView->m_texture,
+            textureInfo.textureView->m_desc.subresourceRange,
+            textureInfo.state
+        );
+    }
+    commitBarriers();
 
     // Then we set all push constants.
-    for (const auto& pushConstant : bindable->pushConstants)
+    for (const auto& pushConstant : bindingData->pushConstants)
     {
         m_api.vkCmdPushConstants(
             m_cmdBuffer,
-            bindable->pipelineLayout,
+            bindingData->layout->m_pipelineLayout,
             pushConstant.range.stageFlags,
             pushConstant.range.offset,
             pushConstant.range.size,
@@ -1311,15 +1122,15 @@ void CommandRecorder::bindRootObject(BindableRootShaderObject* bindable, VkPipel
     }
 
     // Finally, we bind all descriptor sets.
-    if (!bindable->descriptorSets.empty())
+    if (!bindingData->descriptorSets.empty())
     {
         m_api.vkCmdBindDescriptorSets(
             m_cmdBuffer,
             bindPoint,
-            bindable->pipelineLayout,
+            bindingData->layout->m_pipelineLayout,
             0,
-            (uint32_t)bindable->descriptorSets.size(),
-            bindable->descriptorSets.data(),
+            (uint32_t)bindingData->descriptorSets.size(),
+            bindingData->descriptorSets.data(),
             0,
             nullptr
         );
@@ -1785,6 +1596,29 @@ Result CommandEncoderImpl::init()
     return SLANG_OK;
 }
 
+Result CommandEncoderImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outRootObject)
+{
+    return m_device->createRootShaderObject(program, outRootObject);
+}
+
+Result CommandEncoderImpl::getBindingData(IShaderObject* rootObject, BindingData*& outBindingData)
+{
+    RootShaderObjectImpl* rootObjectImpl = checked_cast<RootShaderObjectImpl*>(rootObject);
+    RootShaderObjectLayout* specializedRootLayout = rootObjectImpl->getSpecializedLayout();
+    BindingContext bindingContext(
+        m_device,
+        m_commandList,
+        m_commandBuffer->m_bindingCache,
+        &m_commandBuffer->m_descriptorSetAllocator,
+        &m_commandBuffer->m_constantBufferPool,
+        &m_commandBuffer->m_uploadBufferPool
+    );
+    SLANG_RETURN_ON_FAIL(
+        rootObjectImpl->bindAsRoot(bindingContext, specializedRootLayout, (BindingDataImpl*&)outBindingData)
+    );
+    return SLANG_OK;
+}
+
 void CommandEncoderImpl::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
@@ -1843,6 +1677,7 @@ Result CommandBufferImpl::init()
     m_constantBufferPool
         .init(m_device, MemoryType::DeviceLocal, 256, BufferUsage::ConstantBuffer | BufferUsage::CopyDestination);
     m_uploadBufferPool.init(m_device, MemoryType::Upload, 256, BufferUsage::CopySource);
+    m_bindingCache = new BindingCache();
 
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -1869,6 +1704,7 @@ Result CommandBufferImpl::reset()
     m_descriptorSetAllocator.reset();
     m_constantBufferPool.reset();
     m_uploadBufferPool.reset();
+    m_bindingCache->reset();
     return SLANG_OK;
 }
 
@@ -1880,3 +1716,185 @@ Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 }
 
 } // namespace rhi::vk
+
+// Taken from old code for reference
+#if 0
+void CommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+{
+    BufferImpl* dstImpl = checked_cast<BufferImpl*>(dst);
+
+    requireBufferState(dstImpl, ResourceState::CopyDestination);
+    commitBarriers();
+
+    IBuffer* stagingBuffer = nullptr;
+    Offset stagingBufferOffset = 0;
+    m_transientHeap->allocateStagingBuffer(size, stagingBuffer, stagingBufferOffset, MemoryType::Upload);
+
+    BufferImpl* stagingBufferImpl = checked_cast<BufferImpl*>(stagingBuffer);
+
+    auto& api = m_device->m_api;
+
+    void* mappedData = nullptr;
+    if (api.vkMapMemory(
+            api.m_device,
+            stagingBufferImpl->m_buffer.m_memory,
+            0,
+            stagingBufferOffset + size,
+            0,
+            &mappedData
+        ) != VK_SUCCESS)
+    {
+        // TODO issue error message?
+        return;
+    }
+    memcpy((char*)mappedData + stagingBufferOffset, data, size);
+    api.vkUnmapMemory(api.m_device, stagingBufferImpl->m_buffer.m_memory);
+
+    // Copy from staging buffer to real buffer
+    VkBufferCopy copyInfo = {};
+    copyInfo.size = size;
+    copyInfo.dstOffset = offset;
+    copyInfo.srcOffset = stagingBufferOffset;
+    api.vkCmdCopyBuffer(m_cmdBuffer, stagingBufferImpl->m_buffer.m_buffer, dstImpl->m_buffer.m_buffer, 1, &copyInfo);
+}
+
+void CommandEncoderImpl::uploadTextureData(
+    ITexture* dst,
+    SubresourceRange subresourceRange,
+    Offset3D offset,
+    Extents extent,
+    SubresourceData* subresourceData,
+    GfxCount subresourceDataCount
+)
+{
+    TextureImpl* dstTexture = checked_cast<TextureImpl*>(dst);
+
+    requireTextureState(dstTexture, subresourceRange, ResourceState::CopyDestination);
+    commitBarriers();
+
+    auto& api = m_device->m_api;
+    std::vector<Extents> mipSizes;
+
+    const TextureDesc& desc = dstTexture->m_desc;
+    // Calculate how large the buffer has to be
+    Size bufferSize = 0;
+    // Calculate how large an array entry is
+    for (GfxIndex j = subresourceRange.mipLevel; j < subresourceRange.mipLevel + subresourceRange.mipLevelCount; ++j)
+    {
+        const Extents mipSize = calcMipSize(desc.size, j);
+
+        auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
+        auto numRows = calcNumRows(desc.format, mipSize.height);
+
+        mipSizes.push_back(mipSize);
+
+        bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
+    }
+
+    // Calculate the total size taking into account the array
+    bufferSize *= subresourceRange.layerCount;
+
+    IBuffer* uploadBuffer = nullptr;
+    Offset uploadBufferOffset = 0;
+    m_transientHeap->allocateStagingBuffer(bufferSize, uploadBuffer, uploadBufferOffset, MemoryType::Upload);
+
+    // Copy into upload buffer
+    {
+        int subresourceCounter = 0;
+
+        uint8_t* dstData;
+        uploadBuffer->map(nullptr, (void**)&dstData);
+        dstData += uploadBufferOffset;
+        uint8_t* dstDataStart;
+        dstDataStart = dstData;
+
+        Offset dstSubresourceOffset = 0;
+        for (GfxIndex i = 0; i < subresourceRange.layerCount; ++i)
+        {
+            for (GfxIndex j = 0; j < (GfxCount)mipSizes.size(); ++j)
+            {
+                const auto& mipSize = mipSizes[j];
+
+                int subresourceIndex = subresourceCounter++;
+                auto initSubresource = subresourceData[subresourceIndex];
+
+                const ptrdiff_t srcRowStride = (ptrdiff_t)initSubresource.strideY;
+                const ptrdiff_t srcLayerStride = (ptrdiff_t)initSubresource.strideZ;
+
+                auto dstRowSizeInBytes = calcRowSize(desc.format, mipSize.width);
+                auto numRows = calcNumRows(desc.format, mipSize.height);
+                auto dstLayerSizeInBytes = dstRowSizeInBytes * numRows;
+
+                const uint8_t* srcLayer = (const uint8_t*)initSubresource.data;
+                uint8_t* dstLayer = dstData + dstSubresourceOffset;
+
+                for (int k = 0; k < mipSize.depth; k++)
+                {
+                    const uint8_t* srcRow = srcLayer;
+                    uint8_t* dstRow = dstLayer;
+
+                    for (GfxCount l = 0; l < numRows; l++)
+                    {
+                        ::memcpy(dstRow, srcRow, dstRowSizeInBytes);
+
+                        dstRow += dstRowSizeInBytes;
+                        srcRow += srcRowStride;
+                    }
+
+                    dstLayer += dstLayerSizeInBytes;
+                    srcLayer += srcLayerStride;
+                }
+
+                dstSubresourceOffset += dstLayerSizeInBytes * mipSize.depth;
+            }
+        }
+        uploadBuffer->unmap(nullptr);
+    }
+    {
+        Offset srcOffset = uploadBufferOffset;
+        for (GfxIndex i = 0; i < subresourceRange.layerCount; ++i)
+        {
+            for (GfxIndex j = 0; j < (GfxCount)mipSizes.size(); ++j)
+            {
+                const auto& mipSize = mipSizes[j];
+
+                auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
+                auto numRows = calcNumRows(desc.format, mipSize.height);
+
+                // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkBufferImageCopy.html
+                // bufferRowLength and bufferImageHeight specify the data in buffer
+                // memory as a subregion of a larger two- or three-dimensional image,
+                // and control the addressing calculations of data in buffer memory. If
+                // either of these values is zero, that aspect of the buffer memory is
+                // considered to be tightly packed according to the imageExtent.
+
+                VkBufferImageCopy region = {};
+
+                region.bufferOffset = srcOffset;
+                region.bufferRowLength = 0; // rowSizeInBytes;
+                region.bufferImageHeight = 0;
+
+                region.imageSubresource.aspectMask = getAspectMaskFromFormat(dstTexture->m_vkformat);
+                region.imageSubresource.mipLevel = subresourceRange.mipLevel + uint32_t(j);
+                region.imageSubresource.baseArrayLayer = subresourceRange.baseArrayLayer + i;
+                region.imageSubresource.layerCount = 1;
+                region.imageOffset = {0, 0, 0};
+                region.imageExtent = {uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth)};
+
+                // Do the copy (do all depths in a single go)
+                api.vkCmdCopyBufferToImage(
+                    m_cmdBuffer,
+                    checked_cast<BufferImpl*>(uploadBuffer)->m_buffer.m_buffer,
+                    dstTexture->m_image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    1,
+                    &region
+                );
+
+                // Next
+                srcOffset += rowSizeInBytes * numRows * mipSize.depth;
+            }
+        }
+    }
+}
+#endif

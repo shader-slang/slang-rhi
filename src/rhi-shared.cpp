@@ -243,6 +243,82 @@ IQueryPool* QueryPool::getInterface(const Guid& guid)
     return nullptr;
 }
 
+IPipeline* RenderPipeline::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IRenderPipeline::getTypeGuid())
+        return static_cast<IRenderPipeline*>(this);
+    return nullptr;
+}
+
+Result VirtualRenderPipeline::init(Device* device, const RenderPipelineDesc& desc)
+{
+    m_device = device;
+    m_desc = desc;
+    m_descHolder.holdList(m_desc.targets, m_desc.targetCount);
+    m_program = checked_cast<ShaderProgram*>(desc.program);
+    m_inputLayout = checked_cast<InputLayout*>(desc.inputLayout);
+    return SLANG_OK;
+}
+
+Result VirtualRenderPipeline::getNativeHandle(NativeHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+IPipeline* ComputePipeline::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IComputePipeline::getTypeGuid())
+        return static_cast<IComputePipeline*>(this);
+    return nullptr;
+}
+
+Result VirtualComputePipeline::init(Device* device, const ComputePipelineDesc& desc)
+{
+    m_device = device;
+    m_desc = desc;
+    m_program = checked_cast<ShaderProgram*>(desc.program);
+    return SLANG_OK;
+}
+
+Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+IPipeline* RayTracingPipeline::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IRayTracingPipeline::getTypeGuid())
+        return static_cast<IRayTracingPipeline*>(this);
+    return nullptr;
+}
+
+Result VirtualRayTracingPipeline::init(Device* device, const RayTracingPipelineDesc& desc)
+{
+    m_device = device;
+    m_desc = desc;
+    m_descHolder.holdList(m_desc.hitGroups, m_desc.hitGroupCount);
+    for (Index i = 0; i < m_desc.hitGroupCount; i++)
+    {
+        m_descHolder.holdString(m_desc.hitGroups[i].hitGroupName);
+        m_descHolder.holdString(m_desc.hitGroups[i].closestHitEntryPoint);
+        m_descHolder.holdString(m_desc.hitGroups[i].anyHitEntryPoint);
+        m_descHolder.holdString(m_desc.hitGroups[i].intersectionEntryPoint);
+    }
+    m_program = checked_cast<ShaderProgram*>(desc.program);
+    return SLANG_OK;
+}
+
+Result VirtualRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 IRenderPassEncoder* RenderPassEncoder::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IRenderPassEncoder::getTypeGuid())
@@ -250,13 +326,48 @@ IRenderPassEncoder* RenderPassEncoder::getInterface(const Guid& guid)
     return nullptr;
 }
 
+RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder)
+    : m_commandEncoder(commandEncoder)
+{
+}
+
+void RenderPassEncoder::writeRenderState()
+{
+    commands::SetRenderState cmd;
+    cmd.state = m_renderState;
+    cmd.pipeline = m_pipeline;
+    // TODO handle errors
+    m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
+    m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    m_commandList->write(std::move(cmd));
+}
+
+IShaderObject* RenderPassEncoder::bindPipeline(IRenderPipeline* pipeline)
+{
+    if (m_commandList)
+    {
+        m_pipeline = pipeline;
+        if (!SLANG_SUCCEEDED(m_commandEncoder->createRootShaderObject(pipeline->getProgram(), m_rootObject.writeRef())))
+            return nullptr;
+        return m_rootObject;
+    }
+    return nullptr;
+}
+
+void RenderPassEncoder::bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject)
+{
+    if (m_commandList)
+    {
+        m_pipeline = checked_cast<RenderPipeline*>(pipeline);
+        m_rootObject = static_cast<ShaderObjectBase*>(rootObject);
+    }
+}
+
 void RenderPassEncoder::setRenderState(const RenderState& state)
 {
     if (m_commandList)
     {
-        commands::SetRenderState cmd;
-        cmd.state = state;
-        m_commandList->write(std::move(cmd));
+        m_renderState = state;
     }
 }
 
@@ -264,6 +375,7 @@ void RenderPassEncoder::draw(const DrawArguments& args)
 {
     if (m_commandList)
     {
+        writeRenderState();
         commands::Draw cmd;
         cmd.args = args;
         m_commandList->write(std::move(cmd));
@@ -274,6 +386,7 @@ void RenderPassEncoder::drawIndexed(const DrawArguments& args)
 {
     if (m_commandList)
     {
+        writeRenderState();
         commands::DrawIndexed cmd;
         cmd.args = args;
         m_commandList->write(std::move(cmd));
@@ -290,6 +403,7 @@ void RenderPassEncoder::drawIndirect(
 {
     if (m_commandList)
     {
+        writeRenderState();
         commands::DrawIndirect cmd;
         cmd.maxDrawCount = maxDrawCount;
         cmd.argBuffer = argBuffer;
@@ -310,6 +424,7 @@ void RenderPassEncoder::drawIndexedIndirect(
 {
     if (m_commandList)
     {
+        writeRenderState();
         commands::DrawIndexedIndirect cmd;
         cmd.maxDrawCount = maxDrawCount;
         cmd.argBuffer = argBuffer;
@@ -324,6 +439,7 @@ void RenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {
+        writeRenderState();
         commands::DrawMeshTasks cmd;
         cmd.x = x;
         cmd.y = y;
@@ -384,13 +500,39 @@ IComputePassEncoder* ComputePassEncoder::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void ComputePassEncoder::setComputeState(const ComputeState& state)
+ComputePassEncoder::ComputePassEncoder(CommandEncoder* commandEncoder)
+    : m_commandEncoder(commandEncoder)
+{
+}
+
+void ComputePassEncoder::writeComputeState()
+{
+    commands::SetComputeState cmd;
+    cmd.pipeline = m_pipeline;
+    // TODO handle errors
+    m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
+    m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    m_commandList->write(std::move(cmd));
+}
+
+IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
 {
     if (m_commandList)
     {
-        commands::SetComputeState cmd;
-        cmd.state = state;
-        m_commandList->write(std::move(cmd));
+        m_pipeline = pipeline;
+        if (!SLANG_SUCCEEDED(m_commandEncoder->createRootShaderObject(pipeline->getProgram(), m_rootObject.writeRef())))
+            return nullptr;
+        return m_rootObject;
+    }
+    return nullptr;
+}
+
+void ComputePassEncoder::bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject)
+{
+    if (m_commandList)
+    {
+        m_pipeline = checked_cast<ComputePipeline*>(pipeline);
+        m_rootObject = static_cast<ShaderObjectBase*>(rootObject);
     }
 }
 
@@ -398,6 +540,7 @@ void ComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {
+        writeComputeState();
         commands::DispatchCompute cmd;
         cmd.x = x;
         cmd.y = y;
@@ -410,6 +553,7 @@ void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, uint64_t of
 {
     if (m_commandList)
     {
+        writeComputeState();
         commands::DispatchComputeIndirect cmd;
         cmd.argBuffer = argBuffer;
         cmd.offset = offset;
@@ -469,13 +613,46 @@ IRayTracingPassEncoder* RayTracingPassEncoder::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void RayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
+RayTracingPassEncoder::RayTracingPassEncoder(CommandEncoder* commandEncoder)
+    : m_commandEncoder(commandEncoder)
+{
+}
+
+void RayTracingPassEncoder::writeRayTracingState()
+{
+    commands::SetRayTracingState cmd;
+    cmd.pipeline = m_pipeline;
+    cmd.shaderTable = m_shaderTable;
+    // TODO handle errors
+    m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
+    m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    m_commandList->write(std::move(cmd));
+}
+
+IShaderObject* RayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable)
 {
     if (m_commandList)
     {
-        commands::SetRayTracingState cmd;
-        cmd.state = state;
-        m_commandList->write(std::move(cmd));
+        m_pipeline = pipeline;
+        m_shaderTable = shaderTable;
+        if (!SLANG_SUCCEEDED(m_commandEncoder->createRootShaderObject(pipeline->getProgram(), m_rootObject.writeRef())))
+            return nullptr;
+        return m_rootObject;
+    }
+    return nullptr;
+}
+
+void RayTracingPassEncoder::bindPipeline(
+    IRayTracingPipeline* pipeline,
+    IShaderTable* shaderTable,
+    IShaderObject* rootObject
+)
+{
+    if (m_commandList)
+    {
+        m_pipeline = checked_cast<RayTracingPipeline*>(pipeline);
+        m_shaderTable = checked_cast<ShaderTable*>(shaderTable);
+        m_rootObject = static_cast<ShaderObjectBase*>(rootObject);
     }
 }
 
@@ -483,6 +660,7 @@ void RayTracingPassEncoder::dispatchRays(uint32_t rayGenShaderIndex, uint32_t wi
 {
     if (m_commandList)
     {
+        writeRayTracingState();
         commands::DispatchRays cmd;
         cmd.rayGenShaderIndex = rayGenShaderIndex;
         cmd.width = width;
@@ -542,6 +720,13 @@ ICommandEncoder* CommandEncoder::getInterface(const Guid& guid)
     if (guid == ISlangUnknown::getTypeGuid() || guid == ICommandEncoder::getTypeGuid())
         return static_cast<ICommandEncoder*>(this);
     return nullptr;
+}
+
+CommandEncoder::CommandEncoder()
+    : m_renderPassEncoder(this)
+    , m_computePassEncoder(this)
+    , m_rayTracingPassEncoder(this)
+{
 }
 
 IRenderPassEncoder* CommandEncoder::beginRenderPass(const RenderPassDesc& desc)
@@ -811,6 +996,27 @@ Result CommandEncoder::finish(ICommandBuffer** outCommandBuffer)
     return SLANG_FAIL;
 }
 
+Result CommandEncoder::getPipelineSpecializationArgs(
+    IPipeline* pipeline,
+    IShaderObject* object,
+    ExtendedShaderObjectTypeListObject*& outSpecializationArgs
+)
+{
+    if (checked_cast<ShaderProgram*>(pipeline->getProgram())->isSpecializable())
+    {
+        ShaderObjectBase* rootObject = checked_cast<ShaderObjectBase*>(object);
+        RefPtr<ExtendedShaderObjectTypeListObject> specializationArgs = new ExtendedShaderObjectTypeListObject();
+        rootObject->collectSpecializationArgs(*specializationArgs);
+        m_pipelineSpecializationArgs.push_back(specializationArgs);
+        outSpecializationArgs = specializationArgs.get();
+    }
+    else
+    {
+        outSpecializationArgs = nullptr;
+    }
+    return SLANG_OK;
+}
+
 Result CommandEncoder::resolvePipelines(Device* device)
 {
     CommandList* commandList = m_commandList;
@@ -822,31 +1028,34 @@ Result CommandEncoder::resolvePipelines(Device* device)
         case CommandID::SetRenderState:
         {
             auto& cmd = commandList->getCommand<commands::SetRenderState>(command);
-            RenderPipeline* pipeline = checked_cast<RenderPipeline*>(cmd.state.pipeline);
-            ShaderObjectBase* rootObject = checked_cast<ShaderObjectBase*>(cmd.state.rootObject);
+            RenderPipeline* pipeline = checked_cast<RenderPipeline*>(cmd.pipeline);
+            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
             Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, rootObject, concretePipeline));
-            cmd.state.pipeline = static_cast<RenderPipeline*>(concretePipeline);
+            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
+            cmd.pipeline = static_cast<RenderPipeline*>(concretePipeline);
+            cmd.specializationArgs = nullptr;
             break;
         }
         case CommandID::SetComputeState:
         {
             auto& cmd = commandList->getCommand<commands::SetComputeState>(command);
-            ComputePipeline* pipeline = checked_cast<ComputePipeline*>(cmd.state.pipeline);
-            ShaderObjectBase* rootObject = checked_cast<ShaderObjectBase*>(cmd.state.rootObject);
+            ComputePipeline* pipeline = checked_cast<ComputePipeline*>(cmd.pipeline);
+            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
             Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, rootObject, concretePipeline));
-            cmd.state.pipeline = static_cast<ComputePipeline*>(concretePipeline);
+            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
+            cmd.pipeline = static_cast<ComputePipeline*>(concretePipeline);
+            cmd.specializationArgs = nullptr;
             break;
         }
         case CommandID::SetRayTracingState:
         {
             auto& cmd = commandList->getCommand<commands::SetRayTracingState>(command);
-            RayTracingPipeline* pipeline = checked_cast<RayTracingPipeline*>(cmd.state.pipeline);
-            ShaderObjectBase* rootObject = checked_cast<ShaderObjectBase*>(cmd.state.rootObject);
+            RayTracingPipeline* pipeline = checked_cast<RayTracingPipeline*>(cmd.pipeline);
+            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
             Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, rootObject, concretePipeline));
-            cmd.state.pipeline = static_cast<RayTracingPipeline*>(concretePipeline);
+            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
+            cmd.pipeline = static_cast<RayTracingPipeline*>(concretePipeline);
+            cmd.specializationArgs = nullptr;
             break;
         }
         }
@@ -860,82 +1069,6 @@ ICommandBuffer* CommandBuffer::getInterface(const Guid& guid)
     if (guid == ISlangUnknown::getTypeGuid() || guid == ICommandBuffer::getTypeGuid())
         return static_cast<ICommandBuffer*>(this);
     return nullptr;
-}
-
-IPipeline* RenderPipeline::getInterface(const Guid& guid)
-{
-    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
-        guid == IRenderPipeline::getTypeGuid())
-        return static_cast<IRenderPipeline*>(this);
-    return nullptr;
-}
-
-Result VirtualRenderPipeline::init(Device* device, const RenderPipelineDesc& desc)
-{
-    m_device = device;
-    m_desc = desc;
-    m_descHolder.holdList(m_desc.targets, m_desc.targetCount);
-    m_program = checked_cast<ShaderProgram*>(desc.program);
-    m_inputLayout = checked_cast<InputLayout*>(desc.inputLayout);
-    return SLANG_OK;
-}
-
-Result VirtualRenderPipeline::getNativeHandle(NativeHandle* outHandle)
-{
-    *outHandle = {};
-    return SLANG_E_NOT_AVAILABLE;
-}
-
-IPipeline* ComputePipeline::getInterface(const Guid& guid)
-{
-    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
-        guid == IComputePipeline::getTypeGuid())
-        return static_cast<IComputePipeline*>(this);
-    return nullptr;
-}
-
-Result VirtualComputePipeline::init(Device* device, const ComputePipelineDesc& desc)
-{
-    m_device = device;
-    m_desc = desc;
-    m_program = checked_cast<ShaderProgram*>(desc.program);
-    return SLANG_OK;
-}
-
-Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
-{
-    *outHandle = {};
-    return SLANG_E_NOT_AVAILABLE;
-}
-
-IPipeline* RayTracingPipeline::getInterface(const Guid& guid)
-{
-    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
-        guid == IRayTracingPipeline::getTypeGuid())
-        return static_cast<IRayTracingPipeline*>(this);
-    return nullptr;
-}
-
-Result VirtualRayTracingPipeline::init(Device* device, const RayTracingPipelineDesc& desc)
-{
-    m_device = device;
-    m_desc = desc;
-    m_descHolder.holdList(m_desc.hitGroups, m_desc.hitGroupCount);
-    for (uint32_t i = 0; i < m_desc.hitGroupCount; i++)
-    {
-        m_descHolder.holdString(m_desc.hitGroups[i].hitGroupName);
-        m_descHolder.holdString(m_desc.hitGroups[i].closestHitEntryPoint);
-        m_descHolder.holdString(m_desc.hitGroups[i].anyHitEntryPoint);
-        m_descHolder.holdString(m_desc.hitGroups[i].intersectionEntryPoint);
-    }
-    m_program = checked_cast<ShaderProgram*>(desc.program);
-    return SLANG_OK;
-}
-
-Result VirtualRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)
-{
-    *outHandle = {};
-    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result Device::getEntryPointCodeFromShaderCache(
@@ -1375,25 +1508,25 @@ Result ShaderObjectBase::getSpecializedShaderObjectType(ExtendedShaderObjectType
 
 Result ShaderObjectBase::_getSpecializedShaderObjectType(ExtendedShaderObjectType* outType)
 {
-    if (shaderObjectType.slangType)
-        *outType = shaderObjectType;
+    if (m_shaderObjectType.slangType)
+        *outType = m_shaderObjectType;
     ExtendedShaderObjectTypeList specializationArgs;
     SLANG_RETURN_ON_FAIL(collectSpecializationArgs(specializationArgs));
     if (specializationArgs.getCount() == 0)
     {
-        shaderObjectType.componentID = getLayoutBase()->getComponentID();
-        shaderObjectType.slangType = getLayoutBase()->getElementTypeLayout()->getType();
+        m_shaderObjectType.componentID = getLayoutBase()->getComponentID();
+        m_shaderObjectType.slangType = getLayoutBase()->getElementTypeLayout()->getType();
     }
     else
     {
-        shaderObjectType.slangType = getDevice()->m_slangContext.session->specializeType(
+        m_shaderObjectType.slangType = getDevice()->m_slangContext.session->specializeType(
             _getElementTypeLayout()->getType(),
             specializationArgs.components.data(),
             specializationArgs.getCount()
         );
-        shaderObjectType.componentID = getDevice()->m_shaderCache.getComponentId(shaderObjectType.slangType);
+        m_shaderObjectType.componentID = getDevice()->m_shaderCache.getComponentId(m_shaderObjectType.slangType);
     }
-    *outType = shaderObjectType;
+    *outType = m_shaderObjectType;
     return SLANG_OK;
 }
 
@@ -1628,7 +1761,11 @@ Result Device::specializeProgram(
     return SLANG_OK;
 }
 
-Result Device::getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObject, Pipeline*& outPipeline)
+Result Device::getConcretePipeline(
+    Pipeline* pipeline,
+    ExtendedShaderObjectTypeList* specializationArgs,
+    Pipeline*& outPipeline
+)
 {
     // If this is already a concrete pipeline, then we are done.
     if (!pipeline->isVirtual())
@@ -1642,11 +1779,11 @@ Result Device::getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObj
     pipelineKey.pipeline = pipeline;
 
     // If the pipeline is specializable, collect specialization arguments from bound shader objects.
-    ExtendedShaderObjectTypeList specializationArgs;
     if (pipeline->m_program->isSpecializable())
     {
-        SLANG_RETURN_ON_FAIL(rootObject->collectSpecializationArgs(specializationArgs));
-        for (const auto& componentID : specializationArgs.componentIDs)
+        if (!specializationArgs)
+            return SLANG_FAIL;
+        for (const auto& componentID : specializationArgs->componentIDs)
         {
             pipelineKey.specializationArgs.push_back(componentID);
         }
@@ -1662,7 +1799,7 @@ Result Device::getConcretePipeline(Pipeline* pipeline, ShaderObjectBase* rootObj
         if (program->isSpecializable())
         {
             RefPtr<ShaderProgram> specializedProgram;
-            SLANG_RETURN_ON_FAIL(specializeProgram(program, specializationArgs, specializedProgram.writeRef()));
+            SLANG_RETURN_ON_FAIL(specializeProgram(program, *specializationArgs, specializedProgram.writeRef()));
             program = specializedProgram;
             // Program is owned by the specialized pipeline.
             program->comFree();
