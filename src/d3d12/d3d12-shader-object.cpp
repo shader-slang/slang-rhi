@@ -350,6 +350,7 @@ Result ShaderObjectImpl::bindAsValue2(
                     textureView->getSRV().cpuHandle,
                     D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                 );
+                context.setTextureState(textureView, ResourceState::ShaderResource);
             }
             break;
         case slang::BindingType::MutableTexture:
@@ -363,6 +364,7 @@ Result ShaderObjectImpl::bindAsValue2(
                     textureView->getUAV().cpuHandle,
                     D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                 );
+                context.setTextureState(textureView, ResourceState::UnorderedAccess);
             }
             break;
         case slang::BindingType::CombinedTextureSampler:
@@ -383,6 +385,7 @@ Result ShaderObjectImpl::bindAsValue2(
                     sampler->m_descriptor.cpuHandle,
                     D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
                 );
+                context.setTextureState(textureView, ResourceState::ShaderResource);
             }
             break;
         case slang::BindingType::Sampler:
@@ -432,6 +435,7 @@ Result ShaderObjectImpl::bindAsValue2(
                         );
                     }
                 }
+                context.setBufferState(buffer, ResourceState::ShaderResource);
             }
             break;
         case slang::BindingType::MutableRawBuffer:
@@ -476,6 +480,7 @@ Result ShaderObjectImpl::bindAsValue2(
                         );
                     }
                 }
+                context.setBufferState(buffer, ResourceState::UnorderedAccess);
             }
             break;
         case slang::BindingType::RayTracingAccelerationStructure:
@@ -1015,6 +1020,7 @@ Result ShaderObjectImpl::bindRootArguments(BindingContext& context, uint32_t& in
 }
 #endif
 
+#if 0
 void ShaderObjectImpl::setResourceStates(BindingContext& context)
 {
     for (const ResourceSlot& slot : m_resources)
@@ -1049,6 +1055,7 @@ void ShaderObjectImpl::setResourceStates(BindingContext& context)
         }
     }
 }
+#endif
 
 /// Get the layout of this shader object with specialization arguments considered
 ///
@@ -1460,6 +1467,7 @@ Result RootShaderObjectImpl::_createSpecializedLayout(ShaderObjectLayoutImpl** o
     return SLANG_OK;
 }
 
+#if 0
 void RootShaderObjectImpl::setResourceStates(BindingContext& context)
 {
     ShaderObjectImpl::setResourceStates(context);
@@ -1468,6 +1476,7 @@ void RootShaderObjectImpl::setResourceStates(BindingContext& context)
         entryPoint->setResourceStates(context);
     }
 }
+#endif
 
 Result RootShaderObjectImpl::bindAsRoot(
     BindingContext& context,
@@ -1496,7 +1505,9 @@ Result RootShaderObjectImpl::bindAsRoot(
     context.pendingTableBindings = &pendingTableBindings;
 #endif
 
+#if 0
     setResourceStates(context);
+#endif
 
     BindingOffset rootOffset;
 

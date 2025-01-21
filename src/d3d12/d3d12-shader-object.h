@@ -13,12 +13,6 @@
 
 namespace rhi::d3d12 {
 
-struct PendingDescriptorTableBinding
-{
-    uint32_t rootIndex;
-    D3D12_GPU_DESCRIPTOR_HANDLE handle;
-};
-
 struct DescriptorTable
 {
     DescriptorHeapReference m_heap;
@@ -217,7 +211,9 @@ public:
     Result bindRootArguments(BindingContext& context, uint32_t& index);
 #endif
 
+#if 0
     void setResourceStates(BindingContext& context);
+#endif
 
 #if 0
     /// A CPU-memory descriptor set holding any descriptors used to represent the
@@ -277,7 +273,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
+#if 0
     void setResourceStates(BindingContext& context);
+#endif
 
     Result bindAsRoot(
         BindingContext& context,
