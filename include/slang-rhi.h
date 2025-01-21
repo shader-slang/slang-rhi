@@ -1420,9 +1420,9 @@ struct RayTracingPipelineDesc
 struct ShaderRecordOverwrite
 {
     /// Offset within the shader record.
-    Offset offset;
+    uint8_t offset;
     /// Number of bytes to overwrite.
-    Size size;
+    uint8_t size;
     /// Content to overwrite.
     uint8_t data[8];
 };
@@ -1432,19 +1432,19 @@ struct ShaderTableDesc
     StructType structType = StructType::ShaderTableDesc;
     void* next = nullptr;
 
-    GfxCount rayGenShaderCount = 0;
+    uint32_t rayGenShaderCount = 0;
     const char** rayGenShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
 
-    GfxCount missShaderCount = 0;
+    uint32_t missShaderCount = 0;
     const char** missShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
 
-    GfxCount hitGroupCount = 0;
+    uint32_t hitGroupCount = 0;
     const char** hitGroupNames = nullptr;
     const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
 
-    GfxCount callableShaderCount = 0;
+    uint32_t callableShaderCount = 0;
     const char** callableShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
