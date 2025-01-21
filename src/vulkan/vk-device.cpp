@@ -1341,9 +1341,9 @@ Result DeviceImpl::getAccelerationStructureSizes(
         geomInfoBuilder.primitiveCounts.data(),
         &sizeInfo
     );
-    outSizes->accelerationStructureSize = (Size)sizeInfo.accelerationStructureSize;
-    outSizes->scratchSize = (Size)sizeInfo.buildScratchSize;
-    outSizes->updateScratchSize = (Size)sizeInfo.updateScratchSize;
+    outSizes->accelerationStructureSize = sizeInfo.accelerationStructureSize;
+    outSizes->scratchSize = sizeInfo.buildScratchSize;
+    outSizes->updateScratchSize = sizeInfo.updateScratchSize;
     return SLANG_OK;
 }
 

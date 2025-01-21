@@ -1753,9 +1753,9 @@ Result DeviceImpl::getAccelerationStructureSizes(
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
     m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&inputsBuilder.desc, &prebuildInfo);
 
-    outSizes->accelerationStructureSize = (Size)prebuildInfo.ResultDataMaxSizeInBytes;
-    outSizes->scratchSize = (Size)prebuildInfo.ScratchDataSizeInBytes;
-    outSizes->updateScratchSize = (Size)prebuildInfo.UpdateScratchDataSizeInBytes;
+    outSizes->accelerationStructureSize = prebuildInfo.ResultDataMaxSizeInBytes;
+    outSizes->scratchSize = prebuildInfo.ScratchDataSizeInBytes;
+    outSizes->updateScratchSize = prebuildInfo.UpdateScratchDataSizeInBytes;
     return SLANG_OK;
 }
 

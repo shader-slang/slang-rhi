@@ -293,7 +293,7 @@ void CommandEncoderImpl::buildAccelerationStructure(
 
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
     rangeInfos.resize(geomInfoBuilder.primitiveCounts.size());
-    for (Index i = 0; i < geomInfoBuilder.primitiveCounts.size(); i++)
+    for (size_t i = 0; i < geomInfoBuilder.primitiveCounts.size(); i++)
     {
         auto& rangeInfo = rangeInfos[i];
         rangeInfo.primitiveCount = geomInfoBuilder.primitiveCounts[i];

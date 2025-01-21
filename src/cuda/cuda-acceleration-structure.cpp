@@ -39,7 +39,7 @@ Result AccelerationStructureBuildInputBuilder::build(
     }
 
     AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
-    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
     {
         if ((AccelerationStructureBuildInputType&)buildDesc.inputs[i] != type)
         {
@@ -87,7 +87,7 @@ Result AccelerationStructureBuildInputBuilder::build(
     }
     case AccelerationStructureBuildInputType::Triangles:
     {
-        for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles =
                 (const AccelerationStructureBuildInputTriangles&)buildDesc.inputs[i];
@@ -130,7 +130,7 @@ Result AccelerationStructureBuildInputBuilder::build(
     }
     case AccelerationStructureBuildInputType::ProceduralPrimitives:
     {
-        for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
                 (const AccelerationStructureBuildInputProceduralPrimitives&)buildDesc.inputs[i];

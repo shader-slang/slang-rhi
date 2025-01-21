@@ -954,8 +954,8 @@ struct AccelerationStructureBuildInputInstances : public AccelerationStructureBu
     const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Instances;
 
     BufferWithOffset instanceBuffer;
-    Size instanceStride;
-    GfxCount instanceCount;
+    uint32_t instanceStride;
+    uint32_t instanceCount;
 };
 
 struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBuildInput
@@ -964,14 +964,14 @@ struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBu
 
     /// List of vertex buffers, one for each motion step.
     BufferWithOffset* vertexBuffers = nullptr;
-    GfxCount vertexBufferCount = 0;
+    uint32_t vertexBufferCount = 0;
     Format vertexFormat = Format::Unknown;
-    GfxCount vertexCount = 0;
-    Size vertexStride = 0;
+    uint32_t vertexCount = 0;
+    uint32_t vertexStride = 0;
 
     BufferWithOffset indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
-    GfxCount indexCount = 0;
+    uint32_t indexCount = 0;
 
     /// Optional buffer containing 3x4 transform matrix applied to each vertex.
     BufferWithOffset preTransformBuffer;
@@ -985,16 +985,16 @@ struct AccelerationStructureBuildInputProceduralPrimitives : public Acceleration
 
     /// List of AABB buffers, one for each motion step.
     BufferWithOffset* aabbBuffers = nullptr;
-    GfxCount aabbBufferCount = 0;
-    Size aabbStride = 0;
-    GfxCount primitiveCount = 0;
+    uint32_t aabbBufferCount = 0;
+    uint32_t aabbStride = 0;
+    uint32_t primitiveCount = 0;
 
     AccelerationStructureGeometryFlags flags;
 };
 
 struct AccelerationStructureBuildInputMotionOptions
 {
-    GfxCount keyCount = 1;
+    uint32_t keyCount = 1;
     float timeStart = 0.f;
     float timeEnd = 1.f;
 };
@@ -1020,7 +1020,7 @@ struct AccelerationStructureBuildDesc
 {
     /// List of build inputs. All inputs must be of the same type.
     AccelerationStructureBuildInput* inputs = nullptr;
-    GfxCount inputCount = 0;
+    uint32_t inputCount = 0;
 
     AccelerationStructureBuildInputMotionOptions motionOptions;
 
@@ -1030,9 +1030,9 @@ struct AccelerationStructureBuildDesc
 
 struct AccelerationStructureSizes
 {
-    Size accelerationStructureSize = 0;
-    Size scratchSize = 0;
-    Size updateScratchSize = 0;
+    uint64_t accelerationStructureSize = 0;
+    uint64_t scratchSize = 0;
+    uint64_t updateScratchSize = 0;
 };
 
 struct AccelerationStructureDesc
@@ -1040,7 +1040,7 @@ struct AccelerationStructureDesc
     StructType structType = StructType::AccelerationStructureDesc;
     void* next = nullptr;
 
-    Size size;
+    uint64_t size;
 
     const char* label = nullptr;
 };
