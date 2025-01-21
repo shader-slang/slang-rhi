@@ -116,6 +116,8 @@ struct BindingOffset : SimpleBindingOffset
 
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
+    using Super = ShaderObjectLayout;
+
 public:
     // A shader object comprises three main kinds of state:
     //
@@ -132,30 +134,14 @@ public:
     // ranges in a form that is usable for the D3D11 API:
 
     /// Information about a logical binding range as reported by Slang reflection
-    struct BindingRangeInfo
+    struct BindingRangeInfo : public Super::BindingRangeInfo
     {
-        /// The type of bindings in this range
-        slang::BindingType bindingType;
-
-        /// The number of bindings in this range
-        Index count;
-
-        /// An index into the binding slots array (for resources, samplers, etc.)
-        Index slotIndex;
-
         /// The offset of this binding range from the start of the sub-object
         /// in terms of whatever D3D11 register class it consumes. E.g., for
         /// a `Texture2D` binding range this will represent an offset in
         /// `t` registers.
         ///
         uint32_t registerOffset;
-
-        /// An index into the sub-object array if this binding range is treated
-        /// as a sub-object.
-        Index subObjectIndex;
-
-        /// Is this binding range specializable, e.g. an existential value or ParameterBlock<IFoo>.
-        bool isSpecializable;
     };
 
     // Sometimes we just want to iterate over the ranges that represent
@@ -188,14 +174,8 @@ public:
     };
 
     /// Information about a logical binding range as reported by Slang reflection
-    struct SubObjectRangeInfo
+    struct SubObjectRangeInfo : public Super::SubObjectRangeInfo
     {
-        /// The index of the binding range that corresponds to this sub-object range
-        Index bindingRangeIndex;
-
-        /// The layout expected for objects bound to this range (if known)
-        RefPtr<ShaderObjectLayoutImpl> layout;
-
         /// The offset to use when binding the first object in this range
         SubObjectRangeOffset offset;
 
@@ -242,6 +222,19 @@ public:
         slang::TypeLayoutReflection* elementType,
         ShaderObjectLayoutImpl** outLayout
     );
+
+    virtual Index getSlotCount() const override { return m_slotCount; }
+    virtual Index getSubObjectCount() const override { return m_subObjectCount; };
+
+    virtual Index getBindingRangeCount() const override { return m_bindingRanges.size(); }
+    virtual const BindingRangeInfo& getBindingRange(Index index) const override { return m_bindingRanges[index]; }
+
+    virtual Index getSubObjectRangeCount() const override { return m_subObjectRanges.size(); }
+    virtual const SubObjectRangeInfo& getSubObjectRange(Index index) const override { return m_subObjectRanges[index]; }
+
+    virtual Index getEntryPointCount() const override { return 0; }
+    virtual const EntryPointInfo& getEntryPoint(Index index) const override { return *(EntryPointInfo*)(nullptr); }
+
 
     const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
 

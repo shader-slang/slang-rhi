@@ -536,97 +536,100 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    SLANG_RHI_ASSERT(desc.slangGlobalScope);
-
-    if (desc.slangGlobalScope->getSpecializationParamCount() != 0)
-    {
-        // For a specializable program, we don't invoke any actual slang compilation yet.
-        RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
-        shaderProgram->init(desc);
-        returnComPtr(outProgram, shaderProgram);
-        return SLANG_OK;
-    }
-
-    // If the program is already specialized, compile and create shader kernels now.
-    SlangInt targetIndex = 0;
-    auto slangGlobalScope = desc.slangGlobalScope;
-    auto programLayout = slangGlobalScope->getLayout(targetIndex);
-    if (!programLayout)
-        return SLANG_FAIL;
-    SlangUInt entryPointCount = programLayout->getEntryPointCount();
-    if (entryPointCount == 0)
-        return SLANG_FAIL;
-
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
-    shaderProgram->slangGlobalScope = desc.slangGlobalScope;
+    shaderProgram->init(desc);
+
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram->linkedProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->m_rootObjectLayout.writeRef()
+    ));
+
+    if (!shaderProgram->isSpecializable())
+    {
+        // If the program is already specialized, compile and create shader kernels now.
+        SlangInt targetIndex = 0;
+        auto slangGlobalScope = desc.slangGlobalScope;
+        auto programLayout = slangGlobalScope->getLayout(targetIndex);
+        if (!programLayout)
+            return SLANG_FAIL;
+        SlangUInt entryPointCount = programLayout->getEntryPointCount();
+        if (entryPointCount == 0)
+            return SLANG_FAIL;
+
+        RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+        shaderProgram->slangGlobalScope = desc.slangGlobalScope;
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (m_nvapiShaderExtension)
-    {
-        if (NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot) != NVAPI_OK)
+        if (m_nvapiShaderExtension)
         {
-            return SLANG_FAIL;
+            if (NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot) != NVAPI_OK)
+            {
+                return SLANG_FAIL;
+            }
+            SLANG_RHI_DEFERRED({ SLANG_RHI_ASSERT(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0) == NVAPI_OK); });
         }
-        SLANG_RHI_DEFERRED({ SLANG_RHI_ASSERT(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0) == NVAPI_OK); });
-    }
 #endif // SLANG_RHI_ENABLE_NVAPI
-    for (SlangUInt i = 0; i < entryPointCount; i++)
-    {
-        ComPtr<ISlangBlob> kernelCode;
-        ComPtr<ISlangBlob> diagnostics;
-
-        auto compileResult = getEntryPointCodeFromShaderCache(
-            slangGlobalScope,
-            (SlangInt)i,
-            0,
-            kernelCode.writeRef(),
-            diagnostics.writeRef()
-        );
-
-        if (diagnostics)
+        for (SlangUInt i = 0; i < entryPointCount; i++)
         {
-            DebugMessageType msgType = DebugMessageType::Warning;
-            if (compileResult != SLANG_OK)
-                msgType = DebugMessageType::Error;
-            handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
-            if (outDiagnosticBlob)
-                returnComPtr(outDiagnosticBlob, diagnostics);
-        }
+            ComPtr<ISlangBlob> kernelCode;
+            ComPtr<ISlangBlob> diagnostics;
 
-        SLANG_RETURN_ON_FAIL(compileResult);
+            auto compileResult = getEntryPointCodeFromShaderCache(
+                slangGlobalScope,
+                (SlangInt)i,
+                0,
+                kernelCode.writeRef(),
+                diagnostics.writeRef()
+            );
 
-        auto entryPoint = programLayout->getEntryPointByIndex(i);
-        switch (entryPoint->getStage())
-        {
-        case SLANG_STAGE_COMPUTE:
-            SLANG_RHI_ASSERT(entryPointCount == 1);
-            SLANG_RETURN_ON_FAIL(m_device->CreateComputeShader(
-                kernelCode->getBufferPointer(),
-                kernelCode->getBufferSize(),
-                nullptr,
-                shaderProgram->m_computeShader.writeRef()
-            ));
-            break;
-        case SLANG_STAGE_VERTEX:
-            SLANG_RETURN_ON_FAIL(m_device->CreateVertexShader(
-                kernelCode->getBufferPointer(),
-                kernelCode->getBufferSize(),
-                nullptr,
-                shaderProgram->m_vertexShader.writeRef()
-            ));
-            break;
-        case SLANG_STAGE_FRAGMENT:
-            SLANG_RETURN_ON_FAIL(m_device->CreatePixelShader(
-                kernelCode->getBufferPointer(),
-                kernelCode->getBufferSize(),
-                nullptr,
-                shaderProgram->m_pixelShader.writeRef()
-            ));
-            break;
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Pipeline stage not implemented");
+            if (diagnostics)
+            {
+                DebugMessageType msgType = DebugMessageType::Warning;
+                if (compileResult != SLANG_OK)
+                    msgType = DebugMessageType::Error;
+                handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
+                if (outDiagnosticBlob)
+                    returnComPtr(outDiagnosticBlob, diagnostics);
+            }
+
+            SLANG_RETURN_ON_FAIL(compileResult);
+
+            auto entryPoint = programLayout->getEntryPointByIndex(i);
+            switch (entryPoint->getStage())
+            {
+            case SLANG_STAGE_COMPUTE:
+                SLANG_RHI_ASSERT(entryPointCount == 1);
+                SLANG_RETURN_ON_FAIL(m_device->CreateComputeShader(
+                    kernelCode->getBufferPointer(),
+                    kernelCode->getBufferSize(),
+                    nullptr,
+                    shaderProgram->m_computeShader.writeRef()
+                ));
+                break;
+            case SLANG_STAGE_VERTEX:
+                SLANG_RETURN_ON_FAIL(m_device->CreateVertexShader(
+                    kernelCode->getBufferPointer(),
+                    kernelCode->getBufferSize(),
+                    nullptr,
+                    shaderProgram->m_vertexShader.writeRef()
+                ));
+                break;
+            case SLANG_STAGE_FRAGMENT:
+                SLANG_RETURN_ON_FAIL(m_device->CreatePixelShader(
+                    kernelCode->getBufferPointer(),
+                    kernelCode->getBufferSize(),
+                    nullptr,
+                    shaderProgram->m_pixelShader.writeRef()
+                ));
+                break;
+            default:
+                SLANG_RHI_ASSERT_FAILURE("Pipeline stage not implemented");
+            }
         }
     }
+
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
@@ -640,32 +643,6 @@ Result DeviceImpl::createShaderObjectLayout(
     RefPtr<ShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
     returnRefPtrMove(outLayout, layout);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
-{
-    RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
-    );
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    auto programImpl = checked_cast<ShaderProgramImpl*>(program);
-    RefPtr<RootShaderObjectImpl> shaderObject;
-    RefPtr<RootShaderObjectLayoutImpl> rootLayout;
-    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
-        this,
-        programImpl->slangGlobalScope,
-        programImpl->slangGlobalScope->getLayout(),
-        rootLayout.writeRef()
-    ));
-    SLANG_RETURN_ON_FAIL(RootShaderObjectImpl::create(this, rootLayout.Ptr(), shaderObject.writeRef()));
-    returnComPtr(outObject, shaderObject);
     return SLANG_OK;
 }
 

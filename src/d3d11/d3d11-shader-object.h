@@ -11,6 +11,8 @@
 
 namespace rhi::d3d11 {
 
+#if 0
+
 struct ResourceSlot
 {
     BindingType type = BindingType::Unknown;
@@ -136,6 +138,8 @@ protected:
 
     std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
 };
+
+#endif
 
 /// Contextual data and operations required when building binding data from shader objects.
 struct BindingContext

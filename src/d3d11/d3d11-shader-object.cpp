@@ -3,6 +3,8 @@
 
 namespace rhi::d3d11 {
 
+#if 0
+
 Result ShaderObjectImpl::create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject)
 {
     auto object = RefPtr<ShaderObjectImpl>(new ShaderObjectImpl());
@@ -737,5 +739,7 @@ void BindingContext::setSampler(UINT index, ID3D11SamplerState* sampler)
         currentBindingData->samplers.resize(index + 1);
     currentBindingData->samplers[index] = sampler;
 }
+
+#endif
 
 } // namespace rhi::d3d11

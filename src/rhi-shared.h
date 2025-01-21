@@ -338,6 +338,40 @@ struct ExtendedShaderObjectTypeListObject : public ExtendedShaderObjectTypeList,
 
 class ShaderObjectLayout : public RefObject
 {
+public:
+    struct BindingRangeInfo
+    {
+        /// The type of bindings in this range
+        slang::BindingType bindingType;
+
+        /// The number of bindings in this range
+        Index count;
+
+        /// An index into the binding slots array (for resources, samplers, etc.)
+        Index slotIndex;
+
+        /// An index into the sub-object array if this binding range is treated
+        /// as a sub-object.
+        Index subObjectIndex;
+
+        /// Is this binding range specializable, e.g. an existential value or ParameterBlock<IFoo>.
+        bool isSpecializable;
+    };
+
+    struct SubObjectRangeInfo
+    {
+        /// The index of the binding range that corresponds to this sub-object range
+        Index bindingRangeIndex;
+
+        /// The layout expected for objects bound to this range (if known)
+        RefPtr<ShaderObjectLayout> layout;
+    };
+
+    struct EntryPointInfo
+    {
+        RefPtr<ShaderObjectLayout> layout;
+    };
+
 protected:
     // We always use a weak reference to the `IDevice` object here.
     // `ShaderObject` implementations will make sure to hold a strong reference to `IDevice`
@@ -401,6 +435,18 @@ public:
 
     ShaderComponentID getComponentID() { return m_componentID; }
 
+    virtual Index getSlotCount() const = 0;
+    virtual Index getSubObjectCount() const = 0;
+
+    virtual Index getBindingRangeCount() const = 0;
+    virtual const BindingRangeInfo& getBindingRange(Index index) const = 0;
+
+    virtual Index getSubObjectRangeCount() const = 0;
+    virtual const SubObjectRangeInfo& getSubObjectRange(Index index) const = 0;
+
+    virtual Index getEntryPointCount() const = 0;
+    virtual const EntryPointInfo& getEntryPoint(Index index) const = 0;
+
     void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };
 
@@ -439,16 +485,24 @@ struct ShaderObjectID
     bool operator!=(const ShaderObjectID& rhs) const { return !(*this == rhs); }
 };
 
-class ShaderObjectBase : public IShaderObject, public ComObject
+struct ResourceSlot
+{
+    BindingType type = BindingType::Unknown;
+    RefPtr<Resource> resource;
+    RefPtr<Resource> resource2;
+    Format format = Format::Unknown;
+    union
+    {
+        BufferRange bufferRange = kEntireBuffer;
+    };
+    operator bool() const { return type != BindingType::Unknown && resource; }
+};
+
+class ShaderObject : public IShaderObject, public ComObject
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IShaderObject* getInterface(const Guid& guid)
-    {
-        if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderObject::getTypeGuid())
-            return static_cast<IShaderObject*>(this);
-        return nullptr;
-    }
+    IShaderObject* getInterface(const Guid& guid);
 
 protected:
     // A strong reference to `IDevice` to make sure the weak device reference in
@@ -456,7 +510,18 @@ protected:
     BreakableReference<Device> m_device;
 
     // The shader object layout used to create this shader object.
-    RefPtr<ShaderObjectLayout> m_layout = nullptr;
+    RefPtr<ShaderObjectLayout> m_layout;
+
+    // The cached specialized shader object layout if the shader object has been finalized.
+    RefPtr<ShaderObjectLayout> m_specializedLayout;
+
+    std::vector<ResourceSlot> m_slots;
+    std::vector<uint8_t> m_data;
+    std::vector<RefPtr<ShaderObject>> m_objects;
+    std::vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
+
+    // Specialization args for a StructuredBuffer object.
+    ExtendedShaderObjectTypeList m_structuredBufferSpecializationArgs;
 
     // Unique ID of the shader object (generated on construction).
     uint32_t m_uid;
@@ -470,28 +535,62 @@ protected:
     // The specialized shader object type.
     ExtendedShaderObjectType m_shaderObjectType = {nullptr, kInvalidComponentID};
 
-    Result _getSpecializedShaderObjectType(ExtendedShaderObjectType* outType);
-    slang::TypeLayoutReflection* _getElementTypeLayout() { return m_layout->getElementTypeLayout(); }
-
 public:
     void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
 
 public:
-    inline void incrementVersion() { m_version++; }
-
-    inline Result checkFinalized() { return m_finalized ? SLANG_FAIL : SLANG_OK; }
-
     ShaderComponentID getComponentID() { return m_shaderObjectType.componentID; }
-
-    // Get the final type this shader object represents. If the shader object's type has existential fields,
-    // this function will return a specialized type using the bound sub-objects' type as specialization argument.
-    virtual Result getSpecializedShaderObjectType(ExtendedShaderObjectType* outType);
-
-    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) = 0;
 
     Device* getDevice() { return m_layout->getDevice(); }
 
     ShaderObjectLayout* getLayoutBase() { return m_layout; }
+
+public:
+    // IShaderObject implementation
+    virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() override;
+    virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override;
+    virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, GfxCount count) override;
+    virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
+    virtual SLANG_NO_THROW Size SLANG_MCALL getSize() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finalize();
+    virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized();
+
+public:
+    static Result create(Device* device, ShaderObjectLayout* layout, ShaderObject** outShaderObject);
+
+    Result init(Device* device, ShaderObjectLayout* layout);
+
+    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args);
+
+    virtual Result getSpecializedLayout(ShaderObjectLayout** outLayout);
+    virtual Result _createSpecializedLayout(ShaderObjectLayout** outLayout);
+
+protected:
+    inline void incrementVersion() { m_version++; }
+
+    inline Result checkFinalized() { return m_finalized ? SLANG_FAIL : SLANG_OK; }
+
+    slang::TypeLayoutReflection* _getElementTypeLayout() { return m_layout->getElementTypeLayout(); }
+
+    // Get the final type this shader object represents. If the shader object's type has existential fields,
+    // this function will return a specialized type using the bound sub-objects' type as specialization argument.
+    Result getSpecializedShaderObjectType(ExtendedShaderObjectType* outType);
+
+    Result getExtendedShaderTypeListFromSpecializationArgs(
+        ExtendedShaderObjectTypeList& list,
+        const slang::SpecializationArg* args,
+        uint32_t count
+    );
+
+    void setSpecializationArgsForContainerElement(ExtendedShaderObjectTypeList& specializationArgs);
 
     /// Sets the RTTI ID and RTTI witness table fields of an existential value.
     Result setExistentialHeader(
@@ -499,36 +598,33 @@ public:
         slang::TypeReflection* concreteType,
         ShaderOffset offset
     );
+};
+
+class ShaderProgram;
+
+class RootShaderObject : public ShaderObject
+{
+protected:
+    RefPtr<ShaderProgram> m_shaderProgram;
+
+    std::vector<RefPtr<ShaderObject>> m_entryPoints;
 
 public:
     // IShaderObject implementation
+    virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
 
-    SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override { return 0; }
+public:
+    static Result create(Device* device, ShaderObjectLayout* layout, RootShaderObject** outRootShaderObject);
 
-    SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override
-    {
-        *outEntryPoint = nullptr;
-        return SLANG_OK;
-    }
+    Result init(Device* device, ShaderObjectLayout* layout);
 
-    SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() override
-    {
-        return m_layout->getElementTypeLayout();
-    }
+    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
-    virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override
-    {
-        return m_layout->getContainerType();
-    }
-
-    virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override { return nullptr; }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* outBuffer) override
-    {
-        return SLANG_E_NOT_AVAILABLE;
-    }
+    virtual Result _createSpecializedLayout(ShaderObjectLayout** outLayout) override;
 };
 
+#if 0
 template<typename TShaderObjectImpl, typename TShaderObjectLayoutImpl, typename TShaderObjectData>
 class ShaderObjectBaseImpl : public ShaderObjectBase
 {
@@ -566,228 +662,11 @@ public:
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
 
-    // IShaderObject implementation
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override
-    {
-        SLANG_RHI_ASSERT(outObject);
-        if (offset.bindingRangeIndex < 0)
-            return SLANG_E_INVALID_ARG;
-        auto layout = getLayout();
-        if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-            return SLANG_E_INVALID_ARG;
-        const auto& bindingRange = layout->getBindingRange(offset.bindingRangeIndex);
-
-        returnComPtr(outObject, m_objects[bindingRange.subObjectIndex + offset.bindingArrayIndex]);
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override
-    {
-        if (m_finalized)
-            return SLANG_FAIL;
-
-        incrementVersion();
-
-        auto layout = getLayout();
-        auto subObject = checked_cast<TShaderObjectImpl*>(object);
-        // There are three different cases in `setObject`.
-        // 1. `this` object represents a StructuredBuffer, and `object` is an
-        //    element to be written into the StructuredBuffer.
-        // 2. `object` represents a StructuredBuffer and we are setting it into
-        //    a StructuredBuffer typed field in `this` object.
-        // 3. We are setting `object` as an ordinary sub-object, e.g. an existential
-        //    field, a constant buffer or a parameter block.
-        // We handle each case separately below.
-
-        if (layout->getContainerType() != ShaderObjectContainerType::None)
-        {
-            // Case 1:
-            // We are setting an element into a `StructuredBuffer` object.
-            // We need to hold a reference to the element object, as well as
-            // writing uniform data to the plain buffer.
-            if (offset.bindingArrayIndex >= m_objects.size())
-            {
-                m_objects.resize(offset.bindingArrayIndex + 1);
-                auto stride = layout->getElementTypeLayout()->getStride();
-                m_data.setCount(m_objects.size() * stride);
-            }
-            m_objects[offset.bindingArrayIndex] = subObject;
-
-            ExtendedShaderObjectTypeList specializationArgs;
-
-            auto payloadOffset = offset;
-
-            // If the element type of the StructuredBuffer field is an existential type,
-            // we need to make sure to fill in the existential value header (RTTI ID and
-            // witness table IDs).
-            if (layout->getElementTypeLayout()->getKind() == slang::TypeReflection::Kind::Interface)
-            {
-                auto existentialType = layout->getElementTypeLayout()->getType();
-                ExtendedShaderObjectType concreteType;
-                SLANG_RETURN_ON_FAIL(subObject->getSpecializedShaderObjectType(&concreteType));
-                SLANG_RETURN_ON_FAIL(setExistentialHeader(existentialType, concreteType.slangType, offset));
-                payloadOffset.uniformOffset += 16;
-            }
-            SLANG_RETURN_ON_FAIL(setData(
-                payloadOffset,
-                subObject->m_data.getBuffer(),
-                (size_t)subObject->m_data.getCount()
-            )); // TODO: Change size_t to Count?
-            return SLANG_OK;
-        }
-
-        // Case 2 & 3, setting object as an StructuredBuffer, ConstantBuffer, ParameterBlock or
-        // existential value.
-
-        if (offset.bindingRangeIndex < 0)
-            return SLANG_E_INVALID_ARG;
-        if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-            return SLANG_E_INVALID_ARG;
-
-        auto bindingRangeIndex = offset.bindingRangeIndex;
-        const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
-
-        m_objects[bindingRange.subObjectIndex + offset.bindingArrayIndex] = subObject;
-
-        switch (bindingRange.bindingType)
-        {
-        case slang::BindingType::ExistentialValue:
-        {
-            // If the range being assigned into represents an interface/existential-type
-            // leaf field, then we need to consider how the `object` being assigned here
-            // affects specialization. We may also need to assign some data from the
-            // sub-object into the ordinary data buffer for the parent object.
-            //
-            // A leaf field of interface type is laid out inside of the parent object
-            // as a tuple of `(RTTI, WitnessTable, Payload)`. The layout of these fields
-            // is a contract between the compiler and any runtime system, so we will
-            // need to rely on details of the binary layout.
-
-            // We start by querying the layout/type of the concrete value that the
-            // application is trying to store into the field, and also the layout/type of
-            // the leaf existential-type field itself.
-            //
-            auto concreteTypeLayout = subObject->getElementTypeLayout();
-            auto concreteType = concreteTypeLayout->getType();
-            //
-            auto existentialTypeLayout =
-                layout->getElementTypeLayout()->getBindingRangeLeafTypeLayout(bindingRangeIndex);
-            auto existentialType = existentialTypeLayout->getType();
-
-            // Fills in the first and second field of the tuple that specify RTTI type ID
-            // and witness table ID.
-            SLANG_RETURN_ON_FAIL(setExistentialHeader(existentialType, concreteType, offset));
-
-            // The third field of the tuple (offset 16) is the "payload" that is supposed to
-            // hold the data for a value of the given concrete type.
-            //
-            auto payloadOffset = offset;
-            payloadOffset.uniformOffset += 16;
-
-            // There are two cases we need to consider here for how the payload might be
-            // used:
-            //
-            // * If the concrete type of the value being bound is one that can "fit" into
-            // the
-            //   available payload space,  then it should be stored in the payload.
-            //
-            // * If the concrete type of the value cannot fit in the payload space, then it
-            //   will need to be stored somewhere else.
-            //
-            if (_doesValueFitInExistentialPayload(concreteTypeLayout, existentialTypeLayout))
-            {
-                // If the value can fit in the payload area, then we will go ahead and copy
-                // its bytes into that area.
-                //
-                setData(payloadOffset, subObject->m_data.getBuffer(), subObject->m_data.getCount());
-            }
-            else
-            {
-                // If the value does *not *fit in the payload area, then there is nothing
-                // we can do at this point (beyond saving a reference to the sub-object,
-                // which was handled above).
-                //
-                // Once all the sub-objects have been set into the parent object, we can
-                // compute a specialized layout for it, and that specialized layout can tell
-                // us where the data for these sub-objects has been laid out.
-                return SLANG_E_NOT_IMPLEMENTED;
-            }
-        }
-        break;
-        case slang::BindingType::MutableRawBuffer:
-        case slang::BindingType::RawBuffer:
-        {
-            // If we are setting into a `StructuredBuffer` field, make sure we create and set
-            // the StructuredBuffer resource as well.
-            auto buffer = subObject->m_data.getBufferResource(
-                getDevice(),
-                subObject->getElementTypeLayout(),
-                bindingRange.bindingType
-            );
-            if (buffer)
-                setBinding(offset, static_cast<IBuffer*>(buffer));
-        }
-        break;
-        }
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, GfxCount count) override
-    {
-        auto layout = getLayout();
-
-        // If the shader object is a container, delegate the processing to
-        // `setSpecializationArgsForContainerElements`.
-        if (layout->getContainerType() != ShaderObjectContainerType::None)
-        {
-            ExtendedShaderObjectTypeList argList;
-            SLANG_RETURN_ON_FAIL(getExtendedShaderTypeListFromSpecializationArgs(argList, args, count));
-            setSpecializationArgsForContainerElement(argList);
-            return SLANG_OK;
-        }
-
-        if (offset.bindingRangeIndex < 0)
-            return SLANG_E_INVALID_ARG;
-        if (offset.bindingRangeIndex >= layout->getBindingRangeCount())
-            return SLANG_E_INVALID_ARG;
-
-        auto bindingRangeIndex = offset.bindingRangeIndex;
-        const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
-        Index objectIndex = bindingRange.subObjectIndex + offset.bindingArrayIndex;
-        if (objectIndex >= m_userProvidedSpecializationArgs.size())
-            m_userProvidedSpecializationArgs.resize(objectIndex + 1);
-        if (!m_userProvidedSpecializationArgs[objectIndex])
-        {
-            m_userProvidedSpecializationArgs[objectIndex] = new ExtendedShaderObjectTypeListObject();
-        }
-        else
-        {
-            m_userProvidedSpecializationArgs[objectIndex]->clear();
-        }
-        SLANG_RETURN_ON_FAIL(
-            getExtendedShaderTypeListFromSpecializationArgs(*m_userProvidedSpecializationArgs[objectIndex], args, count)
-        );
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override
-    {
-        if (m_finalized)
-            return SLANG_FAIL;
-
-        for (auto& object : m_objects)
-        {
-            if (object && !object->isFinalized())
-                SLANG_RETURN_ON_FAIL(object->finalize());
-        }
-
-        return SLANG_OK;
-    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override {}
 
     virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized() override { return m_finalized; }
 };
+#endif
 
 class BindingData : public RefObject
 {};
@@ -835,6 +714,8 @@ public:
     {
         return linkedProgram->getLayout()->findTypeByName(name);
     }
+
+    virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
 
     bool isMeshShaderProgram() const;
 };
@@ -1453,6 +1334,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
@@ -1552,8 +1436,6 @@ public:
         ShaderObjectLayout** outLayout
     ) = 0;
 
-    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) = 0;
-
     virtual Result createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline);
     virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);
@@ -1578,6 +1460,7 @@ public:
 
 bool isDepthFormat(Format format);
 
+#if 0
 // Implementations that have to come after Device
 
 //--------------------------------------------------------------------------------
@@ -1744,5 +1627,6 @@ Result ShaderObjectBaseImpl<TShaderObjectImpl, TShaderObjectLayoutImpl, TShaderO
     }
     return SLANG_OK;
 }
+#endif
 
 } // namespace rhi
