@@ -320,7 +320,7 @@ void RenderPassEncoder::drawIndexedIndirect(
     }
 }
 
-void RenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
+void RenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {

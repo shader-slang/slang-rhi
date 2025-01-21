@@ -1745,7 +1745,7 @@ public:
         IBuffer* countBuffer = nullptr,
         uint64_t countOffset = 0
     ) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) = 0;
 };
 
 class IComputePassEncoder : public IPassEncoder

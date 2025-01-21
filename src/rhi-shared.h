@@ -921,7 +921,7 @@ public:
         IBuffer* countBuffer = nullptr,
         uint64_t countOffset = 0
     ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) override;
 
     // IPassEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;

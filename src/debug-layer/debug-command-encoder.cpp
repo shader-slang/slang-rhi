@@ -99,7 +99,7 @@ void DebugRenderPassEncoder::drawIndexedIndirect(
     baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
 }
 
-void DebugRenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
+void DebugRenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();

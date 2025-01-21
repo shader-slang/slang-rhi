@@ -182,9 +182,9 @@ struct DrawIndexedIndirect
 
 struct DrawMeshTasks
 {
-    GfxCount x;
-    GfxCount y;
-    GfxCount z;
+    uint32_t x;
+    uint32_t y;
+    uint32_t z;
 };
 
 struct BeginComputePass
