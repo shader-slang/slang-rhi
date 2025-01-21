@@ -1398,34 +1398,28 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
 
 Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
-    RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);
+    RefPtr<InputLayoutImpl> layout = new InputLayoutImpl();
 
     // Work out a buffer size to hold all text
-    Size textSize = 0;
-    auto inputElementCount = desc.inputElementCount;
-    auto inputElements = desc.inputElements;
-    auto vertexStreamCount = desc.vertexStreamCount;
-    auto vertexStreams = desc.vertexStreams;
-    for (int i = 0; i < Int(inputElementCount); ++i)
+    size_t textSize = 0;
+    for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
-        const char* text = inputElements[i].semanticName;
+        const char* text = desc.inputElements[i].semanticName;
         textSize += text ? (::strlen(text) + 1) : 0;
     }
     layout->m_text.resize(textSize);
     char* textPos = layout->m_text.data();
 
-    std::vector<D3D12_INPUT_ELEMENT_DESC>& elements = layout->m_elements;
-    SLANG_RHI_ASSERT(inputElementCount > 0);
-    elements.resize(inputElementCount);
+    layout->m_elements.resize(desc.inputElementCount);
 
-    for (Int i = 0; i < inputElementCount; ++i)
+    for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
-        const InputElementDesc& srcEle = inputElements[i];
-        const auto& srcStream = vertexStreams[srcEle.bufferSlotIndex];
-        D3D12_INPUT_ELEMENT_DESC& dstEle = elements[i];
+        const InputElementDesc& srcElement = desc.inputElements[i];
+        const VertexStreamDesc& srcStream = desc.vertexStreams[srcElement.bufferSlotIndex];
+        D3D12_INPUT_ELEMENT_DESC& dstElement = layout->m_elements[i];
 
         // Add text to the buffer
-        const char* semanticName = srcEle.semanticName;
+        const char* semanticName = srcElement.semanticName;
         if (semanticName)
         {
             const int len = int(::strlen(semanticName));
@@ -1434,20 +1428,19 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
             textPos += len + 1;
         }
 
-        dstEle.SemanticName = semanticName;
-        dstEle.SemanticIndex = (UINT)srcEle.semanticIndex;
-        dstEle.Format = D3DUtil::getMapFormat(srcEle.format);
-        dstEle.InputSlot = (UINT)srcEle.bufferSlotIndex;
-        dstEle.AlignedByteOffset = (UINT)srcEle.offset;
-        dstEle.InputSlotClass = D3DUtil::getInputSlotClass(srcStream.slotClass);
-        dstEle.InstanceDataStepRate = (UINT)srcStream.instanceDataStepRate;
+        dstElement.SemanticName = semanticName;
+        dstElement.SemanticIndex = (UINT)srcElement.semanticIndex;
+        dstElement.Format = D3DUtil::getMapFormat(srcElement.format);
+        dstElement.InputSlot = (UINT)srcElement.bufferSlotIndex;
+        dstElement.AlignedByteOffset = (UINT)srcElement.offset;
+        dstElement.InputSlotClass = D3DUtil::getInputSlotClass(srcStream.slotClass);
+        dstElement.InstanceDataStepRate = (UINT)srcStream.instanceDataStepRate;
     }
 
-    auto& vertexStreamStrides = layout->m_vertexStreamStrides;
-    vertexStreamStrides.resize(vertexStreamCount);
-    for (GfxIndex i = 0; i < vertexStreamCount; ++i)
+    layout->m_vertexStreamStrides.resize(desc.vertexStreamCount);
+    for (uint32_t i = 0; i < desc.vertexStreamCount; ++i)
     {
-        vertexStreamStrides[i] = (UINT)vertexStreams[i].stride;
+        layout->m_vertexStreamStrides[i] = (UINT)desc.vertexStreams[i].stride;
     }
 
     returnComPtr(outLayout, layout);

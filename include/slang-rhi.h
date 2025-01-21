@@ -445,23 +445,23 @@ struct InputElementDesc
     const char* semanticName;
     /// The index of the corresponding parameter in shader code. Only needed if multiple parameters share a semantic
     /// name.
-    GfxIndex semanticIndex;
+    uint32_t semanticIndex;
     /// The format of the data being fetched for this element.
     Format format;
     /// The offset in bytes of this element from the start of the corresponding chunk of vertex stream data.
-    Offset offset;
+    uint32_t offset;
     /// The index of the vertex stream to fetch this element's data from.
-    GfxIndex bufferSlotIndex;
+    uint32_t bufferSlotIndex;
 };
 
 struct VertexStreamDesc
 {
     /// The stride in bytes for this vertex stream.
-    Size stride;
+    uint32_t stride;
     /// Whether the stream contains per-vertex or per-instance data.
     InputSlotClass slotClass;
     /// How many instances to draw per chunk of data.
-    GfxCount instanceDataStepRate;
+    uint32_t instanceDataStepRate;
 };
 
 struct InputLayoutDesc
@@ -470,9 +470,9 @@ struct InputLayoutDesc
     void* next = nullptr;
 
     const InputElementDesc* inputElements = nullptr;
-    GfxCount inputElementCount = 0;
+    uint32_t inputElementCount = 0;
     const VertexStreamDesc* vertexStreams = nullptr;
-    GfxCount vertexStreamCount = 0;
+    uint32_t vertexStreamCount = 0;
 };
 
 // Declare opaque type
@@ -2292,7 +2292,7 @@ public:
     }
 
     inline Result createInputLayout(
-        Size vertexSize,
+        uint32_t vertexSize,
         const InputElementDesc* inputElements,
         GfxCount inputElementCount,
         IInputLayout** outLayout
@@ -2309,9 +2309,9 @@ public:
     }
 
     inline ComPtr<IInputLayout> createInputLayout(
-        Size vertexSize,
+        uint32_t vertexSize,
         const InputElementDesc* inputElements,
-        GfxCount inputElementCount
+        uint32_t inputElementCount
     )
     {
         ComPtr<IInputLayout> layout;
