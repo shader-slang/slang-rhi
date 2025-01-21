@@ -672,11 +672,11 @@ struct SubresourceData
 static const GfxCount kRemainingTextureSize = 0xffffffff;
 struct Offset3D
 {
-    GfxIndex x = 0;
-    GfxIndex y = 0;
-    GfxIndex z = 0;
+    int32_t x = 0;
+    int32_t y = 0;
+    int32_t z = 0;
     Offset3D() = default;
-    Offset3D(GfxIndex _x, GfxIndex _y, GfxIndex _z)
+    Offset3D(int32_t _x, int32_t _y, int32_t _z)
         : x(_x)
         , y(_y)
         , z(_z)
@@ -687,11 +687,11 @@ struct Offset3D
 struct Extents
 {
     /// Width in pixels.
-    GfxCount width = 0;
+    int32_t width = 0;
     /// Height in pixels (if 2d or 3d).
-    GfxCount height = 0;
+    int32_t height = 0;
     /// Depth (if 3d).
-    GfxCount depth = 0;
+    int32_t depth = 0;
 };
 struct TextureDesc
 {
