@@ -1666,11 +1666,11 @@ struct RenderState
     IShaderObject* rootObject = nullptr;
     uint32_t stencilRef = 0;
     Viewport viewports[16];
-    GfxCount viewportCount = 0;
+    uint32_t viewportCount = 0;
     ScissorRect scissorRects[16];
-    GfxCount scissorRectCount = 0;
+    uint32_t scissorRectCount = 0;
     BufferWithOffset vertexBuffers[16];
-    GfxCount vertexBufferCount = 0;
+    uint32_t vertexBufferCount = 0;
     BufferWithOffset indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
 };

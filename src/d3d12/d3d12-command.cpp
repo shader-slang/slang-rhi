@@ -753,7 +753,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateVertexBuffers)
     {
         D3D12_VERTEX_BUFFER_VIEW vertexViews[SLANG_COUNT_OF(state.vertexBuffers)];
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
             Offset offset = state.vertexBuffers[i].offset;
@@ -764,7 +764,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             vertexView.SizeInBytes = UINT(buffer->m_desc.size - offset);
             vertexView.StrideInBytes = m_renderPipeline->m_inputLayout->m_vertexStreamStrides[i];
         }
-        m_cmdList->IASetVertexBuffers(0, (UINT)state.vertexBufferCount, vertexViews);
+        m_cmdList->IASetVertexBuffers(0, state.vertexBufferCount, vertexViews);
     }
 
     if (updateIndexBuffer)
@@ -789,10 +789,10 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateViewports)
     {
-        static const int kMaxViewports = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+        static const uint32_t kMaxViewports = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
         SLANG_RHI_ASSERT(state.viewportCount <= kMaxViewports);
         D3D12_VIEWPORT viewports[SLANG_COUNT_OF(state.viewports)];
-        for (GfxIndex i = 0; i < state.viewportCount; ++i)
+        for (uint32_t i = 0; i < state.viewportCount; ++i)
         {
             const Viewport& src = state.viewports[i];
             D3D12_VIEWPORT& dst = viewports[i];
@@ -803,15 +803,15 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.MinDepth = src.minZ;
             dst.MaxDepth = src.maxZ;
         }
-        m_cmdList->RSSetViewports((UINT)state.viewportCount, viewports);
+        m_cmdList->RSSetViewports(state.viewportCount, viewports);
     }
 
     if (updateScissorRects)
     {
-        static const int kMaxScissorRects = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+        static const uint32_t kMaxScissorRects = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
         SLANG_RHI_ASSERT(state.scissorRectCount <= kMaxScissorRects);
         D3D12_RECT scissorRects[SLANG_COUNT_OF(state.scissorRects)];
-        for (GfxIndex i = 0; i < state.scissorRectCount; ++i)
+        for (uint32_t i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
             D3D12_RECT& dst = scissorRects[i];
@@ -820,7 +820,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.right = LONG(src.maxX);
             dst.bottom = LONG(src.maxY);
         }
-        m_cmdList->RSSetScissorRects((UINT)state.scissorRectCount, scissorRects);
+        m_cmdList->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }
 
     m_renderStateValid = true;

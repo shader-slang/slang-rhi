@@ -394,7 +394,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateVertexBuffers)
     {
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
             encoder->setVertexBuffer(
@@ -428,7 +428,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateViewports)
     {
         MTL::Viewport viewports[SLANG_COUNT_OF(RenderState::viewports)];
-        for (Index i = 0; i < state.viewportCount; ++i)
+        for (uint32_t i = 0; i < state.viewportCount; ++i)
         {
             const Viewport& src = state.viewports[i];
             MTL::Viewport& dst = viewports[i];
@@ -445,7 +445,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateScissorRects)
     {
         MTL::ScissorRect scissorRects[SLANG_COUNT_OF(RenderState::scissorRects)];
-        for (Index i = 0; i < state.scissorRectCount; ++i)
+        for (uint32_t i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
             MTL::ScissorRect& dst = scissorRects[i];

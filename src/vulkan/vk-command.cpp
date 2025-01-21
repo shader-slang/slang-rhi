@@ -663,7 +663,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     {
         VkBuffer vertexBuffers[SLANG_COUNT_OF(state.vertexBuffers)];
         VkDeviceSize offsets[SLANG_COUNT_OF(state.vertexBuffers)];
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
 
@@ -674,8 +674,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         {
             api.vkCmdBindVertexBuffers(
                 m_cmdBuffer,
-                (uint32_t)0,
-                (uint32_t)state.vertexBufferCount,
+                0,
+                state.vertexBufferCount,
                 vertexBuffers,
                 offsets
             );
@@ -703,7 +703,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateViewports)
     {
         VkViewport viewports[SLANG_COUNT_OF(state.viewports)];
-        for (GfxIndex i = 0; i < state.viewportCount; ++i)
+        for (uint32_t i = 0; i < state.viewportCount; ++i)
         {
             const Viewport& src = state.viewports[i];
             VkViewport& dst = viewports[i];
@@ -714,22 +714,22 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.minDepth = src.minZ;
             dst.maxDepth = src.maxZ;
         }
-        api.vkCmdSetViewport(m_cmdBuffer, 0, uint32_t(state.viewportCount), viewports);
+        api.vkCmdSetViewport(m_cmdBuffer, 0, state.viewportCount, viewports);
     }
 
     if (updateScissorRects)
     {
         VkRect2D scissorRects[SLANG_COUNT_OF(state.scissorRects)];
-        for (GfxIndex i = 0; i < state.scissorRectCount; ++i)
+        for (uint32_t i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
             VkRect2D& dst = scissorRects[i];
-            dst.offset.x = int32_t(src.minX);
-            dst.offset.y = int32_t(src.minY);
+            dst.offset.x = src.minX;
+            dst.offset.y = src.minY;
             dst.extent.width = uint32_t(src.maxX - src.minX);
             dst.extent.height = uint32_t(src.maxY - src.minY);
         }
-        api.vkCmdSetScissor(m_cmdBuffer, 0, uint32_t(state.scissorRectCount), scissorRects);
+        api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
     }
 
     m_renderStateValid = true;
