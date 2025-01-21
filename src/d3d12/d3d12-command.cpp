@@ -841,10 +841,10 @@ void CommandRecorder::cmdDraw(const commands::Draw& cmd)
         return;
 
     m_cmdList->DrawInstanced(
-        (UINT)cmd.args.vertexCount,
-        (UINT)cmd.args.instanceCount,
-        (UINT)cmd.args.startIndexLocation,
-        (UINT)cmd.args.startInstanceLocation
+        cmd.args.vertexCount,
+        cmd.args.instanceCount,
+        cmd.args.startIndexLocation,
+        cmd.args.startInstanceLocation
     );
 }
 
@@ -854,11 +854,11 @@ void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
         return;
 
     m_cmdList->DrawIndexedInstanced(
-        (UINT)cmd.args.vertexCount,
-        (UINT)cmd.args.instanceCount,
-        (UINT)cmd.args.startIndexLocation,
-        (UINT)cmd.args.startVertexLocation,
-        (UINT)cmd.args.startInstanceLocation
+        cmd.args.vertexCount,
+        cmd.args.instanceCount,
+        cmd.args.startIndexLocation,
+        cmd.args.startVertexLocation,
+        cmd.args.startInstanceLocation
     );
 }
 

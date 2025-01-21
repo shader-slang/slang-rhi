@@ -1623,35 +1623,35 @@ public:
 
 struct DrawArguments
 {
-    GfxCount vertexCount = 0;
-    GfxCount instanceCount = 1;
-    GfxIndex startVertexLocation = 0;
-    GfxIndex startInstanceLocation = 0;
-    GfxIndex startIndexLocation = 0;
+    uint32_t vertexCount = 0;
+    uint32_t instanceCount = 1;
+    uint32_t startVertexLocation = 0;
+    uint32_t startInstanceLocation = 0;
+    uint32_t startIndexLocation = 0;
 };
 
 struct IndirectDrawArguments
 {
-    GfxCount VertexCountPerInstance;
-    GfxCount InstanceCount;
-    GfxIndex StartVertexLocation;
-    GfxIndex StartInstanceLocation;
+    uint32_t vertexCountPerInstance;
+    uint32_t instanceCount;
+    uint32_t startVertexLocation;
+    uint32_t startInstanceLocation;
 };
 
 struct IndirectDrawIndexedArguments
 {
-    GfxCount IndexCountPerInstance;
-    GfxCount InstanceCount;
-    GfxIndex StartIndexLocation;
-    GfxIndex BaseVertexLocation;
-    GfxIndex StartInstanceLocation;
+    uint32_t indexCountPerInstance;
+    uint32_t instanceCount;
+    uint32_t startIndexLocation;
+    int32_t baseVertexLocation;
+    uint32_t startInstanceLocation;
 };
 
 struct IndirectDispatchArguments
 {
-    GfxCount ThreadGroupCountX;
-    GfxCount ThreadGroupCountY;
-    GfxCount ThreadGroupCountZ;
+    uint32_t threadGroupCountX;
+    uint32_t threadGroupCountY;
+    uint32_t threadGroupCountZ;
 };
 
 struct SamplePosition
