@@ -1525,27 +1525,27 @@ enum class WindowHandleType
 struct WindowHandle
 {
     WindowHandleType type = WindowHandleType::Unknown;
-    intptr_t handleValues[2];
+    uint64_t handleValues[2];
 
     static WindowHandle fromHwnd(void* hwnd)
     {
         WindowHandle handle = {};
         handle.type = WindowHandleType::HWND;
-        handle.handleValues[0] = (intptr_t)(hwnd);
+        handle.handleValues[0] = (uint64_t)(hwnd);
         return handle;
     }
     static WindowHandle fromNSWindow(void* nswindow)
     {
         WindowHandle handle = {};
         handle.type = WindowHandleType::NSWindow;
-        handle.handleValues[0] = (intptr_t)(nswindow);
+        handle.handleValues[0] = (uint64_t)(nswindow);
         return handle;
     }
     static WindowHandle fromXlibWindow(void* xdisplay, uint32_t xwindow)
     {
         WindowHandle handle = {};
         handle.type = WindowHandleType::XlibWindow;
-        handle.handleValues[0] = (intptr_t)(xdisplay);
+        handle.handleValues[0] = (uint64_t)(xdisplay);
         handle.handleValues[1] = xwindow;
         return handle;
     }
