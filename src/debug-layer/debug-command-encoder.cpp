@@ -72,11 +72,11 @@ void DebugRenderPassEncoder::drawIndexed(const DrawArguments& args)
 }
 
 void DebugRenderPassEncoder::drawIndirect(
-    GfxCount maxDrawCount,
+    uint32_t maxDrawCount,
     IBuffer* argBuffer,
-    Offset argOffset,
+    uint64_t argOffset,
     IBuffer* countBuffer,
-    Offset countOffset
+    uint64_t countOffset
 )
 {
     SLANG_RHI_API_FUNC;
@@ -86,11 +86,11 @@ void DebugRenderPassEncoder::drawIndirect(
 }
 
 void DebugRenderPassEncoder::drawIndexedIndirect(
-    GfxCount maxDrawCount,
+    uint32_t maxDrawCount,
     IBuffer* argBuffer,
-    Offset argOffset,
+    uint64_t argOffset,
     IBuffer* countBuffer,
-    Offset countOffset
+    uint64_t countOffset
 )
 {
     SLANG_RHI_API_FUNC;

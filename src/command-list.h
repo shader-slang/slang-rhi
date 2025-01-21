@@ -164,20 +164,20 @@ struct DrawIndexed
 
 struct DrawIndirect
 {
-    GfxCount maxDrawCount;
+    uint32_t maxDrawCount;
     IBuffer* argBuffer;
-    Offset argOffset;
+    uint64_t argOffset;
     IBuffer* countBuffer;
-    Offset countOffset;
+    uint64_t countOffset;
 };
 
 struct DrawIndexedIndirect
 {
-    GfxCount maxDrawCount;
+    uint32_t maxDrawCount;
     IBuffer* argBuffer;
-    Offset argOffset;
+    uint64_t argOffset;
     IBuffer* countBuffer;
-    Offset countOffset;
+    uint64_t countOffset;
 };
 
 struct DrawMeshTasks

@@ -878,11 +878,11 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 
     m_cmdList->ExecuteIndirect(
         m_device->drawIndirectCmdSignature,
-        (UINT)cmd.maxDrawCount,
+        cmd.maxDrawCount,
         argBuffer->m_resource,
-        (UINT64)cmd.argOffset,
+        cmd.argOffset,
         countBuffer ? countBuffer->m_resource.getResource() : nullptr,
-        (UINT64)cmd.countOffset
+        cmd.countOffset
     );
 }
 
@@ -902,11 +902,11 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 
     m_cmdList->ExecuteIndirect(
         m_device->drawIndexedIndirectCmdSignature,
-        (UINT)cmd.maxDrawCount,
+        cmd.maxDrawCount,
         argBuffer->m_resource,
-        (UINT64)cmd.argOffset,
+        cmd.argOffset,
         countBuffer ? countBuffer->m_resource.getResource() : nullptr,
-        (UINT64)cmd.countOffset
+        cmd.countOffset
     );
 }
 

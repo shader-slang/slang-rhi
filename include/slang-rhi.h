@@ -1732,18 +1732,18 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
-        GfxCount maxDrawCount,
+        uint32_t maxDrawCount,
         IBuffer* argBuffer,
-        Offset argOffset,
+        uint64_t argOffset,
         IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
+        uint64_t countOffset = 0
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
-        GfxCount maxDrawCount,
+        uint32_t maxDrawCount,
         IBuffer* argBuffer,
-        Offset argOffset,
+        uint64_t argOffset,
         IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
+        uint64_t countOffset = 0
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) = 0;
 };
