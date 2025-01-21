@@ -1700,7 +1700,7 @@ struct AccelerationStructureQueryDesc
 
     IQueryPool* queryPool;
 
-    GfxIndex firstQueryIndex;
+    uint32_t firstQueryIndex;
 };
 
 class ICommandBuffer : public ISlangUnknown

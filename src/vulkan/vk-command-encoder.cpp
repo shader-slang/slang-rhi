@@ -477,7 +477,7 @@ void CommandEncoderImpl::_queryAccelerationStructureProperties(
             return;
         }
         auto queryPool = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool)->m_pool;
-        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, (uint32_t)queryDescs[i].firstQueryIndex, 1);
+        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, queryDescs[i].firstQueryIndex, 1);
         m_device->m_api.vkCmdWriteAccelerationStructuresPropertiesKHR(
             m_cmdBuffer,
             accelerationStructureCount,
