@@ -199,16 +199,16 @@ struct FormatInfoMap
         Format format,
         const char* name,
         SlangScalarType type,
-        Index channelCount,
-        uint32_t blockSizeInBytes,
-        uint32_t pixelsPerBlock = 1,
-        uint32_t blockWidth = 1,
-        uint32_t blockHeight = 1
+        uint8_t channelCount,
+        uint8_t blockSizeInBytes,
+        uint8_t pixelsPerBlock = 1,
+        uint8_t blockWidth = 1,
+        uint8_t blockHeight = 1
     )
     {
         FormatInfo& info = m_infos[Index(format)];
         info.name = name;
-        info.channelCount = uint8_t(channelCount);
+        info.channelCount = channelCount;
         info.channelType = uint8_t(type);
 
         info.blockSizeInBytes = blockSizeInBytes;

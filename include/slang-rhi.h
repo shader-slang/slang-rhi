@@ -283,17 +283,17 @@ struct FormatInfo
 {
     const char* name;
     /// The amount of channels in the format. Only set if the channelType is set.
-    GfxCount channelCount;
+    uint8_t channelCount;
     /// One of SlangScalarType None if type isn't made up of elements of type. TODO: Change to uint32_t?
     uint8_t channelType;
     /// The size of a block in bytes.
-    Size blockSizeInBytes;
+    uint8_t blockSizeInBytes;
     /// The number of pixels contained in a block.
-    GfxCount pixelsPerBlock;
+    uint8_t pixelsPerBlock;
     /// The width of a block in pixels.
-    GfxCount blockWidth;
+    uint8_t blockWidth;
     /// The height of a block in pixels.
-    GfxCount blockHeight;
+    uint8_t blockHeight;
 
     bool isTypeless : 1;
     bool isCompressed : 1;
