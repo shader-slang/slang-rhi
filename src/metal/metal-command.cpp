@@ -262,7 +262,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     // Setup color attachments.
     renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
         TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);

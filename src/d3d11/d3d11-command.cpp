@@ -180,7 +180,7 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     m_renderTargetViews.resize(desc.colorAttachmentCount);
     m_resolveTargetViews.resize(desc.colorAttachmentCount);
-    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         m_renderTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
         m_resolveTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].resolveTarget);
@@ -189,7 +189,7 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         desc.depthStencilAttachment ? checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view) : nullptr;
 
     // Clear color attachments.
-    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
         if (attachment.loadOp == LoadOp::Clear)
@@ -226,7 +226,7 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     // Set render targets.
     short_vector<ID3D11RenderTargetView*, 8> renderTargetViews(desc.colorAttachmentCount, nullptr);
-    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         renderTargetViews[i] = m_renderTargetViews[i]->getRTV();
     }

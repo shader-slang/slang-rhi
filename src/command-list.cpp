@@ -86,7 +86,7 @@ void CommandList::write(commands::BeginRenderPass&& cmd)
     {
         cmd.desc.colorAttachments = (RenderPassColorAttachment*)
             writeData(cmd.desc.colorAttachments, cmd.desc.colorAttachmentCount * sizeof(RenderPassColorAttachment));
-        for (Index i = 0; i < cmd.desc.colorAttachmentCount; ++i)
+        for (uint32_t i = 0; i < cmd.desc.colorAttachmentCount; ++i)
         {
             retainResource(cmd.desc.colorAttachments[i].view);
             retainResource(cmd.desc.colorAttachments[i].resolveTarget);

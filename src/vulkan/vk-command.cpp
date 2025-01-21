@@ -447,7 +447,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     };
     uint32_t layerCount = 1;
 
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
         TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);

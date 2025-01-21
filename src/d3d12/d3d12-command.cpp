@@ -568,7 +568,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     m_renderTargetViews.resize(desc.colorAttachmentCount);
     m_resolveTargetViews.resize(desc.colorAttachmentCount);
     short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
-    for (Index i = 0; i < desc.colorAttachmentCount; i++)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
     {
         m_renderTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
         m_resolveTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].resolveTarget);

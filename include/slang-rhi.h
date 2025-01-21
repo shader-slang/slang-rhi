@@ -1589,7 +1589,7 @@ struct RenderPassDepthStencilAttachment
 struct RenderPassDesc
 {
     RenderPassColorAttachment* colorAttachments = nullptr;
-    GfxCount colorAttachmentCount = 0;
+    uint32_t colorAttachmentCount = 0;
     RenderPassDepthStencilAttachment* depthStencilAttachment = nullptr;
 };
 

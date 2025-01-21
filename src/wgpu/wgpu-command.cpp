@@ -222,7 +222,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     const RenderPassDesc& desc = cmd.desc;
 
     short_vector<WGPURenderPassColorAttachment, 8> colorAttachments(desc.colorAttachmentCount, {});
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const RenderPassColorAttachment& attachmentIn = desc.colorAttachments[i];
         WGPURenderPassColorAttachment& attachment = colorAttachments[i];
