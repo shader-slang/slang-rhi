@@ -707,19 +707,6 @@ bool D3DUtil::isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
     return false;
 }
 
-bool D3DUtil::isUAVBinding(slang::BindingType bindingType)
-{
-    switch (bindingType)
-    {
-    case slang::BindingType::MutableRawBuffer:
-    case slang::BindingType::MutableTexture:
-    case slang::BindingType::MutableTypedBuffer:
-        return true;
-    default:
-        return false;
-    }
-}
-
 int D3DUtil::getShaderModelFromProfileName(const char* name)
 {
     if (!name)

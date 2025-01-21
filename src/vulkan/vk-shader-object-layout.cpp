@@ -325,15 +325,15 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         uint32_t count = (uint32_t)typeLayout->getBindingRangeBindingCount(r);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(r);
 
-        Index baseIndex = 0;
+        Index slotIndex = 0;
         Index subObjectIndex = 0;
+
         switch (slangBindingType)
         {
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
-            baseIndex = m_subObjectCount;
-            subObjectIndex = baseIndex;
+            subObjectIndex = m_subObjectCount;
             m_subObjectCount += count;
             break;
         case slang::BindingType::RawBuffer:
@@ -345,33 +345,28 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
                 subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
-            baseIndex = m_resourceCount;
-            m_resourceCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             break;
         case slang::BindingType::Sampler:
-            baseIndex = m_samplerCount;
-            m_samplerCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_totalBindingCount += 1;
             break;
 
         case slang::BindingType::CombinedTextureSampler:
-            baseIndex = m_combinedTextureSamplerCount;
-            m_combinedTextureSamplerCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_totalBindingCount += 1;
             break;
 
         case slang::BindingType::VaryingInput:
-            baseIndex = m_varyingInputCount;
-            m_varyingInputCount += count;
+        case slang::BindingType::VaryingOutput:
             break;
 
-        case slang::BindingType::VaryingOutput:
-            baseIndex = m_varyingOutputCount;
-            m_varyingOutputCount += count;
-            break;
         default:
-            baseIndex = m_resourceCount;
-            m_resourceCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_totalBindingCount += 1;
             break;
         }
@@ -379,7 +374,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         BindingRangeInfo bindingRangeInfo;
         bindingRangeInfo.bindingType = slangBindingType;
         bindingRangeInfo.count = count;
-        bindingRangeInfo.baseIndex = baseIndex;
+        bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
         bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
         // We'd like to extract the information on the GLSL/SPIR-V
@@ -616,9 +611,7 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 
     m_descriptorSetInfos = _Move(builder->m_descriptorSetBuildInfos);
     m_ownPushConstantRanges = builder->m_ownPushConstantRanges;
-    m_resourceCount = builder->m_resourceCount;
-    m_samplerCount = builder->m_samplerCount;
-    m_combinedTextureSamplerCount = builder->m_combinedTextureSamplerCount;
+    m_slotCount = builder->m_slotCount;
     m_childDescriptorSetCount = builder->m_childDescriptorSetCount;
     m_totalBindingCount = builder->m_totalBindingCount;
     m_subObjectCount = builder->m_subObjectCount;

@@ -223,8 +223,7 @@ public:
     DescriptorSet m_cachedGPUDescriptorSet;
 #endif
 
-    std::vector<ResourceSlot> m_resources;
-    std::vector<RefPtr<SamplerImpl>> m_samplers;
+    std::vector<ResourceSlot> m_slots;
 
 #if 0
     short_vector<BoundResource, 16> m_boundResources;

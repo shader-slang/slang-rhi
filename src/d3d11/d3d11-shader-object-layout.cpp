@@ -38,17 +38,15 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         SlangInt count = typeLayout->getBindingRangeBindingCount(r);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(r);
 
-        BindingRangeInfo bindingRangeInfo;
-        bindingRangeInfo.bindingType = slangBindingType;
-        bindingRangeInfo.count = count;
-        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
+        Index slotIndex = 0;
+        Index subObjectIndex = 0;
+
         switch (slangBindingType)
         {
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
-            bindingRangeInfo.baseIndex = m_subObjectCount;
-            bindingRangeInfo.subObjectIndex = m_subObjectCount;
+            subObjectIndex = m_subObjectCount;
             m_subObjectCount += count;
             break;
         case slang::BindingType::RawBuffer:
@@ -57,49 +55,52 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             {
                 // A structured buffer occupies both a resource slot and
                 // a sub-object slot.
-                bindingRangeInfo.subObjectIndex = m_subObjectCount;
+                subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             if (slangBindingType == slang::BindingType::RawBuffer)
             {
-                bindingRangeInfo.baseIndex = m_srvCount;
                 m_srvCount += count;
-                m_srvRanges.push_back(r);
             }
             else
             {
-                bindingRangeInfo.baseIndex = m_uavCount;
                 m_uavCount += count;
-                m_uavRanges.push_back(r);
             }
             break;
         case slang::BindingType::Sampler:
-            bindingRangeInfo.baseIndex = m_samplerCount;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_samplerCount += count;
-            m_samplerRanges.push_back(r);
             break;
 
         case slang::BindingType::CombinedTextureSampler:
             break;
         case slang::BindingType::MutableTexture:
         case slang::BindingType::MutableTypedBuffer:
-            bindingRangeInfo.baseIndex = m_uavCount;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_uavCount += count;
-            m_uavRanges.push_back(r);
             break;
 
         case slang::BindingType::VaryingInput:
-            break;
-
         case slang::BindingType::VaryingOutput:
             break;
 
         default:
-            bindingRangeInfo.baseIndex = m_srvCount;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_srvCount += count;
-            m_srvRanges.push_back(r);
             break;
         }
+
+        BindingRangeInfo bindingRangeInfo;
+        bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.count = count;
+        bindingRangeInfo.slotIndex = slotIndex;
+        bindingRangeInfo.subObjectIndex = subObjectIndex;
+        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
 
         // We'd like to extract the information on the D3D11 shader
         // register that this range should bind into.
@@ -233,10 +234,8 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
     m_bindingRanges = builder->m_bindingRanges;
-    m_srvRanges = builder->m_srvRanges;
-    m_uavRanges = builder->m_uavRanges;
-    m_samplerRanges = builder->m_samplerRanges;
 
+    m_slotCount = builder->m_slotCount;
     m_srvCount = builder->m_srvCount;
     m_samplerCount = builder->m_samplerCount;
     m_uavCount = builder->m_uavCount;

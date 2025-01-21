@@ -140,9 +140,8 @@ public:
         /// The number of bindings in this range
         Index count;
 
-        /// The starting index for this range in the appropriate "flat" array in a shader object.
-        /// E.g., for a shader resource view range, this would be an index into the `m_srvs` array.
-        Index baseIndex;
+        /// An index into the binding slots array (for resources, samplers, etc.)
+        Index slotIndex;
 
         /// The offset of this binding range from the start of the sub-object
         /// in terms of whatever D3D11 register class it consumes. E.g., for
@@ -220,15 +219,7 @@ public:
         std::vector<BindingRangeInfo> m_bindingRanges;
         std::vector<SubObjectRangeInfo> m_subObjectRanges;
 
-        /// The indices of the binding ranges that represent SRVs
-        std::vector<Index> m_srvRanges;
-
-        /// The indices of the binding ranges that represent UAVs
-        std::vector<Index> m_uavRanges;
-
-        /// The indices of the binding ranges that represent samplers
-        std::vector<Index> m_samplerRanges;
-
+        Index m_slotCount = 0;
         Index m_srvCount = 0;
         Index m_samplerCount = 0;
         Index m_uavCount = 0;
@@ -258,11 +249,11 @@ public:
 
     const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
+    Index getSlotCount() { return m_slotCount; }
     Index getSRVCount() { return m_srvCount; }
     Index getSamplerCount() { return m_samplerCount; }
     Index getUAVCount() { return m_uavCount; }
     Index getSubObjectCount() { return m_subObjectCount; }
-    Index getVaryingOutputCount() { return m_varyingOutputCount; }
 
     const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
     const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
@@ -270,15 +261,6 @@ public:
     Device* getDevice() { return m_device; }
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
-
-    /// Get the indices that represent all the SRV ranges in this type
-    const std::vector<Index>& getSRVRanges() const { return m_srvRanges; }
-
-    /// Get the indices that reprsent all the UAV ranges in this type
-    const std::vector<Index>& getUAVRanges() const { return m_uavRanges; }
-
-    /// Get the indices that represnet all the sampler ranges in this type
-    const std::vector<Index>& getSamplerRanges() const { return m_samplerRanges; }
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
@@ -289,12 +271,11 @@ protected:
     std::vector<Index> m_srvRanges;
     std::vector<Index> m_uavRanges;
     std::vector<Index> m_samplerRanges;
+    Index m_slotCount = 0;
     Index m_srvCount = 0;
     Index m_samplerCount = 0;
     Index m_uavCount = 0;
     Index m_subObjectCount = 0;
-    Index m_varyingInputCount = 0;
-    Index m_varyingOutputCount = 0;
     uint32_t m_totalOrdinaryDataSize = 0;
     std::vector<SubObjectRangeInfo> m_subObjectRanges;
 };

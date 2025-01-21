@@ -128,7 +128,9 @@ public:
     {
         slang::BindingType bindingType;
         Index count;
-        Index baseIndex;
+
+        /// An index into the binding slots array (for resources, samplers, etc.)
+        Index slotIndex;
 
         /// An index into the sub-object array if this binding range is treated
         /// as a sub-object.
@@ -240,12 +242,8 @@ public:
         std::vector<BindingRangeInfo> m_bindingRanges;
         std::vector<SubObjectRangeInfo> m_subObjectRanges;
 
-        Index m_resourceCount = 0;
-        Index m_samplerCount = 0;
-        Index m_combinedTextureSamplerCount = 0;
+        Index m_slotCount = 0;
         Index m_subObjectCount = 0;
-        Index m_varyingInputCount = 0;
-        Index m_varyingOutputCount = 0;
         std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
         std::map<Index, Index> m_mapSpaceToDescriptorSetIndex;
 
@@ -371,9 +369,7 @@ public:
 
     const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
-    Index getResourceCount() { return m_resourceCount; }
-    Index getSamplerCount() { return m_samplerCount; }
-    Index getCombinedTextureSamplerCount() { return m_combinedTextureSamplerCount; }
+    Index getSlotCount() { return m_slotCount; }
     Index getSubObjectCount() { return m_subObjectCount; }
 
     const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
@@ -388,9 +384,7 @@ protected:
 
     std::vector<DescriptorSetInfo> m_descriptorSetInfos;
     std::vector<BindingRangeInfo> m_bindingRanges;
-    Index m_resourceCount = 0;
-    Index m_samplerCount = 0;
-    Index m_combinedTextureSamplerCount = 0;
+    Index m_slotCount = 0;
     Index m_subObjectCount = 0;
     std::vector<VkPushConstantRange> m_ownPushConstantRanges;
     uint32_t m_childPushConstantRangeCount = 0;

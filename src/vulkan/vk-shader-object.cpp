@@ -130,7 +130,7 @@ inline void writeTextureSamplerDescriptor(
     BindingContext& context,
     const BindingOffset& offset,
     VkDescriptorType descriptorType,
-    span<const CombinedTextureSamplerSlot> slots
+    span<const ResourceSlot> slots
 )
 {
     VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
@@ -138,13 +138,14 @@ inline void writeTextureSamplerDescriptor(
     Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
-        const CombinedTextureSamplerSlot& slot = slots[i];
+        const ResourceSlot& slot = slots[i];
         VkDescriptorImageInfo imageInfo = {};
         if (slot)
         {
-            imageInfo.imageView = slot.textureView->getView().imageView;
+            SLANG_RHI_ASSERT(slot.type == BindingType::Sampler);
+            imageInfo.imageView = checked_cast<TextureViewImpl*>(slot.resource.get())->getView().imageView;
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.sampler = slot.sampler->m_sampler;
+            imageInfo.sampler = checked_cast<SamplerImpl*>(slot.resource2.get())->m_sampler;
         }
 
         VkWriteDescriptorSet write = {};
@@ -246,21 +247,21 @@ inline void writeSamplerDescriptor(
     BindingContext& context,
     const BindingOffset& offset,
     VkDescriptorType descriptorType,
-    span<const RefPtr<SamplerImpl>> samplers
+    span<const ResourceSlot> slots
 )
 {
     VkDescriptorSet descriptorSet = context.currentBindingData->descriptorSets[offset.bindingSet];
 
-    Index count = samplers.size();
+    Index count = slots.size();
     for (Index i = 0; i < count; ++i)
     {
-        auto sampler = samplers[i];
+        const ResourceSlot& slot = slots[i];
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageView = 0;
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-        if (sampler)
+        if (slot)
         {
-            imageInfo.sampler = sampler->m_sampler;
+            imageInfo.sampler = checked_cast<SamplerImpl*>(slot.resource.get())->m_sampler;
         }
         else
         {
@@ -279,7 +280,6 @@ inline void writeSamplerDescriptor(
         writeDescriptor(context, write);
     }
 }
-
 
 Result ShaderObjectImpl::create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject)
 {
@@ -356,9 +356,11 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
     const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
-    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+    auto slotIndex = bindingRange.slotIndex + offset.bindingArrayIndex;
+    if (slotIndex >= m_slots.size())
+        return SLANG_E_INVALID_ARG;
 
-    ResourceSlot& slot = m_resources[bindingIndex];
+    ResourceSlot& slot = m_slots[slotIndex];
 
     switch (binding.type)
     {
@@ -414,7 +416,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
         if (!sampler)
             return SLANG_E_INVALID_ARG;
-        m_samplers[bindingIndex] = sampler;
+        slot.type = BindingType::Sampler;
+        slot.resource = sampler;
         break;
     }
     case BindingType::CombinedTextureSampler:
@@ -431,7 +434,9 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource2);
         if (!textureView || !sampler)
             return SLANG_E_INVALID_ARG;
-        m_combinedTextureSamplers[bindingIndex] = CombinedTextureSamplerSlot{textureView, sampler};
+        slot.type = BindingType::CombinedTextureViewSampler;
+        slot.resource = textureView;
+        slot.resource2 = sampler;
         break;
     }
     case BindingType::AccelerationStructure:
@@ -472,9 +477,7 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
         memset(m_data.getBuffer(), 0, uniformSize);
     }
 
-    m_resources.resize(layout->getResourceCount());
-    m_samplers.resize(layout->getSamplerCount());
-    m_combinedTextureSamplers.resize(layout->getCombinedTextureSamplerCount());
+    m_slots.resize(layout->getSlotCount());
 
     // If the layout specifies that we have any sub-objects, then
     // we need to size the array to account for them.
@@ -674,7 +677,7 @@ Result ShaderObjectImpl::bindAsValue(
     {
         BindingOffset rangeOffset = offset;
 
-        auto baseIndex = bindingRangeInfo.baseIndex;
+        auto slotIndex = bindingRangeInfo.slotIndex;
         auto count = (uint32_t)bindingRangeInfo.count;
         switch (bindingRangeInfo.bindingType)
         {
@@ -690,7 +693,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                span(m_resources.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
         case slang::BindingType::MutableTexture:
@@ -700,7 +703,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                span(m_resources.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
         case slang::BindingType::CombinedTextureSampler:
@@ -710,7 +713,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                span(m_combinedTextureSamplers.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
 
@@ -721,7 +724,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_SAMPLER,
-                span(m_samplers.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
 
@@ -733,7 +736,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                span(m_resources.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
 
@@ -744,7 +747,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-                span(m_resources.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
         case slang::BindingType::MutableTypedBuffer:
@@ -754,7 +757,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-                span(m_resources.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
         case slang::BindingType::RayTracingAccelerationStructure:
@@ -764,7 +767,7 @@ Result ShaderObjectImpl::bindAsValue(
                 context,
                 rangeOffset,
                 VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-                span(m_resources.data() + baseIndex, count)
+                span(m_slots.data() + slotIndex, count)
             );
             break;
         case slang::BindingType::VaryingInput:
@@ -969,7 +972,7 @@ Result ShaderObjectImpl::bindAsConstantBuffer(
 
 void ShaderObjectImpl::setResourceStates(BindingContext& context) const
 {
-    for (const ResourceSlot& slot : m_resources)
+    for (const ResourceSlot& slot : m_slots)
     {
         switch (slot.type)
         {
@@ -980,6 +983,7 @@ void ShaderObjectImpl::setResourceStates(BindingContext& context) const
             break;
         }
         case BindingType::TextureView:
+        case BindingType::CombinedTextureViewSampler:
         {
             TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
             context.setTextureState(textureView, slot.requiredState);
@@ -988,14 +992,6 @@ void ShaderObjectImpl::setResourceStates(BindingContext& context) const
         case BindingType::AccelerationStructure:
             // TODO STATE_TRACKING need state transition?
             break;
-        }
-    }
-
-    for (const CombinedTextureSamplerSlot& slot : m_combinedTextureSamplers)
-    {
-        if (slot.textureView)
-        {
-            context.setTextureState(slot.textureView, ResourceState::ShaderResource);
         }
     }
 

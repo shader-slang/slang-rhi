@@ -87,38 +87,7 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
     memset(m_rootArguments.data(), 0, sizeof(D3D12_GPU_VIRTUAL_ADDRESS) * m_rootArguments.size());
 #endif
 
-    // Each shader object will own CPU descriptor heap memory
-    // for any resource or sampler descriptors it might store
-    // as part of its value.
-    //
-    // This allocate includes a reservation for any constant
-    // buffer descriptor pertaining to the ordinary data,
-    // but does *not* include any descriptors that are managed
-    // as part of sub-objects.
-    //
-    if (auto resourceCount = layout->getResourceSlotCount())
-    {
-#if 0
-        m_descriptorSet.resourceTable.allocate(viewHeap, resourceCount);
-#endif
-
-        // We must also ensure that the memory for any resources
-        // referenced by descriptors in this object does not get
-        // freed while the object is still live.
-        //
-        // The doubling here is because any buffer resource could
-        // have a counter buffer associated with it, which we
-        // also need to ensure isn't destroyed prematurely.
-        m_resources.resize(resourceCount);
-    }
-    if (auto samplerCount = layout->getSamplerSlotCount())
-    {
-#if 0
-        m_descriptorSet.samplerTable.allocate(samplerHeap, samplerCount);
-#endif
-
-        m_samplers.resize(samplerCount);
-    }
+    m_slots.resize(layout->getSlotCount());
 
     // If the layout specifies that we have any sub-objects, then
     // we need to size the array to account for them.
@@ -329,6 +298,7 @@ Result ShaderObjectImpl::bindAsValue2(
     {
         BindingOffset rangeOffset = offset;
 
+        auto slotIndex = bindingRangeInfo.slotIndex;
         auto baseIndex = bindingRangeInfo.baseIndex;
         auto count = (uint32_t)bindingRangeInfo.count;
 
@@ -342,7 +312,7 @@ Result ShaderObjectImpl::bindAsValue2(
         case slang::BindingType::Texture:
             for (uint32_t i = 0; i < count; ++i)
             {
-                const ResourceSlot& slot = m_resources[baseIndex + i];
+                const ResourceSlot& slot = m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 d3dDevice->CopyDescriptorsSimple(
                     count,
@@ -356,7 +326,7 @@ Result ShaderObjectImpl::bindAsValue2(
         case slang::BindingType::MutableTexture:
             for (uint32_t i = 0; i < count; ++i)
             {
-                const ResourceSlot& slot = m_resources[baseIndex + i];
+                const ResourceSlot& slot = m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 d3dDevice->CopyDescriptorsSimple(
                     count,
@@ -370,7 +340,7 @@ Result ShaderObjectImpl::bindAsValue2(
         case slang::BindingType::CombinedTextureSampler:
             for (uint32_t i = 0; i < count; ++i)
             {
-                const ResourceSlot& slot = m_resources[baseIndex + i];
+                const ResourceSlot& slot = m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource2.get());
                 d3dDevice->CopyDescriptorsSimple(
@@ -391,7 +361,8 @@ Result ShaderObjectImpl::bindAsValue2(
         case slang::BindingType::Sampler:
             for (uint32_t i = 0; i < count; ++i)
             {
-                SamplerImpl* sampler = m_samplers[baseIndex + i];
+                const ResourceSlot& slot = m_slots[slotIndex + i];
+                SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
                 d3dDevice->CopyDescriptorsSimple(
                     count,
                     descriptorSet.resourceTable.getCpuHandle(baseIndex + i), // TODO correct offset?
@@ -404,7 +375,7 @@ Result ShaderObjectImpl::bindAsValue2(
         case slang::BindingType::TypedBuffer:
             for (uint32_t i = 0; i < count; ++i)
             {
-                const ResourceSlot& slot = m_resources[baseIndex + i];
+                const ResourceSlot& slot = m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
                 if (bindingRangeInfo.isRootParameter)
                 {
@@ -442,7 +413,7 @@ Result ShaderObjectImpl::bindAsValue2(
         case slang::BindingType::MutableTypedBuffer:
             for (uint32_t i = 0; i < count; ++i)
             {
-                const ResourceSlot& slot = m_resources[baseIndex + i];
+                const ResourceSlot& slot = m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
                 BufferImpl* counterBuffer = checked_cast<BufferImpl*>(slot.resource2.get());
                 if (bindingRangeInfo.isRootParameter)
@@ -486,7 +457,7 @@ Result ShaderObjectImpl::bindAsValue2(
         case slang::BindingType::RayTracingAccelerationStructure:
             for (uint32_t i = 0; i < count; ++i)
             {
-                const ResourceSlot& slot = m_resources[baseIndex + i];
+                const ResourceSlot& slot = m_slots[slotIndex + i];
                 AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
                 if (bindingRangeInfo.isRootParameter)
                 {
@@ -1106,9 +1077,11 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
     const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
-    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+    auto slotIndex = bindingRange.slotIndex + offset.bindingArrayIndex;
+    if (slotIndex >= m_slots.size())
+        return SLANG_E_INVALID_ARG;
 
-    ResourceSlot& slot = m_resources[bindingIndex];
+    ResourceSlot& slot = m_slots[slotIndex];
 #if 0
     BoundResource& boundResource = m_boundResources[bindingIndex];
 #endif
@@ -1241,7 +1214,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
         if (!sampler)
             return SLANG_E_INVALID_ARG;
-        m_samplers[bindingIndex] = sampler;
+        slot.type = BindingType::Sampler;
+        slot.resource = sampler;
 #if 0
         d3dDevice->CopyDescriptorsSimple(
             1,

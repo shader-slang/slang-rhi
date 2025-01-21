@@ -4,6 +4,90 @@
 
 namespace rhi::wgpu {
 
+inline void writeDescriptor(BindingContext& context, Index bindingSet, const WGPUBindGroupEntry& write)
+{
+    auto device = context.device;
+    SLANG_RHI_ASSERT(bindingSet < context.entries.size());
+    context.entries[bindingSet].push_back(write);
+}
+
+inline void writeBufferDescriptor(
+    BindingContext& context,
+    const BindingOffset& offset,
+    BufferImpl* buffer,
+    Offset bufferOffset,
+    Size bufferSize
+)
+{
+    WGPUBindGroupEntry entry = {};
+    entry.binding = offset.binding;
+    entry.buffer = buffer->m_buffer;
+    entry.offset = bufferOffset;
+    entry.size = bufferSize;
+    writeDescriptor(context, offset.bindingSet, entry);
+}
+
+inline void writeBufferDescriptor(BindingContext& context, const BindingOffset& offset, BufferImpl* buffer)
+{
+    writeBufferDescriptor(context, offset, buffer, 0, buffer->m_desc.size);
+}
+
+inline void writeBufferDescriptor(
+    BindingContext& context,
+    const BindingOffset& offset,
+    span<const ResourceSlot> slots
+)
+{
+    Index count = slots.size();
+    for (Index i = 0; i < count; ++i)
+    {
+        const ResourceSlot& slot = slots[i];
+
+        WGPUBindGroupEntry entry = {};
+        entry.binding = offset.binding + i;
+        entry.buffer = checked_cast<BufferImpl*>(slot.resource.get())->m_buffer;
+        entry.offset = slot.bufferRange.offset;
+        entry.size = slot.bufferRange.size;
+        writeDescriptor(context, offset.bindingSet, entry);
+    }
+}
+
+inline void writeTextureDescriptor(
+    BindingContext& context,
+    const BindingOffset& offset,
+    span<const ResourceSlot> slots
+)
+{
+    Index count = slots.size();
+    for (Index i = 0; i < count; ++i)
+    {
+        const ResourceSlot& slot = slots[i];
+
+        WGPUBindGroupEntry entry = {};
+        entry.binding = offset.binding + i;
+        entry.textureView = checked_cast<TextureViewImpl*>(slot.resource.get())->m_textureView;
+        writeDescriptor(context, offset.bindingSet, entry);
+    }
+}
+
+inline void writeSamplerDescriptor(
+    BindingContext& context,
+    const BindingOffset& offset,
+    span<const ResourceSlot> slots
+)
+{
+    Index count = slots.size();
+    for (Index i = 0; i < count; ++i)
+    {
+        const ResourceSlot& slot = slots[i];
+
+        WGPUBindGroupEntry entry = {};
+        entry.binding = offset.binding + i;
+        entry.sampler = checked_cast<SamplerImpl*>(slot.resource.get())->m_sampler;
+        writeDescriptor(context, offset.bindingSet, entry);
+    }
+}
+
 Result ShaderObjectImpl::create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject)
 {
     auto object = RefPtr<ShaderObjectImpl>(new ShaderObjectImpl());
@@ -74,7 +158,11 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
     const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
-    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+    auto slotIndex = bindingRange.slotIndex + offset.bindingArrayIndex;
+    if (slotIndex >= m_slots.size())
+        return SLANG_E_INVALID_ARG;
+
+    ResourceSlot& slot = m_slots[slotIndex];
 
     switch (binding.type)
     {
@@ -83,12 +171,10 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         if (!buffer)
             return SLANG_E_INVALID_ARG;
-        ResourceSlot slot;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
-        slot.format = slot.format != Format::Unknown ? slot.format : buffer->m_desc.format;
+        slot.format = buffer->m_desc.format;
         slot.bufferRange = buffer->resolveBufferRange(slot.bufferRange);
-        m_resources[bindingIndex] = slot;
         break;
     }
     case BindingType::Texture:
@@ -103,10 +189,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
         if (!textureView)
             return SLANG_E_INVALID_ARG;
-        ResourceSlot slot;
         slot.type = BindingType::TextureView;
         slot.resource = textureView;
-        m_resources[bindingIndex] = slot;
         break;
     }
     case BindingType::Sampler:
@@ -114,7 +198,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
         if (!sampler)
             return SLANG_E_INVALID_ARG;
-        m_samplers[bindingIndex] = sampler;
+        slot.type = BindingType::Sampler;
+        slot.resource = sampler;
         break;
     }
     case BindingType::CombinedTextureSampler:
@@ -163,8 +248,7 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
         }
 #endif
 
-    m_resources.resize(layout->getResourceCount());
-    m_samplers.resize(layout->getSamplerCount());
+    m_slots.resize(layout->getSlotCount());
 
     // If the layout specifies that we have any sub-objects, then
     // we need to size the array to account for them.
@@ -294,90 +378,6 @@ Result ShaderObjectImpl::_writeOrdinaryData(uint8_t* destData, Size destSize, Sh
     return SLANG_OK;
 }
 
-void ShaderObjectImpl::writeDescriptor(BindingContext& context, Index bindingSet, const WGPUBindGroupEntry& write)
-{
-    auto device = context.device;
-    SLANG_RHI_ASSERT(bindingSet < context.entries.size());
-    context.entries[bindingSet].push_back(write);
-}
-
-void ShaderObjectImpl::writeBufferDescriptor(
-    BindingContext& context,
-    const BindingOffset& offset,
-    BufferImpl* buffer,
-    Offset bufferOffset,
-    Size bufferSize
-)
-{
-    WGPUBindGroupEntry entry = {};
-    entry.binding = offset.binding;
-    entry.buffer = buffer->m_buffer;
-    entry.offset = bufferOffset;
-    entry.size = bufferSize;
-    writeDescriptor(context, offset.bindingSet, entry);
-}
-
-void ShaderObjectImpl::writeBufferDescriptor(BindingContext& context, const BindingOffset& offset, BufferImpl* buffer)
-{
-    writeBufferDescriptor(context, offset, buffer, 0, buffer->m_desc.size);
-}
-
-void ShaderObjectImpl::writeBufferDescriptor(
-    BindingContext& context,
-    const BindingOffset& offset,
-    span<const ResourceSlot> slots
-)
-{
-    Index count = slots.size();
-    for (Index i = 0; i < count; ++i)
-    {
-        const ResourceSlot& slot = slots[i];
-
-        WGPUBindGroupEntry entry = {};
-        entry.binding = offset.binding + i;
-        entry.buffer = checked_cast<BufferImpl*>(slot.resource.get())->m_buffer;
-        entry.offset = slot.bufferRange.offset;
-        entry.size = slot.bufferRange.size;
-        writeDescriptor(context, offset.bindingSet, entry);
-    }
-}
-
-void ShaderObjectImpl::writeTextureDescriptor(
-    BindingContext& context,
-    const BindingOffset& offset,
-    span<const ResourceSlot> slots
-)
-{
-    Index count = slots.size();
-    for (Index i = 0; i < count; ++i)
-    {
-        const ResourceSlot& slot = slots[i];
-
-        WGPUBindGroupEntry entry = {};
-        entry.binding = offset.binding + i;
-        entry.textureView = checked_cast<TextureViewImpl*>(slot.resource.get())->m_textureView;
-        writeDescriptor(context, offset.bindingSet, entry);
-    }
-}
-
-void ShaderObjectImpl::writeSamplerDescriptor(
-    BindingContext& context,
-    const BindingOffset& offset,
-    span<const RefPtr<SamplerImpl>> samplers
-)
-{
-    Index count = samplers.size();
-    for (Index i = 0; i < count; ++i)
-    {
-        const RefPtr<SamplerImpl>& sampler = samplers[i];
-
-        WGPUBindGroupEntry entry = {};
-        entry.binding = offset.binding + i;
-        entry.sampler = sampler->m_sampler;
-        writeDescriptor(context, offset.bindingSet, entry);
-    }
-}
-
 Result ShaderObjectImpl::bindAsValue(
     BindingContext& context,
     const BindingOffset& offset,
@@ -392,7 +392,7 @@ Result ShaderObjectImpl::bindAsValue(
     {
         BindingOffset rangeOffset = offset;
 
-        auto baseIndex = bindingRangeInfo.baseIndex;
+        auto slotIndex = bindingRangeInfo.slotIndex;
         auto count = (uint32_t)bindingRangeInfo.count;
         switch (bindingRangeInfo.bindingType)
         {
@@ -405,12 +405,12 @@ Result ShaderObjectImpl::bindAsValue(
         case slang::BindingType::MutableTexture:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeTextureDescriptor(context, rangeOffset, span(m_resources.data() + baseIndex, count));
+            writeTextureDescriptor(context, rangeOffset, span(m_slots.data() + slotIndex, count));
             break;
         case slang::BindingType::Sampler:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeSamplerDescriptor(context, rangeOffset, span(m_samplers.data() + baseIndex, count));
+            writeSamplerDescriptor(context, rangeOffset, span(m_slots.data() + slotIndex, count));
             break;
 
         case slang::BindingType::RawBuffer:
@@ -419,7 +419,7 @@ Result ShaderObjectImpl::bindAsValue(
         case slang::BindingType::MutableTypedBuffer:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeBufferDescriptor(context, rangeOffset, span(m_resources.data() + baseIndex, count));
+            writeBufferDescriptor(context, rangeOffset, span(m_slots.data() + slotIndex, count));
             break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:

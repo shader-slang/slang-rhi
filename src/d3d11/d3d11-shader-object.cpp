@@ -53,7 +53,11 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
     if (bindingRangeIndex < 0 || bindingRangeIndex >= layout->getBindingRangeCount())
         return SLANG_E_INVALID_ARG;
     const auto& bindingRange = layout->getBindingRange(bindingRangeIndex);
-    auto bindingIndex = bindingRange.baseIndex + offset.bindingArrayIndex;
+    auto slotIndex = bindingRange.slotIndex + offset.bindingArrayIndex;
+    if (slotIndex >= m_slots.size())
+        return SLANG_E_INVALID_ARG;
+
+    ResourceSlot& slot = m_slots[slotIndex];
 
     switch (binding.type)
     {
@@ -62,17 +66,10 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         BufferImpl* buffer = checked_cast<BufferImpl*>(binding.resource);
         if (!buffer)
             return SLANG_E_INVALID_ARG;
-        BufferRange bufferRange = buffer->resolveBufferRange(binding.bufferRange);
-        if (D3DUtil::isUAVBinding(bindingRange.bindingType))
-        {
-            m_uavResources[bindingIndex] = buffer;
-            m_uavs[bindingIndex] = buffer->getUAV(buffer->m_desc.format, bufferRange);
-        }
-        else
-        {
-            m_srvResources[bindingIndex] = buffer;
-            m_srvs[bindingIndex] = buffer->getSRV(buffer->m_desc.format, bufferRange);
-        }
+        slot.type = BindingType::Buffer;
+        slot.resource = buffer;
+        slot.format = buffer->m_desc.format;
+        slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         break;
     }
     case BindingType::Texture:
@@ -87,16 +84,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(binding.resource);
         if (!textureView)
             return SLANG_E_INVALID_ARG;
-        if (D3DUtil::isUAVBinding(bindingRange.bindingType))
-        {
-            m_uavResources[bindingIndex] = textureView;
-            m_uavs[bindingIndex] = textureView->getUAV();
-        }
-        else
-        {
-            m_srvResources[bindingIndex] = textureView;
-            m_srvs[bindingIndex] = textureView->getSRV();
-        }
+        slot.type = BindingType::TextureView;
+        slot.resource = textureView;
         break;
     }
     case BindingType::Sampler:
@@ -104,7 +93,8 @@ Result ShaderObjectImpl::setBinding(const ShaderOffset& offset, Binding binding)
         SamplerImpl* sampler = checked_cast<SamplerImpl*>(binding.resource);
         if (!sampler)
             return SLANG_E_INVALID_ARG;
-        m_samplers[bindingIndex] = sampler;
+        slot.type = BindingType::Sampler;
+        slot.resource = sampler;
         break;
     }
     case BindingType::CombinedTextureSampler:
@@ -143,11 +133,7 @@ Result ShaderObjectImpl::init(DeviceImpl* device, ShaderObjectLayoutImpl* layout
         memset(m_data.getBuffer(), 0, uniformSize);
     }
 
-    m_uavResources.resize(layout->getUAVCount());
-    m_srvResources.resize(layout->getSRVCount());
-    m_uavs.resize(layout->getUAVCount());
-    m_srvs.resize(layout->getSRVCount());
-    m_samplers.resize(layout->getSamplerCount());
+    m_slots.resize(layout->getSlotCount());
 
     // If the layout specifies that we have any sub-objects, then
     // we need to size the array to account for them.
@@ -374,42 +360,57 @@ Result ShaderObjectImpl::bindAsValue(
     // then a *single* `setSRVs()` call could set all of the SRVs for an object
     // at once.
 
-    for (auto bindingRangeIndex : specializedLayout->getSRVRanges())
+    for (const auto& bindingRange : specializedLayout->getBindingRanges())
     {
-        const auto& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
         auto count = (uint32_t)bindingRange.count;
-        auto baseIndex = (uint32_t)bindingRange.baseIndex;
+        auto slotIndex = bindingRange.slotIndex;
         auto registerOffset = bindingRange.registerOffset + offset.srv;
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            ID3D11ShaderResourceView* srv = m_srvs[baseIndex + i];
-            context.setSRV(registerOffset + i, srv);
-        }
-    }
 
-    for (auto bindingRangeIndex : specializedLayout->getUAVRanges())
-    {
-        const auto& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
-        auto count = (uint32_t)bindingRange.count;
-        auto baseIndex = (uint32_t)bindingRange.baseIndex;
-        auto registerOffset = bindingRange.registerOffset + offset.uav;
-        for (uint32_t i = 0; i < count; ++i)
+        switch (bindingRange.bindingType)
         {
-            ID3D11UnorderedAccessView* uav = m_uavs[baseIndex + i];
-            context.setUAV(registerOffset + i, uav);
-        }
-    }
-
-    for (auto bindingRangeIndex : specializedLayout->getSamplerRanges())
-    {
-        const auto& bindingRange = specializedLayout->getBindingRange(bindingRangeIndex);
-        auto count = (uint32_t)bindingRange.count;
-        auto baseIndex = (uint32_t)bindingRange.baseIndex;
-        auto registerOffset = bindingRange.registerOffset + offset.sampler;
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            auto sampler = m_samplers[baseIndex + i];
-            context.setSampler(registerOffset + i, sampler ? sampler->m_sampler.get() : nullptr);
+        case slang::BindingType::ConstantBuffer:
+        case slang::BindingType::ParameterBlock:
+        case slang::BindingType::ExistentialValue:
+            break;
+        case slang::BindingType::Texture:
+            for (Index i = 0; i < count; ++i)
+            {
+                TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(m_slots[slotIndex + i].resource.get());
+                context.setSRV(registerOffset + i, textureView->getSRV());
+            }
+            break;
+        case slang::BindingType::MutableTexture:
+            for (Index i = 0; i < count; ++i)
+            {
+                TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(m_slots[slotIndex + i].resource.get());
+                context.setUAV(registerOffset + i, textureView->getUAV());
+            }
+            break;
+        case slang::BindingType::Sampler:
+            for (Index i = 0; i < count; ++i)
+            {
+                SamplerImpl* sampler = checked_cast<SamplerImpl*>(m_slots[slotIndex + i].resource.get());
+                context.setSampler(registerOffset + i, sampler->m_sampler);
+            }
+            break;
+        case slang::BindingType::RawBuffer:
+        case slang::BindingType::TypedBuffer:
+            for (Index i = 0; i < count; ++i)
+            {
+                const ResourceSlot& slot = m_slots[slotIndex + i];
+                BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
+                context.setSRV(registerOffset + i, buffer->getSRV(slot.format, slot.bufferRange));
+            }
+            break;
+        case slang::BindingType::MutableRawBuffer:
+        case slang::BindingType::MutableTypedBuffer:
+            for (Index i = 0; i < count; ++i)
+            {
+                const ResourceSlot& slot = m_slots[slotIndex + i];
+                BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
+                context.setUAV(registerOffset + i, buffer->getUAV(slot.format, slot.bufferRange));
+            }
+            break;
         }
     }
 

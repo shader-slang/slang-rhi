@@ -66,6 +66,7 @@ Result ShaderObjectLayoutImpl::init(Builder* builder)
 
     m_ownCounts = builder->m_ownCounts;
     m_totalCounts = builder->m_totalCounts;
+    m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;
     m_childRootParameterCount = builder->m_childRootParameterCount;
     m_totalOrdinaryDataSize = builder->m_totalOrdinaryDataSize;
@@ -108,17 +109,17 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         uint32_t count = (uint32_t)typeLayout->getBindingRangeBindingCount(r);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(r);
 
-        BindingRangeInfo bindingRangeInfo = {};
-        bindingRangeInfo.bindingType = slangBindingType;
-        bindingRangeInfo.resourceShape = slangLeafTypeLayout->getResourceShape();
-        bindingRangeInfo.count = count;
-        bindingRangeInfo.isRootParameter = isBindingRangeRootParameter(
+        bool isRootParameter = isBindingRangeRootParameter(
             m_device->m_slangContext.globalSession,
             checked_cast<DeviceImpl*>(m_device)->m_extendedDesc.rootParameterShaderAttributeName,
             typeLayout,
             r
         );
-        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
+        uint32_t bufferElementStride = 0;
+        uint32_t slotIndex = 0;
+        uint32_t baseIndex = 0;
+        uint32_t subObjectIndex = 0;
+
         switch (slangBindingType)
         {
         case slang::BindingType::RawBuffer:
@@ -129,12 +130,12 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             auto bufferElementType = slangLeafTypeLayout->getElementTypeLayout();
             if (bufferElementType)
             {
-                bindingRangeInfo.bufferElementStride = (uint32_t)bufferElementType->getStride();
+                bufferElementStride = (uint32_t)bufferElementType->getStride();
             }
         }
         break;
         }
-        if (bindingRangeInfo.isRootParameter)
+        if (isRootParameter)
         {
             RootParameterInfo rootInfo = {};
             switch (slangBindingType)
@@ -144,7 +145,9 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
                 rootInfo.isUAV = true;
                 break;
             }
-            bindingRangeInfo.baseIndex = (uint32_t)m_rootParamsInfo.size();
+            slotIndex = m_slotCount;
+            m_slotCount += count;
+            baseIndex = (uint32_t)m_rootParamsInfo.size();
             for (uint32_t i = 0; i < count; i++)
             {
                 m_rootParamsInfo.push_back(rootInfo);
@@ -157,8 +160,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             case slang::BindingType::ConstantBuffer:
             case slang::BindingType::ParameterBlock:
             case slang::BindingType::ExistentialValue:
-                bindingRangeInfo.baseIndex = m_subObjectCount;
-                bindingRangeInfo.subObjectIndex = m_subObjectCount;
+                baseIndex = m_subObjectCount;
+                subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
                 break;
             case slang::BindingType::RawBuffer:
@@ -167,14 +170,18 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
                 {
                     // A structured buffer occupies both a resource slot and
                     // a sub-object slot.
-                    bindingRangeInfo.subObjectIndex = m_subObjectCount;
+                    subObjectIndex = m_subObjectCount;
                     m_subObjectCount += count;
                 }
-                bindingRangeInfo.baseIndex = m_ownCounts.resource;
+                slotIndex = m_slotCount;
+                m_slotCount += count;
+                baseIndex = m_ownCounts.resource;
                 m_ownCounts.resource += count;
                 break;
             case slang::BindingType::Sampler:
-                bindingRangeInfo.baseIndex = m_ownCounts.sampler;
+                slotIndex = m_slotCount;
+                m_slotCount += count;
+                baseIndex = m_ownCounts.sampler;
                 m_ownCounts.sampler += count;
                 break;
 
@@ -187,11 +194,25 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
                 break;
 
             default:
-                bindingRangeInfo.baseIndex = m_ownCounts.resource;
+                slotIndex = m_slotCount;
+                m_slotCount += count;
+                baseIndex = m_ownCounts.resource;
                 m_ownCounts.resource += count;
                 break;
             }
         }
+
+        BindingRangeInfo bindingRangeInfo = {};
+        bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.resourceShape = slangLeafTypeLayout->getResourceShape();
+        bindingRangeInfo.count = count;
+        bindingRangeInfo.baseIndex = baseIndex;
+        bindingRangeInfo.slotIndex = slotIndex;
+        bindingRangeInfo.subObjectIndex = subObjectIndex;
+        bindingRangeInfo.bufferElementStride = bufferElementStride;
+        bindingRangeInfo.isRootParameter = isRootParameter;
+        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
+
         m_bindingRanges.push_back(bindingRangeInfo);
     }
 

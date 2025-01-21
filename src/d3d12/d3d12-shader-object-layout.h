@@ -55,6 +55,9 @@ public:
         /// The number of distinct bindings in this range.
         uint32_t count;
 
+        /// An index into the binding slots array (for resources, samplers, etc.)
+        uint32_t slotIndex;
+
         /// A "flat" index for this range in whatever array provides backing storage for it
         uint32_t baseIndex;
 
@@ -138,6 +141,8 @@ public:
         std::vector<SubObjectRangeInfo> m_subObjectRanges;
         std::vector<RootParameterInfo> m_rootParamsInfo;
 
+        uint32_t m_slotCount = 0;
+
         /// The number of sub-objects (not just sub-object *ranges*) stored in instances of this
         /// layout
         uint32_t m_subObjectCount = 0;
@@ -180,6 +185,7 @@ public:
 
     const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
 
+    Index getSlotCount() { return m_slotCount; }
     uint32_t getResourceSlotCount() { return m_ownCounts.resource; }
     uint32_t getSamplerSlotCount() { return m_ownCounts.sampler; }
     Index getSubObjectSlotCount() { return m_subObjectCount; }
@@ -221,6 +227,7 @@ protected:
     BindingOffset m_ownCounts;
     BindingOffset m_totalCounts;
 
+    uint32_t m_slotCount = 0;
     uint32_t m_subObjectCount = 0;
     uint32_t m_childRootParameterCount = 0;
 

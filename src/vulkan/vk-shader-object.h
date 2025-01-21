@@ -20,6 +20,7 @@ struct ResourceSlot
 {
     BindingType type = BindingType::Unknown;
     RefPtr<Resource> resource;
+    RefPtr<Resource> resource2;
     Format format = Format::Unknown;
     union
     {
@@ -27,13 +28,6 @@ struct ResourceSlot
     };
     ResourceState requiredState = ResourceState::Undefined;
     operator bool() const { return type != BindingType::Unknown && resource; }
-};
-
-struct CombinedTextureSamplerSlot
-{
-    RefPtr<TextureViewImpl> textureView;
-    RefPtr<SamplerImpl> sampler;
-    operator bool() const { return textureView && sampler; }
 };
 
 class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
@@ -111,9 +105,7 @@ public:
 
     void setResourceStates(BindingContext& context) const;
 
-    std::vector<ResourceSlot> m_resources;
-    std::vector<RefPtr<SamplerImpl>> m_samplers;
-    std::vector<CombinedTextureSamplerSlot> m_combinedTextureSamplers;
+    std::vector<ResourceSlot> m_slots;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///

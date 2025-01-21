@@ -1404,8 +1404,6 @@ public:
 // Responsible for shader compilation, specialization and caching.
 class Device : public IDevice, public ComObject
 {
-    friend class ShaderObjectBase;
-
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE

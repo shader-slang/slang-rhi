@@ -11,6 +11,19 @@
 
 namespace rhi::d3d11 {
 
+struct ResourceSlot
+{
+    BindingType type = BindingType::Unknown;
+    RefPtr<Resource> resource;
+    RefPtr<Resource> resource2;
+    Format format = Format::Unknown;
+    union
+    {
+        BufferRange bufferRange = kEntireBuffer;
+    };
+    operator bool() const { return type != BindingType::Unknown && resource; }
+};
+
 class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
 {
 public:
@@ -69,22 +82,7 @@ public:
     Result bindAsValue(BindingContext& context, const BindingOffset& offset, ShaderObjectLayoutImpl* specializedLayout)
         const;
 
-    // Set of resources to keep alive while this object is alive.
-    std::vector<RefPtr<Resource>> m_srvResources;
-    std::vector<RefPtr<Resource>> m_uavResources;
-
-    // Because the binding ranges have already been reflected
-    // and organized as part of each shader object layout,
-    // the object itself can store its data in a small number
-    // of simple arrays.
-    /// The shader resource views (SRVs) that are part of the state of this object
-    std::vector<ComPtr<ID3D11ShaderResourceView>> m_srvs;
-
-    /// The unordered access views (UAVs) that are part of the state of this object
-    std::vector<ComPtr<ID3D11UnorderedAccessView>> m_uavs;
-
-    /// The samplers that are part of the state of this object
-    std::vector<RefPtr<SamplerImpl>> m_samplers;
+    std::vector<ResourceSlot> m_slots;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///

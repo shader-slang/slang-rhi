@@ -42,8 +42,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
 
 protected:
-    friend class RootShaderObjectLayout;
-
     Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
 
     /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
@@ -51,37 +49,6 @@ protected:
     Result _writeOrdinaryData(uint8_t* destData, Size destSize, ShaderObjectLayoutImpl* specializedLayout) const;
 
 public:
-    /// Write a single descriptor using the Vulkan API
-    static void writeDescriptor(BindingContext& context, Index bindingSet, const WGPUBindGroupEntry& write);
-
-    static void writeBufferDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        BufferImpl* buffer,
-        Offset bufferOffset,
-        Size bufferSize
-    );
-
-    static void writeBufferDescriptor(BindingContext& context, const BindingOffset& offset, BufferImpl* buffer);
-
-    static void writeBufferDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        span<const ResourceSlot> slots
-    );
-
-    static void writeTextureDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        span<const ResourceSlot> slots
-    );
-
-    static void writeSamplerDescriptor(
-        BindingContext& context,
-        const BindingOffset& offset,
-        span<const RefPtr<SamplerImpl>> samplers
-    );
-
     /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
     Result _ensureOrdinaryDataBufferCreatedIfNeeded(BindingContext& context, ShaderObjectLayoutImpl* specializedLayout)
         const;
@@ -127,8 +94,7 @@ public:
         ShaderObjectLayoutImpl* specializedLayout
     ) const;
 
-    std::vector<ResourceSlot> m_resources;
-    std::vector<RefPtr<SamplerImpl>> m_samplers;
+    std::vector<ResourceSlot> m_slots;
 
     /// Get the layout of this shader object with specialization arguments considered
     ///
