@@ -1617,7 +1617,7 @@ class IQueryPool : public ISlangUnknown
     SLANG_COM_INTERFACE(0xe4b585e4, 0x9da9, 0x479b, {0x89, 0x5c, 0x48, 0x78, 0x8e, 0xf2, 0x33, 0x65});
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
 };
 

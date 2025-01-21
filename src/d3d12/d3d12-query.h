@@ -11,7 +11,7 @@ class QueryPoolImpl : public QueryPool
 public:
     Result init(const QueryPoolDesc& desc, DeviceImpl* device);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 
     void writeTimestamp(ID3D12GraphicsCommandList* cmdList, GfxIndex index);
 
@@ -40,7 +40,7 @@ public:
     Result init(const QueryPoolDesc& desc, DeviceImpl* device, uint32_t stride);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 
 public:
     QueryType m_queryType;
