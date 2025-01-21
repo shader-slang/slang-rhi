@@ -8,7 +8,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc)
     SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_startEvent, 0));
     SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(m_startEvent, 0));
     m_events.resize(desc.count);
-    for (SlangInt i = 0; i < m_events.size(); i++)
+    for (size_t i = 0; i < m_events.size(); i++)
     {
         SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_events[i], 0));
     }

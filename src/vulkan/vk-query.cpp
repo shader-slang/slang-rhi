@@ -9,7 +9,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     m_pool = VK_NULL_HANDLE;
     VkQueryPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-    createInfo.queryCount = (uint32_t)desc.count;
+    createInfo.queryCount = desc.count;
     switch (desc.type)
     {
     case QueryType::Timestamp:

@@ -1607,7 +1607,7 @@ struct QueryPoolDesc
     void* next = nullptr;
 
     QueryType type = QueryType::Timestamp;
-    GfxCount count = 0;
+    uint32_t count = 0;
 
     const char* label = nullptr;
 };
