@@ -57,7 +57,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
     // pd->setRasterizationEnabled(true); // Enabled by default
 
-    for (Index i = 0; i < desc.targetCount; ++i)
+    for (uint32_t i = 0; i < desc.targetCount; ++i)
     {
         const ColorTargetState& targetState = desc.targets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);

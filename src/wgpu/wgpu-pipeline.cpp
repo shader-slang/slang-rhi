@@ -80,7 +80,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     short_vector<WGPUColorTargetState, 8> targets(desc.targetCount, {});
     short_vector<WGPUBlendState, 8> blendStates(desc.targetCount, {});
-    for (GfxIndex i = 0; i < desc.targetCount; ++i)
+    for (uint32_t i = 0; i < desc.targetCount; ++i)
     {
         const ColorTargetState& targetIn = desc.targets[i];
         WGPUColorTargetState& target = targets[i];
@@ -102,7 +102,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     WGPUFragmentState fragment = {};
     fragment.module = fragmentModule->module;
     fragment.entryPoint = fragmentModule->entryPointName.c_str();
-    fragment.targetCount = (uint32_t)targets.size();
+    fragment.targetCount = targets.size();
     fragment.targets = targets.data();
     pipelineDesc.fragment = &fragment;
 

@@ -61,12 +61,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
         ColorTargetState defaultTargetState;
 
-        static const UInt kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
+        static const uint32_t kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
         int targetCount = desc.targetCount;
         if (targetCount > kMaxTargets)
             return SLANG_FAIL;
 
-        for (GfxIndex ii = 0; ii < kMaxTargets; ++ii)
+        for (uint32_t ii = 0; ii < kMaxTargets; ++ii)
         {
             const ColorTargetState* targetState = nullptr;
             if (ii < targetCount)

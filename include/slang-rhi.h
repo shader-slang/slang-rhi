@@ -1356,7 +1356,7 @@ struct ColorTargetState
 
 struct MultisampleState
 {
-    GfxCount sampleCount = 1;
+    uint32_t sampleCount = 1;
     uint32_t sampleMask = 0xFFFFFFFF;
     bool alphaToCoverageEnable = false;
     bool alphaToOneEnable = false;
@@ -1371,7 +1371,7 @@ struct RenderPipelineDesc
     IInputLayout* inputLayout = nullptr;
     PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
     ColorTargetState* targets = nullptr;
-    GfxCount targetCount = 0;
+    uint32_t targetCount = 0;
     DepthStencilState depthStencil;
     RasterizerDesc rasterizer;
     MultisampleState multisample;
@@ -1408,11 +1408,11 @@ struct RayTracingPipelineDesc
     void* next = nullptr;
 
     IShaderProgram* program = nullptr;
-    GfxCount hitGroupCount = 0;
+    uint32_t hitGroupCount = 0;
     HitGroupDesc* hitGroups = nullptr;
-    int maxRecursion = 0;
-    Size maxRayPayloadSize = 0;
-    Size maxAttributeSizeInBytes = 8;
+    uint32_t maxRecursion = 0;
+    uint32_t maxRayPayloadSize = 0;
+    uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
 };
 

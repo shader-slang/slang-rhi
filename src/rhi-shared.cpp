@@ -915,7 +915,7 @@ Result VirtualRayTracingPipeline::init(Device* device, const RayTracingPipelineD
     m_device = device;
     m_desc = desc;
     m_descHolder.holdList(m_desc.hitGroups, m_desc.hitGroupCount);
-    for (Index i = 0; i < m_desc.hitGroupCount; i++)
+    for (uint32_t i = 0; i < m_desc.hitGroupCount; i++)
     {
         m_descHolder.holdString(m_desc.hitGroups[i].hitGroupName);
         m_descHolder.holdString(m_desc.hitGroups[i].closestHitEntryPoint);

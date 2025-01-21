@@ -117,13 +117,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     multisampling.alphaToCoverageEnable = desc.multisample.alphaToCoverageEnable;
     multisampling.alphaToOneEnable = desc.multisample.alphaToOneEnable;
 
-    auto targetCount = desc.targetCount;
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendTargets;
 
     // Regardless of whether blending is enabled, Vulkan always applies the color write mask
     // operation, so if there is no blending then we need to add an attachment that defines
     // the color write mask to ensure colors are actually written.
-    if (targetCount == 0)
+    if (desc.targetCount == 0)
     {
         colorBlendTargets.resize(1);
         auto& vkBlendDesc = colorBlendTargets[0];
@@ -139,8 +138,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     }
     else
     {
-        colorBlendTargets.resize(targetCount);
-        for (GfxIndex i = 0; i < targetCount; ++i)
+        colorBlendTargets.resize(desc.targetCount);
+        for (uint32_t i = 0; i < desc.targetCount; ++i)
         {
             auto& target = desc.targets[i];
             auto& vkBlendDesc = colorBlendTargets[i];
@@ -194,7 +193,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     VkPipelineRenderingCreateInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
     short_vector<VkFormat> colorAttachmentFormats;
-    for (GfxIndex i = 0; i < desc.targetCount; ++i)
+    for (uint32_t i = 0; i < desc.targetCount; ++i)
     {
         colorAttachmentFormats.push_back(VulkanUtil::getVkFormat(desc.targets[i].format));
     }
@@ -378,7 +377,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         shaderGroupNameToIndex.emplace(shaderGroupName, shaderGroupIndex);
     }
 
-    for (int32_t i = 0; i < desc.hitGroupCount; ++i)
+    for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
     {
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
             VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR
@@ -405,7 +404,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     createInfo.groupCount = (uint32_t)shaderGroupInfos.size();
     createInfo.pGroups = shaderGroupInfos.data();
 
-    createInfo.maxPipelineRayRecursionDepth = (uint32_t)desc.maxRecursion;
+    createInfo.maxPipelineRayRecursionDepth = desc.maxRecursion;
 
     createInfo.pLibraryInfo = nullptr;
     createInfo.pLibraryInterface = nullptr;
