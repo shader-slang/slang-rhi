@@ -160,7 +160,7 @@ void DebugComputePassEncoder::setComputeState(const ComputeState& state)
     baseObject->setComputeState(innerState);
 }
 
-void DebugComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
+void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
@@ -168,7 +168,7 @@ void DebugComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z
     baseObject->dispatchCompute(x, y, z);
 }
 
-void DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+void DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();

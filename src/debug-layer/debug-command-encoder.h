@@ -58,8 +58,8 @@ public:
     DebugComputePassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
 
     virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset uint64_t) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;

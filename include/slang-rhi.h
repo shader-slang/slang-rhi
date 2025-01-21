@@ -1754,8 +1754,8 @@ class IComputePassEncoder : public IPassEncoder
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) = 0;
 };
 
 class IRayTracingPassEncoder : public IPassEncoder

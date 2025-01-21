@@ -394,7 +394,7 @@ void ComputePassEncoder::setComputeState(const ComputeState& state)
     }
 }
 
-void ComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
+void ComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {
@@ -406,7 +406,7 @@ void ComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
     }
 }
 
-void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset)
 {
     if (m_commandList)
     {

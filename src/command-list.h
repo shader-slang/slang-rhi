@@ -200,15 +200,15 @@ struct SetComputeState
 
 struct DispatchCompute
 {
-    GfxCount x;
-    GfxCount y;
-    GfxCount z;
+    uint32_t x;
+    uint32_t y;
+    uint32_t z;
 };
 
 struct DispatchComputeIndirect
 {
     IBuffer* argBuffer;
-    Offset offset;
+    uint64_t offset;
 };
 
 struct BeginRayTracingPass
