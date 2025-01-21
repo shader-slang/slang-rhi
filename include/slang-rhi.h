@@ -137,7 +137,7 @@ struct ShaderProgramDesc
     // Number of separate entry point components in the `slangEntryPoints` array to link in.
     // If set to 0, then `slangGlobalScope` must contain Slang EntryPoint components.
     // If not 0, then `slangGlobalScope` must not contain any EntryPoint components.
-    GfxCount slangEntryPointCount = 0;
+    uint32_t slangEntryPointCount = 0;
 };
 
 class IShaderProgram : public ISlangUnknown

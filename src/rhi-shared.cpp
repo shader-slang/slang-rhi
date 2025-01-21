@@ -1460,7 +1460,7 @@ void ShaderProgram::init(const ShaderProgramDesc& inDesc)
     desc = inDesc;
 
     slangGlobalScope = desc.slangGlobalScope;
-    for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
+    for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
     {
         slangEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
     }
@@ -1473,7 +1473,7 @@ void ShaderProgram::init(const ShaderProgramDesc& inDesc)
         {
             components.push_back(desc.slangGlobalScope);
         }
-        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
+        for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (!session)
             {
@@ -1485,7 +1485,7 @@ void ShaderProgram::init(const ShaderProgramDesc& inDesc)
     }
     else
     {
-        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
+        for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (desc.slangGlobalScope)
             {
