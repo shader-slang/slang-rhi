@@ -1078,9 +1078,9 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 
     m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress =
         m_rayGenTableAddr + cmd.rayGenShaderIndex * kRayGenRecordSize;
-    m_dispatchRaysDesc.Width = (UINT)cmd.width;
-    m_dispatchRaysDesc.Height = (UINT)cmd.height;
-    m_dispatchRaysDesc.Depth = (UINT)cmd.depth;
+    m_dispatchRaysDesc.Width = cmd.width;
+    m_dispatchRaysDesc.Height = cmd.height;
+    m_dispatchRaysDesc.Depth = cmd.depth;
     m_cmdList4->DispatchRays(&m_dispatchRaysDesc);
 }
 

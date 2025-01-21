@@ -1765,7 +1765,7 @@ class IRayTracingPassEncoder : public IPassEncoder
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) = 0;
+    dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) = 0;
 };
 
 class ICommandEncoder : public ISlangUnknown

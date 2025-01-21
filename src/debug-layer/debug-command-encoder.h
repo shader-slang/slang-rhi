@@ -83,7 +83,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) override;
+    dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;

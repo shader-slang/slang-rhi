@@ -479,7 +479,7 @@ void RayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
     }
 }
 
-void RayTracingPassEncoder::dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth)
+void RayTracingPassEncoder::dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth)
 {
     if (m_commandList)
     {

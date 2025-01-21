@@ -998,9 +998,9 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
         &m_missSBT,
         &m_hitSBT,
         &m_callableSBT,
-        (uint32_t)cmd.width,
-        (uint32_t)cmd.height,
-        (uint32_t)cmd.depth
+        cmd.width,
+        cmd.height,
+        cmd.depth
     );
 }
 

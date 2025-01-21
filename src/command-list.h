@@ -224,10 +224,10 @@ struct SetRayTracingState
 
 struct DispatchRays
 {
-    GfxIndex rayGenShaderIndex;
-    GfxCount width;
-    GfxCount height;
-    GfxCount depth;
+    uint32_t rayGenShaderIndex;
+    uint32_t width;
+    uint32_t height;
+    uint32_t depth;
 };
 
 struct BuildAccelerationStructure
