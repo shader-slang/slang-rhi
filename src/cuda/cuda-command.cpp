@@ -391,7 +391,7 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
 
     short_vector<OptixAccelEmitDesc, 8> emittedProperties;
-    for (GfxCount i = 0; i < cmd.propertyQueryCount; i++)
+    for (uint32_t i = 0; i < cmd.propertyQueryCount; i++)
     {
         if (cmd.queryDescs[i].queryType == QueryType::AccelerationStructureCompactedSize)
         {

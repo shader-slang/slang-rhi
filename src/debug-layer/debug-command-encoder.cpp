@@ -418,7 +418,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     BufferWithOffset scratchBuffer,
-    GfxCount propertyQueryCount,
+    uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
@@ -426,7 +426,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
     requireOpen();
     requireNoPass();
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
-    for (size_t i = 0; i < propertyQueryCount; ++i)
+    for (uint32_t i = 0; i < propertyQueryCount; ++i)
     {
         innerQueryDescs.push_back(queryDescs[i]);
     }

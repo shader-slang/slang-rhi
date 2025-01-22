@@ -695,7 +695,7 @@ void CommandEncoder::buildAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     BufferWithOffset scratchBuffer,
-    GfxCount propertyQueryCount,
+    uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {

@@ -252,7 +252,7 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
     {
         cmd.queryDescs = (AccelerationStructureQueryDesc*)
             writeData(cmd.queryDescs, cmd.propertyQueryCount * sizeof(AccelerationStructureQueryDesc));
-        for (Index i = 0; i < cmd.propertyQueryCount; ++i)
+        for (uint32_t i = 0; i < cmd.propertyQueryCount; ++i)
             retainResource(cmd.queryDescs[i].queryPool);
     }
     writeCommand(std::move(cmd));

@@ -1100,7 +1100,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
     translatePostBuildInfoDescs(cmd.propertyQueryCount, cmd.queryDescs, postBuildInfoDescs);
     m_cmdList4
-        ->BuildRaytracingAccelerationStructure(&buildDesc, (UINT)cmd.propertyQueryCount, postBuildInfoDescs.data());
+        ->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
