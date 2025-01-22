@@ -133,10 +133,10 @@ struct UploadBufferData
 struct ResolveQuery
 {
     IQueryPool* queryPool;
-    GfxIndex index;
-    GfxCount count;
+    uint32_t index;
+    uint32_t count;
     IBuffer* buffer;
-    Offset offset;
+    uint64_t offset;
 };
 
 struct BeginRenderPass

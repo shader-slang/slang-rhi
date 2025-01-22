@@ -384,10 +384,10 @@ void DebugCommandEncoder::clearTexture(
 
 void DebugCommandEncoder::resolveQuery(
     IQueryPool* queryPool,
-    GfxIndex index,
-    GfxCount count,
+    uint32_t index,
+    uint32_t count,
     IBuffer* buffer,
-    Offset offset
+    uint64_t offset
 )
 {
     SLANG_RHI_API_FUNC;

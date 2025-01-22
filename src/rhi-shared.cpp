@@ -679,7 +679,7 @@ void CommandEncoder::clearTexture(
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset)
+void CommandEncoder::resolveQuery(IQueryPool* queryPool, uint32_t index, uint32_t count, IBuffer* buffer, uint64_t offset)
 {
     commands::ResolveQuery cmd;
     cmd.queryPool = queryPool;

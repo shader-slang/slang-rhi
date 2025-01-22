@@ -532,7 +532,7 @@ void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
 
         m_cmdList->CopyBufferRegion(
             buffer->m_resource.getResource(),
-            (uint64_t)cmd.offset,
+            cmd.offset,
             srcQueryBuffer,
             cmd.index * sizeof(uint64_t),
             cmd.count * sizeof(uint64_t)

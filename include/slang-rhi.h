@@ -1834,7 +1834,7 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) = 0;
+    resolveQuery(IQueryPool* queryPool, uint32_t index, uint32_t count, IBuffer* buffer, uint64_t offset) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
