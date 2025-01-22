@@ -25,7 +25,7 @@ Result DebugCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
 }
 
 Result DebugCommandQueue::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -33,7 +33,7 @@ Result DebugCommandQueue::submit(
 {
     SLANG_RHI_API_FUNC;
     std::vector<ICommandBuffer*> innerCommandBuffers;
-    for (GfxIndex i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         auto cmdBufferIn = commandBuffers[i];
         auto cmdBufferImpl = getDebugObj(cmdBufferIn);

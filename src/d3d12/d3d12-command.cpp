@@ -1526,7 +1526,7 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -1536,7 +1536,7 @@ Result CommandQueueImpl::submit(
     ++m_lastSubmittedID;
 
     short_vector<ID3D12CommandList*> commandLists;
-    for (GfxCount i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         auto commandBuffer = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
@@ -1545,7 +1545,7 @@ Result CommandQueueImpl::submit(
     }
     if (count > 0)
     {
-        m_d3dQueue->ExecuteCommandLists((UINT)count, commandLists.data());
+        m_d3dQueue->ExecuteCommandLists(count, commandLists.data());
     }
 
     if (fence)

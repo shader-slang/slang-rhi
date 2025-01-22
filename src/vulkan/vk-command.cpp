@@ -1754,7 +1754,7 @@ void CommandQueueImpl::queueSubmitImpl(
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal

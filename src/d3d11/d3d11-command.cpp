@@ -718,13 +718,13 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fenceToSignal,
     uint64_t newFenceValue
 )
 {
-    for (GfxIndex i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         CommandExecutor executor(m_device);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));

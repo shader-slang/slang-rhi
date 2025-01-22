@@ -57,7 +57,7 @@ public:
     void queueSubmitImpl(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
+    submit(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
 
 class CommandEncoderImpl : public CommandEncoder

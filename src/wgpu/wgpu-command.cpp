@@ -739,7 +739,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -752,7 +752,7 @@ Result CommandQueueImpl::submit(
 
     short_vector<WGPUCommandBuffer, 16> buffers;
     buffers.resize(count);
-    for (GfxIndex i = 0; i < count; ++i)
+    for (uint32_t i = 0; i < count; ++i)
     {
         buffers[i] = checked_cast<CommandBufferImpl*>(commandBuffers[i])->m_commandBuffer;
     }

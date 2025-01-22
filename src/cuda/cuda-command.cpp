@@ -550,7 +550,7 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -559,7 +559,7 @@ Result CommandQueueImpl::submit(
     SLANG_UNUSED(valueToSignal);
     // TODO: implement fence.
     SLANG_RHI_ASSERT(fence == nullptr);
-    for (GfxIndex i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         CommandExecutor executor(m_device, m_stream);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));
