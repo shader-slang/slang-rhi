@@ -22,7 +22,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;
+    waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) override;
 };
 
 class CommandEncoderImpl : public CommandEncoder

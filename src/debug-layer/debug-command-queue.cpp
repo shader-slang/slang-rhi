@@ -54,11 +54,11 @@ Result DebugCommandQueue::waitOnHost()
     return baseObject->waitOnHost();
 }
 
-Result DebugCommandQueue::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result DebugCommandQueue::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
 {
     SLANG_RHI_API_FUNC;
     std::vector<IFence*> innerFences;
-    for (GfxIndex i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         innerFences.push_back(getInnerObj(fences[i]));
     }
