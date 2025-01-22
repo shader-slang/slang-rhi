@@ -335,7 +335,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                         const uint8_t* srcRow = srcLayer;
                         uint8_t* dstRow = dstLayer;
 
-                        for (GfxCount l = 0; l < numRows; l++)
+                        for (uint32_t l = 0; l < numRows; l++)
                         {
                             ::memcpy(dstRow, srcRow, dstRowSizeInBytes);
 

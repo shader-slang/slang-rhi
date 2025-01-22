@@ -6,16 +6,16 @@
 
 namespace rhi::vk {
 
-Size calcRowSize(Format format, int width)
+Size calcRowSize(Format format, uint32_t width)
 {
     const FormatInfo& info = getFormatInfo(format);
     return Size((width + info.blockWidth - 1) / info.blockWidth * info.blockSizeInBytes);
 }
 
-GfxCount calcNumRows(Format format, int height)
+uint32_t calcNumRows(Format format, uint32_t height)
 {
     const FormatInfo& info = getFormatInfo(format);
-    return (GfxCount)(height + info.blockHeight - 1) / info.blockHeight;
+    return (height + info.blockHeight - 1) / info.blockHeight;
 }
 
 VkAttachmentLoadOp translateLoadOp(LoadOp loadOp)

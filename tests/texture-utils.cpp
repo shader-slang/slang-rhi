@@ -255,11 +255,11 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
     }
 }
 
-std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize)
+std::vector<uint8_t> removePadding(ISlangBlob* pixels, uint32_t width, uint32_t height, Size rowPitch, Size pixelSize)
 {
     std::vector<uint8_t> buffer;
     buffer.resize(height * rowPitch);
-    for (GfxIndex i = 0; i < height; ++i)
+    for (uint32_t i = 0; i < height; ++i)
     {
         Offset srcOffset = i * rowPitch;
         Offset dstOffset = i * width * pixelSize;

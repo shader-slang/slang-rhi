@@ -1722,7 +1722,7 @@ Result DeviceImpl::waitForFences(
 )
 {
     short_vector<HANDLE> waitHandles;
-    for (GfxCount i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         waitHandles.push_back(fenceImpl->getWaitEvent());

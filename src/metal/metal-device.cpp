@@ -133,9 +133,9 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
     const TextureDesc& desc = textureImpl->m_desc;
-    GfxCount width = max(desc.size.width, 1);
-    GfxCount height = max(desc.size.height, 1);
-    GfxCount depth = max(desc.size.depth, 1);
+    uint32_t width = max(desc.size.width, 1);
+    uint32_t height = max(desc.size.height, 1);
+    uint32_t depth = max(desc.size.depth, 1);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;

@@ -25,7 +25,7 @@ inline AccelerationStructureInstanceDescType getAccelerationStructureInstanceDes
     return getAccelerationStructureInstanceDescType(device->getDeviceInfo().deviceType);
 }
 
-inline Size getAccelerationStructureInstanceDescSize(AccelerationStructureInstanceDescType type)
+inline size_t getAccelerationStructureInstanceDescSize(AccelerationStructureInstanceDescType type)
 {
     switch (type)
     {
@@ -117,12 +117,12 @@ inline void convertAccelerationStructureInstanceDesc(
 }
 
 inline void convertAccelerationStructureInstanceDescs(
-    GfxCount count,
+    size_t count,
     AccelerationStructureInstanceDescType dstType,
     void* dst,
-    Size dstStride,
+    size_t dstStride,
     const AccelerationStructureInstanceDescGeneric* src,
-    Size srcStride
+    size_t srcStride
 )
 {
     if (dstType == AccelerationStructureInstanceDescType::D3D12 ||
@@ -133,7 +133,7 @@ inline void convertAccelerationStructureInstanceDescs(
         return;
     }
 
-    for (GfxIndex i = 0; i < count; ++i)
+    for (size_t i = 0; i < count; ++i)
     {
         convertAccelerationStructureInstanceDesc(dstType, dst, src);
         dst = (uint8_t*)dst + dstStride;
