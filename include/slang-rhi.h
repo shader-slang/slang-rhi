@@ -715,9 +715,9 @@ struct TextureDesc
     /// The resources format.
     Format format;
     /// Number of samples per pixel.
-    GfxCount sampleCount = 1;
+    uint32_t sampleCount = 1;
     /// The quality measure for the samples.
-    int sampleQuality = 0;
+    uint32_t sampleQuality = 0;
 
     ClearValue* optimalClearValue = nullptr;
 
