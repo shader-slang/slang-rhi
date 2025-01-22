@@ -1671,7 +1671,7 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
 }
 
 Result DeviceImpl::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* fenceValues,
     bool waitForAll,
@@ -1679,7 +1679,7 @@ Result DeviceImpl::waitForFences(
 )
 {
     short_vector<VkSemaphore> semaphores;
-    for (Index i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         semaphores.push_back(fenceImpl->m_semaphore);

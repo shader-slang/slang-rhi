@@ -356,7 +356,7 @@ Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 }
 
 Result DebugDevice::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* values,
     bool waitForAll,
@@ -365,7 +365,7 @@ Result DebugDevice::waitForFences(
 {
     SLANG_RHI_API_FUNC;
     short_vector<IFence*> innerFences;
-    for (GfxCount i = 0; i < fenceCount; i++)
+    for (uint32_t i = 0; i < fenceCount; i++)
     {
         innerFences.push_back(getInnerObj(fences[i]));
     }

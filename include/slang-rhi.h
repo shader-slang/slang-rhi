@@ -2449,7 +2449,7 @@ public:
     /// Wait on the host for the fences to signals.
     /// `timeout` is in nanoseconds, can be set to `kTimeoutInfinite`.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) = 0;
+    waitForFences(uint32_t fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) = 0;

@@ -42,7 +42,7 @@ Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 }
 
 Result DeviceImpl::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* fenceValues,
     bool waitForAll,
@@ -52,7 +52,7 @@ Result DeviceImpl::waitForFences(
     // List of fences we still wait on.
     short_vector<FenceImpl*> waitFences;
     waitFences.resize(fenceCount);
-    for (GfxCount i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         waitFences[i] = checked_cast<FenceImpl*>(fences[i]);
     }
@@ -64,7 +64,7 @@ Result DeviceImpl::waitForFences(
     auto currentTime = startTime;
     while (currentTime < endTime)
     {
-        for (GfxCount i = 0; i < fenceCount && waitFences[i]; ++i)
+        for (uint32_t i = 0; i < fenceCount && waitFences[i]; ++i)
         {
             FenceImpl* fence = waitFences[i];
             uint64_t value;
