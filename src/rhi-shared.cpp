@@ -1000,17 +1000,17 @@ Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return SLANG_OK;
 }
 
-Result Device::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
+Result Device::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
 {
-    if (bufferSize >= (UInt)m_features.size())
+    if (bufferSize >= m_features.size())
     {
-        for (Index i = 0; i < m_features.size(); i++)
+        for (size_t i = 0; i < m_features.size(); i++)
         {
             outFeatures[i] = m_features[i].data();
         }
     }
     if (outFeatureCount)
-        *outFeatureCount = (GfxCount)m_features.size();
+        *outFeatureCount = (uint32_t)m_features.size();
     return SLANG_OK;
 }
 

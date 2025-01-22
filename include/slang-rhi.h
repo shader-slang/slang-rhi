@@ -2182,7 +2182,7 @@ public:
 
     /// Returns a list of features supported by the device.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) = 0;
+    getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) = 0;
 

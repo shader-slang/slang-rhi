@@ -1363,7 +1363,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) override;
+    getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* featureName) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;

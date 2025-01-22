@@ -30,7 +30,7 @@ Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return baseObject->getNativeDeviceHandles(outHandles);
 }
 
-Result DebugDevice::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
+Result DebugDevice::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
 {
     SLANG_RHI_API_FUNC;
 
