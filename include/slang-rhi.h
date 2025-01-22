@@ -35,10 +35,6 @@
     inline void flip_bit(e_& val, e_ flag) { val = is_set(val, flag) ? (val & (~flag)) : (val | flag); }
 // clang-format on
 
-// Needed for building on cygwin with gcc
-#undef Always
-#undef None
-
 // GLOBAL TODO: doc comments
 // GLOBAL TODO: Rationalize integer types (not a smush of uint/int/Uint/Int/etc)
 //    - need typedefs in rhi namespace for Count, Index, Size, Offset (ex. DeviceAddress)

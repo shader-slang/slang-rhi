@@ -99,7 +99,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
     }
 
     AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
-    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
     {
         if (type != (AccelerationStructureBuildInputType&)buildDesc.inputs[i])
         {
