@@ -2295,7 +2295,7 @@ public:
     inline Result createInputLayout(
         uint32_t vertexSize,
         const InputElementDesc* inputElements,
-        GfxCount inputElementCount,
+        uint32_t inputElementCount,
         IInputLayout** outLayout
     )
     {
