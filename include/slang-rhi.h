@@ -499,9 +499,9 @@ enum class CpuAccessMode
 struct BufferRange
 {
     /// Offset in bytes.
-    Offset offset = 0;
+    uint64_t offset = 0;
     /// Size in bytes.
-    Size size = 0;
+    uint64_t size = 0;
 
     bool operator==(const BufferRange& other) const { return offset == other.offset && size == other.size; }
     bool operator!=(const BufferRange& other) const { return !(*this == other); }
@@ -1819,7 +1819,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range = nullptr) = 0;
 
-    inline void clearBuffer(IBuffer* buffer, Offset offset, Size size)
+    inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size)
     {
         BufferRange range = {offset, size};
         clearBuffer(buffer, &range);
