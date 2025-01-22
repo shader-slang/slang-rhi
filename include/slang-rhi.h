@@ -2014,7 +2014,7 @@ public:
         return reinterpret_cast<const AdapterInfo*>(m_blob ? m_blob->getBufferPointer() : nullptr);
     }
 
-    GfxCount getCount() const { return (GfxCount)(m_blob ? m_blob->getBufferSize() / sizeof(AdapterInfo) : 0); }
+    uint32_t getCount() const { return (uint32_t)(m_blob ? m_blob->getBufferSize() / sizeof(AdapterInfo) : 0); }
 
 private:
     ComPtr<ISlangBlob> m_blob;
