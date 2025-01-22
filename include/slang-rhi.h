@@ -1812,7 +1812,7 @@ public:
         Offset3D offset,
         Extents extent,
         SubresourceData* subresourceData,
-        GfxCount subresourceDataCount
+        uint32_t subresourceDataCount
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;

@@ -1796,7 +1796,7 @@ void CommandEncoderImpl::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer

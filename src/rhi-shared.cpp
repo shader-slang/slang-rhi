@@ -630,7 +630,7 @@ void CommandEncoder::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     commands::UploadTextureData cmd;

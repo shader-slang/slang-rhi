@@ -351,7 +351,7 @@ void DebugCommandEncoder::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     SLANG_RHI_API_FUNC;

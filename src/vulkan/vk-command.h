@@ -80,7 +80,7 @@ public:
         Offset3D offset,
         Extents extent,
         SubresourceData* subresourceData,
-        GfxCount subresourceDataCount
+        uint32_t subresourceDataCount
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL

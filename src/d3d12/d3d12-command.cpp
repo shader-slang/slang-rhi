@@ -414,7 +414,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     );
     auto textureSize = dstTexture->m_desc.size;
     const FormatInfo& formatInfo = getFormatInfo(dstTexture->m_desc.format);
-    for (GfxCount i = 0; i < subresourceDataCount; i++)
+    for (uint32_t i = 0; i < subresourceDataCount; i++)
     {
         auto subresourceIndex = baseSubresourceIndex + i;
         // Get the footprint
@@ -1622,7 +1622,7 @@ void CommandEncoderImpl::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer

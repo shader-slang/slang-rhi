@@ -118,7 +118,7 @@ struct UploadTextureData
     // TODO: we could use some owned memory blob to avoid copying data
     // also, SubresourceData needs a size field to know how much to copy
     SubresourceData* subresourceData;
-    GfxCount subresourceDataCount;
+    uint32_t subresourceDataCount;
 };
 
 struct UploadBufferData
