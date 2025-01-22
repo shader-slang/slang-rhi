@@ -2108,13 +2108,13 @@ struct SlangDesc
     SlangMatrixLayoutMode defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;
 
     const char* const* searchPaths = nullptr;
-    GfxCount searchPathCount = 0;
+    uint32_t searchPathCount = 0;
 
     const slang::PreprocessorMacroDesc* preprocessorMacros = nullptr;
-    GfxCount preprocessorMacroCount = 0;
+    uint32_t preprocessorMacroCount = 0;
 
     slang::CompilerOptionEntry* compilerOptionEntries = nullptr;
-    GfxCount compilerOptionEntryCount = 0;
+    uint32_t compilerOptionEntryCount = 0;
 
     /// (optional) Target shader profile. If null this will be set to platform dependent default.
     const char* targetProfile = nullptr;
