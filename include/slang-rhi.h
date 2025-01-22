@@ -1945,7 +1945,7 @@ struct SurfaceInfo
     Format preferredFormat;
     TextureUsage supportedUsage;
     const Format* formats;
-    GfxCount formatCount;
+    uint32_t formatCount;
 };
 
 struct SurfaceConfig
@@ -1954,9 +1954,9 @@ struct SurfaceConfig
     TextureUsage usage = TextureUsage::RenderTarget;
     // size_t viewFormatCount;
     // const Format* viewFormats;
-    Size width = 0;
-    Size height = 0;
-    Size desiredImageCount = 3;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t desiredImageCount = 3;
     bool vsync = true;
 };
 

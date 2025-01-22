@@ -121,7 +121,7 @@ Result SurfaceImpl::createSwapchain()
 {
     auto& api = m_device->m_api;
 
-    VkExtent2D imageExtent = {(uint32_t)m_config.width, (uint32_t)m_config.height};
+    VkExtent2D imageExtent = {m_config.width, m_config.height};
 
     // It is necessary to query the caps -> otherwise the LunarG verification layer will
     // issue an error
