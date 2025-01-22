@@ -2145,7 +2145,7 @@ struct DeviceDesc
     // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
-    GfxCount requiredFeatureCount = 0;
+    uint32_t requiredFeatureCount = 0;
     // Array of required feature names, whose size is `requiredFeatureCount`.
     const char** requiredFeatures = nullptr;
     // A command dispatcher object that intercepts and handles actual low-level API call.
