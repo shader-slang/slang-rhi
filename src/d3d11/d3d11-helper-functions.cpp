@@ -18,9 +18,9 @@ bool isSupportedNVAPIOp(IUnknown* dev, uint32_t op)
 #endif
 }
 
-int _calcResourceBindFlags(BufferUsage usage)
+UINT _calcResourceBindFlags(BufferUsage usage)
 {
-    int flags = 0;
+    UINT flags = 0;
     if (is_set(usage, BufferUsage::VertexBuffer))
         flags |= D3D11_BIND_VERTEX_BUFFER;
     if (is_set(usage, BufferUsage::IndexBuffer))
@@ -34,9 +34,9 @@ int _calcResourceBindFlags(BufferUsage usage)
     return flags;
 }
 
-int _calcResourceBindFlags(TextureUsage usage)
+UINT _calcResourceBindFlags(TextureUsage usage)
 {
-    int flags = 0;
+    UINT flags = 0;
     if (is_set(usage, TextureUsage::RenderTarget))
         flags |= D3D11_BIND_RENDER_TARGET;
     if (is_set(usage, TextureUsage::DepthRead))
@@ -50,7 +50,7 @@ int _calcResourceBindFlags(TextureUsage usage)
     return flags;
 }
 
-int _calcResourceAccessFlags(MemoryType memType)
+UINT _calcResourceAccessFlags(MemoryType memType)
 {
     switch (memType)
     {

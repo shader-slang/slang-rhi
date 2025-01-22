@@ -165,7 +165,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     }
     else
     {
-        for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
+        for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
             encoder->copyFromTexture(
                 src->m_texture.get(),

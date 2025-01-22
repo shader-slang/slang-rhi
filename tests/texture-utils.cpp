@@ -23,7 +23,7 @@ Size getTexelSize(Format format)
     return info.blockSizeInBytes / info.pixelsPerBlock;
 }
 
-GfxIndex getSubresourceIndex(GfxIndex mipLevel, GfxCount mipLevelCount, GfxIndex baseArrayLayer)
+uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t baseArrayLayer)
 {
     return baseArrayLayer * mipLevelCount + mipLevel;
 }

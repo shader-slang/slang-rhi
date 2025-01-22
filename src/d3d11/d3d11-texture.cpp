@@ -74,22 +74,22 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         return SLANG_FAIL;
     }
 
-    const int bindFlags = _calcResourceBindFlags(srcDesc.usage);
+    UINT bindFlags = _calcResourceBindFlags(srcDesc.usage);
 
     // Set up the initialize data
     std::vector<D3D11_SUBRESOURCE_DATA> subRes;
     D3D11_SUBRESOURCE_DATA* subresourcesPtr = nullptr;
     if (initData)
     {
-        int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+        uint32_t arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
         subRes.resize(srcDesc.mipLevelCount * arrayLayerCount);
         {
-            int subresourceIndex = 0;
-            for (int i = 0; i < arrayLayerCount; i++)
+            uint32_t subresourceIndex = 0;
+            for (uint32_t i = 0; i < arrayLayerCount; i++)
             {
-                for (int j = 0; j < srcDesc.mipLevelCount; j++)
+                for (uint32_t j = 0; j < srcDesc.mipLevelCount; j++)
                 {
-                    const int mipHeight = calcMipSize(srcDesc.size.height, j);
+                    const uint32_t mipHeight = calcMipSize(srcDesc.size.height, j);
 
                     D3D11_SUBRESOURCE_DATA& data = subRes[subresourceIndex];
                     auto& srcData = initData[subresourceIndex];
@@ -105,7 +105,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         subresourcesPtr = subRes.data();
     }
 
-    const int accessFlags = _calcResourceAccessFlags(srcDesc.memoryType);
+    UINT accessFlags = _calcResourceAccessFlags(srcDesc.memoryType);
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
 

@@ -38,7 +38,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
     // Metal doesn't support mip-mapping for 1D textures
     // However, we still need to use the provided mip level count when initializing the texture
-    GfxCount initMipLevels = desc.mipLevelCount;
+    uint32_t initMipLevels = desc.mipLevelCount;
     desc.mipLevelCount = desc.type == TextureType::Texture1D ? 1 : desc.mipLevelCount;
 
     const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
@@ -162,14 +162,14 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             return SLANG_FAIL;
         }
 
-        GfxCount sliceCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+        uint32_t sliceCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
-        for (Index slice = 0; slice < sliceCount; ++slice)
+        for (uint32_t slice = 0; slice < sliceCount; ++slice)
         {
             MTL::Region region;
             region.origin = MTL::Origin(0, 0, 0);
             region.size = MTL::Size(desc.size.width, desc.size.height, desc.size.depth);
-            for (Index level = 0; level < initMipLevels; ++level)
+            for (uint32_t level = 0; level < initMipLevels; ++level)
             {
                 if (level >= desc.mipLevelCount)
                     continue;
@@ -211,7 +211,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     viewImpl->m_desc.subresourceRange = viewImpl->m_texture->resolveSubresourceRange(desc.subresourceRange);
 
     const TextureDesc& textureDesc = textureImpl->m_desc;
-    GfxCount layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
+    uint32_t layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
     if (sr.mipLevel == 0 && sr.mipLevelCount == textureDesc.mipLevelCount && sr.baseArrayLayer == 0 &&
         sr.layerCount == layerCount)

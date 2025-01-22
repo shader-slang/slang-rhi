@@ -236,9 +236,9 @@ struct BindingOffset : SimpleBindingOffset
 
 bool isSupportedNVAPIOp(IUnknown* dev, uint32_t op);
 
-int _calcResourceBindFlags(BufferUsage usage);
-int _calcResourceBindFlags(TextureUsage usage);
-int _calcResourceAccessFlags(MemoryType memType);
+UINT _calcResourceBindFlags(BufferUsage usage);
+UINT _calcResourceBindFlags(TextureUsage usage);
+UINT _calcResourceAccessFlags(MemoryType memType);
 
 D3D11_FILTER_TYPE translateFilterMode(TextureFilteringMode mode);
 D3D11_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op);

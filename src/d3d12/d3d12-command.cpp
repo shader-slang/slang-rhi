@@ -244,11 +244,11 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
     DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(dst->m_desc.format);
     uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
-    for (GfxIndex planeIndex = 0; planeIndex < planeCount; planeIndex++)
+    for (uint32_t planeIndex = 0; planeIndex < planeCount; planeIndex++)
     {
-        for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
+        for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
-            for (GfxIndex mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+            for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
             {
                 D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
 
@@ -305,21 +305,21 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
 
-    auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
+    uint32_t baseSubresourceIndex = D3DUtil::getSubresourceIndex(
         srcSubresource.mipLevel,
         srcSubresource.baseArrayLayer,
         0,
         src->m_desc.mipLevelCount,
         src->m_desc.arrayLength
     );
-    auto textureSize = src->m_desc.size;
+    Extents textureSize = src->m_desc.size;
     const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.arrayLength;
 
-    for (GfxCount layer = 0; layer < srcSubresource.layerCount; layer++)
+    for (uint32_t layer = 0; layer < srcSubresource.layerCount; layer++)
     {
         // Get the footprint
         D3D12_RESOURCE_DESC texDesc = src->m_resource.getResource()->GetDesc();

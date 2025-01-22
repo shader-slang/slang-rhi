@@ -611,10 +611,10 @@ enum class TextureAspect : uint32_t
 
 struct SubresourceRange
 {
-    GfxIndex mipLevel;
-    GfxCount mipLevelCount;
-    GfxIndex baseArrayLayer; // For Texture3D, this is WSlice.
-    GfxCount layerCount;     // For cube maps, this is a multiple of 6.
+    uint32_t mipLevel;
+    uint32_t mipLevelCount;
+    uint32_t baseArrayLayer; // For Texture3D, this is WSlice.
+    uint32_t layerCount;     // For cube maps, this is a multiple of 6.
     bool operator==(const SubresourceRange& other) const
     {
         return mipLevel == other.mipLevel && mipLevelCount == other.mipLevelCount &&
@@ -709,9 +709,9 @@ struct TextureDesc
 
     Extents size;
     /// Array length.
-    GfxCount arrayLength = 0;
+    uint32_t arrayLength = 0;
     /// Number of mip levels - if 0 will create all mip levels.
-    GfxCount mipLevelCount = 0;
+    uint32_t mipLevelCount = 0;
     /// The resources format.
     Format format;
     /// Number of samples per pixel.

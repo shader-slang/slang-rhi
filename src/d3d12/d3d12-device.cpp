@@ -1135,14 +1135,14 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         // Get the pointer to the upload resource
         ID3D12Resource* uploadResource = uploadTexture;
 
-        int subresourceIndex = 0;
-        int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
-        for (int arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
+        uint32_t subresourceIndex = 0;
+        uint32_t arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+        for (uint32_t arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
         {
             uint8_t* p;
             uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));
 
-            for (int j = 0; j < srcDesc.mipLevelCount; ++j)
+            for (uint32_t j = 0; j < srcDesc.mipLevelCount; ++j)
             {
                 auto srcSubresource = initData[subresourceIndex + j];
 
@@ -1173,7 +1173,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 //
                 const uint8_t* srcLayer = (const uint8_t*)srcSubresource.data;
                 uint8_t* dstLayer = p + layouts[j].Offset;
-                for (int l = 0; l < mipSize.depth; l++)
+                for (uint32_t l = 0; l < mipSize.depth; l++)
                 {
                     // Our inner loop will copy the rows one at a time.
                     //
@@ -1181,7 +1181,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     uint8_t* dstRow = dstLayer;
                     int j = formatInfo.isCompressed ? 4 : 1; // BC compressed formats are organized into
                                                              // 4x4 blocks
-                    for (int k = 0; k < mipSize.height; k += j)
+                    for (uint32_t k = 0; k < mipSize.height; k += j)
                     {
                         ::memcpy(dstRow, srcRow, (Size)mipRowSize);
 
@@ -1199,7 +1199,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
             ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
-            for (int mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
+            for (uint32_t mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
             {
                 // https://msdn.microsoft.com/en-us/library/windows/desktop/dn903862(v=vs.85).aspx
 

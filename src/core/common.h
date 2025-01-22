@@ -96,7 +96,7 @@ inline T getLowestBit(T val)
     return val & (-val);
 }
 
-inline unsigned int ones32(unsigned int x)
+inline uint32_t ones32(uint32_t x)
 {
     /* 32-bit recursive reduction using SWAR...
         but first step is mapping 2-bit values
@@ -110,7 +110,7 @@ inline unsigned int ones32(unsigned int x)
     return (x & 0x0000003f);
 }
 
-inline unsigned int log2Floor(unsigned int x)
+inline uint32_t log2Floor(uint32_t x)
 {
     x |= (x >> 1);
     x |= (x >> 2);

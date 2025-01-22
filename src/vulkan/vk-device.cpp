@@ -1118,14 +1118,14 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
-    int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+    uint32_t arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
     std::vector<Extents> mipSizes;
 
     // Calculate how large the buffer has to be
     Size bufferSize = 0;
     // Calculate how large an array entry is
-    for (int j = 0; j < desc.mipLevelCount; ++j)
+    for (uint32_t j = 0; j < desc.mipLevelCount; ++j)
     {
         const Extents mipSize = calcMipSize(desc.size, j);
 
@@ -1182,9 +1182,9 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
     Offset dstOffset = 0;
-    for (int i = 0; i < arrayLayerCount; ++i)
+    for (uint32_t i = 0; i < arrayLayerCount; ++i)
     {
-        for (Index j = 0; j < mipSizes.size(); ++j)
+        for (size_t j = 0; j < mipSizes.size(); ++j)
         {
             const auto& mipSize = mipSizes[j];
 

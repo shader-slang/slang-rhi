@@ -187,15 +187,15 @@ struct TextureInfo : RefObject
     TextureType textureType;
 
     Extents extents;
-    GfxCount mipLevelCount;
-    GfxCount arrayLayerCount;
+    uint32_t mipLevelCount;
+    uint32_t arrayLayerCount;
 
     std::vector<RefPtr<ValidationTextureData>> subresourceObjects;
     std::vector<SubresourceData> subresourceDatas;
 };
 
 Size getTexelSize(Format format);
-GfxIndex getSubresourceIndex(GfxIndex mipLevel, GfxCount mipLevelCount, GfxIndex baseArrayLayer);
+uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t baseArrayLayer);
 RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat);
 

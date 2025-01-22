@@ -54,7 +54,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     }
     else
     {
-        uint32_t arrayLayers = std::max(1, desc.arrayLength);
+        uint32_t arrayLayers = max(1u, desc.arrayLength);
         switch (desc.type)
         {
         case TextureType::TextureCube:
@@ -88,15 +88,15 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
         SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
-        int mipLevelCount = desc.mipLevelCount;
-        int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+        uint32_t mipLevelCount = desc.mipLevelCount;
+        uint32_t arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
-        for (int arrayLayer = 0; arrayLayer < arrayLayerCount; ++arrayLayer)
+        for (uint32_t arrayLayer = 0; arrayLayer < arrayLayerCount; ++arrayLayer)
         {
-            for (int mipLevel = 0; mipLevel < mipLevelCount; ++mipLevel)
+            for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; ++mipLevel)
             {
                 Extents mipSize = calcMipSize(desc.size, mipLevel);
-                int subresourceIndex = arrayLayer * mipLevelCount + mipLevel;
+                uint32_t subresourceIndex = arrayLayer * mipLevelCount + mipLevel;
                 const SubresourceData& data = initData[subresourceIndex];
 
                 WGPUImageCopyTexture imageCopyTexture = {};

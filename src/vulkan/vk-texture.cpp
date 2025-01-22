@@ -197,7 +197,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
     }
 
-    int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+    uint32_t arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
     imageInfo.mipLevels = desc.mipLevelCount;
     imageInfo.arrayLayers = arrayLayerCount;
@@ -277,7 +277,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         // Calculate how large the buffer has to be
         Size bufferSize = 0;
         // Calculate how large an array entry is
-        for (int j = 0; j < desc.mipLevelCount; ++j)
+        for (uint32_t j = 0; j < desc.mipLevelCount; ++j)
         {
             const Extents mipSize = calcMipSize(desc.size, j);
 
@@ -303,7 +303,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
         // Copy into upload buffer
         {
-            int subresourceCounter = 0;
+            uint32_t subresourceCounter = 0;
 
             uint8_t* dstData;
             m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, (void**)&dstData);
@@ -311,13 +311,13 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             dstDataStart = dstData;
 
             Offset dstSubresourceOffset = 0;
-            for (int i = 0; i < arrayLayerCount; ++i)
+            for (uint32_t i = 0; i < arrayLayerCount; ++i)
             {
-                for (Index j = 0; j < mipSizes.size(); ++j)
+                for (uint32_t j = 0; j < mipSizes.size(); ++j)
                 {
                     const auto& mipSize = mipSizes[j];
 
-                    int subresourceIndex = subresourceCounter++;
+                    uint32_t subresourceIndex = subresourceCounter++;
                     auto initSubresource = initData[subresourceIndex];
 
                     const ptrdiff_t srcRowStride = (ptrdiff_t)initSubresource.strideY;
@@ -330,7 +330,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     const uint8_t* srcLayer = (const uint8_t*)initSubresource.data;
                     uint8_t* dstLayer = dstData + dstSubresourceOffset;
 
-                    for (int k = 0; k < mipSize.depth; k++)
+                    for (uint32_t k = 0; k < mipSize.depth; k++)
                     {
                         const uint8_t* srcRow = srcLayer;
                         uint8_t* dstRow = dstLayer;
