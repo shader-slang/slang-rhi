@@ -249,9 +249,9 @@ struct CopyAccelerationStructure
 
 struct QueryAccelerationStructureProperties
 {
-    GfxCount accelerationStructureCount;
+    uint32_t accelerationStructureCount;
     IAccelerationStructure** accelerationStructures;
-    GfxCount queryCount;
+    uint32_t queryCount;
     AccelerationStructureQueryDesc* queryDescs;
 };
 

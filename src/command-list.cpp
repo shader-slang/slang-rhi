@@ -271,14 +271,14 @@ void CommandList::write(commands::QueryAccelerationStructureProperties&& cmd)
     {
         cmd.accelerationStructures = (IAccelerationStructure**)
             writeData(cmd.accelerationStructures, cmd.accelerationStructureCount * sizeof(IAccelerationStructure*));
-        for (Index i = 0; i < cmd.accelerationStructureCount; ++i)
+        for (uint32_t i = 0; i < cmd.accelerationStructureCount; ++i)
             retainResource(cmd.accelerationStructures[i]);
     }
     if (cmd.queryDescs && cmd.queryCount > 0)
     {
         cmd.queryDescs = (AccelerationStructureQueryDesc*)
             writeData(cmd.queryDescs, cmd.queryCount * sizeof(AccelerationStructureQueryDesc));
-        for (Index i = 0; i < cmd.queryCount; ++i)
+        for (uint32_t i = 0; i < cmd.queryCount; ++i)
             retainResource(cmd.queryDescs[i].queryPool);
     }
     writeCommand(std::move(cmd));

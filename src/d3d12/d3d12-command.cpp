@@ -1099,8 +1099,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
     translatePostBuildInfoDescs(cmd.propertyQueryCount, cmd.queryDescs, postBuildInfoDescs);
-    m_cmdList4
-        ->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
+    m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
@@ -1127,12 +1126,12 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
     std::vector<DeviceAddress> asAddresses;
     asAddresses.resize(cmd.accelerationStructureCount);
-    for (GfxIndex i = 0; i < cmd.accelerationStructureCount; i++)
+    for (uint32_t i = 0; i < cmd.accelerationStructureCount; i++)
         asAddresses[i] = cmd.accelerationStructures[i]->getDeviceAddress();
     translatePostBuildInfoDescs(cmd.queryCount, cmd.queryDescs, postBuildInfoDescs);
     m_cmdList4->EmitRaytracingAccelerationStructurePostbuildInfo(
         postBuildInfoDescs.data(),
-        (UINT)cmd.accelerationStructureCount,
+        cmd.accelerationStructureCount,
         asAddresses.data()
     );
 }

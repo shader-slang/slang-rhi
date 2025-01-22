@@ -723,9 +723,9 @@ void CommandEncoder::copyAccelerationStructure(
 }
 
 void CommandEncoder::queryAccelerationStructureProperties(
-    GfxCount accelerationStructureCount,
+    uint32_t accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
-    GfxCount queryCount,
+    uint32_t queryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {

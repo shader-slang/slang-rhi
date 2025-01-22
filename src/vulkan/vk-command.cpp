@@ -134,7 +134,7 @@ public:
     );
 
     void accelerationStructureBarrier(
-        GfxCount accelerationStructureCount,
+        uint32_t accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
         AccessFlag srcAccess,
         AccessFlag destAccess
@@ -1459,11 +1459,11 @@ void CommandRecorder::queryAccelerationStructureProperties(
 {
     short_vector<VkAccelerationStructureKHR> vkHandles;
     vkHandles.resize(accelerationStructureCount);
-    for (GfxIndex i = 0; i < accelerationStructureCount; i++)
+    for (uint32_t i = 0; i < accelerationStructureCount; i++)
     {
         vkHandles[i] = checked_cast<AccelerationStructureImpl*>(accelerationStructures[i])->m_vkHandle;
     }
-    for (GfxIndex i = 0; i < queryCount; i++)
+    for (uint32_t i = 0; i < queryCount; i++)
     {
         VkQueryType queryType;
         switch (queryDescs[i].queryType)
@@ -1498,7 +1498,7 @@ void CommandRecorder::queryAccelerationStructureProperties(
 }
 
 void CommandRecorder::accelerationStructureBarrier(
-    GfxCount accelerationStructureCount,
+    uint32_t accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     AccessFlag srcAccess,
     AccessFlag destAccess
@@ -1506,7 +1506,7 @@ void CommandRecorder::accelerationStructureBarrier(
 {
     short_vector<VkBufferMemoryBarrier> memBarriers;
     memBarriers.resize(accelerationStructureCount);
-    for (int i = 0; i < accelerationStructureCount; i++)
+    for (uint32_t i = 0; i < accelerationStructureCount; i++)
     {
         memBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         memBarriers[i].pNext = nullptr;

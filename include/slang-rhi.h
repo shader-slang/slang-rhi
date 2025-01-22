@@ -1852,9 +1852,9 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
-        GfxCount accelerationStructureCount,
+        uint32_t accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
-        GfxCount queryCount,
+        uint32_t queryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
