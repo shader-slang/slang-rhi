@@ -791,7 +791,7 @@ void CommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex)
+void CommandEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
 {
     commands::WriteTimestamp cmd;
     cmd.queryPool = checked_cast<QueryPool*>(queryPool);

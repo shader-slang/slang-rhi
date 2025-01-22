@@ -298,7 +298,7 @@ struct InsertDebugMarker
 struct WriteTimestamp
 {
     IQueryPool* queryPool;
-    GfxIndex queryIndex;
+    uint32_t queryIndex;
 };
 
 struct ExecuteCallback

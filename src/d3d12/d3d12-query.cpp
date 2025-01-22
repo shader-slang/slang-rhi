@@ -104,9 +104,9 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
     return SLANG_OK;
 }
 
-void QueryPoolImpl::writeTimestamp(ID3D12GraphicsCommandList* cmdList, GfxIndex index)
+void QueryPoolImpl::writeTimestamp(ID3D12GraphicsCommandList* cmdList, uint32_t index)
 {
-    cmdList->EndQuery(m_queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, (UINT)index);
+    cmdList->EndQuery(m_queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index);
 }
 
 IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)

@@ -13,7 +13,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 
-    void writeTimestamp(ID3D12GraphicsCommandList* cmdList, GfxIndex index);
+    void writeTimestamp(ID3D12GraphicsCommandList* cmdList, uint32_t index);
 
 public:
     D3D12_QUERY_TYPE m_queryType;

@@ -533,7 +533,7 @@ void DebugCommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
     baseObject->insertDebugMarker(name, rgbColor);
 }
 
-void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, GfxIndex index)
+void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, uint32_t index)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
