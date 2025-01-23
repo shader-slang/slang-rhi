@@ -14,8 +14,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue)
-        override;
+    submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 

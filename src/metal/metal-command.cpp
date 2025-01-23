@@ -838,12 +838,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence*
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::submit(
-    uint32_t count,
-    ICommandBuffer** commandBuffers,
-    IFence* fence,
-    uint64_t valueToSignal
-)
+Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
 {
     AUTORELEASEPOOL
 
