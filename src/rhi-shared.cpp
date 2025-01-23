@@ -47,8 +47,8 @@ IResource* Buffer::getInterface(const Guid& guid)
 BufferRange Buffer::resolveBufferRange(const BufferRange& range)
 {
     BufferRange resolved = range;
-    resolved.offset = min(resolved.offset, m_desc.size);
-    resolved.size = min(resolved.size, m_desc.size - resolved.offset);
+    resolved.offset = min(resolved.offset, (uint64_t)m_desc.size);
+    resolved.size = min(resolved.size, (uint64_t)m_desc.size - resolved.offset);
     return resolved;
 }
 
