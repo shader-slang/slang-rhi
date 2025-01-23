@@ -22,6 +22,10 @@
 #define SLANG_RHI_API
 #endif
 
+// Needed for building on cygwin with gcc
+#undef Always
+#undef None
+
 // clang-format off
 /// Implement logical operators on a class enum for making it usable as a flags enum.
 #define SLANG_RHI_ENUM_CLASS_OPERATORS(e_) \
