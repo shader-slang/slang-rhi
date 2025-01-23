@@ -532,9 +532,9 @@ struct BufferDesc
     void* next = nullptr;
 
     /// Total size in bytes.
-    Size size = 0;
+    uint64_t size = 0;
     /// Get the element stride. If > 0, this is a structured buffer.
-    Size elementSize = 0;
+    uint32_t elementSize = 0;
     /// Format used for typed views.
     Format format = Format::Unknown;
 
