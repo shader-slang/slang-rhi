@@ -23,12 +23,14 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
+
         ClearValue clearValue = {};
         clearValue.color.floatValues[0] = 0.5f;
         clearValue.color.floatValues[1] = 1.0f;
         clearValue.color.floatValues[2] = 0.2f;
         clearValue.color.floatValues[3] = 0.1f;
         encoder->clearTexture(texture, clearValue);
+
         queue->submit(encoder->finish());
         queue->waitOnHost();
 

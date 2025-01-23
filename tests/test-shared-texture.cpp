@@ -26,7 +26,8 @@ static void setUpAndRunShader(
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
+        auto passEncoder = encoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         entryPointCursor["width"].setData(tex->getDesc().size.width);
         entryPointCursor["height"].setData(tex->getDesc().size.height);
@@ -36,13 +37,6 @@ static void setUpAndRunShader(
             entryPointCursor["sampler"].setBinding(sampler);
         // Bind buffer view to the entry point.
         entryPointCursor["buffer"].setBinding(buffer);
-        rootObject->finalize();
-
-        auto passEncoder = encoder->beginComputePass();
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        passEncoder->setComputeState(state);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 

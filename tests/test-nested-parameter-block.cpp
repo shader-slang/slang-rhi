@@ -97,7 +97,6 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     cursor["resultBuffer"].setBinding(resultBuffer);
     cursor["scene"].setObject(sceneObject);
     cursor["perView"].setObject(cbObject);
-    rootObject->finalize();
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
@@ -106,10 +105,7 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
         auto encoder = queue->createCommandEncoder();
 
         auto passEncoder = encoder->beginComputePass();
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        passEncoder->setComputeState(state);
+        passEncoder->bindPipeline(pipeline, rootObject);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
@@ -125,7 +121,9 @@ TEST_CASE("nested-parameter-block")
     runGpuTests(
         testNestedParameterBlock,
         {
+            DeviceType::CPU,
             DeviceType::CUDA,
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
             // DeviceType::Metal,
