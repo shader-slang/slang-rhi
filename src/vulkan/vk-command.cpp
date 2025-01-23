@@ -1670,7 +1670,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence*
 
 void CommandQueueImpl::queueSubmitImpl(
     uint32_t count,
-    ICommandBuffer* const* commandBuffers,
+    ICommandBuffer** commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
 )
@@ -1753,12 +1753,7 @@ void CommandQueueImpl::queueSubmitImpl(
     retireCommandBuffers();
 }
 
-Result CommandQueueImpl::submit(
-    uint32_t count,
-    ICommandBuffer* const* commandBuffers,
-    IFence* fence,
-    uint64_t valueToSignal
-)
+Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
 {
     if (count == 0 && fence == nullptr)
         return SLANG_OK;

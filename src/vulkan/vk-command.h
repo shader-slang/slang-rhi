@@ -54,10 +54,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) override;
 
-    void queueSubmitImpl(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal);
+    void queueSubmitImpl(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
+    submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
 
 class CommandEncoderImpl : public CommandEncoder

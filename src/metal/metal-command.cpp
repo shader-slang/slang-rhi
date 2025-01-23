@@ -840,7 +840,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence*
 
 Result CommandQueueImpl::submit(
     uint32_t count,
-    ICommandBuffer* const* commandBuffers,
+    ICommandBuffer** commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
 )

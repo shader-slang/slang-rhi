@@ -551,7 +551,7 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 
 Result CommandQueueImpl::submit(
     uint32_t count,
-    ICommandBuffer* const* commandBuffers,
+    ICommandBuffer** commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
 )

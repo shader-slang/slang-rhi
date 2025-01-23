@@ -1064,7 +1064,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
         uint32_t accelerationStructureCount,
-        IAccelerationStructure* const* accelerationStructures,
+        IAccelerationStructure** accelerationStructures,
         uint32_t queryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) override;
