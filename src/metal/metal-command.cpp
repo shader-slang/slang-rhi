@@ -14,7 +14,7 @@
 namespace rhi::metal {
 
 template<typename T>
-inline bool arraysEqual(GfxCount countA, GfxCount countB, const T* a, const T* b)
+inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b)
 {
     return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
 }
@@ -165,7 +165,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     }
     else
     {
-        for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
+        for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
             encoder->copyFromTexture(
                 src->m_texture.get(),
@@ -262,7 +262,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     // Setup color attachments.
     renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
         TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);
@@ -394,7 +394,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateVertexBuffers)
     {
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
             encoder->setVertexBuffer(
@@ -428,7 +428,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateViewports)
     {
         MTL::Viewport viewports[SLANG_COUNT_OF(RenderState::viewports)];
-        for (Index i = 0; i < state.viewportCount; ++i)
+        for (uint32_t i = 0; i < state.viewportCount; ++i)
         {
             const Viewport& src = state.viewports[i];
             MTL::Viewport& dst = viewports[i];
@@ -445,7 +445,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateScissorRects)
     {
         MTL::ScissorRect scissorRects[SLANG_COUNT_OF(RenderState::scissorRects)];
-        for (Index i = 0; i < state.scissorRectCount; ++i)
+        for (uint32_t i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
             MTL::ScissorRect& dst = scissorRects[i];
@@ -826,9 +826,9 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
 {
-    for (GfxCount i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         FenceWaitInfo waitInfo;
         waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
@@ -839,7 +839,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal

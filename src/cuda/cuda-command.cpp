@@ -391,7 +391,7 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
 
     short_vector<OptixAccelEmitDesc, 8> emittedProperties;
-    for (GfxCount i = 0; i < cmd.propertyQueryCount; i++)
+    for (uint32_t i = 0; i < cmd.propertyQueryCount; i++)
     {
         if (cmd.queryDescs[i].queryType == QueryType::AccelerationStructureCompactedSize)
         {
@@ -550,7 +550,7 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -559,7 +559,7 @@ Result CommandQueueImpl::submit(
     SLANG_UNUSED(valueToSignal);
     // TODO: implement fence.
     SLANG_RHI_ASSERT(fence == nullptr);
-    for (GfxIndex i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         CommandExecutor executor(m_device, m_stream);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));
@@ -575,7 +575,7 @@ Result CommandQueueImpl::waitOnHost()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
 {
     return SLANG_FAIL;
 }

@@ -22,20 +22,20 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
-        GfxCount maxDrawCount,
+        uint32_t maxDrawCount,
         IBuffer* argBuffer,
-        Offset argOffset,
+        uint64_t argOffset,
         IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
+        uint64_t countOffset = 0
     ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
-        GfxCount maxDrawCount,
+        uint32_t maxDrawCount,
         IBuffer* argBuffer,
-        Offset argOffset,
+        uint64_t argOffset,
         IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
+        uint64_t countOffset = 0
     ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
@@ -58,8 +58,8 @@ public:
     DebugComputePassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
 
     virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
@@ -83,7 +83,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) override;
+    dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
@@ -135,7 +135,7 @@ public:
         Offset3D offset,
         Extents extent,
         SubresourceData* subresourceData,
-        GfxCount subresourceDataCount
+        uint32_t subresourceDataCount
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
@@ -158,14 +158,14 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) override;
+    resolveQuery(IQueryPool* queryPool, uint32_t index, uint32_t count, IBuffer* buffer, uint64_t offset) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
         IAccelerationStructure* dst,
         IAccelerationStructure* src,
         BufferWithOffset scratchBuffer,
-        GfxCount propertyQueryCount,
+        uint32_t propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) override;
 
@@ -176,9 +176,9 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
-        GfxCount accelerationStructureCount,
+        uint32_t accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
-        GfxCount queryCount,
+        uint32_t queryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) override;
 
@@ -202,7 +202,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

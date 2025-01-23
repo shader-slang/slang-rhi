@@ -11,7 +11,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     layout->m_vertexBufferLayouts.resize(desc.vertexStreamCount);
     layout->m_vertexAttributes.resize(desc.vertexStreamCount);
 
-    for (GfxIndex i = 0; i < desc.inputElementCount; ++i)
+    for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
         const InputElementDesc& elementDesc = desc.inputElements[i];
         if (elementDesc.bufferSlotIndex >= desc.vertexStreamCount)
@@ -30,7 +30,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
     size_t attributeIndex = 0;
 
-    for (GfxIndex i = 0; i < desc.vertexStreamCount; ++i)
+    for (uint32_t i = 0; i < desc.vertexStreamCount; ++i)
     {
         const VertexStreamDesc& streamDesc = desc.vertexStreams[i];
         WGPUVertexBufferLayout& bufferLayout = layout->m_vertexBufferLayouts[i];

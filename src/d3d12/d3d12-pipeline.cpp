@@ -40,7 +40,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
         psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveTopologyType(desc.primitiveTopology);
 
-        const int numRenderTargets = desc.targetCount;
+        uint32_t numRenderTargets = desc.targetCount;
 
         {
             if (desc.depthStencil.format != Format::Unknown)
@@ -52,7 +52,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
             }
             psoDesc.NumRenderTargets = numRenderTargets;
-            for (Int i = 0; i < numRenderTargets; i++)
+            for (uint32_t i = 0; i < numRenderTargets; i++)
             {
                 psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(desc.targets[i].format);
             }
@@ -84,7 +84,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             blend.IndependentBlendEnable = FALSE;
             blend.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable ? TRUE : FALSE;
             blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)RenderTargetWriteMask::EnableAll;
-            for (GfxIndex i = 0; i < numRenderTargets; i++)
+            for (uint32_t i = 0; i < numRenderTargets; i++)
             {
                 auto& d3dDesc = blend.RenderTarget[i];
                 d3dDesc.BlendEnable = desc.targets[i].enableBlend ? TRUE : FALSE;
@@ -105,7 +105,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                        a.alpha.op == b.alpha.op && a.alpha.srcFactor == b.alpha.srcFactor &&
                        a.alpha.dstFactor == b.alpha.dstFactor && a.writeMask == b.writeMask;
             };
-            for (GfxIndex i = 1; i < numRenderTargets; i++)
+            for (uint32_t i = 1; i < numRenderTargets; i++)
             {
                 if (!equalBlendState(desc.targets[i], desc.targets[0]))
                 {
@@ -113,7 +113,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                     break;
                 }
             }
-            for (uint32_t i = (uint32_t)numRenderTargets; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+            for (uint32_t i = numRenderTargets; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
             {
                 blend.RenderTarget[i] = blend.RenderTarget[0];
             }
@@ -444,7 +444,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         }
     }
 
-    for (Index i = 0; i < desc.hitGroupCount; i++)
+    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
     {
         auto& hitGroup = desc.hitGroups[i];
         D3D12_HIT_GROUP_DESC hitGroupDesc = {};

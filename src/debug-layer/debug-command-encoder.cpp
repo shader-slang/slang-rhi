@@ -72,11 +72,11 @@ void DebugRenderPassEncoder::drawIndexed(const DrawArguments& args)
 }
 
 void DebugRenderPassEncoder::drawIndirect(
-    GfxCount maxDrawCount,
+    uint32_t maxDrawCount,
     IBuffer* argBuffer,
-    Offset argOffset,
+    uint64_t argOffset,
     IBuffer* countBuffer,
-    Offset countOffset
+    uint64_t countOffset
 )
 {
     SLANG_RHI_API_FUNC;
@@ -86,11 +86,11 @@ void DebugRenderPassEncoder::drawIndirect(
 }
 
 void DebugRenderPassEncoder::drawIndexedIndirect(
-    GfxCount maxDrawCount,
+    uint32_t maxDrawCount,
     IBuffer* argBuffer,
-    Offset argOffset,
+    uint64_t argOffset,
     IBuffer* countBuffer,
-    Offset countOffset
+    uint64_t countOffset
 )
 {
     SLANG_RHI_API_FUNC;
@@ -99,7 +99,7 @@ void DebugRenderPassEncoder::drawIndexedIndirect(
     baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
 }
 
-void DebugRenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
+void DebugRenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
@@ -160,7 +160,7 @@ void DebugComputePassEncoder::setComputeState(const ComputeState& state)
     baseObject->setComputeState(innerState);
 }
 
-void DebugComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
+void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
@@ -168,7 +168,7 @@ void DebugComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z
     baseObject->dispatchCompute(x, y, z);
 }
 
-void DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+void DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
@@ -230,10 +230,10 @@ void DebugRayTracingPassEncoder::setRayTracingState(const RayTracingState& state
 }
 
 void DebugRayTracingPassEncoder::dispatchRays(
-    GfxIndex rayGenShaderIndex,
-    GfxCount width,
-    GfxCount height,
-    GfxCount depth
+    uint32_t rayGenShaderIndex,
+    uint32_t width,
+    uint32_t height,
+    uint32_t depth
 )
 {
     SLANG_RHI_API_FUNC;
@@ -351,7 +351,7 @@ void DebugCommandEncoder::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     SLANG_RHI_API_FUNC;
@@ -384,10 +384,10 @@ void DebugCommandEncoder::clearTexture(
 
 void DebugCommandEncoder::resolveQuery(
     IQueryPool* queryPool,
-    GfxIndex index,
-    GfxCount count,
+    uint32_t index,
+    uint32_t count,
     IBuffer* buffer,
-    Offset offset
+    uint64_t offset
 )
 {
     SLANG_RHI_API_FUNC;
@@ -418,7 +418,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     BufferWithOffset scratchBuffer,
-    GfxCount propertyQueryCount,
+    uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
@@ -426,7 +426,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
     requireOpen();
     requireNoPass();
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
-    for (size_t i = 0; i < propertyQueryCount; ++i)
+    for (uint32_t i = 0; i < propertyQueryCount; ++i)
     {
         innerQueryDescs.push_back(queryDescs[i]);
     }
@@ -451,9 +451,9 @@ void DebugCommandEncoder::copyAccelerationStructure(
 }
 
 void DebugCommandEncoder::queryAccelerationStructureProperties(
-    GfxCount accelerationStructureCount,
+    uint32_t accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
-    GfxCount queryCount,
+    uint32_t queryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
@@ -461,7 +461,7 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     requireOpen();
     requireNoPass();
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
-    for (size_t i = 0; i < queryCount; ++i)
+    for (uint32_t i = 0; i < queryCount; ++i)
     {
         innerQueryDescs.push_back(queryDescs[i]);
     }
@@ -533,7 +533,7 @@ void DebugCommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
     baseObject->insertDebugMarker(name, rgbColor);
 }
 
-void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, GfxIndex index)
+void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, uint32_t index)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();

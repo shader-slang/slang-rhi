@@ -17,7 +17,7 @@ public:
 
     ~QueryPoolImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 };
 
 /// Implements the IQueryPool interface with a plain buffer.
@@ -34,7 +34,7 @@ public:
     ~PlainBufferProxyQueryPoolImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 };
 
 } // namespace rhi::cuda

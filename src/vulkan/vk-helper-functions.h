@@ -112,8 +112,8 @@ struct BindingOffset : SimpleBindingOffset
     }
 };
 
-Size calcRowSize(Format format, int width);
-GfxCount calcNumRows(Format format, int height);
+Size calcRowSize(Format format, uint32_t width);
+uint32_t calcNumRows(Format format, uint32_t height);
 
 VkAttachmentLoadOp translateLoadOp(LoadOp loadOp);
 VkAttachmentStoreOp translateStoreOp(StoreOp storeOp);

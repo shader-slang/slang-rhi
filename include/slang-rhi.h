@@ -22,21 +22,22 @@
 #define SLANG_RHI_API
 #endif
 
-// clang-format off
-/// Implement logical operators on a class enum for making it usable as a flags enum.
-#define SLANG_RHI_ENUM_CLASS_OPERATORS(e_) \
-    inline e_ operator& (e_ a, e_ b) { return static_cast<e_>(static_cast<int>(a)& static_cast<int>(b)); } \
-    inline e_ operator| (e_ a, e_ b) { return static_cast<e_>(static_cast<int>(a)| static_cast<int>(b)); } \
-    inline e_& operator|= (e_& a, e_ b) { a = a | b; return a; }; \
-    inline e_& operator&= (e_& a, e_ b) { a = a & b; return a; }; \
-    inline e_  operator~ (e_ a) { return static_cast<e_>(~static_cast<int>(a)); } \
-    inline bool is_set(e_ val, e_ flag) { return (val & flag) != static_cast<e_>(0); } \
-    inline void flip_bit(e_& val, e_ flag) { val = is_set(val, flag) ? (val & (~flag)) : (val | flag); }
-// clang-format on
-
 // Needed for building on cygwin with gcc
 #undef Always
 #undef None
+
+// clang-format off
+/// Implement logical operators on a class enum for making it usable as a flags enum.
+#define SLANG_RHI_ENUM_CLASS_OPERATORS(e_) \
+    static_assert(sizeof(e_) <= sizeof(uint32_t)); \
+    inline e_ operator& (e_ a, e_ b) { return static_cast<e_>(static_cast<uint32_t>(a)& static_cast<uint32_t>(b)); } \
+    inline e_ operator| (e_ a, e_ b) { return static_cast<e_>(static_cast<uint32_t>(a)| static_cast<uint32_t>(b)); } \
+    inline e_& operator|= (e_& a, e_ b) { a = a | b; return a; }; \
+    inline e_& operator&= (e_& a, e_ b) { a = a & b; return a; }; \
+    inline e_  operator~ (e_ a) { return static_cast<e_>(~static_cast<uint32_t>(a)); } \
+    inline bool is_set(e_ val, e_ flag) { return (val & flag) != static_cast<e_>(0); } \
+    inline void flip_bit(e_& val, e_ flag) { val = is_set(val, flag) ? (val & (~flag)) : (val | flag); }
+// clang-format on
 
 // GLOBAL TODO: doc comments
 // GLOBAL TODO: Rationalize integer types (not a smush of uint/int/Uint/Int/etc)
@@ -137,7 +138,7 @@ struct ShaderProgramDesc
     // Number of separate entry point components in the `slangEntryPoints` array to link in.
     // If set to 0, then `slangGlobalScope` must contain Slang EntryPoint components.
     // If not 0, then `slangGlobalScope` must not contain any EntryPoint components.
-    GfxCount slangEntryPointCount = 0;
+    uint32_t slangEntryPointCount = 0;
 };
 
 class IShaderProgram : public ISlangUnknown
@@ -283,17 +284,17 @@ struct FormatInfo
 {
     const char* name;
     /// The amount of channels in the format. Only set if the channelType is set.
-    GfxCount channelCount;
+    uint8_t channelCount;
     /// One of SlangScalarType None if type isn't made up of elements of type. TODO: Change to uint32_t?
     uint8_t channelType;
     /// The size of a block in bytes.
-    Size blockSizeInBytes;
+    uint8_t blockSizeInBytes;
     /// The number of pixels contained in a block.
-    GfxCount pixelsPerBlock;
+    uint8_t pixelsPerBlock;
     /// The width of a block in pixels.
-    GfxCount blockWidth;
+    uint8_t blockWidth;
     /// The height of a block in pixels.
-    GfxCount blockHeight;
+    uint8_t blockHeight;
 
     bool isTypeless : 1;
     bool isCompressed : 1;
@@ -445,23 +446,23 @@ struct InputElementDesc
     const char* semanticName;
     /// The index of the corresponding parameter in shader code. Only needed if multiple parameters share a semantic
     /// name.
-    GfxIndex semanticIndex;
+    uint32_t semanticIndex;
     /// The format of the data being fetched for this element.
     Format format;
     /// The offset in bytes of this element from the start of the corresponding chunk of vertex stream data.
-    Offset offset;
+    uint32_t offset;
     /// The index of the vertex stream to fetch this element's data from.
-    GfxIndex bufferSlotIndex;
+    uint32_t bufferSlotIndex;
 };
 
 struct VertexStreamDesc
 {
     /// The stride in bytes for this vertex stream.
-    Size stride;
+    uint32_t stride;
     /// Whether the stream contains per-vertex or per-instance data.
     InputSlotClass slotClass;
     /// How many instances to draw per chunk of data.
-    GfxCount instanceDataStepRate;
+    uint32_t instanceDataStepRate;
 };
 
 struct InputLayoutDesc
@@ -470,9 +471,9 @@ struct InputLayoutDesc
     void* next = nullptr;
 
     const InputElementDesc* inputElements = nullptr;
-    GfxCount inputElementCount = 0;
+    uint32_t inputElementCount = 0;
     const VertexStreamDesc* vertexStreams = nullptr;
-    GfxCount vertexStreamCount = 0;
+    uint32_t vertexStreamCount = 0;
 };
 
 // Declare opaque type
@@ -498,9 +499,9 @@ enum class CpuAccessMode
 struct BufferRange
 {
     /// Offset in bytes.
-    Offset offset = 0;
+    uint64_t offset = 0;
     /// Size in bytes.
-    Size size = 0;
+    uint64_t size = 0;
 
     bool operator==(const BufferRange& other) const { return offset == other.offset && size == other.size; }
     bool operator!=(const BufferRange& other) const { return !(*this == other); }
@@ -531,9 +532,9 @@ struct BufferDesc
     void* next = nullptr;
 
     /// Total size in bytes.
-    Size size = 0;
+    uint64_t size = 0;
     /// Get the element stride. If > 0, this is a structured buffer.
-    Size elementSize = 0;
+    uint32_t elementSize = 0;
     /// Format used for typed views.
     Format format = Format::Unknown;
 
@@ -610,10 +611,10 @@ enum class TextureAspect : uint32_t
 
 struct SubresourceRange
 {
-    GfxIndex mipLevel;
-    GfxCount mipLevelCount;
-    GfxIndex baseArrayLayer; // For Texture3D, this is WSlice.
-    GfxCount layerCount;     // For cube maps, this is a multiple of 6.
+    uint32_t mipLevel;
+    uint32_t mipLevelCount;
+    uint32_t baseArrayLayer; // For Texture3D, this is WSlice.
+    uint32_t layerCount;     // For cube maps, this is a multiple of 6.
     bool operator==(const SubresourceRange& other) const
     {
         return mipLevel == other.mipLevel && mipLevelCount == other.mipLevelCount &&
@@ -672,11 +673,11 @@ struct SubresourceData
 static const GfxCount kRemainingTextureSize = 0xffffffff;
 struct Offset3D
 {
-    GfxIndex x = 0;
-    GfxIndex y = 0;
-    GfxIndex z = 0;
+    int32_t x = 0;
+    int32_t y = 0;
+    int32_t z = 0;
     Offset3D() = default;
-    Offset3D(GfxIndex _x, GfxIndex _y, GfxIndex _z)
+    Offset3D(int32_t _x, int32_t _y, int32_t _z)
         : x(_x)
         , y(_y)
         , z(_z)
@@ -687,11 +688,11 @@ struct Offset3D
 struct Extents
 {
     /// Width in pixels.
-    GfxCount width = 0;
+    int32_t width = 0;
     /// Height in pixels (if 2d or 3d).
-    GfxCount height = 0;
+    int32_t height = 0;
     /// Depth (if 3d).
-    GfxCount depth = 0;
+    int32_t depth = 0;
 };
 struct TextureDesc
 {
@@ -708,15 +709,15 @@ struct TextureDesc
 
     Extents size;
     /// Array length.
-    GfxCount arrayLength = 0;
+    uint32_t arrayLength = 0;
     /// Number of mip levels - if 0 will create all mip levels.
-    GfxCount mipLevelCount = 0;
+    uint32_t mipLevelCount = 0;
     /// The resources format.
     Format format;
     /// Number of samples per pixel.
-    GfxCount sampleCount = 1;
+    uint32_t sampleCount = 1;
     /// The quality measure for the samples.
-    int sampleQuality = 0;
+    uint32_t sampleQuality = 0;
 
     ClearValue* optimalClearValue = nullptr;
 
@@ -954,8 +955,8 @@ struct AccelerationStructureBuildInputInstances : public AccelerationStructureBu
     const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Instances;
 
     BufferWithOffset instanceBuffer;
-    Size instanceStride;
-    GfxCount instanceCount;
+    uint32_t instanceStride;
+    uint32_t instanceCount;
 };
 
 struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBuildInput
@@ -964,14 +965,14 @@ struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBu
 
     /// List of vertex buffers, one for each motion step.
     BufferWithOffset* vertexBuffers = nullptr;
-    GfxCount vertexBufferCount = 0;
+    uint32_t vertexBufferCount = 0;
     Format vertexFormat = Format::Unknown;
-    GfxCount vertexCount = 0;
-    Size vertexStride = 0;
+    uint32_t vertexCount = 0;
+    uint32_t vertexStride = 0;
 
     BufferWithOffset indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
-    GfxCount indexCount = 0;
+    uint32_t indexCount = 0;
 
     /// Optional buffer containing 3x4 transform matrix applied to each vertex.
     BufferWithOffset preTransformBuffer;
@@ -985,16 +986,16 @@ struct AccelerationStructureBuildInputProceduralPrimitives : public Acceleration
 
     /// List of AABB buffers, one for each motion step.
     BufferWithOffset* aabbBuffers = nullptr;
-    GfxCount aabbBufferCount = 0;
-    Size aabbStride = 0;
-    GfxCount primitiveCount = 0;
+    uint32_t aabbBufferCount = 0;
+    uint32_t aabbStride = 0;
+    uint32_t primitiveCount = 0;
 
     AccelerationStructureGeometryFlags flags;
 };
 
 struct AccelerationStructureBuildInputMotionOptions
 {
-    GfxCount keyCount = 1;
+    uint32_t keyCount = 1;
     float timeStart = 0.f;
     float timeEnd = 1.f;
 };
@@ -1020,7 +1021,7 @@ struct AccelerationStructureBuildDesc
 {
     /// List of build inputs. All inputs must be of the same type.
     AccelerationStructureBuildInput* inputs = nullptr;
-    GfxCount inputCount = 0;
+    uint32_t inputCount = 0;
 
     AccelerationStructureBuildInputMotionOptions motionOptions;
 
@@ -1030,9 +1031,9 @@ struct AccelerationStructureBuildDesc
 
 struct AccelerationStructureSizes
 {
-    Size accelerationStructureSize = 0;
-    Size scratchSize = 0;
-    Size updateScratchSize = 0;
+    uint64_t accelerationStructureSize = 0;
+    uint64_t scratchSize = 0;
+    uint64_t updateScratchSize = 0;
 };
 
 struct AccelerationStructureDesc
@@ -1040,7 +1041,7 @@ struct AccelerationStructureDesc
     StructType structType = StructType::AccelerationStructureDesc;
     void* next = nullptr;
 
-    Size size;
+    uint64_t size;
 
     const char* label = nullptr;
 };
@@ -1356,7 +1357,7 @@ struct ColorTargetState
 
 struct MultisampleState
 {
-    GfxCount sampleCount = 1;
+    uint32_t sampleCount = 1;
     uint32_t sampleMask = 0xFFFFFFFF;
     bool alphaToCoverageEnable = false;
     bool alphaToOneEnable = false;
@@ -1371,7 +1372,7 @@ struct RenderPipelineDesc
     IInputLayout* inputLayout = nullptr;
     PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
     ColorTargetState* targets = nullptr;
-    GfxCount targetCount = 0;
+    uint32_t targetCount = 0;
     DepthStencilState depthStencil;
     RasterizerDesc rasterizer;
     MultisampleState multisample;
@@ -1408,11 +1409,11 @@ struct RayTracingPipelineDesc
     void* next = nullptr;
 
     IShaderProgram* program = nullptr;
-    GfxCount hitGroupCount = 0;
+    uint32_t hitGroupCount = 0;
     HitGroupDesc* hitGroups = nullptr;
-    int maxRecursion = 0;
-    Size maxRayPayloadSize = 0;
-    Size maxAttributeSizeInBytes = 8;
+    uint32_t maxRecursion = 0;
+    uint32_t maxRayPayloadSize = 0;
+    uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
 };
 
@@ -1420,9 +1421,9 @@ struct RayTracingPipelineDesc
 struct ShaderRecordOverwrite
 {
     /// Offset within the shader record.
-    Offset offset;
+    uint8_t offset;
     /// Number of bytes to overwrite.
-    Size size;
+    uint8_t size;
     /// Content to overwrite.
     uint8_t data[8];
 };
@@ -1432,19 +1433,19 @@ struct ShaderTableDesc
     StructType structType = StructType::ShaderTableDesc;
     void* next = nullptr;
 
-    GfxCount rayGenShaderCount = 0;
+    uint32_t rayGenShaderCount = 0;
     const char** rayGenShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
 
-    GfxCount missShaderCount = 0;
+    uint32_t missShaderCount = 0;
     const char** missShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
 
-    GfxCount hitGroupCount = 0;
+    uint32_t hitGroupCount = 0;
     const char** hitGroupNames = nullptr;
     const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
 
-    GfxCount callableShaderCount = 0;
+    uint32_t callableShaderCount = 0;
     const char** callableShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
@@ -1525,27 +1526,27 @@ enum class WindowHandleType
 struct WindowHandle
 {
     WindowHandleType type = WindowHandleType::Unknown;
-    intptr_t handleValues[2];
+    uint64_t handleValues[2];
 
     static WindowHandle fromHwnd(void* hwnd)
     {
         WindowHandle handle = {};
         handle.type = WindowHandleType::HWND;
-        handle.handleValues[0] = (intptr_t)(hwnd);
+        handle.handleValues[0] = (uint64_t)(hwnd);
         return handle;
     }
     static WindowHandle fromNSWindow(void* nswindow)
     {
         WindowHandle handle = {};
         handle.type = WindowHandleType::NSWindow;
-        handle.handleValues[0] = (intptr_t)(nswindow);
+        handle.handleValues[0] = (uint64_t)(nswindow);
         return handle;
     }
     static WindowHandle fromXlibWindow(void* xdisplay, uint32_t xwindow)
     {
         WindowHandle handle = {};
         handle.type = WindowHandleType::XlibWindow;
-        handle.handleValues[0] = (intptr_t)(xdisplay);
+        handle.handleValues[0] = (uint64_t)(xdisplay);
         handle.handleValues[1] = xwindow;
         return handle;
     }
@@ -1589,7 +1590,7 @@ struct RenderPassDepthStencilAttachment
 struct RenderPassDesc
 {
     RenderPassColorAttachment* colorAttachments = nullptr;
-    GfxCount colorAttachmentCount = 0;
+    uint32_t colorAttachmentCount = 0;
     RenderPassDepthStencilAttachment* depthStencilAttachment = nullptr;
 };
 
@@ -1607,7 +1608,7 @@ struct QueryPoolDesc
     void* next = nullptr;
 
     QueryType type = QueryType::Timestamp;
-    GfxCount count = 0;
+    uint32_t count = 0;
 
     const char* label = nullptr;
 };
@@ -1617,41 +1618,41 @@ class IQueryPool : public ISlangUnknown
     SLANG_COM_INTERFACE(0xe4b585e4, 0x9da9, 0x479b, {0x89, 0x5c, 0x48, 0x78, 0x8e, 0xf2, 0x33, 0x65});
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
 };
 
 struct DrawArguments
 {
-    GfxCount vertexCount = 0;
-    GfxCount instanceCount = 1;
-    GfxIndex startVertexLocation = 0;
-    GfxIndex startInstanceLocation = 0;
-    GfxIndex startIndexLocation = 0;
+    uint32_t vertexCount = 0;
+    uint32_t instanceCount = 1;
+    uint32_t startVertexLocation = 0;
+    uint32_t startInstanceLocation = 0;
+    uint32_t startIndexLocation = 0;
 };
 
 struct IndirectDrawArguments
 {
-    GfxCount VertexCountPerInstance;
-    GfxCount InstanceCount;
-    GfxIndex StartVertexLocation;
-    GfxIndex StartInstanceLocation;
+    uint32_t vertexCountPerInstance;
+    uint32_t instanceCount;
+    uint32_t startVertexLocation;
+    uint32_t startInstanceLocation;
 };
 
 struct IndirectDrawIndexedArguments
 {
-    GfxCount IndexCountPerInstance;
-    GfxCount InstanceCount;
-    GfxIndex StartIndexLocation;
-    GfxIndex BaseVertexLocation;
-    GfxIndex StartInstanceLocation;
+    uint32_t indexCountPerInstance;
+    uint32_t instanceCount;
+    uint32_t startIndexLocation;
+    int32_t baseVertexLocation;
+    uint32_t startInstanceLocation;
 };
 
 struct IndirectDispatchArguments
 {
-    GfxCount ThreadGroupCountX;
-    GfxCount ThreadGroupCountY;
-    GfxCount ThreadGroupCountZ;
+    uint32_t threadGroupCountX;
+    uint32_t threadGroupCountY;
+    uint32_t threadGroupCountZ;
 };
 
 struct SamplePosition
@@ -1666,11 +1667,11 @@ struct RenderState
     IShaderObject* rootObject = nullptr;
     uint32_t stencilRef = 0;
     Viewport viewports[16];
-    GfxCount viewportCount = 0;
+    uint32_t viewportCount = 0;
     ScissorRect scissorRects[16];
-    GfxCount scissorRectCount = 0;
+    uint32_t scissorRectCount = 0;
     BufferWithOffset vertexBuffers[16];
-    GfxCount vertexBufferCount = 0;
+    uint32_t vertexBufferCount = 0;
     BufferWithOffset indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
 };
@@ -1700,7 +1701,7 @@ struct AccelerationStructureQueryDesc
 
     IQueryPool* queryPool;
 
-    GfxIndex firstQueryIndex;
+    uint32_t firstQueryIndex;
 };
 
 class ICommandBuffer : public ISlangUnknown
@@ -1732,20 +1733,20 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
-        GfxCount maxDrawCount,
+        uint32_t maxDrawCount,
         IBuffer* argBuffer,
-        Offset argOffset,
+        uint64_t argOffset,
         IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
+        uint64_t countOffset = 0
     ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
-        GfxCount maxDrawCount,
+        uint32_t maxDrawCount,
         IBuffer* argBuffer,
-        Offset argOffset,
+        uint64_t argOffset,
         IBuffer* countBuffer = nullptr,
-        Offset countOffset = 0
+        uint64_t countOffset = 0
     ) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(GfxCount x, GfxCount y, GfxCount z) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) = 0;
 };
 
 class IComputePassEncoder : public IPassEncoder
@@ -1754,8 +1755,8 @@ class IComputePassEncoder : public IPassEncoder
 
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(GfxCount x, GfxCount y, GfxCount z) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, Offset offset) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) = 0;
 };
 
 class IRayTracingPassEncoder : public IPassEncoder
@@ -1765,7 +1766,7 @@ class IRayTracingPassEncoder : public IPassEncoder
 public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL
-    dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth) = 0;
+    dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) = 0;
 };
 
 class ICommandEncoder : public ISlangUnknown
@@ -1811,14 +1812,14 @@ public:
         Offset3D offset,
         Extents extent,
         SubresourceData* subresourceData,
-        GfxCount subresourceDataCount
+        uint32_t subresourceDataCount
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range = nullptr) = 0;
 
-    inline void clearBuffer(IBuffer* buffer, Offset offset, Size size)
+    inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size)
     {
         BufferRange range = {offset, size};
         clearBuffer(buffer, &range);
@@ -1833,14 +1834,14 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset) = 0;
+    resolveQuery(IQueryPool* queryPool, uint32_t index, uint32_t count, IBuffer* buffer, uint64_t offset) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
         IAccelerationStructure* dst,
         IAccelerationStructure* src,
         BufferWithOffset scratchBuffer,
-        GfxCount propertyQueryCount,
+        uint32_t propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
@@ -1851,9 +1852,9 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
-        GfxCount accelerationStructureCount,
+        uint32_t accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
-        GfxCount queryCount,
+        uint32_t queryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
@@ -1877,7 +1878,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) = 0;
 
@@ -1924,7 +1925,7 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) = 0;
+    submit(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) = 0;
 
     inline Result submit(ICommandBuffer* commandBuffer, IFence* fenceToSignal = nullptr, uint64_t newFenceValue = 0)
     {
@@ -1937,7 +1938,7 @@ public:
 
     /// Queues a device side wait for the given fences.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) = 0;
+    waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) = 0;
 };
 
 struct SurfaceInfo
@@ -1945,7 +1946,7 @@ struct SurfaceInfo
     Format preferredFormat;
     TextureUsage supportedUsage;
     const Format* formats;
-    GfxCount formatCount;
+    uint32_t formatCount;
 };
 
 struct SurfaceConfig
@@ -1954,9 +1955,9 @@ struct SurfaceConfig
     TextureUsage usage = TextureUsage::RenderTarget;
     // size_t viewFormatCount;
     // const Format* viewFormats;
-    Size width = 0;
-    Size height = 0;
-    Size desiredImageCount = 3;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t desiredImageCount = 3;
     bool vsync = true;
 };
 
@@ -2014,7 +2015,7 @@ public:
         return reinterpret_cast<const AdapterInfo*>(m_blob ? m_blob->getBufferPointer() : nullptr);
     }
 
-    GfxCount getCount() const { return (GfxCount)(m_blob ? m_blob->getBufferSize() / sizeof(AdapterInfo) : 0); }
+    uint32_t getCount() const { return (uint32_t)(m_blob ? m_blob->getBufferSize() / sizeof(AdapterInfo) : 0); }
 
 private:
     ComPtr<ISlangBlob> m_blob;
@@ -2107,13 +2108,13 @@ struct SlangDesc
     SlangMatrixLayoutMode defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;
 
     const char* const* searchPaths = nullptr;
-    GfxCount searchPathCount = 0;
+    uint32_t searchPathCount = 0;
 
     const slang::PreprocessorMacroDesc* preprocessorMacros = nullptr;
-    GfxCount preprocessorMacroCount = 0;
+    uint32_t preprocessorMacroCount = 0;
 
     slang::CompilerOptionEntry* compilerOptionEntries = nullptr;
-    GfxCount compilerOptionEntryCount = 0;
+    uint32_t compilerOptionEntryCount = 0;
 
     /// (optional) Target shader profile. If null this will be set to platform dependent default.
     const char* targetProfile = nullptr;
@@ -2144,7 +2145,7 @@ struct DeviceDesc
     // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
-    GfxCount requiredFeatureCount = 0;
+    uint32_t requiredFeatureCount = 0;
     // Array of required feature names, whose size is `requiredFeatureCount`.
     const char** requiredFeatures = nullptr;
     // A command dispatcher object that intercepts and handles actual low-level API call.
@@ -2181,7 +2182,7 @@ public:
 
     /// Returns a list of features supported by the device.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount) = 0;
+    getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) = 0;
 
@@ -2292,9 +2293,9 @@ public:
     }
 
     inline Result createInputLayout(
-        Size vertexSize,
+        uint32_t vertexSize,
         const InputElementDesc* inputElements,
-        GfxCount inputElementCount,
+        uint32_t inputElementCount,
         IInputLayout** outLayout
     )
     {
@@ -2309,9 +2310,9 @@ public:
     }
 
     inline ComPtr<IInputLayout> createInputLayout(
-        Size vertexSize,
+        uint32_t vertexSize,
         const InputElementDesc* inputElements,
-        GfxCount inputElementCount
+        uint32_t inputElementCount
     )
     {
         ComPtr<IInputLayout> layout;
@@ -2448,7 +2449,7 @@ public:
     /// Wait on the host for the fences to signals.
     /// `timeout` is in nanoseconds, can be set to `kTimeoutInfinite`.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFences(GfxCount fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) = 0;
+    waitForFences(uint32_t fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) = 0;

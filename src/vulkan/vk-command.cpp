@@ -18,7 +18,7 @@
 namespace rhi::vk {
 
 template<typename T>
-inline bool arraysEqual(GfxCount countA, GfxCount countB, const T* a, const T* b)
+inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b)
 {
     return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
 }
@@ -127,14 +127,14 @@ public:
     void commitBarriers();
 
     void queryAccelerationStructureProperties(
-        GfxCount accelerationStructureCount,
+        uint32_t accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
-        GfxCount queryCount,
+        uint32_t queryCount,
         AccelerationStructureQueryDesc* queryDescs
     );
 
     void accelerationStructureBarrier(
-        GfxCount accelerationStructureCount,
+        uint32_t accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
         AccessFlag srcAccess,
         AccessFlag destAccess
@@ -447,7 +447,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     };
     uint32_t layerCount = 1;
 
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
         TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachment.view);
@@ -663,7 +663,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     {
         VkBuffer vertexBuffers[SLANG_COUNT_OF(state.vertexBuffers)];
         VkDeviceSize offsets[SLANG_COUNT_OF(state.vertexBuffers)];
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
 
@@ -672,13 +672,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         }
         if (state.vertexBufferCount > 0)
         {
-            api.vkCmdBindVertexBuffers(
-                m_cmdBuffer,
-                (uint32_t)0,
-                (uint32_t)state.vertexBufferCount,
-                vertexBuffers,
-                offsets
-            );
+            api.vkCmdBindVertexBuffers(m_cmdBuffer, 0, state.vertexBufferCount, vertexBuffers, offsets);
         }
     }
 
@@ -703,7 +697,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateViewports)
     {
         VkViewport viewports[SLANG_COUNT_OF(state.viewports)];
-        for (GfxIndex i = 0; i < state.viewportCount; ++i)
+        for (uint32_t i = 0; i < state.viewportCount; ++i)
         {
             const Viewport& src = state.viewports[i];
             VkViewport& dst = viewports[i];
@@ -714,22 +708,22 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.minDepth = src.minZ;
             dst.maxDepth = src.maxZ;
         }
-        api.vkCmdSetViewport(m_cmdBuffer, 0, uint32_t(state.viewportCount), viewports);
+        api.vkCmdSetViewport(m_cmdBuffer, 0, state.viewportCount, viewports);
     }
 
     if (updateScissorRects)
     {
         VkRect2D scissorRects[SLANG_COUNT_OF(state.scissorRects)];
-        for (GfxIndex i = 0; i < state.scissorRectCount; ++i)
+        for (uint32_t i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
             VkRect2D& dst = scissorRects[i];
-            dst.offset.x = int32_t(src.minX);
-            dst.offset.y = int32_t(src.minY);
+            dst.offset.x = src.minX;
+            dst.offset.y = src.minY;
             dst.extent.width = uint32_t(src.maxX - src.minX);
             dst.extent.height = uint32_t(src.maxY - src.minY);
         }
-        api.vkCmdSetScissor(m_cmdBuffer, 0, uint32_t(state.scissorRectCount), scissorRects);
+        api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
     }
 
     m_renderStateValid = true;
@@ -998,9 +992,9 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
         &m_missSBT,
         &m_hitSBT,
         &m_callableSBT,
-        (uint32_t)cmd.width,
-        (uint32_t)cmd.height,
-        (uint32_t)cmd.depth
+        cmd.width,
+        cmd.height,
+        cmd.depth
     );
 }
 
@@ -1020,7 +1014,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
     rangeInfos.resize(geomInfoBuilder.primitiveCounts.size());
-    for (Index i = 0; i < geomInfoBuilder.primitiveCounts.size(); i++)
+    for (size_t i = 0; i < geomInfoBuilder.primitiveCounts.size(); i++)
     {
         auto& rangeInfo = rangeInfos[i];
         rangeInfo.primitiveCount = geomInfoBuilder.primitiveCounts[i];
@@ -1457,19 +1451,19 @@ void CommandRecorder::commitBarriers()
 }
 
 void CommandRecorder::queryAccelerationStructureProperties(
-    GfxCount accelerationStructureCount,
+    uint32_t accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
-    GfxCount queryCount,
+    uint32_t queryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
     short_vector<VkAccelerationStructureKHR> vkHandles;
     vkHandles.resize(accelerationStructureCount);
-    for (GfxIndex i = 0; i < accelerationStructureCount; i++)
+    for (uint32_t i = 0; i < accelerationStructureCount; i++)
     {
         vkHandles[i] = checked_cast<AccelerationStructureImpl*>(accelerationStructures[i])->m_vkHandle;
     }
-    for (GfxIndex i = 0; i < queryCount; i++)
+    for (uint32_t i = 0; i < queryCount; i++)
     {
         VkQueryType queryType;
         switch (queryDescs[i].queryType)
@@ -1504,7 +1498,7 @@ void CommandRecorder::queryAccelerationStructureProperties(
 }
 
 void CommandRecorder::accelerationStructureBarrier(
-    GfxCount accelerationStructureCount,
+    uint32_t accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     AccessFlag srcAccess,
     AccessFlag destAccess
@@ -1512,7 +1506,7 @@ void CommandRecorder::accelerationStructureBarrier(
 {
     short_vector<VkBufferMemoryBarrier> memBarriers;
     memBarriers.resize(accelerationStructureCount);
-    for (int i = 0; i < accelerationStructureCount; i++)
+    for (uint32_t i = 0; i < accelerationStructureCount; i++)
     {
         memBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         memBarriers[i].pNext = nullptr;
@@ -1662,9 +1656,9 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
 {
-    for (GfxIndex i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         FenceWaitInfo waitInfo;
         waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
@@ -1760,7 +1754,7 @@ void CommandQueueImpl::queueSubmitImpl(
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -1802,7 +1796,7 @@ void CommandEncoderImpl::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer

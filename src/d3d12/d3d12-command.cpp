@@ -18,7 +18,7 @@
 namespace rhi::d3d12 {
 
 template<typename T>
-inline bool arraysEqual(GfxCount countA, GfxCount countB, const T* a, const T* b)
+inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b)
 {
     return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
 }
@@ -244,11 +244,11 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
     DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(dst->m_desc.format);
     uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
-    for (GfxIndex planeIndex = 0; planeIndex < planeCount; planeIndex++)
+    for (uint32_t planeIndex = 0; planeIndex < planeCount; planeIndex++)
     {
-        for (GfxIndex layer = 0; layer < dstSubresource.layerCount; layer++)
+        for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
-            for (GfxIndex mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+            for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
             {
                 D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
 
@@ -305,21 +305,21 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
 
-    auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
+    uint32_t baseSubresourceIndex = D3DUtil::getSubresourceIndex(
         srcSubresource.mipLevel,
         srcSubresource.baseArrayLayer,
         0,
         src->m_desc.mipLevelCount,
         src->m_desc.arrayLength
     );
-    auto textureSize = src->m_desc.size;
+    Extents textureSize = src->m_desc.size;
     const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.arrayLength;
 
-    for (GfxCount layer = 0; layer < srcSubresource.layerCount; layer++)
+    for (uint32_t layer = 0; layer < srcSubresource.layerCount; layer++)
     {
         // Get the footprint
         D3D12_RESOURCE_DESC texDesc = src->m_resource.getResource()->GetDesc();
@@ -414,7 +414,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     );
     auto textureSize = dstTexture->m_desc.size;
     const FormatInfo& formatInfo = getFormatInfo(dstTexture->m_desc.format);
-    for (GfxCount i = 0; i < subresourceDataCount; i++)
+    for (uint32_t i = 0; i < subresourceDataCount; i++)
     {
         auto subresourceIndex = baseSubresourceIndex + i;
         // Get the footprint
@@ -532,7 +532,7 @@ void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
 
         m_cmdList->CopyBufferRegion(
             buffer->m_resource.getResource(),
-            (uint64_t)cmd.offset,
+            cmd.offset,
             srcQueryBuffer,
             cmd.index * sizeof(uint64_t),
             cmd.count * sizeof(uint64_t)
@@ -568,7 +568,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     m_renderTargetViews.resize(desc.colorAttachmentCount);
     m_resolveTargetViews.resize(desc.colorAttachmentCount);
     short_vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetDescriptors;
-    for (Index i = 0; i < desc.colorAttachmentCount; i++)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
     {
         m_renderTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
         m_resolveTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].resolveTarget);
@@ -753,7 +753,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updateVertexBuffers)
     {
         D3D12_VERTEX_BUFFER_VIEW vertexViews[SLANG_COUNT_OF(state.vertexBuffers)];
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
             Offset offset = state.vertexBuffers[i].offset;
@@ -764,7 +764,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             vertexView.SizeInBytes = UINT(buffer->m_desc.size - offset);
             vertexView.StrideInBytes = m_renderPipeline->m_inputLayout->m_vertexStreamStrides[i];
         }
-        m_cmdList->IASetVertexBuffers(0, (UINT)state.vertexBufferCount, vertexViews);
+        m_cmdList->IASetVertexBuffers(0, state.vertexBufferCount, vertexViews);
     }
 
     if (updateIndexBuffer)
@@ -789,10 +789,10 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateViewports)
     {
-        static const int kMaxViewports = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+        static const uint32_t kMaxViewports = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
         SLANG_RHI_ASSERT(state.viewportCount <= kMaxViewports);
         D3D12_VIEWPORT viewports[SLANG_COUNT_OF(state.viewports)];
-        for (GfxIndex i = 0; i < state.viewportCount; ++i)
+        for (uint32_t i = 0; i < state.viewportCount; ++i)
         {
             const Viewport& src = state.viewports[i];
             D3D12_VIEWPORT& dst = viewports[i];
@@ -803,15 +803,15 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.MinDepth = src.minZ;
             dst.MaxDepth = src.maxZ;
         }
-        m_cmdList->RSSetViewports((UINT)state.viewportCount, viewports);
+        m_cmdList->RSSetViewports(state.viewportCount, viewports);
     }
 
     if (updateScissorRects)
     {
-        static const int kMaxScissorRects = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+        static const uint32_t kMaxScissorRects = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
         SLANG_RHI_ASSERT(state.scissorRectCount <= kMaxScissorRects);
         D3D12_RECT scissorRects[SLANG_COUNT_OF(state.scissorRects)];
-        for (GfxIndex i = 0; i < state.scissorRectCount; ++i)
+        for (uint32_t i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
             D3D12_RECT& dst = scissorRects[i];
@@ -820,7 +820,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.right = LONG(src.maxX);
             dst.bottom = LONG(src.maxY);
         }
-        m_cmdList->RSSetScissorRects((UINT)state.scissorRectCount, scissorRects);
+        m_cmdList->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }
 
     m_renderStateValid = true;
@@ -841,10 +841,10 @@ void CommandRecorder::cmdDraw(const commands::Draw& cmd)
         return;
 
     m_cmdList->DrawInstanced(
-        (UINT)cmd.args.vertexCount,
-        (UINT)cmd.args.instanceCount,
-        (UINT)cmd.args.startIndexLocation,
-        (UINT)cmd.args.startInstanceLocation
+        cmd.args.vertexCount,
+        cmd.args.instanceCount,
+        cmd.args.startIndexLocation,
+        cmd.args.startInstanceLocation
     );
 }
 
@@ -854,11 +854,11 @@ void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
         return;
 
     m_cmdList->DrawIndexedInstanced(
-        (UINT)cmd.args.vertexCount,
-        (UINT)cmd.args.instanceCount,
-        (UINT)cmd.args.startIndexLocation,
-        (UINT)cmd.args.startVertexLocation,
-        (UINT)cmd.args.startInstanceLocation
+        cmd.args.vertexCount,
+        cmd.args.instanceCount,
+        cmd.args.startIndexLocation,
+        cmd.args.startVertexLocation,
+        cmd.args.startInstanceLocation
     );
 }
 
@@ -878,11 +878,11 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 
     m_cmdList->ExecuteIndirect(
         m_device->drawIndirectCmdSignature,
-        (UINT)cmd.maxDrawCount,
+        cmd.maxDrawCount,
         argBuffer->m_resource,
-        (UINT64)cmd.argOffset,
+        cmd.argOffset,
         countBuffer ? countBuffer->m_resource.getResource() : nullptr,
-        (UINT64)cmd.countOffset
+        cmd.countOffset
     );
 }
 
@@ -902,11 +902,11 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 
     m_cmdList->ExecuteIndirect(
         m_device->drawIndexedIndirectCmdSignature,
-        (UINT)cmd.maxDrawCount,
+        cmd.maxDrawCount,
         argBuffer->m_resource,
-        (UINT64)cmd.argOffset,
+        cmd.argOffset,
         countBuffer ? countBuffer->m_resource.getResource() : nullptr,
-        (UINT64)cmd.countOffset
+        cmd.countOffset
     );
 }
 
@@ -1078,9 +1078,9 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 
     m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress =
         m_rayGenTableAddr + cmd.rayGenShaderIndex * kRayGenRecordSize;
-    m_dispatchRaysDesc.Width = (UINT)cmd.width;
-    m_dispatchRaysDesc.Height = (UINT)cmd.height;
-    m_dispatchRaysDesc.Depth = (UINT)cmd.depth;
+    m_dispatchRaysDesc.Width = cmd.width;
+    m_dispatchRaysDesc.Height = cmd.height;
+    m_dispatchRaysDesc.Depth = cmd.depth;
     m_cmdList4->DispatchRays(&m_dispatchRaysDesc);
 }
 
@@ -1099,8 +1099,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
     translatePostBuildInfoDescs(cmd.propertyQueryCount, cmd.queryDescs, postBuildInfoDescs);
-    m_cmdList4
-        ->BuildRaytracingAccelerationStructure(&buildDesc, (UINT)cmd.propertyQueryCount, postBuildInfoDescs.data());
+    m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
@@ -1127,12 +1126,12 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
     std::vector<DeviceAddress> asAddresses;
     asAddresses.resize(cmd.accelerationStructureCount);
-    for (GfxIndex i = 0; i < cmd.accelerationStructureCount; i++)
+    for (uint32_t i = 0; i < cmd.accelerationStructureCount; i++)
         asAddresses[i] = cmd.accelerationStructures[i]->getDeviceAddress();
     translatePostBuildInfoDescs(cmd.queryCount, cmd.queryDescs, postBuildInfoDescs);
     m_cmdList4->EmitRaytracingAccelerationStructurePostbuildInfo(
         postBuildInfoDescs.data(),
-        (UINT)cmd.accelerationStructureCount,
+        cmd.accelerationStructureCount,
         asAddresses.data()
     );
 }
@@ -1527,7 +1526,7 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -1537,7 +1536,7 @@ Result CommandQueueImpl::submit(
     ++m_lastSubmittedID;
 
     short_vector<ID3D12CommandList*> commandLists;
-    for (GfxCount i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         auto commandBuffer = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
@@ -1546,7 +1545,7 @@ Result CommandQueueImpl::submit(
     }
     if (count > 0)
     {
-        m_d3dQueue->ExecuteCommandLists((UINT)count, commandLists.data());
+        m_d3dQueue->ExecuteCommandLists(count, commandLists.data());
     }
 
     if (fence)
@@ -1574,9 +1573,9 @@ Result CommandQueueImpl::waitOnHost()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
 {
-    for (GfxCount i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         m_d3dQueue->Wait(fenceImpl->m_fence.get(), waitValues[i]);
@@ -1623,7 +1622,7 @@ void CommandEncoderImpl::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer

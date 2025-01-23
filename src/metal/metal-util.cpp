@@ -739,7 +739,7 @@ Result AccelerationStructureDescBuilder::build(
     }
 
     AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
-    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
     {
         if ((AccelerationStructureBuildInputType&)buildDesc.inputs[i] != type)
         {
@@ -783,7 +783,7 @@ Result AccelerationStructureDescBuilder::build(
 
         primitiveDescriptor->setUsage(translateBuildFlags(buildDesc.flags));
 
-        for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles =
                 (const AccelerationStructureBuildInputTriangles&)buildDesc.inputs[i];
@@ -814,7 +814,7 @@ Result AccelerationStructureDescBuilder::build(
                 );
             }
 
-            GfxCount triangleCount = max(triangles.vertexCount, triangles.indexCount) / 3;
+            uint32_t triangleCount = max(triangles.vertexCount, triangles.indexCount) / 3;
             triangleDescriptor->setTriangleCount(triangleCount);
 
             if (triangles.preTransformBuffer)
@@ -841,7 +841,7 @@ Result AccelerationStructureDescBuilder::build(
 
         primitiveDescriptor->setUsage(translateBuildFlags(buildDesc.flags));
 
-        for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
                 (const AccelerationStructureBuildInputProceduralPrimitives&)buildDesc.inputs[i];

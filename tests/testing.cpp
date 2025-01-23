@@ -417,10 +417,10 @@ ComPtr<IDevice> createTestingDevice(
 
 #ifdef _DEBUG
     const char* features[128];
-    GfxCount featureCount;
+    uint32_t featureCount;
     REQUIRE_CALL(device->getFeatures(features, SLANG_COUNT_OF(features), &featureCount));
     std::string featureStr;
-    for (GfxIndex i = 0; i < featureCount; i++)
+    for (uint32_t i = 0; i < featureCount; i++)
     {
         featureStr += features[i];
         if (i < featureCount - 1)

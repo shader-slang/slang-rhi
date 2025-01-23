@@ -12,30 +12,29 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
     hlslCursor += sprintf(hlslCursor, "float4 main(\n");
 
-    auto inputElementCount = desc.inputElementCount;
-    auto inputElementsIn = desc.inputElements;
-    for (Int ii = 0; ii < inputElementCount; ++ii)
+    for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
-        auto vertexStreamIndex = inputElementsIn[ii].bufferSlotIndex;
-        auto& vertexStream = desc.vertexStreams[vertexStreamIndex];
+        const InputElementDesc& inputElement = desc.inputElements[i];
+        uint32_t vertexStreamIndex = inputElement.bufferSlotIndex;
+        const VertexStreamDesc& vertexStream = desc.vertexStreams[vertexStreamIndex];
 
-        inputElements[ii].SemanticName = inputElementsIn[ii].semanticName;
-        inputElements[ii].SemanticIndex = (UINT)inputElementsIn[ii].semanticIndex;
-        inputElements[ii].Format = D3DUtil::getMapFormat(inputElementsIn[ii].format);
-        inputElements[ii].InputSlot = (UINT)vertexStreamIndex;
-        inputElements[ii].AlignedByteOffset = (UINT)inputElementsIn[ii].offset;
-        inputElements[ii].InputSlotClass = (vertexStream.slotClass == InputSlotClass::PerInstance)
-                                               ? D3D11_INPUT_PER_INSTANCE_DATA
-                                               : D3D11_INPUT_PER_VERTEX_DATA;
-        inputElements[ii].InstanceDataStepRate = (UINT)vertexStream.instanceDataStepRate;
+        inputElements[i].SemanticName = inputElement.semanticName;
+        inputElements[i].SemanticIndex = (UINT)inputElement.semanticIndex;
+        inputElements[i].Format = D3DUtil::getMapFormat(inputElement.format);
+        inputElements[i].InputSlot = (UINT)vertexStreamIndex;
+        inputElements[i].AlignedByteOffset = (UINT)inputElement.offset;
+        inputElements[i].InputSlotClass = (vertexStream.slotClass == InputSlotClass::PerInstance)
+                                              ? D3D11_INPUT_PER_INSTANCE_DATA
+                                              : D3D11_INPUT_PER_VERTEX_DATA;
+        inputElements[i].InstanceDataStepRate = (UINT)vertexStream.instanceDataStepRate;
 
-        if (ii != 0)
+        if (i != 0)
         {
             hlslCursor += sprintf(hlslCursor, ",\n");
         }
 
         const char* typeName = "Unknown";
-        switch (inputElementsIn[ii].format)
+        switch (inputElement.format)
         {
         case Format::R32G32B32A32_FLOAT:
         case Format::R8G8B8A8_UNORM:
@@ -58,9 +57,9 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
             hlslCursor,
             "%s a%d : %s%d",
             typeName,
-            (int)ii,
-            inputElementsIn[ii].semanticName,
-            (int)inputElementsIn[ii].semanticIndex
+            (int)i,
+            inputElement.semanticName,
+            (int)inputElement.semanticIndex
         );
     }
 
@@ -72,23 +71,22 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     ComPtr<ID3D11InputLayout> inputLayout;
     SLANG_RETURN_ON_FAIL(m_device->CreateInputLayout(
         &inputElements[0],
-        (UINT)inputElementCount,
+        (UINT)desc.inputElementCount,
         vertexShaderBlob->GetBufferPointer(),
         vertexShaderBlob->GetBufferSize(),
         inputLayout.writeRef()
     ));
 
-    RefPtr<InputLayoutImpl> impl = new InputLayoutImpl;
-    impl->m_layout.swap(inputLayout);
+    RefPtr<InputLayoutImpl> layout = new InputLayoutImpl();
+    layout->m_layout.swap(inputLayout);
 
-    auto vertexStreamCount = desc.vertexStreamCount;
-    impl->m_vertexStreamStrides.resize(vertexStreamCount);
-    for (Int i = 0; i < vertexStreamCount; ++i)
+    layout->m_vertexStreamStrides.resize(desc.vertexStreamCount);
+    for (uint32_t i = 0; i < desc.vertexStreamCount; ++i)
     {
-        impl->m_vertexStreamStrides[i] = (UINT)desc.vertexStreams[i].stride;
+        layout->m_vertexStreamStrides[i] = (UINT)desc.vertexStreams[i].stride;
     }
 
-    returnComPtr(outLayout, impl);
+    returnComPtr(outLayout, layout);
     return SLANG_OK;
 }
 

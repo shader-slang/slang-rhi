@@ -1118,14 +1118,14 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
-    int arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+    uint32_t arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
 
     std::vector<Extents> mipSizes;
 
     // Calculate how large the buffer has to be
     Size bufferSize = 0;
     // Calculate how large an array entry is
-    for (int j = 0; j < desc.mipLevelCount; ++j)
+    for (uint32_t j = 0; j < desc.mipLevelCount; ++j)
     {
         const Extents mipSize = calcMipSize(desc.size, j);
 
@@ -1182,9 +1182,9 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
     Offset dstOffset = 0;
-    for (int i = 0; i < arrayLayerCount; ++i)
+    for (uint32_t i = 0; i < arrayLayerCount; ++i)
     {
-        for (Index j = 0; j < mipSizes.size(); ++j)
+        for (size_t j = 0; j < mipSizes.size(); ++j)
         {
             const auto& mipSize = mipSizes[j];
 
@@ -1341,9 +1341,9 @@ Result DeviceImpl::getAccelerationStructureSizes(
         geomInfoBuilder.primitiveCounts.data(),
         &sizeInfo
     );
-    outSizes->accelerationStructureSize = (Size)sizeInfo.accelerationStructureSize;
-    outSizes->scratchSize = (Size)sizeInfo.buildScratchSize;
-    outSizes->updateScratchSize = (Size)sizeInfo.updateScratchSize;
+    outSizes->accelerationStructureSize = sizeInfo.accelerationStructureSize;
+    outSizes->scratchSize = sizeInfo.buildScratchSize;
+    outSizes->updateScratchSize = sizeInfo.updateScratchSize;
     return SLANG_OK;
 }
 
@@ -1573,41 +1573,32 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     std::vector<VkVertexInputAttributeDescription>& dstAttributes = layout->m_attributeDescs;
     std::vector<VkVertexInputBindingDescription>& dstStreams = layout->m_streamDescs;
 
-    auto elements = desc.inputElements;
-    Int numElements = desc.inputElementCount;
+    dstAttributes.resize(desc.inputElementCount);
+    dstStreams.resize(desc.vertexStreamCount);
 
-    auto srcVertexStreams = desc.vertexStreams;
-    Int vertexStreamCount = desc.vertexStreamCount;
-
-    dstAttributes.resize(numElements);
-    dstStreams.resize(vertexStreamCount);
-
-    for (Int i = 0; i < vertexStreamCount; i++)
+    for (uint32_t i = 0; i < desc.vertexStreamCount; i++)
     {
-        auto& dstStream = dstStreams[i];
-        auto& srcStream = srcVertexStreams[i];
-        dstStream.stride = (uint32_t)srcStream.stride;
-        dstStream.binding = (uint32_t)i;
+        const VertexStreamDesc& srcStream = desc.vertexStreams[i];
+        VkVertexInputBindingDescription& dstStream = dstStreams[i];
+        dstStream.stride = srcStream.stride;
+        dstStream.binding = i;
         dstStream.inputRate = (srcStream.slotClass == InputSlotClass::PerInstance) ? VK_VERTEX_INPUT_RATE_INSTANCE
                                                                                    : VK_VERTEX_INPUT_RATE_VERTEX;
     }
 
-    for (Int i = 0; i < numElements; ++i)
+    for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
-        const InputElementDesc& srcDesc = elements[i];
-        auto streamIndex = srcDesc.bufferSlotIndex;
-
+        const InputElementDesc& srcDesc = desc.inputElements[i];
         VkVertexInputAttributeDescription& dstDesc = dstAttributes[i];
 
-        dstDesc.location = uint32_t(i);
-        dstDesc.binding = (uint32_t)streamIndex;
+        dstDesc.location = i;
+        dstDesc.binding = srcDesc.bufferSlotIndex;
         dstDesc.format = VulkanUtil::getVkFormat(srcDesc.format);
         if (dstDesc.format == VK_FORMAT_UNDEFINED)
         {
             return SLANG_FAIL;
         }
-
-        dstDesc.offset = uint32_t(srcDesc.offset);
+        dstDesc.offset = srcDesc.offset;
     }
 
     // Work out the overall size
@@ -1680,7 +1671,7 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
 }
 
 Result DeviceImpl::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* fenceValues,
     bool waitForAll,
@@ -1688,7 +1679,7 @@ Result DeviceImpl::waitForFences(
 )
 {
     short_vector<VkSemaphore> semaphores;
-    for (Index i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         semaphores.push_back(fenceImpl->m_semaphore);

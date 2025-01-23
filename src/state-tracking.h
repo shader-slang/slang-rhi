@@ -29,8 +29,8 @@ struct TextureBarrier
 {
     Texture* texture;
     bool entireTexture;
-    GfxIndex mipLevel;
-    GfxIndex arrayLayer;
+    uint32_t mipLevel;
+    uint32_t arrayLayer;
     ResourceState stateBefore;
     ResourceState stateAfter;
 };
@@ -78,7 +78,7 @@ public:
         else
         {
             // Transition subresources.
-            GfxCount arrayLayerCount =
+            uint32_t arrayLayerCount =
                 texture->m_desc.arrayLength * (texture->m_desc.type == TextureType::TextureCube ? 6 : 1);
 
             if (textureState->subresourceStates.empty())
@@ -89,13 +89,13 @@ public:
                 );
                 textureState->state = ResourceState::Undefined;
             }
-            for (GfxIndex arrayLayer = subresourceRange.baseArrayLayer; arrayLayer < arrayLayerCount; arrayLayer++)
+            for (uint32_t arrayLayer = subresourceRange.baseArrayLayer; arrayLayer < arrayLayerCount; arrayLayer++)
             {
-                for (GfxIndex mipLevel = subresourceRange.mipLevel;
+                for (uint32_t mipLevel = subresourceRange.mipLevel;
                      mipLevel < subresourceRange.mipLevel + subresourceRange.mipLevelCount;
                      mipLevel++)
                 {
-                    GfxIndex subresourceIndex = arrayLayer * texture->m_desc.mipLevelCount + mipLevel;
+                    uint32_t subresourceIndex = arrayLayer * texture->m_desc.mipLevelCount + mipLevel;
                     if (state != textureState->subresourceStates[subresourceIndex] ||
                         state == ResourceState::UnorderedAccess)
                     {

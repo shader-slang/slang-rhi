@@ -41,12 +41,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(GfxCount count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
+    submit(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues) override;
+    waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
@@ -71,7 +71,7 @@ public:
         Offset3D offset,
         Extents extent,
         SubresourceData* subresourceData,
-        GfxCount subresourceDataCount
+        uint32_t subresourceDataCount
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL

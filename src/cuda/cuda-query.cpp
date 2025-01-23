@@ -8,7 +8,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc)
     SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_startEvent, 0));
     SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(m_startEvent, 0));
     m_events.resize(desc.count);
-    for (SlangInt i = 0; i < m_events.size(); i++)
+    for (size_t i = 0; i < m_events.size(); i++)
     {
         SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_events[i], 0));
     }
@@ -24,9 +24,9 @@ QueryPoolImpl::~QueryPoolImpl()
     SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(m_startEvent));
 }
 
-Result QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
-    for (GfxIndex i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         float time = 0.0f;
         SLANG_CUDA_RETURN_ON_FAIL(cuEventSynchronize(m_events[i + queryIndex]));
@@ -57,7 +57,7 @@ Result PlainBufferProxyQueryPoolImpl::reset()
     return SLANG_OK;
 }
 
-Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
+Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
     SLANG_CUDA_RETURN_ON_FAIL(cuCtxSynchronize());
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpyDtoH(data, m_buffer + queryIndex * sizeof(uint64_t), count * sizeof(uint64_t)));

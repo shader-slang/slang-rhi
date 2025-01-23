@@ -86,7 +86,7 @@ void CommandList::write(commands::BeginRenderPass&& cmd)
     {
         cmd.desc.colorAttachments = (RenderPassColorAttachment*)
             writeData(cmd.desc.colorAttachments, cmd.desc.colorAttachmentCount * sizeof(RenderPassColorAttachment));
-        for (Index i = 0; i < cmd.desc.colorAttachmentCount; ++i)
+        for (uint32_t i = 0; i < cmd.desc.colorAttachmentCount; ++i)
         {
             retainResource(cmd.desc.colorAttachments[i].view);
             retainResource(cmd.desc.colorAttachments[i].resolveTarget);
@@ -208,7 +208,7 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
             AccelerationStructureBuildInputInstances* inputs = (AccelerationStructureBuildInputInstances*)
                 writeData(cmd.desc.inputs, cmd.desc.inputCount * sizeof(AccelerationStructureBuildInputInstances));
             cmd.desc.inputs = inputs;
-            for (Index i = 0; i < cmd.desc.inputCount; ++i)
+            for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
             {
                 retainResource(inputs[i].instanceBuffer.buffer);
             }
@@ -219,9 +219,9 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
             AccelerationStructureBuildInputTriangles* inputs = (AccelerationStructureBuildInputTriangles*)
                 writeData(cmd.desc.inputs, cmd.desc.inputCount * sizeof(AccelerationStructureBuildInputTriangles));
             cmd.desc.inputs = inputs;
-            for (Index i = 0; i < cmd.desc.inputCount; ++i)
+            for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
             {
-                for (Index j = 0; j < inputs[i].vertexBufferCount; ++j)
+                for (uint32_t j = 0; j < inputs[i].vertexBufferCount; ++j)
                     retainResource(inputs[i].vertexBuffers[j].buffer);
                 retainResource(inputs[i].indexBuffer.buffer);
                 retainResource(inputs[i].preTransformBuffer.buffer);
@@ -236,9 +236,9 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
                     cmd.desc.inputCount * sizeof(AccelerationStructureBuildInputProceduralPrimitives)
                 );
             cmd.desc.inputs = inputs;
-            for (Index i = 0; i < cmd.desc.inputCount; ++i)
+            for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
             {
-                for (Index j = 0; j < inputs[i].aabbBufferCount; ++j)
+                for (uint32_t j = 0; j < inputs[i].aabbBufferCount; ++j)
                     retainResource(inputs[i].aabbBuffers[j].buffer);
             }
             break;
@@ -252,7 +252,7 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
     {
         cmd.queryDescs = (AccelerationStructureQueryDesc*)
             writeData(cmd.queryDescs, cmd.propertyQueryCount * sizeof(AccelerationStructureQueryDesc));
-        for (Index i = 0; i < cmd.propertyQueryCount; ++i)
+        for (uint32_t i = 0; i < cmd.propertyQueryCount; ++i)
             retainResource(cmd.queryDescs[i].queryPool);
     }
     writeCommand(std::move(cmd));
@@ -271,14 +271,14 @@ void CommandList::write(commands::QueryAccelerationStructureProperties&& cmd)
     {
         cmd.accelerationStructures = (IAccelerationStructure**)
             writeData(cmd.accelerationStructures, cmd.accelerationStructureCount * sizeof(IAccelerationStructure*));
-        for (Index i = 0; i < cmd.accelerationStructureCount; ++i)
+        for (uint32_t i = 0; i < cmd.accelerationStructureCount; ++i)
             retainResource(cmd.accelerationStructures[i]);
     }
     if (cmd.queryDescs && cmd.queryCount > 0)
     {
         cmd.queryDescs = (AccelerationStructureQueryDesc*)
             writeData(cmd.queryDescs, cmd.queryCount * sizeof(AccelerationStructureQueryDesc));
-        for (Index i = 0; i < cmd.queryCount; ++i)
+        for (uint32_t i = 0; i < cmd.queryCount; ++i)
             retainResource(cmd.queryDescs[i].queryPool);
     }
     writeCommand(std::move(cmd));

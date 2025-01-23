@@ -30,7 +30,7 @@ Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return baseObject->getNativeDeviceHandles(outHandles);
 }
 
-Result DebugDevice::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
+Result DebugDevice::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
 {
     SLANG_RHI_API_FUNC;
 
@@ -356,7 +356,7 @@ Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 }
 
 Result DebugDevice::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* values,
     bool waitForAll,
@@ -365,7 +365,7 @@ Result DebugDevice::waitForFences(
 {
     SLANG_RHI_API_FUNC;
     short_vector<IFence*> innerFences;
-    for (GfxCount i = 0; i < fenceCount; i++)
+    for (uint32_t i = 0; i < fenceCount; i++)
     {
         innerFences.push_back(getInnerObj(fences[i]));
     }

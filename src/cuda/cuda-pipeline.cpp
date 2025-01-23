@@ -145,7 +145,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     }
 
     // Create program groups for hit groups
-    for (Index hitGroupIndex = 0; hitGroupIndex < desc.hitGroupCount; ++hitGroupIndex)
+    for (uint32_t hitGroupIndex = 0; hitGroupIndex < desc.hitGroupCount; ++hitGroupIndex)
     {
         const HitGroupDesc& hitGroupDesc = desc.hitGroups[hitGroupIndex];
 

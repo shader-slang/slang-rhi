@@ -81,7 +81,7 @@ SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
     SubresourceRange resolved = range;
     resolved.mipLevel = min(resolved.mipLevel, m_desc.mipLevelCount);
     resolved.mipLevelCount = min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
-    GfxCount arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
+    uint32_t arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
     resolved.baseArrayLayer = min(resolved.baseArrayLayer, arrayLayerCount);
     resolved.layerCount = min(resolved.layerCount, arrayLayerCount - resolved.baseArrayLayer);
     return resolved;
@@ -93,7 +93,7 @@ bool Texture::isEntireTexture(const SubresourceRange& range)
     {
         return false;
     }
-    GfxCount arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
+    uint32_t arrayLayerCount = m_desc.arrayLength * (m_desc.type == TextureType::TextureCube ? 6 : 1);
     if (range.baseArrayLayer > 0 || range.layerCount < arrayLayerCount)
     {
         return false;
@@ -281,11 +281,11 @@ void RenderPassEncoder::drawIndexed(const DrawArguments& args)
 }
 
 void RenderPassEncoder::drawIndirect(
-    GfxCount maxDrawCount,
+    uint32_t maxDrawCount,
     IBuffer* argBuffer,
-    Offset argOffset,
+    uint64_t argOffset,
     IBuffer* countBuffer,
-    Offset countOffset
+    uint64_t countOffset
 )
 {
     if (m_commandList)
@@ -301,11 +301,11 @@ void RenderPassEncoder::drawIndirect(
 }
 
 void RenderPassEncoder::drawIndexedIndirect(
-    GfxCount maxDrawCount,
+    uint32_t maxDrawCount,
     IBuffer* argBuffer,
-    Offset argOffset,
+    uint64_t argOffset,
     IBuffer* countBuffer,
-    Offset countOffset
+    uint64_t countOffset
 )
 {
     if (m_commandList)
@@ -320,7 +320,7 @@ void RenderPassEncoder::drawIndexedIndirect(
     }
 }
 
-void RenderPassEncoder::drawMeshTasks(GfxCount x, GfxCount y, GfxCount z)
+void RenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {
@@ -394,7 +394,7 @@ void ComputePassEncoder::setComputeState(const ComputeState& state)
     }
 }
 
-void ComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
+void ComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {
@@ -406,7 +406,7 @@ void ComputePassEncoder::dispatchCompute(GfxCount x, GfxCount y, GfxCount z)
     }
 }
 
-void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, Offset offset)
+void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset)
 {
     if (m_commandList)
     {
@@ -479,7 +479,7 @@ void RayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
     }
 }
 
-void RayTracingPassEncoder::dispatchRays(GfxIndex rayGenShaderIndex, GfxCount width, GfxCount height, GfxCount depth)
+void RayTracingPassEncoder::dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth)
 {
     if (m_commandList)
     {
@@ -630,7 +630,7 @@ void CommandEncoder::uploadTextureData(
     Offset3D offset,
     Extents extent,
     SubresourceData* subresourceData,
-    GfxCount subresourceDataCount
+    uint32_t subresourceDataCount
 )
 {
     commands::UploadTextureData cmd;
@@ -679,7 +679,13 @@ void CommandEncoder::clearTexture(
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::resolveQuery(IQueryPool* queryPool, GfxIndex index, GfxCount count, IBuffer* buffer, Offset offset)
+void CommandEncoder::resolveQuery(
+    IQueryPool* queryPool,
+    uint32_t index,
+    uint32_t count,
+    IBuffer* buffer,
+    uint64_t offset
+)
 {
     commands::ResolveQuery cmd;
     cmd.queryPool = queryPool;
@@ -695,7 +701,7 @@ void CommandEncoder::buildAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
     BufferWithOffset scratchBuffer,
-    GfxCount propertyQueryCount,
+    uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
@@ -723,9 +729,9 @@ void CommandEncoder::copyAccelerationStructure(
 }
 
 void CommandEncoder::queryAccelerationStructureProperties(
-    GfxCount accelerationStructureCount,
+    uint32_t accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
-    GfxCount queryCount,
+    uint32_t queryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
 {
@@ -791,7 +797,7 @@ void CommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::writeTimestamp(IQueryPool* queryPool, GfxIndex queryIndex)
+void CommandEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
 {
     commands::WriteTimestamp cmd;
     cmd.queryPool = checked_cast<QueryPool*>(queryPool);
@@ -915,7 +921,7 @@ Result VirtualRayTracingPipeline::init(Device* device, const RayTracingPipelineD
     m_device = device;
     m_desc = desc;
     m_descHolder.holdList(m_desc.hitGroups, m_desc.hitGroupCount);
-    for (Index i = 0; i < m_desc.hitGroupCount; i++)
+    for (uint32_t i = 0; i < m_desc.hitGroupCount; i++)
     {
         m_descHolder.holdString(m_desc.hitGroups[i].hitGroupName);
         m_descHolder.holdString(m_desc.hitGroups[i].closestHitEntryPoint);
@@ -1000,17 +1006,17 @@ Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return SLANG_OK;
 }
 
-Result Device::getFeatures(const char** outFeatures, Size bufferSize, GfxCount* outFeatureCount)
+Result Device::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
 {
-    if (bufferSize >= (UInt)m_features.size())
+    if (bufferSize >= m_features.size())
     {
-        for (Index i = 0; i < m_features.size(); i++)
+        for (size_t i = 0; i < m_features.size(); i++)
         {
             outFeatures[i] = m_features[i].data();
         }
     }
     if (outFeatureCount)
-        *outFeatureCount = (GfxCount)m_features.size();
+        *outFeatureCount = (uint32_t)m_features.size();
     return SLANG_OK;
 }
 
@@ -1202,7 +1208,7 @@ Result Device::createFence(const FenceDesc& desc, IFence** outFence)
 }
 
 Result Device::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* fenceValues,
     bool waitForAll,
@@ -1460,7 +1466,7 @@ void ShaderProgram::init(const ShaderProgramDesc& inDesc)
     desc = inDesc;
 
     slangGlobalScope = desc.slangGlobalScope;
-    for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
+    for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
     {
         slangEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
     }
@@ -1473,7 +1479,7 @@ void ShaderProgram::init(const ShaderProgramDesc& inDesc)
         {
             components.push_back(desc.slangGlobalScope);
         }
-        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
+        for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (!session)
             {
@@ -1485,7 +1491,7 @@ void ShaderProgram::init(const ShaderProgramDesc& inDesc)
     }
     else
     {
-        for (GfxIndex i = 0; i < desc.slangEntryPointCount; i++)
+        for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
         {
             if (desc.slangGlobalScope)
             {
@@ -1734,7 +1740,7 @@ Result ShaderTable::init(const ShaderTableDesc& desc)
     m_recordOverwrites.reserve(
         desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
     );
-    for (GfxIndex i = 0; i < desc.rayGenShaderCount; i++)
+    for (uint32_t i = 0; i < desc.rayGenShaderCount; i++)
     {
         m_shaderGroupNames.push_back(desc.rayGenShaderEntryPointNames[i]);
         if (desc.rayGenShaderRecordOverwrites)
@@ -1746,7 +1752,7 @@ Result ShaderTable::init(const ShaderTableDesc& desc)
             m_recordOverwrites.push_back(ShaderRecordOverwrite{});
         }
     }
-    for (GfxIndex i = 0; i < desc.missShaderCount; i++)
+    for (uint32_t i = 0; i < desc.missShaderCount; i++)
     {
         m_shaderGroupNames.push_back(desc.missShaderEntryPointNames[i]);
         if (desc.missShaderRecordOverwrites)
@@ -1758,7 +1764,7 @@ Result ShaderTable::init(const ShaderTableDesc& desc)
             m_recordOverwrites.push_back(ShaderRecordOverwrite{});
         }
     }
-    for (GfxIndex i = 0; i < desc.hitGroupCount; i++)
+    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
     {
         m_shaderGroupNames.push_back(desc.hitGroupNames[i]);
         if (desc.hitGroupRecordOverwrites)
@@ -1770,7 +1776,7 @@ Result ShaderTable::init(const ShaderTableDesc& desc)
             m_recordOverwrites.push_back(ShaderRecordOverwrite{});
         }
     }
-    for (GfxIndex i = 0; i < desc.callableShaderCount; i++)
+    for (uint32_t i = 0; i < desc.callableShaderCount; i++)
     {
         m_shaderGroupNames.push_back(desc.callableShaderEntryPointNames[i]);
         if (desc.callableShaderRecordOverwrites)

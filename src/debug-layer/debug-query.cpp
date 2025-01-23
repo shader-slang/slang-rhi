@@ -3,13 +3,13 @@
 
 namespace rhi::debug {
 
-Result DebugQueryPool::getResult(GfxIndex index, GfxCount count, uint64_t* data)
+Result DebugQueryPool::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
     SLANG_RHI_API_FUNC;
 
-    if (index < 0 || index + count > desc.count)
+    if (queryIndex + count > desc.count)
         RHI_VALIDATION_ERROR("index is out of bounds.");
-    return baseObject->getResult(index, count, data);
+    return baseObject->getResult(queryIndex, count, data);
 }
 
 Result DebugQueryPool::reset()

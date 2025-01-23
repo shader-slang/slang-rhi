@@ -99,7 +99,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
     }
 
     AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
-    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
     {
         if (type != (AccelerationStructureBuildInputType&)buildDesc.inputs[i])
         {
@@ -107,7 +107,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
         }
     }
 
-    for (GfxIndex i = 0; i < buildDesc.inputCount; ++i)
+    for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
     {
         switch ((AccelerationStructureBuildInputType&)buildDesc.inputs[i])
         {
@@ -168,7 +168,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
             {
                 RHI_VALIDATION_ERROR("vertexBufferCount cannot be <= 1.");
             }
-            for (GfxIndex j = 0; j < triangles.vertexBufferCount; ++j)
+            for (uint32_t j = 0; j < triangles.vertexBufferCount; ++j)
             {
                 if (!triangles.vertexBuffers[j].buffer)
                 {

@@ -76,7 +76,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     return SLANG_OK;
 }
 
-Result QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
     m_commandList->Reset(m_commandAllocator, nullptr);
     m_commandList->ResolveQueryData(
@@ -104,9 +104,9 @@ Result QueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* d
     return SLANG_OK;
 }
 
-void QueryPoolImpl::writeTimestamp(ID3D12GraphicsCommandList* cmdList, GfxIndex index)
+void QueryPoolImpl::writeTimestamp(ID3D12GraphicsCommandList* cmdList, uint32_t index)
 {
-    cmdList->EndQuery(m_queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, (UINT)index);
+    cmdList->EndQuery(m_queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index);
 }
 
 IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
@@ -149,7 +149,7 @@ Result PlainBufferProxyQueryPoolImpl::reset()
     return SLANG_OK;
 }
 
-Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount count, uint64_t* data)
+Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
     if (m_resultDirty)
     {
@@ -163,7 +163,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(GfxIndex queryIndex, GfxCount co
 
         D3D12Resource stageBuf;
 
-        auto size = (Size)m_count * m_stride;
+        uint64_t size = uint64_t(m_count) * m_stride;
         D3D12_HEAP_PROPERTIES heapProps;
         heapProps.Type = D3D12_HEAP_TYPE_READBACK;
         heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;

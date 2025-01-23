@@ -266,7 +266,7 @@ private:
     T* pointer;
 
     template<typename T2>
-    friend class RefPtr;
+    friend struct RefPtr;
 };
 
 } // namespace rhi

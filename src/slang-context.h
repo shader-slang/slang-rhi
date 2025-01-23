@@ -36,11 +36,11 @@ public:
         slangSessionDesc.searchPaths = desc.searchPaths;
 
         std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
-        for (Index i = 0; i < desc.preprocessorMacroCount; i++)
+        for (uint32_t i = 0; i < desc.preprocessorMacroCount; i++)
         {
             preprocessorMacros.push_back(desc.preprocessorMacros[i]);
         }
-        for (Index i = 0; i < additionalPreprocessorMacros.size(); i++)
+        for (size_t i = 0; i < additionalPreprocessorMacros.size(); i++)
         {
             preprocessorMacros.push_back(additionalPreprocessorMacros[i]);
         }
@@ -48,11 +48,11 @@ public:
         slangSessionDesc.preprocessorMacroCount = preprocessorMacros.size();
 
         std::vector<slang::CompilerOptionEntry> compilerOptions;
-        for (Index i = 0; i < desc.compilerOptionEntryCount; i++)
+        for (uint32_t i = 0; i < desc.compilerOptionEntryCount; i++)
         {
             compilerOptions.push_back(desc.compilerOptionEntries[i]);
         }
-        for (Index i = 0; i < additionalCompilerOptions.size(); i++)
+        for (size_t i = 0; i < additionalCompilerOptions.size(); i++)
         {
             compilerOptions.push_back(additionalCompilerOptions[i]);
         }

@@ -23,7 +23,7 @@ Size getTexelSize(Format format)
     return info.blockSizeInBytes / info.pixelsPerBlock;
 }
 
-GfxIndex getSubresourceIndex(GfxIndex mipLevel, GfxCount mipLevelCount, GfxIndex baseArrayLayer)
+uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t baseArrayLayer)
 {
     return baseArrayLayer * mipLevelCount + mipLevel;
 }
@@ -213,9 +213,9 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
     auto mipLevels = texture->mipLevelCount;
     auto texelSize = getTexelSize(texture->format);
 
-    for (GfxIndex layer = 0; layer < arrayLayers; ++layer)
+    for (uint32_t layer = 0; layer < arrayLayers; ++layer)
     {
-        for (GfxIndex mip = 0; mip < mipLevels; ++mip)
+        for (uint32_t mip = 0; mip < mipLevels; ++mip)
         {
             RefPtr<ValidationTextureData> subresource = new ValidationTextureData();
 
@@ -255,11 +255,11 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
     }
 }
 
-std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize)
+std::vector<uint8_t> removePadding(ISlangBlob* pixels, uint32_t width, uint32_t height, Size rowPitch, Size pixelSize)
 {
     std::vector<uint8_t> buffer;
     buffer.resize(height * rowPitch);
-    for (GfxIndex i = 0; i < height; ++i)
+    for (uint32_t i = 0; i < height; ++i)
     {
         Offset srcOffset = i * rowPitch;
         Offset dstOffset = i * width * pixelSize;

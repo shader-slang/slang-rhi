@@ -12,7 +12,7 @@
 namespace rhi::wgpu {
 
 template<typename T>
-inline bool arraysEqual(GfxCount countA, GfxCount countB, const T* a, const T* b)
+inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b)
 {
     return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
 }
@@ -222,7 +222,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     const RenderPassDesc& desc = cmd.desc;
 
     short_vector<WGPURenderPassColorAttachment, 8> colorAttachments(desc.colorAttachmentCount, {});
-    for (GfxIndex i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const RenderPassColorAttachment& attachmentIn = desc.colorAttachments[i];
         WGPURenderPassColorAttachment& attachment = colorAttachments[i];
@@ -335,7 +335,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateVertexBuffers)
     {
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
             Offset offset = state.vertexBuffers[i].offset;
@@ -726,9 +726,9 @@ Result CommandQueueImpl::waitOnHost()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
 {
-    // for (GfxCount i = 0; i < fenceCount; ++i)
+    // for (uint32_t i = 0; i < fenceCount; ++i)
     // {
     //     FenceWaitInfo waitInfo;
     //     waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
@@ -739,7 +739,7 @@ Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence*
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fence,
     uint64_t valueToSignal
@@ -752,7 +752,7 @@ Result CommandQueueImpl::submit(
 
     short_vector<WGPUCommandBuffer, 16> buffers;
     buffers.resize(count);
-    for (GfxIndex i = 0; i < count; ++i)
+    for (uint32_t i = 0; i < count; ++i)
     {
         buffers[i] = checked_cast<CommandBufferImpl*>(commandBuffers[i])->m_commandBuffer;
     }

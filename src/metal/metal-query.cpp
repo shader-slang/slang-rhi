@@ -59,7 +59,7 @@ Result QueryPoolImpl::init(DeviceImpl* device, const QueryPoolDesc& desc)
     return m_counterSampleBuffer ? SLANG_OK : SLANG_FAIL;
 }
 
-Result QueryPoolImpl::getResult(GfxIndex index, GfxCount count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }

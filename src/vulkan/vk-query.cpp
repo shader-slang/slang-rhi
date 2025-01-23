@@ -9,7 +9,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     m_pool = VK_NULL_HANDLE;
     VkQueryPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-    createInfo.queryCount = (uint32_t)desc.count;
+    createInfo.queryCount = desc.count;
     switch (desc.type)
     {
     case QueryType::Timestamp:
@@ -39,7 +39,7 @@ QueryPoolImpl::~QueryPoolImpl()
     m_device->m_api.vkDestroyQueryPool(m_device->m_api.m_device, m_pool, nullptr);
 }
 
-Result QueryPoolImpl::getResult(GfxIndex index, GfxCount count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
     if (!m_pool)
     {
@@ -52,8 +52,8 @@ Result QueryPoolImpl::getResult(GfxIndex index, GfxCount count, uint64_t* data)
     SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkGetQueryPoolResults(
         m_device->m_api.m_device,
         m_pool,
-        (uint32_t)index,
-        (uint32_t)count,
+        queryIndex,
+        count,
         sizeof(uint64_t) * count,
         data,
         sizeof(uint64_t),

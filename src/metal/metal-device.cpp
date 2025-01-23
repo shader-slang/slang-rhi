@@ -133,9 +133,9 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
 
     const TextureDesc& desc = textureImpl->m_desc;
-    GfxCount width = max(desc.size.width, 1);
-    GfxCount height = max(desc.size.height, 1);
-    GfxCount depth = max(desc.size.depth, 1);
+    uint32_t width = max(desc.size.width, 1);
+    uint32_t height = max(desc.size.height, 1);
+    uint32_t depth = max(desc.size.depth, 1);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size bytesPerRow = Size(width) * bytesPerPixel;
@@ -249,7 +249,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     extents.height = extents.height ? extents.height : 1;
     extents.depth = extents.depth ? extents.depth : 1;
 
-    for (Int i = 0; i < desc.mipLevelCount; ++i)
+    for (uint32_t i = 0; i < desc.mipLevelCount; ++i)
     {
         Size rowSize =
             ((extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
@@ -394,7 +394,7 @@ Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 }
 
 Result DeviceImpl::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* fenceValues,
     bool waitForAll,

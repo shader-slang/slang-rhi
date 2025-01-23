@@ -187,19 +187,19 @@ struct TextureInfo : RefObject
     TextureType textureType;
 
     Extents extents;
-    GfxCount mipLevelCount;
-    GfxCount arrayLayerCount;
+    uint32_t mipLevelCount;
+    uint32_t arrayLayerCount;
 
     std::vector<RefPtr<ValidationTextureData>> subresourceObjects;
     std::vector<SubresourceData> subresourceDatas;
 };
 
 Size getTexelSize(Format format);
-GfxIndex getSubresourceIndex(GfxIndex mipLevel, GfxCount mipLevelCount, GfxIndex baseArrayLayer);
+uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t baseArrayLayer);
 RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat);
 
-std::vector<uint8_t> removePadding(ISlangBlob* pixels, GfxCount width, GfxCount height, Size rowPitch, Size pixelSize);
+std::vector<uint8_t> removePadding(ISlangBlob* pixels, uint32_t width, uint32_t height, Size rowPitch, Size pixelSize);
 Result writeImage(const char* filename, ISlangBlob* pixels, uint32_t width, uint32_t height);
 Result writeImage(
     const char* filename,

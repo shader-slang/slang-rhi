@@ -8,7 +8,7 @@
 namespace rhi::d3d11 {
 
 template<typename T>
-inline bool arraysEqual(GfxCount countA, GfxCount countB, const T* a, const T* b)
+inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b)
 {
     return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
 }
@@ -180,7 +180,7 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     m_renderTargetViews.resize(desc.colorAttachmentCount);
     m_resolveTargetViews.resize(desc.colorAttachmentCount);
-    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         m_renderTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].view);
         m_resolveTargetViews[i] = checked_cast<TextureViewImpl*>(desc.colorAttachments[i].resolveTarget);
@@ -189,7 +189,7 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         desc.depthStencilAttachment ? checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view) : nullptr;
 
     // Clear color attachments.
-    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
         if (attachment.loadOp == LoadOp::Clear)
@@ -226,7 +226,7 @@ void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     // Set render targets.
     short_vector<ID3D11RenderTargetView*, 8> renderTargetViews(desc.colorAttachmentCount, nullptr);
-    for (Index i = 0; i < desc.colorAttachmentCount; ++i)
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         renderTargetViews[i] = m_renderTargetViews[i]->getRTV();
     }
@@ -392,7 +392,7 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         UINT strides[SLANG_COUNT_OF(state.vertexBuffers)];
         UINT offsets[SLANG_COUNT_OF(state.vertexBuffers)];
         ID3D11Buffer* buffers[SLANG_COUNT_OF(state.vertexBuffers)];
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             const auto& buffer = state.vertexBuffers[i];
             strides[i] = m_renderPipeline->m_inputLayout->m_vertexStreamStrides[i];
@@ -420,10 +420,10 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateViewports)
     {
-        static const int kMaxViewports = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
+        static const uint32_t kMaxViewports = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
         SLANG_RHI_ASSERT(state.viewportCount <= kMaxViewports);
         D3D11_VIEWPORT viewports[SLANG_COUNT_OF(state.viewports)];
-        for (GfxIndex i = 0; i < state.viewportCount; ++i)
+        for (uint32_t i = 0; i < state.viewportCount; ++i)
         {
             const Viewport& src = state.viewports[i];
             D3D11_VIEWPORT& dst = viewports[i];
@@ -434,15 +434,15 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.MinDepth = src.minZ;
             dst.MaxDepth = src.maxZ;
         }
-        m_immediateContext->RSSetViewports(UINT(state.viewportCount), viewports);
+        m_immediateContext->RSSetViewports(state.viewportCount, viewports);
     }
 
     if (updateScissorRects)
     {
-        static const int kMaxScissorRects = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
+        static const uint32_t kMaxScissorRects = D3D11_VIEWPORT_AND_SCISSORRECT_MAX_INDEX + 1;
         SLANG_RHI_ASSERT(state.scissorRectCount <= kMaxScissorRects);
         D3D11_RECT scissorRects[SLANG_COUNT_OF(state.scissorRects)];
-        for (GfxIndex i = 0; i < state.scissorRectCount; ++i)
+        for (uint32_t i = 0; i < state.scissorRectCount; ++i)
         {
             const ScissorRect& src = state.scissorRects[i];
             D3D11_RECT& dst = scissorRects[i];
@@ -451,7 +451,7 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.right = LONG(src.maxX);
             dst.bottom = LONG(src.maxY);
         }
-        m_immediateContext->RSSetScissorRects(UINT(state.scissorRectCount), scissorRects);
+        m_immediateContext->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }
 
     m_renderStateValid = true;
@@ -718,13 +718,13 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 }
 
 Result CommandQueueImpl::submit(
-    GfxCount count,
+    uint32_t count,
     ICommandBuffer* const* commandBuffers,
     IFence* fenceToSignal,
     uint64_t newFenceValue
 )
 {
-    for (GfxIndex i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         CommandExecutor executor(m_device);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));
@@ -743,7 +743,7 @@ Result CommandQueueImpl::waitOnHost()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(GfxCount fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
 {
     return SLANG_E_NOT_AVAILABLE;
 }

@@ -521,8 +521,7 @@ void ShaderObjectImpl::writeAccelerationStructureDescriptor(
 {
     VkDescriptorSet descriptorSet = context.bindable->descriptorSets[offset.bindingSet];
 
-    Index count = slots.size();
-    for (Index i = 0; i < count; ++i)
+    for (size_t i = 0; i < slots.size(); ++i)
     {
         const ResourceSlot& slot = slots[i];
 

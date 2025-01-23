@@ -1135,14 +1135,14 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         // Get the pointer to the upload resource
         ID3D12Resource* uploadResource = uploadTexture;
 
-        int subresourceIndex = 0;
-        int arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
-        for (int arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
+        uint32_t subresourceIndex = 0;
+        uint32_t arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+        for (uint32_t arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
         {
             uint8_t* p;
             uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));
 
-            for (int j = 0; j < srcDesc.mipLevelCount; ++j)
+            for (uint32_t j = 0; j < srcDesc.mipLevelCount; ++j)
             {
                 auto srcSubresource = initData[subresourceIndex + j];
 
@@ -1173,7 +1173,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 //
                 const uint8_t* srcLayer = (const uint8_t*)srcSubresource.data;
                 uint8_t* dstLayer = p + layouts[j].Offset;
-                for (int l = 0; l < mipSize.depth; l++)
+                for (uint32_t l = 0; l < mipSize.depth; l++)
                 {
                     // Our inner loop will copy the rows one at a time.
                     //
@@ -1181,7 +1181,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     uint8_t* dstRow = dstLayer;
                     int j = formatInfo.isCompressed ? 4 : 1; // BC compressed formats are organized into
                                                              // 4x4 blocks
-                    for (int k = 0; k < mipSize.height; k += j)
+                    for (uint32_t k = 0; k < mipSize.height; k += j)
                     {
                         ::memcpy(dstRow, srcRow, (Size)mipRowSize);
 
@@ -1199,7 +1199,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
             ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
-            for (int mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
+            for (uint32_t mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
             {
                 // https://msdn.microsoft.com/en-us/library/windows/desktop/dn903862(v=vs.85).aspx
 
@@ -1398,34 +1398,28 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
 
 Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
-    RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);
+    RefPtr<InputLayoutImpl> layout = new InputLayoutImpl();
 
     // Work out a buffer size to hold all text
-    Size textSize = 0;
-    auto inputElementCount = desc.inputElementCount;
-    auto inputElements = desc.inputElements;
-    auto vertexStreamCount = desc.vertexStreamCount;
-    auto vertexStreams = desc.vertexStreams;
-    for (int i = 0; i < Int(inputElementCount); ++i)
+    size_t textSize = 0;
+    for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
-        const char* text = inputElements[i].semanticName;
+        const char* text = desc.inputElements[i].semanticName;
         textSize += text ? (::strlen(text) + 1) : 0;
     }
     layout->m_text.resize(textSize);
     char* textPos = layout->m_text.data();
 
-    std::vector<D3D12_INPUT_ELEMENT_DESC>& elements = layout->m_elements;
-    SLANG_RHI_ASSERT(inputElementCount > 0);
-    elements.resize(inputElementCount);
+    layout->m_elements.resize(desc.inputElementCount);
 
-    for (Int i = 0; i < inputElementCount; ++i)
+    for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
-        const InputElementDesc& srcEle = inputElements[i];
-        const auto& srcStream = vertexStreams[srcEle.bufferSlotIndex];
-        D3D12_INPUT_ELEMENT_DESC& dstEle = elements[i];
+        const InputElementDesc& srcElement = desc.inputElements[i];
+        const VertexStreamDesc& srcStream = desc.vertexStreams[srcElement.bufferSlotIndex];
+        D3D12_INPUT_ELEMENT_DESC& dstElement = layout->m_elements[i];
 
         // Add text to the buffer
-        const char* semanticName = srcEle.semanticName;
+        const char* semanticName = srcElement.semanticName;
         if (semanticName)
         {
             const int len = int(::strlen(semanticName));
@@ -1434,20 +1428,19 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
             textPos += len + 1;
         }
 
-        dstEle.SemanticName = semanticName;
-        dstEle.SemanticIndex = (UINT)srcEle.semanticIndex;
-        dstEle.Format = D3DUtil::getMapFormat(srcEle.format);
-        dstEle.InputSlot = (UINT)srcEle.bufferSlotIndex;
-        dstEle.AlignedByteOffset = (UINT)srcEle.offset;
-        dstEle.InputSlotClass = D3DUtil::getInputSlotClass(srcStream.slotClass);
-        dstEle.InstanceDataStepRate = (UINT)srcStream.instanceDataStepRate;
+        dstElement.SemanticName = semanticName;
+        dstElement.SemanticIndex = (UINT)srcElement.semanticIndex;
+        dstElement.Format = D3DUtil::getMapFormat(srcElement.format);
+        dstElement.InputSlot = (UINT)srcElement.bufferSlotIndex;
+        dstElement.AlignedByteOffset = (UINT)srcElement.offset;
+        dstElement.InputSlotClass = D3DUtil::getInputSlotClass(srcStream.slotClass);
+        dstElement.InstanceDataStepRate = (UINT)srcStream.instanceDataStepRate;
     }
 
-    auto& vertexStreamStrides = layout->m_vertexStreamStrides;
-    vertexStreamStrides.resize(vertexStreamCount);
-    for (GfxIndex i = 0; i < vertexStreamCount; ++i)
+    layout->m_vertexStreamStrides.resize(desc.vertexStreamCount);
+    for (uint32_t i = 0; i < desc.vertexStreamCount; ++i)
     {
-        vertexStreamStrides[i] = (UINT)vertexStreams[i].stride;
+        layout->m_vertexStreamStrides[i] = (UINT)desc.vertexStreams[i].stride;
     }
 
     returnComPtr(outLayout, layout);
@@ -1721,7 +1714,7 @@ Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 }
 
 Result DeviceImpl::waitForFences(
-    GfxCount fenceCount,
+    uint32_t fenceCount,
     IFence** fences,
     uint64_t* fenceValues,
     bool waitForAll,
@@ -1729,7 +1722,7 @@ Result DeviceImpl::waitForFences(
 )
 {
     short_vector<HANDLE> waitHandles;
-    for (GfxCount i = 0; i < fenceCount; ++i)
+    for (uint32_t i = 0; i < fenceCount; ++i)
     {
         auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         waitHandles.push_back(fenceImpl->getWaitEvent());
@@ -1760,9 +1753,9 @@ Result DeviceImpl::getAccelerationStructureSizes(
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
     m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&inputsBuilder.desc, &prebuildInfo);
 
-    outSizes->accelerationStructureSize = (Size)prebuildInfo.ResultDataMaxSizeInBytes;
-    outSizes->scratchSize = (Size)prebuildInfo.ScratchDataSizeInBytes;
-    outSizes->updateScratchSize = (Size)prebuildInfo.UpdateScratchDataSizeInBytes;
+    outSizes->accelerationStructureSize = prebuildInfo.ResultDataMaxSizeInBytes;
+    outSizes->scratchSize = prebuildInfo.ScratchDataSizeInBytes;
+    outSizes->updateScratchSize = prebuildInfo.UpdateScratchDataSizeInBytes;
     return SLANG_OK;
 }
 
