@@ -125,26 +125,15 @@ struct TestFormats
             auto queue = device->getQueue(QueueType::Graphics);
             auto encoder = queue->createCommandEncoder();
 
-            auto rootObject = device->createRootShaderObject(pipeline);
-
+            auto passEncoder = encoder->beginComputePass();
+            auto rootObject = passEncoder->bindPipeline(pipeline);
             ShaderCursor cursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
-
             // Bind texture view to the entry point
             cursor["tex"].setBinding(textureView);
-
             if (sampler)
                 cursor["sampler"].setBinding(sampler);
-
             // Bind buffer view to the entry point.
             cursor["buffer"].setBinding(buffer);
-
-            rootObject->finalize();
-
-            auto passEncoder = encoder->beginComputePass();
-            ComputeState state;
-            state.pipeline = pipeline;
-            state.rootObject = rootObject;
-            passEncoder->setComputeState(state);
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
 

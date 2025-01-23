@@ -154,9 +154,6 @@ struct BaseResolveResourceTest
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
-        rootObject->finalize();
-
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = msaaTextureView;
         colorAttachment.resolveTarget = dstTextureView;
@@ -167,9 +164,9 @@ struct BaseResolveResourceTest
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = encoder->beginRenderPass(renderPass);
 
+        passEncoder->bindPipeline(pipeline);
+
         RenderState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
         state.viewports[0] = Viewport(extent.width, extent.height);
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect(extent.width, extent.height);

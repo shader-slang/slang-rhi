@@ -209,9 +209,6 @@ struct DrawInstancedTest : BaseDrawTest
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
-        rootObject->finalize();
-
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
@@ -221,9 +218,9 @@ struct DrawInstancedTest : BaseDrawTest
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = encoder->beginRenderPass(renderPass);
 
+        passEncoder->bindPipeline(pipeline);
+
         RenderState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
         state.viewports[0] = Viewport(kWidth, kHeight);
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect(kWidth, kHeight);
@@ -268,9 +265,6 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
-        rootObject->finalize();
-
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
@@ -280,9 +274,9 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = encoder->beginRenderPass(renderPass);
 
+        passEncoder->bindPipeline(pipeline);
+
         RenderState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBuffers[1] = instanceBuffer;
         state.vertexBufferCount = 2;
@@ -353,9 +347,6 @@ struct DrawIndirectTest : BaseDrawTest
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
-        rootObject->finalize();
-
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
@@ -365,9 +356,9 @@ struct DrawIndirectTest : BaseDrawTest
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = encoder->beginRenderPass(renderPass);
 
+        passEncoder->bindPipeline(pipeline);
+
         RenderState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBuffers[1] = instanceBuffer;
         state.vertexBufferCount = 2;
@@ -437,9 +428,6 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
 
-        auto rootObject = device->createRootShaderObject(pipeline);
-        rootObject->finalize();
-
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
         colorAttachment.loadOp = LoadOp::Clear;
@@ -449,9 +437,9 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = encoder->beginRenderPass(renderPass);
 
+        passEncoder->bindPipeline(pipeline);
+
         RenderState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBuffers[1] = instanceBuffer;
         state.vertexBufferCount = 2;
