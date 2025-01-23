@@ -549,12 +549,7 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::submit(
-    uint32_t count,
-    ICommandBuffer* const* commandBuffers,
-    IFence* fence,
-    uint64_t valueToSignal
-)
+Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
 {
     SLANG_UNUSED(valueToSignal);
     // TODO: implement fence.

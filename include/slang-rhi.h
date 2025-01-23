@@ -1853,7 +1853,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
         uint32_t accelerationStructureCount,
-        IAccelerationStructure* const* accelerationStructures,
+        IAccelerationStructure** accelerationStructures,
         uint32_t queryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
@@ -1925,7 +1925,7 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(uint32_t count, ICommandBuffer* const* commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) = 0;
+    submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) = 0;
 
     inline Result submit(ICommandBuffer* commandBuffer, IFence* fenceToSignal = nullptr, uint64_t newFenceValue = 0)
     {

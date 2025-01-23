@@ -150,7 +150,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
         GfxCount accelerationStructureCount,
-        IAccelerationStructure* const* accelerationStructures,
+        IAccelerationStructure** accelerationStructures,
         GfxCount queryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) override;

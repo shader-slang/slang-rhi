@@ -730,7 +730,7 @@ void CommandEncoder::copyAccelerationStructure(
 
 void CommandEncoder::queryAccelerationStructureProperties(
     uint32_t accelerationStructureCount,
-    IAccelerationStructure* const* accelerationStructures,
+    IAccelerationStructure** accelerationStructures,
     uint32_t queryCount,
     AccelerationStructureQueryDesc* queryDescs
 )

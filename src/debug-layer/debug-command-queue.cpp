@@ -24,12 +24,7 @@ Result DebugCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
     return result;
 }
 
-Result DebugCommandQueue::submit(
-    uint32_t count,
-    ICommandBuffer* const* commandBuffers,
-    IFence* fence,
-    uint64_t valueToSignal
-)
+Result DebugCommandQueue::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
 {
     SLANG_RHI_API_FUNC;
     std::vector<ICommandBuffer*> innerCommandBuffers;
