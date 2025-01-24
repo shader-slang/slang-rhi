@@ -9,8 +9,8 @@ namespace rhi {
 class PagedAllocator
 {
 public:
-    /// Default page size is 16KB (minus 16 bytes for page header).
-    static constexpr size_t kDefaultPageSize = 16 * 1024 - 16;
+    /// Default page size is 1MB.
+    static constexpr size_t kDefaultPageSize = 1024 * 1024;
 
     PagedAllocator(size_t pageSize = kDefaultPageSize)
         : m_pageSize(pageSize)
@@ -30,7 +30,18 @@ public:
         m_currentOffset = (m_currentOffset + alignment - 1) & ~(alignment - 1);
         if (!m_currentPage || m_currentOffset + size > m_currentPage->size)
         {
-            m_currentPage = allocatePage(max(size, m_pageSize));
+            if (!m_currentPage)
+            {
+                m_pages = m_currentPage = allocatePage(m_pageSize);
+            }
+            else
+            {
+                if (!m_currentPage->next)
+                {
+                    m_currentPage->next = allocatePage(max(size, m_pageSize));
+                }
+                m_currentPage = m_currentPage->next;
+            }
             m_currentOffset = 0;
         }
         void* result = m_currentPage->getData() + m_currentOffset;
@@ -38,9 +49,15 @@ public:
         return result;
     }
 
+    template<typename T>
+    T* allocate(size_t count = 1)
+    {
+        static_assert(std::is_pod_v<T>, "T must be POD");
+        return reinterpret_cast<T*>(allocate(count * sizeof(T), alignof(T)));
+    }
+
     void reset()
     {
-        freePages();
         m_currentPage = nullptr;
         m_currentOffset = 0;
     }
@@ -61,11 +78,10 @@ private:
 
     Page* allocatePage(size_t size)
     {
-        uint8_t* data = reinterpret_cast<uint8_t*>(std::malloc(size + sizeof(Page)));
+        uint8_t* data = reinterpret_cast<uint8_t*>(std::malloc(size));
         Page* page = reinterpret_cast<Page*>(data);
-        page->size = size;
-        page->next = m_pages;
-        m_pages = page;
+        page->next = nullptr;
+        page->size = size - sizeof(Page);
         return page;
     }
 
