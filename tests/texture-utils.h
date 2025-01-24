@@ -29,9 +29,9 @@ struct ValidationTextureFormatBase : RefObject
 template<typename T>
 struct ValidationTextureFormat : ValidationTextureFormatBase
 {
-    int componentCount;
+    uint32_t componentCount;
 
-    ValidationTextureFormat(int componentCount)
+    ValidationTextureFormat(uint32_t componentCount)
         : componentCount(componentCount) {};
 
     virtual void validateBlocksEqual(const void* actual, const void* expected) override
@@ -39,7 +39,7 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
         auto a = (const T*)actual;
         auto e = (const T*)expected;
 
-        for (Int i = 0; i < componentCount; ++i)
+        for (uint32_t i = 0; i < componentCount; ++i)
         {
             CHECK_EQ(a[i], e[i]);
         }
@@ -104,7 +104,7 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
         unpackTexel(*(const T*)actual, a);
         unpackTexel(*(const T*)expected, e);
 
-        for (Int i = 0; i < 4; ++i)
+        for (uint32_t i = 0; i < 4; ++i)
         {
             CHECK_EQ(a[i], e[i]);
         }

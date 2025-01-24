@@ -174,7 +174,7 @@ struct TextureAccessTest : TextureTest
                 for (GfxIndex z = 0; z < actual.extents.depth; ++z)
                 {
                     auto actualBlock = (uint8_t*)actual.getBlockAt(x, y, z);
-                    for (Int i = 0; i < 4; ++i)
+                    for (uint32_t i = 0; i < 4; ++i)
                     {
                         CHECK_EQ(actualBlock[i], 1);
                     }
@@ -217,7 +217,7 @@ struct TextureAccessTest : TextureTest
 
         auto elementCount = textureInfo->extents.width * textureInfo->extents.height * textureInfo->extents.depth * 4;
         auto castedTextureData = (uint8_t*)expectedTextureData;
-        for (Int i = 0; i < elementCount; ++i)
+        for (uint32_t i = 0; i < elementCount; ++i)
         {
             CHECK_EQ(results[i], castedTextureData[i]);
         }
@@ -427,7 +427,7 @@ struct RenderTargetTests : TextureTest
                 for (GfxIndex z = 0; z < actual.extents.depth; ++z)
                 {
                     auto actualBlock = (float*)actual.getBlockAt(x, y, z);
-                    for (Int i = 0; i < 4; ++i)
+                    for (uint32_t i = 0; i < 4; ++i)
                     {
                         if (z == 0)
                         {

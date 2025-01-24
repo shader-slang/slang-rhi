@@ -51,7 +51,7 @@ namespace rhi {
 class SLANG_RHI_API RefObject
 {
 private:
-    UInt referenceCount;
+    uint64_t referenceCount;
 
 public:
     RefObject()
@@ -70,11 +70,11 @@ public:
 
     virtual ~RefObject() { SLANG_RHI_UNTRACK_OBJECT(this); }
 
-    UInt addReference() { return ++referenceCount; }
+    uint64_t addReference() { return ++referenceCount; }
 
-    UInt decreaseReference() { return --referenceCount; }
+    uint64_t decreaseReference() { return --referenceCount; }
 
-    UInt releaseReference()
+    uint64_t releaseReference()
     {
         SLANG_RHI_ASSERT(referenceCount != 0);
         if (--referenceCount == 0)
@@ -91,7 +91,7 @@ public:
         return referenceCount == 1;
     }
 
-    UInt debugGetReferenceCount() { return referenceCount; }
+    uint64_t debugGetReferenceCount() { return referenceCount; }
 };
 
 SLANG_FORCE_INLINE void addReference(RefObject* obj)

@@ -15,9 +15,9 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
     m_rayGenTableOffset = 0;
     m_missTableOffset = raygenTableSize;
     m_hitGroupTableOffset =
-        (uint32_t)D3DUtil::calcAligned(m_missTableOffset + missTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+        (uint32_t)math::calcAligned(m_missTableOffset + missTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     m_callableTableOffset = (uint32_t
-    )D3DUtil::calcAligned(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+    )math::calcAligned(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     uint32_t tableSize = m_callableTableOffset + callableTableSize;
 
     auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);

@@ -44,7 +44,7 @@ public:
     RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
-    Int m_shaderGroupCount;
+    uint32_t m_shaderGroupCount;
 
     ~RayTracingPipelineImpl();
 

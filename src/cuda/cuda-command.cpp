@@ -242,7 +242,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(rootObject->getLayout());
     int kernelIndex = programLayout->getKernelIndex(computePipeline->m_kernelName);
     SLANG_RHI_ASSERT(kernelIndex != -1);
-    UInt threadGroupSize[3];
+    SlangUInt threadGroupSize[3];
     programLayout->getKernelThreadGroupSize(kernelIndex, threadGroupSize);
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.

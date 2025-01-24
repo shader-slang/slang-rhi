@@ -62,7 +62,7 @@ public:
 
     int getKernelIndex(std::string_view kernelName);
 
-    void getKernelThreadGroupSize(int kernelIndex, UInt* threadGroupSizes);
+    void getKernelThreadGroupSize(int kernelIndex, SlangUInt* threadGroupSizes);
 };
 
 } // namespace rhi::cuda

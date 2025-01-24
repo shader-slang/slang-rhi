@@ -298,7 +298,7 @@ Result ShaderObjectImpl::_ensureOrdinaryDataBufferCreatedIfNeeded(
     // Once we have computed how large the buffer should be, we can allocate
     // it from the transient resource heap.
     //
-    auto alignedConstantBufferSize = D3DUtil::calcAligned(m_constantBufferSize, 256);
+    size_t alignedConstantBufferSize = math::calcAligned(m_constantBufferSize, 256);
     SLANG_RETURN_ON_FAIL(
         context.allocateConstantBuffer(alignedConstantBufferSize, m_constantBufferWeakPtr, m_constantBufferOffset)
     );

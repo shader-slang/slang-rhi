@@ -329,7 +329,7 @@ DXGI_FORMAT D3DUtil::getIndexFormat(IndexFormat indexFormat)
     }
 }
 
-DXGI_FORMAT D3DUtil::calcResourceFormat(UsageType usage, Int usageFlags, DXGI_FORMAT format)
+DXGI_FORMAT D3DUtil::calcResourceFormat(UsageType usage, uint32_t usageFlags, DXGI_FORMAT format)
 {
     SLANG_UNUSED(usage);
     if (usageFlags)
@@ -455,7 +455,7 @@ bool D3DUtil::isTypeless(DXGI_FORMAT format)
     return false;
 }
 
-Int D3DUtil::getNumColorChannelBits(DXGI_FORMAT fmt)
+uint32_t D3DUtil::getNumColorChannelBits(DXGI_FORMAT fmt)
 {
     switch (fmt)
     {

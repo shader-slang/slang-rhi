@@ -96,6 +96,12 @@ inline T getLowestBit(T val)
     return val & (-val);
 }
 
+/// Calculate size taking into account alignment. Alignment must be a power of 2
+inline size_t calcAligned(size_t size, size_t alignment)
+{
+    return (size + alignment - 1) & ~(alignment - 1);
+}
+
 inline uint32_t ones32(uint32_t x)
 {
     /* 32-bit recursive reduction using SWAR...

@@ -120,7 +120,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
     : ShaderObjectLayoutImpl(device, session, programLayout->getGlobalParamsTypeLayout())
     , m_programLayout(programLayout)
 {
-    for (UInt i = 0; i < programLayout->getEntryPointCount(); i++)
+    for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
         m_entryPointLayouts.push_back(new EntryPointLayoutImpl(device, session, programLayout->getEntryPointByIndex(i))
         );
@@ -141,7 +141,7 @@ int RootShaderObjectLayoutImpl::getKernelIndex(std::string_view kernelName)
     return -1;
 }
 
-void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, UInt* threadGroupSizes)
+void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, SlangUInt* threadGroupSizes)
 {
     auto entryPoint = m_programLayout->getEntryPointByIndex(kernelIndex);
     entryPoint->getComputeThreadGroupSize(3, threadGroupSizes);
