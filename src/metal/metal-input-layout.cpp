@@ -6,7 +6,7 @@ namespace rhi::metal {
 
 Result InputLayoutImpl::init(const InputLayoutDesc& desc)
 {
-    for (Index i = 0; i < desc.inputElementCount; i++)
+    for (uint32_t i = 0; i < desc.inputElementCount; i++)
     {
         if (MetalUtil::translateVertexFormat(desc.inputElements[i].format) == MTL::VertexFormatInvalid)
         {
@@ -14,7 +14,7 @@ Result InputLayoutImpl::init(const InputLayoutDesc& desc)
         }
         m_inputElements.push_back(desc.inputElements[i]);
     }
-    for (Index i = 0; i < desc.vertexStreamCount; i++)
+    for (uint32_t i = 0; i < desc.vertexStreamCount; i++)
     {
         m_vertexStreams.push_back(desc.vertexStreams[i]);
     }
@@ -25,7 +25,7 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
 {
     NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor = NS::TransferPtr(MTL::VertexDescriptor::alloc()->init());
 
-    for (Index i = 0; i < m_inputElements.size(); i++)
+    for (size_t i = 0; i < m_inputElements.size(); i++)
     {
         const auto& inputElement = m_inputElements[i];
         MTL::VertexAttributeDescriptor* desc = vertexDescriptor->attributes()->object(i);
@@ -35,7 +35,7 @@ NS::SharedPtr<MTL::VertexDescriptor> InputLayoutImpl::createVertexDescriptor(NS:
         desc->setFormat(metalFormat);
     }
 
-    for (Index i = 0; i < m_vertexStreams.size(); i++)
+    for (size_t i = 0; i < m_vertexStreams.size(); i++)
     {
         const auto& vertexStream = m_vertexStreams[i];
         MTL::VertexBufferLayoutDescriptor* desc = vertexDescriptor->layouts()->object(i + vertexBufferIndexOffset);

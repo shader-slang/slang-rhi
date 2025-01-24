@@ -38,7 +38,7 @@ int DeviceImpl::_calcSMCountPerMultiProcessor(int major, int minor)
     };
 
     const int sm = ((major << 4) + minor);
-    for (Index i = 0; i < SLANG_COUNT_OF(infos); ++i)
+    for (size_t i = 0; i < SLANG_COUNT_OF(infos); ++i)
     {
         if (infos[i].sm == sm)
         {

@@ -206,7 +206,7 @@ struct FormatInfoMap
         uint8_t blockHeight = 1
     )
     {
-        FormatInfo& info = m_infos[Index(format)];
+        FormatInfo& info = m_infos[size_t(format)];
         info.name = name;
         info.channelCount = channelCount;
         info.channelType = uint8_t(type);
@@ -220,9 +220,9 @@ struct FormatInfoMap
         info.isCompressed = isCompressed(format);
     }
 
-    const FormatInfo& get(Format format) const { return m_infos[Index(format)]; }
+    const FormatInfo& get(Format format) const { return m_infos[size_t(format)]; }
 
-    FormatInfo m_infos[Index(Format::_Count)];
+    FormatInfo m_infos[size_t(Format::_Count)];
 };
 
 static const FormatInfoMap s_formatInfoMap;

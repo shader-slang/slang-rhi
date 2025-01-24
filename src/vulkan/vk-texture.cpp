@@ -458,7 +458,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             Offset srcOffset = 0;
             for (int i = 0; i < arrayLayerCount; ++i)
             {
-                for (Index j = 0; j < mipSizes.size(); ++j)
+                for (size_t j = 0; j < mipSizes.size(); ++j)
                 {
                     const auto& mipSize = mipSizes[j];
 

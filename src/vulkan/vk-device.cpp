@@ -282,16 +282,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         );
 
         // Use first physical device by default.
-        Index selectedDeviceIndex = -1;
+        int selectedDeviceIndex = -1;
 
         // Search for requested adapter.
         if (m_desc.adapterLUID)
         {
-            for (Index i = 0; i < physicalDevices.size(); ++i)
+            for (size_t i = 0; i < physicalDevices.size(); ++i)
             {
                 if (vk::getAdapterLUID(m_api, physicalDevices[i]) == *m_desc.adapterLUID)
                 {
-                    selectedDeviceIndex = i;
+                    selectedDeviceIndex = (int)i;
                     break;
                 }
             }
@@ -305,13 +305,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             // we will select the device with most amount of extensions.
             selectedDeviceIndex = 0;
             uint32_t currentMaxExtensionCount = 0;
-            for (Index i = 0; i < physicalDevices.size(); ++i)
+            for (size_t i = 0; i < physicalDevices.size(); ++i)
             {
                 uint32_t propCount = 0;
                 m_api.vkEnumerateDeviceExtensionProperties(physicalDevices[i], NULL, &propCount, nullptr);
                 if (propCount > currentMaxExtensionCount)
                 {
-                    selectedDeviceIndex = i;
+                    selectedDeviceIndex = (int)i;
                     currentMaxExtensionCount = propCount;
                 }
             }
