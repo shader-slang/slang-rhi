@@ -12,7 +12,7 @@ ShaderObjectContainerType DebugShaderObject::getContainerType()
 void DebugShaderObject::checkCompleteness()
 {
     auto layout = baseObject->getElementTypeLayout();
-    for (Index i = 0; i < layout->getBindingRangeCount(); i++)
+    for (SlangInt i = 0; i < layout->getBindingRangeCount(); i++)
     {
         if (layout->getBindingRangeBindingCount(i) != 0)
         {

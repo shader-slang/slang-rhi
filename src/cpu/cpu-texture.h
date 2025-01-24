@@ -71,13 +71,13 @@ struct CPUFormatInfoMap
 
     void set(Format format, CPUTextureUnpackFunc func)
     {
-        auto& info = m_infos[Index(format)];
+        auto& info = m_infos[size_t(format)];
         info.unpackFunc = func;
     }
 
-    SLANG_FORCE_INLINE const CPUTextureFormatInfo& get(Format format) const { return m_infos[Index(format)]; }
+    SLANG_FORCE_INLINE const CPUTextureFormatInfo& get(Format format) const { return m_infos[size_t(format)]; }
 
-    CPUTextureFormatInfo m_infos[Index(Format::_Count)];
+    CPUTextureFormatInfo m_infos[size_t(Format::_Count)];
 };
 
 static const CPUFormatInfoMap g_formatInfoMap;

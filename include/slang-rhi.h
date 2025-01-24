@@ -54,8 +54,6 @@ using Slang::Guid;
 typedef SlangResult Result;
 
 // Had to move here, because Options needs types defined here
-typedef SlangInt Int;
-typedef SlangUInt UInt;
 typedef uint64_t DeviceAddress;
 typedef int GfxIndex;
 typedef int GfxCount;

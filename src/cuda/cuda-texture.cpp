@@ -272,7 +272,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 // 'face' This seems reasonable and works with the Copy3D.
                 const size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
 
-                Index faceCount = desc.arrayLength;
+                uint32_t faceCount = desc.arrayLength;
                 if (desc.type == TextureType::TextureCube)
                 {
                     faceCount *= 6;
@@ -283,7 +283,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 
                 // We need to add the face data from each mip
                 // We iterate over face count so we copy all of the cubemap faces
-                for (Index j = 0; j < faceCount; j++)
+                for (uint32_t j = 0; j < faceCount; j++)
                 {
                     const auto srcData = initData[mipLevel + j * desc.mipLevelCount].data;
                     // Copy over to the workspace to make contiguous
@@ -300,7 +300,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 
                     workspace.resize(faceSizeInBytes * 6);
                     // Copy the data over to make contiguous
-                    for (Index j = 0; j < 6; j++)
+                    for (uint32_t j = 0; j < 6; j++)
                     {
                         const auto srcData = initData[mipLevel + j * desc.mipLevelCount].data;
                         ::memcpy(workspace.data() + faceSizeInBytes * j, srcData, faceSizeInBytes);

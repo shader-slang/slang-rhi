@@ -315,14 +315,17 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-inline uint32_t findEntryPointIndexByName(const std::map<std::string, Index>& entryPointNameToIndex, const char* name)
+inline uint32_t findEntryPointIndexByName(
+    const std::map<std::string, uint32_t>& entryPointNameToIndex,
+    const char* name
+)
 {
     if (!name)
         return VK_SHADER_UNUSED_KHR;
 
     auto it = entryPointNameToIndex.find(name);
     if (it != entryPointNameToIndex.end())
-        return (uint32_t)it->second;
+        return it->second;
     // TODO: Error reporting?
     return VK_SHADER_UNUSED_KHR;
 }
@@ -345,9 +348,9 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
     // Build Dictionary from entry point name to entry point index (stageCreateInfos index)
     // for all hit shaders - findShaderIndexByName
-    std::map<std::string, Index> entryPointNameToIndex;
+    std::map<std::string, uint32_t> entryPointNameToIndex;
 
-    std::map<std::string, Index> shaderGroupNameToIndex;
+    std::map<std::string, uint32_t> shaderGroupNameToIndex;
 
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroupInfos;
     for (uint32_t i = 0; i < createInfo.stageCount; ++i)
@@ -372,7 +375,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
         // For groups with a single entry point, the group name is the entry point name.
         auto shaderGroupName = entryPointName;
-        auto shaderGroupIndex = Index(shaderGroupInfos.size());
+        uint32_t shaderGroupIndex = (uint32_t)shaderGroupInfos.size();
         shaderGroupInfos.push_back(shaderGroupInfo);
         shaderGroupNameToIndex.emplace(shaderGroupName, shaderGroupIndex);
     }
@@ -396,7 +399,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint);
         shaderGroupInfo.pShaderGroupCaptureReplayHandle = nullptr;
 
-        auto shaderGroupIndex = Index(shaderGroupInfos.size());
+        uint32_t shaderGroupIndex = (uint32_t)shaderGroupInfos.size();
         shaderGroupInfos.push_back(shaderGroupInfo);
         shaderGroupNameToIndex.emplace(groupDesc.hitGroupName, shaderGroupIndex);
     }

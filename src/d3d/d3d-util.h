@@ -58,9 +58,6 @@ public:
 
     static D3D12_DEPTH_STENCILOP_DESC translateStencilOpDesc(DepthStencilOpDesc desc);
 
-    /// Calculate size taking into account alignment. Alignment must be a power of 2
-    static UInt calcAligned(UInt size, UInt alignment) { return (size + alignment - 1) & ~(alignment - 1); }
-
     /// Compile HLSL code to DXBC
     static Result compileHLSLShader(
         const char* sourcePath,
@@ -80,13 +77,13 @@ public:
     /// is not possible
     static DXGI_FORMAT calcFormat(UsageType usage, DXGI_FORMAT format);
     /// Calculate appropriate format for creating a buffer for usage and flags
-    static DXGI_FORMAT calcResourceFormat(UsageType usage, Int usageFlags, DXGI_FORMAT format);
+    static DXGI_FORMAT calcResourceFormat(UsageType usage, uint32_t usageFlags, DXGI_FORMAT format);
     /// True if the type is 'typeless'
     static bool isTypeless(DXGI_FORMAT format);
 
     /// Returns number of bits used for color channel for format (for channels with multiple sizes, returns smallest ie
     /// RGB565 -> 5)
-    static Int getNumColorChannelBits(DXGI_FORMAT fmt);
+    static uint32_t getNumColorChannelBits(DXGI_FORMAT fmt);
 
     static Result createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory);
 

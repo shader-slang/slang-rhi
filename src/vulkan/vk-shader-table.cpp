@@ -14,11 +14,10 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
     const auto& rtProps = api.m_rtProperties;
     uint32_t handleSize = rtProps.shaderGroupHandleSize;
     m_raygenTableSize = m_rayGenShaderCount * rtProps.shaderGroupBaseAlignment;
-    m_missTableSize =
-        (uint32_t)VulkanUtil::calcAligned(m_missShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
-    m_hitTableSize = (uint32_t)VulkanUtil::calcAligned(m_hitGroupCount * handleSize, rtProps.shaderGroupBaseAlignment);
+    m_missTableSize = (uint32_t)math::calcAligned(m_missShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
+    m_hitTableSize = (uint32_t)math::calcAligned(m_hitGroupCount * handleSize, rtProps.shaderGroupBaseAlignment);
     m_callableTableSize =
-        (uint32_t)VulkanUtil::calcAligned(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
+        (uint32_t)math::calcAligned(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
     auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);
@@ -38,7 +37,7 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
     );
 
     uint8_t* subTablePtr = tableData.get();
-    Int shaderTableEntryCounter = 0;
+    uint32_t shaderTableEntryCounter = 0;
 
     // Each loop calculates the copy source and destination locations by fetching the name
     // of the shader group from the list of shader group names and getting its corresponding

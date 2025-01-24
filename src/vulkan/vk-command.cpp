@@ -953,12 +953,11 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
 
         auto rtProps = api.m_rtProperties;
-        auto alignedHandleSize =
-            VulkanUtil::calcAligned(rtProps.shaderGroupHandleSize, rtProps.shaderGroupHandleAlignment);
+        size_t alignedHandleSize = math::calcAligned(rtProps.shaderGroupHandleSize, rtProps.shaderGroupHandleAlignment);
 
         // Raygen index is set at dispatch time.
         m_rayGenTableAddr = shaderTableAddr;
-        m_raygenSBT.stride = VulkanUtil::calcAligned(alignedHandleSize, rtProps.shaderGroupBaseAlignment);
+        m_raygenSBT.stride = math::calcAligned(alignedHandleSize, rtProps.shaderGroupBaseAlignment);
         m_raygenSBT.deviceAddress = shaderTableAddr;
         m_raygenSBT.size = m_raygenSBT.stride;
 

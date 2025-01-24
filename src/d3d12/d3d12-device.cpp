@@ -1152,8 +1152,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 Extents mipSize = calcMipSize(srcDesc.size, j);
                 if (formatInfo.isCompressed)
                 {
-                    mipSize.width = int(D3DUtil::calcAligned(mipSize.width, 4));
-                    mipSize.height = int(D3DUtil::calcAligned(mipSize.height, 4));
+                    mipSize.width = (int32_t)math::calcAligned(mipSize.width, 4);
+                    mipSize.height = (int32_t)math::calcAligned(mipSize.height, 4);
                 }
 
                 SLANG_RHI_ASSERT(

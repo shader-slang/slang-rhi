@@ -59,7 +59,7 @@ VulkanDescriptorSet DescriptorSetAllocator::allocate(VkDescriptorSetLayout layou
         return rs;
     }
     // If allocation from last pool fails, try all existing pools.
-    for (Index i = 0; i < pools.size() - 1; i++)
+    for (size_t i = 0; i < pools.size() - 1; i++)
     {
         allocInfo.descriptorPool = pools[i];
         if (m_api->vkAllocateDescriptorSets(m_api->m_device, &allocInfo, &rs.handle) == VK_SUCCESS)

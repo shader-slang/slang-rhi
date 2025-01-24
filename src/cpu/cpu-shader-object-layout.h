@@ -83,7 +83,7 @@ public:
     RootShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::ProgramLayout* programLayout);
 
     int getKernelIndex(std::string_view kernelName);
-    void getKernelThreadGroupSize(int kernelIndex, UInt* threadGroupSizes);
+    void getKernelThreadGroupSize(int kernelIndex, SlangUInt* threadGroupSizes);
 
     EntryPointLayoutImpl* getEntryPoint(Index index);
 };
