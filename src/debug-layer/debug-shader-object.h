@@ -45,15 +45,15 @@ public:
     IShaderObject* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() override;
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override;
-    virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** entryPoint) override;
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** entryPoint) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setData(const ShaderOffset& offset, const void* data, size_t size) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, GfxCount count) override;
+    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, uint32_t count) override;
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override;
@@ -94,7 +94,7 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, GfxCount count) override;
+    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, uint32_t count) override;
     void reset();
 };
 
