@@ -181,6 +181,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
                 (const AccelerationStructureBuildInputProceduralPrimitives&)buildDesc.inputs[i];
+            SLANG_UNUSED(proceduralPrimitives);
             break;
         }
         default:
