@@ -40,15 +40,15 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
             rangeIndexInDescriptorSet
         );
 
-        Index baseIndex = 0;
-        Index subObjectIndex = 0;
+        uint32_t slotIndex = 0;
+        uint32_t subObjectIndex = 0;
+
         switch (slangBindingType)
         {
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
-            baseIndex = m_subObjectCount;
-            subObjectIndex = baseIndex;
+            subObjectIndex = m_subObjectCount;
             m_subObjectCount += count;
             break;
         case slang::BindingType::RawBuffer:
@@ -60,19 +60,19 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
                 subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
-            baseIndex = m_resourceCount;
-            m_resourceCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             break;
         default:
-            baseIndex = m_resourceCount;
-            m_resourceCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             break;
         }
 
         BindingRangeInfo bindingRangeInfo;
         bindingRangeInfo.bindingType = slangBindingType;
         bindingRangeInfo.count = count;
-        bindingRangeInfo.baseIndex = baseIndex;
+        bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.uniformOffset = uniformOffset;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
         bindingRangeInfo.isSpecializable = m_elementTypeLayout->isBindingRangeSpecializable(r);
@@ -103,29 +103,33 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
         SubObjectRangeInfo subObjectRange;
         subObjectRange.bindingRangeIndex = bindingRangeIndex;
         subObjectRange.layout = subObjectLayout;
-        subObjectRanges.push_back(subObjectRange);
+        subObjectRange.pendingOrdinaryDataOffset = 0;
+        subObjectRange.pendingOrdinaryDataStride = 0;
+        m_subObjectRanges.push_back(subObjectRange);
     }
 }
 
-RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* inProgramLayout)
-    : ShaderObjectLayoutImpl(device, inProgramLayout->getSession(), inProgramLayout->getGlobalParamsTypeLayout())
-    , programLayout(inProgramLayout)
+RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout)
+    : ShaderObjectLayoutImpl(device, programLayout->getSession(), programLayout->getGlobalParamsTypeLayout())
+    , m_programLayout(programLayout)
 {
     for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
-        entryPointLayouts.push_back(new ShaderObjectLayoutImpl(
+        EntryPointInfo entryPointInfo;
+        entryPointInfo.layout = new ShaderObjectLayoutImpl(
             device,
             programLayout->getSession(),
             programLayout->getEntryPointByIndex(i)->getTypeLayout()
-        ));
+        );
+        m_entryPoints.push_back(entryPointInfo);
     }
 }
 
 int RootShaderObjectLayoutImpl::getKernelIndex(std::string_view kernelName)
 {
-    for (int i = 0; i < (int)programLayout->getEntryPointCount(); i++)
+    for (SlangUInt i = 0; i < m_programLayout->getEntryPointCount(); i++)
     {
-        auto entryPoint = programLayout->getEntryPointByIndex(i);
+        auto entryPoint = m_programLayout->getEntryPointByIndex(i);
         if (kernelName == entryPoint->getName())
         {
             return i;
@@ -134,10 +138,14 @@ int RootShaderObjectLayoutImpl::getKernelIndex(std::string_view kernelName)
     return -1;
 }
 
-void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, SlangUInt* threadGroupSizes)
+void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, uint32_t* threadGroupSizes)
 {
-    auto entryPoint = programLayout->getEntryPointByIndex(kernelIndex);
-    entryPoint->getComputeThreadGroupSize(3, threadGroupSizes);
+    auto entryPoint = m_programLayout->getEntryPointByIndex(kernelIndex);
+    SlangUInt sizes[3];
+    entryPoint->getComputeThreadGroupSize(3, sizes);
+    threadGroupSizes[0] = (uint32_t)sizes[0];
+    threadGroupSizes[1] = (uint32_t)sizes[1];
+    threadGroupSizes[2] = (uint32_t)sizes[2];
 }
 
 } // namespace rhi::cuda

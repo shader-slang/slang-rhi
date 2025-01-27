@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "cuda-command.h"
 #include "cuda-helper-functions.h"
 
 namespace rhi::cuda {
@@ -18,7 +17,8 @@ struct Context
 class DeviceImpl : public Device
 {
 private:
-    static const CUDAReportStyle reportType = CUDAReportStyle::Normal;
+    static const CUDAReportStyle kReportType = CUDAReportStyle::Normal;
+
     static int _calcSMCountPerMultiProcessor(int major, int minor);
 
     static Result _findMaxFlopsDeviceIndex(int* outDeviceIndex);
@@ -32,6 +32,7 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
 
 public:
+    DeviceImpl();
     ~DeviceImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
@@ -71,9 +72,11 @@ public:
         ShaderObjectLayout** outLayout
     ) override;
 
-    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-
-    Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject);
+    virtual Result createRootShaderObjectLayout(
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        ShaderObjectLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable) override;
@@ -119,6 +122,8 @@ public:
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
     ) override;
+
+    void customizeShaderObject(ShaderObject* shaderObject) override;
 };
 
 } // namespace rhi::cuda

@@ -1,5 +1,6 @@
 #include "cuda-shader-table.h"
 #include "cuda-device.h"
+#include "cuda-pipeline.h"
 
 #include <vector>
 
@@ -12,18 +13,21 @@ struct alignas(OPTIX_SBT_RECORD_ALIGNMENT) SbtRecord
     char header[OPTIX_SBT_RECORD_HEADER_SIZE];
 };
 
-RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
+ShaderTableImpl::~ShaderTableImpl()
 {
-    SLANG_UNUSED(pipeline);
-    return nullptr;
+    for (auto it : m_instances)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(it.second.buffer));
+    }
 }
 
 ShaderTableImpl::Instance* ShaderTableImpl::getInstance(RayTracingPipelineImpl* pipeline)
 {
-    // TODO: NOT THREADSAFE
-    auto it = m_instances.find(pipeline);
-    if (it != m_instances.end())
-        return &it->second;
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto instanceIt = m_instances.find(pipeline);
+    if (instanceIt != m_instances.end())
+        return &instanceIt->second;
 
     Instance& instance = m_instances[pipeline];
     std::memset(&instance, 0, sizeof(instance));
