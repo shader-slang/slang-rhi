@@ -61,10 +61,12 @@ public:
         slang::TypeLayoutReflection* typeLayout,
         ShaderObjectLayout** outLayout
     ) override;
-    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    virtual Result createRootShaderObjectLayout(
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        ShaderObjectLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable) override;

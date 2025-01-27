@@ -595,7 +595,7 @@ WGPULoadOp translateLoadOp(LoadOp op)
     case LoadOp::Clear:
         return WGPULoadOp_Clear;
     case LoadOp::DontCare:
-        return WGPULoadOp_Undefined;
+        return WGPULoadOp_Clear;
     default:
         return WGPULoadOp_Undefined;
     }
@@ -608,7 +608,7 @@ WGPUStoreOp translateStoreOp(StoreOp op)
     case StoreOp::Store:
         return WGPUStoreOp_Store;
     case StoreOp::DontCare:
-        return WGPUStoreOp_Undefined;
+        return WGPUStoreOp_Discard;
     default:
         return WGPUStoreOp_Undefined;
     }

@@ -1,6 +1,5 @@
 #include "wgpu-shader-object-layout.h"
 #include "wgpu-device.h"
-// #include "../dump-reflection.h"
 
 namespace rhi::wgpu {
 
@@ -56,7 +55,7 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
     return WGPUTextureSampleType_Undefined;
 }
 
-Index ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(Index space)
+uint32_t ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space)
 {
     auto it = m_mapSpaceToDescriptorSetIndex.find(space);
     if (it != m_mapSpaceToDescriptorSetIndex.end())
@@ -65,7 +64,7 @@ Index ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(Index space)
     DescriptorSetInfo info = {};
     info.space = space;
 
-    Index index = m_descriptorSetBuildInfos.size();
+    uint32_t index = m_descriptorSetBuildInfos.size();
     m_descriptorSetBuildInfos.push_back(info);
 
     m_mapSpaceToDescriptorSetIndex.emplace(space, index);
@@ -87,24 +86,24 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
     // internal data structures should be deterministically based on the order
     // in which they are listed in Slang's reflection information.
     //
-    Index descriptorSetCount = typeLayout->getDescriptorSetCount();
-    for (Index i = 0; i < descriptorSetCount; ++i)
+    uint32_t descriptorSetCount = typeLayout->getDescriptorSetCount();
+    for (uint32_t i = 0; i < descriptorSetCount; ++i)
     {
         SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(i);
         if (descriptorRangeCount == 0)
             continue;
-        auto descriptorSetIndex =
+        uint32_t descriptorSetIndex =
             findOrAddDescriptorSet(offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(i));
+        SLANG_UNUSED(descriptorSetIndex);
     }
 
     // For actually populating the descriptor sets we prefer to enumerate
     // the binding ranges of the type instead of the descriptor sets.
     //
-    Index bindRangeCount = typeLayout->getBindingRangeCount();
-    for (Index i = 0; i < bindRangeCount; ++i)
+    SlangInt bindRangeCount = typeLayout->getBindingRangeCount();
+    for (SlangInt bindingRangeIndex = 0; bindingRangeIndex < bindRangeCount; ++bindingRangeIndex)
     {
-        auto bindingRangeIndex = i;
-        auto bindingRangeType = typeLayout->getBindingRangeType(bindingRangeIndex);
+        slang::BindingType bindingRangeType = typeLayout->getBindingRangeType(bindingRangeIndex);
         switch (bindingRangeType)
         {
         default:
@@ -123,7 +122,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         // Given a binding range we are interested in, we will then enumerate
         // its contained descriptor ranges.
 
-        Index descriptorRangeCount = typeLayout->getBindingRangeDescriptorRangeCount(bindingRangeIndex);
+        SlangInt descriptorRangeCount = typeLayout->getBindingRangeDescriptorRangeCount(bindingRangeIndex);
         if (descriptorRangeCount == 0)
             continue;
         auto slangDescriptorSetIndex = typeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
@@ -132,10 +131,10 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         );
         auto& descriptorSetInfo = m_descriptorSetBuildInfos[descriptorSetIndex];
 
-        Index firstDescriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
-        for (Index j = 0; j < descriptorRangeCount; ++j)
+        SlangInt firstDescriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
+        for (SlangInt j = 0; j < descriptorRangeCount; ++j)
         {
-            Index descriptorRangeIndex = firstDescriptorRangeIndex + j;
+            SlangInt descriptorRangeIndex = firstDescriptorRangeIndex + j;
             auto slangDescriptorType =
                 typeLayout->getDescriptorSetDescriptorRangeType(slangDescriptorSetIndex, descriptorRangeIndex);
 
@@ -206,20 +205,6 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                 break;
             }
 
-#if 0
-            auto vkDescriptorType = _mapDescriptorType(slangDescriptorType);
-            VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
-            vkBindingRangeDesc.binding =
-                offset.binding +
-                (uint32_t
-                )typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex);
-            vkBindingRangeDesc.descriptorCount = (uint32_t
-            )typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(slangDescriptorSetIndex, descriptorRangeIndex);
-            vkBindingRangeDesc.descriptorType = vkDescriptorType;
-            vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-
-            descriptorSetInfo.vkBindings.push_back(vkBindingRangeDesc);
-#endif
             descriptorSetInfo.entries.push_back(entry);
         }
     }
@@ -228,13 +213,13 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
     // and now we will address that oversight by iterating over just
     // the sub-object ranges.
     //
-    Index subObjectRangeCount = typeLayout->getSubObjectRangeCount();
-    for (Index subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount; ++subObjectRangeIndex)
+    SlangInt subObjectRangeCount = typeLayout->getSubObjectRangeCount();
+    for (SlangInt subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount; ++subObjectRangeIndex)
     {
-        auto bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(subObjectRangeIndex);
-        auto bindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
+        SlangInt bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(subObjectRangeIndex);
+        slang::BindingType bindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
 
-        auto subObjectTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
+        slang::TypeLayoutReflection* subObjectTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
         SLANG_RHI_ASSERT(subObjectTypeLayout);
 
         BindingOffset subObjectRangeOffset = offset;
@@ -335,15 +320,14 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         uint32_t count = (uint32_t)typeLayout->getBindingRangeBindingCount(r);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(r);
 
-        Index baseIndex = 0;
-        Index subObjectIndex = 0;
+        uint32_t slotIndex = 0;
+        uint32_t subObjectIndex = 0;
         switch (slangBindingType)
         {
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
-            baseIndex = m_subObjectCount;
-            subObjectIndex = baseIndex;
+            subObjectIndex = m_subObjectCount;
             m_subObjectCount += count;
             break;
         case slang::BindingType::RawBuffer:
@@ -355,25 +339,20 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
                 subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
-            baseIndex = m_resourceCount;
-            m_resourceCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             break;
         case slang::BindingType::Sampler:
-            baseIndex = m_samplerCount;
-            m_samplerCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_totalBindingCount += 1;
             break;
         case slang::BindingType::VaryingInput:
-            baseIndex = m_varyingInputCount;
-            m_varyingInputCount += count;
-            break;
         case slang::BindingType::VaryingOutput:
-            baseIndex = m_varyingOutputCount;
-            m_varyingOutputCount += count;
             break;
         default:
-            baseIndex = m_resourceCount;
-            m_resourceCount += count;
+            slotIndex = m_slotCount;
+            m_slotCount += count;
             m_totalBindingCount += 1;
             break;
         }
@@ -381,7 +360,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         BindingRangeInfo bindingRangeInfo;
         bindingRangeInfo.bindingType = slangBindingType;
         bindingRangeInfo.count = count;
-        bindingRangeInfo.baseIndex = baseIndex;
+        bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
         bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
         // We'd like to extract the information on the GLSL/SPIR-V
@@ -403,8 +382,8 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             SlangInt descriptorSetIndex = typeLayout->getBindingRangeDescriptorSetIndex(r);
             SlangInt descriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(r);
 
-            auto set = typeLayout->getDescriptorSetSpaceOffset(descriptorSetIndex);
-            auto bindingOffset =
+            SlangInt set = typeLayout->getDescriptorSetSpaceOffset(descriptorSetIndex);
+            SlangInt bindingOffset =
                 typeLayout->getDescriptorSetDescriptorRangeIndexOffset(descriptorSetIndex, descriptorRangeIndex);
 
             bindingRangeInfo.setOffset = uint32_t(set);
@@ -419,7 +398,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
     {
         SlangInt bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(r);
         auto& bindingRange = m_bindingRanges[bindingRangeIndex];
-        auto slangBindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
+        slang::BindingType slangBindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
 
         // A sub-object range can either represent a sub-object of a known
@@ -504,6 +483,9 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         default:
             break;
         }
+
+        subObjectRange.pendingOrdinaryDataOffset = subObjectRange.offset.pendingOrdinaryData;
+        subObjectRange.pendingOrdinaryDataStride = subObjectRange.stride.pendingOrdinaryData;
 
         m_subObjectRanges.push_back(subObjectRange);
     }
@@ -613,8 +595,7 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     m_bindingRanges = builder->m_bindingRanges;
 
     m_descriptorSetInfos = _Move(builder->m_descriptorSetBuildInfos);
-    m_resourceCount = builder->m_resourceCount;
-    m_samplerCount = builder->m_samplerCount;
+    m_slotCount = builder->m_slotCount;
     m_childDescriptorSetCount = builder->m_childDescriptorSetCount;
     m_totalBindingCount = builder->m_totalBindingCount;
     m_subObjectCount = builder->m_subObjectCount;
@@ -657,7 +638,6 @@ void EntryPointLayout::Builder::addEntryPointParams(slang::EntryPointLayout* ent
 {
     m_slangEntryPointLayout = entryPointLayout;
     setElementTypeLayout(entryPointLayout->getTypeLayout());
-    m_shaderStageFlag = entryPointLayout->getStage();
 
     // Note: we do not bother adding any descriptor sets/ranges here,
     // because the descriptor ranges of an entry point will simply
@@ -667,16 +647,13 @@ void EntryPointLayout::Builder::addEntryPointParams(slang::EntryPointLayout* ent
 
 Result EntryPointLayout::_init(const Builder* builder)
 {
-    auto device = builder->m_device;
-
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
     m_slangEntryPointLayout = builder->m_slangEntryPointLayout;
-    m_shaderStageFlag = builder->m_shaderStageFlag;
     return SLANG_OK;
 }
 
-RootShaderObjectLayout::~RootShaderObjectLayout()
+RootShaderObjectLayoutImpl::~RootShaderObjectLayoutImpl()
 {
     if (m_pipelineLayout)
     {
@@ -684,28 +661,14 @@ RootShaderObjectLayout::~RootShaderObjectLayout()
     }
 }
 
-Index RootShaderObjectLayout::findEntryPointIndex(SlangStage stage)
-{
-    auto entryPointCount = m_entryPoints.size();
-    for (Index i = 0; i < entryPointCount; ++i)
-    {
-        auto entryPoint = m_entryPoints[i];
-        if (entryPoint.layout->getShaderStageFlag() == stage)
-            return i;
-    }
-    return -1;
-}
-
-Result RootShaderObjectLayout::create(
+Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
-    RootShaderObjectLayout** outLayout
+    RootShaderObjectLayoutImpl** outLayout
 )
 {
-    // std::string json = dumpProgramLayout(programLayout);
-
-    RootShaderObjectLayout::Builder builder(device, program, programLayout);
+    RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout);
     builder.addGlobalParams(programLayout->getGlobalParamsVarLayout());
 
     SlangInt entryPointCount = programLayout->getEntryPointCount();
@@ -727,7 +690,7 @@ Result RootShaderObjectLayout::create(
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayout::_init(const Builder* builder)
+Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 {
     auto device = builder->m_device;
 
@@ -773,7 +736,7 @@ Result RootShaderObjectLayout::_init(const Builder* builder)
 
 /// Add all the descriptor sets implied by this root object and sub-objects
 
-Result RootShaderObjectLayout::addAllDescriptorSets()
+Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 {
     SLANG_RETURN_ON_FAIL(addAllDescriptorSetsRec(this));
 
@@ -785,7 +748,7 @@ Result RootShaderObjectLayout::addAllDescriptorSets()
     // point could introduce "child" descriptor sets, e.g., because it
     // has a `ParameterBlock<X>` parameter.
     //
-    for (auto& entryPoint : getEntryPoints())
+    for (const auto& entryPoint : m_entryPoints)
     {
         SLANG_RETURN_ON_FAIL(addChildDescriptorSetsRec(entryPoint.layout));
     }
@@ -795,7 +758,7 @@ Result RootShaderObjectLayout::addAllDescriptorSets()
 
 /// Recurisvely add descriptor sets defined by `layout` and sub-objects
 
-Result RootShaderObjectLayout::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
+Result RootShaderObjectLayoutImpl::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
 {
     // TODO: This logic assumes that descriptor sets are all contiguous
     // and have been allocated in a global order that matches the order
@@ -812,11 +775,11 @@ Result RootShaderObjectLayout::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* l
 
 /// Recurisvely add descriptor sets defined by sub-objects of `layout`
 
-Result RootShaderObjectLayout::addChildDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
+Result RootShaderObjectLayoutImpl::addChildDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
 {
-    for (auto& subObject : layout->getSubObjectRanges())
+    for (const auto& subObject : layout->m_subObjectRanges)
     {
-        const auto& bindingRange = layout->getBindingRange(subObject.bindingRangeIndex);
+        const auto& bindingRange = layout->m_bindingRanges[subObject.bindingRangeIndex];
         switch (bindingRange.bindingType)
         {
         case slang::BindingType::ParameterBlock:
@@ -835,15 +798,15 @@ Result RootShaderObjectLayout::addChildDescriptorSetsRec(ShaderObjectLayoutImpl*
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayout::Builder::build(RootShaderObjectLayout** outLayout)
+Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** outLayout)
 {
-    RefPtr<RootShaderObjectLayout> layout = new RootShaderObjectLayout();
+    RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
     returnRefPtrMove(outLayout, layout);
     return SLANG_OK;
 }
 
-void RootShaderObjectLayout::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
+void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
 {
     setElementTypeLayout(globalsLayout->getTypeLayout());
 
@@ -877,7 +840,7 @@ void RootShaderObjectLayout::Builder::addGlobalParams(slang::VariableLayoutRefle
     m_pendingDataOffset = offset.pending;
 }
 
-void RootShaderObjectLayout::Builder::addEntryPoint(EntryPointLayout* entryPointLayout)
+void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryPointLayout)
 {
     auto slangEntryPointLayout = entryPointLayout->getSlangLayout();
     auto entryPointVarLayout = slangEntryPointLayout->getVarLayout();

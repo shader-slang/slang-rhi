@@ -1,7 +1,6 @@
 #pragma once
 
 #include "wgpu-base.h"
-#include "wgpu-shader-object-layout.h"
 
 #include "core/static_vector.h"
 
@@ -103,6 +102,8 @@ struct BindingOffset : SimpleBindingOffset
 
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
+    using Super = ShaderObjectLayout;
+
 public:
     // A shader object comprises three main kinds of state:
     //
@@ -118,16 +119,8 @@ public:
     // API, and a shader object layout will store information about those
     // ranges in a form that is usable for the Vulkan API:
 
-    struct BindingRangeInfo
+    struct BindingRangeInfo : Super::BindingRangeInfo
     {
-        slang::BindingType bindingType;
-        Index count;
-        Index baseIndex;
-
-        /// An index into the sub-object array if this binding range is treated
-        /// as a sub-object.
-        Index subObjectIndex;
-
         /// The `binding` offset to apply for this range
         uint32_t bindingOffset;
 
@@ -142,10 +135,6 @@ public:
         // TODO: Ideally we could refactor so that only the root shader object layout
         // stores a set offset for its binding ranges, and all other objects skip
         // storing a field that never actually matters.
-
-        // Is this binding range representing a specialization point, such as
-        // an existential value or a ParameterBlock<IFoo>.
-        bool isSpecializable;
     };
 
     // Sometimes we just want to iterate over the ranges that represent
@@ -191,19 +180,16 @@ public:
     };
 
     /// Information about a logical binding range as reported by Slang reflection
-    struct SubObjectRangeInfo
+    struct SubObjectRangeInfo : Super::SubObjectRangeInfo
     {
-        /// The index of the binding range that corresponds to this sub-object range
-        Index bindingRangeIndex;
-
-        /// The layout expected for objects bound to this range (if known)
-        RefPtr<ShaderObjectLayoutImpl> layout;
-
         /// The offset to use when binding the first object in this range
         SubObjectRangeOffset offset;
 
         /// Stride between consecutive objects in this range
         SubObjectRangeStride stride;
+
+        /// The layout expected for objects bound to this range (if known)
+        RefPtr<ShaderObjectLayoutImpl> layout;
     };
 
     struct DescriptorSetInfo
@@ -213,69 +199,15 @@ public:
         WGPUBindGroupLayout bindGroupLayout = nullptr;
     };
 
-    struct Builder
-    {
-    public:
-        Builder(DeviceImpl* device, slang::ISession* session)
-            : m_device(device)
-            , m_session(session)
-        {
-        }
+    std::vector<BindingRangeInfo> m_bindingRanges;
+    std::vector<SubObjectRangeInfo> m_subObjectRanges;
+    std::vector<DescriptorSetInfo> m_descriptorSetInfos;
 
-        DeviceImpl* m_device;
-        slang::ISession* m_session;
-        slang::TypeLayoutReflection* m_elementTypeLayout;
-
-        /// The container type of this shader object. When `m_containerType` is
-        /// `StructuredBuffer` or `UnsizedArray`, this shader object represents a collection
-        /// instead of a single object.
-        ShaderObjectContainerType m_containerType = ShaderObjectContainerType::None;
-
-        std::vector<BindingRangeInfo> m_bindingRanges;
-        std::vector<SubObjectRangeInfo> m_subObjectRanges;
-
-        Index m_resourceCount = 0;
-        Index m_samplerCount = 0;
-        Index m_subObjectCount = 0;
-        Index m_varyingInputCount = 0;
-        Index m_varyingOutputCount = 0;
-        std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
-        std::map<Index, Index> m_mapSpaceToDescriptorSetIndex;
-
-        /// The number of descriptor sets allocated by child/descendent objects
-        uint32_t m_childDescriptorSetCount = 0;
-
-        /// The total number of `binding`s consumed by this object and its children/descendents
-        uint32_t m_totalBindingCount = 0;
-
-        uint32_t m_totalOrdinaryDataSize = 0;
-
-        Index findOrAddDescriptorSet(Index space);
-
-        /// Add any descriptor ranges implied by this object containing a leaf
-        /// sub-object described by `typeLayout`, at the given `offset`.
-        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, const BindingOffset& offset);
-
-        /// Add the descriptor ranges implied by a `ConstantBuffer<X>` where `X` is
-        /// described by `elementTypeLayout`.
-        ///
-        /// The `containerOffset` and `elementOffset` are the binding offsets that
-        /// should apply to the buffer itself and the contents of the buffer, respectively.
-        ///
-        void _addDescriptorRangesAsConstantBuffer(
-            slang::TypeLayoutReflection* elementTypeLayout,
-            const BindingOffset& containerOffset,
-            const BindingOffset& elementOffset
-        );
-
-        /// Add binding ranges to this shader object layout, as implied by the given
-        /// `typeLayout`
-        void addBindingRanges(slang::TypeLayoutReflection* typeLayout);
-
-        Result setElementTypeLayout(slang::TypeLayoutReflection* typeLayout);
-
-        Result build(ShaderObjectLayoutImpl** outLayout);
-    };
+    uint32_t m_slotCount = 0;
+    uint32_t m_subObjectCount = 0;
+    uint32_t m_childDescriptorSetCount = 0;
+    uint32_t m_totalBindingCount = 0;
+    uint32_t m_totalOrdinaryDataSize = 0;
 
     static Result createForElementType(
         DeviceImpl* device,
@@ -321,41 +253,98 @@ public:
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
-    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
-
-    Index getBindingRangeCount() { return m_bindingRanges.size(); }
-
-    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
-
-    Index getResourceCount() { return m_resourceCount; }
-    Index getSamplerCount() { return m_samplerCount; }
-    Index getSubObjectCount() { return m_subObjectCount; }
-
-    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
-
     DeviceImpl* getDevice();
 
-    slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
+    // ShaderObjectLayout interface
+    virtual uint32_t getSlotCount() const override { return m_slotCount; }
+    virtual uint32_t getSubObjectCount() const override { return m_subObjectCount; };
+
+    virtual uint32_t getBindingRangeCount() const override { return m_bindingRanges.size(); }
+    virtual const BindingRangeInfo& getBindingRange(uint32_t index) const override { return m_bindingRanges[index]; }
+
+    virtual uint32_t getSubObjectRangeCount() const override { return m_subObjectRanges.size(); }
+    virtual const SubObjectRangeInfo& getSubObjectRange(uint32_t index) const override
+    {
+        return m_subObjectRanges[index];
+    }
+    virtual ShaderObjectLayout* getSubObjectRangeLayout(uint32_t index) const override
+    {
+        return m_subObjectRanges[index].layout;
+    }
 
 protected:
+    struct Builder
+    {
+    public:
+        DeviceImpl* m_device;
+        slang::ISession* m_session;
+        slang::TypeLayoutReflection* m_elementTypeLayout;
+
+        /// The container type of this shader object. When `m_containerType` is
+        /// `StructuredBuffer` or `UnsizedArray`, this shader object represents a collection
+        /// instead of a single object.
+        ShaderObjectContainerType m_containerType = ShaderObjectContainerType::None;
+
+        std::vector<BindingRangeInfo> m_bindingRanges;
+        std::vector<SubObjectRangeInfo> m_subObjectRanges;
+
+        uint32_t m_slotCount = 0;
+        uint32_t m_subObjectCount = 0;
+        std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
+        std::map<uint32_t, uint32_t> m_mapSpaceToDescriptorSetIndex;
+
+        /// The number of descriptor sets allocated by child/descendent objects
+        uint32_t m_childDescriptorSetCount = 0;
+
+        /// The total number of `binding`s consumed by this object and its children/descendents
+        uint32_t m_totalBindingCount = 0;
+
+        uint32_t m_totalOrdinaryDataSize = 0;
+
+        Builder(DeviceImpl* device, slang::ISession* session)
+            : m_device(device)
+            , m_session(session)
+        {
+        }
+
+        uint32_t findOrAddDescriptorSet(uint32_t space);
+
+        /// Add any descriptor ranges implied by this object containing a leaf
+        /// sub-object described by `typeLayout`, at the given `offset`.
+        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, const BindingOffset& offset);
+
+        /// Add the descriptor ranges implied by a `ConstantBuffer<X>` where `X` is
+        /// described by `elementTypeLayout`.
+        ///
+        /// The `containerOffset` and `elementOffset` are the binding offsets that
+        /// should apply to the buffer itself and the contents of the buffer, respectively.
+        ///
+        void _addDescriptorRangesAsConstantBuffer(
+            slang::TypeLayoutReflection* elementTypeLayout,
+            const BindingOffset& containerOffset,
+            const BindingOffset& elementOffset
+        );
+
+        /// Add binding ranges to this shader object layout, as implied by the given
+        /// `typeLayout`
+        void addBindingRanges(slang::TypeLayoutReflection* typeLayout);
+
+        Result setElementTypeLayout(slang::TypeLayoutReflection* typeLayout);
+
+        Result build(ShaderObjectLayoutImpl** outLayout);
+    };
+
     Result _init(const Builder* builder);
-
-    std::vector<DescriptorSetInfo> m_descriptorSetInfos;
-    std::vector<BindingRangeInfo> m_bindingRanges;
-    Index m_resourceCount = 0;
-    Index m_samplerCount = 0;
-    Index m_subObjectCount = 0;
-    uint32_t m_childDescriptorSetCount = 0;
-    uint32_t m_totalBindingCount = 0;
-    uint32_t m_totalOrdinaryDataSize = 0;
-
-    std::vector<SubObjectRangeInfo> m_subObjectRanges;
 };
 
 class EntryPointLayout : public ShaderObjectLayoutImpl
 {
-    typedef ShaderObjectLayoutImpl Super;
+    using Super = ShaderObjectLayoutImpl;
+
+public:
+    slang::EntryPointLayout* m_slangEntryPointLayout;
+
+    slang::EntryPointLayout* getSlangLayout() const { return m_slangEntryPointLayout; };
 
 public:
     struct Builder : Super::Builder
@@ -370,37 +359,52 @@ public:
         void addEntryPointParams(slang::EntryPointLayout* entryPointLayout);
 
         slang::EntryPointLayout* m_slangEntryPointLayout = nullptr;
-
-        SlangStage m_shaderStageFlag;
     };
 
     Result _init(const Builder* builder);
-
-    SlangStage getShaderStageFlag() const { return m_shaderStageFlag; }
-
-    slang::EntryPointLayout* getSlangLayout() const { return m_slangEntryPointLayout; };
-
-    slang::EntryPointLayout* m_slangEntryPointLayout;
-    SlangStage m_shaderStageFlag;
 };
 
-class RootShaderObjectLayout : public ShaderObjectLayoutImpl
+class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
 {
-    typedef ShaderObjectLayoutImpl Super;
+    using Super = ShaderObjectLayoutImpl;
 
 public:
-    ~RootShaderObjectLayout();
-
     /// Information stored for each entry point of the program
-    struct EntryPointInfo
+    struct EntryPointInfo : public Super::EntryPointInfo
     {
-        /// Layout of the entry point
-        RefPtr<EntryPointLayout> layout;
-
         /// Offset for binding the entry point, relative to the start of the program
         BindingOffset offset;
+
+        RefPtr<EntryPointLayout> layout;
     };
 
+    ComPtr<slang::IComponentType> m_program;
+    slang::ProgramLayout* m_programLayout = nullptr;
+    std::vector<EntryPointInfo> m_entryPoints;
+    WGPUPipelineLayout m_pipelineLayout = nullptr;
+    static_vector<WGPUBindGroupLayout, kMaxDescriptorSets> m_bindGroupLayouts;
+
+    SimpleBindingOffset m_pendingDataOffset;
+    DeviceImpl* m_device = nullptr;
+
+    ~RootShaderObjectLayoutImpl();
+
+    static Result create(
+        DeviceImpl* device,
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        RootShaderObjectLayoutImpl** outLayout
+    );
+
+    // ShaderObjectLayout interface
+    virtual uint32_t getEntryPointCount() const override { return m_entryPoints.size(); }
+    virtual const EntryPointInfo& getEntryPoint(uint32_t index) const override { return m_entryPoints[index]; }
+    virtual ShaderObjectLayout* getEntryPointLayout(uint32_t index) const override
+    {
+        return m_entryPoints[index].layout;
+    }
+
+protected:
     struct Builder : Super::Builder
     {
         Builder(DeviceImpl* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
@@ -410,7 +414,7 @@ public:
         {
         }
 
-        Result build(RootShaderObjectLayout** outLayout);
+        Result build(RootShaderObjectLayoutImpl** outLayout);
 
         void addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
 
@@ -424,25 +428,6 @@ public:
         SimpleBindingOffset m_pendingDataOffset;
     };
 
-    Index findEntryPointIndex(SlangStage stage);
-
-    const EntryPointInfo& getEntryPoint(Index index) { return m_entryPoints[index]; }
-
-    const std::vector<EntryPointInfo>& getEntryPoints() const { return m_entryPoints; }
-
-    static Result create(
-        DeviceImpl* device,
-        slang::IComponentType* program,
-        slang::ProgramLayout* programLayout,
-        RootShaderObjectLayout** outLayout
-    );
-
-    const SimpleBindingOffset& getPendingDataOffset() const { return m_pendingDataOffset; }
-
-    slang::IComponentType* getSlangProgram() const { return m_program; }
-    slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
-
-protected:
     Result _init(const Builder* builder);
 
     /// Add all the descriptor sets implied by this root object and sub-objects
@@ -453,16 +438,6 @@ protected:
 
     /// Recurisvely add descriptor sets defined by sub-objects of `layout`
     Result addChildDescriptorSetsRec(ShaderObjectLayoutImpl* layout);
-
-public:
-    ComPtr<slang::IComponentType> m_program;
-    slang::ProgramLayout* m_programLayout = nullptr;
-    std::vector<EntryPointInfo> m_entryPoints;
-    WGPUPipelineLayout m_pipelineLayout = nullptr;
-    static_vector<WGPUBindGroupLayout, kMaxDescriptorSets> m_bindGroupLayouts;
-
-    SimpleBindingOffset m_pendingDataOffset;
-    DeviceImpl* m_device = nullptr;
 };
 
 } // namespace rhi::wgpu
