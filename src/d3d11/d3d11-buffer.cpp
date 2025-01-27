@@ -1,5 +1,6 @@
 #include "d3d11-buffer.h"
 #include "d3d11-device.h"
+#include "d3d11-helper-functions.h"
 
 namespace rhi::d3d11 {
 
@@ -11,6 +12,9 @@ DeviceAddress BufferImpl::getDeviceAddress()
 ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& range)
 {
     ViewKey key = {format, range};
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     ComPtr<ID3D11ShaderResourceView>& srv = m_srvs[key];
     if (srv)
         return srv.get();
@@ -51,6 +55,9 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
 ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& range)
 {
     ViewKey key = {format, range};
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     ComPtr<ID3D11UnorderedAccessView>& uav = m_uavs[key];
     if (uav)
         return uav.get();

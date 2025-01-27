@@ -8,9 +8,10 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     D3D11_INPUT_ELEMENT_DESC inputElements[16] = {};
 
     char hlslBuffer[1024];
-    char* hlslCursor = &hlslBuffer[0];
+    char* hlslEnd = &hlslBuffer[0] + sizeof(hlslBuffer);
+    char* hlslPos = &hlslBuffer[0];
 
-    hlslCursor += sprintf(hlslCursor, "float4 main(\n");
+    hlslPos += snprintf(hlslPos, hlslEnd - hlslPos, "float4 main(\n");
 
     for (uint32_t i = 0; i < desc.inputElementCount; ++i)
     {
@@ -30,7 +31,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
         if (i != 0)
         {
-            hlslCursor += sprintf(hlslCursor, ",\n");
+            hlslPos += snprintf(hlslPos, hlslEnd - hlslPos, ",\n");
         }
 
         const char* typeName = "Unknown";
@@ -53,8 +54,9 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
             return SLANG_FAIL;
         }
 
-        hlslCursor += sprintf(
-            hlslCursor,
+        hlslPos += snprintf(
+            hlslPos,
+            hlslEnd - hlslPos,
             "%s a%d : %s%d",
             typeName,
             (int)i,
@@ -63,7 +65,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
         );
     }
 
-    hlslCursor += sprintf(hlslCursor, "\n) : SV_Position { return 0; }");
+    hlslPos += snprintf(hlslPos, hlslEnd - hlslPos, "\n) : SV_Position { return 0; }");
 
     ComPtr<ID3DBlob> vertexShaderBlob;
     SLANG_RETURN_ON_FAIL(D3DUtil::compileHLSLShader("inputLayout", hlslBuffer, "main", "vs_5_0", vertexShaderBlob));

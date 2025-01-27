@@ -9,6 +9,8 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
 
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     ComPtr<ID3D11RenderTargetView>& rtv = m_rtvs[key];
     if (rtv)
         return rtv;
@@ -23,6 +25,8 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
 
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     ComPtr<ID3D11DepthStencilView>& dsv = m_dsvs[key];
     if (dsv)
         return dsv;
@@ -36,6 +40,8 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
 {
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
+
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     ComPtr<ID3D11ShaderResourceView>& srv = m_srvs[key];
     if (srv)
@@ -54,6 +60,8 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
 {
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
+
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     ComPtr<ID3D11UnorderedAccessView>& uav = m_uavs[key];
     if (uav)
@@ -89,8 +97,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             {
                 for (uint32_t j = 0; j < srcDesc.mipLevelCount; j++)
                 {
-                    const uint32_t mipHeight = calcMipSize(srcDesc.size.height, j);
-
                     D3D11_SUBRESOURCE_DATA& data = subRes[subresourceIndex];
                     auto& srcData = initData[subresourceIndex];
 
