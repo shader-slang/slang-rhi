@@ -4,6 +4,8 @@
 #include "d3d11-input-layout.h"
 #include "d3d11-helper-functions.h"
 
+#include "core/deferred.h"
+
 namespace rhi::d3d11 {
 
 Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
@@ -14,6 +16,43 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
+
+#if SLANG_RHI_ENABLE_NVAPI
+    if (m_nvapiShaderExtension)
+    {
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot));
+        SLANG_RHI_DEFERRED({ SLANG_RHI_NVAPI_CHECK(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0)); });
+    }
+#endif // SLANG_RHI_ENABLE_NVAPI
+
+    ComPtr<ID3D11VertexShader> vertexShader;
+    {
+        auto module = program->findModule(SLANG_STAGE_VERTEX);
+        if (!module)
+            return SLANG_FAIL;
+        SLANG_RETURN_ON_FAIL(m_device->CreateVertexShader(
+            module->code->getBufferPointer(),
+            module->code->getBufferSize(),
+            nullptr,
+            vertexShader.writeRef()
+        ));
+    }
+
+    ComPtr<ID3D11PixelShader> pixelShader;
+    {
+        auto module = program->findModule(SLANG_STAGE_FRAGMENT);
+        if (!module)
+            return SLANG_FAIL;
+        SLANG_RETURN_ON_FAIL(m_device->CreatePixelShader(
+            module->code->getBufferPointer(),
+            module->code->getBufferSize(),
+            nullptr,
+            pixelShader.writeRef()
+        ));
+    }
+
     ComPtr<ID3D11DepthStencilState> depthStencilState;
     {
         D3D11_DEPTH_STENCIL_DESC dsDesc;
@@ -116,9 +155,11 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     }
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
-    pipeline->m_program = checked_cast<ShaderProgram*>(desc.program);
-    pipeline->m_programImpl = checked_cast<ShaderProgramImpl*>(desc.program);
+    pipeline->m_program = program;
+    pipeline->m_programImpl = program;
     pipeline->m_inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
+    pipeline->m_vertexShader = vertexShader;
+    pipeline->m_pixelShader = pixelShader;
     pipeline->m_depthStencilState = depthStencilState;
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
@@ -141,9 +182,34 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
+
+#if SLANG_RHI_ENABLE_NVAPI
+    if (m_nvapiShaderExtension)
+    {
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot));
+        SLANG_RHI_DEFERRED({ SLANG_RHI_NVAPI_CHECK(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0)); });
+    }
+#endif // SLANG_RHI_ENABLE_NVAPI
+
+    ComPtr<ID3D11ComputeShader> computeShader;
+    {
+        auto module = program->findModule(SLANG_STAGE_COMPUTE);
+        if (!module)
+            return SLANG_FAIL;
+        SLANG_RETURN_ON_FAIL(m_device->CreateComputeShader(
+            module->code->getBufferPointer(),
+            module->code->getBufferSize(),
+            nullptr,
+            computeShader.writeRef()
+        ));
+    }
+
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
-    pipeline->m_program = checked_cast<ShaderProgram*>(desc.program);
-    pipeline->m_programImpl = checked_cast<ShaderProgramImpl*>(desc.program);
+    pipeline->m_program = program;
+    pipeline->m_programImpl = program;
+    pipeline->m_computeShader = computeShader;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }

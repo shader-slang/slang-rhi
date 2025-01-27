@@ -437,6 +437,7 @@ if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
         src/d3d11/d3d11-buffer.cpp
         src/d3d11/d3d11-command.cpp
+        src/d3d11/d3d11-constant-buffer-pool.cpp
         src/d3d11/d3d11-device.cpp
         src/d3d11/d3d11-helper-functions.cpp
         src/d3d11/d3d11-input-layout.cpp

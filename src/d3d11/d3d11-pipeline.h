@@ -10,6 +10,9 @@ public:
     RefPtr<ShaderProgramImpl> m_programImpl;
     RefPtr<InputLayoutImpl> m_inputLayout;
 
+    ComPtr<ID3D11VertexShader> m_vertexShader;
+    ComPtr<ID3D11PixelShader> m_pixelShader;
+
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
     ComPtr<ID3D11RasterizerState> m_rasterizerState;
     ComPtr<ID3D11BlendState> m_blendState;
@@ -27,6 +30,8 @@ class ComputePipelineImpl : public ComputePipeline
 {
 public:
     RefPtr<ShaderProgramImpl> m_programImpl;
+
+    ComPtr<ID3D11ComputeShader> m_computeShader;
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

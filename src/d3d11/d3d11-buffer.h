@@ -36,6 +36,7 @@ public:
         }
     };
 
+    std::mutex m_mutex;
     std::unordered_map<ViewKey, ComPtr<ID3D11ShaderResourceView>, ViewKeyHasher> m_srvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11UnorderedAccessView>, ViewKeyHasher> m_uavs;
 

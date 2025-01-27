@@ -7,9 +7,23 @@ namespace rhi::d3d11 {
 class ShaderProgramImpl : public ShaderProgram
 {
 public:
-    ComPtr<ID3D11VertexShader> m_vertexShader;
-    ComPtr<ID3D11PixelShader> m_pixelShader;
-    ComPtr<ID3D11ComputeShader> m_computeShader;
+    DeviceImpl* m_device;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
+
+    struct Module
+    {
+        SlangStage stage;
+        ComPtr<ISlangBlob> code;
+    };
+
+    std::vector<Module> m_modules;
+
+    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+        override;
+
+    virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
+
+    Module* findModule(SlangStage stage);
 };
 
 } // namespace rhi::d3d11
