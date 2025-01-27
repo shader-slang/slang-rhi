@@ -11,6 +11,8 @@ namespace rhi::cuda {
 class ShaderTableImpl : public ShaderTable
 {
 public:
+    ~ShaderTableImpl();
+
     struct Instance
     {
         CUdeviceptr buffer;
@@ -18,12 +20,10 @@ public:
         size_t raygenRecordSize;
     };
 
+    std::mutex m_mutex;
     std::map<RayTracingPipelineImpl*, Instance> m_instances;
 
     Instance* getInstance(RayTracingPipelineImpl* pipeline);
-
-    // TODO - we should probably remove this from the ShaderTable base class
-    virtual RefPtr<Buffer> createDeviceBuffer(RayTracingPipeline* pipeline) override;
 };
 
 } // namespace rhi::cuda

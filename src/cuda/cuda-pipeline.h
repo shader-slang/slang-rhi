@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "cuda-shader-program.h"
 
 namespace rhi::cuda {
 
@@ -13,6 +12,8 @@ public:
     CUmodule m_module = nullptr;
     CUfunction m_function = nullptr;
     std::string m_kernelName;
+    uint32_t m_kernelIndex = 0;
+    uint32_t m_threadGroupSize[3] = {1, 1, 1};
 
     ~ComputePipelineImpl();
 
@@ -31,7 +32,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<OptixModule> m_modules;
     std::vector<OptixProgramGroup> m_programGroups;
-    std::map<std::string, Index> m_shaderGroupNameToIndex;
+    std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
     OptixPipeline m_pipeline = nullptr;
 
     ~RayTracingPipelineImpl();

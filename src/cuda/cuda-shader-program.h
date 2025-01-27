@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "cuda-shader-object-layout.h"
 
 namespace rhi::cuda {
 
@@ -23,6 +22,8 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;
+
+    virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 };
 
 } // namespace rhi::cuda
