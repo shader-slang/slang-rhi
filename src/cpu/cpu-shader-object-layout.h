@@ -4,59 +4,57 @@
 
 namespace rhi::cpu {
 
-struct BindingRangeInfo
-{
-    slang::BindingType bindingType;
-    Index count;
-    Index baseIndex; // Flat index for sub-objects
-    Index subObjectIndex;
-
-    // TODO: The `uniformOffset` field should be removed,
-    // since it cannot be supported by the Slang reflection
-    // API once we fix some design issues.
-    //
-    // It is only being used today for pre-allocation of sub-objects
-    // for constant buffers and parameter blocks (which should be
-    // deprecated/removed anyway).
-    //
-    // Note: We would need to bring this field back, plus
-    // a lot of other complexity, if we ever want to support
-    // setting of resources/buffers directly by a binding
-    // range index and array index.
-    //
-    Index uniformOffset; // Uniform offset for a resource typed field.
-
-    bool isSpecializable;
-};
-
-struct SubObjectRangeInfo
-{
-    RefPtr<ShaderObjectLayoutImpl> layout;
-    Index bindingRangeIndex;
-};
-
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
+    using Super = ShaderObjectLayout;
+
 public:
-    // TODO: Once memory lifetime stuff is handled, there is
-    // no specific need to even track binding or sub-object
-    // ranges for CPU.
+    struct BindingRangeInfo : Super::BindingRangeInfo
+    {
+        // TODO: The `uniformOffset` field should be removed,
+        // since it cannot be supported by the Slang reflection
+        // API once we fix some design issues.
+        //
+        // It is only being used today for pre-allocation of sub-objects
+        // for constant buffers and parameter blocks (which should be
+        // deprecated/removed anyway).
+        //
+        // Note: We would need to bring this field back, plus
+        // a lot of other complexity, if we ever want to support
+        // setting of resources/buffers directly by a binding
+        // range index and array index.
+        //
+        uint32_t uniformOffset; // Uniform offset for a resource typed field.
+    };
 
-    size_t m_size = 0;
-    std::vector<SubObjectRangeInfo> subObjectRanges;
+    struct SubObjectRangeInfo : Super::SubObjectRangeInfo
+    {
+        RefPtr<ShaderObjectLayoutImpl> layout;
+    };
+
+    uint32_t m_slotCount;
+    uint32_t m_subObjectCount;
     std::vector<BindingRangeInfo> m_bindingRanges;
-
-    Index m_subObjectCount = 0;
-    Index m_resourceCount = 0;
+    std::vector<SubObjectRangeInfo> m_subObjectRanges;
 
     ShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::TypeLayoutReflection* layout);
 
-    size_t getSize() { return m_size; }
-    Index getResourceCount() const { return m_resourceCount; }
-    Index getSubObjectCount() const { return m_subObjectCount; }
-    std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return subObjectRanges; }
-    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
-    Index getBindingRangeCount() const { return m_bindingRanges.size(); }
+    // ShaderObjectLayout interface
+    virtual uint32_t getSlotCount() const override { return m_slotCount; }
+    virtual uint32_t getSubObjectCount() const override { return m_subObjectCount; }
+
+    virtual uint32_t getBindingRangeCount() const override { return m_bindingRanges.size(); }
+    virtual const BindingRangeInfo& getBindingRange(uint32_t index) const override { return m_bindingRanges[index]; }
+
+    virtual uint32_t getSubObjectRangeCount() const override { return m_subObjectRanges.size(); }
+    virtual const SubObjectRangeInfo& getSubObjectRange(uint32_t index) const override
+    {
+        return m_subObjectRanges[index];
+    }
+    virtual ShaderObjectLayout* getSubObjectRangeLayout(uint32_t index) const override
+    {
+        return m_subObjectRanges[index].layout;
+    }
 };
 
 class EntryPointLayoutImpl : public ShaderObjectLayoutImpl
@@ -76,16 +74,26 @@ public:
 
 class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
 {
+    using Super = ShaderObjectLayoutImpl;
+
 public:
+    struct EntryPointInfo : Super::EntryPointInfo
+    {
+        RefPtr<EntryPointLayoutImpl> layout;
+    };
+
     slang::ProgramLayout* m_programLayout = nullptr;
-    std::vector<RefPtr<EntryPointLayoutImpl>> m_entryPointLayouts;
+    std::vector<EntryPointInfo> m_entryPoints;
 
     RootShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::ProgramLayout* programLayout);
 
     int getKernelIndex(std::string_view kernelName);
-    void getKernelThreadGroupSize(int kernelIndex, SlangUInt* threadGroupSizes);
+    void getKernelThreadGroupSize(int kernelIndex, uint32_t* threadGroupSizes);
 
-    EntryPointLayoutImpl* getEntryPoint(Index index);
+    // ShaderObjectLayoutImpl interface
+    virtual uint32_t getEntryPointCount() const { return m_entryPoints.size(); }
+    virtual const EntryPointInfo& getEntryPoint(uint32_t index) const { return m_entryPoints[index]; }
+    virtual ShaderObjectLayout* getEntryPointLayout(uint32_t index) const { return m_entryPoints[index].layout; }
 };
 
 } // namespace rhi::cpu
