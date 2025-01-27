@@ -33,9 +33,11 @@ public:
         ShaderObjectLayout** outLayout
     ) override;
 
-    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-
-    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    virtual Result createRootShaderObjectLayout(
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        ShaderObjectLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,

@@ -7,6 +7,9 @@ namespace rhi::cpu {
 class ComputePipelineImpl : public ComputePipeline
 {
 public:
+    ComPtr<ISlangSharedLibrary> m_sharedLibrary;
+    slang_prelude::ComputeFunc m_func;
+
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
