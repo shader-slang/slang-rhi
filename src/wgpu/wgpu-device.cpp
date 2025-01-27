@@ -1,5 +1,6 @@
 #include "wgpu-device.h"
 #include "wgpu-buffer.h"
+#include "wgpu-texture.h"
 #include "wgpu-shader-program.h"
 #include "wgpu-shader-object.h"
 #include "wgpu-shader-object-layout.h"
@@ -76,7 +77,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_desc = desc;
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-    Result initDeviceResult = SLANG_OK;
     SLANG_RETURN_ON_FAIL(
         m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
     );
@@ -468,22 +468,13 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
-    );
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    RefPtr<RootShaderObjectImpl> object = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(object->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
-    returnComPtr(outObject, object);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)

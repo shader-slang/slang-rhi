@@ -40,6 +40,11 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     return SLANG_OK;
 }
 
+ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
+{
+    return m_rootObjectLayout;
+}
+
 ShaderProgramImpl::Module* ShaderProgramImpl::findModule(SlangStage stage)
 {
     for (Module& module : m_modules)
@@ -59,7 +64,7 @@ Result DeviceImpl::createShaderProgram(
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
 
-    RootShaderObjectLayout::create(
+    RootShaderObjectLayoutImpl::create(
         this,
         shaderProgram->linkedProgram,
         shaderProgram->linkedProgram->getLayout(),

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "wgpu-base.h"
+#include "wgpu-shader-object.h"
+#include "wgpu-constant-buffer-pool.h"
 
 namespace rhi::wgpu {
 
@@ -34,10 +36,11 @@ public:
 
     Result init();
 
+    virtual Device* getDevice() override;
+    virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
+
     // ICommandEncoder implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
@@ -47,12 +50,13 @@ public:
     DeviceImpl* m_device;
     CommandQueueImpl* m_queue;
     WGPUCommandBuffer m_commandBuffer = nullptr;
+    ConstantBufferPool m_constantBufferPool;
+    BindingCache m_bindingCache;
 
     CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 
-    Result init();
-    Result reset();
+    virtual Result reset() override;
 
     // ICommandBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
