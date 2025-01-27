@@ -554,6 +554,7 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-api.cpp
         src/wgpu/wgpu-buffer.cpp
         src/wgpu/wgpu-command.cpp
+        src/wgpu/wgpu-constant-buffer-pool.cpp
         src/wgpu/wgpu-device.cpp
         src/wgpu/wgpu-fence.cpp
         src/wgpu/wgpu-helper-functions.cpp
