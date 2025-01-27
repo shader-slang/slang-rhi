@@ -422,6 +422,7 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-query.cpp
         src/cpu/cpu-shader-object-layout.cpp
         src/cpu/cpu-shader-object.cpp
+        src/cpu/cpu-shader-program.cpp
         src/cpu/cpu-texture.cpp
     )
 endif()

@@ -82,7 +82,7 @@ struct CPUFormatInfoMap
 
 static const CPUFormatInfoMap g_formatInfoMap;
 
-static const CPUTextureFormatInfo* _getFormatInfo(Format format)
+inline const CPUTextureFormatInfo* _getFormatInfo(Format format)
 {
     const CPUTextureFormatInfo& info = g_formatInfoMap.get(format);
     return info.unpackFunc ? &info : nullptr;

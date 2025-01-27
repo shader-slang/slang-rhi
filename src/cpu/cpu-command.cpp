@@ -1,6 +1,7 @@
 #include "cpu-command.h"
 #include "cpu-query.h"
 #include "cpu-shader-program.h"
+#include "cpu-pipeline.h"
 #include "../command-list.h"
 #include "../strings.h"
 
@@ -10,8 +11,8 @@ class CommandExecutor
 {
 public:
     DeviceImpl* m_device;
-    ComputePipelineImpl* m_currentComputePipeline = nullptr;
-    RootShaderObjectImpl* m_currentRootObject = nullptr;
+    RefPtr<ComputePipelineImpl> m_computePipeline;
+    BindingDataImpl* m_bindingData = nullptr;
     bool m_computeStateValid = false;
 
     CommandExecutor(DeviceImpl* device)
@@ -63,13 +64,13 @@ public:
 
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 {
-    CommandList* commandList = commandBuffer->m_commandList;
-    auto command = commandList->getCommands();
+    CommandList& commandList = commandBuffer->m_commandList;
+    auto command = commandList.getCommands();
     while (command)
     {
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
-        cmd##x(commandList->getCommand<commands::x>(command));                                                         \
+        cmd##x(commandList.getCommand<commands::x>(command));                                                          \
         break;
 
         switch (command->id)
@@ -87,7 +88,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
 
 void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -99,13 +100,13 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyTexture);
+    NOT_SUPPORTED(S_CommandEncoder_copyTexture);
 }
 
 void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyTextureToBuffer);
+    NOT_SUPPORTED(S_CommandEncoder_copyTextureToBuffer);
 }
 
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
@@ -117,13 +118,13 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(clearTexture);
+    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(uploadTextureData);
+    NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
 }
 
 void CommandExecutor::cmdUploadBufferData(const commands::UploadBufferData& cmd)
@@ -142,49 +143,47 @@ void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)
 void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(beginRenderPass);
+    NOT_SUPPORTED(S_CommandEncoder_beginRenderPass);
 }
 
 void CommandExecutor::cmdEndRenderPass(const commands::EndRenderPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(endRenderPass);
 }
 
 void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(setRenderState);
 }
 
 void CommandExecutor::cmdDraw(const commands::Draw& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(draw);
+    NOT_SUPPORTED(S_RenderPassEncoder_draw);
 }
 
 void CommandExecutor::cmdDrawIndexed(const commands::DrawIndexed& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawIndexed);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexed);
 }
 
 void CommandExecutor::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawIndirect);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndirect);
 }
 
 void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawIndexedIndirect);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexedIndirect);
 }
 
 void CommandExecutor::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawMeshTasks);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawMeshTasks);
 }
 
 void CommandExecutor::cmdBeginComputePass(const commands::BeginComputePass& cmd)
@@ -199,41 +198,15 @@ void CommandExecutor::cmdEndComputePass(const commands::EndComputePass& cmd)
 
 void CommandExecutor::cmdSetComputeState(const commands::SetComputeState& cmd)
 {
-    m_currentComputePipeline = checked_cast<ComputePipelineImpl*>(cmd.state.pipeline);
-    m_currentRootObject = checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject);
-    m_computeStateValid = m_currentComputePipeline && m_currentRootObject;
+    m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
+    m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+    m_computeStateValid = m_computePipeline && m_bindingData;
 }
 
 void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 {
     if (!m_computeStateValid)
         return;
-
-    int entryPointIndex = 0;
-    int targetIndex = 0;
-
-    auto program = m_currentComputePipeline->m_program.get();
-    auto entryPointLayout = m_currentRootObject->getLayout()->getEntryPoint(entryPointIndex);
-    auto entryPointName = entryPointLayout->getEntryPointName();
-    auto entryPointObject = m_currentRootObject->getEntryPoint(entryPointIndex);
-
-    ComPtr<ISlangSharedLibrary> sharedLibrary;
-    ComPtr<ISlangBlob> diagnostics;
-    auto compileResult =
-        program->slangGlobalScope
-            ->getEntryPointHostCallable(entryPointIndex, targetIndex, sharedLibrary.writeRef(), diagnostics.writeRef());
-    if (diagnostics)
-    {
-        m_device->handleMessage(
-            compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
-            DebugMessageSource::Slang,
-            (char*)diagnostics->getBufferPointer()
-        );
-    }
-    if (SLANG_FAILED(compileResult))
-        return;
-
-    auto func = (slang_prelude::ComputeFunc)sharedLibrary->findSymbolAddressByName(entryPointName);
 
     slang_prelude::ComputeVaryingInput varyingInput;
     varyingInput.startGroupID.x = 0;
@@ -243,75 +216,71 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     varyingInput.endGroupID.y = cmd.y;
     varyingInput.endGroupID.z = cmd.z;
 
-    auto globalParamsData = m_currentRootObject->getDataBuffer();
-    auto entryPointParamsData = entryPointObject->getDataBuffer();
-    func(&varyingInput, entryPointParamsData, globalParamsData);
+    m_computePipeline->m_func(&varyingInput, m_bindingData->entryPoints[0].data, m_bindingData->globalData);
 }
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(dispatchComputeIndirect);
+    NOT_SUPPORTED(S_ComputePassEncoder_dispatchComputeIndirect);
 }
 
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(beginRayTracingPass);
+    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
 }
 
 void CommandExecutor::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(endRayTracingPass);
 }
 
 void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(setRayTracingState);
 }
 
 void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(dispatchRays);
+    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
 }
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(buildAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_buildAccelerationStructure);
 }
 
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_copyAccelerationStructure);
 }
 
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(queryAccelerationStructureProperties);
+    NOT_SUPPORTED(S_CommandEncoder_queryAccelerationStructureProperties);
 }
 
 void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(serializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_serializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(deserializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(convertCooperativeVectorMatrix);
+    NOT_SUPPORTED(S_CommandEncoder_convertCooperativeVectorMatrix);
 }
 
 void CommandExecutor::cmdSetBufferState(const commands::SetBufferState& cmd)
@@ -403,11 +372,31 @@ CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device)
 {
 }
 
+Device* CommandEncoderImpl::getDevice()
+{
+    return m_device;
+}
+
+Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
+{
+    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    BindingDataBuilder builder;
+    builder.m_device = m_device;
+    builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
+    builder.m_allocator = &m_commandBuffer->m_allocator;
+    ShaderObjectLayout* specializedLayout = nullptr;
+    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
+    return builder.bindAsRoot(
+        rootObject,
+        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
+        (BindingDataImpl*&)outBindingData
+    );
+}
+
 Result CommandEncoderImpl::init()
 {
     m_commandBuffer = new CommandBufferImpl();
-    m_commandBuffer->m_commandList = new CommandList();
-    m_commandList = m_commandBuffer->m_commandList;
+    m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
 }
 

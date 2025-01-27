@@ -49,30 +49,16 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> cpuLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
     returnRefPtrMove(outLayout, cpuLayout);
-
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    auto cpuLayout = checked_cast<ShaderObjectLayoutImpl*>(layout);
-
-    RefPtr<ShaderObjectImpl> result = new ShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, cpuLayout));
-    returnComPtr(outObject, result);
-
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    auto cpuProgram = checked_cast<ShaderProgramImpl*>(program);
-    auto cpuProgramLayout = cpuProgram->layout;
-
-    RefPtr<RootShaderObjectImpl> result = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, cpuProgramLayout));
-    returnComPtr(outObject, result);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createShaderProgram(
@@ -81,23 +67,23 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> cpuProgram = new ShaderProgramImpl();
-    cpuProgram->init(desc);
-    auto slangGlobalScope = cpuProgram->linkedProgram;
+    RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl();
+    program->init(desc);
+    auto slangGlobalScope = program->linkedProgram;
     if (slangGlobalScope)
     {
         auto slangProgramLayout = slangGlobalScope->getLayout();
         if (!slangProgramLayout)
             return SLANG_FAIL;
 
-        RefPtr<RootShaderObjectLayoutImpl> cpuProgramLayout =
+        RefPtr<RootShaderObjectLayoutImpl> rootShaderObjectLayout =
             new RootShaderObjectLayoutImpl(this, slangGlobalScope->getSession(), slangProgramLayout);
-        cpuProgramLayout->m_programLayout = slangProgramLayout;
+        rootShaderObjectLayout->m_programLayout = slangProgramLayout;
 
-        cpuProgram->layout = cpuProgramLayout;
+        program->m_rootShaderObjectLayout = rootShaderObjectLayout;
     }
 
-    returnComPtr(outProgram, cpuProgram);
+    returnComPtr(outProgram, program);
     return SLANG_OK;
 }
 
@@ -122,6 +108,11 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
+}
+
+void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
+{
+    shaderObject->m_setBindingHook = shaderObjectSetBinding;
 }
 
 } // namespace rhi::cpu
