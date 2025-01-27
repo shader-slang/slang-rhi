@@ -1,5 +1,7 @@
 #include "cuda-pipeline.h"
 #include "cuda-device.h"
+#include "cuda-shader-program.h"
+#include "cuda-shader-object-layout.h"
 
 namespace rhi::cuda {
 
@@ -31,6 +33,10 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SLANG_CUDA_RETURN_ON_FAIL(
         cuModuleGetFunction(&pipeline->m_function, pipeline->m_module, pipeline->m_kernelName.data())
     );
+    int kernelIndex = pipeline->m_rootObjectLayout->getKernelIndex(pipeline->m_kernelName);
+    SLANG_RHI_ASSERT(kernelIndex >= 0);
+    pipeline->m_kernelIndex = kernelIndex;
+    pipeline->m_rootObjectLayout->getKernelThreadGroupSize(kernelIndex, pipeline->m_threadGroupSize);
 
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -89,9 +95,9 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
     // Create optix modules & program groups
     std::vector<OptixModule> optixModules;
-    std::map<std::string, Index> entryPointNameToModuleIndex;
+    std::map<std::string, uint32_t> entryPointNameToModuleIndex;
     std::vector<OptixProgramGroup> optixProgramGroups;
-    std::map<std::string, Index> shaderGroupNameToIndex;
+    std::map<std::string, uint32_t> shaderGroupNameToIndex;
     for (const auto& module : program->m_modules)
     {
         SLANG_OPTIX_RETURN_ON_FAIL(optixModuleCreate(
