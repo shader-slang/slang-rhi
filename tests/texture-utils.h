@@ -18,11 +18,11 @@ struct ValidationTextureFormatBase : RefObject
 
     virtual void initializeTexel(
         void* texel,
-        GfxIndex x,
-        GfxIndex y,
-        GfxIndex z,
-        GfxIndex mipLevel,
-        GfxIndex arrayLayer
+        uint32_t x,
+        uint32_t y,
+        uint32_t z,
+        uint32_t mipLevel,
+        uint32_t arrayLayer
     ) = 0;
 };
 
@@ -47,11 +47,11 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
 
     virtual void initializeTexel(
         void* texel,
-        GfxIndex x,
-        GfxIndex y,
-        GfxIndex z,
-        GfxIndex mipLevel,
-        GfxIndex arrayLayer
+        uint32_t x,
+        uint32_t y,
+        uint32_t z,
+        uint32_t mipLevel,
+        uint32_t arrayLayer
     ) override
     {
         auto temp = (T*)texel;
@@ -112,11 +112,11 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
 
     virtual void initializeTexel(
         void* texel,
-        GfxIndex x,
-        GfxIndex y,
-        GfxIndex z,
-        GfxIndex mipLevel,
-        GfxIndex arrayLayer
+        uint32_t x,
+        uint32_t y,
+        uint32_t z,
+        uint32_t mipLevel,
+        uint32_t arrayLayer
     ) override
     {
         T temp = 0;
@@ -167,11 +167,11 @@ struct ValidationTextureData : RefObject
     Extents extents;
     Strides strides;
 
-    void* getBlockAt(GfxIndex x, GfxIndex y, GfxIndex z)
+    void* getBlockAt(uint32_t x, uint32_t y, uint32_t z)
     {
-        SLANG_RHI_ASSERT(x >= 0 && x < extents.width);
-        SLANG_RHI_ASSERT(y >= 0 && y < extents.height);
-        SLANG_RHI_ASSERT(z >= 0 && z < extents.depth);
+        SLANG_RHI_ASSERT(x < extents.width);
+        SLANG_RHI_ASSERT(y < extents.height);
+        SLANG_RHI_ASSERT(z < extents.depth);
 
         char* layerData = (char*)textureData + z * strides.z;
         char* rowData = layerData + y * strides.y;

@@ -668,7 +668,7 @@ struct SubresourceData
     Size strideZ;
 };
 
-static const GfxCount kRemainingTextureSize = 0xffffffff;
+static const int32_t kRemainingTextureSize = 0xffffffff;
 struct Offset3D
 {
     int32_t x = 0;

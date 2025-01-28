@@ -167,11 +167,11 @@ struct TextureAccessTest : TextureTest
     void validateTextureValues(ValidationTextureData actual, ValidationTextureData original)
     {
         // TODO: needs to be extended to cover mip levels and array layers
-        for (GfxIndex x = 0; x < actual.extents.width; ++x)
+        for (uint32_t x = 0; x < actual.extents.width; ++x)
         {
-            for (GfxIndex y = 0; y < actual.extents.height; ++y)
+            for (uint32_t y = 0; y < actual.extents.height; ++y)
             {
-                for (GfxIndex z = 0; z < actual.extents.depth; ++z)
+                for (uint32_t z = 0; z < actual.extents.depth; ++z)
                 {
                     auto actualBlock = (uint8_t*)actual.getBlockAt(x, y, z);
                     for (uint32_t i = 0; i < 4; ++i)
@@ -420,11 +420,11 @@ struct RenderTargetTests : TextureTest
     // TODO: Needs to handle either the correct slice or array layer (will not always check z)
     void validateTextureValues(ValidationTextureData actual)
     {
-        for (GfxIndex x = 0; x < actual.extents.width; ++x)
+        for (uint32_t x = 0; x < actual.extents.width; ++x)
         {
-            for (GfxIndex y = 0; y < actual.extents.height; ++y)
+            for (uint32_t y = 0; y < actual.extents.height; ++y)
             {
-                for (GfxIndex z = 0; z < actual.extents.depth; ++z)
+                for (uint32_t z = 0; z < actual.extents.depth; ++z)
                 {
                     auto actualBlock = (float*)actual.getBlockAt(x, y, z);
                     for (uint32_t i = 0; i < 4; ++i)

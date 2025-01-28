@@ -69,7 +69,7 @@ struct ShaderCursor
     /// Otherwise, this returns an invalid cursor.
     ShaderCursor getExplicitCounter() const;
 
-    ShaderCursor getElement(GfxIndex index) const;
+    ShaderCursor getElement(uint32_t index) const;
 
     static Result followPath(const char* path, ShaderCursor& ioCursor);
 
@@ -101,7 +101,7 @@ struct ShaderCursor
 
     Result setBinding(Binding binding) const { return m_baseObject->setBinding(m_offset, binding); }
 
-    Result setSpecializationArgs(const slang::SpecializationArg* args, GfxCount count) const
+    Result setSpecializationArgs(const slang::SpecializationArg* args, uint32_t count) const
     {
         return m_baseObject->setSpecializationArgs(m_offset, args, count);
     }
@@ -114,14 +114,14 @@ struct ShaderCursor
     /// Produce a cursor to the element or field with the given `index`.
     ///
     /// This is a convenience wrapper around `getElement()`.
-    ShaderCursor operator[](int64_t index) const { return getElement((GfxIndex)index); }
-    ShaderCursor operator[](uint64_t index) const { return getElement((GfxIndex)index); }
-    ShaderCursor operator[](int32_t index) const { return getElement((GfxIndex)index); }
-    ShaderCursor operator[](uint32_t index) const { return getElement((GfxIndex)index); }
-    ShaderCursor operator[](int16_t index) const { return getElement((GfxIndex)index); }
-    ShaderCursor operator[](uint16_t index) const { return getElement((GfxIndex)index); }
-    ShaderCursor operator[](int8_t index) const { return getElement((GfxIndex)index); }
-    ShaderCursor operator[](uint8_t index) const { return getElement((GfxIndex)index); }
+    ShaderCursor operator[](int64_t index) const { return getElement((uint32_t)index); }
+    ShaderCursor operator[](uint64_t index) const { return getElement((uint32_t)index); }
+    ShaderCursor operator[](int32_t index) const { return getElement((uint32_t)index); }
+    ShaderCursor operator[](uint32_t index) const { return getElement((uint32_t)index); }
+    ShaderCursor operator[](int16_t index) const { return getElement((uint32_t)index); }
+    ShaderCursor operator[](uint16_t index) const { return getElement((uint32_t)index); }
+    ShaderCursor operator[](int8_t index) const { return getElement((uint32_t)index); }
+    ShaderCursor operator[](uint8_t index) const { return getElement((uint32_t)index); }
 };
 
 inline Result ShaderCursor::getDereferenced(ShaderCursor& outCursor) const
@@ -186,7 +186,7 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
         //
         fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
         fieldCursor.m_offset.bindingRangeIndex =
-            m_offset.bindingRangeIndex + (GfxIndex)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
+            m_offset.bindingRangeIndex + (uint32_t)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
 
         // The index of the field within any binding ranges will be the same
         // as the index computed for the parent structure.
@@ -246,8 +246,8 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
     //
     // TODO: figure out whether we should support this long-term.
     //
-    auto entryPointCount = (GfxIndex)m_baseObject->getEntryPointCount();
-    for (GfxIndex e = 0; e < entryPointCount; ++e)
+    uint32_t entryPointCount = m_baseObject->getEntryPointCount();
+    for (uint32_t e = 0; e < entryPointCount; ++e)
     {
         ComPtr<IShaderObject> entryPoint;
         m_baseObject->getEntryPoint(e, entryPoint.writeRef());
@@ -282,7 +282,7 @@ inline ShaderCursor ShaderCursor::getExplicitCounter() const
         // The offset in binding ranges is computed similarly.
         counterCursor.m_offset.uniformOffset = m_offset.uniformOffset + SlangInt(counterVarLayout->getOffset());
         counterCursor.m_offset.bindingRangeIndex =
-            m_offset.bindingRangeIndex + GfxIndex(m_typeLayout->getExplicitCounterBindingRangeOffset());
+            m_offset.bindingRangeIndex + uint32_t(m_typeLayout->getExplicitCounterBindingRangeOffset());
 
         // The index of the counter within any binding ranges will be the same
         // as the index computed for the parent structure.
@@ -313,7 +313,7 @@ inline ShaderCursor ShaderCursor::getExplicitCounter() const
     return ShaderCursor{};
 }
 
-inline ShaderCursor ShaderCursor::getElement(GfxIndex index) const
+inline ShaderCursor ShaderCursor::getElement(uint32_t index) const
 {
     if (m_containerType != ShaderObjectContainerType::None)
     {
@@ -338,7 +338,7 @@ inline ShaderCursor ShaderCursor::getElement(GfxIndex index) const
             m_offset.uniformOffset + index * m_typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_UNIFORM);
         elementCursor.m_offset.bindingRangeIndex = m_offset.bindingRangeIndex;
         elementCursor.m_offset.bindingArrayIndex =
-            m_offset.bindingArrayIndex * (GfxCount)m_typeLayout->getElementCount() + index;
+            m_offset.bindingArrayIndex * (uint32_t)m_typeLayout->getElementCount() + index;
         return elementCursor;
     }
     break;
@@ -358,7 +358,7 @@ inline ShaderCursor ShaderCursor::getElement(GfxIndex index) const
         fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
         fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
         fieldCursor.m_offset.bindingRangeIndex =
-            m_offset.bindingRangeIndex + (GfxIndex)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
+            m_offset.bindingRangeIndex + (uint32_t)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
         fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
 
         return fieldCursor;
@@ -439,7 +439,7 @@ inline Result ShaderCursor::followPath(const char* path, ShaderCursor& ioCursor)
                 return SLANG_E_INVALID_ARG;
 
             detail::get(rest);
-            GfxCount index = 0;
+            uint32_t index = 0;
             while (detail::peek(rest) != ']')
             {
                 int d = detail::get(rest);
