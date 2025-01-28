@@ -585,14 +585,31 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
             RETURN_NOT_AVAILABLE("failed to link program");
     }
 
-    ComPtr<slang::IBlob> code;
+    if (deviceType == DeviceType::CPU)
     {
-        ComPtr<slang::IBlob> diagnostics;
-        linkedProgram->getEntryPointCode(0, 0, code.writeRef(), diagnostics.writeRef());
+        ComPtr<ISlangSharedLibrary> sharedLibrary;
+        ComPtr<ISlangBlob> diagnostics;
+        auto compileResult =
+            linkedProgram->getEntryPointHostCallable(0, 0, sharedLibrary.writeRef(), diagnostics.writeRef());
         if (verbose && diagnostics)
             MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
-        if (!code)
-            RETURN_NOT_AVAILABLE("failed to get entry point code");
+        if (SLANG_FAILED(compileResult))
+            RETURN_NOT_AVAILABLE("failed to get entry point host callable");
+        auto func = sharedLibrary->findSymbolAddressByName("computeMain");
+        if (!func)
+            RETURN_NOT_AVAILABLE("failed to find entry point host callable symbol");
+    }
+    else
+    {
+        ComPtr<slang::IBlob> code;
+        {
+            ComPtr<slang::IBlob> diagnostics;
+            linkedProgram->getEntryPointCode(0, 0, code.writeRef(), diagnostics.writeRef());
+            if (verbose && diagnostics)
+                MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
+            if (!code)
+                RETURN_NOT_AVAILABLE("failed to get entry point code");
+        }
     }
 
     return true;
