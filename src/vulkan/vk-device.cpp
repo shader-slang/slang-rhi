@@ -1,5 +1,7 @@
 #include "vk-device.h"
+#include "vk-command.h"
 #include "vk-buffer.h"
+#include "vk-texture.h"
 #include "vk-command.h"
 #include "vk-fence.h"
 #include "vk-helper-functions.h"
@@ -28,6 +30,8 @@
 #endif
 
 namespace rhi::vk {
+
+DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
@@ -62,7 +66,6 @@ DeviceImpl::~DeviceImpl()
     }
 }
 
-// TODO: Is "location" still needed for this function?
 VkBool32 DeviceImpl::handleDebugMessage(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageTypes,
@@ -1113,8 +1116,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
     const TextureDesc& desc = textureImpl->m_desc;
-    auto width = desc.size.width;
-    auto height = desc.size.height;
+    uint32_t width = desc.size.width;
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     Size rowPitch = width * pixelSize;
@@ -1181,7 +1183,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
 
     VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
-    Offset dstOffset = 0;
+    uint64_t dstOffset = 0;
     for (uint32_t i = 0; i < arrayLayerCount; ++i)
     {
         for (size_t j = 0; j < mipSizes.size(); ++j)
@@ -1615,11 +1617,11 @@ Result DeviceImpl::createShaderProgram(
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
 
-    RootShaderObjectLayout::create(
+    RootShaderObjectLayoutImpl::create(
         this,
         shaderProgram->linkedProgram,
         shaderProgram->linkedProgram->getLayout(),
-        shaderProgram->m_rootObjectLayout.writeRef()
+        shaderProgram->m_rootShaderObjectLayout.writeRef()
     );
 
     if (!shaderProgram->isSpecializable())
@@ -1643,22 +1645,13 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
-    );
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    RefPtr<RootShaderObjectImpl> object = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(object->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
-    returnComPtr(outObject, object);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)

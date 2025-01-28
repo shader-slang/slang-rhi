@@ -1,4 +1,5 @@
 #include "vk-sampler.h"
+#include "vk-device.h"
 #include "vk-util.h"
 
 namespace rhi::vk {

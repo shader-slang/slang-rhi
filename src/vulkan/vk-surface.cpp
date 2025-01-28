@@ -1,5 +1,6 @@
 #include "vk-surface.h"
 #include "vk-device.h"
+#include "vk-command.h"
 #include "vk-texture.h"
 #include "vk-util.h"
 #include "vk-helper-functions.h"

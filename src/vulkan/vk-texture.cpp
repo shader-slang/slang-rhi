@@ -89,6 +89,9 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect, const SubresourceRange& range)
 {
     ViewKey key = {format, aspect, range};
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     TextureSubresourceView& view = m_views[key];
     if (view.imageView)
         return view;
@@ -234,8 +237,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     int memoryTypeIndex = m_api.findMemoryTypeIndex(memRequirements.memoryTypeBits, reqMemoryProperties);
     SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
 
-    VkMemoryPropertyFlags actualMemoryProperites =
-        m_api.m_deviceMemoryProperties.memoryTypes[memoryTypeIndex].propertyFlags;
     VkMemoryAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = memoryTypeIndex;
@@ -310,7 +311,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             uint8_t* dstDataStart;
             dstDataStart = dstData;
 
-            Offset dstSubresourceOffset = 0;
+            uint64_t dstSubresourceOffset = 0;
             for (uint32_t i = 0; i < arrayLayerCount; ++i)
             {
                 for (uint32_t j = 0; j < mipSizes.size(); ++j)
@@ -368,7 +369,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             // a simple buffer copy for sampled textures. ClearColorImage
             // is not data accurate but it is fine for testing & works.
             const FormatInfo& formatInfo = getFormatInfo(desc.format);
-            uint32_t data = 0;
             VkClearColorValue clearColor;
             switch (formatInfo.channelType)
             {
@@ -455,7 +455,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
         else
         {
-            Offset srcOffset = 0;
+            uint64_t srcOffset = 0;
             for (int i = 0; i < arrayLayerCount; ++i)
             {
                 for (size_t j = 0; j < mipSizes.size(); ++j)

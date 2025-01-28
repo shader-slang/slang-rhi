@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-device.h"
 
 namespace rhi::vk {
 
@@ -53,6 +52,7 @@ public:
         }
     };
 
+    std::mutex m_mutex;
     std::unordered_map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
 
     TextureSubresourceView getView(Format format, TextureAspect aspect, const SubresourceRange& range);
