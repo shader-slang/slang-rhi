@@ -1,14 +1,15 @@
 #pragma once
 
 #include "../rhi-shared.h"
-#define SLANG_PRELUDE_NAMESPACE slang_prelude
-#include "prelude/slang-cpp-types.h"
 
 #include "core/common.h"
 
 #include <slang-com-helper.h>
 #include <slang-com-ptr.h>
 #include <slang.h>
+
+#define SLANG_PRELUDE_NAMESPACE slang_prelude
+#include <slang-cpp-types.h>
 
 namespace rhi::cpu {
 
