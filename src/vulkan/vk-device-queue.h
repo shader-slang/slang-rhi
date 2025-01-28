@@ -1,7 +1,6 @@
 #pragma once
 
-#include "vk-api.h"
-#include "vk-descriptor-allocator.h"
+#include "vk-base.h"
 
 namespace rhi::vk {
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-device.h"
 
 namespace rhi::vk {
 
@@ -78,6 +77,7 @@ public:
         }
     };
 
+    std::mutex m_mutex;
     std::unordered_map<ViewKey, VkBufferView, ViewKeyHasher> m_views;
 
     VkBufferView getView(Format format, const BufferRange& range);

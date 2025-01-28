@@ -1,8 +1,8 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-device.h"
-#include "../buffer-pool.h"
+#include "vk-shader-object.h"
+#include "vk-constant-buffer-pool.h"
 
 #include <vector>
 #include <list>
@@ -72,6 +72,9 @@ public:
 
     Result init();
 
+    virtual Device* getDevice() override;
+    virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
+
     // ICommandEncoder implementation
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
@@ -98,16 +101,16 @@ public:
     CommandQueueImpl* m_queue;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
+    ConstantBufferPool m_constantBufferPool;
     DescriptorSetAllocator m_descriptorSetAllocator;
-    BufferPool<DeviceImpl, BufferImpl> m_constantBufferPool;
-    BufferPool<DeviceImpl, BufferImpl> m_uploadBufferPool;
+    BindingCache m_bindingCache;
     uint64_t m_submissionID = 0;
 
     CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 
     Result init();
-    Result reset();
+    virtual Result reset() override;
 
     // ICommandBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

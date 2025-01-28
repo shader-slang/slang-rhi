@@ -1,4 +1,5 @@
 #include "vk-command.h"
+#include "vk-device.h"
 #include "vk-buffer.h"
 #include "vk-texture.h"
 #include "vk-fence.h"
@@ -9,6 +10,7 @@
 #include "vk-util.h"
 #include "vk-helper-functions.h"
 #include "vk-shader-object.h"
+#include "vk-shader-object-layout.h"
 #include "../command-list.h"
 #include "../state-tracking.h"
 #include "../strings.h"
@@ -30,11 +32,6 @@ public:
     VulkanApi& m_api;
 
     VkCommandBuffer m_cmdBuffer;
-    DescriptorSetAllocator* m_descriptorSetAllocator;
-    BufferPool<DeviceImpl, BufferImpl>* m_constantBufferPool;
-    BufferPool<DeviceImpl, BufferImpl>* m_uploadBufferPool;
-
-    std::unordered_map<IShaderObject*, BindableRootShaderObject> m_bindableRootObjects;
 
     StateTracking m_stateTracking;
 
@@ -49,14 +46,14 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputeState m_computeState;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
-    RayTracingState m_rayTracingState;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
+
+    BindingDataImpl* m_bindingData = nullptr;
 
     uint64_t m_rayGenTableAddr = 0;
     VkStridedDeviceAddressRegionKHR m_raygenSBT;
@@ -113,15 +110,7 @@ public:
 
     void prepareSetRenderState(const commands::SetRenderState& cmd);
 
-    Result bindRootObject(
-        RootShaderObjectImpl* rootObject,
-        RootShaderObjectLayout* rootObjectLayout,
-        VkPipelineBindPoint bindPoint
-    );
-
-    Result prepareRootObject(RootShaderObjectImpl* rootObject, RootShaderObjectLayout* rootObjectLayout);
-
-    void bindRootObject(BindableRootShaderObject* bindable, VkPipelineBindPoint bindPoint);
+    void setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
@@ -145,53 +134,14 @@ public:
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
     m_cmdBuffer = commandBuffer->m_commandBuffer;
-    m_descriptorSetAllocator = &commandBuffer->m_descriptorSetAllocator;
-    m_constantBufferPool = &commandBuffer->m_constantBufferPool;
-    m_uploadBufferPool = &commandBuffer->m_uploadBufferPool;
 
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
-    CommandList* commandList = commandBuffer->m_commandList;
+    CommandList& commandList = commandBuffer->m_commandList;
 
-    // First, we setup all the root objects.
-    for (const CommandList::CommandSlot* slot = commandList->getCommands(); slot; slot = slot->next)
-    {
-        IShaderObject* rootObject = nullptr;
-        switch (slot->id)
-        {
-        case CommandID::SetRenderState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetRenderState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<RenderPipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        case CommandID::SetComputeState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetComputeState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<ComputePipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        case CommandID::SetRayTracingState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetRayTracingState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<RayTracingPipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        }
-    }
-
-    for (const CommandList::CommandSlot* slot = commandList->getCommands(); slot; slot = slot->next)
+    for (const CommandList::CommandSlot* slot = commandList.getCommands(); slot; slot = slot->next)
     {
         // Vulkan generally does not allow barrier commands to be recorded inside a render pass.
         // To work around this, we collect all barriers needed for the render pass before entering it.
@@ -205,7 +155,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
                 switch (subCmdSlot->id)
                 {
                 case CommandID::SetRenderState:
-                    prepareSetRenderState(commandList->getCommand<commands::SetRenderState>(subCmdSlot));
+                    prepareSetRenderState(commandList.getCommand<commands::SetRenderState>(subCmdSlot));
                     break;
                 }
                 if (subCmdSlot->id == CommandID::EndRenderPass)
@@ -216,7 +166,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
-        cmd##x(commandList->getCommand<commands::x>(slot));                                                            \
+        cmd##x(commandList.getCommand<commands::x>(slot));                                                             \
         break;
 
         switch (slot->id)
@@ -237,7 +187,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
 
 void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -524,22 +474,22 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         if (VulkanUtil::isDepthFormat(view->m_texture->m_vkformat))
         {
             hasDepthAttachment = true;
-            const auto& attachment = *desc.depthStencilAttachment;
-            depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
+            const auto& dsa = *desc.depthStencilAttachment;
+            depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getView().imageView;
             depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            depthAttachmentInfo.loadOp = translateLoadOp(attachment.depthLoadOp);
-            depthAttachmentInfo.storeOp = translateStoreOp(attachment.depthStoreOp);
-            depthAttachmentInfo.clearValue.depthStencil.depth = attachment.depthClearValue;
+            depthAttachmentInfo.loadOp = translateLoadOp(dsa.depthLoadOp);
+            depthAttachmentInfo.storeOp = translateStoreOp(dsa.depthStoreOp);
+            depthAttachmentInfo.clearValue.depthStencil.depth = dsa.depthClearValue;
         }
         if (VulkanUtil::isStencilFormat(view->m_texture->m_vkformat))
         {
             hasStencilAttachment = true;
-            const auto& attachment = *desc.depthStencilAttachment;
-            stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
+            const auto& dsa = *desc.depthStencilAttachment;
+            stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getView().imageView;
             stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            stencilAttachmentInfo.loadOp = translateLoadOp(attachment.stencilLoadOp);
-            stencilAttachmentInfo.storeOp = translateStoreOp(attachment.stencilStoreOp);
-            stencilAttachmentInfo.clearValue.depthStencil.stencil = attachment.stencilClearValue;
+            stencilAttachmentInfo.loadOp = translateLoadOp(dsa.stencilLoadOp);
+            stencilAttachmentInfo.storeOp = translateStoreOp(dsa.stencilStoreOp);
+            stencilAttachmentInfo.clearValue.depthStencil.stencil = dsa.stencilClearValue;
         }
     }
 
@@ -582,7 +532,7 @@ void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateVertexBuffers)
     {
-        for (Index i = 0; i < state.vertexBufferCount; ++i)
+        for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
             requireBufferState(buffer, ResourceState::VertexBuffer);
@@ -606,8 +556,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     const RenderState& state = cmd.state;
 
-    bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateStencilRef = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
     bool updateVertexBuffers = !m_renderStateValid || !arraysEqual(
                                                           state.vertexBufferCount,
@@ -631,13 +581,14 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updatePipeline)
     {
-        m_renderPipeline = checked_cast<RenderPipelineImpl*>(state.pipeline);
+        m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPipeline->m_pipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        bindRootObject(&m_bindableRootObjects[state.rootObject], VK_PIPELINE_BIND_POINT_GRAPHICS);
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_GRAPHICS);
     }
 
     // TODO support setting sample positions
@@ -682,12 +633,11 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         if (state.indexBuffer.buffer)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.indexBuffer.buffer);
-            Offset offset = state.indexBuffer.offset;
-
+            VkDeviceSize offset = state.indexBuffer.offset;
             VkIndexType indexType =
                 state.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
 
-            api.vkCmdBindIndexBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, (VkDeviceSize)offset, indexType);
+            api.vkCmdBindIndexBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, offset, indexType);
         }
         else
         {
@@ -731,11 +681,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     m_renderState = state;
 
     m_computeStateValid = false;
-    m_computeState = {};
     m_computePipeline = nullptr;
 
     m_rayTracingStateValid = false;
-    m_rayTracingState = {};
     m_rayTracingPipeline = nullptr;
 }
 
@@ -870,26 +818,24 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (!m_computePassActive)
         return;
 
-    const ComputeState& state = cmd.state;
-
-    bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_computeState.rootObject;
+    bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     auto& api = m_device->m_api;
 
     if (updatePipeline)
     {
-        m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+        m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline->m_pipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        bindRootObject(&m_bindableRootObjects[state.rootObject], VK_PIPELINE_BIND_POINT_COMPUTE);
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);
     }
 
     m_computeStateValid = true;
-    m_computeState = state;
 }
 
 void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -927,30 +873,29 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (!m_rayTracingPassActive)
         return;
 
-    const RayTracingState& state = cmd.state;
-
-    bool updatePipeline = !m_rayTracingStateValid || state.pipeline != m_rayTracingState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_rayTracingState.rootObject;
-    bool updateShaderTable = !m_rayTracingStateValid || state.shaderTable != m_rayTracingState.shaderTable;
+    bool updatePipeline = !m_rayTracingStateValid || cmd.pipeline != m_rayTracingPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
+    bool updateShaderTable = !m_rayTracingStateValid || cmd.shaderTable != m_shaderTable;
 
     auto& api = m_device->m_api;
 
     if (updatePipeline)
     {
-        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(state.pipeline);
+        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rayTracingPipeline->m_pipeline);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        bindRootObject(&m_bindableRootObjects[state.rootObject], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
     }
 
     if (updateShaderTable)
     {
-        m_shaderTable = checked_cast<ShaderTableImpl*>(state.shaderTable);
+        m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
-        Buffer* shaderTableBuffer = m_shaderTable->getOrCreateBuffer(m_rayTracingPipeline);
+        BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
         DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
 
         auto rtProps = api.m_rtProperties;
@@ -976,7 +921,6 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     }
 
     m_rayTracingStateValid = true;
-    m_rayTracingState = state;
 }
 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
@@ -1152,184 +1096,50 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     cmd.callback(cmd.userData);
 }
 
-struct BindingContextImpl : public BindingContext
-{
-    CommandRecorder* recorder;
-
-    Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) override
-    {
-        auto allocation = recorder->m_constantBufferPool->allocate(size);
-        outBufferWeakPtr = allocation.resource;
-        outOffset = allocation.offset;
-        return SLANG_OK;
-    }
-
-    void writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) override
-    {
-        if (size <= 0)
-            return;
-
-        auto allocation = recorder->m_uploadBufferPool->allocate(size);
-
-        auto& api = recorder->m_device->m_api;
-
-        void* mappedData = nullptr;
-        if (api.vkMapMemory(
-                api.m_device,
-                allocation.resource->m_buffer.m_memory,
-                allocation.offset,
-                size,
-                0,
-                &mappedData
-            ) != VK_SUCCESS)
-        {
-            // TODO issue error message?
-            return;
-        }
-        memcpy((char*)mappedData, data, size);
-        api.vkUnmapMemory(api.m_device, allocation.resource->m_buffer.m_memory);
-
-        // Copy from staging buffer to real buffer
-        VkBufferCopy copyInfo = {};
-        copyInfo.size = size;
-        copyInfo.dstOffset = offset;
-        copyInfo.srcOffset = allocation.offset;
-        recorder->m_api.vkCmdCopyBuffer(
-            recorder->m_cmdBuffer,
-            allocation.resource->m_buffer.m_buffer,
-            buffer->m_buffer.m_buffer,
-            1,
-            &copyInfo
-        );
-    }
-
-    // void writePushConstants(VkPushConstantRange range, const void* data) override
-    // {
-    //     auto& api = recorder->m_device->m_api;
-    //     api.vkCmdPushConstants(recorder->m_cmdBuffer, pipelineLayout, range.stageFlags, range.offset, range.size,
-    //     data);
-    // }
-};
-
-#if 0
-Result CommandRecorder::bindRootObject(
-    RootShaderObjectImpl* rootObject,
-    RootShaderObjectLayout* rootObjectLayout,
-    VkPipelineBindPoint bindPoint
-)
-{
-    // We will set up the context required when binding shader objects
-    // to the pipeline. Note that this is mostly just being packaged
-    // together to minimize the number of parameters that have to
-    // be dealt with in the complex recursive call chains.
-    //
-    BindingContextImpl context;
-    context.pipelineLayout = rootObjectLayout->m_pipelineLayout;
-    context.device = m_device;
-    context.transientHeap = m_transientHeap;
-    context.recorder = this;
-    context.descriptorSetAllocator = &m_transientHeap->m_descSetAllocator;
-    context.pushConstantRanges = span(rootObjectLayout->getAllPushConstantRanges());
-
-    // The context includes storage for the descriptor sets we will bind,
-    // and the number of sets we need to make space for is determined
-    // by the specialized program layout.
-    //
-    std::vector<VkDescriptorSet> descriptorSetsStorage;
-
-    context.descriptorSets = &descriptorSetsStorage;
-
-    rootObject->setResourceStates(m_stateTracking);
-    commitBarriers();
-
-    // We kick off recursive binding of shader objects to the pipeline (plus
-    // the state in `context`).
-    //
-    // Note: this logic will directly write any push-constant ranges needed,
-    // and will also fill in any descriptor sets. Currently it does not
-    // *bind* the descriptor sets it fills in.
-    //
-    // TODO: It could probably bind the descriptor sets as well.
-    //
-    SLANG_RETURN_ON_FAIL(rootObject->bindAsRoot(context, rootObjectLayout));
-
-    // Once we've filled in all the descriptor sets, we bind them
-    // to the pipeline at once.
-    //
-    if (descriptorSetsStorage.size() > 0)
-    {
-        m_api.vkCmdBindDescriptorSets(
-            m_cmdBuffer,
-            bindPoint,
-            rootObjectLayout->m_pipelineLayout,
-            0,
-            (uint32_t)descriptorSetsStorage.size(),
-            descriptorSetsStorage.data(),
-            0,
-            nullptr
-        );
-    }
-
-    return SLANG_OK;
-}
-#endif
-
-Result CommandRecorder::prepareRootObject(RootShaderObjectImpl* rootObject, RootShaderObjectLayout* rootObjectLayout)
-{
-    auto it = m_bindableRootObjects.find(rootObject);
-    if (it != m_bindableRootObjects.end())
-    {
-        return SLANG_OK;
-    }
-
-    BindableRootShaderObject bindable;
-    bindable.rootObject = rootObject;
-    bindable.pipelineLayout = rootObjectLayout->m_pipelineLayout;
-    BindingContextImpl context;
-    context.bindable = &bindable;
-    context.device = m_device;
-    context.descriptorSetAllocator = m_descriptorSetAllocator;
-    context.pushConstantRanges = rootObjectLayout->getAllPushConstantRanges();
-    context.recorder = this;
-    SLANG_RETURN_ON_FAIL(rootObject->bindAsRoot(context, rootObjectLayout));
-
-    m_bindableRootObjects[rootObject] = std::move(bindable);
-
-    return SLANG_OK;
-}
-
-
-void CommandRecorder::bindRootObject(BindableRootShaderObject* bindable, VkPipelineBindPoint bindPoint)
+void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint)
 {
     // First, we transition all resources to the required states.
-    bindable->rootObject->setResourceStates(m_stateTracking);
-
-    if (bindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS)
-        commitBarriers();
+    for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
+    {
+        const auto& bufferState = bindingData->bufferStates[i];
+        requireBufferState(bufferState.buffer, bufferState.state);
+    }
+    for (uint32_t i = 0; i < bindingData->textureStateCount; ++i)
+    {
+        const auto& textureState = bindingData->textureStates[i];
+        requireTextureState(
+            textureState.textureView->m_texture,
+            textureState.textureView->m_desc.subresourceRange,
+            textureState.state
+        );
+    }
+    commitBarriers();
 
     // Then we set all push constants.
-    for (const auto& pushConstant : bindable->pushConstants)
+    for (uint32_t i = 0; i < bindingData->pushConstantCount; ++i)
     {
+        VkPushConstantRange range = bindingData->pushConstantRanges[i];
+        void* data = bindingData->pushConstantData[i];
         m_api.vkCmdPushConstants(
             m_cmdBuffer,
-            bindable->pipelineLayout,
-            pushConstant.range.stageFlags,
-            pushConstant.range.offset,
-            pushConstant.range.size,
-            pushConstant.data
+            bindingData->pipelineLayout,
+            range.stageFlags,
+            range.offset,
+            range.size,
+            data
         );
     }
 
     // Finally, we bind all descriptor sets.
-    if (!bindable->descriptorSets.empty())
+    if (bindingData->descriptorSetCount)
     {
         m_api.vkCmdBindDescriptorSets(
             m_cmdBuffer,
             bindPoint,
-            bindable->pipelineLayout,
+            bindingData->pipelineLayout,
             0,
-            (uint32_t)bindable->descriptorSets.size(),
-            bindable->descriptorSets.data(),
+            bindingData->descriptorSetCount,
+            bindingData->descriptorSets,
             0,
             nullptr
         );
@@ -1791,8 +1601,31 @@ CommandEncoderImpl::~CommandEncoderImpl()
 Result CommandEncoderImpl::init()
 {
     SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
-    m_commandList = m_commandBuffer->m_commandList;
+    m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
+}
+
+Device* CommandEncoderImpl::getDevice()
+{
+    return m_device;
+}
+
+Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
+{
+    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    BindingDataBuilder builder;
+    builder.m_device = m_device;
+    builder.m_allocator = &m_commandBuffer->m_allocator;
+    builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
+    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    builder.m_descriptorSetAllocator = &m_commandBuffer->m_descriptorSetAllocator;
+    ShaderObjectLayout* specializedLayout = nullptr;
+    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
+    return builder.bindAsRoot(
+        rootObject,
+        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
+        (BindingDataImpl*&)outBindingData
+    );
 }
 
 void CommandEncoderImpl::uploadTextureData(
@@ -1817,6 +1650,7 @@ void CommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
+    m_commandBuffer->m_constantBufferPool.finish();
     CommandRecorder recorder(m_device);
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
@@ -1848,11 +1682,8 @@ CommandBufferImpl::~CommandBufferImpl()
 
 Result CommandBufferImpl::init()
 {
-    m_commandList = new CommandList();
+    m_constantBufferPool.init(m_device);
     m_descriptorSetAllocator.init(&m_device->m_api);
-    m_constantBufferPool
-        .init(m_device, MemoryType::DeviceLocal, 256, BufferUsage::ConstantBuffer | BufferUsage::CopyDestination);
-    m_uploadBufferPool.init(m_device, MemoryType::Upload, 256, BufferUsage::CopySource);
 
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -1874,12 +1705,12 @@ Result CommandBufferImpl::init()
 
 Result CommandBufferImpl::reset()
 {
-    m_commandList->reset();
+    m_commandList.reset();
     SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkResetCommandBuffer(m_commandBuffer, 0));
-    m_descriptorSetAllocator.reset();
     m_constantBufferPool.reset();
-    m_uploadBufferPool.reset();
-    return SLANG_OK;
+    m_descriptorSetAllocator.reset();
+    m_bindingCache.reset();
+    return CommandBuffer::reset();
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
@@ -1891,8 +1722,8 @@ Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 
 } // namespace rhi::vk
 
+// Taken from old code for reference
 #if 0
-
 void CommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     BufferImpl* dstImpl = checked_cast<BufferImpl*>(dst);
@@ -2071,5 +1902,4 @@ void CommandEncoderImpl::uploadTextureData(
         }
     }
 }
-
 #endif
