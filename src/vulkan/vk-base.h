@@ -22,14 +22,14 @@ class ComputePipelineImpl;
 class RayTracingPipelineImpl;
 class ShaderObjectLayoutImpl;
 class EntryPointLayout;
-class RootShaderObjectLayout;
+class RootShaderObjectLayoutImpl;
 class ShaderProgramImpl;
-class ShaderObjectImpl;
-class RootShaderObjectImpl;
 class ShaderTableImpl;
 class CommandEncoderImpl;
 class CommandBufferImpl;
 class CommandQueueImpl;
 class QueryPoolImpl;
+struct BindingDataImpl;
+struct BindingCache;
 
 } // namespace rhi::vk

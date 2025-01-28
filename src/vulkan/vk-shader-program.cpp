@@ -1,4 +1,5 @@
 #include "vk-shader-program.h"
+#include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "vk-util.h"
 
@@ -34,9 +35,6 @@ VkPipelineShaderStageCreateInfo ShaderProgramImpl::compileEntryPoint(
     VkShaderModule& outShaderModule
 )
 {
-    const char* dataBegin = (const char*)code->getBufferPointer();
-    const char* dataEnd = (const char*)code->getBufferPointer() + code->getBufferSize();
-
     // We need to make a copy of the code, since the Slang compiler
     // will free the memory after a compile request is closed.
 
@@ -73,5 +71,11 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     m_modules.push_back(shaderModule);
     return SLANG_OK;
 }
+
+ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
+{
+    return m_rootShaderObjectLayout;
+}
+
 
 } // namespace rhi::vk
