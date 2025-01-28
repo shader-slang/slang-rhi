@@ -147,7 +147,7 @@ struct BaseCopyTextureTest
         queue->waitOnHost();
     }
 
-    bool isWithinCopyBounds(GfxIndex x, GfxIndex y, GfxIndex z)
+    bool isWithinCopyBounds(uint32_t x, uint32_t y, uint32_t z)
     {
         auto copyExtents = texCopyInfo.extent;
         auto copyOffset = texCopyInfo.dstOffset;
@@ -177,11 +177,11 @@ struct BaseCopyTextureTest
         auto srcTexOffset = texCopyInfo.srcOffset;
         auto dstTexOffset = texCopyInfo.dstOffset;
 
-        for (GfxIndex x = 0; x < actualExtents.width; ++x)
+        for (uint32_t x = 0; x < actualExtents.width; ++x)
         {
-            for (GfxIndex y = 0; y < actualExtents.height; ++y)
+            for (uint32_t y = 0; y < actualExtents.height; ++y)
             {
-                for (GfxIndex z = 0; z < actualExtents.depth; ++z)
+                for (uint32_t z = 0; z < actualExtents.depth; ++z)
                 {
                     auto actualBlock = actual.getBlockAt(x, y, z);
                     if (isWithinCopyBounds(x, y, z))

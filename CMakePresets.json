@@ -54,24 +54,34 @@
     ],
     "buildPresets": [
         {
-            "name": "debug",
+            "name": "Debug",
             "configurePreset": "default",
             "configuration": "Debug"
         },
         {
-            "name": "release",
+            "name": "Release",
             "configurePreset": "default",
             "configuration": "Release"
         },
         {
-            "name": "msvc-debug",
+            "name": "RelWithDebInfo",
+            "configurePreset": "default",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "msvc-Debug",
             "configurePreset": "msvc",
             "configuration": "Debug"
         },
         {
-            "name": "msvc-release",
+            "name": "msvc-Release",
             "configurePreset": "msvc",
             "configuration": "Release"
+        },
+        {
+            "name": "msvc-RelWithDebInfo",
+            "configurePreset": "msvc",
+            "configuration": "RelWithDebInfo"
         }
     ]
 }
