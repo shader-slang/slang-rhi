@@ -2512,6 +2512,10 @@ public:
         return AdapterList(blob);
     }
 
+    /// Enable debug layers, if available
+    /// If this is called, it must be called before creating any devices
+    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
+
     /// Creates a device.
     virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice) = 0;
 
