@@ -327,6 +327,9 @@ if(SLANG_RHI_MASTER_PROJECT)
     endif()
 else()
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR})
+    if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
+      target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
+    endif()
 endif()
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
