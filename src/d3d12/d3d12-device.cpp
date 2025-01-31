@@ -215,11 +215,6 @@ Result DeviceImpl::_createDevice(
     D3D12DeviceInfo& outDeviceInfo
 )
 {
-    if (m_dxDebug && (deviceCheckFlags & DeviceCheckFlag::UseDebug) && !g_isAftermathEnabled)
-    {
-        m_dxDebug->EnableDebugLayer();
-    }
-
     outDeviceInfo.clear();
 
     ComPtr<IDXGIFactory> dxgiFactory;

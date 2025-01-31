@@ -449,4 +449,21 @@ Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice
     return SLANG_OK;
 }
 
+void SLANG_MCALL enableD3D12DebugLayerIfAvailable()
+{
+    SharedLibraryHandle d3dModule;
+#if SLANG_WINDOWS_FAMILY
+    const char* libName = "d3d12";
+#else
+    const char* libName = "libvkd3d-proton-d3d12.so";
+#endif
+    if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
+        return;
+    PFN_D3D12_GET_DEBUG_INTERFACE d3d12GetDebugInterface =
+        (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
+    ComPtr<ID3D12Debug> dxDebug;
+    if (d3d12GetDebugInterface && SLANG_SUCCEEDED(d3d12GetDebugInterface(IID_PPV_ARGS(dxDebug.writeRef()))))
+        dxDebug->EnableDebugLayer();
+}
+
 } // namespace rhi

@@ -28,6 +28,7 @@ Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
 
 Result SLANG_MCALL reportD3DLiveObjects();
+void SLANG_MCALL enableD3D12DebugLayerIfAvailable();
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
@@ -236,6 +237,7 @@ public:
 
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
+    void enableDebugLayers() override;
     Result reportLiveObjects() override;
 
     static RHI* getInstance()
@@ -401,6 +403,13 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
     default:
         return SLANG_FAIL;
     }
+}
+
+void RHI::enableDebugLayers()
+{
+#if SLANG_RHI_ENABLE_D3D12
+    enableD3D12DebugLayerIfAvailable();
+#endif
 }
 
 Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
