@@ -312,6 +312,11 @@ if(SLANG_RHI_MASTER_PROJECT)
         )
     endif()
 
+    # slang repository has prelude files in prelude directory besides include directory
+    if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
+        target_include_directories(slang INTERFACE ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
+    endif()
+
     target_link_libraries(slang-rhi PUBLIC slang)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
