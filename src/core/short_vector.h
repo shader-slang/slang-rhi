@@ -262,6 +262,20 @@ public:
 
     // void pop_back() { --m_size; }
 
+    bool operator==(const short_vector& other) const
+    {
+        if (m_size != other.m_size)
+            return false;
+        for (size_type i = 0; i < m_size; ++i)
+        {
+            if (m_data[i] != other.m_data[i])
+                return false;
+        }
+        return true;
+    }
+
+    bool operator!=(const short_vector& other) const { return !(*this == other); }
+
 private:
     void grow(size_type new_capacity)
     {
