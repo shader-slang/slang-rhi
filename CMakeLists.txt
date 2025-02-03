@@ -343,6 +343,7 @@ target_sources(slang-rhi PRIVATE
     src/rhi-shared.cpp
     src/core/assert.cpp
     src/core/blob.cpp
+    src/core/offset-allocator.cpp
     src/core/platform.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
@@ -564,6 +565,7 @@ if(SLANG_RHI_BUILD_TESTS)
         # tests/test-link-time-type.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
+        tests/test-offset-allocator.cpp
         # tests/test-precompiled-module-2.cpp
         # tests/test-precompiled-module-cache.cpp
         # tests/test-precompiled-module.cpp
@@ -592,7 +594,7 @@ if(SLANG_RHI_BUILD_TESTS)
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
-    target_include_directories(slang-rhi-tests PRIVATE tests)
+    target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi)
 
     add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
