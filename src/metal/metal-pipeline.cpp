@@ -48,7 +48,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     // Create a vertex descriptor with the vertex buffer binding indices being offset.
     // They need to be in a range not used by any buffers in the root object layout.
     // The +1 is to account for a potential constant buffer at index 0.
-    NS::UInteger vertexBufferOffset = program->m_rootObjectLayout->getBufferCount() + 1;
+    NS::UInteger vertexBufferOffset = program->m_rootObjectLayout->getTotalBufferCount() + 1;
     NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor = inputLayout->createVertexDescriptor(vertexBufferOffset);
     pd->setVertexDescriptor(vertexDescriptor.get());
     pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.primitiveTopology));

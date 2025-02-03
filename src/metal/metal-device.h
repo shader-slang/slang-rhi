@@ -1,10 +1,6 @@
 #pragma once
 
 #include "metal-base.h"
-#include "metal-device.h"
-#include "metal-command.h"
-
-#include "core/stable_vector.h"
 
 #include <string>
 
@@ -39,10 +35,12 @@ public:
         slang::TypeLayoutReflection* typeLayout,
         ShaderObjectLayout** outLayout
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+
+    virtual Result createRootShaderObjectLayout(
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        ShaderObjectLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable) override;
@@ -89,6 +87,8 @@ public:
     // void waitForGpu();
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
+
+    DeviceImpl();
     ~DeviceImpl();
 
 public:

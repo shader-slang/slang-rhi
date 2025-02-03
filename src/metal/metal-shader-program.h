@@ -1,7 +1,6 @@
 #pragma once
 
 #include "metal-base.h"
-#include "metal-shader-object-layout.h"
 
 #include <string>
 
@@ -28,6 +27,8 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;
+
+    virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 };
 
 } // namespace rhi::metal
