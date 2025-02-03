@@ -7,6 +7,7 @@
 #include "d3d12-query.h"
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object.h"
+#include "d3d12-shader-object-layout.h"
 #include "d3d12-shader-program.h"
 #include "d3d12-shader-table.h"
 #include "d3d12-surface.h"
@@ -226,7 +227,7 @@ Result DeviceImpl::_createDevice(
     ComPtr<ID3D12Device> device;
     ComPtr<IDXGIAdapter> adapter;
 
-    for (Index i = 0; i < dxgiAdapters.size(); ++i)
+    for (size_t i = 0; i < dxgiAdapters.size(); ++i)
     {
         IDXGIAdapter* dxgiAdapter = dxgiAdapters[i];
         if (SLANG_SUCCEEDED(m_D3D12CreateDevice(dxgiAdapter, featureLevel, IID_PPV_ARGS(device.writeRef()))))
@@ -753,24 +754,36 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.limits = limits;
     }
 
-    m_cpuViewHeap = new D3D12GeneralExpandingDescriptorHeap();
+    SLANG_RETURN_ON_FAIL(CPUDescriptorHeap::create(
+        m_device,
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        16 * 1024,
+        m_cpuCbvSrvUavHeap.writeRef()
+    ));
     SLANG_RETURN_ON_FAIL(
-        m_cpuViewHeap
-            ->init(m_device, 1024 * 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE)
+        CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 4 * 1024, m_cpuRtvHeap.writeRef())
     );
-    m_cpuSamplerHeap = new D3D12GeneralExpandingDescriptorHeap();
     SLANG_RETURN_ON_FAIL(
-        m_cpuSamplerHeap->init(m_device, 2048, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_NONE)
+        CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4 * 1024, m_cpuDsvHeap.writeRef())
+    );
+    SLANG_RETURN_ON_FAIL(
+        CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 4 * 1024, m_cpuSamplerHeap.writeRef())
     );
 
-    m_rtvAllocator = new D3D12GeneralExpandingDescriptorHeap();
-    SLANG_RETURN_ON_FAIL(
-        m_rtvAllocator->init(m_device, 16 * 1024, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE)
-    );
-    m_dsvAllocator = new D3D12GeneralExpandingDescriptorHeap();
-    SLANG_RETURN_ON_FAIL(
-        m_dsvAllocator->init(m_device, 1024, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE)
-    );
+    SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
+        m_device,
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        1000000,
+        16 * 1024,
+        m_gpuCbvSrvUavHeap.writeRef()
+    ));
+    SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
+        m_device,
+        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+        2 * 1024,
+        2 * 1024,
+        m_gpuSamplerHeap.writeRef()
+    ));
 
     ComPtr<IDXGIDevice> dxgiDevice;
     if (m_deviceInfo.m_adapter)
@@ -821,14 +834,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         D3D12_INDIRECT_ARGUMENT_DESC args;
         args.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
 
-        D3D12_COMMAND_SIGNATURE_DESC desc;
-        desc.ByteStride = sizeof(D3D12_DRAW_ARGUMENTS);
-        desc.NumArgumentDescs = 1;
-        desc.pArgumentDescs = &args;
-        desc.NodeMask = 0;
+        D3D12_COMMAND_SIGNATURE_DESC signatureDesc;
+        signatureDesc.ByteStride = sizeof(D3D12_DRAW_ARGUMENTS);
+        signatureDesc.NumArgumentDescs = 1;
+        signatureDesc.pArgumentDescs = &args;
+        signatureDesc.NodeMask = 0;
 
         SLANG_RETURN_ON_FAIL(
-            m_device->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(drawIndirectCmdSignature.writeRef()))
+            m_device->CreateCommandSignature(&signatureDesc, nullptr, IID_PPV_ARGS(drawIndirectCmdSignature.writeRef()))
         );
     }
 
@@ -838,15 +851,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         D3D12_INDIRECT_ARGUMENT_DESC args;
         args.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
 
-        D3D12_COMMAND_SIGNATURE_DESC desc;
-        desc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
-        desc.NumArgumentDescs = 1;
-        desc.pArgumentDescs = &args;
-        desc.NodeMask = 0;
+        D3D12_COMMAND_SIGNATURE_DESC signatureDesc;
+        signatureDesc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+        signatureDesc.NumArgumentDescs = 1;
+        signatureDesc.pArgumentDescs = &args;
+        signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(
-            m_device->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(drawIndexedIndirectCmdSignature.writeRef()))
-        );
+        SLANG_RETURN_ON_FAIL(m_device->CreateCommandSignature(
+            &signatureDesc,
+            nullptr,
+            IID_PPV_ARGS(drawIndexedIndirectCmdSignature.writeRef())
+        ));
     }
 
     // Allocate a D3D12 "command signature" object that matches the behavior
@@ -855,15 +870,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         D3D12_INDIRECT_ARGUMENT_DESC args;
         args.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
 
-        D3D12_COMMAND_SIGNATURE_DESC desc;
-        desc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
-        desc.NumArgumentDescs = 1;
-        desc.pArgumentDescs = &args;
-        desc.NodeMask = 0;
+        D3D12_COMMAND_SIGNATURE_DESC signatureDesc;
+        signatureDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
+        signatureDesc.NumArgumentDescs = 1;
+        signatureDesc.pArgumentDescs = &args;
+        signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(
-            m_device->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(dispatchIndirectCmdSignature.writeRef()))
-        );
+        SLANG_RETURN_ON_FAIL(m_device->CreateCommandSignature(
+            &signatureDesc,
+            nullptr,
+            IID_PPV_ARGS(dispatchIndirectCmdSignature.writeRef())
+        ));
     }
     m_isInitialized = true;
     return SLANG_OK;
@@ -1174,9 +1191,9 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                     //
                     const uint8_t* srcRow = srcLayer;
                     uint8_t* dstRow = dstLayer;
-                    int j = formatInfo.isCompressed ? 4 : 1; // BC compressed formats are organized into
-                                                             // 4x4 blocks
-                    for (uint32_t k = 0; k < mipSize.height; k += j)
+                    // BC compressed formats are organized into 4x4 blocks
+                    int inc = formatInfo.isCompressed ? 4 : 1;
+                    for (uint32_t k = 0; k < mipSize.height; k += inc)
                     {
                         ::memcpy(dstRow, srcRow, (Size)mipRowSize);
 
@@ -1324,19 +1341,20 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     dxDesc.MinLOD = desc.minLOD;
     dxDesc.MaxLOD = desc.maxLOD;
 
-    auto& samplerHeap = m_cpuSamplerHeap;
-
-    D3D12Descriptor cpuDescriptor;
-    samplerHeap->allocate(&cpuDescriptor);
-    m_device->CreateSampler(&dxDesc, cpuDescriptor.cpuHandle);
+    CPUDescriptorAllocation descriptor = m_cpuSamplerHeap->allocate();
+    if (!descriptor)
+    {
+        return SLANG_FAIL;
+    }
+    m_device->CreateSampler(&dxDesc, descriptor.cpuHandle);
 
     // TODO: We really ought to have a free-list of sampler-heap
     // entries that we check before we go to the heap, and then
     // when we are done with a sampler we simply add it to the free list.
     //
     RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(desc);
-    samplerImpl->m_allocator = samplerHeap;
-    samplerImpl->m_descriptor = cpuDescriptor;
+    samplerImpl->m_device = this;
+    samplerImpl->m_descriptor = descriptor;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
@@ -1452,8 +1470,6 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
 
     BufferImpl* buffer = checked_cast<BufferImpl*>(bufferIn);
 
-    const Size bufferSize = buffer->m_desc.size;
-
     // This will be slow!!! - it blocks CPU on GPU completion
     D3D12Resource& resource = buffer->m_resource;
 
@@ -1557,22 +1573,13 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, reinterpret_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
-    );
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    RefPtr<RootShaderObjectImpl> object = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(object->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
-    returnComPtr(outObject, object);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
@@ -1768,7 +1775,9 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.defaultState = ResourceState::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     result->m_device5 = m_device5;
-    SLANG_RETURN_ON_FAIL(m_cpuViewHeap->allocate(&result->m_descriptor));
+    result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
+    if (!result->m_descriptor)
+        return SLANG_FAIL;
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;

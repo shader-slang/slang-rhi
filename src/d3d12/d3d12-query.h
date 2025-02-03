@@ -1,8 +1,6 @@
 #pragma once
 
 #include "d3d12-base.h"
-#include "d3d12-buffer.h"
-#include "d3d12-device.h"
 
 namespace rhi::d3d12 {
 

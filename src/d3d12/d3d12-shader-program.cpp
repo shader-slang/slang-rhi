@@ -1,4 +1,5 @@
 #include "d3d12-shader-program.h"
+#include "d3d12-shader-object-layout.h"
 
 namespace rhi::d3d12 {
 
@@ -13,6 +14,11 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     );
     m_shaders.push_back(_Move(shaderBin));
     return SLANG_OK;
+}
+
+ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
+{
+    return m_rootObjectLayout;
 }
 
 } // namespace rhi::d3d12
