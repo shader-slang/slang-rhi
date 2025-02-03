@@ -19,3 +19,4 @@ This library is under active refactoring and development, and is not yet ready f
 - [RenderDoc API](https://github.com/baldurk/renderdoc) (MIT)
 - [stb](https://github.com/nothings/stb) (Public Domain)
 - [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) (MIT)
+- [OffsetAllocator](https://github.com/sebbbi/OffsetAllocator) (MIT)
