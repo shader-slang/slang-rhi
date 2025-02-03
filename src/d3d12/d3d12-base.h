@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../rhi-shared.h"
-#include "d3d12-descriptor-heap.h"
 #include "d3d12-posix-synchapi.h"
 #include "d3d12-resource.h"
 
@@ -26,6 +25,7 @@
 
 // Must be included after d3d12 headers.
 #include "../nvapi/nvapi-util.h"
+#include "d3d12-descriptor-heap.h"
 
 #ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
 // If can't find a definition of CommandList1, just use an empty definition
@@ -58,5 +58,7 @@ class ShaderProgramImpl;
 class ShaderTableImpl;
 class SurfaceImpl;
 class InputLayoutImpl;
+struct BindingDataImpl;
+struct BindingCache;
 
 } // namespace rhi::d3d12

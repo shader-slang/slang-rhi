@@ -1,5 +1,7 @@
 #include "d3d12-query.h"
+#include "d3d12-device.h"
 #include "d3d12-command.h"
+#include "d3d12-buffer.h"
 #include "d3d12-helper-functions.h"
 
 namespace rhi::d3d12 {

@@ -1,4 +1,5 @@
 #include "d3d12-helper-functions.h"
+#include "d3d12-device.h"
 #include "d3d12-buffer.h"
 #include "d3d12-query.h"
 
@@ -248,10 +249,11 @@ void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
 Result createNullDescriptor(
     ID3D12Device* d3dDevice,
     D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor,
-    const ShaderObjectLayoutImpl::BindingRangeInfo& bindingRange
+    slang::BindingType bindingType,
+    SlangResourceShape resourceShape
 )
 {
-    switch (bindingRange.bindingType)
+    switch (bindingType)
     {
     case slang::BindingType::ConstantBuffer:
     {
@@ -302,7 +304,7 @@ Result createNullDescriptor(
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        switch (bindingRange.resourceShape)
+        switch (resourceShape)
         {
         case SLANG_TEXTURE_1D:
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
@@ -341,7 +343,7 @@ Result createNullDescriptor(
     {
         D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
         uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        switch (bindingRange.resourceShape)
+        switch (resourceShape)
         {
         case SLANG_TEXTURE_1D:
             uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;

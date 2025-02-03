@@ -10,6 +10,7 @@
 #include "d3d12-fence.h"
 #include "d3d12-query.h"
 #include "d3d12-input-layout.h"
+#include "d3d12-helper-functions.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 
@@ -33,13 +34,8 @@ public:
     ComPtr<ID3D12GraphicsCommandList4> m_cmdList4;
     ComPtr<ID3D12GraphicsCommandList6> m_cmdList6;
 
-    D3D12DescriptorHeap* m_viewDescriptorHeap;
-    D3D12DescriptorHeap* m_samplerDescriptorHeap;
-
-    BufferPool<DeviceImpl, BufferImpl>* m_constantBufferPool;
-    BufferPool<DeviceImpl, BufferImpl>* m_uploadBufferPool;
-
-    bool m_descriptorHeapsBound = false;
+    GPUDescriptorArena* m_cbvSrvUavArena = nullptr;
+    GPUDescriptorArena* m_samplerArena = nullptr;
 
     StateTracking m_stateTracking;
 
@@ -54,16 +50,16 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputeState m_computeState;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
-    RayTracingState m_rayTracingState;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
     D3D12_DISPATCH_RAYS_DESC m_dispatchRaysDesc = {};
     UINT64 m_rayGenTableAddr = 0;
+
+    BindingDataImpl* m_bindingData = nullptr;
 
     CommandRecorder(DeviceImpl* device)
         : m_device(device)
@@ -111,14 +107,14 @@ public:
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
-    Result bindRootObject(
-        RootShaderObjectImpl* rootObject,
-        RootShaderObjectLayoutImpl* rootObjectLayout,
-        Submitter* submitter
-    );
+    enum class BindMode
+    {
+        Graphics,
+        Compute,
+        RayTracing,
+    };
 
-    void bindDescriptorHeaps();
-    void invalidateDescriptorHeapBinding() { m_descriptorHeapsBound = false; }
+    void setBindings(BindingDataImpl* bindingData, BindMode bindMode);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
@@ -131,56 +127,16 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList1>(m_cmdList1.writeRef());
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList4>(m_cmdList4.writeRef());
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList6>(m_cmdList6.writeRef());
-    m_viewDescriptorHeap = &commandBuffer->m_viewDescriptorHeap;
-    m_samplerDescriptorHeap = &commandBuffer->m_samplerDescriptorHeap;
-    m_constantBufferPool = &commandBuffer->m_constantBufferPool;
-    m_uploadBufferPool = &commandBuffer->m_uploadBufferPool;
+    m_cbvSrvUavArena = &commandBuffer->m_cbvSrvUavArena;
+    m_samplerArena = &commandBuffer->m_samplerArena;
 
-    CommandList* commandList = commandBuffer->m_commandList;
+    CommandList& commandList = commandBuffer->m_commandList;
 
-#if 0
-    // First, we setup all the root objects.
-    for (const CommandList::CommandSlot* slot = commandList->getCommands(); slot; slot = slot->next)
-    {
-        IShaderObject* rootObject = nullptr;
-        switch (slot->id)
-        {
-        case CommandID::SetRenderState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetRenderState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<RenderPipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        case CommandID::SetComputeState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetComputeState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<ComputePipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        case CommandID::SetRayTracingState:
-        {
-            const auto& cmd = commandList->getCommand<commands::SetRayTracingState>(slot);
-            SLANG_RETURN_ON_FAIL(prepareRootObject(
-                checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject),
-                checked_cast<RayTracingPipelineImpl*>(cmd.state.pipeline)->m_rootObjectLayout
-            ));
-            break;
-        }
-        }
-    }
-#endif
-
-    for (const CommandList::CommandSlot* slot = commandList->getCommands(); slot; slot = slot->next)
+    for (const CommandList::CommandSlot* slot = commandList.getCommands(); slot; slot = slot->next)
     {
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
-        cmd##x(commandList->getCommand<commands::x>(slot));                                                            \
+        cmd##x(commandList.getCommand<commands::x>(slot));                                                             \
         break;
 
         switch (slot->id)
@@ -295,7 +251,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
-    const Offset dstOffset = cmd.dstOffset;
+    const uint64_t dstOffset = cmd.dstOffset;
     const Size dstRowStride = cmd.dstRowStride;
 
     SubresourceRange srcSubresource = cmd.srcSubresource;
@@ -306,15 +262,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
 
-    uint32_t baseSubresourceIndex = D3DUtil::getSubresourceIndex(
-        srcSubresource.mipLevel,
-        srcSubresource.baseArrayLayer,
-        0,
-        src->m_desc.mipLevelCount,
-        src->m_desc.arrayLength
-    );
     Extents textureSize = src->m_desc.size;
-    const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
@@ -372,8 +320,6 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
         SLANG_RHI_ASSERT(dstRowStride % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
         footprint.Footprint.RowPitch = (UINT)dstRowStride;
 
-        auto bufferSize = footprint.Footprint.RowPitch * footprint.Footprint.Height * footprint.Footprint.Depth;
-
         D3D12_BOX srcBox = {};
         srcBox.left = srcOffset.x;
         srcBox.top = srcOffset.y;
@@ -393,8 +339,53 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(clearTexture);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    TextureType type = texture->m_desc.type;
+    TextureUsage usage = texture->m_desc.usage;
+    Format format = texture->m_desc.format;
+
+    if (is_set(usage, TextureUsage::UnorderedAccess))
+    {
+        requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
+        D3D12_CPU_DESCRIPTOR_HANDLE uav = texture->getUAV(format, type, TextureAspect::All, cmd.subresourceRange);
+        GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
+        m_device->m_device
+            ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        m_cmdList->ClearUnorderedAccessViewFloat(
+            descriptor.getGpuHandle(0),
+            uav,
+            texture->m_resource.getResource(),
+            cmd.clearValue.color.floatValues,
+            0,
+            nullptr
+        );
+    }
+    else if (is_set(usage, TextureUsage::RenderTarget))
+    {
+        requireTextureState(texture, cmd.subresourceRange, ResourceState::RenderTarget);
+        if (isDepthFormat(format) || isStencilFormat(format))
+        {
+            D3D12_CPU_DESCRIPTOR_HANDLE dsv = texture->getDSV(format, type, TextureAspect::All, cmd.subresourceRange);
+            D3D12_CLEAR_FLAGS clearFlags = (D3D12_CLEAR_FLAGS)0;
+            if (cmd.clearDepth)
+                clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
+            if (cmd.clearStencil)
+                clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
+            m_cmdList->ClearDepthStencilView(
+                dsv,
+                clearFlags,
+                cmd.clearValue.depthStencil.depth,
+                cmd.clearValue.depthStencil.stencil,
+                0,
+                nullptr
+            );
+        }
+        else
+        {
+            D3D12_CPU_DESCRIPTOR_HANDLE rtv = texture->getRTV(format, type, TextureAspect::All, cmd.subresourceRange);
+            m_cmdList->ClearRenderTargetView(rtv, cmd.clearValue.color.floatValues, 0, nullptr);
+        }
+    }
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
@@ -578,7 +569,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             m_renderTargetViews[i]->m_desc.subresourceRange,
             ResourceState::RenderTarget
         );
-        renderTargetDescriptors.push_back(m_renderTargetViews[i]->getRTV().cpuHandle);
+        renderTargetDescriptors.push_back(m_renderTargetViews[i]->getRTV());
     }
     if (desc.depthStencilAttachment)
     {
@@ -592,15 +583,19 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     commitBarriers();
 
+    D3D12_CPU_DESCRIPTOR_HANDLE depthStencilDescriptor = {};
+    if (m_depthStencilView)
+        depthStencilDescriptor = m_depthStencilView->getDSV();
+
     m_cmdList->OMSetRenderTargets(
         (UINT)m_renderTargetViews.size(),
         renderTargetDescriptors.data(),
         FALSE,
-        m_depthStencilView ? &m_depthStencilView->getDSV().cpuHandle : nullptr
+        m_depthStencilView ? &depthStencilDescriptor : nullptr
     );
 
     // Issue clear commands based on render pass set up.
-    for (Index i = 0; i < m_renderTargetViews.size(); i++)
+    for (size_t i = 0; i < m_renderTargetViews.size(); i++)
     {
         const auto& attachment = desc.colorAttachments[i];
         if (attachment.loadOp == LoadOp::Clear)
@@ -624,7 +619,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         if (clearFlags)
         {
             m_cmdList->ClearDepthStencilView(
-                m_depthStencilView->getDSV().cpuHandle,
+                m_depthStencilView->getDSV(),
                 (D3D12_CLEAR_FLAGS)clearFlags,
                 attachment.depthClearValue,
                 attachment.stencilClearValue,
@@ -694,8 +689,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     const RenderState& state = cmd.state;
 
-    bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateStencilRef = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
     bool updateVertexBuffers = !m_renderStateValid || !arraysEqual(
                                                           state.vertexBufferCount,
@@ -717,21 +712,16 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updatePipeline)
     {
-        m_renderPipeline = checked_cast<RenderPipelineImpl*>(state.pipeline);
+        m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
         m_cmdList->SetGraphicsRootSignature(m_renderPipeline->m_rootObjectLayout->m_rootSignature);
         m_cmdList->SetPipelineState(m_renderPipeline->m_pipelineState);
         m_cmdList->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        auto rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
-        GraphicsSubmitter submitter(m_device->m_device, m_cmdList);
-        if (bindRootObject(rootObject, m_renderPipeline->m_rootObjectLayout, &submitter) != SLANG_OK)
-        {
-            // TODO issue a message?
-            return;
-        }
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, BindMode::Graphics);
     }
 
     // TODO support setting sample positions
@@ -757,7 +747,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
-            Offset offset = state.vertexBuffers[i].offset;
+            uint64_t offset = state.vertexBuffers[i].offset;
             requireBufferState(buffer, ResourceState::VertexBuffer);
 
             D3D12_VERTEX_BUFFER_VIEW& vertexView = vertexViews[i];
@@ -773,7 +763,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         if (state.indexBuffer.buffer)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.indexBuffer.buffer);
-            Offset offset = state.indexBuffer.offset;
+            uint64_t offset = state.indexBuffer.offset;
             requireBufferState(buffer, ResourceState::IndexBuffer);
 
             D3D12_INDEX_BUFFER_VIEW indexBufferView;
@@ -828,11 +818,9 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     m_renderState = state;
 
     m_computeStateValid = false;
-    m_computeState = {};
     m_computePipeline = nullptr;
 
     m_rayTracingStateValid = false;
-    m_rayTracingState = {};
     m_rayTracingPipeline = nullptr;
 }
 
@@ -934,31 +922,23 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (!m_computePassActive)
         return;
 
-    const ComputeState& state = cmd.state;
-
-    bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_computeState.rootObject;
+    bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     if (updatePipeline)
     {
-        m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
+        m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
         m_cmdList->SetComputeRootSignature(m_computePipeline->m_rootObjectLayout->m_rootSignature);
         m_cmdList->SetPipelineState(m_computePipeline->m_pipelineState);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        auto rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
-        ComputeSubmitter submitter(m_device->m_device, m_cmdList);
-        if (bindRootObject(rootObject, m_computePipeline->m_rootObjectLayout, &submitter) != SLANG_OK)
-        {
-            // TODO issue a message?
-            return;
-        }
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, BindMode::Compute);
     }
 
     m_computeStateValid = true;
-    m_computeState = state;
 }
 
 void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -1004,35 +984,28 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (!m_rayTracingPassActive)
         return;
 
-    const RayTracingState& state = cmd.state;
-
-    bool updatePipeline = !m_rayTracingStateValid || state.pipeline != m_rayTracingState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_rayTracingState.rootObject;
-    bool updateShaderTable = updatePipeline || state.shaderTable != m_rayTracingState.shaderTable;
+    bool updatePipeline = !m_rayTracingStateValid || cmd.pipeline != m_rayTracingPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
+    bool updateShaderTable = updatePipeline || cmd.shaderTable != m_shaderTable;
 
     if (updatePipeline)
     {
-        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(state.pipeline);
+        m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
         m_cmdList->SetComputeRootSignature(m_rayTracingPipeline->m_rootObjectLayout->m_rootSignature);
         m_cmdList4->SetPipelineState1(m_rayTracingPipeline->m_stateObject);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        auto rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
-        ComputeSubmitter submitter(m_device->m_device, m_cmdList);
-        if (bindRootObject(rootObject, m_rayTracingPipeline->m_rootObjectLayout, &submitter) != SLANG_OK)
-        {
-            // TODO issue a message?
-            return;
-        }
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        setBindings(m_bindingData, BindMode::RayTracing);
     }
 
     if (updateShaderTable)
     {
-        m_shaderTable = checked_cast<ShaderTableImpl*>(state.shaderTable);
+        m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
-        Buffer* shaderTableBuffer = m_shaderTable->getOrCreateBuffer(m_rayTracingPipeline);
+        BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
         DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};
@@ -1069,7 +1042,6 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     }
 
     m_rayTracingStateValid = true;
-    m_rayTracingState = state;
 }
 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
@@ -1229,127 +1201,69 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     cmd.callback(cmd.userData);
 }
 
-struct BindingContextImpl : public BindingContext
+void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
 {
-    CommandRecorder* recorder;
-
-    virtual Result allocateConstantBuffer(size_t size, BufferImpl*& outBufferWeakPtr, size_t& outOffset) override
+    // First, we transition all resources to the required states.
+    for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
     {
-        auto allocation = recorder->m_constantBufferPool->allocate(size);
-        outBufferWeakPtr = allocation.resource;
-        outOffset = allocation.offset;
-        return SLANG_OK;
+        const auto& bufferState = bindingData->bufferStates[i];
+        requireBufferState(bufferState.buffer, bufferState.state);
     }
-
-    virtual Result writeBuffer(BufferImpl* buffer, size_t offset, size_t size, const void* data) override
+    for (uint32_t i = 0; i < bindingData->textureStateCount; ++i)
     {
-        auto allocation = recorder->m_uploadBufferPool->allocate(size);
-        ID3D12Resource* stagingBuffer = allocation.resource->m_resource.getResource();
-        D3D12_RANGE readRange = {};
-        readRange.Begin = 0;
-        readRange.End = 0;
-        void* uploadData;
-        SLANG_RETURN_ON_FAIL(stagingBuffer->Map(0, &readRange, reinterpret_cast<void**>(&uploadData)));
-        memcpy((uint8_t*)uploadData + allocation.offset, data, size);
-        D3D12_RANGE writtenRange = {};
-        writtenRange.Begin = allocation.offset;
-        writtenRange.End = allocation.offset + size;
-        stagingBuffer->Unmap(0, &writtenRange);
-
-        D3D12_RESOURCE_BARRIER barrier = {};
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-        barrier.Transition.pResource = buffer->m_resource.getResource();
-        recorder->m_cmdList->ResourceBarrier(1, &barrier);
-
-        recorder->m_cmdList
-            ->CopyBufferRegion(buffer->m_resource.getResource(), offset, stagingBuffer, allocation.offset, size);
-
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-        recorder->m_cmdList->ResourceBarrier(1, &barrier);
-
-        return SLANG_OK;
+        const auto& textureState = bindingData->textureStates[i];
+        requireTextureState(
+            textureState.textureView->m_texture,
+            textureState.textureView->m_desc.subresourceRange,
+            textureState.state
+        );
     }
-};
-
-Result CommandRecorder::bindRootObject(
-    RootShaderObjectImpl* rootObject,
-    RootShaderObjectLayoutImpl* rootObjectLayout,
-    Submitter* submitter
-)
-{
-    // We need to set up a context for binding shader objects to the pipeline state.
-    // This type mostly exists to bundle together a bunch of parameters that would
-    // otherwise need to be tunneled down through all the shader object binding
-    // logic.
-    //
-    BindingContextImpl context = {};
-    context.recorder = this;
-    context.submitter = submitter;
-    context.device = m_device;
-    context.viewHeap = m_viewDescriptorHeap;
-    context.samplerHeap = m_samplerDescriptorHeap;
-    context.outOfMemoryHeap = (D3D12_DESCRIPTOR_HEAP_TYPE)(-1);
-
-    // Transition all resources to the appropriate state and commit the barriers.
-    // This needs to happen before binding descriptor tables, otherwise D3D12
-    // will report validation errors.
-    rootObject->setResourceStates(m_stateTracking);
     commitBarriers();
 
-    // We kick off binding of shader objects at the root object, and the objects
-    // themselves will be responsible for allocating, binding, and filling in
-    // any descriptor tables or other root parameters needed.
-    //
-    bindDescriptorHeaps();
-    SLANG_RETURN_ON_FAIL(rootObject->bindAsRoot(context, rootObjectLayout));
-#if 0
-    if (rootObject->bindAsRoot(context, rootObjectLayout) == SLANG_E_OUT_OF_MEMORY)
+    // Then we bind the root parameters.
+    if (bindMode == BindMode::Graphics)
     {
-        if (!m_transientHeap->canResize())
+        for (uint32_t i = 0; i < bindingData->rootParameterCount; ++i)
         {
-            return SLANG_E_OUT_OF_MEMORY;
+            const auto& param = bindingData->rootParameters[i];
+            switch (param.type)
+            {
+            case BindingDataImpl::RootParameter::CBV:
+                m_cmdList->SetGraphicsRootConstantBufferView(param.index, param.bufferLocation);
+                break;
+            case BindingDataImpl::RootParameter::UAV:
+                m_cmdList->SetGraphicsRootUnorderedAccessView(param.index, param.bufferLocation);
+                break;
+            case BindingDataImpl::RootParameter::SRV:
+                m_cmdList->SetGraphicsRootShaderResourceView(param.index, param.bufferLocation);
+                break;
+            case BindingDataImpl::RootParameter::DescriptorTable:
+                m_cmdList->SetGraphicsRootDescriptorTable(param.index, param.baseDescriptor);
+                break;
+            }
         }
-
-        // If we run out of heap space while binding, allocate new descriptor heaps and try again.
-        ID3D12DescriptorHeap* d3dheap = nullptr;
-        invalidateDescriptorHeapBinding();
-        switch (context.outOfMemoryHeap)
-        {
-        case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-            SLANG_RETURN_ON_FAIL(m_transientHeap->allocateNewViewDescriptorHeap(m_device));
-            d3dheap = m_transientHeap->getCurrentViewHeap().getHeap();
-            bindDescriptorHeaps();
-            break;
-        case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
-            SLANG_RETURN_ON_FAIL(m_transientHeap->allocateNewSamplerDescriptorHeap(m_device));
-            d3dheap = m_transientHeap->getCurrentSamplerHeap().getHeap();
-            bindDescriptorHeaps();
-            break;
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Shouldn't be here");
-            return SLANG_FAIL;
-        }
-
-        // Try again.
-        SLANG_RETURN_ON_FAIL(rootObject->bindAsRoot(context, rootObjectLayout));
     }
-#endif
-    return SLANG_OK;
-}
-
-void CommandRecorder::bindDescriptorHeaps()
-{
-    if (!m_descriptorHeapsBound)
+    else if (bindMode == BindMode::Compute || bindMode == BindMode::RayTracing)
     {
-        ID3D12DescriptorHeap* heaps[] = {
-            m_viewDescriptorHeap->getHeap(),
-            m_samplerDescriptorHeap->getHeap(),
-        };
-        m_cmdList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
-        m_descriptorHeapsBound = true;
+        for (uint32_t i = 0; i < bindingData->rootParameterCount; ++i)
+        {
+            const auto& param = bindingData->rootParameters[i];
+            switch (param.type)
+            {
+            case BindingDataImpl::RootParameter::CBV:
+                m_cmdList->SetComputeRootConstantBufferView(param.index, param.bufferLocation);
+                break;
+            case BindingDataImpl::RootParameter::UAV:
+                m_cmdList->SetComputeRootUnorderedAccessView(param.index, param.bufferLocation);
+                break;
+            case BindingDataImpl::RootParameter::SRV:
+                m_cmdList->SetComputeRootShaderResourceView(param.index, param.bufferLocation);
+                break;
+            case BindingDataImpl::RootParameter::DescriptorTable:
+                m_cmdList->SetComputeRootDescriptorTable(param.index, param.baseDescriptor);
+                break;
+            }
+        }
     }
 }
 
@@ -1386,6 +1300,10 @@ void CommandRecorder::commitBarriers()
             barrier.Transition.StateBefore = D3DUtil::getResourceState(bufferBarrier.stateBefore);
             barrier.Transition.StateAfter = D3DUtil::getResourceState(bufferBarrier.stateAfter);
             barrier.Transition.Subresource = 0;
+            if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
+            {
+                continue;
+            }
         }
         barriers.push_back(barrier);
     }
@@ -1411,6 +1329,10 @@ void CommandRecorder::commitBarriers()
                 barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
                 barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
                 barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
+                {
+                    continue;
+                }
             }
             barriers.push_back(barrier);
         }
@@ -1425,6 +1347,10 @@ void CommandRecorder::commitBarriers()
             barrier.Transition.pResource = texture->m_resource;
             barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
             barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
+            if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
+            {
+                continue;
+            }
             for (uint32_t planeIndex = 0; planeIndex < planeCount; ++planeIndex)
             {
                 barrier.Transition.Subresource = D3DUtil::getSubresourceIndex(
@@ -1501,6 +1427,7 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
 void CommandQueueImpl::retireUnfinishedCommandBuffer(CommandBufferImpl* commandBuffer)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+    commandBuffer->m_d3dCommandList->Close();
     commandBuffer->reset();
     m_commandBuffersPool.push_back(commandBuffer);
 }
@@ -1624,8 +1551,32 @@ CommandEncoderImpl::~CommandEncoderImpl()
 Result CommandEncoderImpl::init()
 {
     SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
-    m_commandList = m_commandBuffer->m_commandList;
+    m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
+}
+
+Device* CommandEncoderImpl::getDevice()
+{
+    return m_device;
+}
+
+Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
+{
+    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    BindingDataBuilder builder;
+    builder.m_device = m_device;
+    builder.m_allocator = &m_commandBuffer->m_allocator;
+    builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
+    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    builder.m_cbvSrvUavArena = &m_commandBuffer->m_cbvSrvUavArena;
+    builder.m_samplerArena = &m_commandBuffer->m_samplerArena;
+    ShaderObjectLayout* specializedLayout = nullptr;
+    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
+    return builder.bindAsRoot(
+        rootObject,
+        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
+        (BindingDataImpl*&)outBindingData
+    );
 }
 
 void CommandEncoderImpl::uploadTextureData(
@@ -1676,8 +1627,6 @@ CommandBufferImpl::~CommandBufferImpl() {}
 
 Result CommandBufferImpl::init()
 {
-    m_commandList = new CommandList();
-
     SLANG_RETURN_ON_FAIL(m_device->m_device->CreateCommandAllocator(
         D3D12_COMMAND_LIST_TYPE_DIRECT,
         IID_PPV_ARGS(m_d3dCommandAllocator.writeRef())
@@ -1690,36 +1639,35 @@ Result CommandBufferImpl::init()
         IID_PPV_ARGS(m_d3dCommandList.writeRef())
     ));
 
-    SLANG_RETURN_ON_FAIL(m_viewDescriptorHeap.init(
-        m_device->m_device,
-        16 * 1024,
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-    ));
-    SLANG_RETURN_ON_FAIL(m_samplerDescriptorHeap.init(
-        m_device->m_device,
-        1024,
-        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-    ));
+    ID3D12DescriptorHeap* heaps[] = {
+        m_device->m_gpuCbvSrvUavHeap->getHeap(),
+        m_device->m_gpuSamplerHeap->getHeap(),
+    };
+    m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
 
-    m_constantBufferPool
-        .init(m_device, MemoryType::DeviceLocal, 256, BufferUsage::ConstantBuffer | BufferUsage::CopyDestination);
-    m_uploadBufferPool.init(m_device, MemoryType::Upload, 256, BufferUsage::CopySource);
+    m_constantBufferPool.init(m_device);
+
+    SLANG_RETURN_ON_FAIL(m_cbvSrvUavArena.init(m_device->m_gpuCbvSrvUavHeap, 128));
+    SLANG_RETURN_ON_FAIL(m_samplerArena.init(m_device->m_gpuSamplerHeap, 4));
 
     return SLANG_OK;
 }
 
 Result CommandBufferImpl::reset()
 {
-    m_commandList->reset();
     SLANG_RETURN_ON_FAIL(m_d3dCommandAllocator->Reset());
     SLANG_RETURN_ON_FAIL(m_d3dCommandList->Reset(m_d3dCommandAllocator, nullptr));
-    m_viewDescriptorHeap.deallocateAll();
-    m_samplerDescriptorHeap.deallocateAll();
+    ID3D12DescriptorHeap* heaps[] = {
+        m_device->m_gpuCbvSrvUavHeap->getHeap(),
+        m_device->m_gpuSamplerHeap->getHeap(),
+    };
+    m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
+
+    m_cbvSrvUavArena.reset();
+    m_samplerArena.reset();
     m_constantBufferPool.reset();
-    m_uploadBufferPool.reset();
-    return SLANG_OK;
+    m_bindingCache.reset();
+    return CommandBuffer::reset();
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
@@ -1728,99 +1676,5 @@ Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
     outHandle->value = (uint64_t)m_d3dCommandList.get();
     return SLANG_OK;
 }
-
-#if 0
-void ResourcePassEncoderImpl::clearResourceView(
-    IResourceView* view,
-    ClearValue* clearValue,
-    ClearResourceViewFlags::Enum flags
-)
-{
-    auto viewImpl = checked_cast<ResourceViewImpl*>(view);
-    m_commandBuffer->bindDescriptorHeaps();
-    switch (view->getViewDesc()->type)
-    {
-    case IResourceView::Type::RenderTarget:
-        m_commandBuffer->m_cmdList
-            ->ClearRenderTargetView(viewImpl->m_descriptor.cpuHandle, clearValue->color.floatValues, 0, nullptr);
-        break;
-    case IResourceView::Type::DepthStencil:
-    {
-        D3D12_CLEAR_FLAGS clearFlags = (D3D12_CLEAR_FLAGS)0;
-        if (flags & ClearResourceViewFlags::ClearDepth)
-        {
-            clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
-        }
-        if (flags & ClearResourceViewFlags::ClearStencil)
-        {
-            clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
-        }
-        m_commandBuffer->m_cmdList->ClearDepthStencilView(
-            viewImpl->m_descriptor.cpuHandle,
-            clearFlags,
-            clearValue->depthStencil.depth,
-            (UINT8)clearValue->depthStencil.stencil,
-            0,
-            nullptr
-        );
-        break;
-    }
-    case IResourceView::Type::UnorderedAccess:
-    {
-        ID3D12Resource* d3dResource = nullptr;
-        D3D12Descriptor descriptor = viewImpl->m_descriptor;
-        if (viewImpl->m_isBufferView)
-        {
-            d3dResource = checked_cast<BufferImpl*>(viewImpl->m_resource.Ptr())->m_resource.getResource();
-            // D3D12 requires a UAV descriptor with zero buffer stride for calling ClearUnorderedAccessViewUint/Float.
-            viewImpl->getBufferDescriptorForBinding(m_commandBuffer->m_device, viewImpl, 0, descriptor);
-        }
-        else
-        {
-            d3dResource = checked_cast<TextureImpl*>(viewImpl->m_resource.Ptr())->m_resource.getResource();
-        }
-        auto gpuHandleIndex = m_commandBuffer->m_transientHeap->getCurrentViewHeap().allocate(1);
-        if (gpuHandleIndex == -1)
-        {
-            m_commandBuffer->m_transientHeap->allocateNewViewDescriptorHeap(m_commandBuffer->m_device);
-            gpuHandleIndex = m_commandBuffer->m_transientHeap->getCurrentViewHeap().allocate(1);
-            m_commandBuffer->bindDescriptorHeaps();
-        }
-        this->m_commandBuffer->m_device->m_device->CopyDescriptorsSimple(
-            1,
-            m_commandBuffer->m_transientHeap->getCurrentViewHeap().getCpuHandle(gpuHandleIndex),
-            descriptor.cpuHandle,
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-        );
-
-        if (flags & ClearResourceViewFlags::FloatClearValues)
-        {
-            m_commandBuffer->m_cmdList->ClearUnorderedAccessViewFloat(
-                m_commandBuffer->m_transientHeap->getCurrentViewHeap().getGpuHandle(gpuHandleIndex),
-                descriptor.cpuHandle,
-                d3dResource,
-                clearValue->color.floatValues,
-                0,
-                nullptr
-            );
-        }
-        else
-        {
-            m_commandBuffer->m_cmdList->ClearUnorderedAccessViewUint(
-                m_commandBuffer->m_transientHeap->getCurrentViewHeap().getGpuHandle(gpuHandleIndex),
-                descriptor.cpuHandle,
-                d3dResource,
-                clearValue->color.uintValues,
-                0,
-                nullptr
-            );
-        }
-        break;
-    }
-    default:
-        break;
-    }
-}
-#endif
 
 } // namespace rhi::d3d12

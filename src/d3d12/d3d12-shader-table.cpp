@@ -1,13 +1,20 @@
 #include "d3d12-shader-table.h"
 #include "d3d12-device.h"
+#include "d3d12-buffer.h"
 #include "d3d12-pipeline.h"
 
 #include "core/string.h"
 
 namespace rhi::d3d12 {
 
-RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
+BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto bufferIt = m_buffers.find(pipeline);
+    if (bufferIt != m_buffers.end())
+        return bufferIt->second.get();
+
     uint32_t raygenTableSize = m_rayGenShaderCount * kRayGenRecordSize;
     uint32_t missTableSize = m_missShaderCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
     uint32_t hitgroupTableSize = m_hitGroupCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
@@ -20,11 +27,10 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
     )math::calcAligned(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     uint32_t tableSize = m_callableTableOffset + callableTableSize;
 
-    auto pipelineImpl = checked_cast<RayTracingPipelineImpl*>(pipeline);
     auto tableData = std::make_unique<uint8_t[]>(tableSize);
 
     ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
-    pipelineImpl->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
+    pipeline->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
 
     auto copyShaderIdInto = [&](void* dest, std::string& name, const ShaderRecordOverwrite& overwrite)
     {
@@ -83,8 +89,9 @@ RefPtr<Buffer> ShaderTableImpl::createDeviceBuffer(RayTracingPipeline* pipeline)
     bufferDesc.size = tableSize;
     m_device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef());
 
-    RefPtr<Buffer> resultPtr = checked_cast<Buffer*>(buffer.get());
-    return std::move(resultPtr);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer.get());
+    m_buffers[pipeline] = bufferImpl;
+    return bufferImpl;
 }
 
 } // namespace rhi::d3d12

@@ -11,7 +11,7 @@ class AccelerationStructureImpl : public AccelerationStructure
 public:
     DeviceImpl* m_device;
     RefPtr<BufferImpl> m_buffer;
-    D3D12Descriptor m_descriptor;
+    CPUDescriptorAllocation m_descriptor;
     ComPtr<ID3D12Device5> m_device5;
 
 public:
