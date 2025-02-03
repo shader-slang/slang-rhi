@@ -1,10 +1,6 @@
 #pragma once
 
-#include <slang-rhi.h>
-
 #include "d3d12-base.h"
-#include "d3d12-shader-object-layout.h"
-#include "d3d12-submitter.h"
 
 #include "core/common.h"
 #include "core/short_vector.h"
@@ -39,7 +35,8 @@ void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 Result createNullDescriptor(
     ID3D12Device* d3dDevice,
     D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor,
-    const ShaderObjectLayoutImpl::BindingRangeInfo& bindingRange
+    slang::BindingType bindingType,
+    SlangResourceShape resourceShape
 );
 
 void translatePostBuildInfoDescs(

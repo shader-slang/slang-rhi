@@ -9,7 +9,7 @@ namespace rhi::d3d12 {
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     if (m_descriptor)
-        m_device->m_cpuViewHeap->free(m_descriptor);
+        m_device->m_cpuCbvSrvUavHeap->free(m_descriptor);
 }
 
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)

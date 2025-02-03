@@ -1,7 +1,6 @@
 #pragma once
 
 #include "d3d12-base.h"
-#include "d3d12-shader-object-layout.h"
 
 #include <string>
 #include <vector>
@@ -24,6 +23,8 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;
+
+    virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 };
 
 } // namespace rhi::d3d12

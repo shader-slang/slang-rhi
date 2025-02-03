@@ -65,18 +65,13 @@ public:
 
     RefPtr<CommandQueueImpl> m_queue;
 
-    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_rtvAllocator;
-    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_dsvAllocator;
+    RefPtr<CPUDescriptorHeap> m_cpuCbvSrvUavHeap;
+    RefPtr<CPUDescriptorHeap> m_cpuRtvHeap;
+    RefPtr<CPUDescriptorHeap> m_cpuDsvHeap;
+    RefPtr<CPUDescriptorHeap> m_cpuSamplerHeap;
 
-    // Space in the GPU-visible heaps is precious, so we will also keep
-    // around CPU-visible heaps for storing shader-objects' descriptors in a format
-    // that is ready for copying into the GPU-visible heaps as needed.
-    //
-
-    /// Cbv, Srv, Uav
-    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_cpuViewHeap;
-    /// Heap for samplers
-    RefPtr<D3D12GeneralExpandingDescriptorHeap> m_cpuSamplerHeap;
+    RefPtr<GPUDescriptorHeap> m_gpuCbvSrvUavHeap;
+    RefPtr<GPUDescriptorHeap> m_gpuSamplerHeap;
 
     // Dll entry points
     PFN_D3D12_GET_DEBUG_INTERFACE m_D3D12GetDebugInterface = nullptr;
@@ -136,9 +131,12 @@ public:
         slang::TypeLayoutReflection* typeLayout,
         ShaderObjectLayout** outLayout
     ) override;
-    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+
+    virtual Result createRootShaderObjectLayout(
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        ShaderObjectLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable) override;
