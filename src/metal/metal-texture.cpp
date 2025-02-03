@@ -1,4 +1,5 @@
 #include "metal-texture.h"
+#include "metal-device.h"
 #include "metal-util.h"
 
 namespace rhi::metal {
@@ -148,7 +149,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         textureImpl->m_texture->setLabel(MetalUtil::createString(desc.label).get());
     }
 
-    // TODO: handle initData
     if (initData)
     {
         textureDesc->setStorageMode(MTL::StorageModeManaged);

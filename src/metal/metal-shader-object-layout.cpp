@@ -29,7 +29,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
     if (m_totalOrdinaryDataSize > 0)
     {
-        m_bufferCount++;
+        m_resourceCount.buffer++;
     }
 
     // Compute the binding ranges that are used to store
@@ -42,51 +42,56 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         SlangInt count = typeLayout->getBindingRangeBindingCount(r);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(r);
 
-        BindingRangeInfo bindingRangeInfo;
-        bindingRangeInfo.bindingType = slangBindingType;
-        bindingRangeInfo.count = count;
+        uint32_t slotIndex = 0;
+        uint32_t subObjectIndex = 0;
+
         switch (slangBindingType)
         {
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
-            bindingRangeInfo.baseIndex = m_subObjectCount;
-            bindingRangeInfo.subObjectIndex = m_subObjectCount;
+            subObjectIndex = m_subObjectCount;
             m_subObjectCount += count;
             break;
         case slang::BindingType::RawBuffer:
         case slang::BindingType::MutableRawBuffer:
-            bindingRangeInfo.baseIndex = m_bufferCount;
+            slotIndex = m_slotCount;
             if (slangLeafTypeLayout->getType()->getElementType() != nullptr)
             {
                 // A structured buffer occupies both a resource slot and
                 // a sub-object slot.
-                bindingRangeInfo.subObjectIndex = m_subObjectCount;
+                subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
-            m_bufferCount += count;
-            m_bufferRanges.push_back(r);
+            m_slotCount += count;
+            m_resourceCount.buffer += count;
             break;
         case slang::BindingType::Sampler:
-            bindingRangeInfo.baseIndex = m_samplerCount;
-            m_samplerCount += count;
-            m_samplerRanges.push_back(r);
+            slotIndex = m_slotCount;
+            m_slotCount += count;
+            m_resourceCount.sampler += count;
             break;
         case slang::BindingType::Texture:
         case slang::BindingType::MutableTexture:
-            bindingRangeInfo.baseIndex = m_textureCount;
-            m_textureCount += count;
-            m_textureRanges.push_back(r);
+            slotIndex = m_slotCount;
+            m_slotCount += count;
+            m_resourceCount.texture += count;
             break;
         case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableTypedBuffer:
-            bindingRangeInfo.baseIndex = m_textureCount;
-            m_textureCount += count;
-            m_textureRanges.push_back(r);
+            slotIndex = m_slotCount;
+            m_slotCount += count;
+            m_resourceCount.buffer += count;
             break;
         default:
             break;
         }
+
+        BindingRangeInfo bindingRangeInfo;
+        bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.count = count;
+        bindingRangeInfo.slotIndex = slotIndex;
+        bindingRangeInfo.subObjectIndex = subObjectIndex;
 
         // We'd like to extract the information on the Metal resource
         // index that this range should bind into.
@@ -123,6 +128,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
 
         m_bindingRanges.push_back(bindingRangeInfo);
     }
+
+    m_totalResourceCount = m_resourceCount;
 
     SlangInt subObjectRangeCount = typeLayout->getSubObjectRangeCount();
     for (SlangInt r = 0; r < subObjectRangeCount; ++r)
@@ -185,8 +192,15 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             }
         }
         subObjectRange.layout = subObjectLayout;
+        subObjectRange.pendingOrdinaryDataOffset = 0;
+        subObjectRange.pendingOrdinaryDataStride = 0;
 
         m_subObjectRanges.push_back(subObjectRange);
+
+        if (subObjectLayout && slangBindingType != slang::BindingType::ParameterBlock)
+        {
+            m_totalResourceCount += subObjectLayout->m_totalResourceCount;
+        }
     }
     return SLANG_OK;
 }
@@ -231,15 +245,12 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
-    m_bindingRanges = builder->m_bindingRanges;
-    m_bufferRanges = builder->m_bufferRanges;
-    m_textureRanges = builder->m_textureRanges;
-    m_samplerRanges = builder->m_samplerRanges;
-
-    m_bufferCount = builder->m_bufferCount;
-    m_textureCount = builder->m_textureCount;
-    m_samplerCount = builder->m_samplerCount;
+    m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;
+    m_resourceCount = builder->m_resourceCount;
+    m_totalResourceCount = builder->m_totalResourceCount;
+
+    m_bindingRanges = builder->m_bindingRanges;
     m_subObjectRanges = builder->m_subObjectRanges;
 
     m_totalOrdinaryDataSize = builder->m_totalOrdinaryDataSize;
@@ -272,6 +283,7 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
     info.layout = entryPointLayout;
     info.offset = BindingOffset(slangEntryPoint->getVarLayout());
     m_entryPoints.push_back(info);
+    m_totalResourceCount += entryPointLayout->m_totalResourceCount;
 }
 
 Result RootShaderObjectLayoutImpl::create(

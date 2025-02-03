@@ -1,7 +1,6 @@
 #pragma once
 
 #include "metal-base.h"
-#include "metal-device.h"
 
 namespace rhi::metal {
 
