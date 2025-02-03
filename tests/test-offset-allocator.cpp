@@ -1,3 +1,8 @@
+// Based on https://github.com/sebbbi/OffsetAllocator
+
+// (C) Sebastian Aaltonen 2023
+// MIT License
+
 #include "testing.h"
 
 using namespace rhi;

@@ -1,7 +1,7 @@
 // Based on https://github.com/sebbbi/OffsetAllocator
 
 // (C) Sebastian Aaltonen 2023
-// MIT License (see file: LICENSE)
+// MIT License
 
 #include "offset-allocator.h"
 #include "assert.h"
