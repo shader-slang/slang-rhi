@@ -496,6 +496,7 @@ TEST_CASE("draw-instanced")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -509,6 +510,7 @@ TEST_CASE("draw-indexed-instanced")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -521,6 +523,8 @@ TEST_CASE("draw-indirect")
             DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal,
+            // DeviceType::WGPU,
         }
     );
 }
@@ -530,8 +534,11 @@ TEST_CASE("draw-indexed-indirect")
     runGpuTests(
         testDraw<DrawIndexedIndirectTest>,
         {
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal,
+            // DeviceType::WGPU,
         }
     );
 }

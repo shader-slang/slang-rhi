@@ -375,6 +375,9 @@ if(APPLE)
 endif()
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
+if(MSVC)
+    target_compile_options(slang-rhi PRIVATE /W4 /WX /wd4267 /wd4244 /wd4100 /wd4018 /wd4245 /wd4702 /wd4127 /wd4389)
+endif()
 
 target_sources(slang-rhi PRIVATE
     src/command-list.cpp
@@ -597,6 +600,7 @@ if(SLANG_RHI_BUILD_TESTS)
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
+        tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
         tests/test-clear-texture.cpp
         tests/test-compute-smoke.cpp
@@ -606,10 +610,10 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-existing-device-handle.cpp
         tests/test-formats.cpp
         tests/test-instanced-draw.cpp
-        # tests/test-link-time-constant.cpp
-        # tests/test-link-time-default.cpp
-        # tests/test-link-time-options.cpp
-        # tests/test-link-time-type.cpp
+        tests/test-link-time-constant.cpp
+        tests/test-link-time-default.cpp
+        tests/test-link-time-options.cpp
+        tests/test-link-time-type.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-offset-allocator.cpp
@@ -619,7 +623,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-ray-tracing.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
-        # tests/test-root-mutable-shader-object.cpp
+        tests/test-root-mutable-shader-object.cpp
         # tests/test-root-shader-parameter.cpp
         # tests/test-sampler-array.cpp
         # tests/test-shader-cache.cpp

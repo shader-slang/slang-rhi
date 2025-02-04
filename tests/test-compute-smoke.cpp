@@ -69,16 +69,5 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("compute-smoke")
 {
-    runGpuTests(
-        testComputeSmoke,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-            // DeviceType::WGPU,
-        }
-    );
+    runGpuTests(testComputeSmoke);
 }

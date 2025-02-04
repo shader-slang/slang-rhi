@@ -390,24 +390,10 @@ void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("ray-tracing-a")
 {
-    runGpuTests(
-        testRayTracing<RayTracingTestA>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::CUDA,
-        }
-    );
+    runGpuTests(testRayTracing<RayTracingTestA>);
 }
 
 TEST_CASE("ray-tracing-b")
 {
-    runGpuTests(
-        testRayTracing<RayTracingTestB>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::CUDA,
-        }
-    );
+    runGpuTests(testRayTracing<RayTracingTestB>);
 }

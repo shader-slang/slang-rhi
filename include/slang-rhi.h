@@ -55,8 +55,6 @@ typedef SlangResult Result;
 
 // Had to move here, because Options needs types defined here
 typedef uint64_t DeviceAddress;
-typedef int GfxIndex;
-typedef int GfxCount;
 typedef size_t Size;
 typedef size_t Offset;
 
@@ -2326,6 +2324,15 @@ public:
         ShaderObjectContainerType container,
         IShaderObject** outObject
     ) = 0;
+
+    inline Result createShaderObject(
+        slang::TypeReflection* type,
+        ShaderObjectContainerType container,
+        IShaderObject** outObject
+    )
+    {
+        return createShaderObject(getSlangSession(), type, container, outObject);
+    }
 
     inline ComPtr<IShaderObject> createShaderObject(
         slang::TypeReflection* type,

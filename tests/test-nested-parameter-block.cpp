@@ -127,6 +127,7 @@ TEST_CASE("nested-parameter-block")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             // DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }

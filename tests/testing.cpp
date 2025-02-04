@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <map>
 #include <string>
+#include <fstream>
 
 #define ENABLE_RENDERDOC 0
 #define DEBUG_SPIRV 0
@@ -66,6 +67,21 @@ std::string getCaseTempDirectory()
 void cleanupTestTempDirectories()
 {
     remove_all(gTestTempDirectory);
+}
+
+std::string readFile(std::string_view path)
+{
+    std::ifstream file(std::string(path).c_str());
+    if (!file.is_open())
+        return "";
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return content;
+}
+
+void writeFile(std::string_view path, const void* data, size_t size)
+{
+    std::ofstream file(path.data(), std::ios::binary);
+    file.write((const char*)data, size);
 }
 
 class DebugCallback : public IDebugCallback

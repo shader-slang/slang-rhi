@@ -13,8 +13,10 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     textureDesc.size.width = 4;
     textureDesc.size.height = 4;
     textureDesc.size.depth = 1;
-    textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource | TextureUsage::CopyDestination;
-    textureDesc.defaultState = ResourceState::RenderTarget;
+    // textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    // textureDesc.defaultState = ResourceState::RenderTarget;
+    textureDesc.defaultState = ResourceState::UnorderedAccess;
     textureDesc.format = Format::R32G32B32A32_FLOAT;
 
     ComPtr<ITexture> texture;
@@ -51,7 +53,7 @@ TEST_CASE("clear-texture")
     runGpuTests(
         testClearTexture,
         {
-            // DeviceType::D3D12, TODO: implement
+            DeviceType::D3D12,
             DeviceType::Vulkan,
         }
     );

@@ -1,10 +1,11 @@
-#if 0 // TODO_TESTING use filesystem
 #include "testing.h"
+
+#include <filesystem>
 
 using namespace rhi;
 using namespace rhi::testing;
 
-static Result precompileProgram(IDevice* device, ISlangMutableFileSystem* fileSys, const char* shaderModuleName)
+static Result precompileProgram(IDevice* device, const char* shaderModuleName, const std::filesystem::path& dir)
 {
     ComPtr<slang::ISession> slangSession;
     SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
@@ -28,10 +29,10 @@ static Result precompileProgram(IDevice* device, ISlangMutableFileSystem* fileSy
         auto path = module->getFilePath();
         if (path)
         {
-            auto name = string::from_cstr(module->getName());
+            auto path = (dir / module->getName()).replace_extension(".slang-module");
             ComPtr<ISlangBlob> outBlob;
             module->serialize(outBlob.writeRef());
-            fileSys->saveFileBlob((name + ".slang-module").c_str(), outBlob);
+            writeFile(path.string(), outBlob->getBufferPointer(), outBlob->getBufferSize());
         }
     }
     return SLANG_OK;
@@ -41,12 +42,12 @@ void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    // First, load and compile the slang source.
-    ComPtr<ISlangMutableFileSystem> memoryFileSystem = ComPtr<ISlangMutableFileSystem>(new Slang::MemoryFileSystem());
+    std::filesystem::path tempDir = getCaseTempDirectory();
+    std::string tempDirStr = tempDir.string();
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    REQUIRE_CALL(precompileProgram(device, memoryFileSystem.get(), "precompiled-module"));
+    REQUIRE_CALL(precompileProgram(device, "test-precompiled-module", tempDir));
 
     // Next, load the precompiled slang program.
     ComPtr<slang::ISession> slangSession;
@@ -66,16 +67,23 @@ void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
         break;
     }
     sessionDesc.targets = &targetDesc;
-    sessionDesc.fileSystem = memoryFileSystem.get();
+    const char* searchPaths[] = {tempDirStr.c_str()};
+    sessionDesc.searchPaths = searchPaths;
+    sessionDesc.searchPathCount = SLANG_COUNT_OF(searchPaths);
     auto globalSession = slangSession->getGlobalSession();
     globalSession->createSession(sessionDesc, slangSession.writeRef());
-    REQUIRE_CALL(
-        loadComputeProgram(device, slangSession, shaderProgram, "precompiled-module", "computeMain", slangReflection)
-    );
+    REQUIRE_CALL(loadComputeProgram(
+        device,
+        slangSession,
+        shaderProgram,
+        "test-precompiled-module",
+        "computeMain",
+        slangReflection
+    ));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
@@ -84,44 +92,47 @@ void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
-    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBuffer> numbersBuffer;
-    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
-
-    ComPtr<IResourceView> bufferView;
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
         auto passEncoder = commandEncoder->beginComputePass();
-
         auto rootObject = passEncoder->bindPipeline(pipeline);
-
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setBinding(bufferView);
-
+        entryPointCursor["buffer"].setBinding(buffer);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
+
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, numbersBuffer, makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
+    compareComputeResult(device, buffer, makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
 }
 
 TEST_CASE("precompiled-module")
 {
-    runGpuTests(testPrecompiledModule, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(
+        testPrecompiledModule,
+        {
+            // DeviceType::D3D11,
+            DeviceType::D3D12,
+            DeviceType::Vulkan,
+            DeviceType::Metal,
+            // DeviceType::CPU,
+            // DeviceType::CUDA,
+            DeviceType::WGPU,
+
+        }
+    );
 }
-#endif

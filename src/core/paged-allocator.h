@@ -27,9 +27,6 @@ public:
 
     void* allocate(size_t size, size_t alignment = 16)
     {
-        SLANG_RHI_ASSERT(size <= m_pageSize);
-        if (size > m_pageSize)
-            return nullptr;
         m_currentOffset = (m_currentOffset + alignment - 1) & ~(alignment - 1);
         if (!m_currentPage || m_currentOffset + size > m_currentPage->size)
         {

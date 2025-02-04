@@ -89,15 +89,5 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("buffer-barrier")
 {
-    // D3D11 and Metal don't work
-    runGpuTests(
-        testBufferBarrier,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-            DeviceType::WGPU,
-        }
-    );
+    runGpuTests(testBufferBarrier);
 }

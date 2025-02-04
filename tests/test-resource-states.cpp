@@ -124,7 +124,7 @@ TEST_CASE("buffer-resource-states")
         testBufferResourceStates,
         {
             DeviceType::D3D12,
-            // DeviceType::Vulkan,
+            DeviceType::Vulkan,
         }
     );
 }
@@ -135,7 +135,7 @@ TEST_CASE("texture-resource-states")
         testTextureResourceStates,
         {
             DeviceType::D3D12,
-            // DeviceType::Vulkan,
+            DeviceType::Vulkan,
         }
     );
 }

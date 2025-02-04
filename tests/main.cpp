@@ -29,6 +29,10 @@ int main(int argc, char** argv)
 {
     rhi::testing::cleanupTestTempDirectories();
 
+#ifdef _DEBUG
+    rhi::getRHI()->enableDebugLayers();
+#endif
+
     int result = 1;
     {
         doctest::Context context(argc, argv);
