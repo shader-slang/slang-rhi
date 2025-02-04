@@ -22,10 +22,10 @@ determine_target_architecture(SLANG_RHI_ARCHITECTURE)
 # set(FETCHCONTENT_UPDATES_DISCONNECTED OFF)
 
 # Check if this project is the master cmake project (i.e. not included via add_subdirectory).
-set(SLANG_RHI_MASTER_PROJECT OFF)
-
 if(${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     set(SLANG_RHI_MASTER_PROJECT ON)
+else()
+    set(SLANG_RHI_MASTER_PROJECT OFF)
 endif()
 
 if(NOT DEFINED SLANG_RHI_BINARY_DIR)
@@ -38,8 +38,8 @@ endif()
 
 # Configuration options
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
-option(SLANG_RHI_BUILD_TESTS "Build tests" ON)
-option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ON)
+option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
+option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 
 # Determine available backends
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -79,8 +79,32 @@ cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_R
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_NVAPI" OFF)
+
+# Fetch slang options
+option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.3.1" CACHE STRING "Slang version to fetch")
+
+# Fetch dxc options
 option(SLANG_RHI_FETCH_DXC "Fetch dxc (DirectX Shader Compiler)" ON)
+set(SLANG_RHI_FETCH_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip" CACHE STRING "DXC URL to fetch")
+
+# Fetch Agility SDK options
 option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
+set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.614.1" CACHE STRING "Agility SDK version to fetch")
+
+# Fetch NVAPI options
+option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
+set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/67af97007f59c248c01e520d8c8fb70e243a3240.zip" CACHE STRING "NVAPI URL to fetch")
+
+# Fetch OptiX options
+option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
+set(SLANG_RHI_FETCH_OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.0/OptiX-8.0-Include.zip" CACHE STRING "OptiX URL to fetch")
+# set(SLANG_RHI_FETCH_OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.1/OptiX-8.1.0-Include.zip" CACHE STRING "OptiX URL to fetch")
+
+# Fetch Dawn options
+option(SLANG_RHI_FETCH_DAWN "Fetch Dawn" ON)
+set(SLANG_RHI_FETCH_DAWN_VERSION "131.0.6738.0" CACHE STRING "Dawn version to fetch")
+
 
 if(SLANG_RHI_BUILD_SHARED)
     add_library(slang-rhi SHARED)
@@ -118,9 +142,9 @@ macro(copy_file IN_FILE OUT_DIR)
     endif()
 endmacro()
 
-# Fetch slang binary release if this is the master project
-if(SLANG_RHI_MASTER_PROJECT)
-    set(SLANG_VERSION "2025.3.1")
+# Fetch slang
+if(SLANG_RHI_FETCH_SLANG)
+    set(SLANG_VERSION ${SLANG_RHI_FETCH_SLANG_VERSION})
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -143,23 +167,60 @@ if(SLANG_RHI_MASTER_PROJECT)
         endif()
     endif()
 
+    message(STATUS "Fetching Slang ${SLANG_VERSION} ...")
     FetchPackage(slang URL ${SLANG_URL})
     set(SLANG_RHI_SLANG_INCLUDE_DIR ${slang_SOURCE_DIR}/include)
     set(SLANG_RHI_SLANG_BINARY_DIR ${slang_SOURCE_DIR})
 endif()
 
+# Setup slang
 set(SLANG_RHI_SLANG_INCLUDE_DIR ${SLANG_RHI_SLANG_INCLUDE_DIR} CACHE STRING "Slang include directory")
 set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang binary directory")
-
-# Use the variables from the cache.
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
+if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
+    add_library(slang SHARED IMPORTED GLOBAL)
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set_target_properties(slang PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
+            IMPORTED_IMPLIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/slang.lib
+            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll
+        )
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set_target_properties(slang PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
+            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang.so
+        )
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set_target_properties(slang PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
+            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang.dylib
+        )
+    endif()
+
+    target_link_libraries(slang-rhi PUBLIC slang)
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
+    endif()
+endif()
+
+# Slang distributes prelude headers in the "include" directory along the other headers.
+# However, in a slang build tree, the files are not in the "include" directory but in a separate "prelude" directory.
+# Make sure to include the prelude directory if it exists.
+target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR})
+if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
+    target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
+endif()
 
 # Fetch dxc
 if(SLANG_RHI_FETCH_DXC AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
-    set(DXC_VERSION "1.8.2407")
-    set(DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
-    FetchPackage(dxc URL ${DXC_URL})
+    message(STATUS "Fetching DirectXShaderCompiler ...")
+    FetchPackage(dxc URL ${SLANG_RHI_FETCH_DXC_URL})
     if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
         copy_file(${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll .)
         copy_file(${dxc_SOURCE_DIR}/bin/x64/dxil.dll .)
@@ -171,17 +232,25 @@ endif()
 
 # Fetch Agility SDK
 if(SLANG_RHI_FETCH_AGILITY_SDK AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
-    set(AGILITY_SDK_VERSION "1.614.1")
+    set(AGILITY_SDK_VERSION ${SLANG_RHI_FETCH_AGILITY_SDK_VERSION})
+    message(STATUS "Fetching Agility SDK ${AGILITY_SDK_VERSION} ...")
     FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
+    set(SLANG_RHI_AGILITY_SDK_DIR ${agility_sdk_SOURCE_DIR})
+endif()
+
+# Setup Agility SDK
+set(SLANG_RHI_AGILITY_SDK_DIR ${SLANG_RHI_AGILITY_SDK_DIR} CACHE STRING "Agility SDK directory")
+unset(SLANG_RHI_AGILITY_SDK_DIR)
+if (EXISTS "${SLANG_RHI_AGILITY_SDK_DIR}")
     if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
-        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/D3D12Core.dll D3D12)
-        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/d3d12SDKLayers.dll D3D12)
+        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/x64/D3D12Core.dll D3D12)
+        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/x64/d3d12SDKLayers.dll D3D12)
     elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
-        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/D3D12Core.dll D3D12)
-        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/d3d12SDKLayers.dll D3D12)
+        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/arm64/D3D12Core.dll D3D12)
+        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/arm64/d3d12SDKLayers.dll D3D12)
     endif()
     add_library(slang-rhi-agility-sdk INTERFACE)
-    target_include_directories(slang-rhi-agility-sdk INTERFACE ${agility_sdk_SOURCE_DIR}/build/native/include)
+    target_include_directories(slang-rhi-agility-sdk INTERFACE ${SLANG_RHI_AGILITY_SDK_DIR}/build/native/include)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-agility-sdk)
     set(SLANG_RHI_ENABLE_AGILITY_SDK ON)
 else()
@@ -189,22 +258,47 @@ else()
 endif()
 
 # Fetch NVAPI
-if(SLANG_RHI_ENABLE_NVAPI)
-    # NVAPI
-    set(NVAPI_VERSION "67af97007f59c248c01e520d8c8fb70e243a3240")
-    FetchPackage(nvapi URL "https://github.com/NVIDIA/nvapi/archive/${NVAPI_VERSION}.zip")
-    set(NVAPI_ROOT_DIR ${nvapi_SOURCE_DIR})
+if(SLANG_RHI_FETCH_NVAPI AND SLANG_RHI_ENABLE_NVAPI)
+    message(STATUS "Fetching NVAPI ...")
+    FetchPackage(nvapi URL ${SLANG_RHI_FETCH_NVAPI_URL})
+    set(SLANG_RHI_NVAPI_DIR ${nvapi_SOURCE_DIR})
+endif()
 
+# Setup NVAPI
+set(SLANG_RHI_NVAPI_DIR ${SLANG_RHI_NVAPI_DIR} CACHE STRING "NVAPI directory")
+unset(SLANG_RHI_NVAPI_DIR)
+if(EXISTS "${SLANG_RHI_NVAPI_DIR}" AND SLANG_RHI_ENABLE_NVAPI)
     add_library(slang-rhi-nvapi INTERFACE)
-    target_include_directories(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR})
-    target_link_libraries(slang-rhi-nvapi INTERFACE ${NVAPI_ROOT_DIR}/amd64/nvapi64.lib)
+    target_include_directories(slang-rhi-nvapi INTERFACE ${SLANG_RHI_NVAPI_DIR})
+    target_link_libraries(slang-rhi-nvapi INTERFACE ${SLANG_RHI_NVAPI_DIR}/amd64/nvapi64.lib)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-nvapi)
-    set(SLANG_RHI_NVAPI_INCLUDE_DIR ${NVAPI_ROOT_DIR})
+    set(SLANG_RHI_NVAPI_INCLUDE_DIR ${SLANG_RHI_NVAPI_DIR})
+elseif(SLANG_RHI_ENABLE_NVAPI)
+    message(FATAL_ERROR "NVAPI not found! Either enable SLANG_RHI_FETCH_NVAPI or set SLANG_RHI_NVAPI_DIR to the NVAPI directory.")
+endif()
+
+# Fetch OptiX
+if(SLANG_RHI_FETCH_OPTIX AND SLANG_RHI_ENABLE_CUDA)
+    message(STATUS "Fetching OptiX headers ...")
+    FetchPackage(optix URL ${SLANG_RHI_FETCH_OPTIX_URL})
+    set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR})
+endif()
+
+# Setup OptiX
+set(SLANG_RHI_OPTIX_INCLUDE_DIR ${SLANG_RHI_OPTIX_INCLUDE_DIR} CACHE STRING "OptiX include directory")
+unset(SLANG_RHI_OPTIX_INCLUDE_DIR)
+if(EXISTS "${SLANG_RHI_OPTIX_INCLUDE_DIR}/optix.h" AND SLANG_RHI_ENABLE_CUDA)
+    add_library(slang-rhi-optix INTERFACE)
+    target_include_directories(slang-rhi-optix INTERFACE ${SLANG_RHI_OPTIX_INCLUDE_DIR})
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
+    set(SLANG_RHI_ENABLE_OPTIX ON)
+else()
+    set(SLANG_RHI_ENABLE_OPTIX OFF)
 endif()
 
 # Fetch and setup Google Dawn library (WebGPU implementation)
-if(SLANG_RHI_ENABLE_WGPU)
-    set(DAWN_VERSION "131.0.6738.0")
+if(SLANG_RHI_FETCH_DAWN AND SLANG_RHI_ENABLE_WGPU)
+    set(DAWN_VERSION ${SLANG_RHI_FETCH_DAWN_VERSION})
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
@@ -223,11 +317,18 @@ if(SLANG_RHI_ENABLE_WGPU)
     endif()
 
     set(DAWN_URL "https://github.com/shader-slang/webgpu-dawn-binaries/releases/download/v${DAWN_VERSION}/webgpu-dawn-${DAWN_VERSION}-${DAWN_OS}-${DAWN_ARCH}.zip")
+    message(STATUS "Fetching Dawn ${DAWN_VERSION} ...")
     FetchPackage(dawn URL ${DAWN_URL})
-    set(SLANG_RHI_DAWN_INCLUDE_DIR ${dawn_SOURCE_DIR}/include CACHE STRING "Dawn include directory")
-    set(SLANG_RHI_DAWN_LIB_DIR ${dawn_SOURCE_DIR}/lib CACHE STRING "Dawn lib directory")
-    set(SLANG_RHI_DAWN_BIN_DIR ${dawn_SOURCE_DIR}/bin CACHE STRING "Dawn bin directory")
+    set(SLANG_RHI_DAWN_DIR ${dawn_SOURCE_DIR})
+endif()
 
+# Setup Dawn
+set(SLANG_RHI_DAWN_DIR ${SLANG_RHI_DAWN_DIR} CACHE STRING "Dawn directory")
+unset(SLANG_RHI_DAWN_DIR)
+if(EXISTS "${SLANG_RHI_DAWN_DIR}" AND SLANG_RHI_ENABLE_WGPU)
+    set(SLANG_RHI_DAWN_INCLUDE_DIR ${SLANG_RHI_DAWN_DIR}/include CACHE STRING "Dawn include directory")
+    set(SLANG_RHI_DAWN_LIB_DIR ${SLANG_RHI_DAWN_DIR}/lib CACHE STRING "Dawn lib directory")
+    set(SLANG_RHI_DAWN_BIN_DIR ${SLANG_RHI_DAWN_DIR}/bin CACHE STRING "Dawn bin directory")
     # Use the variables from the cache.
     unset(SLANG_RHI_DAWN_INCLUDE_DIR)
     unset(SLANG_RHI_DAWN_LIB_DIR)
@@ -255,26 +356,8 @@ if(SLANG_RHI_ENABLE_WGPU)
     endif()
 
     target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
-endif()
-
-
-# Fetch and setup OptiX library
-if(SLANG_RHI_ENABLE_CUDA)
-    set(OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.0/OptiX-8.0-Include.zip")
-    # set(OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.1/OptiX-8.1.0-Include.zip")
-    FetchPackage(optix URL ${OPTIX_URL})
-
-    set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR} CACHE STRING "OptiX include directory")
-    unset(SLANG_RHI_OPTIX_INCLUDE_DIR)
-
-    if(EXISTS ${SLANG_RHI_OPTIX_INCLUDE_DIR}/optix.h)
-        add_library(slang-rhi-optix INTERFACE)
-        target_include_directories(slang-rhi-optix INTERFACE ${SLANG_RHI_OPTIX_INCLUDE_DIR})
-        target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
-        set(SLANG_RHI_ENABLE_OPTIX ON)
-    else()
-        set(SLANG_RHI_ENABLE_OPTIX OFF)
-    endif()
+elseif(SLANG_RHI_ENABLE_WGPU)
+    message(FATAL_ERROR "Dawn not found! Either enable SLANG_RHI_FETCH_DAWN or set SLANG_RHI_DAWN_DIR to the Dawn directory.")
 endif()
 
 # Fetch glfw
@@ -289,47 +372,6 @@ endif()
 
 if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
-endif()
-
-if(SLANG_RHI_MASTER_PROJECT)
-    add_library(slang SHARED IMPORTED GLOBAL)
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set_target_properties(slang PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_IMPLIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/slang.lib
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll
-        )
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        set_target_properties(slang PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang.so
-        )
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        set_target_properties(slang PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang.dylib
-        )
-    endif()
-
-    # slang repository has prelude files in prelude directory besides include directory
-    if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
-        target_include_directories(slang INTERFACE ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
-    endif()
-
-    target_link_libraries(slang-rhi PUBLIC slang)
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
-        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll .)
-        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll .)
-        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
-    endif()
-else()
-    target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR})
-    if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
-      target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
-    endif()
 endif()
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
