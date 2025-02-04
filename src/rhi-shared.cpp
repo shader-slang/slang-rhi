@@ -2112,6 +2112,53 @@ Result ShaderObject::writeOrdinaryData(void* destData, Size destSize, ShaderObje
         //
         uint32_t count = bindingRangeInfo.count;
 
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            ShaderObject* subObject = m_objects[bindingRangeInfo.subObjectIndex + i];
+
+            auto concreteTypeLayout = subObject->getElementTypeLayout();
+            // auto concreteType = concreteTypeLayout->getType();
+            //
+            auto existentialTypeLayout =
+                specializedLayout->getElementTypeLayout()->getBindingRangeLeafTypeLayout(subObjectRangeInfo.bindingRangeIndex);
+            // auto existentialType = existentialTypeLayout->getType();
+
+            // // Fills in the first and second field of the tuple that specify RTTI type ID
+            // // and witness table ID.
+            // SLANG_RETURN_ON_FAIL(setExistentialHeader(existentialType, concreteType, offset));
+
+            // The third field of the tuple (offset 16) is the "payload" that is supposed to
+            // hold the data for a value of the given concrete type.
+            //
+            // uint32_t payloadOffset = existentialTypeLayout->getSubObjectRangeOffset(subObjectRangeIndex)->getOffset();
+            uint32_t payloadOffset = specializedLayout->getElementTypeLayout()->getFieldByIndex(0)->getOffset();
+
+            uint32_t payloadStride = existentialTypeLayout->getStride();
+
+            // auto payloadOffset = offset;
+            // payloadOffset.uniformOffset += 16;
+
+            // There are two cases we need to consider here for how the payload might be
+            // used:
+            //
+            // * If the concrete type of the value being bound is one that can "fit" into
+            // the
+            //   available payload space,  then it should be stored in the payload.
+            //
+            // * If the concrete type of the value cannot fit in the payload space, then it
+            //   will need to be stored somewhere else.
+            //
+            if (_doesValueFitInExistentialPayload(concreteTypeLayout, existentialTypeLayout))
+            {
+                // If the value can fit in the payload area, then we will go ahead and copy
+                // its bytes into that area.
+                //
+                ::memcpy((uint8_t*)destData + payloadOffset + 16, subObject->m_data.data(), subObject->m_data.size());
+                payloadOffset += payloadStride;
+            }
+        }
+
+
         // We are not concerned with the case where the existential value(s) in the range
         // git into the payload part of the leaf field.
         //

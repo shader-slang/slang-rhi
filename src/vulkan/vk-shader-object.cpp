@@ -274,6 +274,7 @@ Result BindingDataBuilder::bindAsEntryPoint(
     //
     if (shaderObject->m_data.size())
     {
+        shaderObject->writeOrdinaryData(shaderObject->m_data.data(), shaderObject->m_data.size(), layout);
         // The index of the push constant range to bind should be
         // passed down as part of the `offset`, and we will increment
         // it here so that any further recursively-contained push-constant
