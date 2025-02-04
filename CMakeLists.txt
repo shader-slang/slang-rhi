@@ -22,10 +22,10 @@ determine_target_architecture(SLANG_RHI_ARCHITECTURE)
 # set(FETCHCONTENT_UPDATES_DISCONNECTED OFF)
 
 # Check if this project is the master cmake project (i.e. not included via add_subdirectory).
-set(SLANG_RHI_MASTER_PROJECT OFF)
-
 if(${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     set(SLANG_RHI_MASTER_PROJECT ON)
+else()
+    set(SLANG_RHI_MASTER_PROJECT OFF)
 endif()
 
 if(NOT DEFINED SLANG_RHI_BINARY_DIR)
@@ -38,8 +38,8 @@ endif()
 
 # Configuration options
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
-option(SLANG_RHI_BUILD_TESTS "Build tests" ON)
-option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ON)
+option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
+option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 
 # Determine available backends
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
