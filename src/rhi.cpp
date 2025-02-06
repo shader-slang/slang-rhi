@@ -7,6 +7,7 @@
 #endif
 
 #include "core/common.h"
+#include "core/task-pool.h"
 
 #include <cstring>
 #include <vector>
@@ -239,6 +240,8 @@ public:
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
     void enableDebugLayers() override;
     Result reportLiveObjects() override;
+    Result setTaskPoolWorkerCount(uint32_t count) override;
+    Result setTaskScheduler(ITaskScheduler* scheduler) override;
 
     static RHI* getInstance()
     {
@@ -436,6 +439,16 @@ Result RHI::reportLiveObjects()
     SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
 #endif
     return SLANG_OK;
+}
+
+Result RHI::setTaskPoolWorkerCount(uint32_t count)
+{
+    return setGlobalTaskPoolWorkerCount(count);
+}
+
+Result RHI::setTaskScheduler(ITaskScheduler* scheduler)
+{
+    return setGlobalTaskScheduler(scheduler);
 }
 
 extern "C"

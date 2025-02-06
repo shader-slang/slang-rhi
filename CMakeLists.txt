@@ -374,6 +374,10 @@ if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
 
+# nanothread
+set(NANOTHREAD_STATIC ON)
+add_subdirectory(external/nanothread)
+
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
 
 target_sources(slang-rhi PRIVATE
@@ -387,6 +391,7 @@ target_sources(slang-rhi PRIVATE
     src/core/blob.cpp
     src/core/offset-allocator.cpp
     src/core/platform.cpp
+    src/core/task-pool.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
     src/debug-layer/debug-command-queue.cpp
@@ -564,6 +569,7 @@ endif()
 
 target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
+target_link_libraries(slang-rhi PRIVATE nanothread)
 target_compile_definitions(slang-rhi
     PRIVATE
     SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
@@ -625,6 +631,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
+        tests/test-task-pool.cpp
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE

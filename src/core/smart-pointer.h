@@ -4,6 +4,7 @@
 
 #include "assert.h"
 
+#include <atomic>
 #include <type_traits>
 
 #define SLANG_RHI_ENABLE_REF_OBJECT_TRACKING 0
@@ -51,7 +52,7 @@ namespace rhi {
 class SLANG_RHI_API RefObject
 {
 private:
-    uint64_t referenceCount;
+    std::atomic<uint64_t> referenceCount;
 
 public:
     RefObject()
