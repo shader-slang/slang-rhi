@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: 'recursive'
 
       - name: Setup Linux
         if: matrix.os == 'linux' && contains(matrix.runs-on, 'ubuntu-')
