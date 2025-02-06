@@ -150,7 +150,7 @@ TEST_CASE("task-pool")
                 [&, i]()
                 {
                     for (int k = 0; k < M; ++k)
-                        CHECK(doneInner[i, k]);
+                        CHECK(doneInner[i][k]);
                     doneOuter[i] = true;
                 }
             );
