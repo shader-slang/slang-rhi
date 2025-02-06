@@ -94,7 +94,7 @@ set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.614.1" CACHE STRING "Agility SDK vers
 
 # Fetch NVAPI options
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
-set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/67af97007f59c248c01e520d8c8fb70e243a3240.zip" CACHE STRING "NVAPI URL to fetch")
+set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/d08488fcc82eef313b0464db37d2955709691e94.zip" CACHE STRING "NVAPI URL to fetch")
 
 # Fetch OptiX options
 option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
