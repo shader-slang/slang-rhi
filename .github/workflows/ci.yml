@@ -30,11 +30,11 @@ jobs:
           - {os: windows, platform: "x86_64", compiler: msvc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
           - {os: linux, platform: "x86_64", compiler: gcc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           # Builds running on GitHub hosted runners (build + tests)
-          - { os: macos, platform: "aarch64", compiler: clang, flags: "unit-test", runs-on: [macos-latest] }
+          - { os: macos, platform: "aarch64", compiler: clang, flags: "unit-test", runs-on: macos-latest }
           # Builds running on GitHub hosted runners (build only)
-          - { os: linux, platform: "x86_64", compiler: clang, runs-on: [ubuntu-latest] }
-          - { os: windows, platform: "aarch64", runs-on: [windows-latest] }
-          - { os: linux, platform: "aarch64", runs-on: [ubuntu-latest] }
+          - { os: linux, platform: "x86_64", compiler: clang, runs-on: ubuntu-latest }
+          - { os: windows, platform: "aarch64", runs-on: windows-latest }
+          - { os: linux, platform: "aarch64", runs-on: ubuntu-24.04-arm }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -44,17 +44,8 @@ jobs:
           submodules: true
 
       - name: Setup Linux
-        if: matrix.os == 'linux' && contains(matrix.runs-on, 'ubuntu-latest')
+        if: matrix.os == 'linux' && contains(matrix.runs-on, 'ubuntu-')
         run: sudo apt-get update && sudo apt-get install -y xorg-dev
-
-      - name: Setup Linux (aarch64 cross-compilation)
-        if: matrix.os == 'linux' && matrix.platform == 'aarch64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y crossbuild-essential-arm64
-          echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-          echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
-          echo "CMAKE_ARGS='-DSLANG_RHI_BUILD_EXAMPLES=0'" >> "$GITHUB_ENV"
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -65,7 +56,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Configure
-        run: cmake --preset default -S . -B build ${{env.CMAKE_ARGS}}
+        run: cmake --preset default -S . -B build
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
