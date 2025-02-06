@@ -226,6 +226,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             {
                 NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC extensionDesc;
                 extensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
+                extensionDesc.psoExtension = NV_PSO_SET_SHADER_EXTENSION_SLOT_AND_SPACE;
                 extensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
                 extensionDesc.uavSlot = m_nvapiShaderExtension.uavSlot;
                 extensionDesc.registerSpace = m_nvapiShaderExtension.registerSpace;
@@ -302,6 +303,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         {
             NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC extensionDesc;
             extensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
+            extensionDesc.psoExtension = NV_PSO_SET_SHADER_EXTENSION_SLOT_AND_SPACE;
             extensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
             extensionDesc.uavSlot = m_nvapiShaderExtension.uavSlot;
             extensionDesc.registerSpace = m_nvapiShaderExtension.registerSpace;
