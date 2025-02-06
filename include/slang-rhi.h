@@ -2455,6 +2455,28 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) = 0;
 };
 
+class ITaskScheduler : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xab272cee, 0xa546, 0x4ae6, {0xbd, 0x0d, 0xcd, 0xab, 0xa9, 0x3f, 0x6d, 0xa6});
+
+public:
+    typedef void* TaskHandle;
+
+    /// Submit a task.
+    /// The scheduler needs to call the `run` function with the `payload` argument.
+    /// The `parentTasks` contains a list of tasks that need to be completed before the submitted task can run.
+    /// Every submitted task is released using `releaseTask` once the task handle is no longer used.
+    virtual SLANG_NO_THROW TaskHandle SLANG_MCALL
+    submitTask(TaskHandle* parentTasks, uint32_t parentTaskCount, void (*run)(void* /*payload*/), void* payload) = 0;
+
+    /// Release a task.
+    /// This is called when the task handle is no longer used.
+    virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) = 0;
+
+    // Wait for a task to complete.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitForCompletion(TaskHandle task) = 0;
+};
+
 class IPersistentShaderCache : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x68981742, 0x7fd6, 0x4700, {0x8a, 0x71, 0xe8, 0xea, 0x42, 0x91, 0x3b, 0x28});
@@ -2529,6 +2551,15 @@ public:
     /// Reports current set of live objects.
     /// Currently this just calls D3D's ReportLiveObjects.
     virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;
+
+    /// Set the global task pool worker count.
+    /// Must be called before any devices are created.
+    /// This is ignored if the task scheduler is set.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPoolWorkerCount(uint32_t count) = 0;
+
+    /// Set the global task scheduler for the RHI.
+    /// Must be called before any devices are created.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setTaskScheduler(ITaskScheduler* scheduler) = 0;
 };
 
 // Global public functions
