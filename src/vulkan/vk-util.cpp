@@ -594,6 +594,122 @@ VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
     }
 }
 
+VkComponentTypeKHR VulkanUtil::translateCooperativeVectorComponentType(CooperativeVectorComponentType type)
+{
+    switch (type)
+    {
+    case CooperativeVectorComponentType::Float16:
+        return VK_COMPONENT_TYPE_FLOAT16_KHR;
+    case CooperativeVectorComponentType::Float32:
+        return VK_COMPONENT_TYPE_FLOAT32_KHR;
+    case CooperativeVectorComponentType::Float64:
+        return VK_COMPONENT_TYPE_FLOAT64_KHR;
+    case CooperativeVectorComponentType::SInt8:
+        return VK_COMPONENT_TYPE_SINT8_KHR;
+    case CooperativeVectorComponentType::SInt16:
+        return VK_COMPONENT_TYPE_SINT16_KHR;
+    case CooperativeVectorComponentType::SInt32:
+        return VK_COMPONENT_TYPE_SINT32_KHR;
+    case CooperativeVectorComponentType::SInt64:
+        return VK_COMPONENT_TYPE_SINT64_KHR;
+    case CooperativeVectorComponentType::UInt8:
+        return VK_COMPONENT_TYPE_UINT8_KHR;
+    case CooperativeVectorComponentType::UInt16:
+        return VK_COMPONENT_TYPE_UINT16_KHR;
+    case CooperativeVectorComponentType::UInt32:
+        return VK_COMPONENT_TYPE_UINT32_KHR;
+    case CooperativeVectorComponentType::UInt64:
+        return VK_COMPONENT_TYPE_UINT64_KHR;
+    case CooperativeVectorComponentType::SInt8Packed:
+        return VK_COMPONENT_TYPE_SINT8_PACKED_NV;
+    case CooperativeVectorComponentType::UInt8Packed:
+        return VK_COMPONENT_TYPE_UINT8_PACKED_NV;
+    case CooperativeVectorComponentType::FloatE4M3:
+        return VK_COMPONENT_TYPE_FLOAT_E4M3_NV;
+    case CooperativeVectorComponentType::FloatE5M2:
+        return VK_COMPONENT_TYPE_FLOAT_E5M2_NV;
+    default:
+        return VkComponentTypeKHR(0);
+    }
+}
+
+CooperativeVectorComponentType VulkanUtil::translateCooperativeVectorComponentType(VkComponentTypeKHR type)
+{
+    switch (type)
+    {
+    case VK_COMPONENT_TYPE_FLOAT16_KHR:
+        return CooperativeVectorComponentType::Float16;
+    case VK_COMPONENT_TYPE_FLOAT32_KHR:
+        return CooperativeVectorComponentType::Float32;
+    case VK_COMPONENT_TYPE_FLOAT64_KHR:
+        return CooperativeVectorComponentType::Float64;
+    case VK_COMPONENT_TYPE_SINT8_KHR:
+        return CooperativeVectorComponentType::SInt8;
+    case VK_COMPONENT_TYPE_SINT16_KHR:
+        return CooperativeVectorComponentType::SInt16;
+    case VK_COMPONENT_TYPE_SINT32_KHR:
+        return CooperativeVectorComponentType::SInt32;
+    case VK_COMPONENT_TYPE_SINT64_KHR:
+        return CooperativeVectorComponentType::SInt64;
+    case VK_COMPONENT_TYPE_UINT8_KHR:
+        return CooperativeVectorComponentType::UInt8;
+    case VK_COMPONENT_TYPE_UINT16_KHR:
+        return CooperativeVectorComponentType::UInt16;
+    case VK_COMPONENT_TYPE_UINT32_KHR:
+        return CooperativeVectorComponentType::UInt32;
+    case VK_COMPONENT_TYPE_UINT64_KHR:
+        return CooperativeVectorComponentType::UInt64;
+    case VK_COMPONENT_TYPE_SINT8_PACKED_NV:
+        return CooperativeVectorComponentType::SInt8Packed;
+    case VK_COMPONENT_TYPE_UINT8_PACKED_NV:
+        return CooperativeVectorComponentType::UInt8Packed;
+    case VK_COMPONENT_TYPE_FLOAT_E4M3_NV:
+        return CooperativeVectorComponentType::FloatE4M3;
+    case VK_COMPONENT_TYPE_FLOAT_E5M2_NV:
+        return CooperativeVectorComponentType::FloatE5M2;
+    default:
+        return CooperativeVectorComponentType(0);
+    }
+}
+
+VkCooperativeVectorMatrixLayoutNV VulkanUtil::translateCooperativeVectorMatrixLayout(
+    CooperativeVectorMatrixLayout layout
+)
+{
+    switch (layout)
+    {
+    case CooperativeVectorMatrixLayout::RowMajor:
+        return VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_ROW_MAJOR_NV;
+    case CooperativeVectorMatrixLayout::ColumnMajor:
+        return VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_COLUMN_MAJOR_NV;
+    case CooperativeVectorMatrixLayout::InferencingOptimal:
+        return VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL_NV;
+    case CooperativeVectorMatrixLayout::TrainingOptimal:
+        return VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV;
+    default:
+        return VkCooperativeVectorMatrixLayoutNV(0);
+    }
+}
+
+CooperativeVectorMatrixLayout VulkanUtil::translateCooperativeVectorMatrixLayout(
+    VkCooperativeVectorMatrixLayoutNV layout
+)
+{
+    switch (layout)
+    {
+    case VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_ROW_MAJOR_NV:
+        return CooperativeVectorMatrixLayout::RowMajor;
+    case VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_COLUMN_MAJOR_NV:
+        return CooperativeVectorMatrixLayout::ColumnMajor;
+    case VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL_NV:
+        return CooperativeVectorMatrixLayout::InferencingOptimal;
+    case VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV:
+        return CooperativeVectorMatrixLayout::TrainingOptimal;
+    default:
+        return CooperativeVectorMatrixLayout(0);
+    }
+}
+
 Result VulkanUtil::handleFail(VkResult res)
 {
     if (res != VK_SUCCESS)

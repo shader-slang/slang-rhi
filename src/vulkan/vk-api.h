@@ -19,6 +19,7 @@ namespace rhi::vk {
     x(vkGetPhysicalDeviceProperties2) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \
+    x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
     /* */
 
 #define VK_API_INSTANCE_PROCS(x) \
@@ -218,6 +219,7 @@ namespace rhi::vk {
     x(vkCmdInsertDebugUtilsLabelEXT) \
     x(vkSetDebugUtilsObjectNameEXT) \
     x(vkCmdDrawMeshTasksEXT) \
+    x(vkConvertCooperativeVectorMatrixNV) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
@@ -350,6 +352,11 @@ struct VulkanExtendedFeatureProperties
     // Integer dot product features.
     VkPhysicalDeviceShaderIntegerDotProductFeaturesKHR shaderIntegerDotProductFeatures{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES_KHR,
+    };
+
+    // Cooperative vector features.
+    VkPhysicalDeviceCooperativeVectorFeaturesNV cooperativeVectorFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV
     };
 };
 
