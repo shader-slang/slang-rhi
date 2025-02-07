@@ -251,10 +251,10 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
-        constexpr size_t futureCount = 1;
-        WGPUFutureWaitInfo futures[futureCount] = {future};
+        WGPUFutureWaitInfo futures[1] = {future};
         uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, futureCount, futures, timeoutNS);
+        WGPUWaitStatus waitStatus =
+            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
@@ -262,22 +262,19 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     }
 
     // Map the staging buffer
-    // TODO: we should switch to the new async API
     {
-        WGPUBufferMapAsyncStatus status = WGPUBufferMapAsyncStatus_Unknown;
-        m_ctx.api.wgpuBufferMapAsync(
-            stagingBuffer,
-            WGPUMapMode_Read,
-            0,
-            bufferSize,
-            [](WGPUBufferMapAsyncStatus status, void* userdata) { *(WGPUBufferMapAsyncStatus*)userdata = status; },
-            &status
-        );
-        while (status == WGPUBufferMapAsyncStatus_Unknown)
-        {
-            m_ctx.api.wgpuDeviceTick(m_ctx.device);
-        }
-        if (status != WGPUBufferMapAsyncStatus_Success)
+        WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
+        WGPUBufferMapCallbackInfo2 callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPUMapAsyncStatus status, const char* message, void* userdata1, void* userdata2)
+        { *(WGPUMapAsyncStatus*)userdata1 = status; };
+        callbackInfo.userdata1 = &status;
+        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, bufferSize, callbackInfo);
+        WGPUFutureWaitInfo futures[1] = {future};
+        uint64_t timeoutNS = UINT64_MAX;
+        WGPUWaitStatus waitStatus =
+            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
             return SLANG_FAIL;
         }
@@ -339,10 +336,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
-        constexpr size_t futureCount = 1;
-        WGPUFutureWaitInfo futures[futureCount] = {future};
+        WGPUFutureWaitInfo futures[1] = {future};
         uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, futureCount, futures, timeoutNS);
+        WGPUWaitStatus waitStatus =
+            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
@@ -350,58 +347,24 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
     }
 
     // Map the staging buffer
-    // TODO: we should switch to the new async API
     {
-        WGPUBufferMapAsyncStatus status = WGPUBufferMapAsyncStatus_Unknown;
-        m_ctx.api.wgpuBufferMapAsync(
-            stagingBuffer,
-            WGPUMapMode_Read,
-            0,
-            size,
-            [](WGPUBufferMapAsyncStatus status, void* userdata) { *(WGPUBufferMapAsyncStatus*)userdata = status; },
-            &status
-        );
-        while (status == WGPUBufferMapAsyncStatus_Unknown)
-        {
-            m_ctx.api.wgpuDeviceTick(m_ctx.device);
-        }
-        if (status != WGPUBufferMapAsyncStatus_Success)
+        WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
+        WGPUBufferMapCallbackInfo2 callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPUMapAsyncStatus status, const char* message, void* userdata1, void* userdata2)
+        { *(WGPUMapAsyncStatus*)userdata1 = status; };
+        callbackInfo.userdata1 = &status;
+        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
+        WGPUFutureWaitInfo futures[1] = {future};
+        uint64_t timeoutNS = UINT64_MAX;
+        WGPUWaitStatus waitStatus =
+            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
             return SLANG_FAIL;
         }
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferUnmap(stagingBuffer); });
-
-#if 0
-    WGPUQueueWorkDoneStatus workDoneStatus = WGPUQueueWorkDoneStatus_Unknown;
-    WGPUQueueWorkDoneCallbackInfo2 workDoneCallbackInfo = {};
-    workDoneCallbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    workDoneCallbackInfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2)
-    { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
-    workDoneCallbackInfo.userdata1 = &workDoneStatus;
-    WGPUFuture workDoneFuture = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, workDoneCallbackInfo);
-    WGPUFutureWaitInfo workDoneWaitInfo = {};
-    workDoneWaitInfo.future = workDoneFuture;
-    m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, 1, &workDoneWaitInfo, uint64_t(-1));
-#endif
-
-#if 0
-    WGPUMapAsyncStatus mapStatus = WGPUMapAsyncStatus_Unknown;
-    WGPUBufferMapCallbackInfo2 callbackInfo = {};
-    callbackInfo.callback = [](WGPUMapAsyncStatus status, char const* message, void* userdata1, void* userdata2)
-    { *(WGPUMapAsyncStatus*)userdata1 = status; };
-    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    callbackInfo.userdata1 = &mapStatus;
-    WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
-    WGPUFutureWaitInfo waitInfo = {};
-    waitInfo.future = future;
-    m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, 1, &waitInfo, uint64_t(-1));
-    m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, 1, &waitInfo, uint64_t(-1));
-    if (!waitInfo.completed || mapStatus != WGPUMapAsyncStatus_Success)
-    {
-        return SLANG_FAIL;
-    }
-#endif
 
     const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, size);
     if (!data)
