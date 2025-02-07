@@ -3,7 +3,6 @@
 #include "d3d11-pipeline.h"
 #include "d3d11-shader-object.h"
 #include "d3d11-command.h"
-#include "nvapi/nvapi-util.h"
 
 namespace rhi::d3d11 {
 

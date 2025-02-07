@@ -102,6 +102,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
+    void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -1079,6 +1080,16 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
     copyInfo.dst = checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_vkHandle;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
     m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
+}
+
+void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
+{
+    short_vector<VkConvertCooperativeVectorMatrixInfoNV> infos;
+    for (uint32_t i = 0; i < cmd.descCount; ++i)
+    {
+        infos.push_back(VulkanUtil::translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
+    }
+    m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)

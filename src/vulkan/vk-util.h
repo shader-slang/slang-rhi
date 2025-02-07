@@ -125,6 +125,16 @@ struct VulkanUtil
     static VkStencilOpState translateStencilState(DepthStencilOpDesc desc);
 
     static VkSamplerReductionMode translateReductionOp(TextureReductionOp op);
+
+    static VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type);
+    static CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type);
+    static VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout
+    );
+    static CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout
+    );
+    static VkConvertCooperativeVectorMatrixInfoNV translateConvertCooperativeVectorMatrixDesc(
+        const ConvertCooperativeVectorMatrixDesc& desc
+    );
 };
 
 } // namespace rhi::vk

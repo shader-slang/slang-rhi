@@ -520,6 +520,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.shaderIntegerDotProductFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.shaderIntegerDotProductFeatures;
 
+        extendedFeatures.cooperativeVectorFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.cooperativeVectorFeatures;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
@@ -765,6 +768,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             shaderIntegerDotProduct,
             VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME,
             "integer-dot-product"
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeVectorFeatures,
+            cooperativeVector,
+            VK_NV_COOPERATIVE_VECTOR_EXTENSION_NAME,
+            "cooperative-vector"
         );
 
 #undef SIMPLE_EXTENSION_FEATURE
@@ -1520,6 +1530,55 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
 Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
 {
     *outAlignment = 1;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+{
+    if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
+        !m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV)
+        return SLANG_E_NOT_AVAILABLE;
+
+    if (m_cooperativeVectorProperties.empty())
+    {
+        uint32_t propertyCount = 0;
+        m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(m_api.m_physicalDevice, &propertyCount, nullptr);
+        std::vector<VkCooperativeVectorPropertiesNV> properties(propertyCount);
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
+            m_api.m_physicalDevice,
+            &propertyCount,
+            properties.data()
+        ));
+        for (const auto& vkProps : properties)
+        {
+            CooperativeVectorProperties props;
+            props.inputType = VulkanUtil::translateCooperativeVectorComponentType(vkProps.inputType);
+            props.inputInterpretation =
+                VulkanUtil::translateCooperativeVectorComponentType(vkProps.inputInterpretation);
+            props.matrixInterpretation =
+                VulkanUtil::translateCooperativeVectorComponentType(vkProps.matrixInterpretation);
+            props.biasInterpretation = VulkanUtil::translateCooperativeVectorComponentType(vkProps.biasInterpretation);
+            props.resultType = VulkanUtil::translateCooperativeVectorComponentType(vkProps.resultType);
+            props.transpose = vkProps.transpose;
+            m_cooperativeVectorProperties.push_back(props);
+        }
+    }
+
+    return Device::getCooperativeVectorProperties(properties, propertyCount);
+}
+
+Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
+{
+    if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
+        !m_api.vkConvertCooperativeVectorMatrixNV)
+        return SLANG_E_NOT_AVAILABLE;
+
+    for (uint32_t i = 0; i < descCount; ++i)
+    {
+        VkConvertCooperativeVectorMatrixInfoNV info = VulkanUtil::translateConvertCooperativeVectorMatrixDesc(descs[i]);
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+    }
+
     return SLANG_OK;
 }
 

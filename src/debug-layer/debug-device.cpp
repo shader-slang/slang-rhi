@@ -384,6 +384,18 @@ Result DebugDevice::getTextureRowAlignment(size_t* outAlignment)
     return baseObject->getTextureRowAlignment(outAlignment);
 }
 
+Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->getCooperativeVectorProperties(properties, propertyCount);
+}
+
+Result DebugDevice::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->convertCooperativeVectorMatrix(descs, descCount);
+}
+
 Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
 {
     SLANG_RHI_API_FUNC;

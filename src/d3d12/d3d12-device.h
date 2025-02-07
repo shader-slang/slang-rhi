@@ -2,7 +2,6 @@
 
 #include "d3d12-command.h"
 #include "d3d12-texture.h"
-#include "nvapi/nvapi-util.h"
 
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
@@ -184,6 +183,12 @@ public:
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
     ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
 
 public:
     static void* loadProc(SharedLibraryHandle module, const char* name);

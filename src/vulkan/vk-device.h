@@ -85,6 +85,12 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

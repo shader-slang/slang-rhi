@@ -188,6 +188,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL

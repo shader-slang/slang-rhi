@@ -4,7 +4,6 @@
 #include "../d3d/d3d-surface.h"
 #include "../d3d/d3d-util.h"
 #include "../flag-combiner.h"
-#include "../nvapi/nvapi-util.h"
 
 #include "core/common.h"
 
@@ -23,12 +22,8 @@
 #include <d3d11_2.h>
 #include <d3dcompiler.h>
 
-#if SLANG_RHI_ENABLE_NVAPI
-// NVAPI integration is described here
-// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
-
-#include "../nvapi/nvapi-include.h"
-#endif
+// Must be included after d3d11 headers.
+#include "../nvapi/nvapi-util.h"
 
 // We will use the C standard library just for printing error messages.
 #include <stdio.h>

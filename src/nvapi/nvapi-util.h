@@ -4,6 +4,8 @@
 #include <slang-com-ptr.h>
 #include <slang-rhi.h>
 
+#include "nvapi-include.h"
+
 namespace rhi {
 
 struct NVAPIShaderExtension
@@ -23,6 +25,36 @@ struct NVAPIUtil
     static bool isAvailable();
 
     static NVAPIShaderExtension findShaderExtension(slang::ProgramLayout* layout);
+
+    static Result handleFail(int res, const char* file, int line, const char* call);
 };
+
+#define SLANG_RHI_NVAPI_RETURN_ON_FAIL(x)                                                                              \
+    {                                                                                                                  \
+        NvAPI_Status _res = x;                                                                                         \
+        if (_res != NVAPI_OK)                                                                                          \
+        {                                                                                                              \
+            return ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x);                                         \
+        }                                                                                                              \
+    }
+
+#define SLANG_RHI_NVAPI_RETURN_NULL_ON_FAIL(x)                                                                         \
+    {                                                                                                                  \
+        NvAPI_Status _res = x;                                                                                         \
+        if (_res != NVAPI_OK)                                                                                          \
+        {                                                                                                              \
+            ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x);                                                \
+            return nullptr;                                                                                            \
+        }                                                                                                              \
+    }
+
+#define SLANG_RHI_NVAPI_CHECK(x)                                                                                       \
+    {                                                                                                                  \
+        NvAPI_Status _res = x;                                                                                         \
+        if (_res != NVAPI_OK)                                                                                          \
+        {                                                                                                              \
+            ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x);                                                \
+        }                                                                                                              \
+    }
 
 } // namespace rhi
