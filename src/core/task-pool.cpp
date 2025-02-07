@@ -1,6 +1,8 @@
 #include "task-pool.h"
 
+#if 0
 #include <nanothread/nanothread.h>
+#endif
 
 #include <memory>
 
@@ -32,6 +34,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL waitForCompletion(TaskHandle task) override { SLANG_UNUSED(task); }
 };
 
+#if 0
 class NanoThreadTaskScheduler : public ITaskScheduler, public ComObject
 {
 public:
@@ -90,6 +93,7 @@ private:
 
     ::Pool* m_pool;
 };
+#endif
 
 class WaitTask : public Task
 {
@@ -105,6 +109,8 @@ static void runTask(void* task)
 
 TaskPool::TaskPool(uint32_t workerCount)
 {
+    m_scheduler = new BlockingTaskScheduler();
+#if 0
     if (workerCount == 0)
     {
         m_scheduler = new BlockingTaskScheduler();
@@ -113,6 +119,7 @@ TaskPool::TaskPool(uint32_t workerCount)
     {
         m_scheduler = new NanoThreadTaskScheduler(workerCount == kAutoWorkerCount ? NANOTHREAD_AUTO : workerCount);
     }
+#endif
     SLANG_RHI_ASSERT(m_scheduler);
 }
 
