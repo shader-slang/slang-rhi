@@ -1159,6 +1159,7 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
+#if SLANG_RHI_ENABLE_NVAPI
     short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> descs;
     for (uint32_t i = 0; i < cmd.descCount; i++)
     {
@@ -1167,6 +1168,9 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     SLANG_RHI_NVAPI_CHECK(
         NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size())
     );
+#else
+    SLANG_UNUSED(cmd);
+#endif
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
