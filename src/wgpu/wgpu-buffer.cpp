@@ -117,19 +117,25 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         break;
     }
 
-    auto callback = [](WGPUBufferMapAsyncStatus status, void* data)
-    { *reinterpret_cast<WGPUBufferMapAsyncStatus*>(data) = status; };
-
     size_t offset = 0;
     size_t size = bufferImpl->m_desc.size;
 
-    WGPUBufferMapAsyncStatus status;
-    m_ctx.api.wgpuBufferMapAsync(bufferImpl->m_buffer, mapMode, offset, size, callback, &status);
-    m_ctx.api.wgpuDeviceTick(m_ctx.device);
-    if (status != WGPUBufferMapAsyncStatus_Success)
+    WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
+    WGPUBufferMapCallbackInfo2 callbackInfo = {};
+    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+    callbackInfo.callback = [](WGPUMapAsyncStatus status, const char* message, void* userdata1, void* userdata2)
+    { *(WGPUMapAsyncStatus*)userdata1 = status; };
+    callbackInfo.userdata1 = &status;
+    WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(bufferImpl->m_buffer, mapMode, offset, size, callbackInfo);
+    WGPUFutureWaitInfo futures[1] = {future};
+    uint64_t timeoutNS = UINT64_MAX;
+    WGPUWaitStatus waitStatus =
+        m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+    if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
     {
         return SLANG_FAIL;
     }
+
     *outData = m_ctx.api.wgpuBufferGetMappedRange(bufferImpl->m_buffer, offset, size);
     return SLANG_OK;
 }
