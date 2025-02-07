@@ -561,7 +561,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     NVAPI_OK &&
                 propertyCount > 0)
             {
-                m_features.push_back("cooperative-vector");
+                // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
+                // hardware/driver support.
+                // m_features.push_back("cooperative-vector");
             }
         }
 
