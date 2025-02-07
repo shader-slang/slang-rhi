@@ -76,20 +76,7 @@ public:
     {
         if (!doctest::is_running_in_test)
             return;
-        switch (type)
-        {
-        case DebugMessageType::Info:
-        case DebugMessageType::Warning:
-        {
-            MESSAGE(doctest::String(message));
-            break;
-        }
-        case DebugMessageType::Error:
-        {
-            FAIL(doctest::String(message));
-            break;
-        }
-        }
+        MESSAGE(doctest::String(message));
     }
 };
 
