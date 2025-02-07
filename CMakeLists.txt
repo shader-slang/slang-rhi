@@ -377,6 +377,7 @@ endif()
 # nanothread
 set(NANOTHREAD_STATIC ON)
 add_subdirectory(external/nanothread)
+set_target_properties(nanothread PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
 
