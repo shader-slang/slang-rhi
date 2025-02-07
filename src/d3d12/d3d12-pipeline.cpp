@@ -4,12 +4,6 @@
 #include "d3d12-shader-program.h"
 #include "d3d12-input-layout.h"
 
-#if SLANG_RHI_ENABLE_NVAPI
-#include "../nvapi/nvapi-include.h"
-#endif
-
-#include "../nvapi/nvapi-util.h"
-
 #include "core/stable_vector.h"
 #include "core/string.h"
 
@@ -234,18 +228,13 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
 
                 // Now create the PSO.
-                const NvAPI_Status nvapiStatus = NvAPI_D3D12_CreateGraphicsPipelineState(
+                SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_CreateGraphicsPipelineState(
                     m_device,
                     &graphicsDesc,
                     SLANG_COUNT_OF(extensions),
                     extensions,
                     pipelineState.writeRef()
-                );
-
-                if (nvapiStatus != NVAPI_OK)
-                {
-                    return SLANG_FAIL;
-                }
+                ));
             }
             else
 #endif // SLANG_RHI_ENABLE_NVAPI
@@ -311,18 +300,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             const NVAPI_D3D12_PSO_EXTENSION_DESC* extensions[] = {&extensionDesc};
 
             // Now create the PSO.
-            const NvAPI_Status nvapiStatus = NvAPI_D3D12_CreateComputePipelineState(
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_CreateComputePipelineState(
                 m_device,
                 &computeDesc,
                 SLANG_COUNT_OF(extensions),
                 extensions,
                 pipelineState.writeRef()
-            );
-
-            if (nvapiStatus != NVAPI_OK)
-            {
-                return SLANG_FAIL;
-            }
+            ));
         }
         else
 #endif // SLANG_RHI_ENABLE_NVAPI
@@ -500,14 +484,11 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 #if SLANG_RHI_ENABLE_NVAPI
         if (m_nvapiShaderExtension)
         {
-            if (NvAPI_D3D12_SetNvShaderExtnSlotSpace(
-                    m_device,
-                    m_nvapiShaderExtension.uavSlot,
-                    m_nvapiShaderExtension.registerSpace
-                ) != NVAPI_OK)
-            {
-                return SLANG_FAIL;
-            }
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpace(
+                m_device,
+                m_nvapiShaderExtension.uavSlot,
+                m_nvapiShaderExtension.registerSpace
+            ));
         }
 #endif // SLANG_RHI_ENABLE_NVAPI
     }
@@ -527,10 +508,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 #if SLANG_RHI_ENABLE_NVAPI
         if (m_nvapiShaderExtension)
         {
-            if (NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, 0xffffffff, 0) != NVAPI_OK)
-            {
-                return SLANG_FAIL;
-            }
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, 0xffffffff, 0));
         }
 #endif // SLANG_RHI_ENABLE_NVAPI
     }

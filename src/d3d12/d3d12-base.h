@@ -24,6 +24,9 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
+// Must be included after d3d12 headers.
+#include "../nvapi/nvapi-util.h"
+
 #ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
 // If can't find a definition of CommandList1, just use an empty definition
 struct ID3D12GraphicsCommandList1

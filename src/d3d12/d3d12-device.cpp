@@ -1,5 +1,4 @@
 #include "d3d12-device.h"
-#include "../nvapi/nvapi-util.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
 #include "d3d12-helper-functions.h"
@@ -20,10 +19,6 @@
 #define ENABLE_DEBUG_LAYER 1
 #else
 #define ENABLE_DEBUG_LAYER 0
-#endif
-
-#if SLANG_RHI_ENABLE_NVAPI
-#include "../nvapi/nvapi-include.h"
 #endif
 
 #ifdef SLANG_RHI_NV_AFTERMATH
@@ -574,13 +569,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #if SLANG_RHI_DXR
         if (m_desc.enableRayTracingValidation)
         {
-            NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE);
-            NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
-                m_device5,
-                &raytracingValidationMessageCallback,
-                this,
-                &m_raytracingValidationHandle
-            );
+            if (NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
+                NVAPI_OK)
+            {
+                SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
+                    m_device5,
+                    &raytracingValidationMessageCallback,
+                    this,
+                    &m_raytracingValidationHandle
+                ));
+            }
         }
 #endif // SLANG_RHI_DXR
     }
@@ -1639,7 +1637,7 @@ void DeviceImpl::flushValidationMessages()
 #if SLANG_RHI_ENABLE_NVAPI && SLANG_RHI_DXR
     if (m_raytracingValidationHandle)
     {
-        NvAPI_D3D12_FlushRaytracingValidationMessages(m_device5);
+        SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_FlushRaytracingValidationMessages(m_device5));
     }
 #endif
 }
@@ -1802,9 +1800,13 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     if (m_cooperativeVectorProperties.empty())
     {
         NvU32 propertyCount = 0;
-        NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr);
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
+            NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr)
+        );
         std::vector<NVAPI_COOPERATIVE_VECTOR_PROPERTIES> properties(propertyCount);
-        NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, properties.data());
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
+            NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, properties.data())
+        );
         for (const auto& nvProps : properties)
         {
             CooperativeVectorProperties props;
@@ -1833,7 +1835,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVector
     for (uint32_t i = 0; i < descCount; ++i)
     {
         NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = translateConvertCooperativeVectorMatrixDesc(descs[i]);
-        NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc);
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
     }
 
     return SLANG_OK;
@@ -1855,6 +1857,15 @@ void* DeviceImpl::loadProc(SharedLibraryHandle module, const char* name)
 
 DeviceImpl::~DeviceImpl()
 {
+#if SLANG_RHI_ENABLE_NVAPI
+    if (m_raytracingValidationHandle)
+    {
+        SLANG_RHI_NVAPI_CHECK(
+            NvAPI_D3D12_UnregisterRaytracingValidationMessageCallback(m_device5, m_raytracingValidationHandle)
+        );
+    }
+#endif
+
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_queue.setNull();
 }

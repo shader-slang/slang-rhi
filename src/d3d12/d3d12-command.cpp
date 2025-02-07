@@ -1164,7 +1164,9 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     {
         descs.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
     }
-    NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size());
+    SLANG_RHI_NVAPI_CHECK(
+        NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size())
+    );
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)

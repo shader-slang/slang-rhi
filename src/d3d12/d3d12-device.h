@@ -2,7 +2,6 @@
 
 #include "d3d12-command.h"
 #include "d3d12-texture.h"
-#include "nvapi/nvapi-util.h"
 
 #include <d3d12.h>
 #include <d3d12sdklayers.h>

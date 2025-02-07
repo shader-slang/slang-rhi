@@ -6,8 +6,6 @@
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-submitter.h"
 
-#include "nvapi/nvapi-include.h"
-
 #include "core/common.h"
 #include "core/short_vector.h"
 

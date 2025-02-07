@@ -563,11 +563,8 @@ Result DeviceImpl::createShaderProgram(
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_nvapiShaderExtension)
     {
-        if (NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot) != NVAPI_OK)
-        {
-            return SLANG_FAIL;
-        }
-        SLANG_RHI_DEFERRED({ SLANG_RHI_ASSERT(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0) == NVAPI_OK); });
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot));
+        SLANG_RHI_DEFERRED({ SLANG_RHI_NVAPI_CHECK(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0)); });
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
     for (SlangUInt i = 0; i < entryPointCount; i++)

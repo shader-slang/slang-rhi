@@ -2,12 +2,6 @@
 #include "d3d12-buffer.h"
 #include "d3d12-query.h"
 
-#if SLANG_RHI_ENABLE_NVAPI
-#include "../nvapi/nvapi-include.h"
-#endif
-
-#include "../nvapi/nvapi-util.h"
-
 #include "core/string.h"
 
 #ifdef _DEBUG
@@ -535,6 +529,7 @@ NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC translateConvertCooperativeVectorMa
 )
 {
     NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
+    nvDesc.version = NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_VER1;
     nvDesc.srcSize = desc.srcSize;
     nvDesc.srcData.deviceAddress = desc.srcData.deviceAddress;
     nvDesc.pDstSize = desc.dstSize;
