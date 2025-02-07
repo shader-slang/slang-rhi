@@ -1832,20 +1832,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVector
 
     for (uint32_t i = 0; i < descCount; ++i)
     {
-        const ConvertCooperativeVectorMatrixDesc& desc = descs[i];
-        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
-        nvDesc.srcSize = desc.srcSize;
-        nvDesc.srcData.deviceAddress = desc.srcData.deviceAddress;
-        nvDesc.pDstSize = desc.dstSize;
-        nvDesc.dstData.deviceAddress = desc.dstData.deviceAddress;
-        nvDesc.srcComponentType = translateCooperativeVectorComponentType(desc.srcComponentType);
-        nvDesc.dstComponentType = translateCooperativeVectorComponentType(desc.dstComponentType);
-        nvDesc.numRows = desc.rowCount;
-        nvDesc.numColumns = desc.colCount;
-        nvDesc.srcLayout = translateCooperativeVectorMatrixLayout(desc.srcLayout);
-        nvDesc.srcStride = desc.srcStride;
-        nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(desc.dstLayout);
-        nvDesc.dstStride = desc.dstStride;
+        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = translateConvertCooperativeVectorMatrixDesc(descs[i]);
         NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc);
     }
 

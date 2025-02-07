@@ -67,6 +67,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
+    void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -489,6 +490,12 @@ void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::Deseri
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(deserializeAccelerationStructure);
+}
+
+void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(convertCooperativeVectorMatrix);
 }
 
 void CommandExecutor::cmdSetBufferState(const commands::SetBufferState& cmd)

@@ -55,6 +55,9 @@ NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE translateCooperativeVectorComponentType(
 CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE type);
 NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT layout);
+NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC translateConvertCooperativeVectorMatrixDesc(
+    const ConvertCooperativeVectorMatrixDesc& desc
+);
 #endif // SLANG_RHI_ENABLE_NVAPI
 
 } // namespace rhi::d3d12

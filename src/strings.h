@@ -215,6 +215,7 @@
 #define S_CommandEncoder_queryAccelerationStructureProperties "queryAccelerationStructureProperties"
 #define S_CommandEncoder_serializeAccelerationStructure "serializeAccelerationStructure"
 #define S_CommandEncoder_deserializeAccelerationStructure "deserializeAccelerationStructure"
+#define S_CommandEncoder_convertCooperativeVectorMatrix "convertCooperativeVectorMatrix"
 #define S_CommandEncoder_setBufferState "setBufferState"
 #define S_CommandEncoder_setTextureState "setTextureState"
 #define S_CommandEncoder_pushDebugGroup "pushDebugGroup"

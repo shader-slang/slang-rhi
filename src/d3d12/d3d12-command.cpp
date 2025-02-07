@@ -102,6 +102,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
+    void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -1154,6 +1155,16 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
         cmd.src.getDeviceAddress(),
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_DESERIALIZE
     );
+}
+
+void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
+{
+    short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> descs;
+    for (uint32_t i = 0; i < cmd.descCount; i++)
+    {
+        descs.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
+    }
+    NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size());
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)

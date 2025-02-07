@@ -530,6 +530,26 @@ CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(NVAPI_COOPE
     }
 }
 
+NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC translateConvertCooperativeVectorMatrixDesc(
+    const ConvertCooperativeVectorMatrixDesc& desc
+)
+{
+    NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
+    nvDesc.srcSize = desc.srcSize;
+    nvDesc.srcData.deviceAddress = desc.srcData.deviceAddress;
+    nvDesc.pDstSize = desc.dstSize;
+    nvDesc.dstData.deviceAddress = desc.dstData.deviceAddress;
+    nvDesc.srcComponentType = translateCooperativeVectorComponentType(desc.srcComponentType);
+    nvDesc.dstComponentType = translateCooperativeVectorComponentType(desc.dstComponentType);
+    nvDesc.numRows = desc.rowCount;
+    nvDesc.numColumns = desc.colCount;
+    nvDesc.srcLayout = translateCooperativeVectorMatrixLayout(desc.srcLayout);
+    nvDesc.srcStride = desc.srcStride;
+    nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(desc.dstLayout);
+    nvDesc.dstStride = desc.dstStride;
+    return nvDesc;
+}
+
 #endif // SLANG_RHI_ENABLE_NVAPI
 
 } // namespace rhi::d3d12

@@ -1575,21 +1575,8 @@ Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVector
 
     for (uint32_t i = 0; i < descCount; ++i)
     {
-        const ConvertCooperativeVectorMatrixDesc& desc = descs[i];
-        VkConvertCooperativeVectorMatrixInfoNV vkInfo = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
-        vkInfo.srcSize = desc.srcSize;
-        vkInfo.srcData.deviceAddress = desc.srcData.deviceAddress;
-        vkInfo.pDstSize = desc.dstSize;
-        vkInfo.dstData.deviceAddress = desc.dstData.deviceAddress;
-        vkInfo.srcComponentType = VulkanUtil::translateCooperativeVectorComponentType(desc.srcComponentType);
-        vkInfo.dstComponentType = VulkanUtil::translateCooperativeVectorComponentType(desc.dstComponentType);
-        vkInfo.numRows = desc.rowCount;
-        vkInfo.numColumns = desc.colCount;
-        vkInfo.srcLayout = VulkanUtil::translateCooperativeVectorMatrixLayout(desc.srcLayout);
-        vkInfo.srcStride = desc.srcStride;
-        vkInfo.dstLayout = VulkanUtil::translateCooperativeVectorMatrixLayout(desc.dstLayout);
-        vkInfo.dstStride = desc.dstStride;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &vkInfo));
+        VkConvertCooperativeVectorMatrixInfoNV info = VulkanUtil::translateConvertCooperativeVectorMatrixDesc(descs[i]);
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
     }
 
     return SLANG_OK;

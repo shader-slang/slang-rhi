@@ -132,6 +132,9 @@ struct VulkanUtil
     );
     static CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout
     );
+    static VkConvertCooperativeVectorMatrixInfoNV translateConvertCooperativeVectorMatrixDesc(
+        const ConvertCooperativeVectorMatrixDesc& desc
+    );
 };
 
 } // namespace rhi::vk

@@ -710,6 +710,26 @@ CooperativeVectorMatrixLayout VulkanUtil::translateCooperativeVectorMatrixLayout
     }
 }
 
+VkConvertCooperativeVectorMatrixInfoNV VulkanUtil::translateConvertCooperativeVectorMatrixDesc(
+    const ConvertCooperativeVectorMatrixDesc& desc
+)
+{
+    VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
+    info.srcSize = desc.srcSize;
+    info.srcData.deviceAddress = desc.srcData.deviceAddress;
+    info.pDstSize = desc.dstSize;
+    info.dstData.deviceAddress = desc.dstData.deviceAddress;
+    info.srcComponentType = VulkanUtil::translateCooperativeVectorComponentType(desc.srcComponentType);
+    info.dstComponentType = VulkanUtil::translateCooperativeVectorComponentType(desc.dstComponentType);
+    info.numRows = desc.rowCount;
+    info.numColumns = desc.colCount;
+    info.srcLayout = VulkanUtil::translateCooperativeVectorMatrixLayout(desc.srcLayout);
+    info.srcStride = desc.srcStride;
+    info.dstLayout = VulkanUtil::translateCooperativeVectorMatrixLayout(desc.dstLayout);
+    info.dstStride = desc.dstStride;
+    return info;
+}
+
 Result VulkanUtil::handleFail(VkResult res)
 {
     if (res != VK_SUCCESS)

@@ -298,6 +298,16 @@ void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::ConvertCooperativeVectorMatrix&& cmd)
+{
+    if (cmd.descs && cmd.descCount > 0)
+    {
+        cmd.descs = (ConvertCooperativeVectorMatrixDesc*)
+            writeData(cmd.descs, cmd.descCount * sizeof(ConvertCooperativeVectorMatrixDesc));
+    }
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::SetBufferState&& cmd)
 {
     retainResource(cmd.buffer);

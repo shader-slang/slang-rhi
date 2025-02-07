@@ -756,7 +756,10 @@ void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* ds
 
 void CommandEncoder::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
 {
-    SLANG_RHI_UNIMPLEMENTED();
+    commands::ConvertCooperativeVectorMatrix cmd;
+    cmd.descs = descs;
+    cmd.descCount = descCount;
+    m_commandList->write(std::move(cmd));
 }
 
 void CommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)

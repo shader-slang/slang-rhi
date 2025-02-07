@@ -220,6 +220,7 @@ namespace rhi::vk {
     x(vkSetDebugUtilsObjectNameEXT) \
     x(vkCmdDrawMeshTasksEXT) \
     x(vkConvertCooperativeVectorMatrixNV) \
+    x(vkCmdConvertCooperativeVectorMatrixNV) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
