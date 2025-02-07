@@ -54,7 +54,8 @@ CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COO
 NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT layout);
 NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC translateConvertCooperativeVectorMatrixDesc(
-    const ConvertCooperativeVectorMatrixDesc& desc
+    const ConvertCooperativeVectorMatrixDesc& desc,
+    bool isDevice
 );
 #endif // SLANG_RHI_ENABLE_NVAPI
 

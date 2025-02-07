@@ -1162,7 +1162,7 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> descs;
     for (uint32_t i = 0; i < cmd.descCount; i++)
     {
-        descs.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
+        descs.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i], true));
     }
     SLANG_RHI_NVAPI_CHECK(
         NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size())

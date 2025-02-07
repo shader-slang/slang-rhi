@@ -51,7 +51,10 @@ struct NVAPIUtil
 #define SLANG_RHI_NVAPI_CHECK(x)                                                                                       \
     {                                                                                                                  \
         NvAPI_Status _res = x;                                                                                         \
-        ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x);                                                    \
+        if (_res != NVAPI_OK)                                                                                          \
+        {                                                                                                              \
+            ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x);                                                \
+        }                                                                                                              \
     }
 
 } // namespace rhi

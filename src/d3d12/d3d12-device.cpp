@@ -1834,7 +1834,8 @@ Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVector
 
     for (uint32_t i = 0; i < descCount; ++i)
     {
-        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = translateConvertCooperativeVectorMatrixDesc(descs[i]);
+        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc =
+            translateConvertCooperativeVectorMatrixDesc(descs[i], false);
         SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
     }
 
