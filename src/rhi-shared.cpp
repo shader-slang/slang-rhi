@@ -754,6 +754,11 @@ void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* ds
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
+{
+    SLANG_RHI_UNIMPLEMENTED();
+}
+
 void CommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
 {
     commands::SetBufferState cmd;
@@ -1241,6 +1246,35 @@ Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)
 {
     SLANG_UNUSED(windowHandle);
     *outSurface = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+{
+    if (m_cooperativeVectorProperties.empty())
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    if (*propertyCount == 0)
+    {
+        *propertyCount = uint32_t(m_cooperativeVectorProperties.size());
+        return SLANG_OK;
+    }
+    else
+    {
+        uint32_t count = min(*propertyCount, uint32_t(m_cooperativeVectorProperties.size()));
+        ::memcpy(properties, m_cooperativeVectorProperties.data(), count * sizeof(CooperativeVectorProperties));
+        Result result = count == *propertyCount ? SLANG_OK : SLANG_E_BUFFER_TOO_SMALL;
+        *propertyCount = count;
+        return result;
+    }
+}
+
+Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
+{
+    SLANG_UNUSED(descs);
+    SLANG_UNUSED(descCount);
     return SLANG_E_NOT_AVAILABLE;
 }
 

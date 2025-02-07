@@ -1075,6 +1075,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
@@ -1443,6 +1446,14 @@ public:
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
+
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+
     Result getEntryPointCodeFromShaderCache(
         slang::IComponentType* program,
         SlangInt entryPointIndex,
@@ -1512,6 +1523,7 @@ protected:
 
 protected:
     std::vector<std::string> m_features;
+    std::vector<CooperativeVectorProperties> m_cooperativeVectorProperties;
 
 public:
     SlangContext m_slangContext;

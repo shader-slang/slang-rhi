@@ -1702,6 +1702,71 @@ struct AccelerationStructureQueryDesc
     uint32_t firstQueryIndex;
 };
 
+union DeviceOrHostAddress
+{
+    DeviceAddress deviceAddress;
+    void* hostAddress;
+};
+
+union DeviceOrHostAddressConst
+{
+    DeviceAddress deviceAddress;
+    void* hostAddress;
+};
+
+enum class CooperativeVectorComponentType
+{
+    Float16 = 0,
+    Float32 = 1,
+    Float64 = 2,
+    SInt8 = 3,
+    SInt16 = 4,
+    SInt32 = 5,
+    SInt64 = 6,
+    UInt8 = 7,
+    UInt16 = 8,
+    UInt32 = 9,
+    UInt64 = 10,
+    SInt8Packed = 11,
+    UInt8Packed = 12,
+    FloatE4M3 = 13,
+    FloatE5M2 = 14,
+};
+
+enum class CooperativeVectorMatrixLayout
+{
+    RowMajor = 0,
+    ColumnMajor = 1,
+    InferencingOptimal = 2,
+    TrainingOptimal = 3,
+};
+
+struct ConvertCooperativeVectorMatrixDesc
+{
+    size_t srcSize;
+    DeviceOrHostAddressConst srcData;
+    size_t* dstSize;
+    DeviceOrHostAddress dstData;
+    CooperativeVectorComponentType srcComponentType;
+    CooperativeVectorComponentType dstComponentType;
+    uint32_t rowCount;
+    uint32_t colCount;
+    CooperativeVectorMatrixLayout srcLayout;
+    size_t srcStride;
+    CooperativeVectorMatrixLayout dstLayout;
+    size_t dstStride;
+};
+
+struct CooperativeVectorProperties
+{
+    CooperativeVectorComponentType inputType;
+    CooperativeVectorComponentType inputInterpretation;
+    CooperativeVectorComponentType matrixInterpretation;
+    CooperativeVectorComponentType biasInterpretation;
+    CooperativeVectorComponentType resultType;
+    bool transpose;
+};
+
 class ICommandBuffer : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x58e5d83f, 0xad31, 0x44ea, {0xa4, 0xd1, 0x5e, 0x65, 0x9c, 0xd9, 0xa7, 0x57});
@@ -1861,6 +1926,9 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
 
@@ -2453,6 +2521,12 @@ public:
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;
 };
 
 class ITaskScheduler : public ISlangUnknown
