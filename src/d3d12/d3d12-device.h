@@ -185,6 +185,12 @@ public:
         IAccelerationStructure** outAccelerationStructure
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+
 public:
     static void* loadProc(SharedLibraryHandle module, const char* name);
 

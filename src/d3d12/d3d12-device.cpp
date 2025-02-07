@@ -558,6 +558,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 m_features.push_back("ray-tracing-reordering");
             }
+
+            // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
+            // so we query the number of cooperative vector properties to determine if it is supported.
+            NvU32 propertyCount = 0;
+            if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
+                    NVAPI_OK &&
+                propertyCount > 0)
+            {
+                m_features.push_back("cooperative-vector");
+            }
         }
 
         // Enable ray tracing validation if requested
@@ -1780,6 +1790,68 @@ Result DeviceImpl::createAccelerationStructure(
 #else
     *outAccelerationStructure = nullptr;
     return SLANG_FAIL;
+#endif
+}
+
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+{
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!NVAPIUtil::isAvailable())
+        return SLANG_E_NOT_AVAILABLE;
+
+    if (m_cooperativeVectorProperties.empty())
+    {
+        NvU32 propertyCount = 0;
+        NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr);
+        std::vector<NVAPI_COOPERATIVE_VECTOR_PROPERTIES> properties(propertyCount);
+        NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, properties.data());
+        for (const auto& nvProps : properties)
+        {
+            CooperativeVectorProperties props;
+            props.inputType = translateCooperativeVectorComponentType(nvProps.inputType);
+            props.inputInterpretation = translateCooperativeVectorComponentType(nvProps.inputInterpretation);
+            props.matrixInterpretation = translateCooperativeVectorComponentType(nvProps.matrixInterpretation);
+            props.biasInterpretation = translateCooperativeVectorComponentType(nvProps.biasInterpretation);
+            props.resultType = translateCooperativeVectorComponentType(nvProps.resultType);
+            props.transpose = nvProps.transpose;
+            m_cooperativeVectorProperties.push_back(props);
+        }
+    }
+
+    return Device::getCooperativeVectorProperties(properties, propertyCount);
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
+}
+
+Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
+{
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!NVAPIUtil::isAvailable())
+        return SLANG_E_NOT_AVAILABLE;
+
+    for (uint32_t i = 0; i < descCount; ++i)
+    {
+        const ConvertCooperativeVectorMatrixDesc& desc = descs[i];
+        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
+        nvDesc.srcSize = desc.srcSize;
+        nvDesc.srcData.deviceAddress = desc.srcData.deviceAddress;
+        nvDesc.pDstSize = desc.dstSize;
+        nvDesc.dstData.deviceAddress = desc.dstData.deviceAddress;
+        nvDesc.srcComponentType = translateCooperativeVectorComponentType(desc.srcComponentType);
+        nvDesc.dstComponentType = translateCooperativeVectorComponentType(desc.dstComponentType);
+        nvDesc.numRows = desc.rowCount;
+        nvDesc.numColumns = desc.colCount;
+        nvDesc.srcLayout = translateCooperativeVectorMatrixLayout(desc.srcLayout);
+        nvDesc.srcStride = desc.srcStride;
+        nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(desc.dstLayout);
+        nvDesc.dstStride = desc.dstStride;
+        NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc);
+    }
+
+    return SLANG_OK;
+#else
+    return SLANG_E_NOT_AVAILABLE;
 #endif
 }
 
