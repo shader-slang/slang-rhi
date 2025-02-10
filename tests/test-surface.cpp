@@ -28,6 +28,13 @@ static const Vertex kVertexData[kVertexCount] = {
     {{+0.0, +0.5, 0}, {0, 0, 1}},
 };
 
+static bool hasMonitor()
+{
+    int count;
+    glfwGetMonitors(&count);
+    return count > 0;
+}
+
 struct SurfaceTest
 {
     ComPtr<IDevice> device;
@@ -41,7 +48,6 @@ struct SurfaceTest
 
     void init(IDevice* device)
     {
-        glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         this->window = glfwCreateWindow(500, 500, "test-surface", nullptr, nullptr);
@@ -60,7 +66,6 @@ struct SurfaceTest
         this->surface = nullptr;
 
         glfwDestroyWindow(window);
-        glfwTerminate();
     }
 
     void createRequiredResources()
@@ -189,11 +194,19 @@ struct SurfaceTest
 
 void testSurface(GpuTestContext* ctx, DeviceType deviceType)
 {
+    glfwInit();
+    if (!hasMonitor())
+    {
+        SKIP("No monitor attached");
+    }
+
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     SurfaceTest t;
     t.init(device);
     t.run();
     t.shutdown();
+
+    glfwTerminate();
 }
 
 TEST_CASE("surface")
