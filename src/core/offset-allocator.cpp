@@ -135,7 +135,7 @@ OffsetAllocator::OffsetAllocator(uint32_t size, uint32_t maxAllocs)
     , m_nodes(nullptr)
     , m_freeNodes(nullptr)
 {
-    if (sizeof(NodeIndex) == 2)
+    if constexpr (sizeof(NodeIndex) == 2)
     {
         SLANG_RHI_ASSERT(maxAllocs <= 65536);
     }

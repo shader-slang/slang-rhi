@@ -411,7 +411,11 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
 void RHI::enableDebugLayers()
 {
 #if SLANG_RHI_ENABLE_D3D12
+    static bool sEnabled = false;
+    if (sEnabled)
+        return;
     enableD3D12DebugLayerIfAvailable();
+    sEnabled = true;
 #endif
 }
 

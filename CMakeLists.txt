@@ -381,6 +381,9 @@ endif()
 # set_target_properties(nanothread PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
+if(MSVC)
+    target_compile_options(slang-rhi PRIVATE /W4 /WX /wd4267 /wd4244 /wd4100 /wd4018 /wd4245 /wd4702 /wd4127 /wd4389)
+endif()
 
 target_sources(slang-rhi PRIVATE
     src/command-list.cpp
