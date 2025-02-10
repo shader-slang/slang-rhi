@@ -121,7 +121,8 @@ struct ShaderCacheTest
     std::filesystem::path tempDirectory;
 
     ComPtr<IDevice> device;
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> computePipeline;
+    ComPtr<IRenderPipeline> renderPipeline;
     ComPtr<IBuffer> buffer;
 
     std::string computeShaderA = std::string(
@@ -195,12 +196,6 @@ struct ShaderCacheTest
         deviceDesc.slang.compilerOptionEntries = entries.data();
         deviceDesc.slang.compilerOptionEntryCount = entries.size();
 
-        D3D12DeviceExtendedDesc extDesc = {};
-        extDesc.rootParameterShaderAttributeName = "root";
-        void* extDescPtrs[] = {&extDesc};
-        deviceDesc.extendedDescs = extDescPtrs;
-        deviceDesc.extendedDescCount = SLANG_COUNT_OF(extDescPtrs);
-
         // TODO: We should also set the debug callback
         // (And in general reduce the differences (and duplication) between
         // here and render-test-main.cpp)
@@ -231,7 +226,7 @@ struct ShaderCacheTest
     void freeComputeResources()
     {
         buffer = nullptr;
-        pipeline = nullptr;
+        computePipeline = nullptr;
     }
 
     void createComputePipeline(const char* moduleName, const char* entryPointName)
@@ -242,7 +237,7 @@ struct ShaderCacheTest
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, computePipeline.writeRef()));
     }
 
     void createComputePipeline(std::string shaderSource)
@@ -252,25 +247,19 @@ struct ShaderCacheTest
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, computePipeline.writeRef()));
     }
 
     void dispatchComputePipeline()
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
-
-        auto rootObject = commandEncoder->preparePipeline(pipeline);
-
-        // Bind buffer view to the entry point.
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(computePipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
-        entryPointCursor.getPath("buffer").setBinding(buffer);
-
-        ComputeState state;
-        commandEncoder->prepareFinish(&state);
-        commandEncoder->setComputeState(state);
-        commandEncoder->dispatchCompute(4, 1, 1);
-
+        entryPointCursor["buffer"].setBinding(buffer);
+        passEncoder->dispatchCompute(4, 1, 1);
+        passEncoder->end();
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
@@ -544,15 +533,15 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
-        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, computePipeline.writeRef()));
     }
 
     void dispatchComputePipeline(const char* transformerTypeName)
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
-
-        auto rootObject = commandEncoder->preparePipeline(pipeline);
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(computePipeline);
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
@@ -562,17 +551,15 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         );
 
         float c = 5.f;
-        ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
+        ShaderCursor(transformer)["c"].setData(&c, sizeof(float));
         transformer->finalize();
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
-        entryPointCursor.getPath("buffer").setBinding(buffer);
-        entryPointCursor.getPath("transformer").setObject(transformer);
+        entryPointCursor["buffer"].setBinding(buffer);
+        entryPointCursor["transformer"].setObject(transformer);
 
-        ComputeState state;
-        commandEncoder->prepareFinish(&state);
-        commandEncoder->setComputeState(state);
-        commandEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
@@ -742,7 +729,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         inputLayout = nullptr;
         vertexBuffer = nullptr;
         colorBuffer = nullptr;
-        pipeline = nullptr;
+        renderPipeline = nullptr;
         colorBufferView = nullptr;
     }
 
@@ -768,7 +755,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, renderPipeline.writeRef()));
     }
 
     void dispatchGraphicsPipeline()
@@ -783,23 +770,22 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        commandEncoder->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
-        auto rootObject = commandEncoder->preparePipeline(pipeline);
+        auto rootObject = passEncoder->bindPipeline(renderPipeline);
         RenderState state;
-        commandEncoder->prepareFinish(&state);
         state.viewports[0] = Viewport(kWidth, kHeight);
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect(kWidth, kHeight);
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBufferCount = 1;
-        commandEncoder->setRenderState(state);
+        passEncoder->setRenderState(state);
 
         DrawArguments args;
         args.vertexCount = 3;
-        commandEncoder->draw(args);
-        commandEncoder->endRenderPass();
+        passEncoder->draw(args);
+        passEncoder->end();
 
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
@@ -883,7 +869,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
         pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, renderPipeline.writeRef()));
     }
 
     void runGraphicsPipeline()

@@ -38,7 +38,7 @@ static const Vertex kVertexData[kVertexCount] = {
 
 const int kWidth = 256;
 const int kHeight = 256;
-Format format = Format::R32G32B32A32_FLOAT;
+Format kFormat = Format::R32G32B32A32_FLOAT;
 
 static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
@@ -152,7 +152,7 @@ struct BaseResolveResourceTest
     void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = msaaTextureView;
@@ -162,7 +162,7 @@ struct BaseResolveResourceTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto passEncoder = encoder->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
         passEncoder->bindPipeline(pipeline);
 
@@ -180,7 +180,7 @@ struct BaseResolveResourceTest
         passEncoder->draw(args);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -235,7 +235,7 @@ struct ResolveResourceSimple : BaseResolveResourceTest
         TextureInfo msaaTextureInfo = {extent, 1, 1, nullptr};
         TextureInfo dstTextureInfo = {extent, 1, 1, nullptr};
 
-        createRequiredResources(msaaTextureInfo, dstTextureInfo, format);
+        createRequiredResources(msaaTextureInfo, dstTextureInfo, kFormat);
 
         SubresourceRange msaaSubresource = {};
         msaaSubresource.mipLevel = 0;
@@ -272,7 +272,6 @@ void testResolveResource(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("resolve-resource-simple")
 {
-    // Only supported on D3D12 and Vulkan.
     runGpuTests(
         testResolveResource<ResolveResourceSimple>,
         {
@@ -280,6 +279,7 @@ TEST_CASE("resolve-resource-simple")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
+            // DeviceType::WGPU, // rgba32float is not supported for multisampling
         }
     );
 }

@@ -207,7 +207,7 @@ struct DrawInstancedTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -216,7 +216,7 @@ struct DrawInstancedTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto passEncoder = encoder->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
         passEncoder->bindPipeline(pipeline);
 
@@ -236,7 +236,7 @@ struct DrawInstancedTest : BaseDrawTest
         passEncoder->draw(args);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -263,7 +263,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -272,7 +272,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto passEncoder = encoder->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
         passEncoder->bindPipeline(pipeline);
 
@@ -294,7 +294,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         passEncoder->drawIndexed(args);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -345,7 +345,7 @@ struct DrawIndirectTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -354,7 +354,7 @@ struct DrawIndirectTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto passEncoder = encoder->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
         passEncoder->bindPipeline(pipeline);
 
@@ -374,7 +374,7 @@ struct DrawIndirectTest : BaseDrawTest
         passEncoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -426,7 +426,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         createRequiredResources();
 
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = colorBufferView;
@@ -435,7 +435,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto passEncoder = encoder->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
         passEncoder->bindPipeline(pipeline);
 
@@ -457,7 +457,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         passEncoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -496,6 +496,7 @@ TEST_CASE("draw-instanced")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -509,6 +510,7 @@ TEST_CASE("draw-indexed-instanced")
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
+            DeviceType::WGPU,
         }
     );
 }
@@ -521,6 +523,8 @@ TEST_CASE("draw-indirect")
             DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal,
+            // DeviceType::WGPU,
         }
     );
 }
@@ -530,8 +534,11 @@ TEST_CASE("draw-indexed-indirect")
     runGpuTests(
         testDraw<DrawIndexedIndirectTest>,
         {
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
+            // DeviceType::Metal,
+            // DeviceType::WGPU,
         }
     );
 }

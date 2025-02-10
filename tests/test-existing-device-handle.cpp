@@ -51,15 +51,15 @@ void testExistingDeviceHandle(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto passEncoder = encoder->beginComputePass();
+        auto passEncoder = commandEncoder->beginComputePass();
         auto rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor(rootObject)["buffer"].setBinding(buffer);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

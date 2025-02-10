@@ -188,9 +188,9 @@ void testCooperativeVectorConvertDevice(GpuTestContext* ctx, DeviceType deviceTy
 
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
-        encoder->convertCooperativeVectorMatrix(&desc, 1);
-        queue->submit(encoder->finish());
+        auto commandEncoder = queue->createCommandEncoder();
+        commandEncoder->convertCooperativeVectorMatrix(&desc, 1);
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

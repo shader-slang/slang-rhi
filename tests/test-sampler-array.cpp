@@ -33,7 +33,7 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     std::vector<ComPtr<ISampler>> samplers;
@@ -86,26 +86,18 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     }
     g->finalize();
 
-    ComPtr<IShaderObject> rootObject = device->createRootShaderObject(pipeline);
     {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
         auto cursor = ShaderCursor(rootObject);
         cursor["g"].setObject(g);
         cursor["buffer"].setBinding(buffer);
-    }
-    rootObject->finalize();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
-    {
-        auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
-
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        encoder->setComputeState(state);
-        encoder->setComputeState(state);
-        encoder->dispatchCompute(1, 1, 1);
-
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -119,7 +111,6 @@ TEST_CASE("sampler-array")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
-            // DeviceType::WGPU,
         }
     );
 }

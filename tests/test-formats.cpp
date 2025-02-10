@@ -123,9 +123,9 @@ struct TestFormats
         // GPU execution.
         {
             auto queue = device->getQueue(QueueType::Graphics);
-            auto encoder = queue->createCommandEncoder();
+            auto commandEncoder = queue->createCommandEncoder();
 
-            auto passEncoder = encoder->beginComputePass();
+            auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(pipeline);
             ShaderCursor cursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
             // Bind texture view to the entry point
@@ -137,7 +137,7 @@ struct TestFormats
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
 
-            queue->submit(encoder->finish());
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
         }
     }

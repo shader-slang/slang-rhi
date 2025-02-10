@@ -1,4 +1,3 @@
-#if 0
 #include "testing.h"
 
 using namespace rhi;
@@ -32,7 +31,7 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     std::vector<ComPtr<IBuffer>> buffers;
@@ -43,24 +42,22 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     ComPtr<IShaderObject> rootObject;
-    device->createMutableRootShaderObject(shaderProgram, rootObject.writeRef());
+    REQUIRE_CALL(device->createRootShaderObject(shaderProgram, rootObject.writeRef()));
 
     ComPtr<IShaderObject> g, s1, s2;
-    device->createMutableShaderObject(
-        slangReflection->findTypeByName("S0"),
-        ShaderObjectContainerType::None,
-        g.writeRef()
+    REQUIRE_CALL(
+        device->createShaderObject(slangReflection->findTypeByName("S0"), ShaderObjectContainerType::None, g.writeRef())
     );
-    device->createMutableShaderObject(
+    REQUIRE_CALL(device->createShaderObject(
         slangReflection->findTypeByName("S1"),
         ShaderObjectContainerType::None,
         s1.writeRef()
-    );
-    device->createMutableShaderObject(
+    ));
+    REQUIRE_CALL(device->createShaderObject(
         slangReflection->findTypeByName("S1"),
         ShaderObjectContainerType::None,
         s2.writeRef()
-    );
+    ));
 
     {
         auto cursor = ShaderCursor(s1);
@@ -90,13 +87,10 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
-
-        commandEncoder->preparePipelineWithRootObject(pipeline, rootObject);
-        ComputeState state;
-        commandEncoder->prepareFinish(&state);
-        commandEncoder->setComputeState(state);
-        commandEncoder->dispatchCompute(1, 1, 1);
-
+        auto passEncoder = commandEncoder->beginComputePass();
+        passEncoder->bindPipeline(pipeline, rootObject);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
@@ -106,12 +100,5 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("root-shader-parameter")
 {
-    runGpuTests(
-        testRootShaderParameter,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runGpuTests(testRootShaderParameter);
 }
-#endif

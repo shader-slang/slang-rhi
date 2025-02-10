@@ -1,10 +1,55 @@
-#if 0 // TODO_TESTING use filesystem
 #include "testing.h"
+
+#include <filesystem>
 
 using namespace rhi;
 using namespace rhi::testing;
 
-static Result precompileProgram(IDevice* device, ISlangMutableFileSystem* fileSys, const char* shaderModuleName)
+static slang::TargetDesc getTargetDesc(DeviceType deviceType, slang::IGlobalSession* globalSession)
+{
+    slang::TargetDesc targetDesc = {};
+    switch (deviceType)
+    {
+    case DeviceType::D3D11:
+        targetDesc.format = SLANG_DXBC;
+        targetDesc.profile = globalSession->findProfile("sm_5_0");
+        break;
+    case DeviceType::D3D12:
+        targetDesc.format = SLANG_DXIL;
+        targetDesc.profile = globalSession->findProfile("sm_6_1");
+        break;
+    case DeviceType::Vulkan:
+        targetDesc.format = SLANG_SPIRV;
+        targetDesc.profile = globalSession->findProfile("GLSL_460");
+        break;
+    case DeviceType::Metal:
+        targetDesc.format = SLANG_METAL_LIB;
+        targetDesc.profile = globalSession->findProfile("");
+        break;
+    case DeviceType::CPU:
+        targetDesc.format = SLANG_SHADER_HOST_CALLABLE;
+        targetDesc.profile = globalSession->findProfile("sm_5_0");
+        break;
+    case DeviceType::CUDA:
+        targetDesc.format = SLANG_PTX;
+        targetDesc.profile = globalSession->findProfile("sm_5_0");
+        break;
+    case DeviceType::WGPU:
+        targetDesc.format = SLANG_WGSL;
+        targetDesc.profile = globalSession->findProfile("");
+        break;
+    default:
+        FAIL("Unsupported device type");
+    }
+    return targetDesc;
+}
+
+static Result precompileProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    const std::filesystem::path& dir,
+    bool precompileToTarget
+)
 {
     ComPtr<slang::ISession> slangSession;
     SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
@@ -12,6 +57,10 @@ static Result precompileProgram(IDevice* device, ISlangMutableFileSystem* fileSy
     auto searchPaths = getSlangSearchPaths();
     sessionDesc.searchPaths = searchPaths.data();
     sessionDesc.searchPathCount = searchPaths.size();
+    slang::TargetDesc targetDesc =
+        getTargetDesc(device->getDeviceInfo().deviceType, device->getSlangSession()->getGlobalSession());
+    sessionDesc.targets = &targetDesc;
+    sessionDesc.targetCount = 1;
     auto globalSession = slangSession->getGlobalSession();
     globalSession->createSession(sessionDesc, slangSession.writeRef());
 
@@ -21,61 +70,94 @@ static Result precompileProgram(IDevice* device, ISlangMutableFileSystem* fileSy
     if (!module)
         return SLANG_FAIL;
 
-    // Write loaded modules to memory file system.
+    if (precompileToTarget)
+    {
+        slang::IModulePrecompileService_Experimental* precompileService = nullptr;
+        SLANG_RETURN_ON_FAIL(module->queryInterface(
+            slang::IModulePrecompileService_Experimental::getTypeGuid(),
+            (void**)&precompileService
+        ));
+
+        SlangCompileTarget target;
+        switch (device->getDeviceInfo().deviceType)
+        {
+        case DeviceType::D3D12:
+            target = SLANG_DXIL;
+            break;
+        case DeviceType::Vulkan:
+            target = SLANG_SPIRV;
+            break;
+        default:
+            return SLANG_FAIL;
+        }
+        precompileService->precompileForTarget(target, diagnosticsBlob.writeRef());
+    }
+
+    // Write loaded modules to files.
     for (SlangInt i = 0; i < slangSession->getLoadedModuleCount(); i++)
     {
         auto module = slangSession->getLoadedModule(i);
         auto path = module->getFilePath();
         if (path)
         {
-            auto name = string::from_cstr(module->getName());
+            auto path = (dir / module->getName()).replace_extension(".slang-module");
             ComPtr<ISlangBlob> outBlob;
             module->serialize(outBlob.writeRef());
-            fileSys->saveFileBlob((name + ".slang-module").c_str(), outBlob);
+            writeFile(path.string(), outBlob->getBufferPointer(), outBlob->getBufferSize());
         }
     }
     return SLANG_OK;
 }
 
-void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
+// mixed == false : precompile `test-precompiled-module` and then load it.
+// mixed == true : only precompile `test-precompiled-module-imported` and the load `test-precompiled-module`.
+static void testPrecompiledModuleImpl(GpuTestContext* ctx, DeviceType deviceType, bool mixed, bool precompileToTarget)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    // First, load and compile the slang source.
-    ComPtr<ISlangMutableFileSystem> memoryFileSystem = ComPtr<ISlangMutableFileSystem>(new Slang::MemoryFileSystem());
+    std::filesystem::path tempDir = getCaseTempDirectory();
+    std::string tempDirStr = tempDir.string();
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    REQUIRE_CALL(precompileProgram(device, memoryFileSystem.get(), "precompiled-module"));
+    REQUIRE_CALL(precompileProgram(
+        device,
+        mixed ? "test-precompiled-module-imported" : "test-precompiled-module",
+        tempDir,
+        precompileToTarget
+    ));
 
-    // Next, load the precompiled slang program.
+    if (mixed)
+        std::filesystem::copy_file(
+            std::filesystem::path(getTestsDir()) / "test-precompiled-module.slang",
+            tempDir / "test-precompiled-module.slang",
+            std::filesystem::copy_options::overwrite_existing
+        );
+
+    // Next, load the slang program.
     ComPtr<slang::ISession> slangSession;
     device->getSlangSession(slangSession.writeRef());
     slang::SessionDesc sessionDesc = {};
-    sessionDesc.targetCount = 1;
-    slang::TargetDesc targetDesc = {};
-    switch (device->getDeviceInfo().deviceType)
-    {
-    case DeviceType::D3D12:
-        targetDesc.format = SLANG_DXIL;
-        targetDesc.profile = device->getSlangSession()->getGlobalSession()->findProfile("sm_6_1");
-        break;
-    case DeviceType::Vulkan:
-        targetDesc.format = SLANG_SPIRV;
-        targetDesc.profile = device->getSlangSession()->getGlobalSession()->findProfile("GLSL_460");
-        break;
-    }
+    slang::TargetDesc targetDesc = getTargetDesc(deviceType, device->getSlangSession()->getGlobalSession());
     sessionDesc.targets = &targetDesc;
-    sessionDesc.fileSystem = memoryFileSystem.get();
+    sessionDesc.targetCount = 1;
+    const char* searchPaths[] = {tempDirStr.c_str()};
+    sessionDesc.searchPaths = searchPaths;
+    sessionDesc.searchPathCount = SLANG_COUNT_OF(searchPaths);
     auto globalSession = slangSession->getGlobalSession();
     globalSession->createSession(sessionDesc, slangSession.writeRef());
-    REQUIRE_CALL(
-        loadComputeProgram(device, slangSession, shaderProgram, "precompiled-module", "computeMain", slangReflection)
-    );
+    REQUIRE_CALL(loadComputeProgram(
+        device,
+        slangSession,
+        shaderProgram,
+        "test-precompiled-module",
+        "computeMain",
+        slangReflection
+    ));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
@@ -84,44 +166,66 @@ void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.size = numberCount * sizeof(float);
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
-    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IBuffer> numbersBuffer;
-    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, numbersBuffer.writeRef()));
-
-    ComPtr<IResourceView> bufferView;
-    IResourceView::Desc viewDesc = {};
-    viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
-    REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
-        ICommandQueue::Desc queueDesc = {ICommandQueue::QueueType::Graphics};
-        auto queue = device->createCommandQueue(queueDesc);
+        auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
         auto passEncoder = commandEncoder->beginComputePass();
-
         auto rootObject = passEncoder->bindPipeline(pipeline);
-
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setBinding(bufferView);
-
+        entryPointCursor["buffer"].setBinding(buffer);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
+
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, numbersBuffer, makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
+    compareComputeResult(device, buffer, makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
+}
+
+void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
+{
+    testPrecompiledModuleImpl(ctx, deviceType, false, false);
+}
+
+void testPrecompiledModuleMixed(GpuTestContext* ctx, DeviceType deviceType)
+{
+    testPrecompiledModuleImpl(ctx, deviceType, true, false);
+}
+
+void testPrecompiledModuleWithTargetCode(GpuTestContext* ctx, DeviceType deviceType)
+{
+    testPrecompiledModuleImpl(ctx, deviceType, false, true);
 }
 
 TEST_CASE("precompiled-module")
 {
-    runGpuTests(testPrecompiledModule, {DeviceType::D3D12, DeviceType::Vulkan});
+    runGpuTests(testPrecompiledModule);
 }
-#endif
+
+TEST_CASE("precompiled-module-mixed")
+{
+    runGpuTests(testPrecompiledModuleMixed);
+}
+
+// TODO: this currently fails
+// TEST_CASE("precompiled-module-with-target-code")
+// {
+//     runGpuTests(
+//         testPrecompiledModuleWithTargetCode,
+//         {
+//             DeviceType::D3D12,
+//         }
+//     );
+// }
