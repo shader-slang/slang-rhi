@@ -34,7 +34,7 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         // Now we can use this type to create a shader object that can be bound to the root object.
         ComPtr<IShaderObject> transformer;
@@ -55,12 +55,12 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
         // Bind the previously created transformer object to root object.
         cursor["transformer"].setObject(transformer);
 
-        auto passEncoder = encoder->beginComputePass();
+        auto passEncoder = commandEncoder->beginComputePass();
         passEncoder->bindPipeline(pipeline, rootObject);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -69,16 +69,5 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("compute-smoke")
 {
-    runGpuTests(
-        testComputeSmoke,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-            // DeviceType::WGPU,
-        }
-    );
+    runGpuTests(testComputeSmoke);
 }

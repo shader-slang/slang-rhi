@@ -54,11 +54,11 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         // Write inputBuffer to intermediateBuffer
         {
-            auto passEncoder = encoder->beginComputePass();
+            auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(programA.pipeline);
             ShaderCursor cursor(rootObject->getEntryPoint(0));
             cursor["inBuffer"].setBinding(inputBuffer);
@@ -71,7 +71,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
         // Write intermediateBuffer to outputBuffer
         {
-            auto passEncoder = encoder->beginComputePass();
+            auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(programB.pipeline);
             ShaderCursor cursor(rootObject->getEntryPoint(0));
             cursor["inBuffer"].setBinding(intermediateBuffer);
@@ -80,7 +80,7 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
             passEncoder->end();
         }
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -89,15 +89,5 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("buffer-barrier")
 {
-    // D3D11 and Metal don't work
-    runGpuTests(
-        testBufferBarrier,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-            DeviceType::WGPU,
-        }
-    );
+    runGpuTests(testBufferBarrier);
 }

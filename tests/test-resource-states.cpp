@@ -9,6 +9,15 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
+    ComPtr<IShaderProgram> shaderProgram;
+    slang::ProgramLayout* slangReflection;
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-dummy", "computeMain", slangReflection));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
     auto queue = device->getQueue(QueueType::Graphics);
 
     BufferUsage bufferUsage = BufferUsage::VertexBuffer | BufferUsage::IndexBuffer | BufferUsage::ConstantBuffer |
@@ -43,6 +52,10 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     {
         auto commandEncoder = queue->createCommandEncoder();
         commandEncoder->setBufferState(buffer, state);
+        auto passEncoder = commandEncoder->beginComputePass();
+        passEncoder->bindPipeline(pipeline);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
         queue->submit(commandEncoder->finish());
     }
 
@@ -52,6 +65,15 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+
+    ComPtr<IShaderProgram> shaderProgram;
+    slang::ProgramLayout* slangReflection;
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-dummy", "computeMain", slangReflection));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     auto queue = device->getQueue(QueueType::Graphics);
 
@@ -111,6 +133,10 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
         {
             auto commandEncoder = queue->createCommandEncoder();
             commandEncoder->setTextureState(texture, state);
+            auto passEncoder = commandEncoder->beginComputePass();
+            passEncoder->bindPipeline(pipeline);
+            passEncoder->dispatchCompute(1, 1, 1);
+            passEncoder->end();
             queue->submit(commandEncoder->finish());
         }
 
@@ -124,7 +150,7 @@ TEST_CASE("buffer-resource-states")
         testBufferResourceStates,
         {
             DeviceType::D3D12,
-            // DeviceType::Vulkan,
+            DeviceType::Vulkan,
         }
     );
 }
@@ -135,7 +161,7 @@ TEST_CASE("texture-resource-states")
         testTextureResourceStates,
         {
             DeviceType::D3D12,
-            // DeviceType::Vulkan,
+            DeviceType::Vulkan,
         }
     );
 }

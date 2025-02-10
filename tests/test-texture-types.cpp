@@ -126,9 +126,9 @@ struct TextureAccessTest : TextureTest
         // GPU execution.
         {
             auto queue = device->getQueue(QueueType::Graphics);
-            auto encoder = queue->createCommandEncoder();
+            auto commandEncoder = queue->createCommandEncoder();
 
-            auto passEncoder = encoder->beginComputePass();
+            auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(pipeline);
             ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
             auto width = textureInfo->extents.width;
@@ -145,7 +145,7 @@ struct TextureAccessTest : TextureTest
             passEncoder->dispatchCompute(bufferElementCount, 1, 1);
             passEncoder->end();
 
-            queue->submit(encoder->finish());
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
         }
     }
@@ -364,7 +364,7 @@ struct RenderTargetTests : TextureTest
     void submitShaderWork()
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         RenderPassColorAttachment colorAttachment;
         colorAttachment.view = renderTextureView;
@@ -377,7 +377,7 @@ struct RenderTargetTests : TextureTest
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto passEncoder = encoder->beginRenderPass(renderPass);
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
         passEncoder->bindPipeline(pipeline);
 
@@ -395,7 +395,7 @@ struct RenderTargetTests : TextureTest
         passEncoder->draw(args);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

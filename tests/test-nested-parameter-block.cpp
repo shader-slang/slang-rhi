@@ -30,6 +30,9 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
+    if (deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
+        SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
+
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(
@@ -102,14 +105,14 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto passEncoder = encoder->beginComputePass();
+        auto passEncoder = commandEncoder->beginComputePass();
         passEncoder->bindPipeline(pipeline, rootObject);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -118,15 +121,5 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("nested-parameter-block")
 {
-    runGpuTests(
-        testNestedParameterBlock,
-        {
-            DeviceType::CPU,
-            DeviceType::CUDA,
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            // DeviceType::Metal,
-        }
-    );
+    runGpuTests(testNestedParameterBlock);
 }

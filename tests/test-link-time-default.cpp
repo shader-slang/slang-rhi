@@ -99,7 +99,7 @@ static Result loadProgram(
 
 void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
+    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType, false);
 
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.
@@ -109,7 +109,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     // Create pipeline with a specialization override module linked in, so we should
@@ -119,7 +119,7 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc1 = {};
     pipelineDesc1.program = shaderProgram1.get();
-    ComPtr<IPipeline> pipeline1;
+    ComPtr<IComputePipeline> pipeline1;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc1, pipeline1.writeRef()));
 
     const int numberCount = 4;
@@ -142,17 +142,12 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto commandEncoder = queue->createCommandEncoder();
-
-        auto rootObject = commandEncoder->preparePipeline(pipeline);
-
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
-        // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setBinding(buffer);
-
-        ComputeState state;
-        commandEncoder->prepareFinish(&state);
-        commandEncoder->setComputeState(state);
-        commandEncoder->dispatchCompute(1, 1, 1);
+        entryPointCursor["buffer"].setBinding(buffer);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
@@ -163,17 +158,12 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     // Now run again with the overrided program.
     {
         auto commandEncoder = queue->createCommandEncoder();
-
-        auto rootObject = commandEncoder->preparePipeline(pipeline1);
-
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline1);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
-        // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setBinding(buffer);
-
-        ComputeState state;
-        commandEncoder->prepareFinish(&state);
-        commandEncoder->setComputeState(state);
-        commandEncoder->dispatchCompute(1, 1, 1);
+        entryPointCursor["buffer"].setBinding(buffer);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
@@ -184,7 +174,6 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("link-time-default")
 {
-    // Fails on CUDA
     runGpuTests(
         testLinkTimeDefault,
         {
@@ -193,7 +182,8 @@ TEST_CASE("link-time-default")
             DeviceType::Vulkan,
             DeviceType::Metal,
             DeviceType::CPU,
-            // DeviceType::WGPU,
+            // DeviceType::CUDA,
+            DeviceType::WGPU,
         }
     );
 }

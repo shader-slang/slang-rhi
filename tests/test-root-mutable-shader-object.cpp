@@ -1,4 +1,3 @@
-#if 0
 #include "testing.h"
 
 using namespace rhi;
@@ -15,7 +14,7 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
@@ -33,43 +32,33 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
 
     ComPtr<IShaderObject> rootObject;
-    device->createMutableRootShaderObject(shaderProgram, rootObject.writeRef());
+    device->createRootShaderObject(shaderProgram, rootObject.writeRef());
     auto entryPointCursor = ShaderCursor(rootObject->getEntryPoint(0));
-    entryPointCursor.getPath("buffer").setBinding(buffer);
+    entryPointCursor["buffer"].setBinding(buffer);
 
     slang::TypeReflection* addTransformerType = slangReflection->findTypeByName("AddTransformer");
     ComPtr<IShaderObject> transformer;
-    REQUIRE_CALL(
-        device->createMutableShaderObject(addTransformerType, ShaderObjectContainerType::None, transformer.writeRef())
+    REQUIRE_CALL(device->createShaderObject(addTransformerType, ShaderObjectContainerType::None, transformer.writeRef())
     );
-    entryPointCursor.getPath("transformer").setObject(transformer);
+    entryPointCursor["transformer"].setObject(transformer);
 
     // Set the `c` field of the `AddTransformer`.
     float c = 1.0f;
-    ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
+    ShaderCursor(transformer)["c"].setData(&c, sizeof(float));
 
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
-
-        {
-            commandEncoder->preparePipelineWithRootObject(pipeline, rootObject);
-            ComputeState state;
-            commandEncoder->prepareFinish(&state);
-            commandEncoder->setComputeState(state);
-            commandEncoder->dispatchCompute(1, 1, 1);
-        }
+        auto passEncoder = commandEncoder->beginComputePass();
+        passEncoder->bindPipeline(pipeline, rootObject);
+        passEncoder->dispatchCompute(1, 1, 1);
 
         // Mutate `transformer` object and run again.
         c = 2.0f;
-        ShaderCursor(transformer).getPath("c").setData(&c, sizeof(float));
-        {
-            commandEncoder->preparePipelineWithRootObject(pipeline, rootObject);
-            ComputeState state;
-            commandEncoder->prepareFinish(&state);
-            commandEncoder->setComputeState(state);
-            commandEncoder->dispatchCompute(1, 1, 1);
-        }
+        ShaderCursor(transformer)["c"].setData(&c, sizeof(float));
+
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
@@ -83,9 +72,8 @@ TEST_CASE("root-mutable-shader-object")
     runGpuTests(
         testRootMutableShaderObject,
         {
-            DeviceType::D3D12,
+            DeviceType::WGPU,
             // DeviceType::Vulkan,
         }
     );
 }
-#endif

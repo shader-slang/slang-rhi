@@ -1,4 +1,4 @@
-import "precompiled-module-imported";
+import "test-precompiled-module-imported";
 
 using namespace ns;
 

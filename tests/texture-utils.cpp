@@ -17,6 +17,14 @@
 
 namespace rhi::testing {
 
+TextureInfo::~TextureInfo()
+{
+    for (SubresourceData subresourceData : subresourceDatas)
+    {
+        ::free((void*)subresourceData.data);
+    }
+}
+
 Size getTexelSize(Format format)
 {
     const FormatInfo& info = getFormatInfo(format);
@@ -223,7 +231,7 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
             auto mipHeight = std::max(extents.height >> mip, 1);
             auto mipDepth = std::max(extents.depth >> mip, 1);
             auto mipSize = mipWidth * mipHeight * mipDepth * texelSize;
-            subresource->textureData = malloc(mipSize);
+            subresource->textureData = ::malloc(mipSize);
             REQUIRE(subresource->textureData != nullptr);
 
             subresource->extents.width = mipWidth;

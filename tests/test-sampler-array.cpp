@@ -27,13 +27,16 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
 
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
+    if (deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
+        SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
+
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler-array", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     std::vector<ComPtr<ISampler>> samplers;
@@ -86,26 +89,18 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     }
     g->finalize();
 
-    ComPtr<IShaderObject> rootObject = device->createRootShaderObject(pipeline);
     {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
         auto cursor = ShaderCursor(rootObject);
         cursor["g"].setObject(g);
         cursor["buffer"].setBinding(buffer);
-    }
-    rootObject->finalize();
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
-    {
-        auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
-
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        encoder->setComputeState(state);
-        encoder->setComputeState(state);
-        encoder->dispatchCompute(1, 1, 1);
-
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -119,7 +114,7 @@ TEST_CASE("sampler-array")
         {
             DeviceType::D3D12,
             DeviceType::Vulkan,
-            // DeviceType::WGPU,
+            DeviceType::Metal,
         }
     );
 }

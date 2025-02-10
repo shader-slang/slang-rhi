@@ -193,12 +193,13 @@ struct BaseRayTracingTest
 
             compactedSizeQuery->reset();
 
-            auto encoder = queue->createCommandEncoder();
+            auto commandEncoder = queue->createCommandEncoder();
             AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
             compactedSizeQueryDesc.queryPool = compactedSizeQuery;
             compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
-            encoder->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-            queue->submit(encoder->finish());
+            commandEncoder
+                ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
 
             uint64_t compactedSize = 0;
@@ -207,9 +208,9 @@ struct BaseRayTracingTest
             createDesc.size = compactedSize;
             device->createAccelerationStructure(createDesc, BLAS.writeRef());
 
-            encoder = queue->createCommandEncoder();
-            encoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
-            queue->submit(encoder->finish());
+            commandEncoder = queue->createCommandEncoder();
+            commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
         }
 
@@ -268,9 +269,9 @@ struct BaseRayTracingTest
             createDesc.size = sizes.accelerationStructureSize;
             REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
 
-            auto encoder = queue->createCommandEncoder();
-            encoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
-            queue->submit(encoder->finish());
+            auto commandEncoder = queue->createCommandEncoder();
+            commandEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
+            queue->submit(commandEncoder->finish());
             queue->waitOnHost();
         }
 
@@ -325,9 +326,9 @@ struct RayTracingTestA : BaseRayTracingTest
 {
     void renderFrame()
     {
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto passEncoder = encoder->beginRayTracingPass();
+        auto passEncoder = commandEncoder->beginRayTracingPass();
         auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
@@ -335,7 +336,7 @@ struct RayTracingTestA : BaseRayTracingTest
         passEncoder->dispatchRays(0, width, height, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -353,9 +354,9 @@ struct RayTracingTestB : BaseRayTracingTest
 {
     void renderFrame()
     {
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto passEncoder = encoder->beginRayTracingPass();
+        auto passEncoder = commandEncoder->beginRayTracingPass();
         auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
         cursor["resultTexture"].setBinding(resultTexture);
@@ -363,7 +364,7 @@ struct RayTracingTestB : BaseRayTracingTest
         passEncoder->dispatchRays(1, width, height, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -390,24 +391,10 @@ void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("ray-tracing-a")
 {
-    runGpuTests(
-        testRayTracing<RayTracingTestA>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::CUDA,
-        }
-    );
+    runGpuTests(testRayTracing<RayTracingTestA>);
 }
 
 TEST_CASE("ray-tracing-b")
 {
-    runGpuTests(
-        testRayTracing<RayTracingTestB>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::CUDA,
-        }
-    );
+    runGpuTests(testRayTracing<RayTracingTestB>);
 }

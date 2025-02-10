@@ -192,6 +192,8 @@ struct TextureInfo : RefObject
 
     std::vector<RefPtr<ValidationTextureData>> subresourceObjects;
     std::vector<SubresourceData> subresourceDatas;
+
+    ~TextureInfo();
 };
 
 Size getTexelSize(Format format);

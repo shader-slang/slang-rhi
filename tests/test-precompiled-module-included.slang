@@ -1,4 +1,4 @@
-implementing "precompiled-module-imported";
+implementing "test-precompiled-module-imported";
 
 namespace ns
 {

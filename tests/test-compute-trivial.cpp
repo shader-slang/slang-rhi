@@ -34,33 +34,25 @@ void testComputeTrivial(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto passEncoder = encoder->beginComputePass();
+        auto passEncoder = commandEncoder->beginComputePass();
         auto rootObject = passEncoder->bindPipeline(pipeline);
-        ShaderCursor(rootObject)["buffer"].setBinding(buffer);
+        ShaderCursor shaderCursor(rootObject);
+        shaderCursor["buffer"].setBinding(buffer);
+        float value = 10.f;
+        shaderCursor["value"].setData(value);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, buffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
+    compareComputeResult(device, buffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
 }
 
 TEST_CASE("compute-trivial")
 {
-    runGpuTests(
-        testComputeTrivial,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-            DeviceType::WGPU,
-        }
-    );
+    runGpuTests(testComputeTrivial);
 }
