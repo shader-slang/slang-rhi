@@ -1,6 +1,6 @@
-module "precompiled-module-imported";
+module "test-precompiled-module-imported";
 
-__include "precompiled-module-included.slang";
+__include "test-precompiled-module-included.slang";
 
 namespace ns
 {

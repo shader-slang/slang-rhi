@@ -1,5 +1,6 @@
 #include "metal-device.h"
 #include "../resource-desc-utils.h"
+#include "metal-command.h"
 #include "metal-buffer.h"
 #include "metal-shader-program.h"
 #include "metal-texture.h"
@@ -18,6 +19,8 @@
 #include <vector>
 
 namespace rhi::metal {
+
+DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
@@ -309,19 +312,12 @@ Result DeviceImpl::createShaderProgram(
 
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
-
-    RootShaderObjectLayoutImpl::create(
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
         this,
         shaderProgram->linkedProgram,
         shaderProgram->linkedProgram->getLayout(),
         shaderProgram->m_rootObjectLayout.writeRef()
-    );
-
-    if (!shaderProgram->isSpecializable())
-    {
-        SLANG_RETURN_ON_FAIL(shaderProgram->compileShaders(this));
-    }
-
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
@@ -340,30 +336,13 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    AUTORELEASEPOOL
-
-    RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
-    );
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    AUTORELEASEPOOL
-
-    RefPtr<RootShaderObjectImpl> rootObject;
-    SLANG_RETURN_ON_FAIL(RootShaderObjectImpl::create(
-        this,
-        checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout,
-        rootObject.writeRef()
-    ));
-    returnComPtr(outObject, rootObject);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)

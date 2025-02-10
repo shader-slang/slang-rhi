@@ -55,8 +55,6 @@ typedef SlangResult Result;
 
 // Had to move here, because Options needs types defined here
 typedef uint64_t DeviceAddress;
-typedef int GfxIndex;
-typedef int GfxCount;
 typedef size_t Size;
 typedef size_t Offset;
 
@@ -1081,10 +1079,9 @@ public:
 
 struct ShaderOffset
 {
-    SlangInt uniformOffset = 0; // TODO: Change to Offset?
-    GfxIndex bindingRangeIndex = 0;
-    GfxIndex bindingArrayIndex = 0;
-    uint32_t getHashCode() const { return (uint32_t)(((bindingRangeIndex << 20) + bindingArrayIndex) ^ uniformOffset); }
+    uint32_t uniformOffset = 0;
+    uint32_t bindingRangeIndex = 0;
+    uint32_t bindingArrayIndex = 0;
     bool operator==(const ShaderOffset& other) const
     {
         return uniformOffset == other.uniformOffset && bindingRangeIndex == other.bindingRangeIndex &&
@@ -1174,10 +1171,10 @@ class IShaderObject : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() = 0;
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() = 0;
-    virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** entryPoint) = 0;
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** object) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) = 0;
 
@@ -1185,7 +1182,7 @@ public:
     /// Specialization arguments are passed to the shader compiler to specialize the type
     /// of interface-typed shader parameters.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, GfxCount count) = 0;
+    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, uint32_t count) = 0;
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() = 0;
 
@@ -1194,8 +1191,8 @@ public:
     /// Use the provided constant buffer instead of the internally created one.
     virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) = 0;
 
-    /// Finalizes the shader object, preparing it for use.
-    /// This function must be called after all data has been set on the shader object.
+    /// Finalizes the shader object. No further modifications are allowed after this.
+    /// Optimizes shader objects for use in multiple passes.
     virtual SLANG_NO_THROW Result SLANG_MCALL finalize() = 0;
 
     /// Returns true if the shader object has been finalized.
@@ -1207,7 +1204,8 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(getObject(offset, object.writeRef()));
         return object;
     }
-    inline ComPtr<IShaderObject> getEntryPoint(GfxIndex index)
+
+    inline ComPtr<IShaderObject> getEntryPoint(uint32_t index)
     {
         ComPtr<IShaderObject> entryPoint = nullptr;
         SLANG_RETURN_NULL_ON_FAIL(getEntryPoint(index, entryPoint.writeRef()));
@@ -1661,8 +1659,6 @@ struct SamplePosition
 
 struct RenderState
 {
-    IRenderPipeline* pipeline = nullptr;
-    IShaderObject* rootObject = nullptr;
     uint32_t stencilRef = 0;
     Viewport viewports[16];
     uint32_t viewportCount = 0;
@@ -1672,19 +1668,6 @@ struct RenderState
     uint32_t vertexBufferCount = 0;
     BufferWithOffset indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
-};
-
-struct ComputeState
-{
-    IComputePipeline* pipeline = nullptr;
-    IShaderObject* rootObject = nullptr;
-};
-
-struct RayTracingState
-{
-    IRayTracingPipeline* pipeline = nullptr;
-    IShaderTable* shaderTable = nullptr;
-    IShaderObject* rootObject = nullptr;
 };
 
 enum class AccelerationStructureCopyMode
@@ -1792,6 +1775,9 @@ class IRenderPassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x4f904e1a, 0xa5ed, 0x4496, {0xaa, 0xc6, 0xde, 0xcf, 0x68, 0x1e, 0x6c, 0x74});
 
 public:
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IRenderPipeline* pipeline) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
@@ -1817,7 +1803,9 @@ class IComputePassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x8479334f, 0xfb45, 0x471c, {0xb7, 0x75, 0x94, 0xa5, 0x76, 0x72, 0x32, 0xc8});
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) = 0;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) = 0;
 };
@@ -1827,7 +1815,11 @@ class IRayTracingPassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x4fe41081, 0x819c, 0x4fdc, {0x80, 0x78, 0x40, 0x31, 0x9c, 0x01, 0xff, 0xad});
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) = 0;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL
+    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable, IShaderObject* rootObject) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) = 0;
 };
@@ -2037,6 +2029,13 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() = 0;
+
+    ComPtr<ITexture> getCurrentTexture()
+    {
+        ComPtr<ITexture> texture;
+        SLANG_RETURN_NULL_ON_FAIL(getCurrentTexture(texture.writeRef()));
+        return texture;
+    }
 };
 
 struct AdapterLUID
@@ -2400,6 +2399,15 @@ public:
         ShaderObjectContainerType container,
         IShaderObject** outObject
     ) = 0;
+
+    inline Result createShaderObject(
+        slang::TypeReflection* type,
+        ShaderObjectContainerType container,
+        IShaderObject** outObject
+    )
+    {
+        return createShaderObject(getSlangSession(), type, container, outObject);
+    }
 
     inline ComPtr<IShaderObject> createShaderObject(
         slang::TypeReflection* type,

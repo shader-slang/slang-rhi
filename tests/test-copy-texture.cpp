@@ -120,9 +120,9 @@ struct BaseCopyTextureTest
     void submitGPUWork()
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        encoder->copyTexture(
+        commandEncoder->copyTexture(
             dstTexture,
             texCopyInfo.dstSubresource,
             texCopyInfo.dstOffset,
@@ -132,7 +132,7 @@ struct BaseCopyTextureTest
             texCopyInfo.extent
         );
 
-        encoder->copyTextureToBuffer(
+        commandEncoder->copyTextureToBuffer(
             resultsBuffer,
             bufferCopyInfo.bufferOffset,
             bufferCopyInfo.bufferSize,
@@ -143,7 +143,7 @@ struct BaseCopyTextureTest
             bufferCopyInfo.extent
         );
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

@@ -16,14 +16,14 @@ BufferImpl::~BufferImpl()
     {
         if (srv.second)
         {
-            m_device->m_cpuViewHeap->free(srv.second);
+            m_device->m_cpuCbvSrvUavHeap->free(srv.second);
         }
     }
     for (auto& uav : m_uavs)
     {
         if (uav.second)
         {
-            m_device->m_cpuViewHeap->free(uav.second);
+            m_device->m_cpuCbvSrvUavHeap->free(uav.second);
         }
     }
 
@@ -70,12 +70,12 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
-D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
+D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
 {
     ViewKey key = {format, stride, range, nullptr};
-    D3D12Descriptor& descriptor = m_srvs[key];
-    if (descriptor)
-        return descriptor;
+    CPUDescriptorAllocation& allocation = m_srvs[key];
+    if (allocation)
+        return allocation.cpuHandle;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
     viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -102,18 +102,23 @@ D3D12Descriptor BufferImpl::getSRV(Format format, uint32_t stride, const BufferR
         viewDesc.Buffer.NumElements = UINT(range.size / formatInfo.blockSizeInBytes);
     }
 
-    m_device->m_cpuViewHeap->allocate(&descriptor);
-    m_device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, descriptor.cpuHandle);
+    allocation = m_device->m_cpuCbvSrvUavHeap->allocate();
+    m_device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
 
-    return descriptor;
+    return allocation.cpuHandle;
 }
 
-D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferRange& range, BufferImpl* counter)
+D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
+    Format format,
+    uint32_t stride,
+    const BufferRange& range,
+    BufferImpl* counter
+)
 {
     ViewKey key = {format, stride, range, counter};
-    D3D12Descriptor& descriptor = m_uavs[key];
-    if (descriptor)
-        return descriptor;
+    CPUDescriptorAllocation& allocation = m_uavs[key];
+    if (allocation)
+        return allocation.cpuHandle;
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
     viewDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -139,12 +144,12 @@ D3D12Descriptor BufferImpl::getUAV(Format format, uint32_t stride, const BufferR
         viewDesc.Buffer.NumElements = UINT(range.size / formatInfo.blockSizeInBytes);
     }
 
-    m_device->m_cpuViewHeap->allocate(&descriptor);
+    allocation = m_device->m_cpuCbvSrvUavHeap->allocate();
     ID3D12Resource* counterResource = counter ? counter->m_resource.getResource() : nullptr;
     m_device->m_device
-        ->CreateUnorderedAccessView(m_resource.getResource(), counterResource, &viewDesc, descriptor.cpuHandle);
+        ->CreateUnorderedAccessView(m_resource.getResource(), counterResource, &viewDesc, allocation.cpuHandle);
 
-    return descriptor;
+    return allocation.cpuHandle;
 }
 
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)

@@ -1,14 +1,56 @@
 #pragma once
 
 #include "metal-base.h"
-#include "metal-helper-functions.h"
 
 #include <vector>
 
 namespace rhi::metal {
 
+/// A "simple" binding offset that records an offset in buffer/texture/sampler slots
+struct BindingOffset
+{
+    uint32_t buffer = 0;
+    uint32_t texture = 0;
+    uint32_t sampler = 0;
+
+    /// Create a default (zero) offset
+    BindingOffset() = default;
+
+    /// Create an offset based on offset information in the given Slang `varLayout`
+    BindingOffset(slang::VariableLayoutReflection* varLayout)
+    {
+        if (varLayout)
+        {
+            buffer = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_METAL_BUFFER);
+            texture = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_METAL_TEXTURE);
+            sampler = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_METAL_SAMPLER);
+        }
+    }
+
+    /// Create an offset based on size/stride information in the given Slang `typeLayout`
+    BindingOffset(slang::TypeLayoutReflection* typeLayout)
+    {
+        if (typeLayout)
+        {
+            buffer = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_METAL_BUFFER);
+            texture = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_METAL_TEXTURE);
+            sampler = (uint32_t)typeLayout->getSize(SLANG_PARAMETER_CATEGORY_METAL_SAMPLER);
+        }
+    }
+
+    /// Add any values in the given `offset`
+    void operator+=(const BindingOffset& offset)
+    {
+        buffer += offset.buffer;
+        texture += offset.texture;
+        sampler += offset.sampler;
+    }
+};
+
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
+    using Super = ShaderObjectLayout;
+
 public:
     // A shader object comprises three main kinds of state:
     //
@@ -25,27 +67,10 @@ public:
     // ranges in a form that is usable for the Metal API:
 
     /// Information about a logical binding range as reported by Slang reflection
-    struct BindingRangeInfo
+    struct BindingRangeInfo : Super::BindingRangeInfo
     {
-        /// The type of bindings in this range
-        slang::BindingType bindingType;
-
-        /// The number of bindings in this range
-        Index count;
-
-        /// The starting index for this range in the appropriate "flat" array in a shader object.
-        /// E.g., for a buffers range, this would be an index into the `m_buffers` array.
-        Index baseIndex;
-
         /// The offset of this binding range from the start of the sub-object.
         uint32_t registerOffset;
-
-        /// An index into the sub-object array if this binding range is treated
-        /// as a sub-object.
-        Index subObjectIndex;
-
-        /// TODO remove this once specialization is removed
-        bool isSpecializable = false;
     };
 
     // Sometimes we just want to iterate over the ranges that represent
@@ -78,11 +103,8 @@ public:
     };
 
     /// Information about a logical binding range as reported by Slang reflection
-    struct SubObjectRangeInfo
+    struct SubObjectRangeInfo : Super::SubObjectRangeInfo
     {
-        /// The index of the binding range that corresponds to this sub-object range
-        Index bindingRangeIndex;
-
         /// The layout expected for objects bound to this range (if known)
         RefPtr<ShaderObjectLayoutImpl> layout;
 
@@ -93,6 +115,56 @@ public:
         SubObjectRangeStride stride;
     };
 
+    uint32_t m_slotCount = 0;
+    uint32_t m_subObjectCount = 0;
+    uint32_t m_totalOrdinaryDataSize = 0;
+    BindingOffset m_resourceCount;
+    BindingOffset m_totalResourceCount;
+
+    std::vector<BindingRangeInfo> m_bindingRanges;
+    std::vector<SubObjectRangeInfo> m_subObjectRanges;
+
+    // The type layout to use when the shader object is bind as a parameter block.
+    slang::TypeLayoutReflection* m_parameterBlockTypeLayout = nullptr;
+
+    static Result createForElementType(
+        Device* device,
+        slang::ISession* session,
+        slang::TypeLayoutReflection* elementType,
+        ShaderObjectLayoutImpl** outLayout
+    );
+
+    uint32_t getTotalBufferCount() { return m_totalResourceCount.buffer; }
+    uint32_t getTotalTextureCount() { return m_totalResourceCount.texture; }
+    uint32_t getTotalSamplerCount() { return m_totalResourceCount.sampler; }
+
+    Device* getDevice() { return m_device; }
+
+    slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
+
+    uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
+
+    slang::TypeLayoutReflection* getParameterBlockTypeLayout();
+
+    // ShaderObjectLayout interface
+    virtual uint32_t getSlotCount() const override { return m_slotCount; }
+    virtual uint32_t getSubObjectCount() const override { return m_subObjectCount; }
+
+    virtual uint32_t getBindingRangeCount() const override { return m_bindingRanges.size(); }
+    virtual const BindingRangeInfo& getBindingRange(uint32_t index) const override { return m_bindingRanges[index]; }
+
+    virtual uint32_t getSubObjectRangeCount() const override { return m_subObjectRanges.size(); }
+    virtual const SubObjectRangeInfo& getSubObjectRange(uint32_t index) const override
+    {
+        return m_subObjectRanges[index];
+    }
+    virtual ShaderObjectLayout* getSubObjectRangeLayout(uint32_t index) const override
+    {
+        return m_subObjectRanges[index].layout;
+    }
+
+
+protected:
     struct Builder
     {
     public:
@@ -109,20 +181,10 @@ public:
         std::vector<BindingRangeInfo> m_bindingRanges;
         std::vector<SubObjectRangeInfo> m_subObjectRanges;
 
-        /// The indices of the binding ranges that represent buffers
-        std::vector<Index> m_bufferRanges;
-
-        /// The indices of the binding ranges that represent textures
-        std::vector<Index> m_textureRanges;
-
-        /// The indices of the binding ranges that represent samplers
-        std::vector<Index> m_samplerRanges;
-
-        Index m_bufferCount = 0;
-        Index m_textureCount = 0;
-        Index m_samplerCount = 0;
-        Index m_subObjectCount = 0;
-
+        uint32_t m_slotCount = 0;
+        uint32_t m_subObjectCount = 0;
+        BindingOffset m_resourceCount;
+        BindingOffset m_totalResourceCount;
         uint32_t m_totalOrdinaryDataSize = 0;
 
         /// The container type of this shader object. When `m_containerType` is
@@ -134,59 +196,7 @@ public:
         Result build(ShaderObjectLayoutImpl** outLayout);
     };
 
-    static Result createForElementType(
-        Device* device,
-        slang::ISession* session,
-        slang::TypeLayoutReflection* elementType,
-        ShaderObjectLayoutImpl** outLayout
-    );
-
-    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
-
-    Index getBindingRangeCount() { return m_bindingRanges.size(); }
-
-    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
-
-    Index getBufferCount() { return m_bufferCount; }
-    Index getTextureCount() { return m_textureCount; }
-    Index getSamplerCount() { return m_samplerCount; }
-    Index getSubObjectCount() { return m_subObjectCount; }
-
-    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
-
-    Device* getDevice() { return m_device; }
-
-    slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
-
-    /// Get the indices that represent all the buffer ranges in this type
-    const std::vector<Index>& getBufferRanges() const { return m_bufferRanges; }
-
-    /// Get the indices that reprsent all the texture ranges in this type
-    const std::vector<Index>& getTextureRanges() const { return m_textureRanges; }
-
-    /// Get the indices that represnet all the sampler ranges in this type
-    const std::vector<Index>& getSamplerRanges() const { return m_samplerRanges; }
-
-    uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
-
-    slang::TypeLayoutReflection* getParameterBlockTypeLayout();
-
-protected:
     Result _init(const Builder* builder);
-
-    std::vector<BindingRangeInfo> m_bindingRanges;
-    std::vector<Index> m_bufferRanges;
-    std::vector<Index> m_textureRanges;
-    std::vector<Index> m_samplerRanges;
-    Index m_bufferCount = 0;
-    Index m_textureCount = 0;
-    Index m_samplerCount = 0;
-    Index m_subObjectCount = 0;
-    uint32_t m_totalOrdinaryDataSize = 0;
-    std::vector<SubObjectRangeInfo> m_subObjectRanges;
-    // The type layout to use when the shader object is bind as a parameter block.
-    slang::TypeLayoutReflection* m_parameterBlockTypeLayout = nullptr;
 };
 
 class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
@@ -194,7 +204,7 @@ class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
     typedef ShaderObjectLayoutImpl Super;
 
 public:
-    struct EntryPointInfo
+    struct EntryPointInfo : Super::EntryPointInfo
     {
         RefPtr<ShaderObjectLayoutImpl> layout;
 
@@ -202,6 +212,34 @@ public:
         BindingOffset offset;
     };
 
+    ComPtr<slang::IComponentType> m_program;
+    slang::ProgramLayout* m_programLayout = nullptr;
+
+    std::vector<EntryPointInfo> m_entryPoints;
+
+    EntryPointInfo& getEntryPoint(uint32_t index) { return m_entryPoints[index]; }
+
+    std::vector<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
+
+    static Result create(
+        Device* device,
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        RootShaderObjectLayoutImpl** outLayout
+    );
+
+    slang::IComponentType* getSlangProgram() const { return m_program; }
+    slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
+
+    // ShaderObjectLayout interface
+    virtual uint32_t getEntryPointCount() const override { return (uint32_t)m_entryPoints.size(); }
+    virtual const EntryPointInfo& getEntryPoint(uint32_t index) const override { return m_entryPoints[index]; }
+    virtual ShaderObjectLayout* getEntryPointLayout(uint32_t index) const override
+    {
+        return m_entryPoints[index].layout;
+    }
+
+protected:
     struct Builder : Super::Builder
     {
         Builder(Device* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
@@ -224,27 +262,7 @@ public:
         std::vector<EntryPointInfo> m_entryPoints;
     };
 
-    EntryPointInfo& getEntryPoint(Index index) { return m_entryPoints[index]; }
-
-    std::vector<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
-
-    static Result create(
-        Device* device,
-        slang::IComponentType* program,
-        slang::ProgramLayout* programLayout,
-        RootShaderObjectLayoutImpl** outLayout
-    );
-
-    slang::IComponentType* getSlangProgram() const { return m_program; }
-    slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
-
-protected:
     Result _init(const Builder* builder);
-
-    ComPtr<slang::IComponentType> m_program;
-    slang::ProgramLayout* m_programLayout = nullptr;
-
-    std::vector<EntryPointInfo> m_entryPoints;
 };
 
 } // namespace rhi::metal

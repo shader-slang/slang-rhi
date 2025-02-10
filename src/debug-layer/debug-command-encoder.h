@@ -15,8 +15,12 @@ public:
 
 public:
     DebugCommandEncoder* m_commandEncoder;
+    RefPtr<DebugRootShaderObject> m_rootObject;
 
     DebugRenderPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
+
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IRenderPipeline* pipeline) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
@@ -54,10 +58,14 @@ public:
 
 public:
     DebugCommandEncoder* m_commandEncoder;
+    RefPtr<DebugRootShaderObject> m_rootObject;
 
     DebugComputePassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
 
-    virtual SLANG_NO_THROW void SLANG_MCALL setComputeState(const ComputeState& state) override;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) override;
 
@@ -78,10 +86,15 @@ public:
 
 public:
     DebugCommandEncoder* m_commandEncoder;
+    RefPtr<DebugRootShaderObject> m_rootObject;
 
     DebugRayTracingPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
 
-    virtual SLANG_NO_THROW void SLANG_MCALL setRayTracingState(const RayTracingState& state) override;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL
+    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable, IShaderObject* rootObject) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) override;
 

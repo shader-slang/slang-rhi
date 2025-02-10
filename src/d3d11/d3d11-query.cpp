@@ -1,4 +1,5 @@
 #include "d3d11-query.h"
+#include "d3d11-device.h"
 
 #include <thread>
 

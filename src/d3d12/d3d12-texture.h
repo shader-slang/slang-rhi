@@ -48,15 +48,35 @@ public:
         }
     };
 
-    std::unordered_map<ViewKey, D3D12Descriptor, ViewKeyHasher> m_srvs;
-    std::unordered_map<ViewKey, D3D12Descriptor, ViewKeyHasher> m_uavs;
-    std::unordered_map<ViewKey, D3D12Descriptor, ViewKeyHasher> m_rtvs;
-    std::unordered_map<ViewKey, D3D12Descriptor, ViewKeyHasher> m_dsvs;
+    std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_srvs;
+    std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_uavs;
+    std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_rtvs;
+    std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_dsvs;
 
-    D3D12Descriptor getSRV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
-    D3D12Descriptor getUAV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
-    D3D12Descriptor getRTV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
-    D3D12Descriptor getDSV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range);
+    D3D12_CPU_DESCRIPTOR_HANDLE getSRV(
+        Format format,
+        TextureType type,
+        TextureAspect aspect,
+        const SubresourceRange& range
+    );
+    D3D12_CPU_DESCRIPTOR_HANDLE getUAV(
+        Format format,
+        TextureType type,
+        TextureAspect aspect,
+        const SubresourceRange& range
+    );
+    D3D12_CPU_DESCRIPTOR_HANDLE getRTV(
+        Format format,
+        TextureType type,
+        TextureAspect aspect,
+        const SubresourceRange& range
+    );
+    D3D12_CPU_DESCRIPTOR_HANDLE getDSV(
+        Format format,
+        TextureType type,
+        TextureAspect aspect,
+        const SubresourceRange& range
+    );
 };
 
 class TextureViewImpl : public TextureView
@@ -71,16 +91,16 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
-    D3D12Descriptor getSRV();
-    D3D12Descriptor getUAV();
-    D3D12Descriptor getRTV();
-    D3D12Descriptor getDSV();
+    D3D12_CPU_DESCRIPTOR_HANDLE getSRV();
+    D3D12_CPU_DESCRIPTOR_HANDLE getUAV();
+    D3D12_CPU_DESCRIPTOR_HANDLE getRTV();
+    D3D12_CPU_DESCRIPTOR_HANDLE getDSV();
 
 private:
-    D3D12Descriptor m_srv = {};
-    D3D12Descriptor m_uav = {};
-    D3D12Descriptor m_rtv = {};
-    D3D12Descriptor m_dsv = {};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_srv = {};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_uav = {};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_rtv = {};
+    D3D12_CPU_DESCRIPTOR_HANDLE m_dsv = {};
 };
 
 } // namespace rhi::d3d12

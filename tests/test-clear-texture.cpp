@@ -13,8 +13,10 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
     textureDesc.size.width = 4;
     textureDesc.size.height = 4;
     textureDesc.size.depth = 1;
-    textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource | TextureUsage::CopyDestination;
-    textureDesc.defaultState = ResourceState::RenderTarget;
+    // textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    // textureDesc.defaultState = ResourceState::RenderTarget;
+    textureDesc.defaultState = ResourceState::UnorderedAccess;
     textureDesc.format = Format::R32G32B32A32_FLOAT;
 
     ComPtr<ITexture> texture;
@@ -22,14 +24,16 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
+
         ClearValue clearValue = {};
         clearValue.color.floatValues[0] = 0.5f;
         clearValue.color.floatValues[1] = 1.0f;
         clearValue.color.floatValues[2] = 0.2f;
         clearValue.color.floatValues[3] = 0.1f;
-        encoder->clearTexture(texture, clearValue);
-        queue->submit(encoder->finish());
+        commandEncoder->clearTexture(texture, clearValue);
+
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
 
         ComPtr<ISlangBlob> blob;
@@ -49,7 +53,7 @@ TEST_CASE("clear-texture")
     runGpuTests(
         testClearTexture,
         {
-            // DeviceType::D3D12, TODO: implement
+            DeviceType::D3D12,
             DeviceType::Vulkan,
         }
     );

@@ -31,10 +31,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
-    if (program->m_stageCreateInfos.empty())
-    {
-        SLANG_RETURN_ON_FAIL(program->compileShaders(this));
-    }
+    SLANG_RHI_ASSERT(!program->m_stageCreateInfos.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
 
     // VertexBuffer/s
@@ -216,7 +213,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     createInfo.pMultisampleState = &multisampling;
     createInfo.pColorBlendState = &colorBlending;
     createInfo.pDepthStencilState = &depthStencilStateInfo;
-    createInfo.layout = program->m_rootObjectLayout->m_pipelineLayout;
+    createInfo.layout = program->m_rootShaderObjectLayout->m_pipelineLayout;
     createInfo.subpass = 0;
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.pDynamicState = &dynamicStateInfo;
@@ -241,7 +238,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
     pipeline->m_device = this;
     pipeline->m_program = program;
-    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+    pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -265,16 +262,12 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
-    if (program->m_stageCreateInfos.empty())
-    {
-        SLANG_RETURN_ON_FAIL(program->compileShaders(this));
-    }
-
+    SLANG_RHI_ASSERT(!program->m_stageCreateInfos.empty());
     VkPipeline vkPipeline = VK_NULL_HANDLE;
 
     VkComputePipelineCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     createInfo.stage = program->m_stageCreateInfos[0];
-    createInfo.layout = program->m_rootObjectLayout->m_pipelineLayout;
+    createInfo.layout = program->m_rootShaderObjectLayout->m_pipelineLayout;
 
     if (m_pipelineCreationAPIDispatcher)
     {
@@ -294,7 +287,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
     pipeline->m_device = this;
     pipeline->m_program = program;
-    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+    pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
@@ -334,10 +327,7 @@ inline uint32_t findEntryPointIndexByName(
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
-    if (program->m_stageCreateInfos.empty())
-    {
-        SLANG_RETURN_ON_FAIL(program->compileShaders(this));
-    }
+    SLANG_RHI_ASSERT(!program->m_stageCreateInfos.empty());
 
     VkRayTracingPipelineCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
     createInfo.pNext = nullptr;
@@ -414,7 +404,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
     createInfo.pDynamicState = nullptr;
 
-    createInfo.layout = program->m_rootObjectLayout->m_pipelineLayout;
+    createInfo.layout = program->m_rootShaderObjectLayout->m_pipelineLayout;
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.basePipelineIndex = 0;
 
@@ -443,7 +433,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
     pipeline->m_device = this;
     pipeline->m_program = program;
-    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+    pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
     pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
     pipeline->m_shaderGroupCount = shaderGroupInfos.size();

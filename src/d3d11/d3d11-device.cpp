@@ -13,7 +13,6 @@
 #include "d3d11-command.h"
 
 #include "core/string.h"
-#include "core/deferred.h"
 
 #if SLANG_RHI_ENABLE_AFTERMATH
 #include "GFSDK_Aftermath.h"
@@ -22,6 +21,10 @@
 #endif
 
 namespace rhi::d3d11 {
+
+DeviceImpl::DeviceImpl() {}
+
+DeviceImpl::~DeviceImpl() {}
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
@@ -195,6 +198,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
         // Check we have a swap chain, context and device
         SLANG_RHI_ASSERT(m_immediateContext && m_device);
+
+        SLANG_RETURN_ON_FAIL(m_immediateContext->QueryInterface(m_immediateContext1.writeRef()));
 
         ComPtr<IDXGIDevice> dxgiDevice;
         if (m_device->QueryInterface(dxgiDevice.writeRef()) == 0)
@@ -440,190 +445,20 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-#if 0
-void* DeviceImpl::map(IBuffer* bufferIn, MapFlavor flavor)
-{
-    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(bufferIn);
-
-    D3D11_MAP mapType;
-    ID3D11Buffer* buffer = bufferImpl->m_buffer;
-
-    switch (flavor)
-    {
-    case MapFlavor::WriteDiscard:
-        mapType = D3D11_MAP_WRITE_DISCARD;
-        break;
-    case MapFlavor::HostWrite:
-        mapType = D3D11_MAP_WRITE_NO_OVERWRITE;
-        break;
-    case MapFlavor::HostRead:
-        mapType = D3D11_MAP_READ;
-        break;
-    default:
-        return nullptr;
-    }
-
-    bufferImpl->m_mapFlavor = flavor;
-
-    switch (flavor)
-    {
-    case MapFlavor::WriteDiscard:
-    case MapFlavor::HostWrite:
-        // If buffer is not dynamic, we need to use staging buffer.
-        if (bufferImpl->m_d3dUsage != D3D11_USAGE_DYNAMIC)
-        {
-            bufferImpl->m_uploadStagingBuffer.resize(bufferImpl->m_desc.size);
-            return bufferImpl->m_uploadStagingBuffer.data();
-        }
-        break;
-    case MapFlavor::HostRead:
-        buffer = bufferImpl->m_staging;
-        if (!buffer)
-        {
-            return nullptr;
-        }
-
-        // Okay copy the data over
-        m_immediateContext->CopyResource(buffer, bufferImpl->m_buffer);
-    }
-
-    // We update our constant buffer per-frame, just for the purposes
-    // of the example, but we don't actually load different data
-    // per-frame (we always use an identity projection).
-    D3D11_MAPPED_SUBRESOURCE mappedSub;
-    SLANG_RETURN_NULL_ON_FAIL(m_immediateContext->Map(buffer, 0, mapType, 0, &mappedSub));
-
-    return mappedSub.pData;
-}
-
-void DeviceImpl::unmap(IBuffer* bufferIn, size_t offsetWritten, size_t sizeWritten)
-{
-    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(bufferIn);
-    switch (bufferImpl->m_mapFlavor)
-    {
-    case MapFlavor::WriteDiscard:
-    case MapFlavor::HostWrite:
-        // If buffer is not dynamic, the CPU has already written to the staging buffer,
-        // and we need to copy the content over to the GPU buffer.
-        if (bufferImpl->m_d3dUsage != D3D11_USAGE_DYNAMIC && sizeWritten != 0)
-        {
-            D3D11_BOX dstBox = {};
-            dstBox.left = (UINT)offsetWritten;
-            dstBox.right = (UINT)(offsetWritten + sizeWritten);
-            dstBox.back = 1;
-            dstBox.bottom = 1;
-            m_immediateContext->UpdateSubresource(
-                bufferImpl->m_buffer,
-                0,
-                &dstBox,
-                bufferImpl->m_uploadStagingBuffer.data() + offsetWritten,
-                0,
-                0
-            );
-            return;
-        }
-    }
-    m_immediateContext->Unmap(
-        bufferImpl->m_mapFlavor == MapFlavor::HostRead ? bufferImpl->m_staging : bufferImpl->m_buffer,
-        0
-    );
-}
-#endif
-
 Result DeviceImpl::createShaderProgram(
     const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
     ISlangBlob** outDiagnosticBlob
 )
 {
-    SLANG_RHI_ASSERT(desc.slangGlobalScope);
-
-    if (desc.slangGlobalScope->getSpecializationParamCount() != 0)
-    {
-        // For a specializable program, we don't invoke any actual slang compilation yet.
-        RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
-        shaderProgram->init(desc);
-        returnComPtr(outProgram, shaderProgram);
-        return SLANG_OK;
-    }
-
-    // If the program is already specialized, compile and create shader kernels now.
-    SlangInt targetIndex = 0;
-    auto slangGlobalScope = desc.slangGlobalScope;
-    auto programLayout = slangGlobalScope->getLayout(targetIndex);
-    if (!programLayout)
-        return SLANG_FAIL;
-    SlangUInt entryPointCount = programLayout->getEntryPointCount();
-    if (entryPointCount == 0)
-        return SLANG_FAIL;
-
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
-    shaderProgram->slangGlobalScope = desc.slangGlobalScope;
-
-#if SLANG_RHI_ENABLE_NVAPI
-    if (m_nvapiShaderExtension)
-    {
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, m_nvapiShaderExtension.uavSlot));
-        SLANG_RHI_DEFERRED({ SLANG_RHI_NVAPI_CHECK(NvAPI_D3D11_SetNvShaderExtnSlot(m_device, ~0)); });
-    }
-#endif // SLANG_RHI_ENABLE_NVAPI
-    for (SlangUInt i = 0; i < entryPointCount; i++)
-    {
-        ComPtr<ISlangBlob> kernelCode;
-        ComPtr<ISlangBlob> diagnostics;
-
-        auto compileResult = getEntryPointCodeFromShaderCache(
-            slangGlobalScope,
-            (SlangInt)i,
-            0,
-            kernelCode.writeRef(),
-            diagnostics.writeRef()
-        );
-
-        if (diagnostics)
-        {
-            DebugMessageType msgType = DebugMessageType::Warning;
-            if (compileResult != SLANG_OK)
-                msgType = DebugMessageType::Error;
-            handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
-            if (outDiagnosticBlob)
-                returnComPtr(outDiagnosticBlob, diagnostics);
-        }
-
-        SLANG_RETURN_ON_FAIL(compileResult);
-
-        auto entryPoint = programLayout->getEntryPointByIndex(i);
-        switch (entryPoint->getStage())
-        {
-        case SLANG_STAGE_COMPUTE:
-            SLANG_RHI_ASSERT(entryPointCount == 1);
-            SLANG_RETURN_ON_FAIL(m_device->CreateComputeShader(
-                kernelCode->getBufferPointer(),
-                kernelCode->getBufferSize(),
-                nullptr,
-                shaderProgram->m_computeShader.writeRef()
-            ));
-            break;
-        case SLANG_STAGE_VERTEX:
-            SLANG_RETURN_ON_FAIL(m_device->CreateVertexShader(
-                kernelCode->getBufferPointer(),
-                kernelCode->getBufferSize(),
-                nullptr,
-                shaderProgram->m_vertexShader.writeRef()
-            ));
-            break;
-        case SLANG_STAGE_FRAGMENT:
-            SLANG_RETURN_ON_FAIL(m_device->CreatePixelShader(
-                kernelCode->getBufferPointer(),
-                kernelCode->getBufferSize(),
-                nullptr,
-                shaderProgram->m_pixelShader.writeRef()
-            ));
-            break;
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Pipeline stage not implemented");
-        }
-    }
+    shaderProgram->init(desc);
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram->linkedProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->m_rootObjectLayout.writeRef()
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
@@ -640,30 +475,13 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
-    );
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    auto programImpl = checked_cast<ShaderProgramImpl*>(program);
-    RefPtr<RootShaderObjectImpl> shaderObject;
-    RefPtr<RootShaderObjectLayoutImpl> rootLayout;
-    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
-        this,
-        programImpl->slangGlobalScope,
-        programImpl->slangGlobalScope->getLayout(),
-        rootLayout.writeRef()
-    ));
-    SLANG_RETURN_ON_FAIL(RootShaderObjectImpl::create(this, rootLayout.Ptr(), shaderObject.writeRef()));
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 } // namespace rhi::d3d11

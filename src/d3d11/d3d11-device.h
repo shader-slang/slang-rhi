@@ -1,15 +1,14 @@
 #pragma once
 
-#include "d3d11-pipeline.h"
-#include "d3d11-shader-object.h"
-#include "d3d11-command.h"
+#include "d3d11-base.h"
 
 namespace rhi::d3d11 {
 
 class DeviceImpl : public Device
 {
 public:
-    ~DeviceImpl() {}
+    DeviceImpl();
+    ~DeviceImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
@@ -37,14 +36,19 @@ public:
         slang::TypeLayoutReflection* typeLayout,
         ShaderObjectLayout** outLayout
     ) override;
-    virtual Result createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject) override;
-    virtual Result createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+
+    virtual Result createRootShaderObjectLayout(
+        slang::IComponentType* program,
+        slang::ProgramLayout* programLayout,
+        ShaderObjectLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
         ISlangBlob** outDiagnosticBlob
     ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -70,6 +74,7 @@ public:
 
     ComPtr<ID3D11Device> m_device;
     ComPtr<ID3D11DeviceContext> m_immediateContext;
+    ComPtr<ID3D11DeviceContext1> m_immediateContext1;
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<ID3D11Query> m_disjointQuery;
 

@@ -1,5 +1,6 @@
 #include "d3d11-sampler.h"
 #include "d3d11-device.h"
+#include "d3d11-helper-functions.h"
 
 namespace rhi::d3d11 {
 

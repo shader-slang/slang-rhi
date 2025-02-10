@@ -51,23 +51,15 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     {
         auto queue = dstDevice->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto rootObject = dstDevice->createRootShaderObject(pipeline);
-        ShaderCursor rootCursor(rootObject);
-        // Bind buffer view to the entry point.
-        rootCursor["buffer"].setBinding(dstBuffer);
-        rootObject->finalize();
-
-        auto passEncoder = encoder->beginComputePass();
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        passEncoder->setComputeState(state);
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
+        ShaderCursor(rootObject)["buffer"].setBinding(dstBuffer);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 

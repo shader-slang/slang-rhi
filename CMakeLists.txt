@@ -361,7 +361,7 @@ elseif(SLANG_RHI_ENABLE_WGPU)
 endif()
 
 # Fetch glfw
-if(SLANG_RHI_BUILD_EXAMPLES)
+if(SLANG_RHI_BUILD_TESTS OR SLANG_RHI_BUILD_EXAMPLES)
     FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -381,6 +381,9 @@ endif()
 # set_target_properties(nanothread PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
+if(MSVC)
+    target_compile_options(slang-rhi PRIVATE /W4 /WX /wd4267 /wd4244 /wd4100 /wd4018 /wd4245 /wd4702 /wd4127 /wd4389)
+endif()
 
 target_sources(slang-rhi PRIVATE
     src/command-list.cpp
@@ -422,6 +425,7 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-query.cpp
         src/cpu/cpu-shader-object-layout.cpp
         src/cpu/cpu-shader-object.cpp
+        src/cpu/cpu-shader-program.cpp
         src/cpu/cpu-texture.cpp
     )
 endif()
@@ -437,6 +441,7 @@ if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
         src/d3d11/d3d11-buffer.cpp
         src/d3d11/d3d11-command.cpp
+        src/d3d11/d3d11-constant-buffer-pool.cpp
         src/d3d11/d3d11-device.cpp
         src/d3d11/d3d11-helper-functions.cpp
         src/d3d11/d3d11-input-layout.cpp
@@ -456,6 +461,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-acceleration-structure.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
+        src/d3d12/d3d12-constant-buffer-pool.cpp
         src/d3d12/d3d12-descriptor-heap.cpp
         src/d3d12/d3d12-device.cpp
         src/d3d12/d3d12-fence.cpp
@@ -469,7 +475,6 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-shader-object.cpp
         src/d3d12/d3d12-shader-program.cpp
         src/d3d12/d3d12-shader-table.cpp
-        src/d3d12/d3d12-submitter.cpp
         src/d3d12/d3d12-surface.cpp
         src/d3d12/d3d12-texture.cpp
     )
@@ -481,6 +486,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-api.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
+        src/vulkan/vk-constant-buffer-pool.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
@@ -536,6 +542,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-api.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-command.cpp
+        src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-pipeline.cpp
@@ -553,6 +560,7 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-api.cpp
         src/wgpu/wgpu-buffer.cpp
         src/wgpu/wgpu-command.cpp
+        src/wgpu/wgpu-constant-buffer-pool.cpp
         src/wgpu/wgpu-device.cpp
         src/wgpu/wgpu-fence.cpp
         src/wgpu/wgpu-helper-functions.cpp
@@ -600,6 +608,7 @@ if(SLANG_RHI_BUILD_TESTS)
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
+        tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
         tests/test-clear-texture.cpp
         tests/test-compute-smoke.cpp
@@ -610,26 +619,25 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-existing-device-handle.cpp
         tests/test-formats.cpp
         tests/test-instanced-draw.cpp
-        # tests/test-link-time-constant.cpp
-        # tests/test-link-time-default.cpp
-        # tests/test-link-time-options.cpp
-        # tests/test-link-time-type.cpp
+        tests/test-link-time-constant.cpp
+        tests/test-link-time-default.cpp
+        tests/test-link-time-options.cpp
+        tests/test-link-time-type.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-offset-allocator.cpp
-        # tests/test-precompiled-module-2.cpp
         # tests/test-precompiled-module-cache.cpp
-        # tests/test-precompiled-module.cpp
+        tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
-        # tests/test-root-shader-parameter.cpp
-        # tests/test-sampler-array.cpp
-        # tests/test-shader-cache.cpp
+        tests/test-root-shader-parameter.cpp
+        tests/test-sampler-array.cpp
+        tests/test-shader-cache.cpp
         tests/test-shared-buffer.cpp
         tests/test-shared-texture.cpp
-        # tests/test-swapchain.cpp
+        tests/test-surface.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
@@ -638,6 +646,7 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
+        SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
         SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
@@ -647,7 +656,7 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
-    target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi)
+    target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi glfw)
 
     add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
 endif()

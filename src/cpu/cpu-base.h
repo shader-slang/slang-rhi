@@ -29,5 +29,7 @@ class CommandQueueImpl;
 class CommandEncoderImpl;
 class CommandBufferImpl;
 class DeviceImpl;
+struct BindingDataImpl;
+struct BindingCache;
 
 } // namespace rhi::cpu

@@ -1,4 +1,5 @@
 #include "cuda-shader-program.h"
+#include "cuda-shader-object-layout.h"
 
 namespace rhi::cuda {
 
@@ -12,6 +13,11 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     module.code = kernelCode;
     m_modules.push_back(module);
     return SLANG_OK;
+}
+
+ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
+{
+    return m_rootObjectLayout;
 }
 
 } // namespace rhi::cuda

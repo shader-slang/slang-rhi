@@ -20,8 +20,6 @@
 
 namespace rhi {
 
-using Index = int;
-
 // A type cast that is safer than static_cast in debug builds, and is a simple static_cast in release builds.
 // Used mostly for downcasting IFoo* pointers to their implementation classes in the backends.
 template<typename T, typename U>
