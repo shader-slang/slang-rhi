@@ -44,13 +44,13 @@ struct SurfaceTest
     ComPtr<ISurface> surface;
 
     virtual void initResources() = 0;
-    virtual void renderFrame(ITexture* texture, uint32_t width, uint32_t height) = 0;
+    virtual void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) = 0;
 
     void init(IDevice* device)
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-        this->window = glfwCreateWindow(500, 500, "test-surface", nullptr, nullptr);
+        this->window = glfwCreateWindow(512, 512, "test-surface", nullptr, nullptr);
 
         this->device = device;
         this->queue = device->getQueue(QueueType::Graphics);
@@ -74,6 +74,7 @@ struct SurfaceTest
 
         SurfaceConfig config = {};
         config.format = surface->getInfo().preferredFormat;
+        config.usage = surface->getInfo().supportedUsage;
         config.width = width;
         config.height = height;
         config.vsync = false;
@@ -95,7 +96,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->getCurrentTexture();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
-            renderFrame(texture, width, height);
+            renderFrame(texture, width, height, i);
             surface->present();
         }
 
@@ -110,7 +111,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->getCurrentTexture();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
-            renderFrame(texture, width, height);
+            renderFrame(texture, width, height, i);
             surface->present();
         }
 
@@ -173,7 +174,7 @@ struct RenderSurfaceTest : SurfaceTest
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
     }
 
-    void renderFrame(ITexture* texture, uint32_t width, uint32_t height) override
+    void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) override
     {
         ComPtr<ITextureView> textureView = device->createTextureView(texture, {});
 
@@ -224,10 +225,12 @@ struct ComputeSurfaceTest : SurfaceTest
         REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
     }
 
-    void renderFrame(ITexture* texture, uint32_t width, uint32_t height) override
+    void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) override
     {
-        if (!renderTexture || renderTexture->getDesc().size.width != width ||
-            renderTexture->getDesc().size.height != height)
+        bool allowUnorderedAccess = is_set(surface->getInfo().supportedUsage, TextureUsage::UnorderedAccess);
+
+        if (!allowUnorderedAccess && (!renderTexture || renderTexture->getDesc().size.width != width ||
+                                      renderTexture->getDesc().size.height != height))
         {
             TextureDesc textureDesc = {};
             textureDesc.size.width = width;
@@ -243,14 +246,17 @@ struct ComputeSurfaceTest : SurfaceTest
         auto passEncoder = commandEncoder->beginComputePass();
         auto rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor(rootObject->getEntryPoint(0));
-        cursor["texture"].setBinding(renderTexture);
+        cursor["texture"].setBinding(allowUnorderedAccess ? texture : renderTexture);
         uint32_t dim[2] = {width, height};
         cursor["dim"].setData(dim, sizeof(dim));
         passEncoder->dispatchCompute(width, height, 1);
         passEncoder->end();
-        Offset3D offset = {0, 0, 0};
-        Extents extents = {int32_t(width), int32_t(height), 1};
-        commandEncoder->copyTexture(texture, {0, 0, 0, 0}, offset, renderTexture, {0, 0, 0, 0}, offset, extents);
+        if (!allowUnorderedAccess)
+        {
+            Offset3D offset = {0, 0, 0};
+            Extents extents = {int32_t(width), int32_t(height), 1};
+            commandEncoder->copyTexture(texture, {0, 0, 0, 0}, offset, renderTexture, {0, 0, 0, 0}, offset, extents);
+        }
         queue->submit(commandEncoder->finish());
     }
 };
@@ -292,11 +298,12 @@ TEST_CASE("surface-compute")
     runGpuTests(
         testSurface<ComputeSurfaceTest>,
         {
-            // DeviceType::D3D11, // no copyTexture
+            DeviceType::D3D11,
             DeviceType::D3D12,
             DeviceType::Vulkan,
             DeviceType::Metal,
             // DeviceType::WGPU, // RWTexture binding fails
+            DeviceType::CUDA,
         }
     );
 }
