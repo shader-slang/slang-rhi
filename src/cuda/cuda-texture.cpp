@@ -475,7 +475,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
     }
     externalMemoryHandleDesc.handle.win32.handle = (void*)handle.value;
     externalMemoryHandleDesc.size = size;
-    externalMemoryHandleDesc.flags = CUDA_EXTERNAL_MEMORY_DEDICATED;
+    externalMemoryHandleDesc.flags = 0; // CUDA_EXTERNAL_MEMORY_DEDICATED;
 
     CUexternalMemory externalMemory;
     SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));

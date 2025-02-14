@@ -190,8 +190,10 @@
 
 | API                 | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |---------------------|-----|------|-------|-------|--------|-------|------|
-| `getInfo`           | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `getConfig`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `configure`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `getCurrentTexture` | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `present`           | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `getInfo`           | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getConfig`         | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `configure`         | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getCurrentTexture` | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `present`           | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+
+Note: CUDA's surface is implemented using a Vulkan swapchain.
