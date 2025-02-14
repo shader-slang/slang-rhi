@@ -109,7 +109,7 @@ BufferImpl::~BufferImpl()
 #if SLANG_WINDOWS_FAMILY
         ::CloseHandle((HANDLE)m_sharedHandle.value);
 #else
-        ::close((int)frameData.sharedSemaphoreHandle.value);
+        ::close((int)m_sharedHandle.value);
 #endif
     }
 }
