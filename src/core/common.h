@@ -39,6 +39,15 @@ T checked_cast(U u)
 }
 
 template<typename T>
+inline bool contains(const T* array, size_t count, T value)
+{
+    for (size_t i = 0; i < count; ++i)
+        if (array[i] == value)
+            return true;
+    return false;
+}
+
+template<typename T>
 constexpr T min(T a, T b)
 {
     return a < b ? a : b;
