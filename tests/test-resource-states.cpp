@@ -5,10 +5,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("buffer-resource-states", D3D12 | Vulkan)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-dummy", "computeMain", slangReflection));
@@ -62,10 +60,8 @@ void testBufferResourceStates(GpuTestContext* ctx, DeviceType deviceType)
     queue->waitOnHost();
 }
 
-void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("texture-resource-states", D3D12 | Vulkan)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-dummy", "computeMain", slangReflection));
@@ -142,26 +138,4 @@ void testTextureResourceStates(GpuTestContext* ctx, DeviceType deviceType)
 
         queue->waitOnHost();
     }
-}
-
-TEST_CASE("buffer-resource-states")
-{
-    runGpuTests(
-        testBufferResourceStates,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
-}
-
-TEST_CASE("texture-resource-states")
-{
-    runGpuTests(
-        testTextureResourceStates,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
 }

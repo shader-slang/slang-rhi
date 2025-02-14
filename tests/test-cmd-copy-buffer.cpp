@@ -43,16 +43,10 @@ void testCopyBuffer(IDevice* device, Offset dstOffset, Offset srcOffset, Size si
     }
 }
 
-void testCmdCopyBuffer(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("cmd-copy-buffer", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     testCopyBuffer(device, 0, 0, 16);
     testCopyBuffer(device, 0, 0, 8);
     testCopyBuffer(device, 0, 8, 8);
     testCopyBuffer(device, 8, 0, 8);
-}
-
-TEST_CASE("cmd-copy-buffer")
-{
-    runGpuTests(testCmdCopyBuffer);
 }

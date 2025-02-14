@@ -30,7 +30,6 @@ struct TextureToBufferCopyInfo
 struct BaseCopyTextureTest
 {
     IDevice* device;
-    GpuTestContext* ctx;
 
     Size alignedRowStride;
 
@@ -45,16 +44,9 @@ struct BaseCopyTextureTest
 
     RefPtr<ValidationTextureFormatBase> validationFormat;
 
-    void init(
-        IDevice* device,
-        GpuTestContext* ctx,
-        Format format,
-        RefPtr<ValidationTextureFormatBase> validationFormat,
-        TextureType type
-    )
+    void init(IDevice* device, Format format, RefPtr<ValidationTextureFormatBase> validationFormat, TextureType type)
     {
         this->device = device;
-        this->ctx = ctx;
         this->validationFormat = validationFormat;
 
         this->srcTextureInfo = new TextureInfo();
@@ -703,10 +695,8 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
 };
 
 template<typename T>
-void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
+void testCopyTexture(IDevice* device)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     // Skip Type::Unknown and Type::Buffer as well as Format::Unknown
     // TODO: Add support for TextureCube
     Format formats[] = {
@@ -730,7 +720,7 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
                 continue;
 
             T test;
-            test.init(device, ctx, format, validationFormat, type);
+            test.init(device, format, validationFormat, type);
             test.run();
         }
     }
@@ -738,106 +728,45 @@ void testCopyTexture(GpuTestContext* ctx, DeviceType deviceType)
 
 // Texture support is currently very limited for D3D11, Metal, CUDA and CPU
 
-TEST_CASE("copy-texture-simple")
+GPU_TEST_CASE("copy-texture-simple", D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testCopyTexture<SimpleCopyTexture>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testCopyTexture<SimpleCopyTexture>(device);
 }
 
-TEST_CASE("copy-texture-section")
+GPU_TEST_CASE("copy-texture-section", D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testCopyTexture<CopyTextureSection>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testCopyTexture<CopyTextureSection>(device);
 }
 
-TEST_CASE("copy-texture-large-to-small")
+GPU_TEST_CASE("copy-texture-large-to-small", D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testCopyTexture<LargeSrcToSmallDst>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testCopyTexture<LargeSrcToSmallDst>(device);
 }
 
-TEST_CASE("copy-texture-small-to-large")
+GPU_TEST_CASE("copy-texture-small-to-large", D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testCopyTexture<SmallSrcToLargeDst>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testCopyTexture<SmallSrcToLargeDst>(device);
 }
 
-TEST_CASE("copy-texture-between-mips")
+// TODO Metal: no support for 1D mips
+// TODO WGPU: no support for 1D mips
+GPU_TEST_CASE("copy-texture-between-mips", D3D12 | Vulkan)
 {
-    runGpuTests(
-        testCopyTexture<CopyBetweenMips>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            // DeviceType::Metal, // TODO: no support for 1D mips
-            // DeviceType::WGPU, // TODO: no support for 1D mips
-        }
-    );
+    testCopyTexture<CopyBetweenMips>(device);
 }
 
-TEST_CASE("copy-texture-between-layers")
+// TODO WGPU: no support for layers
+GPU_TEST_CASE("copy-texture-between-layers", D3D12 | Vulkan | Metal)
 {
-    runGpuTests(
-        testCopyTexture<CopyBetweenLayers>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            // DeviceType::WGPU, // TODO: no support for layers
-        }
-    );
+    testCopyTexture<CopyBetweenLayers>(device);
 }
 
-TEST_CASE("copy-texture-with-offsets")
+GPU_TEST_CASE("copy-texture-with-offsets", D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testCopyTexture<CopyWithOffsets>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testCopyTexture<CopyWithOffsets>(device);
 }
 
-TEST_CASE("copy-texture-with-extent")
+GPU_TEST_CASE("copy-texture-with-extent", D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testCopyTexture<CopySectionWithSetExtent>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testCopyTexture<CopySectionWithSetExtent>(device);
 }

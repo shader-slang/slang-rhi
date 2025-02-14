@@ -3,10 +3,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("compute-smoke", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-smoke", "computeMain", slangReflection));
@@ -65,9 +63,4 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
-}
-
-TEST_CASE("compute-smoke")
-{
-    runGpuTests(testComputeSmoke);
 }

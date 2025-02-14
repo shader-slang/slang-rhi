@@ -479,66 +479,29 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 };
 
 template<typename T>
-void testDraw(GpuTestContext* ctx, DeviceType deviceType)
+void testDraw(IDevice* device)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     T test;
     test.init(device);
     test.run();
 }
 
-TEST_CASE("draw-instanced")
+GPU_TEST_CASE("draw-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testDraw<DrawInstancedTest>,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testDraw<DrawInstancedTest>(device);
 }
 
-TEST_CASE("draw-indexed-instanced")
+GPU_TEST_CASE("draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testDraw<DrawIndexedInstancedTest>,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testDraw<DrawIndexedInstancedTest>(device);
 }
 
-TEST_CASE("draw-indirect")
+GPU_TEST_CASE("draw-indirect", D3D11 | D3D12 | Vulkan)
 {
-    runGpuTests(
-        testDraw<DrawIndirectTest>,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            // DeviceType::Metal,
-            // DeviceType::WGPU,
-        }
-    );
+    testDraw<DrawIndirectTest>(device);
 }
 
-TEST_CASE("draw-indexed-indirect")
+GPU_TEST_CASE("draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
 {
-    runGpuTests(
-        testDraw<DrawIndexedIndirectTest>,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            // DeviceType::Metal,
-            // DeviceType::WGPU,
-        }
-    );
+    testDraw<DrawIndexedIndirectTest>(device);
 }

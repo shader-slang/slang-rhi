@@ -97,10 +97,9 @@ static Result loadProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
+// TODO(testing): CUDA crashes
+GPU_TEST_CASE("link-time-type", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | NoDeviceCache)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType, false);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection));
@@ -141,20 +140,4 @@ void testLinkTimeType(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(11.f));
-}
-
-TEST_CASE("link-time-type")
-{
-    runGpuTests(
-        testLinkTimeType,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::CPU,
-            // DeviceType::CUDA, // crashes
-            DeviceType::WGPU,
-        }
-    );
 }

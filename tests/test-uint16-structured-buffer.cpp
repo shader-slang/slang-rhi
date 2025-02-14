@@ -3,10 +3,10 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
+// skip D3D11: fxc doesn't support uint16_t
+// skip WGPU: crashes
+GPU_TEST_CASE("uint16-structured-buffer", D3D12 | Vulkan | Metal | CPU | CUDA)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-uint16-buffer", "computeMain", slangReflection));
@@ -49,20 +49,4 @@ void testUint16StructuredBuffer(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<uint16_t>(1, 2, 3, 4));
-}
-
-TEST_CASE("uint16-structured-buffer")
-{
-    runGpuTests(
-        testUint16StructuredBuffer,
-        {
-            // DeviceType::D3D11, // fxc doesn't support uint16_t
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::CPU,
-            DeviceType::CUDA,
-            // DeviceType::WGPU, // crashes
-        }
-    );
 }

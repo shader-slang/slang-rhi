@@ -3,10 +3,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("create-buffer-from-handle", D3D12 | Vulkan)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
@@ -53,15 +51,4 @@ void testCreateBufferFromHandle(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
-}
-
-TEST_CASE("create-buffer-from-handle")
-{
-    runGpuTests(
-        testCreateBufferFromHandle,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
 }

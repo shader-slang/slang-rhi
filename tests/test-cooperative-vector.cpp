@@ -3,10 +3,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testCooperativeVectorProperties(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("cooperative-vector-properties", D3D12 | Vulkan)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     if (!device->hasFeature("cooperative-vector"))
         SKIP("cooperative vector not supported");
 
@@ -18,21 +16,8 @@ void testCooperativeVectorProperties(GpuTestContext* ctx, DeviceType deviceType)
     CHECK(propertyCount > 0);
 }
 
-TEST_CASE("cooperative-vector-properties")
+GPU_TEST_CASE("cooperative-vector-query-size", D3D12 | Vulkan)
 {
-    runGpuTests(
-        testCooperativeVectorProperties,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
-}
-
-void testCooperativeVectorQuerySize(GpuTestContext* ctx, DeviceType deviceType)
-{
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     if (!device->hasFeature("cooperative-vector"))
         SKIP("cooperative vector not supported");
 
@@ -89,21 +74,8 @@ void testCooperativeVectorQuerySize(GpuTestContext* ctx, DeviceType deviceType)
     CHECK(querySize(CooperativeVectorComponentType::Float32, 8, 4, CooperativeVectorMatrixLayout::ColumnMajor) == 128);
 }
 
-TEST_CASE("cooperative-vector-query-size")
+GPU_TEST_CASE("cooperative-vector-convert-host", D3D12 | Vulkan)
 {
-    runGpuTests(
-        testCooperativeVectorQuerySize,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
-}
-
-void testCooperativeVectorConvertHost(GpuTestContext* ctx, DeviceType deviceType)
-{
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     if (!device->hasFeature("cooperative-vector"))
         SKIP("cooperative vector not supported");
 
@@ -134,21 +106,8 @@ void testCooperativeVectorConvertHost(GpuTestContext* ctx, DeviceType deviceType
             CHECK(matrix[r][c] == transposeMatrix[c][r]);
 };
 
-TEST_CASE("cooperative-vector-convert-host")
+GPU_TEST_CASE("cooperative-vector-convert-device", D3D12 | Vulkan)
 {
-    runGpuTests(
-        testCooperativeVectorConvertHost,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
-}
-
-void testCooperativeVectorConvertDevice(GpuTestContext* ctx, DeviceType deviceType)
-{
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     if (!device->hasFeature("cooperative-vector"))
         SKIP("cooperative vector not supported");
 
@@ -205,14 +164,3 @@ void testCooperativeVectorConvertDevice(GpuTestContext* ctx, DeviceType deviceTy
         for (int c = 0; c < 8; c++)
             CHECK(matrix[r][c] == transposeMatrix[c][r]);
 };
-
-TEST_CASE("cooperative-vector-convert-device")
-{
-    runGpuTests(
-        testCooperativeVectorConvertDevice,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
-}

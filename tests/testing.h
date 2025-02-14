@@ -170,8 +170,35 @@ auto makeArray(Args... args)
 using GpuTestFunc = void (*)(GpuTestContext*, DeviceType);
 
 void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes = ALL_DEVICE_TYPES);
+void runGpuTestFunc(void (*func)(IDevice* device), int testFlags);
+
+enum TestFlags
+{
+    // Device type flags
+    D3D11 = (1 << (int)DeviceType::D3D11),
+    D3D12 = (1 << (int)DeviceType::D3D12),
+    Vulkan = (1 << (int)DeviceType::Vulkan),
+    Metal = (1 << (int)DeviceType::Metal),
+    CPU = (1 << (int)DeviceType::CPU),
+    CUDA = (1 << (int)DeviceType::CUDA),
+    WGPU = (1 << (int)DeviceType::WGPU),
+    ALL = D3D11 | D3D12 | Vulkan | Metal | CPU | CUDA | WGPU,
+
+    // Additional flags
+    NoDeviceCache = (1 << 10)
+};
 
 } // namespace rhi::testing
+
+#define GPU_TEST_CASE_IMPL(name, func, testFlags)                                                                      \
+    static void func(::rhi::IDevice* device);                                                                          \
+    TEST_CASE(name)                                                                                                    \
+    {                                                                                                                  \
+        ::rhi::testing::runGpuTestFunc(func, testFlags);                                                               \
+    }                                                                                                                  \
+    static void func(::rhi::IDevice* device)
+
+#define GPU_TEST_CASE(name, testFlags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), testFlags)
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))

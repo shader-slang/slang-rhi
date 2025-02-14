@@ -111,10 +111,8 @@ static Result precompileProgram(
 
 // mixed == false : precompile `test-precompiled-module` and then load it.
 // mixed == true : only precompile `test-precompiled-module-imported` and the load `test-precompiled-module`.
-static void testPrecompiledModuleImpl(GpuTestContext* ctx, DeviceType deviceType, bool mixed, bool precompileToTarget)
+static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompileToTarget)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     std::filesystem::path tempDir = getCaseTempDirectory();
     std::string tempDirStr = tempDir.string();
 
@@ -138,7 +136,8 @@ static void testPrecompiledModuleImpl(GpuTestContext* ctx, DeviceType deviceType
     ComPtr<slang::ISession> slangSession;
     device->getSlangSession(slangSession.writeRef());
     slang::SessionDesc sessionDesc = {};
-    slang::TargetDesc targetDesc = getTargetDesc(deviceType, device->getSlangSession()->getGlobalSession());
+    slang::TargetDesc targetDesc =
+        getTargetDesc(device->getDeviceInfo().deviceType, device->getSlangSession()->getGlobalSession());
     sessionDesc.targets = &targetDesc;
     sessionDesc.targetCount = 1;
     const char* searchPaths[] = {tempDirStr.c_str()};
@@ -194,38 +193,18 @@ static void testPrecompiledModuleImpl(GpuTestContext* ctx, DeviceType deviceType
     compareComputeResult(device, buffer, makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
 }
 
-void testPrecompiledModule(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("precompiled-module", ALL)
 {
-    testPrecompiledModuleImpl(ctx, deviceType, false, false);
+    testPrecompiledModuleImpl(device, false, false);
 }
 
-void testPrecompiledModuleMixed(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("precompiled-module-mixed", ALL)
 {
-    testPrecompiledModuleImpl(ctx, deviceType, true, false);
+    testPrecompiledModuleImpl(device, true, false);
 }
 
-void testPrecompiledModuleWithTargetCode(GpuTestContext* ctx, DeviceType deviceType)
-{
-    testPrecompiledModuleImpl(ctx, deviceType, false, true);
-}
-
-TEST_CASE("precompiled-module")
-{
-    runGpuTests(testPrecompiledModule);
-}
-
-TEST_CASE("precompiled-module-mixed")
-{
-    runGpuTests(testPrecompiledModuleMixed);
-}
-
-// TODO: this currently fails
-// TEST_CASE("precompiled-module-with-target-code")
+// TODO this currently fails
+// GPU_TEST_CASE("precompiled-module-with-target-code", D3D12)
 // {
-//     runGpuTests(
-//         testPrecompiledModuleWithTargetCode,
-//         {
-//             DeviceType::D3D12,
-//         }
-//     );
+//     testPrecompiledModuleImpl(device, false, true);
 // }

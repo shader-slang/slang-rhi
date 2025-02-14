@@ -47,9 +47,9 @@ struct TestFormats
     ComPtr<IBuffer> resultBuffer;
     std::map<std::string, ComPtr<IComputePipeline>> cachedPipelines;
 
-    void init(GpuTestContext* ctx, DeviceType deviceType)
+    void init(IDevice* device)
     {
-        device = createTestingDevice(ctx, deviceType);
+        this->device = device;
 
         SamplerDesc samplerDesc;
         sampler = device->createSampler(samplerDesc);
@@ -703,26 +703,11 @@ struct TestFormats
     }
 };
 
-
-void testFormats(GpuTestContext* ctx, DeviceType deviceType)
+// skip CPU: Vector types not implemented
+// skip CUDA: GetDimensions not implemented
+GPU_TEST_CASE("formats", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     TestFormats test;
-    test.init(ctx, deviceType);
+    test.init(device);
     test.run();
-}
-
-TEST_CASE("formats")
-{
-    runGpuTests(
-        testFormats,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            // DeviceType::CPU, // Vector types not implemented
-            // DeviceType::CUDA, // GetDimensions not implemented
-            DeviceType::WGPU,
-        }
-    );
 }

@@ -7,9 +7,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
 
@@ -28,7 +27,7 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
 
     NativeHandle handle;
     REQUIRE_CALL(buffer->getNativeHandle(&handle));
-    switch (deviceType)
+    switch (device->getDeviceInfo().deviceType)
     {
     case DeviceType::D3D12:
     {
@@ -58,9 +57,8 @@ void testNativeHandleBuffer(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
 
@@ -79,7 +77,7 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
 
     NativeHandle handle;
     REQUIRE_CALL(texture->getNativeHandle(&handle));
-    switch (deviceType)
+    switch (device->getDeviceInfo().deviceType)
     {
     case DeviceType::D3D12:
     {
@@ -109,16 +107,15 @@ void testNativeHandleTexture(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
 
     auto queue = device->getQueue(QueueType::Graphics);
     NativeHandle handle;
     REQUIRE_CALL(queue->getNativeHandle(&handle));
-    switch (deviceType)
+    switch (device->getDeviceInfo().deviceType)
     {
     case DeviceType::D3D12:
     {
@@ -148,9 +145,8 @@ void testNativeHandleCommandQueue(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("native-handle-command-buffer", D3D12 | Vulkan | Metal)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
 
@@ -159,7 +155,7 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
     auto commandBuffer = commandEncoder->finish();
     NativeHandle handle;
     REQUIRE_CALL(commandBuffer->getNativeHandle(&handle));
-    switch (deviceType)
+    switch (device->getDeviceInfo().deviceType)
     {
     case DeviceType::D3D12:
     {
@@ -187,52 +183,4 @@ void testNativeHandleCommandBuffer(GpuTestContext* ctx, DeviceType deviceType)
         break;
     }
     }
-}
-
-TEST_CASE("native-handle-buffer")
-{
-    runGpuTests(
-        testNativeHandleBuffer,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-        }
-    );
-}
-
-TEST_CASE("native-handle-texture")
-{
-    runGpuTests(
-        testNativeHandleTexture,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-        }
-    );
-}
-
-TEST_CASE("native-handle-command-queue")
-{
-    runGpuTests(
-        testNativeHandleCommandQueue,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-        }
-    );
-}
-
-TEST_CASE("native-handle-command-buffer")
-{
-    runGpuTests(
-        testNativeHandleCommandBuffer,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-        }
-    );
 }

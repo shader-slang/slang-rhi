@@ -97,10 +97,9 @@ static Result loadProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
+// TODO(testing) CUDA crashes
+GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | NoDeviceCache)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType, false);
-
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram;
@@ -170,20 +169,4 @@ void testLinkTimeDefault(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(10.f));
-}
-
-TEST_CASE("link-time-default")
-{
-    runGpuTests(
-        testLinkTimeDefault,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::CPU,
-            // DeviceType::CUDA,
-            DeviceType::WGPU,
-        }
-    );
 }

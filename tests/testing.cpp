@@ -668,4 +668,28 @@ void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes
     }
 }
 
+void runGpuTestFunc(void (*func)(IDevice* device), int testFlags)
+{
+    bool useCachedDevice = (testFlags & TestFlags::NoDeviceCache) == 0;
+
+    for (int i = 1; i <= 7; i++)
+    {
+        if ((testFlags & (1 << i)) == 0)
+            continue;
+
+        DeviceType deviceType = DeviceType(i);
+
+        SUBCASE(deviceTypeToString(deviceType))
+        {
+            if (isDeviceTypeAvailable(deviceType))
+            {
+                GpuTestContext ctx;
+                ctx.slangGlobalSession = getSlangGlobalSession();
+                ComPtr<IDevice> device = createTestingDevice(&ctx, deviceType, useCachedDevice);
+                func(device);
+            }
+        }
+    }
+}
+
 } // namespace rhi::testing

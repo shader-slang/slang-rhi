@@ -26,11 +26,9 @@ struct uint4
     uint32_t x, y, z, w;
 };
 
-void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("nested-parameter-block", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
-    if (deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
+    if (device->getDeviceInfo().deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
         SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
 
     ComPtr<IShaderProgram> shaderProgram;
@@ -117,9 +115,4 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, resultBuffer, makeArray<uint32_t>(1123u, 1123u, 1123u, 1123u));
-}
-
-TEST_CASE("nested-parameter-block")
-{
-    runGpuTests(testNestedParameterBlock);
 }
