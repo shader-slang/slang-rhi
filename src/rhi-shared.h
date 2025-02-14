@@ -1470,4 +1470,6 @@ public:
 bool isDepthFormat(Format format);
 bool isStencilFormat(Format format);
 
+bool isDebugLayersEnabled();
+
 } // namespace rhi

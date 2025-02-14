@@ -411,7 +411,6 @@ ComPtr<IDevice> createTestingDevice(
 
 #ifdef _DEBUG
     deviceDesc.enableValidation = true;
-    deviceDesc.enableBackendValidation = true;
     deviceDesc.enableRayTracingValidation = true;
     deviceDesc.debugCallback = &sDebugCallback;
 #endif

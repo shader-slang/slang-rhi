@@ -1057,7 +1057,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         descriptorSetAllocator.m_api = &m_api;
         initDeviceResult = initVulkanInstanceAndDevice(
             desc.existingDeviceHandles.handles,
-            desc.enableBackendValidation,
+            isDebugLayersEnabled(),
             desc.enableRayTracingValidation
         );
         if (initDeviceResult == SLANG_OK)

@@ -101,8 +101,8 @@ Result ExampleBase::createDevice(DeviceType deviceType)
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #ifdef _DEBUG
+    getRHI()->enableDebugLayers();
     deviceDesc.enableValidation = true;
-    deviceDesc.enableBackendValidation = true;
     deviceDesc.debugCallback = DebugPrinter::getInstance();
 #endif
     SLANG_RETURN_ON_FAIL(getRHI()->createDevice(deviceDesc, device.writeRef()));
