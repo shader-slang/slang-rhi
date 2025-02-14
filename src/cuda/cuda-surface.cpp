@@ -10,6 +10,10 @@
 #include "core/reverse-map.h"
 #include "core/short_vector.h"
 
+#if !SLANG_WINDOWS_FAMILY
+#include <unistd.h>
+#endif
+
 // Note:
 // CUDA doesn't provide a swapchain implementation.
 // In order to support the ISurface interface in the CUDA backend,
