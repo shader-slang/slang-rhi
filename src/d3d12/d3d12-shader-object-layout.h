@@ -38,38 +38,26 @@ struct BindingOffset
 // a resource or sampler binding.
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
 {
+    using Super = ShaderObjectLayout;
+
 public:
     /// Information about a single logical binding range
-    struct BindingRangeInfo
+    struct BindingRangeInfo : Super::BindingRangeInfo
     {
         // Some of the information we store on binding ranges is redundant with
         // the information that Slang's reflection information stores, but having
         // it here can make the code more compact and obvious.
 
-        /// The type of binding in this range.
-        slang::BindingType bindingType;
-
-        /// The shape of the resource
-        SlangResourceShape resourceShape;
-
-        /// The number of distinct bindings in this range.
-        uint32_t count;
-
         /// A "flat" index for this range in whatever array provides backing storage for it
         uint32_t baseIndex;
 
-        /// An index into the sub-object array if this binding range is treated
-        /// as a sub-object.
-        uint32_t subObjectIndex;
+        /// The shape of the resource
+        SlangResourceShape resourceShape;
 
         /// The stride of a structured buffer.
         uint32_t bufferElementStride;
 
         bool isRootParameter;
-
-        /// Is this binding range represent a specialization point, such as an existential value, or a
-        /// `ParameterBlock<IFoo>`.
-        bool isSpecializable;
     };
 
     /// Offset information for a sub-object range
@@ -95,11 +83,8 @@ public:
     };
 
     /// Information about a sub-objecrt range
-    struct SubObjectRangeInfo
+    struct SubObjectRangeInfo : Super::SubObjectRangeInfo
     {
-        /// The index of the binding range corresponding to this sub-object range
-        Index bindingRangeIndex = 0;
-
         /// Layout information for the type of sub-object expected to be bound, if known
         RefPtr<ShaderObjectLayoutImpl> layout;
 
@@ -115,13 +100,89 @@ public:
         bool isUAV;
     };
 
-    static bool isBindingRangeRootParameter(
-        SlangSession* globalSession,
-        const char* rootParameterAttributeName,
-        slang::TypeLayoutReflection* typeLayout,
-        Index bindingRangeIndex
+    std::vector<BindingRangeInfo> m_bindingRanges;
+    std::vector<SubObjectRangeInfo> m_subObjectRanges;
+    std::vector<RootParameterInfo> m_rootParamsInfo;
+
+    BindingOffset m_ownCounts;
+    BindingOffset m_totalCounts;
+
+    uint32_t m_slotCount = 0;
+    uint32_t m_subObjectCount = 0;
+    uint32_t m_childRootParameterCount = 0;
+
+    uint32_t m_totalOrdinaryDataSize = 0;
+
+    static Result createForElementType(
+        Device* device,
+        slang::ISession* session,
+        slang::TypeLayoutReflection* elementType,
+        ShaderObjectLayoutImpl** outLayout
     );
 
+#if 0
+    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
+
+    uint32_t getBindingRangeCount() { return m_bindingRanges.size(); }
+
+    const BindingRangeInfo& getBindingRange(uint32_t index) { return m_bindingRanges[index]; }
+
+    uint32_t getSlotCount() { return m_slotCount; }
+    uint32_t getResourceSlotCount() { return m_ownCounts.resource; }
+    uint32_t getSamplerSlotCount() { return m_ownCounts.sampler; }
+    uint32_t getSubObjectSlotCount() { return m_subObjectCount; }
+    uint32_t getSubObjectCount() { return m_subObjectCount; }
+#endif
+
+    uint32_t getTotalResourceDescriptorCount() { return m_totalCounts.resource; }
+    uint32_t getTotalSamplerDescriptorCount() { return m_totalCounts.sampler; }
+
+    uint32_t getOrdinaryDataBufferCount() { return m_totalOrdinaryDataSize ? 1 : 0; }
+#if 0
+    bool hasOrdinaryDataBuffer() { return m_totalOrdinaryDataSize != 0; }
+#endif
+
+    uint32_t getTotalResourceDescriptorCountWithoutOrdinaryDataBuffer()
+    {
+        return m_totalCounts.resource - getOrdinaryDataBufferCount();
+    }
+
+    uint32_t getOwnUserRootParameterCount() { return (uint32_t)m_rootParamsInfo.size(); }
+    uint32_t getTotalRootTableParameterCount() { return m_totalCounts.rootParam; }
+    uint32_t getChildRootParameterCount() { return m_childRootParameterCount; }
+
+    uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
+
+#if 0
+    const SubObjectRangeInfo& getSubObjectRange(uint32_t index) { return m_subObjectRanges[index]; }
+    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
+
+    Device* getDevice() { return m_device; }
+
+    slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
+
+    const RootParameterInfo& getRootParameterInfo(uint32_t index) { return m_rootParamsInfo[index]; }
+#endif
+
+    // ShaderObjectLayout interface
+    virtual uint32_t getSlotCount() const override { return m_slotCount; }
+    virtual uint32_t getSubObjectCount() const override { return m_subObjectCount; }
+
+    virtual uint32_t getBindingRangeCount() const override { return m_bindingRanges.size(); }
+    virtual const BindingRangeInfo& getBindingRange(uint32_t index) const override { return m_bindingRanges[index]; }
+
+    virtual uint32_t getSubObjectRangeCount() const override { return m_subObjectRanges.size(); }
+    virtual const SubObjectRangeInfo& getSubObjectRange(uint32_t index) const override
+    {
+        return m_subObjectRanges[index];
+    }
+    virtual ShaderObjectLayout* getSubObjectRangeLayout(uint32_t index) const override
+    {
+        return m_subObjectRanges[index].layout;
+    }
+
+
+protected:
     struct Builder
     {
     public:
@@ -137,6 +198,8 @@ public:
         std::vector<BindingRangeInfo> m_bindingRanges;
         std::vector<SubObjectRangeInfo> m_subObjectRanges;
         std::vector<RootParameterInfo> m_rootParamsInfo;
+
+        uint32_t m_slotCount = 0;
 
         /// The number of sub-objects (not just sub-object *ranges*) stored in instances of this
         /// layout
@@ -167,100 +230,40 @@ public:
         Result build(ShaderObjectLayoutImpl** outLayout);
     };
 
-    static Result createForElementType(
-        Device* device,
-        slang::ISession* session,
-        slang::TypeLayoutReflection* elementType,
-        ShaderObjectLayoutImpl** outLayout
-    );
-
-    const std::vector<BindingRangeInfo>& getBindingRanges() { return m_bindingRanges; }
-
-    Index getBindingRangeCount() { return m_bindingRanges.size(); }
-
-    const BindingRangeInfo& getBindingRange(Index index) { return m_bindingRanges[index]; }
-
-    uint32_t getResourceSlotCount() { return m_ownCounts.resource; }
-    uint32_t getSamplerSlotCount() { return m_ownCounts.sampler; }
-    Index getSubObjectSlotCount() { return m_subObjectCount; }
-    Index getSubObjectCount() { return m_subObjectCount; }
-
-    uint32_t getTotalResourceDescriptorCount() { return m_totalCounts.resource; }
-    uint32_t getTotalSamplerDescriptorCount() { return m_totalCounts.sampler; }
-
-    uint32_t getOrdinaryDataBufferCount() { return m_totalOrdinaryDataSize ? 1 : 0; }
-    bool hasOrdinaryDataBuffer() { return m_totalOrdinaryDataSize != 0; }
-
-    uint32_t getTotalResourceDescriptorCountWithoutOrdinaryDataBuffer()
-    {
-        return m_totalCounts.resource - getOrdinaryDataBufferCount();
-    }
-
-    uint32_t getOwnUserRootParameterCount() { return (uint32_t)m_rootParamsInfo.size(); }
-    uint32_t getTotalRootTableParameterCount() { return m_totalCounts.rootParam; }
-    uint32_t getChildRootParameterCount() { return m_childRootParameterCount; }
-
-    uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
-
-    const SubObjectRangeInfo& getSubObjectRange(Index index) { return m_subObjectRanges[index]; }
-    const std::vector<SubObjectRangeInfo>& getSubObjectRanges() { return m_subObjectRanges; }
-
-    Device* getDevice() { return m_device; }
-
-    slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
-
-    const RootParameterInfo& getRootParameterInfo(Index index) { return m_rootParamsInfo[index]; }
-
-protected:
     Result init(Builder* builder);
-
-    std::vector<BindingRangeInfo> m_bindingRanges;
-    std::vector<SubObjectRangeInfo> m_subObjectRanges;
-    std::vector<RootParameterInfo> m_rootParamsInfo;
-
-    BindingOffset m_ownCounts;
-    BindingOffset m_totalCounts;
-
-    uint32_t m_subObjectCount = 0;
-    uint32_t m_childRootParameterCount = 0;
-
-    uint32_t m_totalOrdinaryDataSize = 0;
 };
 
 class RootShaderObjectLayoutImpl : public ShaderObjectLayoutImpl
 {
-    typedef ShaderObjectLayoutImpl Super;
+    using Super = ShaderObjectLayoutImpl;
 
 public:
-    struct EntryPointInfo
+    struct EntryPointInfo : Super::EntryPointInfo
     {
         RefPtr<ShaderObjectLayoutImpl> layout;
         BindingOffset offset;
     };
 
-    struct Builder : Super::Builder
+    ComPtr<slang::IComponentType> m_program;
+    slang::ProgramLayout* m_programLayout = nullptr;
+
+    std::vector<EntryPointInfo> m_entryPoints;
+
+    ComPtr<ID3D12RootSignature> m_rootSignature;
+
+    // Number of root parameters in the root signature (CBV/SRV/UAV)
+    uint32_t m_rootSignatureRootParameterCount = 0;
+    // Total number of parameters in the root signature (CBV/SRV/UAV + descriptor tables)
+    uint32_t m_rootSignatureTotalParameterCount = 0;
+
+    // ShaderObjectLayout interface
+    virtual uint32_t getEntryPointCount() const override { return m_entryPoints.size(); }
+    virtual const EntryPointInfo& getEntryPoint(uint32_t index) const override { return m_entryPoints[index]; }
+    virtual ShaderObjectLayout* getEntryPointLayout(uint32_t index) const override
     {
-        Builder(Device* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
-            : Super::Builder(device, program->getSession())
-            , m_program(program)
-            , m_programLayout(programLayout)
-        {
-        }
+        return m_entryPoints[index].layout;
+    }
 
-        Result build(RootShaderObjectLayoutImpl** outLayout);
-
-        void addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
-
-        void addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout);
-
-        slang::IComponentType* m_program;
-        slang::ProgramLayout* m_programLayout;
-        std::vector<EntryPointInfo> m_entryPoints;
-    };
-
-    EntryPointInfo& getEntryPoint(Index index) { return m_entryPoints[index]; }
-
-    std::vector<EntryPointInfo>& getEntryPoints() { return m_entryPoints; }
 
     struct DescriptorSetLayout
     {
@@ -374,7 +377,7 @@ public:
         uint32_t addDescriptorSet();
 
         Result addDescriptorRange(
-            Index physicalDescriptorSetIndex,
+            uint32_t physicalDescriptorSetIndex,
             D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
             UINT registerIndex,
             UINT spaceIndex,
@@ -399,11 +402,11 @@ public:
         ///
         Result addDescriptorRange(
             slang::TypeLayoutReflection* typeLayout,
-            Index physicalDescriptorSetIndex,
+            uint32_t physicalDescriptorSetIndex,
             const BindingRegisterOffset& containerOffset,
             const BindingRegisterOffset& elementOffset,
-            Index logicalDescriptorSetIndex,
-            Index descriptorRangeIndex,
+            uint32_t logicalDescriptorSetIndex,
+            uint32_t descriptorRangeIndex,
             bool isRootParameter
         );
 
@@ -422,13 +425,13 @@ public:
         ///
         void addBindingRange(
             slang::TypeLayoutReflection* typeLayout,
-            Index physicalDescriptorSetIndex,
+            uint32_t physicalDescriptorSetIndex,
             const BindingRegisterOffset& containerOffset,
             const BindingRegisterOffset& elementOffset,
-            Index bindingRangeIndex
+            uint32_t bindingRangeIndex
         );
 
-        void addAsValue(slang::VariableLayoutReflection* varLayout, Index physicalDescriptorSetIndex);
+        void addAsValue(slang::VariableLayoutReflection* varLayout, uint32_t physicalDescriptorSetIndex);
 
         /// Add binding ranges and parameter blocks to the root signature.
         ///
@@ -444,14 +447,14 @@ public:
         ///
         void addAsConstantBuffer(
             slang::TypeLayoutReflection* typeLayout,
-            Index physicalDescriptorSetIndex,
+            uint32_t physicalDescriptorSetIndex,
             BindingRegisterOffsetPair containerOffset,
             BindingRegisterOffsetPair elementOffset
         );
 
         void addAsValue(
             slang::TypeLayoutReflection* typeLayout,
-            Index physicalDescriptorSetIndex,
+            uint32_t physicalDescriptorSetIndex,
             BindingRegisterOffsetPair containerOffset,
             BindingRegisterOffsetPair elementOffset
         );
@@ -479,15 +482,27 @@ public:
     slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
 
 protected:
+    struct Builder : Super::Builder
+    {
+        Builder(Device* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+            : Super::Builder(device, program->getSession())
+            , m_program(program)
+            , m_programLayout(programLayout)
+        {
+        }
+
+        Result build(RootShaderObjectLayoutImpl** outLayout);
+
+        void addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
+
+        void addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout);
+
+        slang::IComponentType* m_program;
+        slang::ProgramLayout* m_programLayout;
+        std::vector<EntryPointInfo> m_entryPoints;
+    };
+
     Result init(Builder* builder);
-
-    ComPtr<slang::IComponentType> m_program;
-    slang::ProgramLayout* m_programLayout = nullptr;
-
-    std::vector<EntryPointInfo> m_entryPoints;
-
-public:
-    ComPtr<ID3D12RootSignature> m_rootSignature;
 };
 
 } // namespace rhi::d3d12

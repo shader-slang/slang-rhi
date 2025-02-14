@@ -25,6 +25,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
     ShaderProgramImpl::Module* vertexModule = program->findModule(SlangStage::SLANG_STAGE_VERTEX);
     ShaderProgramImpl::Module* fragmentModule = program->findModule(SlangStage::SLANG_STAGE_FRAGMENT);
@@ -137,6 +138,7 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
     ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_COMPUTE);
     if (!computeModule)
     {

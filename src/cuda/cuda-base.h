@@ -18,9 +18,6 @@ class TextureImpl;
 class TextureViewImpl;
 class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
-class ShaderObjectImpl;
-class EntryPointShaderObjectImpl;
-class RootShaderObjectImpl;
 class ShaderProgramImpl;
 class ComputePipelineImpl;
 class RayTracingPipelineImpl;
@@ -31,5 +28,7 @@ class CommandEncoderImpl;
 class CommandQueueImpl;
 class AccelerationStructureImpl;
 class ShaderTableImpl;
+struct BindingDataImpl;
+struct BindingCache;
 
 } // namespace rhi::cuda

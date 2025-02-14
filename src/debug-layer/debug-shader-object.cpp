@@ -29,19 +29,11 @@ void DebugShaderObject::checkCompleteness()
     }
 }
 
-void DebugShaderObject::checkFinalized()
-{
-    if (!baseObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The shader object must be finalized.");
-    }
-}
-
 void DebugShaderObject::checkNotFinalized()
 {
     if (baseObject->isFinalized())
     {
-        RHI_VALIDATION_ERROR("The shader object must not be finalized.");
+        RHI_VALIDATION_ERROR("The shader object is finalized and must not be modified.");
     }
 }
 
@@ -51,25 +43,25 @@ slang::TypeLayoutReflection* DebugShaderObject::getElementTypeLayout()
     return baseObject->getElementTypeLayout();
 }
 
-GfxCount DebugShaderObject::getEntryPointCount()
+uint32_t DebugShaderObject::getEntryPointCount()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->getEntryPointCount();
 }
 
-Result DebugShaderObject::getEntryPoint(GfxIndex index, IShaderObject** entryPoint)
+Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** entryPoint)
 {
     SLANG_RHI_API_FUNC;
     if (m_entryPoints.empty())
     {
-        for (GfxIndex i = 0; i < getEntryPointCount(); i++)
+        for (uint32_t i = 0; i < getEntryPointCount(); i++)
         {
             RefPtr<DebugShaderObject> entryPointObj = new DebugShaderObject(ctx);
             SLANG_RETURN_ON_FAIL(baseObject->getEntryPoint(i, entryPointObj->baseObject.writeRef()));
             m_entryPoints.push_back(entryPointObj);
         }
     }
-    if (index > (GfxCount)m_entryPoints.size())
+    if (index > m_entryPoints.size())
     {
         RHI_VALIDATION_ERROR("`index` must not exceed `entryPointCount`.");
         return SLANG_FAIL;
@@ -115,10 +107,6 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();
-    if (!object->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The assigned sub-object must be finalized.");
-    }
     auto objectImpl = getDebugObj(object);
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
     m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
@@ -138,7 +126,7 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, Binding binding
 Result DebugShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
     const slang::SpecializationArg* args,
-    GfxCount count
+    uint32_t count
 )
 {
     SLANG_RHI_API_FUNC;
@@ -168,7 +156,10 @@ Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 Result DebugShaderObject::finalize()
 {
     SLANG_RHI_API_FUNC;
-    checkNotFinalized();
+    if (baseObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The shader object is already finalized.");
+    }
     return baseObject->finalize();
 }
 
@@ -181,7 +172,7 @@ bool DebugShaderObject::isFinalized()
 Result DebugRootShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
     const slang::SpecializationArg* args,
-    GfxCount count
+    uint32_t count
 )
 {
     SLANG_RHI_API_FUNC;

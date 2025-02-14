@@ -1,5 +1,6 @@
 #include "wgpu-device.h"
 #include "wgpu-buffer.h"
+#include "wgpu-texture.h"
 #include "wgpu-shader-program.h"
 #include "wgpu-shader-object.h"
 #include "wgpu-shader-object-layout.h"
@@ -38,6 +39,9 @@ Context::~Context()
 DeviceImpl::~DeviceImpl()
 {
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
+
+    m_shaderCache.free();
+
     m_queue.setNull();
 }
 
@@ -76,7 +80,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_desc = desc;
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-    Result initDeviceResult = SLANG_OK;
     SLANG_RETURN_ON_FAIL(
         m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
     );
@@ -92,16 +95,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     instanceDesc.nextInChain = &togglesDesc.chain;
     m_ctx.instance = api.wgpuCreateInstance(&instanceDesc);
 
-    auto requestAdapterCallback =
-        [](WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, WGPU_NULLABLE void* userdata)
-    {
-        Context* ctx = (Context*)userdata;
-        if (status == WGPURequestAdapterStatus_Success)
-        {
-            ctx->adapter = adapter;
-        }
-    };
-
+    // Request adapter.
     WGPURequestAdapterOptions options = {};
     options.powerPreference = WGPUPowerPreference_HighPerformance;
 #if SLANG_WINDOWS_FAMILY
@@ -110,10 +104,31 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     options.backendType = WGPUBackendType_Vulkan;
 #endif
     options.nextInChain = &togglesDesc.chain;
-    api.wgpuInstanceRequestAdapter(m_ctx.instance, &options, requestAdapterCallback, &m_ctx);
-    if (!m_ctx.adapter)
+
     {
-        return SLANG_FAIL;
+        WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
+        WGPURequestAdapterCallbackInfo2 callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPURequestAdapterStatus status,
+                                   WGPUAdapter adapter,
+                                   const char* message,
+                                   void* userdata1,
+                                   void* userdata2)
+        {
+            *(WGPURequestAdapterStatus*)userdata1 = status;
+            *(WGPUAdapter*)userdata2 = adapter;
+        };
+        callbackInfo.userdata1 = &status;
+        callbackInfo.userdata2 = &m_ctx.adapter;
+        WGPUFuture future = m_ctx.api.wgpuInstanceRequestAdapter2(m_ctx.instance, &options, callbackInfo);
+        WGPUFutureWaitInfo futures[1] = {future};
+        uint64_t timeoutNS = UINT64_MAX;
+        WGPUWaitStatus waitStatus =
+            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
     }
 
     // Query adapter limits.
@@ -125,16 +140,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     std::vector<WGPUFeatureName> adapterFeatures(adapterFeatureCount);
     api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, adapterFeatures.data());
 
-    auto requestDeviceCallback =
-        [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userdata)
-    {
-        Context* ctx = (Context*)userdata;
-        if (status == WGPURequestDeviceStatus_Success)
-        {
-            ctx->device = device;
-        }
-    };
-
     // We request a device with the maximum available limits and feature set.
     WGPURequiredLimits requiredLimits = {};
     requiredLimits.limits = adapterLimits.limits;
@@ -145,10 +150,28 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     deviceDesc.uncapturedErrorCallbackInfo.callback = errorCallback;
     deviceDesc.uncapturedErrorCallbackInfo.userdata = this;
     deviceDesc.nextInChain = &togglesDesc.chain;
-    api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, requestDeviceCallback, &m_ctx);
-    if (!m_ctx.device)
+
     {
-        return SLANG_FAIL;
+        WGPURequestDeviceStatus status = WGPURequestDeviceStatus_Unknown;
+        WGPURequestDeviceCallbackInfo2 callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback =
+            [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userdata1, void* userdata2)
+        {
+            *(WGPURequestDeviceStatus*)userdata1 = status;
+            *(WGPUDevice*)userdata2 = device;
+        };
+        callbackInfo.userdata1 = &status;
+        callbackInfo.userdata2 = &m_ctx.device;
+        WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice2(m_ctx.adapter, &deviceDesc, callbackInfo);
+        WGPUFutureWaitInfo futures[1] = {future};
+        uint64_t timeoutNS = UINT64_MAX;
+        WGPUWaitStatus waitStatus =
+            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestDeviceStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
     }
 
     // Query device limits.
@@ -431,22 +454,13 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    RefPtr<ShaderObjectImpl> shaderObject;
-    SLANG_RETURN_ON_FAIL(
-        ShaderObjectImpl::create(this, checked_cast<ShaderObjectLayoutImpl*>(layout), shaderObject.writeRef())
-    );
-    returnComPtr(outObject, shaderObject);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    RefPtr<RootShaderObjectImpl> object = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(object->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
-    returnComPtr(outObject, object);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)

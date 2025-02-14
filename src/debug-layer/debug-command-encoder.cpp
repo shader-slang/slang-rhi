@@ -7,38 +7,29 @@
 
 namespace rhi::debug {
 
-#if 0
-void DebugCommandEncoder::invalidateDescriptorHeapBinding()
-{
-    SLANG_RHI_API_FUNC;
-    ComPtr<ICommandBufferD3D12> cmdBuf;
-    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
-    {
-        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface."
-        );
-        return;
-    }
-    return cmdBuf->invalidateDescriptorHeapBinding();
-}
-
-void DebugCommandEncoder::ensureInternalDescriptorHeapsBound()
-{
-    SLANG_RHI_API_FUNC;
-    ComPtr<ICommandBufferD3D12> cmdBuf;
-    if (SLANG_FAILED(baseObject->queryInterface(ICommandBufferD3D12::getTypeGuid(), (void**)cmdBuf.writeRef())))
-    {
-        RHI_VALIDATION_ERROR("The current command buffer implementation does not provide ICommandBufferD3D12 interface."
-        );
-        return;
-    }
-    return cmdBuf->ensureInternalDescriptorHeapsBound();
-}
-#endif
-
 DebugRenderPassEncoder::DebugRenderPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
     : UnownedDebugObject<IRenderPassEncoder>(ctx)
     , m_commandEncoder(commandEncoder)
 {
+    m_rootObject = new DebugRootShaderObject(ctx);
+}
+
+IShaderObject* DebugRenderPassEncoder::bindPipeline(IRenderPipeline* pipeline)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    m_rootObject->reset();
+    m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
+    return m_rootObject;
+}
+
+void DebugRenderPassEncoder::bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
 }
 
 void DebugRenderPassEncoder::setRenderState(const RenderState& state)
@@ -46,13 +37,7 @@ void DebugRenderPassEncoder::setRenderState(const RenderState& state)
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
-    if (!state.rootObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The render state root object must be finalized.");
-    }
-    RenderState innerState = state;
-    innerState.rootObject = getInnerObj(state.rootObject);
-    baseObject->setRenderState(innerState);
+    baseObject->setRenderState(state);
 }
 
 void DebugRenderPassEncoder::draw(const DrawArguments& args)
@@ -144,20 +129,25 @@ DebugComputePassEncoder::DebugComputePassEncoder(DebugContext* ctx, DebugCommand
     : UnownedDebugObject<IComputePassEncoder>(ctx)
     , m_commandEncoder(commandEncoder)
 {
+    m_rootObject = new DebugRootShaderObject(ctx);
 }
 
-void DebugComputePassEncoder::setComputeState(const ComputeState& state)
+IShaderObject* DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
-    if (!state.rootObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The compute state root object must be finalized.");
-    }
-    ComputeState innerState = state;
-    innerState.rootObject = getInnerObj(state.rootObject);
-    baseObject->setComputeState(innerState);
+    m_rootObject->reset();
+    m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
+    return m_rootObject;
+}
+
+void DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
 }
 
 void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
@@ -213,20 +203,29 @@ DebugRayTracingPassEncoder::DebugRayTracingPassEncoder(DebugContext* ctx, DebugC
     : UnownedDebugObject<IRayTracingPassEncoder>(ctx)
     , m_commandEncoder(commandEncoder)
 {
+    m_rootObject = new DebugRootShaderObject(ctx);
 }
 
-void DebugRayTracingPassEncoder::setRayTracingState(const RayTracingState& state)
+IShaderObject* DebugRayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
-    if (!state.rootObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The raytracing state root object must be finalized.");
-    }
-    RayTracingState innerState = state;
-    innerState.rootObject = getInnerObj(state.rootObject);
-    baseObject->setRayTracingState(innerState);
+    m_rootObject->reset();
+    m_rootObject->baseObject = baseObject->bindPipeline(pipeline, shaderTable);
+    return m_rootObject;
+}
+
+void DebugRayTracingPassEncoder::bindPipeline(
+    IRayTracingPipeline* pipeline,
+    IShaderTable* shaderTable,
+    IShaderObject* rootObject
+)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->bindPipeline(pipeline, shaderTable, getInnerObj(rootObject));
 }
 
 void DebugRayTracingPassEncoder::dispatchRays(

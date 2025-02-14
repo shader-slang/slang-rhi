@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-device.h"
 
 namespace rhi::vk {
 

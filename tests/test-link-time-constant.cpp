@@ -65,22 +65,23 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
         "computeMain",
         slangReflection,
         R"(
-            export static const bool turnOnFeature = true;
-            export static const float constValue = 2.0;
-            export static const uint numthread = 2;
-            export static const int arraySize = 4;
+            export static const uint numthread = 4;
+            export static const bool constBool = true;
+            export static const int constInt = -2;
+            export static const uint constUint = 3;
+            export static const float constFloat = 4.0;
         )"
     ));
 
     SlangUInt threadGroupSizes[3];
     slangReflection->findEntryPointByName("computeMain")->getComputeThreadGroupSize(3, threadGroupSizes);
-    CHECK_EQ(threadGroupSizes[0], 2);
+    CHECK_EQ(threadGroupSizes[0], 4);
     CHECK_EQ(threadGroupSizes[1], 1);
     CHECK_EQ(threadGroupSizes[2], 1);
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
@@ -103,32 +104,22 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
 
-        auto rootObject = commandEncoder->preparePipeline(pipeline);
-
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setBinding(buffer);
-
-        ComputeState state;
-        commandEncoder->prepareFinish(&state);
-        commandEncoder->setComputeState(state);
-        commandEncoder->dispatchCompute(1, 1, 1);
+        entryPointCursor["buffer"].setBinding(buffer);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, buffer, makeArray<float>(2.0));
+    compareComputeResult(device, buffer, makeArray<float>(1.f, -2.f, 3.f, 4.f));
 }
 
-// TODO_TESTING crashes slang
-// TEST_CASE("link-time-constant")
-// {
-//     runGpuTests(
-//         testLinkTimeConstant,
-//         {
-//             DeviceType::D3D12,
-//             DeviceType::Vulkan,
-//         }
-//     );
-// }
+TEST_CASE("link-time-constant")
+{
+    runGpuTests(testLinkTimeConstant);
+}

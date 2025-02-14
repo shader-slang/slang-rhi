@@ -1,9 +1,12 @@
 #include "cuda-command.h"
+#include "cuda-device.h"
+#include "cuda-pipeline.h"
 #include "cuda-buffer.h"
 #include "cuda-query.h"
 #include "cuda-shader-object-layout.h"
 #include "cuda-acceleration-structure.h"
 #include "cuda-shader-table.h"
+#include "cuda-shader-object.h"
 #include "../command-list.h"
 #include "../strings.h"
 
@@ -14,8 +17,6 @@ class CommandExecutor
 public:
     DeviceImpl* m_device;
     CUstream m_stream;
-
-    RefPtr<RootShaderObjectImpl> m_rootObject;
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
@@ -28,6 +29,8 @@ public:
     RefPtr<ShaderTableImpl> m_shaderTable;
     ShaderTableImpl::Instance* m_shaderTableInstance = nullptr;
 #endif
+
+    BindingDataImpl* m_bindingData = nullptr;
 
     CommandExecutor(DeviceImpl* device, CUstream stream)
         : m_device(device)
@@ -82,13 +85,16 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 #define NOT_IMPLEMENTED(cmd)                                                                                           \
     m_device->handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, cmd " command not implemented");
 
-    CommandList* commandList = commandBuffer->m_commandList;
-    auto command = commandList->getCommands();
+    // Upload constant buffer data
+    commandBuffer->m_constantBufferPool.upload(m_stream);
+
+    const CommandList& commandList = commandBuffer->m_commandList;
+    auto command = commandList.getCommands();
     while (command)
     {
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
-        cmd##x(commandList->getCommand<commands::x>(command));                                                         \
+        cmd##x(commandList.getCommand<commands::x>(command));                                                          \
         break;
 
         switch (command->id)
@@ -106,7 +112,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
 
 void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -122,13 +128,13 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyTexture);
+    NOT_SUPPORTED(S_CommandEncoder_copyTexture);
 }
 
 void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyTextureToBuffer);
+    NOT_SUPPORTED(S_CommandEncoder_copyTextureToBuffer);
 }
 
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
@@ -140,13 +146,13 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(clearTexture);
+    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(uploadTextureData);
+    NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
 }
 
 void CommandExecutor::cmdUploadBufferData(const commands::UploadBufferData& cmd)
@@ -160,55 +166,53 @@ void CommandExecutor::cmdUploadBufferData(const commands::UploadBufferData& cmd)
 void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(resolveQuery);
+    NOT_SUPPORTED(S_CommandEncoder_resolveQuery);
 }
 
 void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(beginRenderPass);
+    NOT_SUPPORTED(S_CommandEncoder_beginRenderPass);
 }
 
 void CommandExecutor::cmdEndRenderPass(const commands::EndRenderPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(endRenderPass);
 }
 
 void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(setRenderState);
 }
 
 void CommandExecutor::cmdDraw(const commands::Draw& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(draw);
+    NOT_SUPPORTED(S_RenderPassEncoder_draw);
 }
 
 void CommandExecutor::cmdDrawIndexed(const commands::DrawIndexed& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawIndexed);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexed);
 }
 
 void CommandExecutor::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawIndirect);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndirect);
 }
 
 void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawIndexedIndirect);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexedIndirect);
 }
 
 void CommandExecutor::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawMeshTasks);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawMeshTasks);
 }
 
 void CommandExecutor::cmdBeginComputePass(const commands::BeginComputePass& cmd)
@@ -226,9 +230,9 @@ void CommandExecutor::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (!m_computePassActive)
         return;
 
-    m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.state.pipeline);
-    m_rootObject = checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject);
-    m_computeStateValid = m_computePipeline && m_rootObject;
+    m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
+    m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+    m_computeStateValid = m_computePipeline && m_bindingData;
 }
 
 void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -237,14 +241,10 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         return;
 
     ComputePipelineImpl* computePipeline = m_computePipeline;
-    RootShaderObjectImpl* rootObject = m_rootObject;
+    BindingDataImpl* bindingData = m_bindingData;
 
-    // Find out thread group size from program reflection.
-    auto programLayout = checked_cast<RootShaderObjectLayoutImpl*>(rootObject->getLayout());
-    int kernelIndex = programLayout->getKernelIndex(computePipeline->m_kernelName);
-    SLANG_RHI_ASSERT(kernelIndex != -1);
-    SlangUInt threadGroupSize[3];
-    programLayout->getKernelThreadGroupSize(kernelIndex, threadGroupSize);
+    SLANG_RHI_ASSERT(computePipeline->m_kernelIndex < bindingData->entryPointCount);
+    const auto& entryPointData = bindingData->entryPoints[computePipeline->m_kernelIndex];
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.
     {
@@ -258,27 +258,21 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         );
         if (result == CUDA_SUCCESS)
         {
-            CUdeviceptr globalParamsCUDAData = (CUdeviceptr)rootObject->getBuffer();
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
-                (CUdeviceptr)globalParamsSymbol,
-                (CUdeviceptr)globalParamsCUDAData,
-                globalParamsSymbolSize,
-                0
-            ));
+            SLANG_RHI_ASSERT(globalParamsSymbolSize == bindingData->globalParamsSize);
+            SLANG_CUDA_ASSERT_ON_FAIL(
+                cuMemcpyAsync(globalParamsSymbol, bindingData->globalParams, globalParamsSymbolSize, m_stream)
+            );
         }
     }
     //
     // The argument data for the entry-point parameters are already
-    // stored in host memory in a CUDAEntryPointShaderObject, as expected by cuLaunchKernel.
+    // stored in host memory, as expected by cuLaunchKernel.
     //
-    auto entryPointBuffer = rootObject->entryPointObjects[kernelIndex]->getBuffer();
-    auto entryPointDataSize = rootObject->entryPointObjects[kernelIndex]->getBufferSize();
-
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
-        entryPointBuffer,
+        (void*)entryPointData.data,
         CU_LAUNCH_PARAM_BUFFER_SIZE,
-        &entryPointDataSize,
+        (void*)&entryPointData.size,
         CU_LAUNCH_PARAM_END,
     };
 
@@ -290,9 +284,9 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         cmd.x,
         cmd.y,
         cmd.z,
-        int(threadGroupSize[0]),
-        int(threadGroupSize[1]),
-        int(threadGroupSize[2]),
+        computePipeline->m_threadGroupSize[0],
+        computePipeline->m_threadGroupSize[1],
+        computePipeline->m_threadGroupSize[2],
         0,
         m_stream,
         nullptr,
@@ -303,7 +297,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(dispatchComputeIndirect);
+    NOT_SUPPORTED(S_ComputePassEncoder_dispatchComputeIndirect);
 }
 
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
@@ -332,11 +326,11 @@ void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (!m_rayTracingPassActive)
         return;
 
-    m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.state.pipeline);
-    m_rootObject = checked_cast<RootShaderObjectImpl*>(cmd.state.rootObject);
-    m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.state.shaderTable);
+    m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
+    m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+    m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
     m_shaderTableInstance = m_shaderTable ? m_shaderTable->getInstance(m_rayTracingPipeline) : nullptr;
-    m_rayTracingStateValid = m_rayTracingPipeline && m_rootObject && m_shaderTable;
+    m_rayTracingStateValid = m_rayTracingPipeline && m_bindingData && m_shaderTable;
 #else
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(setRayTracingState);
@@ -349,19 +343,7 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
     if (!m_rayTracingStateValid)
         return;
 
-    CUdeviceptr paramsData = (CUdeviceptr)m_rootObject->getBuffer();
-    size_t paramsSize = m_rootObject->getBufferSize();
-
-    // TODO: slang returns 16 bytes for OptixTraversableHandle which is incorrect!
-    paramsSize = 0;
-    int fieldCount = m_rootObject->getLayout()->getElementTypeLayout()->getFieldCount();
-    for (int fieldIndex = 0; fieldIndex < fieldCount; ++fieldIndex)
-    {
-        auto field = m_rootObject->getLayout()->getElementTypeLayout()->getFieldByIndex(fieldIndex);
-        bool isOptixTraversableHandle =
-            std::strcmp(field->getType()->getName(), "RaytracingAccelerationStructure") == 0;
-        paramsSize += isOptixTraversableHandle ? 8 : field->getTypeLayout()->getSize();
-    }
+    BindingDataImpl* bindingData = m_bindingData;
 
     OptixShaderBindingTable sbt = m_shaderTableInstance->sbt;
     sbt.raygenRecord += cmd.rayGenShaderIndex * m_shaderTableInstance->raygenRecordSize;
@@ -369,8 +351,8 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
     SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
         m_rayTracingPipeline->m_pipeline,
         m_stream,
-        paramsData,
-        paramsSize,
+        bindingData->globalParams,
+        bindingData->globalParamsSize,
         &sbt,
         cmd.width,
         cmd.height,
@@ -477,25 +459,25 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(queryAccelerationStructureProperties);
+    NOT_SUPPORTED(S_CommandEncoder_queryAccelerationStructureProperties);
 }
 
 void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(serializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_serializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(deserializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(convertCooperativeVectorMatrix);
+    NOT_SUPPORTED(S_CommandEncoder_convertCooperativeVectorMatrix);
 }
 
 void CommandExecutor::cmdSetBufferState(const commands::SetBufferState& cmd)
@@ -599,9 +581,30 @@ CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device)
 Result CommandEncoderImpl::init()
 {
     m_commandBuffer = new CommandBufferImpl();
-    m_commandBuffer->m_commandList = new CommandList();
-    m_commandList = m_commandBuffer->m_commandList;
+    m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
+}
+
+Device* CommandEncoderImpl::getDevice()
+{
+    return m_device;
+}
+
+Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
+{
+    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    BindingDataBuilder builder;
+    builder.m_device = m_device;
+    builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
+    builder.m_allocator = &m_commandBuffer->m_allocator;
+    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    ShaderObjectLayout* specializedLayout = nullptr;
+    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
+    return builder.bindAsRoot(
+        rootObject,
+        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
+        (BindingDataImpl*&)outBindingData
+    );
 }
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
@@ -620,6 +623,13 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 }
 
 // CommandBufferImpl
+
+Result CommandBufferImpl::reset()
+{
+    m_bindingCache.reset();
+    m_constantBufferPool.reset();
+    return CommandBuffer::reset();
+}
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {

@@ -14,7 +14,10 @@ public:
 
     DeviceImpl* m_device;
 
-    virtual RefPtr<Buffer> createDeviceBuffer(RayTracingPipeline* pipeline) override;
+    std::mutex m_mutex;
+    std::map<RayTracingPipelineImpl*, RefPtr<BufferImpl>> m_buffers;
+
+    BufferImpl* getBuffer(RayTracingPipelineImpl* pipeline);
 };
 
 } // namespace rhi::d3d12

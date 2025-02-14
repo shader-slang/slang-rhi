@@ -8,7 +8,7 @@ class RenderPipelineImpl : public RenderPipeline
 {
 public:
     DeviceImpl* m_device;
-    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     WGPURenderPipeline m_renderPipeline = nullptr;
 
     ~RenderPipelineImpl();
@@ -21,7 +21,7 @@ class ComputePipelineImpl : public ComputePipeline
 {
 public:
     DeviceImpl* m_device;
-    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     WGPUComputePipeline m_computePipeline = nullptr;
 
     ~ComputePipelineImpl();

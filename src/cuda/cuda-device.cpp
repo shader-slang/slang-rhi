@@ -1,4 +1,5 @@
 #include "cuda-device.h"
+#include "cuda-command.h"
 #include "cuda-buffer.h"
 #include "cuda-pipeline.h"
 #include "cuda-query.h"
@@ -127,6 +128,8 @@ Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
     return SLANG_OK;
 }
 
+DeviceImpl::DeviceImpl() {}
+
 DeviceImpl::~DeviceImpl()
 {
     m_queue.setNull();
@@ -171,7 +174,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    SLANG_RETURN_ON_FAIL(_initCuda(reportType));
+    SLANG_RETURN_ON_FAIL(_initCuda(kReportType));
 
     int selectedDeviceIndex = -1;
     if (desc.adapterLUID)
@@ -194,7 +197,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&m_ctx.device, selectedDeviceIndex));
 
-    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), reportType);
+    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), kReportType);
 
     {
         // Not clear how to detect half support on CUDA. For now we'll assume we have it
@@ -426,20 +429,13 @@ Result DeviceImpl::createShaderObjectLayout(
     return SLANG_OK;
 }
 
-Result DeviceImpl::createShaderObject(ShaderObjectLayout* layout, IShaderObject** outObject)
+Result DeviceImpl::createRootShaderObjectLayout(
+    slang::IComponentType* program,
+    slang::ProgramLayout* programLayout,
+    ShaderObjectLayout** outLayout
+)
 {
-    RefPtr<ShaderObjectImpl> result = new ShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, checked_cast<ShaderObjectLayoutImpl*>(layout)));
-    returnComPtr(outObject, result);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-{
-    RefPtr<RootShaderObjectImpl> result = new RootShaderObjectImpl();
-    SLANG_RETURN_ON_FAIL(result->init(this, checked_cast<ShaderProgramImpl*>(program)->m_rootObjectLayout));
-    returnComPtr(outObject, result);
-    return SLANG_OK;
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
@@ -469,12 +465,6 @@ Result DeviceImpl::createShaderProgram(
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
     shaderProgram->init(desc);
     shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
-
-    if (!shaderProgram->isSpecializable())
-    {
-        SLANG_RETURN_ON_FAIL(shaderProgram->compileShaders(this));
-    }
-
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
@@ -614,6 +604,11 @@ Result DeviceImpl::createAccelerationStructure(
 #else
     return SLANG_E_NOT_AVAILABLE;
 #endif
+}
+
+void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
+{
+    shaderObject->m_setBindingHook = shaderObjectSetBinding;
 }
 
 } // namespace rhi::cuda

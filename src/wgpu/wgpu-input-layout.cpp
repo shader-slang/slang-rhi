@@ -28,8 +28,6 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
         layout->m_vertexAttributes[elementDesc.bufferSlotIndex].push_back(vertexAttribute);
     }
 
-    size_t attributeIndex = 0;
-
     for (uint32_t i = 0; i < desc.vertexStreamCount; ++i)
     {
         const VertexStreamDesc& streamDesc = desc.vertexStreams[i];

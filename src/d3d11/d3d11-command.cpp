@@ -1,7 +1,13 @@
 #include "d3d11-command.h"
+#include "d3d11-device.h"
+#include "d3d11-buffer.h"
+#include "d3d11-texture.h"
 #include "d3d11-query.h"
+#include "d3d11-pipeline.h"
 #include "d3d11-shader-program.h"
 #include "d3d11-input-layout.h"
+#include "d3d11-helper-functions.h"
+#include "d3d11-shader-object.h"
 #include "../command-list.h"
 #include "../strings.h"
 
@@ -17,7 +23,7 @@ class CommandExecutor
 {
 public:
     DeviceImpl* m_device;
-    ID3D11DeviceContext* m_immediateContext;
+    ID3D11DeviceContext1* m_immediateContext;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
@@ -30,16 +36,15 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
-    ComputeState m_computeState = {};
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
-    RefPtr<RootShaderObjectImpl> m_rootObject;
+    BindingDataImpl* m_bindingData = nullptr;
 
     bool m_usedDisjointQuery = false;
 
     CommandExecutor(DeviceImpl* device)
         : m_device(device)
-        , m_immediateContext(device->m_immediateContext.get())
+        , m_immediateContext(device->m_immediateContext1.get())
     {
     }
 
@@ -89,13 +94,13 @@ public:
 
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 {
-    CommandList* commandList = commandBuffer->m_commandList;
-    auto command = commandList->getCommands();
+    const CommandList& commandList = commandBuffer->m_commandList;
+    auto command = commandList.getCommands();
     while (command)
     {
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
-        cmd##x(commandList->getCommand<commands::x>(command));                                                         \
+        cmd##x(commandList.getCommand<commands::x>(command));                                                          \
         break;
 
         switch (command->id)
@@ -118,7 +123,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
 
 void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -134,43 +139,43 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyTexture);
+    NOT_SUPPORTED(S_CommandEncoder_copyTexture);
 }
 
 void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyTextureToBuffer);
+    NOT_SUPPORTED(S_CommandEncoder_copyTextureToBuffer);
 }
 
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(clearBuffer);
+    NOT_SUPPORTED(S_CommandEncoder_clearBuffer);
 }
 
 void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(clearTexture);
+    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(uploadTextureData);
+    NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
 }
 
 void CommandExecutor::cmdUploadBufferData(const commands::UploadBufferData& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(uploadBufferData);
+    NOT_SUPPORTED(S_CommandEncoder_uploadBufferData);
 }
 
 void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(resolveQuery);
+    NOT_SUPPORTED(S_CommandEncoder_resolveQuery);
 }
 
 void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
@@ -273,8 +278,8 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     const RenderState& state = cmd.state;
 
-    bool updatePipeline = !m_renderStateValid || state.pipeline != m_renderState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_renderState.rootObject;
+    bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateDepthStencilState = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
     bool updateVertexBuffers = !m_renderStateValid || arraysEqual(
                                                           state.vertexBufferCount,
@@ -297,13 +302,13 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updatePipeline)
     {
-        m_renderPipeline = checked_cast<RenderPipelineImpl*>(state.pipeline);
+        m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
 
         m_immediateContext->IASetInputLayout(m_renderPipeline->m_inputLayout->m_layout);
         m_immediateContext->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
-        m_immediateContext->VSSetShader(m_renderPipeline->m_programImpl->m_vertexShader, nullptr, 0);
+        m_immediateContext->VSSetShader(m_renderPipeline->m_vertexShader, nullptr, 0);
         m_immediateContext->RSSetState(m_renderPipeline->m_rasterizerState);
-        m_immediateContext->PSSetShader(m_renderPipeline->m_programImpl->m_pixelShader, nullptr, 0);
+        m_immediateContext->PSSetShader(m_renderPipeline->m_pixelShader, nullptr, 0);
         m_immediateContext->OMSetBlendState(
             m_renderPipeline->m_blendState,
             m_renderPipeline->m_blendColor,
@@ -311,73 +316,51 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         );
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
-        // In order to bind the root object we must compute its specialized layout.
+        // Bind constant buffers, shader resource views, and samplers.
+        m_immediateContext->VSSetConstantBuffers1(
+            0,
+            m_bindingData->uavCount,
+            m_bindingData->cbvsBuffer,
+            m_bindingData->cbvsFirst,
+            m_bindingData->cbvsCount
+        );
+        m_immediateContext->PSSetConstantBuffers1(
+            0,
+            m_bindingData->cbvCount,
+            m_bindingData->cbvsBuffer,
+            m_bindingData->cbvsFirst,
+            m_bindingData->cbvsCount
+        );
+        m_immediateContext->VSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
+        m_immediateContext->PSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
+        m_immediateContext->VSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
+        m_immediateContext->PSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
+
+        // Bind unordered access views.
         //
-        // TODO: This is in most ways redundant with `maybeSpecializePipeline` earlier,
-        // and the two operations should really be one.
+        // In D3D11, the RTV and UAV binding slots alias, so that a shader
+        // that binds an RTV for `SV_Target0` cannot also bind a UAV for `u0`.
+        // The Slang layout algorithm already accounts for this rule, and assigns
+        // all UAVs to slots that won't alias the RTVs it knows about.
+        // This means the UAV array in the root object will have all UAVs
+        // offset by the number of RTVs that are bound.
         //
-        RefPtr<ShaderObjectLayoutImpl> specializedLayout;
-        m_rootObject->_getSpecializedLayout(specializedLayout.writeRef());
-        RootShaderObjectLayoutImpl* specializedRootLayout =
-            checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout.get());
-
-        GraphicsBindingContext context(m_device, m_immediateContext);
-        m_rootObject->bindAsRoot(&context, specializedRootLayout);
-
-        // Bind UAVs.
-        if (context.uavCount)
+        UINT rtvCount = (UINT)m_renderTargetViews.size();
+        UINT uavCount = m_bindingData->uavCount;
+        SLANG_RHI_ASSERT((uavCount == 0) || (uavCount >= rtvCount));
+        if (uavCount)
         {
-            // Similar to the compute case above, the rasteirzation case needs to
-            // set the UAVs after the call to `bindAsRoot()` completes, but we
-            // also have a few extra wrinkles here that are specific to the D3D 11.0
-            // rasterization pipeline.
-            //
-            // In D3D 11.0, the RTV and UAV binding slots alias, so that a shader
-            // that binds an RTV for `SV_Target0` cannot also bind a UAV for `u0`.
-            // The Slang layout algorithm already accounts for this rule, and assigns
-            // all UAVs to slots taht won't alias the RTVs it knows about.
-            //
-            // In order to account for the aliasing, we need to consider how many
-            // RTVs are bound as part of the active framebuffer, and then adjust
-            // the UAVs that we bind accordingly.
-            //
-            UINT rtvCount = (UINT)m_renderTargetViews.size();
-            //
-            // The `context` we are using will have computed the number of UAV registers
-            // that might need to be bound, as a range from 0 to `context.uavCount`.
-            // However we need to skip over the first `rtvCount` of those, so the
-            // actual number of UAVs we wnat to bind is smaller:
-            //
-            // Note: As a result we expect that either there were no UAVs bound,
-            // *or* the number of UAV slots bound is higher than the number of
-            // RTVs so that there is something left to actually bind.
-            //
-            SLANG_RHI_ASSERT((context.uavCount == 0) || (context.uavCount >= rtvCount));
-            UINT uavCount = context.uavCount - rtvCount;
-            //
-            // Similarly, the actual UAVs we intend to bind will come after the first
-            // `rtvCount` in the array.
-            //
-            ID3D11UnorderedAccessView** uavs = context.uavs + rtvCount;
-
-            // Once the offsetting is accounted for, we set all of the RTVs, DSV,
-            // and UAVs with one call.
-            //
-            // TODO: We may want to use the capability for `OMSetRenderTargetsAnd...`
-            // to only set the UAVs and leave the RTVs/UAVs alone, so that we don't
-            // needlessly re-bind RTVs during a pass.
-            //
             m_immediateContext->OMSetRenderTargetsAndUnorderedAccessViews(
                 D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL,
                 nullptr,
                 nullptr,
                 rtvCount,
-                uavCount,
-                uavs,
+                uavCount - rtvCount,
+                m_bindingData->uavs + rtvCount,
                 nullptr
             );
         }
@@ -395,7 +378,6 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         ID3D11Buffer* buffers[SLANG_COUNT_OF(state.vertexBuffers)];
         for (uint32_t i = 0; i < state.vertexBufferCount; ++i)
         {
-            const auto& buffer = state.vertexBuffers[i];
             strides[i] = m_renderPipeline->m_inputLayout->m_vertexStreamStrides[i];
             offsets[i] = state.vertexBuffers[i].offset;
             buffers[i] = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer)->m_buffer;
@@ -494,7 +476,7 @@ void CommandExecutor::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     // D3D11 does not support sourcing the count from a buffer.
     if (cmd.countBuffer)
     {
-        m_device->warning(S_CommandEncoder_drawIndirect " with countBuffer not supported");
+        m_device->warning(S_RenderPassEncoder_drawIndirect " with countBuffer not supported");
         return;
     }
 
@@ -511,7 +493,7 @@ void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     // D3D11 does not support sourcing the count from a buffer.
     if (cmd.countBuffer)
     {
-        m_device->warning(S_CommandEncoder_drawIndexedIndirect " with countBuffer not supported");
+        m_device->warning(S_RenderPassEncoder_drawIndirect " with countBuffer not supported");
         return;
     }
 
@@ -523,7 +505,7 @@ void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 void CommandExecutor::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(drawMeshTasks);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawMeshTasks);
 }
 
 void CommandExecutor::cmdBeginComputePass(const commands::BeginComputePass& cmd)
@@ -544,42 +526,32 @@ void CommandExecutor::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (!m_computePassActive)
         return;
 
-    const ComputeState& state = cmd.state;
-
-    bool updatePipeline = !m_computeStateValid || state.pipeline != m_computeState.pipeline;
-    bool updateRootObject = updatePipeline || state.rootObject != m_computeState.rootObject;
+    bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     if (updatePipeline)
     {
-        m_computePipeline = checked_cast<ComputePipelineImpl*>(state.pipeline);
-        m_immediateContext->CSSetShader(m_computePipeline->m_programImpl->m_computeShader, nullptr, 0);
+        m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
+        m_immediateContext->CSSetShader(m_computePipeline->m_computeShader, nullptr, 0);
     }
 
-    if (updateRootObject)
+    if (updateBindings)
     {
-        m_rootObject = checked_cast<RootShaderObjectImpl*>(state.rootObject);
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
-        // In order to bind the root object we must compute its specialized layout.
-        //
-        // TODO: This is in most ways redundant with `maybeSpecializePipeline` earlier,
-        // and the two operations should really be one.
-        //
-        RefPtr<ShaderObjectLayoutImpl> specializedLayout;
-        m_rootObject->_getSpecializedLayout(specializedLayout.writeRef());
-        RootShaderObjectLayoutImpl* specializedRootLayout =
-            checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout.get());
-
-        ComputeBindingContext context(m_device, m_immediateContext);
-        m_rootObject->bindAsRoot(&context, specializedRootLayout);
-        // Because D3D11 requires all UAVs to be set at once, we did *not* issue
-        // actual binding calls during the `bindAsRoot` step, and instead we
-        // batch them up and set them here.
-        //
-        m_immediateContext->CSSetUnorderedAccessViews(0, context.uavCount, context.uavs, nullptr);
+        m_immediateContext->CSSetConstantBuffers1(
+            0,
+            m_bindingData->cbvCount,
+            m_bindingData->cbvsBuffer,
+            m_bindingData->cbvsFirst,
+            m_bindingData->cbvsCount
+        );
+        m_immediateContext->CSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
+        m_immediateContext->CSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
+        m_immediateContext->CSSetUnorderedAccessViews(0, m_bindingData->uavCount, m_bindingData->uavs, nullptr);
     }
 
     m_computeStateValid = true;
-    m_computeState = state;
 }
 
 void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -599,61 +571,59 @@ void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchCompute
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(beginRayTracingPass);
+    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
 }
 
 void CommandExecutor::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(endRayTracingPass);
 }
 
 void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(setRayTracingState);
 }
 
 void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(dispatchRays);
+    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
 }
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(buildAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_buildAccelerationStructure);
 }
 
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_copyAccelerationStructure);
 }
 
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(queryAccelerationStructureProperties);
+    NOT_SUPPORTED(S_CommandEncoder_queryAccelerationStructureProperties);
 }
 
 void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(serializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_serializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(deserializeAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(convertCooperativeVectorMatrix);
+    NOT_SUPPORTED(S_CommandEncoder_convertCooperativeVectorMatrix);
 }
 
 void CommandExecutor::cmdSetBufferState(const commands::SetBufferState& cmd)
@@ -704,9 +674,8 @@ void CommandExecutor::clearState()
     m_renderState = {};
     m_renderPipeline = nullptr;
     m_computeStateValid = false;
-    m_computeState = {};
     m_computePipeline = nullptr;
-    m_rootObject = nullptr;
+    m_bindingData = nullptr;
 }
 
 // CommandQueueImpl
@@ -765,14 +734,37 @@ CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device)
 Result CommandEncoderImpl::init()
 {
     m_commandBuffer = new CommandBufferImpl();
-    m_commandBuffer->m_commandList = new CommandList();
-    m_commandList = m_commandBuffer->m_commandList;
+    m_commandBuffer->m_constantBufferPool.init(m_device);
+    m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
+}
+
+Device* CommandEncoderImpl::getDevice()
+{
+    return m_device;
+}
+
+Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
+{
+    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    BindingDataBuilder builder;
+    builder.m_device = m_device;
+    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    builder.m_allocator = &m_commandBuffer->m_allocator;
+    builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
+    ShaderObjectLayout* specializedLayout = nullptr;
+    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
+    return builder.bindAsRoot(
+        rootObject,
+        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
+        (BindingDataImpl*&)outBindingData
+    );
 }
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
+    m_commandBuffer->m_constantBufferPool.finish();
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;
@@ -786,6 +778,12 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 }
 
 // CommandBufferImpl
+
+Result CommandBufferImpl::reset()
+{
+    m_bindingCache.reset();
+    return CommandBuffer::reset();
+}
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {

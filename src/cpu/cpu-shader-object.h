@@ -6,73 +6,50 @@
 
 namespace rhi::cpu {
 
-class CPUShaderObjectData
+void shaderObjectSetBinding(
+    ShaderObject* shaderObject,
+    const ShaderOffset& offset,
+    const ResourceSlot& slot,
+    slang::BindingType bindingType
+);
+
+struct BindingDataBuilder
 {
-public:
-    /// Any "ordinary" / uniform data for this object
-    std::vector<uint8_t> m_ordinaryData;
-    RefPtr<BufferImpl> m_buffer;
+    DeviceImpl* m_device;
+    BindingCache* m_bindingCache;
+    BindingDataImpl* m_bindingData;
+    PagedAllocator* m_allocator;
 
-    Index getCount();
-    void setCount(Index count);
-    uint8_t* getBuffer();
-
-    ~CPUShaderObjectData();
-
-    /// Returns a StructuredBuffer resource view for GPU access into the buffer content.
-    /// Creates a StructuredBuffer resource if it has not been created.
-    Buffer* getBufferResource(
-        Device* device,
-        slang::TypeLayoutReflection* elementLayout,
-        slang::BindingType bindingType
+    /// Bind this object as a root shader object
+    Result bindAsRoot(
+        RootShaderObject* shaderObject,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
     );
+
+    struct ObjectData
+    {
+        void* data;
+        size_t size;
+    };
+
+    Result writeObjectData(ShaderObject* shaderObject, ShaderObjectLayoutImpl* specializedLayout, ObjectData& outData);
 };
 
-class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, CPUShaderObjectData>
+struct BindingDataImpl : BindingData
 {
-    typedef ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, CPUShaderObjectData> Super;
-
-public:
-    std::vector<RefPtr<Resource>> m_resources;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL init(DeviceImpl* device, ShaderObjectLayoutImpl* typeLayout);
-
-    virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
-
-    virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
-
-    virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setData(const ShaderOffset& offset, const void* data, size_t size) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
-
-    uint8_t* getDataBuffer();
+    void* globalData;
+    struct EntryPointData
+    {
+        void* data;
+    };
+    EntryPointData* entryPoints;
+    uint32_t entryPointCount;
 };
 
-class EntryPointShaderObjectImpl : public ShaderObjectImpl
+struct BindingCache
 {
-public:
-    EntryPointLayoutImpl* getLayout();
-};
-
-class RootShaderObjectImpl : public ShaderObjectImpl
-{
-public:
-    // An overload for the `init` virtual function, with a more specific type
-    Result init(DeviceImpl* device, RootShaderObjectLayoutImpl* programLayout);
-    using ShaderObjectImpl::init;
-
-    RootShaderObjectLayoutImpl* getLayout();
-
-    EntryPointShaderObjectImpl* getEntryPoint(Index index);
-    std::vector<RefPtr<EntryPointShaderObjectImpl>> m_entryPoints;
-
-    virtual SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override;
-    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
+    void reset();
 };
 
 } // namespace rhi::cpu

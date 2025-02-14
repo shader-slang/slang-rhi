@@ -1,4 +1,5 @@
 #include "metal-buffer.h"
+#include "metal-device.h"
 #include "metal-util.h"
 
 namespace rhi::metal {

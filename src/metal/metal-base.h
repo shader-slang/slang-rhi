@@ -29,5 +29,7 @@ class CommandEncoderImpl;
 class CommandBufferImpl;
 class CommandQueueImpl;
 class QueryPoolImpl;
+struct BindingDataImpl;
+struct BindingCache;
 
 } // namespace rhi::metal

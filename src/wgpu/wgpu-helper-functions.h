@@ -1,8 +1,6 @@
 #pragma once
 
-#include <slang-rhi.h>
-
-#include <vector>
+#include "wgpu-base.h"
 
 namespace rhi {
 

@@ -34,7 +34,7 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
         // Now we can use this type to create a shader object that can be bound to the root object.
         ComPtr<IShaderObject> transformer;
@@ -47,7 +47,6 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
         // Set the `c` field of the `AddTransformer`.
         float c = 1.0f;
         ShaderCursor(transformer)["c"].setData(&c, sizeof(float));
-        transformer->finalize();
 
         auto rootObject = device->createRootShaderObject(pipeline);
         ShaderCursor cursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
@@ -55,17 +54,13 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
         cursor["buffer"].setBinding(buffer);
         // Bind the previously created transformer object to root object.
         cursor["transformer"].setObject(transformer);
-        rootObject->finalize();
 
-        auto passEncoder = encoder->beginComputePass();
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        passEncoder->setComputeState(state);
+        auto passEncoder = commandEncoder->beginComputePass();
+        passEncoder->bindPipeline(pipeline, rootObject);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -74,16 +69,5 @@ void testComputeSmoke(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("compute-smoke")
 {
-    runGpuTests(
-        testComputeSmoke,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-            // DeviceType::WGPU,
-        }
-    );
+    runGpuTests(testComputeSmoke);
 }

@@ -13,8 +13,6 @@ public:
     uint32_t m_callableTableSize;
 
     DeviceImpl* m_device;
-
-    virtual RefPtr<Buffer> createDeviceBuffer(RayTracingPipeline* pipeline) override;
 };
 
 } // namespace rhi::metal

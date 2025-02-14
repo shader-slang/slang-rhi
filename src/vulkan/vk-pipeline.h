@@ -11,7 +11,7 @@ class RenderPipelineImpl : public RenderPipeline
 {
 public:
     BreakableReference<DeviceImpl> m_device;
-    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 
     ~RenderPipelineImpl();
@@ -26,7 +26,7 @@ class ComputePipelineImpl : public ComputePipeline
 {
 public:
     BreakableReference<DeviceImpl> m_device;
-    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 
     ~ComputePipelineImpl();
@@ -41,7 +41,7 @@ class RayTracingPipelineImpl : public RayTracingPipeline
 {
 public:
     BreakableReference<DeviceImpl> m_device;
-    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
     uint32_t m_shaderGroupCount;

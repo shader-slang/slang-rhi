@@ -2,6 +2,7 @@
 #include "d3d12-device.h"
 #include "d3d12-pipeline-state-stream.h"
 #include "d3d12-shader-program.h"
+#include "d3d12-shader-object-layout.h"
 #include "d3d12-input-layout.h"
 
 #include "core/stable_vector.h"
@@ -23,6 +24,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_shaders.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
 
     ComPtr<ID3D12PipelineState> pipelineState;
@@ -266,6 +268,7 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_shaders.empty());
 
     ComPtr<ID3D12PipelineState> pipelineState;
 
@@ -341,6 +344,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
 #if SLANG_RHI_DXR
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_shaders.empty());
 
     ComPtr<ID3D12StateObject> stateObject;
 

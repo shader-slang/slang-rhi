@@ -31,6 +31,13 @@ std::string getCaseTempDirectory();
 /// Cleanup all temp directories created by tests.
 void cleanupTestTempDirectories();
 
+std::string readFile(std::string_view path);
+void writeFile(std::string_view path, const void* data, size_t size);
+inline void writeFile(std::string_view path, std::string_view data)
+{
+    writeFile(path, data.data(), data.size());
+}
+
 struct GpuTestContext
 {
     slang::IGlobalSession* slangGlobalSession;
@@ -135,6 +142,8 @@ bool isDeviceTypeAvailable(DeviceType deviceType);
 
 bool isSwiftShaderDevice(IDevice* device);
 
+const char* getTestsDir();
+
 std::vector<const char*> getSlangSearchPaths();
 
 void initializeRenderDoc();
@@ -147,9 +156,20 @@ auto makeArray(Args... args)
     return std::array<T, sizeof...(Args)>{static_cast<T>(args)...};
 }
 
+#define ALL_DEVICE_TYPES                                                                                               \
+    {                                                                                                                  \
+        rhi::DeviceType::D3D11,                                                                                        \
+        rhi::DeviceType::D3D12,                                                                                        \
+        rhi::DeviceType::Vulkan,                                                                                       \
+        rhi::DeviceType::Metal,                                                                                        \
+        rhi::DeviceType::CPU,                                                                                          \
+        rhi::DeviceType::CUDA,                                                                                         \
+        rhi::DeviceType::WGPU,                                                                                         \
+    }
+
 using GpuTestFunc = void (*)(GpuTestContext*, DeviceType);
 
-void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes);
+void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes = ALL_DEVICE_TYPES);
 
 } // namespace rhi::testing
 

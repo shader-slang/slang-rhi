@@ -43,7 +43,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
 {
-    m_currentDrawable = NS::TransferPtr(m_metalLayer->nextDrawable());
+    m_currentDrawable = NS::RetainPtr(m_metalLayer->nextDrawable());
     if (!m_currentDrawable)
     {
         return SLANG_FAIL;
@@ -60,7 +60,7 @@ Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
     textureDesc.mipLevelCount = 1;
     textureDesc.defaultState = ResourceState::Present;
     RefPtr<TextureImpl> texture = new TextureImpl(textureDesc);
-    texture->m_texture = NS::TransferPtr(m_currentDrawable->texture());
+    texture->m_texture = NS::RetainPtr(m_currentDrawable->texture());
     texture->m_textureType = texture->m_texture->textureType();
     texture->m_pixelFormat = texture->m_texture->pixelFormat();
 

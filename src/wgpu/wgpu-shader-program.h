@@ -8,7 +8,7 @@ class ShaderProgramImpl : public ShaderProgram
 {
 public:
     BreakableReference<DeviceImpl> m_device;
-    RefPtr<RootShaderObjectLayout> m_rootObjectLayout;
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
 
     struct Module
     {
@@ -23,8 +23,12 @@ public:
     ShaderProgramImpl(DeviceImpl* device);
     ~ShaderProgramImpl();
 
+    virtual void comFree() override;
+
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;
+
+    virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 
     Module* findModule(SlangStage stage);
 };

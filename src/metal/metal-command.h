@@ -1,6 +1,7 @@
 #pragma once
 
 #include "metal-base.h"
+#include "metal-shader-object.h"
 
 namespace rhi::metal {
 
@@ -22,16 +23,11 @@ public:
     void init(NS::SharedPtr<MTL::CommandQueue> commandQueue);
 
     // ICommandQueue implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL
     submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
@@ -48,10 +44,11 @@ public:
 
     Result init();
 
+    virtual Device* getDevice() override;
+    virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
+
     // ICommandEncoder implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
@@ -61,11 +58,13 @@ public:
     DeviceImpl* m_device;
     CommandQueueImpl* m_queue;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
+    BindingCache m_bindingCache;
 
     CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 
     Result init();
+    virtual Result reset() override;
 
     // ICommandBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

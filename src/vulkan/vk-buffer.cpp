@@ -1,7 +1,8 @@
 #include "vk-buffer.h"
-
+#include "vk-device.h"
 #include "vk-util.h"
 #include "vk-helper-functions.h"
+
 #if SLANG_WINDOWS_FAMILY
 #include <dxgi1_2.h>
 #endif
@@ -45,8 +46,6 @@ Result VKBufferHandleRAII::init(
     int memoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
     SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
 
-    VkMemoryPropertyFlags actualMemoryProperites =
-        api.m_deviceMemoryProperties.memoryTypes[memoryTypeIndex].propertyFlags;
     VkMemoryAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocateInfo.allocationSize = memoryReqs.size;
     allocateInfo.memoryTypeIndex = memoryTypeIndex;
@@ -175,6 +174,9 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
 {
     ViewKey key = {format, range};
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     VkBufferView& view = m_views[key];
     if (view)
         return view;

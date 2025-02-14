@@ -1,10 +1,11 @@
 #include "d3d12-sampler.h"
+#include "d3d12-device.h"
 
 namespace rhi::d3d12 {
 
 SamplerImpl::~SamplerImpl()
 {
-    m_allocator->free(m_descriptor);
+    m_device->m_cpuSamplerHeap->free(m_descriptor);
 }
 
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)

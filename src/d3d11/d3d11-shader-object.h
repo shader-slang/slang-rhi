@@ -1,74 +1,32 @@
 #pragma once
 
 #include "d3d11-base.h"
-#include "d3d11-buffer.h"
-#include "d3d11-helper-functions.h"
-#include "d3d11-texture.h"
-#include "d3d11-sampler.h"
 #include "d3d11-shader-object-layout.h"
-
-#include <set>
+#include "d3d11-constant-buffer-pool.h"
 
 namespace rhi::d3d11 {
 
-class ShaderObjectImpl : public ShaderObjectBaseImpl<ShaderObjectImpl, ShaderObjectLayoutImpl, SimpleShaderObjectData>
+struct BindingDataBuilder
 {
-public:
-    static Result create(DeviceImpl* device, ShaderObjectLayoutImpl* layout, ShaderObjectImpl** outShaderObject);
+    DeviceImpl* m_device;
+    ConstantBufferPool* m_constantBufferPool;
+    PagedAllocator* m_allocator;
+    BindingCache* m_bindingCache;
+    BindingDataImpl* m_bindingData;
 
-    Device* getDevice() { return m_layout->getDevice(); }
+    /// Bind this object as a root shader object
+    Result bindAsRoot(
+        RootShaderObject* shaderObject,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
+    );
 
-    SLANG_NO_THROW GfxCount SLANG_MCALL getEntryPointCount() override { return 0; }
-
-    SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override
-    {
-        *outEntryPoint = nullptr;
-        return SLANG_OK;
-    }
-
-    virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override { return m_data.getBuffer(); }
-
-    virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override { return (size_t)m_data.getCount(); }
-
-    SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& inOffset, const void* data, size_t inSize) override;
-
-    SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) override;
-
-public:
-protected:
-    friend class ProgramVars;
-
-    Result init(DeviceImpl* device, ShaderObjectLayoutImpl* layout);
-
-    /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given `offset`
-    Result _writeOrdinaryData(void* dest, size_t destSize, ShaderObjectLayoutImpl* specializedLayout) const;
-
-    /// Ensure that the `m_ordinaryDataBuffer` has been created, if it is needed
-    ///
-    /// The `specializedLayout` type must represent a specialized layout for this
-    /// type that includes any "pending" data.
-    ///
-    Result _ensureOrdinaryDataBufferCreatedIfNeeded(DeviceImpl* device, ShaderObjectLayoutImpl* specializedLayout)
-        const;
-
-    /// Bind the buffer for ordinary/uniform data, if needed
-    ///
-    /// The `ioOffset` parameter will be updated to reflect the constant buffer
-    /// register consumed by the ordinary data buffer, if one was bound.
-    ///
-    Result _bindOrdinaryDataBufferIfNeeded(
-        BindingContext* context,
-        BindingOffset& ioOffset,
-        ShaderObjectLayoutImpl* specializedLayout
-    ) const;
-
-public:
     /// Bind this object as if it was declared as a `ConstantBuffer<T>` in Slang
     Result bindAsConstantBuffer(
-        BindingContext* context,
-        const BindingOffset& inOffset,
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
-    ) const;
+    );
 
     /// Bind this object as a value that appears in the body of another object.
     ///
@@ -77,79 +35,42 @@ public:
     /// indirectly when binding sub-objects to constant buffer or parameter
     /// block ranges.
     ///
-    Result bindAsValue(BindingContext* context, const BindingOffset& offset, ShaderObjectLayoutImpl* specializedLayout)
-        const;
-
-    // Set of resources to keep alive while this object is alive.
-    std::vector<RefPtr<Resource>> m_srvResources;
-    std::vector<RefPtr<Resource>> m_uavResources;
-
-    // Because the binding ranges have already been reflected
-    // and organized as part of each shader object layout,
-    // the object itself can store its data in a small number
-    // of simple arrays.
-    /// The shader resource views (SRVs) that are part of the state of this object
-    std::vector<ComPtr<ID3D11ShaderResourceView>> m_srvs;
-
-    /// The unordered access views (UAVs) that are part of the state of this object
-    std::vector<ComPtr<ID3D11UnorderedAccessView>> m_uavs;
-
-    /// The samplers that are part of the state of this object
-    std::vector<RefPtr<SamplerImpl>> m_samplers;
-
-    /// A constant buffer used to stored ordinary data for this object
-    /// and existential-type sub-objects.
-    ///
-    /// Created on demand with `_createOrdinaryDataBufferIfNeeded()`
-    mutable RefPtr<BufferImpl> m_ordinaryDataBuffer;
-
-    /// Get the layout of this shader object with specialization arguments considered
-    ///
-    /// This operation should only be called after the shader object has been
-    /// fully filled in and finalized.
-    ///
-    Result _getSpecializedLayout(ShaderObjectLayoutImpl** outLayout);
-
-    /// Create the layout for this shader object with specialization arguments considered
-    ///
-    /// This operation is virtual so that it can be customized by `ProgramVars`.
-    ///
-    virtual Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout);
-
-    RefPtr<ShaderObjectLayoutImpl> m_specializedLayout;
-};
-
-class RootShaderObjectImpl : public ShaderObjectImpl
-{
-    typedef ShaderObjectImpl Super;
-
-public:
-    static Result create(
-        DeviceImpl* device,
-        RootShaderObjectLayoutImpl* layout,
-        RootShaderObjectImpl** outShaderObject
+    Result bindAsValue(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        ShaderObjectLayoutImpl* specializedLayout
     );
 
-    RootShaderObjectLayoutImpl* getLayout() { return checked_cast<RootShaderObjectLayoutImpl*>(m_layout.Ptr()); }
+    /// Bind the buffer for ordinary/uniform data, if needed
+    ///
+    /// The `ioOffset` parameter will be updated to reflect the constant buffer
+    /// register consumed by the ordinary data buffer, if one was bound.
+    ///
+    Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
+        ShaderObject* shaderObject,
+        BindingOffset& ioOffset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+};
 
-    GfxCount SLANG_MCALL getEntryPointCount() override { return (GfxCount)m_entryPoints.size(); }
-    Result SLANG_MCALL getEntryPoint(GfxIndex index, IShaderObject** outEntryPoint) override
-    {
-        returnComPtr(outEntryPoint, m_entryPoints[index]);
-        return SLANG_OK;
-    }
+struct BindingDataImpl : BindingData
+{
+public:
+    UINT cbvCount;
+    ID3D11Buffer* cbvsBuffer[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+    UINT cbvsFirst[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+    UINT cbvsCount[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+    UINT srvCount;
+    ID3D11ShaderResourceView* srvs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+    UINT uavCount;
+    ID3D11UnorderedAccessView* uavs[D3D11_PS_CS_UAV_REGISTER_COUNT];
+    UINT samplerCount;
+    ID3D11SamplerState* samplers[D3D11_COMMONSHADER_SAMPLER_REGISTER_COUNT];
+};
 
-    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
-
-    /// Bind this object as a root shader object
-    Result bindAsRoot(BindingContext* context, RootShaderObjectLayoutImpl* specializedLayout) const;
-
-protected:
-    Result init(DeviceImpl* device, RootShaderObjectLayoutImpl* layout);
-
-    Result _createSpecializedLayout(ShaderObjectLayoutImpl** outLayout) override;
-
-    std::vector<RefPtr<ShaderObjectImpl>> m_entryPoints;
+struct BindingCache : public RefObject
+{
+    void reset();
 };
 
 } // namespace rhi::d3d11

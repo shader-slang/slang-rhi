@@ -16,7 +16,12 @@ struct S0
     StructuredBuffer<uint> b0;
     [root] StructuredBuffer<uint> b1;
     ParameterBlock<S1> s1;
+#if defined(__METAL__)
+    // Metal doesn't support ConstantBuffer inside a ParameterBlock
+    ParameterBlock<S1> s2;
+#else
     ConstantBuffer<S1> s2;
+#endif
 }
 
 ParameterBlock<S0> g;

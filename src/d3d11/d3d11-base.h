@@ -49,10 +49,10 @@ class RenderPipelineImpl;
 class ComputePipelineImpl;
 class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
-class ShaderObjectImpl;
-class RootShaderObjectImpl;
 class CommandQueueImpl;
 class CommandEncoderImpl;
 class CommandBufferImpl;
+struct BindingDataImpl;
+struct BindingCache;
 
 } // namespace rhi::d3d11

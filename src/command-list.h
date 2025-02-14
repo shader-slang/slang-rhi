@@ -5,6 +5,7 @@
 #include "core/paged-allocator.h"
 
 #include <utility>
+#include <set>
 #include <cstring>
 
 // clang-format off
@@ -52,6 +53,9 @@
 
 namespace rhi {
 
+struct BindingData;
+class ExtendedShaderObjectTypeListObject;
+
 #define SLANG_RHI_COMMAND_ENUM_X(x) x,
 
 enum class CommandID : uint32_t
@@ -66,9 +70,9 @@ namespace commands {
 struct CopyBuffer
 {
     IBuffer* dst;
-    Offset dstOffset;
+    uint64_t dstOffset;
     IBuffer* src;
-    Offset srcOffset;
+    uint64_t srcOffset;
     Size size;
 };
 
@@ -86,7 +90,7 @@ struct CopyTexture
 struct CopyTextureToBuffer
 {
     IBuffer* dst;
-    Offset dstOffset;
+    uint64_t dstOffset;
     Size dstSize;
     Size dstRowStride;
     ITexture* src;
@@ -125,7 +129,7 @@ struct UploadTextureData
 struct UploadBufferData
 {
     IBuffer* dst;
-    Offset offset;
+    uint64_t offset;
     // TODO: we could use some owned memory blob to avoid copying data
     const void* data;
     Size size;
@@ -151,6 +155,9 @@ struct EndRenderPass
 struct SetRenderState
 {
     RenderState state;
+    IRenderPipeline* pipeline;
+    ExtendedShaderObjectTypeListObject* specializationArgs;
+    BindingData* bindingData;
 };
 
 struct Draw
@@ -196,7 +203,9 @@ struct EndComputePass
 
 struct SetComputeState
 {
-    ComputeState state;
+    IComputePipeline* pipeline;
+    ExtendedShaderObjectTypeListObject* specializationArgs;
+    BindingData* bindingData;
 };
 
 struct DispatchCompute
@@ -220,7 +229,10 @@ struct EndRayTracingPass
 
 struct SetRayTracingState
 {
-    RayTracingState state;
+    IRayTracingPipeline* pipeline;
+    ExtendedShaderObjectTypeListObject* specializationArgs;
+    IShaderTable* shaderTable;
+    BindingData* bindingData;
 };
 
 struct DispatchRays
@@ -367,14 +379,7 @@ public:
         void* data;
     };
 
-    struct ResourceSlot
-    {
-        ISlangUnknown* resource;
-        ResourceSlot* next;
-    };
-
-    CommandList();
-    ~CommandList();
+    CommandList(PagedAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects);
 
     void reset();
 
@@ -432,33 +437,27 @@ public:
     }
 
 private:
-    PagedAllocator m_allocator;
+    PagedAllocator& m_allocator;
+    std::set<RefPtr<RefObject>>& m_trackedObjects;
     CommandSlot* m_commandSlots = nullptr;
     CommandSlot* m_lastCommandSlot = nullptr;
-    ResourceSlot* m_resourceSlots = nullptr;
 
-    void retainResource(ISlangUnknown* resource)
+    void retainResource(RefObject* resource)
     {
         if (resource)
         {
-            resource->addRef();
-            ResourceSlot* slot = reinterpret_cast<ResourceSlot*>(m_allocator.allocate(sizeof(ResourceSlot)));
-            slot->resource = resource;
-            slot->next = m_resourceSlots;
-            m_resourceSlots = slot;
+            m_trackedObjects.insert(resource);
         }
     }
 
-    void releaseResources()
+    template<typename To, typename From>
+    void retainResource(From* resource)
     {
-        ResourceSlot* slot = m_resourceSlots;
-        while (slot)
+        if (resource)
         {
-            ResourceSlot* next = slot->next;
-            slot->resource->release();
-            slot = next;
+            To* obj = checked_cast<To*>(resource);
+            retainResource(obj);
         }
-        m_resourceSlots = nullptr;
     }
 
     const void* writeData(const void* data, size_t size)
@@ -485,7 +484,7 @@ private:
         }
         m_lastCommandSlot = slot;
 
-        if (sizeof(T) > 0)
+        if constexpr (sizeof(T) > 0)
         {
             slot->data = m_allocator.allocate(sizeof(T));
             new (slot->data) T(std::forward<T>(cmd));

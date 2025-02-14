@@ -31,7 +31,6 @@ Result DebugCommandQueue::submit(uint32_t count, ICommandBuffer** commandBuffers
     for (uint32_t i = 0; i < count; i++)
     {
         auto cmdBufferIn = commandBuffers[i];
-        auto cmdBufferImpl = getDebugObj(cmdBufferIn);
         auto innerCmdBuffer = getInnerObj(cmdBufferIn);
         innerCommandBuffers.push_back(innerCmdBuffer);
     }

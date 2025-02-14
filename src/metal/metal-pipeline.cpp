@@ -19,6 +19,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     AUTORELEASEPOOL
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
     if (!program | !inputLayout)
         return SLANG_FAIL;
@@ -48,7 +49,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     // Create a vertex descriptor with the vertex buffer binding indices being offset.
     // They need to be in a range not used by any buffers in the root object layout.
     // The +1 is to account for a potential constant buffer at index 0.
-    NS::UInteger vertexBufferOffset = program->m_rootObjectLayout->getBufferCount() + 1;
+    NS::UInteger vertexBufferOffset = program->m_rootObjectLayout->getTotalBufferCount() + 1;
     NS::SharedPtr<MTL::VertexDescriptor> vertexDescriptor = inputLayout->createVertexDescriptor(vertexBufferOffset);
     pd->setVertexDescriptor(vertexDescriptor.get());
     pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.primitiveTopology));
@@ -166,6 +167,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     AUTORELEASEPOOL
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
 
     const ShaderProgramImpl::Module& module = program->m_modules[0];
     auto functionName = MetalUtil::createString(module.entryPointName.data());

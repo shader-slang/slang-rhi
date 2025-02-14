@@ -30,6 +30,9 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 {
     ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
+    if (deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
+        SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
+
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(
@@ -97,23 +100,19 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
     cursor["resultBuffer"].setBinding(resultBuffer);
     cursor["scene"].setObject(sceneObject);
     cursor["perView"].setObject(cbObject);
-    rootObject->finalize();
 
     // We have done all the set up work, now it is time to start recording a command buffer for
     // GPU execution.
     {
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
+        auto commandEncoder = queue->createCommandEncoder();
 
-        auto passEncoder = encoder->beginComputePass();
-        ComputeState state;
-        state.pipeline = pipeline;
-        state.rootObject = rootObject;
-        passEncoder->setComputeState(state);
+        auto passEncoder = commandEncoder->beginComputePass();
+        passEncoder->bindPipeline(pipeline, rootObject);
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(encoder->finish());
+        queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 
@@ -122,13 +121,5 @@ void testNestedParameterBlock(GpuTestContext* ctx, DeviceType deviceType)
 
 TEST_CASE("nested-parameter-block")
 {
-    runGpuTests(
-        testNestedParameterBlock,
-        {
-            DeviceType::CUDA,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            // DeviceType::Metal,
-        }
-    );
+    runGpuTests(testNestedParameterBlock);
 }

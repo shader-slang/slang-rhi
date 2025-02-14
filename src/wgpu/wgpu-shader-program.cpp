@@ -9,7 +9,18 @@ ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
 {
 }
 
-ShaderProgramImpl::~ShaderProgramImpl() {}
+ShaderProgramImpl::~ShaderProgramImpl()
+{
+    for (Module& module : m_modules)
+    {
+        m_device->m_ctx.api.wgpuShaderModuleRelease(module.module);
+    }
+}
+
+void ShaderProgramImpl::comFree()
+{
+    m_device.breakStrongReference();
+}
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
@@ -40,6 +51,11 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     return SLANG_OK;
 }
 
+ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
+{
+    return m_rootObjectLayout;
+}
+
 ShaderProgramImpl::Module* ShaderProgramImpl::findModule(SlangStage stage)
 {
     for (Module& module : m_modules)
@@ -58,19 +74,12 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
-
-    RootShaderObjectLayout::create(
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
         this,
         shaderProgram->linkedProgram,
         shaderProgram->linkedProgram->getLayout(),
         shaderProgram->m_rootObjectLayout.writeRef()
-    );
-
-    if (!shaderProgram->isSpecializable())
-    {
-        SLANG_RETURN_ON_FAIL(shaderProgram->compileShaders(this));
-    }
-
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }

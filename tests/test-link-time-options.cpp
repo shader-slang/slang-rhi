@@ -68,7 +68,7 @@ void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
-    ComPtr<IPipeline> pipeline;
+    ComPtr<IComputePipeline> pipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     const int numberCount = 4;
@@ -90,17 +90,13 @@ void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
-
-        auto rootObject = commandEncoder->preparePipeline(pipeline);
-
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
         // Bind buffer view to the entry point.
-        entryPointCursor.getPath("buffer").setBinding(buffer);
-
-        ComputeState state;
-        commandEncoder->prepareFinish(&state);
-        commandEncoder->setComputeState(state);
-        commandEncoder->dispatchCompute(1, 1, 1);
+        entryPointCursor["buffer"].setBinding(buffer);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
 
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();

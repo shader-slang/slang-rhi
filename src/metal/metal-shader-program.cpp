@@ -1,5 +1,6 @@
 #include "metal-shader-program.h"
 #include "metal-device.h"
+#include "metal-shader-object-layout.h"
 #include "metal-util.h"
 
 namespace rhi::metal {
@@ -28,13 +29,18 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     module.library = NS::TransferPtr(m_device->m_device->newLibrary(data, &error));
     if (!module.library)
     {
-        // TODO use better mechanism for reporting errors
-        printf("%s", error->localizedDescription()->utf8String());
+        const char* msg = error->localizedDescription()->utf8String();
+        m_device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg);
         return SLANG_E_INVALID_ARG;
     }
 
     m_modules.push_back(module);
     return SLANG_OK;
+}
+
+ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
+{
+    return m_rootObjectLayout;
 }
 
 } // namespace rhi::metal
