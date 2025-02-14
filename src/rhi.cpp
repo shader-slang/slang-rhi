@@ -352,12 +352,22 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
     case DeviceType::Default:
     {
         DeviceDesc newDesc = *desc;
+#if SLANG_WINDOWS_FAMILY
         newDesc.deviceType = DeviceType::D3D12;
         if (_createDevice(&newDesc, outDevice) == SLANG_OK)
             return SLANG_OK;
         newDesc.deviceType = DeviceType::Vulkan;
         if (_createDevice(&newDesc, outDevice) == SLANG_OK)
             return SLANG_OK;
+#elif SLANG_LINUX_FAMILY
+        newDesc.deviceType = DeviceType::Vulkan;
+        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+            return SLANG_OK;
+#elif SLANG_APPLE_FAMILY
+        newDesc.deviceType = DeviceType::Metal;
+        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+            return SLANG_OK;
+#endif
         return SLANG_FAIL;
     }
     break;
@@ -411,7 +421,11 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
 void RHI::enableDebugLayers()
 {
 #if SLANG_RHI_ENABLE_D3D12
+    static bool sEnabled = false;
+    if (sEnabled)
+        return;
     enableD3D12DebugLayerIfAvailable();
+    sEnabled = true;
 #endif
 }
 

@@ -32,7 +32,7 @@ public:
     std::vector<StagingBufferPage> m_pages;
     std::vector<RefPtr<TBuffer>> m_largeAllocations;
 
-    Index m_pageAllocCounter = 0;
+    size_t m_pageAllocCounter = 0;
     size_t m_offsetAllocCounter = 0;
 
     const size_t kStagingBufferDefaultPageSize = 16 * 1024 * 1024;
