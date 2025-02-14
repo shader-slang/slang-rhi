@@ -3,10 +3,9 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
+// D3D11, Metal, CUDA, CPU don't support clearTexture
+GPU_TEST_CASE("clear-texture", D3D12 | Vulkan)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
     textureDesc.mipLevelCount = 1;
@@ -45,16 +44,4 @@ void testClearTexture(GpuTestContext* ctx, DeviceType deviceType)
             CHECK_EQ(data[i], clearValue.color.floatValues[i]);
         }
     }
-}
-
-TEST_CASE("clear-texture")
-{
-    // D3D11, Metal, CUDA, CPU don't support clearTexture
-    runGpuTests(
-        testClearTexture,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
 }

@@ -20,14 +20,12 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 
     return buffer;
 }
-void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
+
+GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
 {
-    if (deviceType == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
+    if (device->getDeviceInfo().deviceType == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
         SKIP("not supported on MoltenVK");
-
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
-    if (deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
+    if (device->getDeviceInfo().deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
         SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
 
     ComPtr<IShaderProgram> shaderProgram;
@@ -105,16 +103,4 @@ void testSamplerArray(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(4.0f));
-}
-
-TEST_CASE("sampler-array")
-{
-    runGpuTests(
-        testSamplerArray,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-        }
-    );
 }

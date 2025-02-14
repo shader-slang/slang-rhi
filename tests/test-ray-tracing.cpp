@@ -378,23 +378,22 @@ struct RayTracingTestB : BaseRayTracingTest
     }
 };
 
-template<typename T>
-void testRayTracing(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("ray-tracing-a", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     if (!device->hasFeature("ray-tracing"))
         SKIP("ray tracing not supported");
-    T test;
+
+    RayTracingTestA test;
     test.init(device);
     test.run();
 }
 
-TEST_CASE("ray-tracing-a")
+GPU_TEST_CASE("ray-tracing-b", ALL)
 {
-    runGpuTests(testRayTracing<RayTracingTestA>);
-}
+    if (!device->hasFeature("ray-tracing"))
+        SKIP("ray tracing not supported");
 
-TEST_CASE("ray-tracing-b")
-{
-    runGpuTests(testRayTracing<RayTracingTestB>);
+    RayTracingTestB test;
+    test.init(device);
+    test.run();
 }

@@ -261,25 +261,10 @@ struct ResolveResourceSimple : BaseResolveResourceTest
     }
 };
 
-template<typename T>
-void testResolveResource(GpuTestContext* ctx, DeviceType deviceType)
+// skip WGPU: rgba32float is not supported for multisampling
+GPU_TEST_CASE("resolve-resource-simple", D3D11 | D3D12 | Vulkan | Metal)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-    T test;
+    ResolveResourceSimple test;
     test.init(device);
     test.run();
-}
-
-TEST_CASE("resolve-resource-simple")
-{
-    runGpuTests(
-        testResolveResource<ResolveResourceSimple>,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            // DeviceType::WGPU, // rgba32float is not supported for multisampling
-        }
-    );
 }

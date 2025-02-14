@@ -52,10 +52,8 @@ static Result loadProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("link-time-constant", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadProgram(
@@ -117,9 +115,4 @@ void testLinkTimeConstant(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(1.f, -2.f, 3.f, 4.f));
-}
-
-TEST_CASE("link-time-constant")
-{
-    runGpuTests(testLinkTimeConstant);
 }

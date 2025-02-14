@@ -262,7 +262,7 @@ struct ComputeSurfaceTest : SurfaceTest
 };
 
 template<typename Test>
-void testSurface(GpuTestContext* ctx, DeviceType deviceType)
+void testSurface(IDevice* device)
 {
     glfwInit();
     if (!hasMonitor())
@@ -270,7 +270,6 @@ void testSurface(GpuTestContext* ctx, DeviceType deviceType)
         SKIP("No monitor attached");
     }
 
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
     Test t;
     t.init(device);
     t.run();
@@ -279,31 +278,13 @@ void testSurface(GpuTestContext* ctx, DeviceType deviceType)
     glfwTerminate();
 }
 
-TEST_CASE("surface-render")
+GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
-    runGpuTests(
-        testSurface<RenderSurfaceTest>,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            DeviceType::WGPU,
-        }
-    );
+    testSurface<RenderSurfaceTest>(device);
 }
 
-TEST_CASE("surface-compute")
+// skip WGPU: RWTexture binding fails
+GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
-    runGpuTests(
-        testSurface<ComputeSurfaceTest>,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-            // DeviceType::WGPU, // RWTexture binding fails
-            DeviceType::CUDA,
-        }
-    );
+    testSurface<ComputeSurfaceTest>(device);
 }

@@ -32,10 +32,8 @@ ComPtr<IBuffer> createFloatBuffer(
     return buffer;
 }
 
-void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("buffer-barrier", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     Shader programA;
     Shader programB;
     REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
@@ -85,9 +83,4 @@ void testBufferBarrier(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, outputBuffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
-}
-
-TEST_CASE("buffer-barrier")
-{
-    runGpuTests(testBufferBarrier);
 }

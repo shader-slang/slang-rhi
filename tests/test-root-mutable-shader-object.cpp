@@ -3,10 +3,9 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
+// TODO fix for other backends
+GPU_TEST_CASE("root-mutable-shader-object", WGPU)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
@@ -65,15 +64,4 @@ void testRootMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(3.0f, 4.0f, 5.0f, 6.0f));
-}
-
-TEST_CASE("root-mutable-shader-object")
-{
-    runGpuTests(
-        testRootMutableShaderObject,
-        {
-            DeviceType::WGPU,
-            // DeviceType::Vulkan,
-        }
-    );
 }

@@ -476,10 +476,8 @@ struct RenderTargetTests : TextureTest
     }
 };
 
-void testTextureShader(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("texture-types-shader", D3D12 | Vulkan | Metal)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     TextureType textureTypes[] = {
         TextureType::Texture1D,
         TextureType::Texture2D,
@@ -502,10 +500,8 @@ void testTextureShader(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-void testRenderTarget(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("texture-types-render-target", D3D12 | Vulkan)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     TextureType textureTypes[] = {
         TextureType::Texture1D,
         TextureType::Texture2D,
@@ -524,29 +520,6 @@ void testRenderTarget(GpuTestContext* ctx, DeviceType deviceType)
         test.init(device, format, validationFormat, textureType);
         test.run();
     }
-}
-
-TEST_CASE("texture-types-shader")
-{
-    runGpuTests(
-        testTextureShader,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            DeviceType::Metal,
-        }
-    );
-}
-
-TEST_CASE("texture-types-render-target")
-{
-    runGpuTests(
-        testRenderTarget,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
 }
 
 // 1D + array + multisample, ditto for 2D, ditto for 3D

@@ -20,11 +20,10 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 
     return buffer;
 }
-void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
-{
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
 
-    if (deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
+GPU_TEST_CASE("root-shader-parameter", ALL)
+{
+    if (device->getDeviceInfo().deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
         SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
 
     ComPtr<IShaderProgram> shaderProgram;
@@ -99,9 +98,4 @@ void testRootShaderParameter(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffers[8], makeArray<uint32_t>(10 - 1 + 2 - 3 + 4 + 5 - 6 + 7));
-}
-
-TEST_CASE("root-shader-parameter")
-{
-    runGpuTests(testRootShaderParameter);
 }

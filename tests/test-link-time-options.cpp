@@ -58,10 +58,9 @@ static Result loadProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
+// Test only works for D3D12 backend using dxc compiler.
+GPU_TEST_CASE("link-time-options", D3D12)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
     REQUIRE_CALL(loadProgram(device, shaderProgram, "test-link-time-options", "computeMain", slangReflection));
@@ -103,15 +102,4 @@ void testLinkTimeOptions(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(4.f));
-}
-
-TEST_CASE("link-time-options")
-{
-    // Test only works for D3D12 backend using dxc compiler.
-    runGpuTests(
-        testLinkTimeOptions,
-        {
-            DeviceType::D3D12,
-        }
-    );
 }

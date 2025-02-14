@@ -4,10 +4,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("mutable-shader-object", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
     ComPtr<ITransientResourceHeap> transientHeap;
     ITransientResourceHeap::Desc transientHeapDesc = {};
     transientHeapDesc.constantBufferSize = 4096;
@@ -90,18 +88,4 @@ void testMutableShaderObject(GpuTestContext* ctx, DeviceType deviceType)
     compareComputeResult(device, buffer, makeArray<float>(3.0f, 4.0f, 5.0f, 6.0f));
 }
 
-TEST_CASE("mutable-shader-object")
-{
-    runGpuTests(
-        testMutableShaderObject,
-        {
-            DeviceType::D3D11,
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-            // DeviceType::Metal,
-            DeviceType::CUDA,
-            DeviceType::CPU,
-        }
-    );
-}
 #endif

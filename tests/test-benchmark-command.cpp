@@ -13,11 +13,9 @@ struct Shader
     ComPtr<IComputePipeline> pipeline;
 };
 
-void benchmarkCommand(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("benchmark-command", ALL)
 {
-    ComPtr<IDevice> device = createTestingDevice(ctx, deviceType);
-
-    if (deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
+    if (device->getDeviceInfo().deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
         SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
 
     Shader shader;
@@ -96,9 +94,4 @@ void benchmarkCommand(GpuTestContext* ctx, DeviceType deviceType)
     queue->waitOnHost();
 
     // compareComputeResult(device, outputBuffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
-}
-
-TEST_CASE("benchmark-command")
-{
-    runGpuTests(benchmarkCommand);
 }
