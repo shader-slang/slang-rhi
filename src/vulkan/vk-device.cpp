@@ -959,6 +959,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             }
         }
     }
+
+    // Supports ParameterBlock
+    m_features.push_back("parameter-block");
+    // Supports surface/swapchain
+    m_features.push_back("surface");
+    // Supports rasterization
+    m_features.push_back("rasterization");
+
     if (m_api.m_module->isSoftware())
     {
         m_features.push_back("software-device");

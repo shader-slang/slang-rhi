@@ -213,6 +213,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
+    // Supports ParameterBlock
+    m_features.push_back("parameter-block");
+    // Supports surface/swapchain
+    m_features.push_back("surface");
+    // Supports rasterization
+    m_features.push_back("rasterization");
+
     // NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
     {

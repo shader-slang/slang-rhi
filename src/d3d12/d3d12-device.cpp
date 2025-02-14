@@ -498,6 +498,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_device5 = m_deviceInfo.m_device5.get();
 #endif
 
+    // Supports ParameterBlock
+    m_features.push_back("parameter-block");
+    // Supports surface/swapchain
+    m_features.push_back("surface");
+    // Supports rasterization
+    m_features.push_back("rasterization");
 
     if (m_deviceInfo.m_isSoftware)
     {

@@ -15,8 +15,8 @@ struct Shader
 
 GPU_TEST_CASE("benchmark-command", ALL)
 {
-    if (device->getDeviceInfo().deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
-        SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
+    if (!device->hasFeature("parameter-block"))
+        SKIP("no support for parameter blocks");
 
     Shader shader;
     REQUIRE_CALL(loadComputeProgram(device, shader.program, "test-benchmark-command", "addkernel", shader.reflection));

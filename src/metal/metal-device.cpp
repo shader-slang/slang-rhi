@@ -61,9 +61,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;
 
+    // Supports surface/swapchain
+    m_features.push_back("surface");
+    // Supports rasterization
+    m_features.push_back("rasterization");
+
     if (m_hasArgumentBufferTier2)
     {
         m_features.push_back("argument-buffer-tier-2");
+        // ParameterBlock requires argument buffer tier 2
+        m_features.push_back("parameter-block");
     }
 
     SLANG_RETURN_ON_FAIL(

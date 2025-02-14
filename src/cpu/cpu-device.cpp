@@ -31,10 +31,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.timestampFrequency = 1000000000;
     }
 
-    // Can support pointers (or something akin to that)
-    {
-        m_features.push_back("has-ptr");
-    }
+    // Supports ParameterBlock
+    m_features.push_back("parameter-block");
+    // Supports pointers (or something akin to that)
+    m_features.push_back("has-ptr");
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 
