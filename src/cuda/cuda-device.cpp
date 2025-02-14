@@ -199,16 +199,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), kReportType);
 
-    {
-        // Not clear how to detect half support on CUDA. For now we'll assume we have it
-        m_features.push_back("half");
-
-        // CUDA has support for realtime clock
-        m_features.push_back("realtime-clock");
-
-        // Allows use of a ptr like type
-        m_features.push_back("has-ptr");
-    }
+    // Supports ParameterBlock
+    m_features.push_back("parameter-block");
+    // Supports surface/swapchain (implemented in Vulkan).
+    m_features.push_back("surface");
+    // Not clear how to detect half support on CUDA. For now we'll assume we have it
+    m_features.push_back("half");
+    // CUDA has support for realtime clock
+    m_features.push_back("realtime-clock");
+    // Allows use of a ptr like type
+    m_features.push_back("has-ptr");
 
 #if SLANG_RHI_ENABLE_OPTIX
     {

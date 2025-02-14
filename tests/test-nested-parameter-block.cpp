@@ -28,8 +28,8 @@ struct uint4
 
 GPU_TEST_CASE("nested-parameter-block", ALL)
 {
-    if (device->getDeviceInfo().deviceType == DeviceType::Metal && !device->hasFeature("argument-buffer-tier-2"))
-        SKIP("ParameterBlock not supported (argument-buffer-tier-2)");
+    if (!device->hasFeature("parameter-block"))
+        SKIP("no support for parameter blocks");
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;

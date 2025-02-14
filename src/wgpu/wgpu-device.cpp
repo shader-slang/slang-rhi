@@ -187,6 +187,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
     m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
 
+    // Supports ParameterBlock
+    m_features.push_back("parameter-block");
+    // Supports surface/swapchain
+    m_features.push_back("surface");
+    // Supports rasterization
+    m_features.push_back("rasterization");
+
     if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_ShaderF16))
         m_features.push_back("half");
 
