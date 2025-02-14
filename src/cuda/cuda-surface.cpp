@@ -538,7 +538,7 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
         fdInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
         frameData.sharedSemaphoreHandle.type = NativeHandleType::FileDescriptor;
         SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkGetSemaphoreWin32HandleKHR(m_device, &fdInfo, (int*)(&frameData.sharedSemaphoreHandle.value))
+            m_api.vkGetSemaphoreFdKHR(m_device, &fdInfo, (int*)(&frameData.sharedSemaphoreHandle.value))
         );
 #endif
 
