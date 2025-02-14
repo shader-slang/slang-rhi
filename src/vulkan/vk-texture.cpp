@@ -4,6 +4,10 @@
 #include "vk-util.h"
 #include "vk-helper-functions.h"
 
+#if !SLANG_WINDOWS_FAMILY
+#include <unistd.h>
+#endif
+
 namespace rhi::vk {
 
 TextureImpl::TextureImpl(DeviceImpl* device, const TextureDesc& desc)
@@ -27,7 +31,9 @@ TextureImpl::~TextureImpl()
     if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.value);
+#else
+        ::close((int)m_sharedHandle.value);
 #endif
     }
 }

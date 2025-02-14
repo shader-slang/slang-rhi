@@ -6,7 +6,7 @@ namespace rhi::d3d12 {
 FenceImpl::~FenceImpl()
 {
     if (m_waitEvent)
-        CloseHandle(m_waitEvent);
+        ::CloseHandle(m_waitEvent);
 }
 
 HANDLE FenceImpl::getWaitEvent()

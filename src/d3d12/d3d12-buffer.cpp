@@ -29,7 +29,7 @@ BufferImpl::~BufferImpl()
 
     if (m_sharedHandle)
     {
-        CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.value);
     }
 }
 

@@ -1383,7 +1383,7 @@ CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
 CommandQueueImpl::~CommandQueueImpl()
 {
     waitOnHost();
-    CloseHandle(m_globalWaitHandle);
+    ::CloseHandle(m_globalWaitHandle);
 }
 
 Result CommandQueueImpl::init(uint32_t queueIndex)

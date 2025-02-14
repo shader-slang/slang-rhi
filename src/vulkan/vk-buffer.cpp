@@ -7,6 +7,11 @@
 #include <dxgi1_2.h>
 #endif
 
+#if !SLANG_WINDOWS_FAMILY
+#include <unistd.h>
+#endif
+
+
 namespace rhi::vk {
 
 Result VKBufferHandleRAII::init(
@@ -102,7 +107,9 @@ BufferImpl::~BufferImpl()
     if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.value);
+#else
+        ::close((int)m_sharedHandle.value);
 #endif
     }
 }
