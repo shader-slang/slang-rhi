@@ -9,7 +9,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_device = device;
     m_d3dDevice = device->m_device;
     m_dxgiFactory = device->m_dxgiFactory;
-    return D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL);
+    return D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, true);
 }
 
 void SurfaceImpl::createSwapchainTextures(uint32_t count)

@@ -27,7 +27,9 @@ TextureImpl::~TextureImpl()
     if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.value);
+#else
+        ::close((int)m_sharedHandle.value);
 #endif
     }
 }

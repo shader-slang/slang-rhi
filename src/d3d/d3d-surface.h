@@ -14,7 +14,7 @@ namespace rhi {
 class D3DSurface : public Surface
 {
 public:
-    Result init(WindowHandle windowHandle, DXGI_SWAP_EFFECT swapEffect)
+    Result init(WindowHandle windowHandle, DXGI_SWAP_EFFECT swapEffect, bool allowUnorderedAccess)
     {
         if (windowHandle.type != WindowHandleType::HWND)
         {
@@ -24,7 +24,11 @@ public:
         m_swapEffect = swapEffect;
 
         m_info.preferredFormat = Format::R8G8B8A8_UNORM;
-        m_info.supportedUsage = TextureUsage::RenderTarget | TextureUsage::Present;
+        m_info.supportedUsage = TextureUsage::RenderTarget | TextureUsage::CopyDestination | TextureUsage::Present;
+        if (allowUnorderedAccess)
+        {
+            m_info.supportedUsage |= TextureUsage::UnorderedAccess;
+        }
         static const Format kSupportedFormats[] = {
             Format::R8G8B8A8_UNORM,
             Format::R8G8B8A8_UNORM_SRGB,
@@ -46,6 +50,8 @@ public:
         swapChainDesc.BufferDesc.Height = m_config.height;
         swapChainDesc.BufferDesc.Format = D3DUtil::getMapFormat(srgbToLinearFormat(m_config.format));
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        if (is_set(m_info.supportedUsage, TextureUsage::UnorderedAccess))
+            swapChainDesc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
         swapChainDesc.SwapEffect = m_swapEffect;
         swapChainDesc.OutputWindow = m_windowHandle;
         swapChainDesc.SampleDesc.Count = 1;
