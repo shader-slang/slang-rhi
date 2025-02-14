@@ -507,7 +507,7 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
     // Create semaphore shared with CUDA.
     {
         VkExportSemaphoreCreateInfo exportInfo = {VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO};
-#ifdef SLANG_WINDOWS_FAMILY
+#if SLANG_WINDOWS_FAMILY
         exportInfo.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 #else
         exportInfo.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
@@ -522,7 +522,7 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
         createInfo.pNext = &typeCreateInfo;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSemaphore(m_device, &createInfo, nullptr, &frameData.sharedSemaphore));
 
-#ifdef SLANG_WINDOWS_FAMILY
+#if SLANG_WINDOWS_FAMILY
         VkSemaphoreGetWin32HandleInfoKHR handleInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR};
         handleInfo.semaphore = frameData.sharedSemaphore;
         handleInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
@@ -541,7 +541,7 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
 #endif
 
         CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC externalSemaphoreHandleDesc = {};
-#ifdef SLANG_WINDOWS_FAMILY
+#if SLANG_WINDOWS_FAMILY
         externalSemaphoreHandleDesc.type = CU_EXTERNAL_SEMAPHORE_HANDLE_TYPE_TIMELINE_SEMAPHORE_WIN32;
         externalSemaphoreHandleDesc.handle.win32.handle = (void*)frameData.sharedSemaphoreHandle.value;
 #else
@@ -682,7 +682,6 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     }
     sharedTexture.sharedHandle.type = NativeHandleType::FileDescriptor;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkGetMemoryFdKHR(m_device, &getHandleInfo, (int*)&sharedTexture.sharedHandle.value));
-    m_sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
 
     // Create CUDA texture.
