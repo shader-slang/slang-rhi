@@ -14,6 +14,8 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
+
 // Note:
 // CUDA doesn't provide a swapchain implementation.
 // In order to support the ISurface interface in the CUDA backend,
