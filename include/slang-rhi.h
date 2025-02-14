@@ -2228,8 +2228,6 @@ struct DeviceDesc
 
     /// Enable RHI validation layer.
     bool enableValidation = false;
-    /// Enable backend API validation layer.
-    bool enableBackendValidation = false;
     /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
     bool enableRayTracingValidation = false;
     /// Debug callback. If not null, this will be called for each debug message.

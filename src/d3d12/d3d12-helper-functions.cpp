@@ -5,12 +5,6 @@
 
 #include "core/string.h"
 
-#ifdef _DEBUG
-#define ENABLE_DEBUG_LAYER 1
-#else
-#define ENABLE_DEBUG_LAYER 0
-#endif
-
 namespace rhi::d3d12 {
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)

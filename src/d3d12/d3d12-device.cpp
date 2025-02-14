@@ -16,12 +16,6 @@
 #include "core/short_vector.h"
 #include "core/string.h"
 
-#ifdef _DEBUG
-#define ENABLE_DEBUG_LAYER 1
-#else
-#define ENABLE_DEBUG_LAYER 0
-#endif
-
 #ifdef SLANG_RHI_NV_AFTERMATH
 #include "GFSDK_Aftermath.h"
 #include "GFSDK_Aftermath_Defines.h"
@@ -416,7 +410,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #endif
 
     // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
-    if (ENABLE_DEBUG_LAYER || desc.enableBackendValidation && !g_isAftermathEnabled)
+    if (isDebugLayersEnabled() && !g_isAftermathEnabled)
     {
         m_D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)loadProc(d3dModule, "D3D12GetDebugInterface");
         if (m_D3D12GetDebugInterface)
@@ -450,10 +444,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     if (!desc.existingDeviceHandles.handles[0])
     {
         FlagCombiner combiner;
-        // TODO: we should probably provide a command-line option
-        // to override UseDebug of default rather than leave it
-        // up to each back-end to specify.
-        if (ENABLE_DEBUG_LAYER || desc.enableBackendValidation)
+        if (isDebugLayersEnabled())
         {
             /// First try debug then non debug.
             combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);

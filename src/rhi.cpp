@@ -232,6 +232,8 @@ static const FormatInfoMap s_formatInfoMap;
 class RHI : public IRHI
 {
 public:
+    bool debugLayersEnabled = false;
+
     virtual const FormatInfo& getFormatInfo(Format format) override { return s_formatInfoMap.get(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
@@ -420,13 +422,12 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
 
 void RHI::enableDebugLayers()
 {
-#if SLANG_RHI_ENABLE_D3D12
-    static bool sEnabled = false;
-    if (sEnabled)
+    if (debugLayersEnabled)
         return;
+#if SLANG_RHI_ENABLE_D3D12
     enableD3D12DebugLayerIfAvailable();
-    sEnabled = true;
 #endif
+    debugLayersEnabled = true;
 }
 
 Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
@@ -463,6 +464,11 @@ Result RHI::setTaskPoolWorkerCount(uint32_t count)
 Result RHI::setTaskScheduler(ITaskScheduler* scheduler)
 {
     return setGlobalTaskScheduler(scheduler);
+}
+
+bool isDebugLayersEnabled()
+{
+    return RHI::getInstance()->debugLayersEnabled;
 }
 
 extern "C"
