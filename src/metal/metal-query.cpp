@@ -13,8 +13,6 @@ static MTL::CounterSet* findCounterSet(MTL::Device* device, QueryType queryType)
         return nullptr;
     }
 
-    static NS::String* timestampStr = MTLSTR("timestamp");
-
     for (int i = 0; i < device->counterSets()->count(); ++i)
     {
         MTL::CounterSet* counterSet = static_cast<MTL::CounterSet*>(device->counterSets()->object(i));

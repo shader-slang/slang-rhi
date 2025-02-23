@@ -121,7 +121,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &m_ctx.adapter;
         WGPUFuture future = m_ctx.api.wgpuInstanceRequestAdapter2(m_ctx.instance, &options, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {future};
+        WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
@@ -164,7 +164,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &m_ctx.device;
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice2(m_ctx.adapter, &deviceDesc, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {future};
+        WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
@@ -281,7 +281,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {future};
+        WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
@@ -300,7 +300,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         { *(WGPUMapAsyncStatus*)userdata1 = status; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, bufferSize, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {future};
+        WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
@@ -366,7 +366,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {future};
+        WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
@@ -385,7 +385,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
         { *(WGPUMapAsyncStatus*)userdata1 = status; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {future};
+        WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);

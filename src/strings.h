@@ -16,6 +16,7 @@
 #define S_DeviceType_Metal "Metal"
 #define S_DeviceType_CPU "CPU"
 #define S_DeviceType_CUDA "CUDA"
+#define S_DeviceType_WGPU "WGPU"
 
 // FormatSupport
 #define S_FormatSupport_None "None"

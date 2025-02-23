@@ -52,7 +52,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_desc = desc;
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-    Result initDeviceResult = SLANG_OK;
 
     m_device = NS::TransferPtr(MTL::CreateSystemDefaultDevice());
     m_commandQueue = NS::TransferPtr(m_device->newCommandQueue(64));
@@ -83,7 +82,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         MTL::CaptureManager* captureManager = MTL::CaptureManager::sharedCaptureManager();
         MTL::CaptureDescriptor* d = MTL::CaptureDescriptor::alloc()->init();
-        MTL::CaptureDestination captureDest = MTL::CaptureDestination::CaptureDestinationGPUTraceDocument;
         if (!captureManager->supportsDestination(MTL::CaptureDestinationGPUTraceDocument))
         {
             printf(

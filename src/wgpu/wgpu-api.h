@@ -356,7 +356,7 @@ struct API
     Result init();
 
 #define WGPU_DECLARE_PROC(name) WGPUProc##name wgpu##name;
-    SLANG_RHI_WGPU_PROCS(WGPU_DECLARE_PROC);
+    SLANG_RHI_WGPU_PROCS(WGPU_DECLARE_PROC)
 #undef WGPU_DECLARE_PROC
 };
 

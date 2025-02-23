@@ -19,8 +19,9 @@ inline WGPUTextureViewDimension getViewDimension(SlangResourceShape shape)
         return WGPUTextureViewDimension_CubeArray;
     case SLANG_TEXTURE_3D:
         return WGPUTextureViewDimension_3D;
+    default:
+        return WGPUTextureViewDimension_Undefined;
     }
-    return WGPUTextureViewDimension_Undefined;
 }
 
 inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
@@ -202,6 +203,8 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                 break;
             case slang::BindingType::ConstantBuffer:
                 entry.buffer.type = WGPUBufferBindingType_Uniform;
+                break;
+            default:
                 break;
             }
 

@@ -958,9 +958,7 @@ Result CommandEncoder::resolvePipelines(Device* device)
     auto command = commandList->getCommands();
     while (command)
     {
-        switch (command->id)
-        {
-        case CommandID::SetRenderState:
+        if (command->id == CommandID::SetRenderState)
         {
             auto& cmd = commandList->getCommand<commands::SetRenderState>(command);
             RenderPipeline* pipeline = checked_cast<RenderPipeline*>(cmd.pipeline);
@@ -969,9 +967,8 @@ Result CommandEncoder::resolvePipelines(Device* device)
             SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
             cmd.pipeline = static_cast<RenderPipeline*>(concretePipeline);
             cmd.specializationArgs = nullptr;
-            break;
         }
-        case CommandID::SetComputeState:
+        else if (command->id == CommandID::SetComputeState)
         {
             auto& cmd = commandList->getCommand<commands::SetComputeState>(command);
             ComputePipeline* pipeline = checked_cast<ComputePipeline*>(cmd.pipeline);
@@ -980,9 +977,8 @@ Result CommandEncoder::resolvePipelines(Device* device)
             SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
             cmd.pipeline = static_cast<ComputePipeline*>(concretePipeline);
             cmd.specializationArgs = nullptr;
-            break;
         }
-        case CommandID::SetRayTracingState:
+        else if (command->id == CommandID::SetRayTracingState)
         {
             auto& cmd = commandList->getCommand<commands::SetRayTracingState>(command);
             RayTracingPipeline* pipeline = checked_cast<RayTracingPipeline*>(cmd.pipeline);
@@ -991,8 +987,6 @@ Result CommandEncoder::resolvePipelines(Device* device)
             SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
             cmd.pipeline = static_cast<RayTracingPipeline*>(concretePipeline);
             cmd.specializationArgs = nullptr;
-            break;
-        }
         }
         command = command->next;
     }
@@ -1754,8 +1748,8 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
             // us where the data for these sub-objects has been laid out.
             return SLANG_E_NOT_IMPLEMENTED;
         }
+        break;
     }
-    break;
     case slang::BindingType::MutableRawBuffer:
     case slang::BindingType::RawBuffer:
     {
@@ -1769,8 +1763,10 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
             subObject->writeStructuredBuffer(subObject->getElementTypeLayout(), m_layout, buffer.writeRef())
         );
         SLANG_RETURN_ON_FAIL(setBinding(offset, buffer));
+        break;
     }
-    break;
+    default:
+        break;
     }
     return SLANG_OK;
 }
@@ -2089,6 +2085,8 @@ Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& arg
                 // `SomeStruct` is a struct type (not directly an interface type), we need to recursively
                 // collect the specialization arguments from the bound sub object.
                 SLANG_RETURN_ON_FAIL(subObject->collectSpecializationArgs(typeArgs));
+                break;
+            default:
                 break;
             }
 

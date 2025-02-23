@@ -39,6 +39,8 @@ void shaderObjectSetBinding(
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
+    default:
+        break;
     }
 }
 

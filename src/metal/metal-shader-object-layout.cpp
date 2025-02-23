@@ -317,8 +317,6 @@ Result RootShaderObjectLayoutImpl::create(
 
 Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 {
-    auto device = builder->m_device;
-
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
     m_program = builder->m_program;
