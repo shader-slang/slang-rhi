@@ -4,6 +4,3 @@
 [submodule "external/metal-cpp"]
 	path = external/metal-cpp
 	url = https://github.com/bkaradzic/metal-cpp.git
-[submodule "external/nanothread"]
-	path = external/nanothread
-	url = https://github.com/skallweitNV/nanothread.git
