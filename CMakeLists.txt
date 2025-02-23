@@ -374,12 +374,6 @@ if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
 
-# nanothread
-# TODO: disabled for now as it introduces a dependency to libatomic which leads to issues with cross compilation
-# set(NANOTHREAD_STATIC ON)
-# add_subdirectory(external/nanothread)
-# set_target_properties(nanothread PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 # Setup compiler warnings
 target_compile_options(slang-rhi PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:
@@ -611,7 +605,6 @@ endif()
 
 target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
-# target_link_libraries(slang-rhi PRIVATE nanothread)
 target_compile_definitions(slang-rhi
     PRIVATE
     SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
