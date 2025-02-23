@@ -400,6 +400,7 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-sign-compare
         -Wno-gnu-anonymous-struct
         -Wno-nested-anon-types
+        -Wshadow
     >
 )
 

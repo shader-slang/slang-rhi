@@ -342,20 +342,20 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
     // auto elementTypeLayout = specializedLayout->getElementTypeLayout();
     auto elementTypeLayout = shaderObject->getElementTypeLayout();
 
-    ComPtr<IBuffer> buffer;
-    BufferDesc bufferDesc = {};
-    bufferDesc.size = argumentBufferTypeLayout->getSize();
-    bufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
-    bufferDesc.defaultState = ResourceState::ConstantBuffer;
-    bufferDesc.memoryType = MemoryType::Upload;
-    SLANG_RETURN_NULL_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-    auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
+    ComPtr<IBuffer> argumentBuffer;
+    BufferDesc argumentBufferDesc = {};
+    argumentBufferDesc.size = argumentBufferTypeLayout->getSize();
+    argumentBufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
+    argumentBufferDesc.defaultState = ResourceState::ConstantBuffer;
+    argumentBufferDesc.memoryType = MemoryType::Upload;
+    SLANG_RETURN_NULL_ON_FAIL(m_device->createBuffer(argumentBufferDesc, nullptr, argumentBuffer.writeRef()));
+    auto argumentBufferImpl = checked_cast<BufferImpl*>(argumentBuffer.get());
 
     // Once the buffer is allocated, we can fill it in with the uniform data
     // and resource bindings we have tracked, using `argumentBufferTypeLayout` to obtain
     // the offsets for each field.
     //
-    uint8_t* argumentData = (uint8_t*)bufferImpl->m_buffer->contents();
+    uint8_t* argumentData = (uint8_t*)argumentBufferImpl->m_buffer->contents();
 
     for (uint32_t bindingRangeIndex = 0; bindingRangeIndex < specializedLayout->getBindingRangeCount();
          ++bindingRangeIndex)
@@ -463,9 +463,9 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
     );
 
     // Pass ownership of the buffer to the binding cache.
-    m_bindingCache->buffers.push_back(bufferImpl);
+    m_bindingCache->buffers.push_back(argumentBufferImpl);
 
-    return bufferImpl;
+    return argumentBufferImpl;
 }
 
 void BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
