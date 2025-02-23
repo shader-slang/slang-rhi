@@ -619,7 +619,7 @@ struct SubresourceRange
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
 };
 
-static const SubresourceRange kEntireTexture = SubresourceRange{0l, 0x7fffffffl, 0l, 0x7fffffffl};
+static const SubresourceRange kEntireTexture = SubresourceRange{0, 0xffffffff, 0, 0xffffffff};
 
 /// Data for a single subresource of a texture.
 ///
@@ -690,6 +690,7 @@ struct Extents
     /// Depth (if 3d).
     int32_t depth = 0;
 };
+
 struct TextureDesc
 {
     StructType structType = StructType::TextureDesc;

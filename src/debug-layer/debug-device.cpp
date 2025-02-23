@@ -183,7 +183,14 @@ Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& 
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createTextureView(texture, desc, outView);
+    TextureViewDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createTextureViewLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+    return baseObject->createTextureView(texture, patchedDesc, outView);
 }
 
 Result DebugDevice::getAccelerationStructureSizes(

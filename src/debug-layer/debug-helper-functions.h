@@ -152,8 +152,11 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(Surface)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
 
+std::string subresourceRangeToString(const SubresourceRange& range);
+
 std::string createBufferLabel(const BufferDesc& desc);
 std::string createTextureLabel(const TextureDesc& desc);
+std::string createTextureViewLabel(const TextureViewDesc& desc);
 std::string createSamplerLabel(const SamplerDesc& desc);
 
 void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);

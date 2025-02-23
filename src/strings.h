@@ -57,6 +57,11 @@
 #define S_TextureType_Texture3D "Texture3D"
 #define S_TextureType_TextureCube "TextureCube"
 
+// TextureAspect
+#define S_TextureAspect_All "All"
+#define S_TextureAspect_DepthOnly "DepthOnly"
+#define S_TextureAspect_StencilOnly "StencilOnly"
+
 // TextureUsage
 #define S_TextureUsage_None "None"
 #define S_TextureUsage_ShaderResource "ShaderResource"
