@@ -3,7 +3,7 @@
 
 namespace rhi::cpu {
 
-static const CPUTextureBaseShapeInfo* _getBaseShapeInfo(TextureType baseShape)
+inline const CPUTextureBaseShapeInfo* _getBaseShapeInfo(TextureType baseShape)
 {
     return &kCPUTextureBaseShapeInfos[(int)baseShape];
 }
@@ -110,8 +110,6 @@ Result TextureImpl::init(const SubresourceData* initData)
     const FormatInfo& texelInfo = getFormatInfo(format);
     uint32_t texelSize = uint32_t(texelInfo.blockSizeInBytes / texelInfo.pixelsPerBlock);
     m_texelSize = texelSize;
-
-    int32_t formatBlockSize[kMaxRank] = {1, 1, 1};
 
     auto baseShapeInfo = _getBaseShapeInfo(desc.type);
     m_baseShape = baseShapeInfo;

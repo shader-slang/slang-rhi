@@ -314,8 +314,6 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
             uint8_t* dstData;
             m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, (void**)&dstData);
-            uint8_t* dstDataStart;
-            dstDataStart = dstData;
 
             uint64_t dstSubresourceOffset = 0;
             for (uint32_t i = 0; i < arrayLayerCount; ++i)

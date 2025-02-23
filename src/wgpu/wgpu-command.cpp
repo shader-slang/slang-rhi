@@ -708,7 +708,7 @@ Result CommandQueueImpl::waitOnHost()
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_device->m_ctx.api.wgpuQueueOnSubmittedWorkDone2(m_queue, callbackInfo);
         constexpr size_t futureCount = 1;
-        WGPUFutureWaitInfo futures[futureCount] = {future};
+        WGPUFutureWaitInfo futures[futureCount] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_device->m_ctx.api.wgpuInstanceWaitAny(m_device->m_ctx.instance, futureCount, futures, timeoutNS);

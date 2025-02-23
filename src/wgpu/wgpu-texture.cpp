@@ -63,6 +63,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         case TextureType::Texture1D:
             arrayLayers = 1U;
             break;
+        default:
+            break;
         }
         textureDesc.size.depthOrArrayLayers = arrayLayers;
     }
@@ -133,7 +135,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             callbackInfo.userdata1 = &status;
             WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
             constexpr size_t futureCount = 1;
-            WGPUFutureWaitInfo futures[futureCount] = {future};
+            WGPUFutureWaitInfo futures[futureCount] = {{future}};
             uint64_t timeoutNS = UINT64_MAX;
             WGPUWaitStatus waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, futureCount, futures, timeoutNS);
             if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)

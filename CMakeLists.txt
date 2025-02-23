@@ -380,10 +380,28 @@ endif()
 # add_subdirectory(external/nanothread)
 # set_target_properties(nanothread PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# target_compile_options(slang-rhi PRIVATE $<$<CXX_COMPILER_ID:AppleClang>:-Wall>) # -Wextra -Wpedantic -Wno-unused-parameter -Wno-missing-field-initializer
-if(MSVC)
-    target_compile_options(slang-rhi PRIVATE /W4 /WX /wd4267 /wd4244 /wd4100 /wd4018 /wd4245 /wd4702 /wd4127 /wd4389)
-endif()
+# Setup compiler warnings
+target_compile_options(slang-rhi PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:
+        /W4 /WX
+        /wd4267 # conversion from 'size_t' to 'type', possible loss of data
+        /wd4244 # conversion from 'type1' to 'type2', possible loss of data
+        /wd4100 # unreferenced formal parameter
+        /wd4018 # signed/unsigned mismatch
+        /wd4245 # conversion from 'type1' to 'type2', signed/unsigned mismatch
+        /wd4702 # unreachable code
+        /wd4127 # conditional expression is constant
+        /wd4389 # signed/unsigned mismatch
+    >
+    $<$<CXX_COMPILER_ID:AppleClang>:
+        -Wall -Wextra -Wpedantic -Werror
+        -Wno-unused-parameter
+        -Wno-missing-field-initializers
+        -Wno-sign-compare
+        -Wno-gnu-anonymous-struct
+        -Wno-nested-anon-types
+    >
+)
 
 target_sources(slang-rhi PRIVATE
     src/command-list.cpp

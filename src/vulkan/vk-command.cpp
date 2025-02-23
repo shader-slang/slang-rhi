@@ -152,14 +152,14 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
         {
             for (auto subCmdSlot = slot->next; subCmdSlot; subCmdSlot = subCmdSlot->next)
             {
-                switch (subCmdSlot->id)
+                if (subCmdSlot->id == CommandID::SetRenderState)
                 {
-                case CommandID::SetRenderState:
                     prepareSetRenderState(commandList.getCommand<commands::SetRenderState>(subCmdSlot));
+                }
+                else if (subCmdSlot->id == CommandID::EndRenderPass)
+                {
                     break;
                 }
-                if (subCmdSlot->id == CommandID::EndRenderPass)
-                    break;
             }
             commitBarriers();
         }

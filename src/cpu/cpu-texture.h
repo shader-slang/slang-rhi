@@ -18,8 +18,6 @@ static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[] = {
     /* TextureCube */ {2, 3, 6},
 };
 
-static const CPUTextureBaseShapeInfo* _getBaseShapeInfo(TextureType baseShape);
-
 typedef void (*CPUTextureUnpackFunc)(const void* texelData, void* outData, size_t outSize);
 
 struct CPUTextureFormatInfo

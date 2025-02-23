@@ -25,7 +25,7 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
 {
     if (device->getDeviceInfo().deviceType == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
         SKIP("not supported on MoltenVK");
-        if (!device->hasFeature("parameter-block"))
+    if (!device->hasFeature("parameter-block"))
         SKIP("no support for parameter blocks");
 
     ComPtr<IShaderProgram> shaderProgram;

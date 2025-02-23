@@ -34,9 +34,13 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_windowHandle = windowHandle;
 
     WGPUSurfaceDescriptor desc = {};
+#if SLANG_WINDOWS_FAMILY
     WGPUSurfaceSourceWindowsHWND descHWD = {};
+#elif SLANG_LINUX_FAMILY
     WGPUSurfaceSourceXlibWindow descXlib = {};
+#elif SLANG_APPLE_FAMILY
     WGPUSurfaceSourceMetalLayer descMetal = {};
+#endif
 
     switch (windowHandle.type)
     {

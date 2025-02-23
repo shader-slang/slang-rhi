@@ -152,8 +152,6 @@ Result BindingDataBuilder::bindAsValue(
     //
     for (const auto& bindingRangeInfo : specializedLayout->m_bindingRanges)
     {
-        BindingOffset rangeOffset = offset;
-
         uint32_t slotIndex = bindingRangeInfo.slotIndex;
         uint32_t count = bindingRangeInfo.count;
         switch (bindingRangeInfo.bindingType)
@@ -357,10 +355,8 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
     // and resource bindings we have tracked, using `argumentBufferTypeLayout` to obtain
     // the offsets for each field.
     //
-    auto dataSize = argumentBufferTypeLayout->getSize();
     uint8_t* argumentData = (uint8_t*)bufferImpl->m_buffer->contents();
 
-    SlangInt bindingRangeIndex = 0;
     for (uint32_t bindingRangeIndex = 0; bindingRangeIndex < specializedLayout->getBindingRangeCount();
          ++bindingRangeIndex)
     {
@@ -454,6 +450,8 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
             }
             break;
         }
+        default:
+            break;
         }
     }
 
@@ -480,12 +478,10 @@ void BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
     // If we are pure data, just copy it over from srcData.
     if (defaultTypeLayout->getCategoryCount() == 1)
     {
-        switch (defaultTypeLayout->getCategoryByIndex(0))
+        if (defaultTypeLayout->getCategoryByIndex(0) == slang::ParameterCategory::Uniform)
         {
-        case slang::ParameterCategory::Uniform:
             // Just write the uniform data.
             memcpy(argumentBuffer, srcData, defaultTypeLayout->getSize());
-            break;
         }
         return;
     }

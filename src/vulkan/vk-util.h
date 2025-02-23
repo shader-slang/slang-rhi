@@ -82,8 +82,9 @@ struct VulkanUtil
         case VK_FORMAT_D32_SFLOAT:
         case VK_FORMAT_D32_SFLOAT_S8_UINT:
             return true;
+        default:
+            return false;
         }
-        return false;
     }
 
     static inline bool isStencilFormat(VkFormat format)
@@ -94,8 +95,9 @@ struct VulkanUtil
         case VK_FORMAT_D24_UNORM_S8_UINT:
         case VK_FORMAT_D32_SFLOAT_S8_UINT:
             return true;
+        default:
+            return false;
         }
-        return false;
     }
 
     static VkSampleCountFlagBits translateSampleCount(uint32_t sampleCount);
