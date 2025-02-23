@@ -154,6 +154,20 @@ const char* enumToString(TextureType value)
     return S_INVALID;
 }
 
+const char* enumToString(TextureAspect value)
+{
+    switch (value)
+    {
+    case TextureAspect::All:
+        return S_TextureAspect_All;
+    case TextureAspect::DepthOnly:
+        return S_TextureAspect_DepthOnly;
+    case TextureAspect::StencilOnly:
+        return S_TextureAspect_StencilOnly;
+    }
+    return S_INVALID;
+}
+
 const char* enumToString(TextureUsage value)
 {
     switch (value)

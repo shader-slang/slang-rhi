@@ -13,6 +13,7 @@ const char* enumToString(MemoryType value);
 const char* enumToString(BufferUsage value);
 std::string flagsToString(BufferUsage value);
 const char* enumToString(TextureType value);
+const char* enumToString(TextureAspect value);
 const char* enumToString(TextureUsage value);
 std::string flagsToString(TextureUsage value);
 const char* enumToString(ResourceState value);

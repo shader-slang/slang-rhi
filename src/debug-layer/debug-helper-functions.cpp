@@ -33,6 +33,17 @@ std::string _rhiGetFuncName(const char* input)
     return 'I' + std::string(str.substr(startIndex, endIndex - startIndex));
 }
 
+std::string subresourceRangeToString(const SubresourceRange& range)
+{
+    return string::format(
+        "(mipLevel=%u, mipLevelCount=%u, baseArrayLayer=%u, layerCount=%u)",
+        range.mipLevel,
+        range.mipLevelCount,
+        range.baseArrayLayer,
+        range.layerCount
+    );
+}
+
 std::string createBufferLabel(const BufferDesc& desc)
 {
     return string::format(
@@ -41,7 +52,7 @@ std::string createBufferLabel(const BufferDesc& desc)
         desc.elementSize,
         enumToString(desc.format),
         enumToString(desc.memoryType),
-        flagsToString(desc.usage),
+        flagsToString(desc.usage).c_str(),
         enumToString(desc.defaultState)
     );
 }
@@ -63,6 +74,16 @@ std::string createTextureLabel(const TextureDesc& desc)
         enumToString(desc.memoryType),
         flagsToString(desc.usage),
         enumToString(desc.defaultState)
+    );
+}
+
+std::string createTextureViewLabel(const TextureViewDesc& desc)
+{
+    return string::format(
+        "Unnamed texture view (format=%s, aspect=%s, subresourceRange=%s)",
+        enumToString(desc.format),
+        enumToString(desc.aspect),
+        subresourceRangeToString(desc.subresourceRange).c_str()
     );
 }
 
