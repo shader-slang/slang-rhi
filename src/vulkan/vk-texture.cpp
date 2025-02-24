@@ -227,7 +227,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 #else
         VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-    if (descIn.isShared)
+    if (is_set(descIn.usage, TextureUsage::Shared))
     {
         externalMemoryImageCreateInfo.pNext = nullptr;
         externalMemoryImageCreateInfo.handleTypes = extMemoryHandleType;
@@ -252,7 +252,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     };
 #endif
     VkExportMemoryAllocateInfoKHR exportMemoryAllocateInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    if (descIn.isShared)
+    if (is_set(descIn.usage, TextureUsage::Shared))
     {
 #if SLANG_WINDOWS_FAMILY
         exportMemoryWin32HandleInfo.pNext = nullptr;

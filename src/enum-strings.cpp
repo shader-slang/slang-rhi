@@ -131,6 +131,8 @@ const char* enumToString(BufferUsage value)
         return S_BufferUsage_AccelerationStructureBuildInput;
     case BufferUsage::ShaderTable:
         return S_BufferUsage_ShaderTable;
+    case BufferUsage::Shared:
+        return S_BufferUsage_Shared;
     }
     return S_INVALID;
 }
@@ -196,6 +198,8 @@ const char* enumToString(TextureUsage value)
         return S_TextureUsage_ResolveSource;
     case TextureUsage::ResolveDestination:
         return S_TextureUsage_ResolveDestination;
+    case TextureUsage::Shared:
+        return S_TextureUsage_Shared;
     }
     return S_INVALID;
 }

@@ -51,6 +51,7 @@
 #define S_BufferUsage_AccelerationStructure "AccelerationStructure"
 #define S_BufferUsage_AccelerationStructureBuildInput "AccelerationStructureBuildInput"
 #define S_BufferUsage_ShaderTable "ShaderTable"
+#define S_BufferUsage_Shared "Shared"
 
 // TextureType
 #define S_TextureType_Texture1D "Texture1D"
@@ -75,6 +76,7 @@
 #define S_TextureUsage_CopyDestination "CopyDestination"
 #define S_TextureUsage_ResolveSource "ResolveSource"
 #define S_TextureUsage_ResolveDestination "ResolveDestination"
+#define S_TextureUsage_Shared "Shared"
 
 // ResourceState
 #define S_ResourceState_Undefined "Undefined"

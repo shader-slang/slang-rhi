@@ -193,7 +193,6 @@ Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
     textureDesc.memoryType = MemoryType::DeviceLocal;
     textureDesc.usage = m_config.usage;
     textureDesc.defaultState = ResourceState::Present;
-    textureDesc.isShared = false;
     textureDesc.size.width = m_config.width;
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 1;

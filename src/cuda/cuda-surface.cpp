@@ -690,9 +690,9 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
     textureDesc.memoryType = MemoryType::DeviceLocal;
-    textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopyDestination | TextureUsage::Present;
+    textureDesc.usage =
+        TextureUsage::RenderTarget | TextureUsage::CopyDestination | TextureUsage::Present | TextureUsage::Shared;
     textureDesc.defaultState = ResourceState::RenderTarget;
-    textureDesc.isShared = true;
     textureDesc.size.width = m_config.width;
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 0;
