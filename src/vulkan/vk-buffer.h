@@ -13,8 +13,7 @@ public:
         Size bufferSize,
         VkBufferUsageFlags usage,
         VkMemoryPropertyFlags reqMemoryProperties,
-        bool isShared = false,
-        VkExternalMemoryHandleTypeFlagsKHR extMemHandleType = 0
+        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0
     );
 
     /// Returns true if has been initialized

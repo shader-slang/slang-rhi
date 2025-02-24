@@ -1056,7 +1056,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         heapProps.VisibleNodeMask = 1;
 
         D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
-        if (descIn.isShared)
+        if (is_set(descIn.usage, TextureUsage::Shared))
             flags |= D3D12_HEAP_FLAG_SHARED;
 
         D3D12_CLEAR_VALUE clearValue;
@@ -1288,7 +1288,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
         srcDesc.size,
         initialState,
         buffer->m_resource,
-        descIn.isShared,
+        is_set(descIn.usage, BufferUsage::Shared),
         descIn.memoryType
     ));
 

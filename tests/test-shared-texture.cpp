@@ -52,10 +52,9 @@ static ComPtr<ITexture> createTexture(IDevice* device, Extents extents, Format f
     texDesc.mipLevelCount = 1;
     texDesc.size = extents;
     texDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination |
-                    TextureUsage::CopySource;
+                    TextureUsage::CopySource | TextureUsage::Shared;
     texDesc.defaultState = ResourceState::UnorderedAccess;
     texDesc.format = format;
-    texDesc.isShared = true;
 
     ComPtr<ITexture> inTex;
     REQUIRE_CALL(device->createTexture(texDesc, initialData, inTex.writeRef()));

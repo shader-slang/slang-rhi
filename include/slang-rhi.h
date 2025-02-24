@@ -519,6 +519,7 @@ enum class BufferUsage
     AccelerationStructure = (1 << 8),
     AccelerationStructureBuildInput = (1 << 9),
     ShaderTable = (1 << 10),
+    Shared = (1 << 11),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 
@@ -538,8 +539,6 @@ struct BufferDesc
 
     BufferUsage usage = BufferUsage::None;
     ResourceState defaultState = ResourceState::Undefined;
-
-    bool isShared = false;
 
     /// The name of the buffer for debugging purposes.
     const char* label = nullptr;
@@ -587,6 +586,7 @@ enum class TextureUsage
     CopyDestination = (1 << 7),
     ResolveSource = (1 << 8),
     ResolveDestination = (1 << 9),
+    Shared = (1 << 10),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 
@@ -702,7 +702,6 @@ struct TextureDesc
 
     TextureUsage usage = TextureUsage::None;
     ResourceState defaultState = ResourceState::Undefined;
-    bool isShared = false;
 
     Extents size;
     /// Array length.

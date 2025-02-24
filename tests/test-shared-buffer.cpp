@@ -18,10 +18,9 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     bufferDesc.format = Format::Unknown;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
-                       BufferUsage::CopySource;
+                       BufferUsage::CopySource | BufferUsage::Shared;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
-    bufferDesc.isShared = true;
 
     ComPtr<IBuffer> srcBuffer;
     REQUIRE_CALL(srcDevice->createBuffer(bufferDesc, (void*)initialData, srcBuffer.writeRef()));

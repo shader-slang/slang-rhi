@@ -19,8 +19,7 @@ Result VKBufferHandleRAII::init(
     Size bufferSize,
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags reqMemoryProperties,
-    bool isShared,
-    VkExternalMemoryHandleTypeFlagsKHR extMemHandleType
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
 )
 {
     SLANG_RHI_ASSERT(!isInitialized());
@@ -37,9 +36,9 @@ Result VKBufferHandleRAII::init(
     VkExternalMemoryBufferCreateInfo externalMemoryBufferCreateInfo = {
         VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO
     };
-    if (isShared)
+    if (externalMemoryHandleTypeFlags)
     {
-        externalMemoryBufferCreateInfo.handleTypes = extMemHandleType;
+        externalMemoryBufferCreateInfo.handleTypes = externalMemoryHandleTypeFlags;
         bufferCreateInfo.pNext = &externalMemoryBufferCreateInfo;
     }
 
@@ -60,7 +59,7 @@ Result VKBufferHandleRAII::init(
     };
 #endif
     VkExportMemoryAllocateInfoKHR exportMemoryAllocateInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    if (isShared)
+    if (externalMemoryHandleTypeFlags)
     {
 #if SLANG_WINDOWS_FAMILY
         exportMemoryWin32HandleInfo.pNext = nullptr;
@@ -68,11 +67,12 @@ Result VKBufferHandleRAII::init(
         exportMemoryWin32HandleInfo.dwAccess = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
         exportMemoryWin32HandleInfo.name = NULL;
 
-        exportMemoryAllocateInfo.pNext = extMemHandleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR
-                                             ? &exportMemoryWin32HandleInfo
-                                             : nullptr;
+        exportMemoryAllocateInfo.pNext =
+            externalMemoryHandleTypeFlags & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR
+                ? &exportMemoryWin32HandleInfo
+                : nullptr;
 #endif
-        exportMemoryAllocateInfo.handleTypes = extMemHandleType;
+        exportMemoryAllocateInfo.handleTypes = externalMemoryHandleTypeFlags;
         allocateInfo.pNext = &exportMemoryAllocateInfo;
     }
     VkMemoryAllocateFlagsInfo flagInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
@@ -251,16 +251,16 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
-    if (desc.isShared)
+    if (is_set(desc.usage, BufferUsage::Shared))
     {
-        VkExternalMemoryHandleTypeFlagsKHR extMemHandleType
+        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
 #if SLANG_WINDOWS_FAMILY
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 #else
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
         SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, desc.isShared, extMemHandleType)
+            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags)
         );
     }
     else
