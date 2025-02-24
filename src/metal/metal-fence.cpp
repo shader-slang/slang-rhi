@@ -28,38 +28,37 @@ Result FenceImpl::init(DeviceImpl* device, const FenceDesc& desc)
 
 bool FenceImpl::waitForFence(uint64_t value, uint64_t timeout)
 {
-    if (timeout == 0)
+    // Early out if the fence is already signaled
+    if (m_event->signaledValue() >= value)
     {
-        return m_event->signaledValue() >= value;
+        return true;
+    }
+
+    // Create a semaphore to synchronize the notification
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+
+    // Create and store the notification block
+    MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
+      dispatch_semaphore_signal(semaphore);
+    };
+
+    // Set up notification handler
+    m_event->notifyListener(m_eventListener.get(), value, block);
+
+    // Wait for the notification or timeout
+    if (timeout & (1LLU << 63))
+    {
+        timeout = DISPATCH_TIME_FOREVER;
     }
     else
     {
-        // Create a semaphore to synchronize the notification
-        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-
-        // Create and store the notification block
-        MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
-          dispatch_semaphore_signal(semaphore);
-        };
-
-        // Set up notification handler
-        m_event->notifyListener(m_eventListener.get(), value, block);
-
-        // Wait for the notification or timeout
-        if (timeout & (1LLU << 63))
-        {
-            timeout = DISPATCH_TIME_FOREVER;
-        }
-        else
-        {
-            timeout = dispatch_time(DISPATCH_TIME_NOW, timeout);
-        }
-
-        intptr_t result = dispatch_semaphore_wait(semaphore, timeout);
-        dispatch_release(semaphore);
-
-        return result == 0;
+        timeout = dispatch_time(DISPATCH_TIME_NOW, timeout);
     }
+
+    intptr_t result = dispatch_semaphore_wait(semaphore, timeout);
+    dispatch_release(semaphore);
+
+    return result == 0;
 }
 
 Result FenceImpl::getCurrentValue(uint64_t* outValue)
