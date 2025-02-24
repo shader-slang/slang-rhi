@@ -1,5 +1,6 @@
 #include "metal-fence.h"
 #include "metal-device.h"
+#include "metal-util.h"
 
 namespace rhi::metal {
 
@@ -77,6 +78,40 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
+{
+    AUTORELEASEPOOL
+
+    RefPtr<FenceImpl> fenceImpl = new FenceImpl();
+    SLANG_RETURN_ON_FAIL(fenceImpl->init(this, desc));
+    returnComPtr(outFence, fenceImpl);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::waitForFences(
+    uint32_t fenceCount,
+    IFence** fences,
+    uint64_t* fenceValues,
+    bool waitForAll,
+    uint64_t timeout
+)
+{
+    uint32_t waitCount = fenceCount;
+    for (uint32_t i = 0; i < fenceCount; ++i)
+    {
+        FenceImpl* fenceImpl = checked_cast<FenceImpl*>(fences[i]);
+        if (fenceImpl->waitForFence(fenceValues[i], timeout))
+        {
+            waitCount--;
+        }
+        if (waitCount == 0 || (!waitForAll && waitCount < fenceCount))
+        {
+            return SLANG_OK;
+        }
+    }
+    return SLANG_E_TIME_OUT;
 }
 
 } // namespace rhi::metal

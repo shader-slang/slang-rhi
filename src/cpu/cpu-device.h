@@ -62,6 +62,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    waitForFences(uint32_t fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
+        override;
+
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
 private:

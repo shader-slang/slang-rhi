@@ -1740,8 +1740,8 @@ Result DeviceImpl::waitForFences(
     VkSemaphoreWaitInfo waitInfo;
     waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
     waitInfo.pNext = NULL;
-    waitInfo.flags = 0;
-    waitInfo.semaphoreCount = 1;
+    waitInfo.flags = waitForAll ? 0 : VK_SEMAPHORE_WAIT_ANY_BIT;
+    waitInfo.semaphoreCount = fenceCount;
     waitInfo.pSemaphores = semaphores.data();
     waitInfo.pValues = fenceValues;
     auto result = m_api.vkWaitSemaphores(m_api.m_device, &waitInfo, timeout);

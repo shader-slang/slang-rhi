@@ -2518,6 +2518,13 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) = 0;
 
+    inline ComPtr<IFence> createFence(const FenceDesc& desc)
+    {
+        ComPtr<IFence> fence;
+        SLANG_RETURN_NULL_ON_FAIL(createFence(desc, fence.writeRef()));
+        return fence;
+    }
+
     /// Wait on the host for the fences to signals.
     /// `timeout` is in nanoseconds, can be set to `kTimeoutInfinite`.
     virtual SLANG_NO_THROW Result SLANG_MCALL
