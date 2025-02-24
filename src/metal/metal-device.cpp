@@ -385,7 +385,15 @@ Result DeviceImpl::waitForFences(
     uint64_t timeout
 )
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    for (uint32_t i = 0; i < fenceCount; ++i)
+    {
+        FenceImpl* fenceImpl = checked_cast<FenceImpl*>(fences[i]);
+        if (!fenceImpl->waitForFence(fenceValues[i], timeout))
+        {
+            return SLANG_FAIL;
+        }
+    }
+    return SLANG_OK;
 }
 
 } // namespace rhi::metal
