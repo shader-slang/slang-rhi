@@ -12,7 +12,7 @@ TEST_CASE("arena-allocator")
         ArenaAllocator allocator(1024);
 
         static constexpr size_t kIterations = 100;
-        static const size_t kSizes[] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2024, 4096, 8192};
+        static const size_t kSizes[] = {1, 2, 3, 7, 17, 30, 62, 120, 260, 522, 1014, 2013, 4099, 8213};
         static const size_t kAligments[] = {1, 1, 2, 2, 4, 4, 8, 8, 16, 16, 32, 32, 64, 128};
 
         std::vector<std::pair<uintptr_t, uintptr_t>> allocations;
