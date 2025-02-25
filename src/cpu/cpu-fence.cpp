@@ -62,7 +62,7 @@ Result DeviceImpl::waitForFences(
     auto startTime = std::chrono::high_resolution_clock::now();
     auto endTime = startTime + std::chrono::nanoseconds(timeout);
     auto currentTime = startTime;
-    while (currentTime <= endTime)
+    while (currentTime <= endTime || timeout == kTimeoutInfinite)
     {
         for (uint32_t i = 0; i < fenceCount && waitFences[i]; ++i)
         {

@@ -132,3 +132,51 @@ GPU_TEST_CASE("fence-wait-with-timeout", ALL & ~D3D11)
         CHECK(device->waitForFences(2, fences, values, true, 1000) == SLANG_E_TIME_OUT);
     }
 }
+
+GPU_TEST_CASE("fence-queue-signal", ALL & ~D3D11)
+{
+    FenceDesc fenceDesc = {};
+    ComPtr<IFence> fence1;
+    ComPtr<IFence> fence2;
+    REQUIRE_CALL(device->createFence(fenceDesc, fence1.writeRef()));
+    REQUIRE_CALL(device->createFence(fenceDesc, fence2.writeRef()));
+
+    IFence* signalFences[] = {fence1, fence2};
+    uint64_t signalFenceValues[] = {10, 20};
+
+    SubmitDesc submitDesc = {};
+    submitDesc.signalFenceCount = 2;
+    submitDesc.signalFences = signalFences;
+    submitDesc.signalFenceValues = signalFenceValues;
+    REQUIRE_CALL(device->getQueue(QueueType::Graphics)->submit(submitDesc));
+
+    REQUIRE_CALL(device->waitForFences(2, signalFences, signalFenceValues, true, kTimeoutInfinite));
+
+    uint64_t fence1Value, fence2Value;
+    REQUIRE_CALL(fence1->getCurrentValue(&fence1Value));
+    REQUIRE_CALL(fence2->getCurrentValue(&fence2Value));
+    CHECK(fence1Value == 10);
+    CHECK(fence2Value == 20);
+}
+
+GPU_TEST_CASE("fence-queue-wait", ALL & ~D3D11)
+{
+    FenceDesc fenceDesc = {};
+    ComPtr<IFence> fence1;
+    ComPtr<IFence> fence2;
+    REQUIRE_CALL(device->createFence(fenceDesc, fence1.writeRef()));
+    REQUIRE_CALL(device->createFence(fenceDesc, fence2.writeRef()));
+
+    fence1->setCurrentValue(10);
+    fence2->setCurrentValue(20);
+
+    IFence* waitFences[] = {fence1, fence2};
+    uint64_t waitFenceValues[] = {10, 20};
+
+    SubmitDesc submitDesc = {};
+    submitDesc.waitFenceCount = 2;
+    submitDesc.waitFences = waitFences;
+    submitDesc.waitFenceValues = waitFenceValues;
+    REQUIRE_CALL(device->getQueue(QueueType::Graphics)->submit(submitDesc));
+    REQUIRE_CALL(device->getQueue(QueueType::Graphics)->waitOnHost());
+}
