@@ -1461,6 +1461,95 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
+Result CommandQueueImpl::submit(const SubmitDesc& desc)
+{
+    // Increment last submitted ID which is used to track command buffer completion.
+    ++m_lastSubmittedID;
+
+    // Collect & process command buffers.
+    short_vector<VkCommandBuffer> vkCommandBuffers;
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
+    {
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
+        commandBuffer->m_submissionID = m_lastSubmittedID;
+        m_commandBuffersInFlight.push_back(commandBuffer);
+        vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
+    }
+
+    // Setup wait semaphores.
+    short_vector<VkSemaphore> waitSemaphores;
+    short_vector<uint64_t> waitValues;
+    auto addWaitSemaphore = [&waitSemaphores, &waitValues](VkSemaphore semaphore, uint64_t value)
+    {
+        waitSemaphores.push_back(semaphore);
+        waitValues.push_back(value);
+    };
+
+    for (VkSemaphore s : m_pendingWaitSemaphores)
+    {
+        if (s != VK_NULL_HANDLE)
+        {
+            addWaitSemaphore(s, 0);
+        }
+    }
+    for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
+    {
+        FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
+        addWaitSemaphore(fence->m_semaphore, desc.waitFenceValues[i]);
+    }
+
+    // Setup signal semaphores.
+    short_vector<VkSemaphore> signalSemaphores;
+    short_vector<uint64_t> signalValues;
+    auto addSignalSemaphore = [&signalSemaphores, &signalValues](VkSemaphore semaphore, uint64_t value)
+    {
+        signalSemaphores.push_back(semaphore);
+        signalValues.push_back(value);
+    };
+    addSignalSemaphore(m_semaphore, 0);
+    addSignalSemaphore(m_trackingSemaphore, m_lastSubmittedID);
+    for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+    {
+        FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
+        addSignalSemaphore(fence->m_semaphore, desc.signalFenceValues[i]);
+    }
+
+    // Setup submit info.
+    VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    VkPipelineStageFlags stageFlag[] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
+    submitInfo.pWaitDstStageMask = stageFlag;
+    submitInfo.commandBufferCount = vkCommandBuffers.size();
+    submitInfo.pCommandBuffers = vkCommandBuffers.data();
+
+    VkTimelineSemaphoreSubmitInfo timelineSubmitInfo = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
+    submitInfo.pNext = &timelineSubmitInfo;
+
+    if (waitSemaphores.size() > 0)
+    {
+        submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
+        submitInfo.pWaitSemaphores = waitSemaphores.data();
+        timelineSubmitInfo.waitSemaphoreValueCount = (uint32_t)waitValues.size();
+        timelineSubmitInfo.pWaitSemaphoreValues = waitValues.data();
+    }
+
+    if (signalSemaphores.size() > 0)
+    {
+        submitInfo.signalSemaphoreCount = (uint32_t)signalSemaphores.size();
+        submitInfo.pSignalSemaphores = signalSemaphores.data();
+        timelineSubmitInfo.signalSemaphoreValueCount = (uint32_t)signalValues.size();
+        timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
+    }
+
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+
+    m_pendingWaitSemaphores[0] = m_semaphore;
+    m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
+
+    retireCommandBuffers();
+
+    return SLANG_OK;
+}
+
 Result CommandQueueImpl::waitOnHost()
 {
     auto& api = m_device->m_api;
@@ -1473,111 +1562,6 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::VkQueue;
     outHandle->value = (uint64_t)m_queue;
-    return SLANG_OK;
-}
-
-Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
-{
-    for (uint32_t i = 0; i < fenceCount; ++i)
-    {
-        FenceWaitInfo waitInfo;
-        waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
-        waitInfo.waitValue = waitValues[i];
-        m_pendingWaitFences.push_back(waitInfo);
-    }
-    return SLANG_OK;
-}
-
-void CommandQueueImpl::queueSubmitImpl(
-    uint32_t count,
-    ICommandBuffer** commandBuffers,
-    IFence* fence,
-    uint64_t valueToSignal
-)
-{
-    // Increment last submitted ID which is used to track command buffer completion.
-    ++m_lastSubmittedID;
-
-    short_vector<VkCommandBuffer> vkCommandBuffers;
-    for (uint32_t i = 0; i < count; i++)
-    {
-        auto commandBuffer = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
-        commandBuffer->m_submissionID = m_lastSubmittedID;
-        m_commandBuffersInFlight.push_back(commandBuffer);
-        vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
-    }
-    static_vector<VkSemaphore, 3> signalSemaphores;
-    static_vector<uint64_t, 3> signalValues;
-    signalSemaphores.push_back(m_semaphore);
-    signalValues.push_back(0);
-    signalSemaphores.push_back(m_trackingSemaphore);
-    signalValues.push_back(m_lastSubmittedID);
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    VkPipelineStageFlags stageFlag[] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
-    submitInfo.pWaitDstStageMask = stageFlag;
-    submitInfo.commandBufferCount = (uint32_t)vkCommandBuffers.size();
-    submitInfo.pCommandBuffers = vkCommandBuffers.data();
-    static_vector<VkSemaphore, 3> waitSemaphores;
-    static_vector<uint64_t, 3> waitValues;
-    for (auto s : m_pendingWaitSemaphores)
-    {
-        if (s != VK_NULL_HANDLE)
-        {
-            waitSemaphores.push_back(s);
-            waitValues.push_back(0);
-        }
-    }
-    for (auto& fenceWait : m_pendingWaitFences)
-    {
-        waitSemaphores.push_back(fenceWait.fence->m_semaphore);
-        waitValues.push_back(fenceWait.waitValue);
-    }
-    m_pendingWaitFences.clear();
-    VkTimelineSemaphoreSubmitInfo timelineSubmitInfo = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
-    if (fence)
-    {
-        auto fenceImpl = checked_cast<FenceImpl*>(fence);
-        signalSemaphores.push_back(fenceImpl->m_semaphore);
-        signalValues.push_back(valueToSignal);
-    }
-    submitInfo.pNext = &timelineSubmitInfo;
-    timelineSubmitInfo.signalSemaphoreValueCount = (uint32_t)signalValues.size();
-    timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
-    timelineSubmitInfo.waitSemaphoreValueCount = (uint32_t)waitValues.size();
-    timelineSubmitInfo.pWaitSemaphoreValues = waitValues.data();
-
-    submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
-    if (submitInfo.waitSemaphoreCount)
-    {
-        submitInfo.pWaitSemaphores = waitSemaphores.data();
-    }
-    submitInfo.signalSemaphoreCount = (uint32_t)signalSemaphores.size();
-    submitInfo.pSignalSemaphores = signalSemaphores.data();
-
-    VkFence vkFence = VK_NULL_HANDLE;
-#if 0
-    if (count)
-    {
-        auto commandBufferImpl = checked_cast<CommandBufferImpl*>(commandBuffers[0]);
-        vkFence = commandBufferImpl->m_transientHeap->getCurrentFence();
-        api.vkResetFences(api.m_device, 1, &vkFence);
-        commandBufferImpl->m_transientHeap->advanceFence();
-    }
-#endif
-    m_api.vkQueueSubmit(m_queue, 1, &submitInfo, vkFence);
-    m_pendingWaitSemaphores[0] = m_semaphore;
-    m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
-
-    retireCommandBuffers();
-}
-
-Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
-{
-    if (count == 0 && fence == nullptr)
-        return SLANG_OK;
-    queueSubmitImpl(count, commandBuffers, fence, valueToSignal);
     return SLANG_OK;
 }
 

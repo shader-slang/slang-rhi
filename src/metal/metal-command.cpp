@@ -843,59 +843,48 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
-{
-    for (uint32_t i = 0; i < fenceCount; ++i)
-    {
-        FenceWaitInfo waitInfo;
-        waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
-        waitInfo.waitValue = waitValues[i];
-        m_pendingWaitFences.push_back(waitInfo);
-    }
-    return SLANG_OK;
-}
-
-Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
+Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     AUTORELEASEPOOL
 
-    if (count == 0 && fence == nullptr)
-    {
-        return SLANG_OK;
-    }
-
-    // If there are any pending wait fences, encode them to a new command buffer.
+    // If there are any wait fences, encode them to a new command buffer.
     // Metal ensures that command buffers are executed in the order they are committed.
-    if (m_pendingWaitFences.size() > 0)
+    if (desc.waitFenceCount > 0)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        for (const auto& fenceInfo : m_pendingWaitFences)
+        for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
         {
-            commandBuffer->encodeWait(fenceInfo.fence->m_event.get(), fenceInfo.waitValue);
+            FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
+            commandBuffer->encodeWait(fence->m_event.get(), desc.waitFenceValues[i]);
         }
         commandBuffer->commit();
-        m_pendingWaitFences.clear();
     }
 
-    for (uint32_t i = 0; i < count; ++i)
+    // Commit the command buffers.
+    for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
     {
-        CommandBufferImpl* cmdBufImpl = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
-        // If this is the last command buffer and a fence is provided, signal the fence.
-        if (i == count - 1 && fence != nullptr)
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
+        // Signal fences if this is the last command buffer.
+        if (desc.signalFenceCount > 0 && i == desc.commandBufferCount - 1)
         {
-            cmdBufImpl->m_commandBuffer->encodeSignalEvent(
-                checked_cast<FenceImpl*>(fence)->m_event.get(),
-                valueToSignal
-            );
+            for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+            {
+                FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
+                commandBuffer->m_commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
+            }
         }
-        cmdBufImpl->m_commandBuffer->commit();
+        commandBuffer->m_commandBuffer->commit();
     }
 
-    // If there are no command buffers to submit, but a fence is provided, signal the fence.
-    if (count == 0 && fence != nullptr)
+    // If there are no command buffers to submit, but fences to signal, encode them to a new command buffer.
+    if (desc.signalFenceCount > 0 && desc.commandBufferCount == 0)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        commandBuffer->encodeSignalEvent(checked_cast<FenceImpl*>(fence)->m_event.get(), valueToSignal);
+        for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+        {
+            FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
+            commandBuffer->m_commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
+        }
         commandBuffer->commit();
     }
 

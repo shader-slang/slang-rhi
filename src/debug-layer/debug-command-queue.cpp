@@ -24,39 +24,37 @@ Result DebugCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
     return result;
 }
 
-Result DebugCommandQueue::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
+Result DebugCommandQueue::submit(const SubmitDesc& desc)
 {
     SLANG_RHI_API_FUNC;
-    std::vector<ICommandBuffer*> innerCommandBuffers;
-    for (uint32_t i = 0; i < count; i++)
+    short_vector<ICommandBuffer*> innerCommandBuffers;
+    short_vector<IFence*> innerWaitFences;
+    short_vector<IFence*> innerSignalFences;
+    for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
     {
-        auto cmdBufferIn = commandBuffers[i];
-        auto innerCmdBuffer = getInnerObj(cmdBufferIn);
-        innerCommandBuffers.push_back(innerCmdBuffer);
+        innerCommandBuffers.push_back(getInnerObj(desc.commandBuffers[i]));
     }
-    Result result = baseObject->submit(count, innerCommandBuffers.data(), getInnerObj(fence), valueToSignal);
-    if (fence)
+    for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
-        getDebugObj(fence)->maxValueToSignal = max(getDebugObj(fence)->maxValueToSignal, valueToSignal);
+        innerWaitFences.push_back(getInnerObj(desc.waitFences[i]));
     }
-    return result;
+    for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+    {
+        innerSignalFences.push_back(getInnerObj(desc.signalFences[i]));
+        getDebugObj(desc.signalFences[i])->maxValueToSignal =
+            max(getDebugObj(desc.signalFences[i])->maxValueToSignal, desc.signalFenceValues[i]);
+    }
+    SubmitDesc innerDesc = desc;
+    innerDesc.commandBuffers = innerCommandBuffers.data();
+    innerDesc.waitFences = innerWaitFences.data();
+    innerDesc.signalFences = innerSignalFences.data();
+    return baseObject->submit(innerDesc);
 }
 
 Result DebugCommandQueue::waitOnHost()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->waitOnHost();
-}
-
-Result DebugCommandQueue::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
-{
-    SLANG_RHI_API_FUNC;
-    std::vector<IFence*> innerFences;
-    for (uint32_t i = 0; i < fenceCount; ++i)
-    {
-        innerFences.push_back(getInnerObj(fences[i]));
-    }
-    return baseObject->waitForFenceValuesOnDevice(fenceCount, innerFences.data(), waitValues);
 }
 
 Result DebugCommandQueue::getNativeHandle(NativeHandle* outHandle)

@@ -693,25 +693,14 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::submit(
-    uint32_t count,
-    ICommandBuffer** commandBuffers,
-    IFence* fenceToSignal,
-    uint64_t newFenceValue
-)
+Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    for (uint32_t i = 0; i < count; i++)
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
         CommandExecutor executor(m_device);
-        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));
+        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
     return SLANG_OK;
-}
-
-Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    *outHandle = {};
-    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result CommandQueueImpl::waitOnHost()
@@ -719,8 +708,9 @@ Result CommandQueueImpl::waitOnHost()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
+    *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
 }
 
