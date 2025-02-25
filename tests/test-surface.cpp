@@ -161,7 +161,7 @@ struct RenderSurfaceTest : SurfaceTest
             slangReflection
         ));
 
-        ColorTargetState colorTarget = {};
+        ColorTargetDesc colorTarget = {};
         colorTarget.format = surface->getInfo().preferredFormat;
 
         RenderPipelineDesc pipelineDesc = {};

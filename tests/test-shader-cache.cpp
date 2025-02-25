@@ -745,7 +745,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             slangReflection
         ));
 
-        ColorTargetState target;
+        ColorTargetDesc target;
         target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -859,7 +859,7 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
 
         ComPtr<IShaderProgram> shaderProgram = device->createShaderProgram(programDesc);
 
-        ColorTargetState target;
+        ColorTargetDesc target;
         target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

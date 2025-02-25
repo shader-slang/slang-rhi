@@ -131,7 +131,7 @@ struct BaseResolveResourceTest
         ));
 
 
-        ColorTargetState target;
+        ColorTargetDesc target;
         target.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

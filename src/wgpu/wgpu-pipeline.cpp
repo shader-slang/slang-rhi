@@ -53,7 +53,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     WGPUDepthStencilState depthStencil = {};
     if (desc.depthStencil.format != Format::Unknown)
     {
-        const DepthStencilState& depthStencilIn = desc.depthStencil;
+        const DepthStencilDesc& depthStencilIn = desc.depthStencil;
         depthStencil.format = translateTextureFormat(depthStencilIn.format);
         depthStencil.depthWriteEnabled =
             depthStencilIn.depthWriteEnable ? WGPUOptionalBool_True : WGPUOptionalBool_False;
@@ -83,7 +83,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     short_vector<WGPUBlendState, 8> blendStates(desc.targetCount, {});
     for (uint32_t i = 0; i < desc.targetCount; ++i)
     {
-        const ColorTargetState& targetIn = desc.targets[i];
+        const ColorTargetDesc& targetIn = desc.targets[i];
         WGPUColorTargetState& target = targets[i];
         WGPUBlendState& blend = blendStates[i];
         target.format = translateTextureFormat(targetIn.format);

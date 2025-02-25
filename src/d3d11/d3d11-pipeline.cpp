@@ -98,7 +98,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     {
         D3D11_BLEND_DESC dstDesc = {};
 
-        ColorTargetState defaultTargetState;
+        ColorTargetDesc defaultTargetState;
 
         static const uint32_t kMaxTargets = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
         int targetCount = desc.targetCount;
@@ -107,7 +107,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
         for (uint32_t ii = 0; ii < kMaxTargets; ++ii)
         {
-            const ColorTargetState* targetState = nullptr;
+            const ColorTargetDesc* targetState = nullptr;
             if (ii < targetCount)
             {
                 targetState = &desc.targets[ii];

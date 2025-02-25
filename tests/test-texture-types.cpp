@@ -343,7 +343,7 @@ struct RenderTargetTests : TextureTest
             slangReflection
         ));
 
-        ColorTargetState target;
+        ColorTargetDesc target;
         target.format = textureInfo->format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

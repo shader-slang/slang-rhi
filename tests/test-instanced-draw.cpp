@@ -148,7 +148,7 @@ public:
             slangReflection
         ));
 
-        ColorTargetState colorTarget;
+        ColorTargetDesc colorTarget;
         colorTarget.format = format;
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

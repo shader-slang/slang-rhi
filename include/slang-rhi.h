@@ -1252,7 +1252,7 @@ struct DepthStencilOpDesc
     ComparisonFunc stencilFunc = ComparisonFunc::Always;
 };
 
-struct DepthStencilState
+struct DepthStencilDesc
 {
     Format format = Format::Unknown;
 
@@ -1341,7 +1341,7 @@ struct AspectBlendDesc
     BlendOp op = BlendOp::Add;
 };
 
-struct ColorTargetState
+struct ColorTargetDesc
 {
     Format format = Format::Unknown;
     AspectBlendDesc color;
@@ -1351,7 +1351,7 @@ struct ColorTargetState
     RenderTargetWriteMaskT writeMask = RenderTargetWriteMask::EnableAll;
 };
 
-struct MultisampleState
+struct MultisampleDesc
 {
     uint32_t sampleCount = 1;
     uint32_t sampleMask = 0xFFFFFFFF;
@@ -1367,11 +1367,11 @@ struct RenderPipelineDesc
     IShaderProgram* program = nullptr;
     IInputLayout* inputLayout = nullptr;
     PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
-    ColorTargetState* targets = nullptr;
+    ColorTargetDesc* targets = nullptr;
     uint32_t targetCount = 0;
-    DepthStencilState depthStencil;
+    DepthStencilDesc depthStencil;
     RasterizerDesc rasterizer;
-    MultisampleState multisample;
+    MultisampleDesc multisample;
 };
 
 struct ComputePipelineDesc
