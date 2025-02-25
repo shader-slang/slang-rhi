@@ -4,26 +4,26 @@
 
 namespace rhi {
 
-/// Simple paged allocator.
+/// Simple arena allocator.
 /// Allocates memory in pages and frees all pages on destruction.
-class PagedAllocator
+class ArenaAllocator
 {
 public:
     /// Default page size is 1MB.
     static constexpr size_t kDefaultPageSize = 1024 * 1024;
 
-    PagedAllocator(size_t pageSize = kDefaultPageSize)
+    ArenaAllocator(size_t pageSize = kDefaultPageSize)
         : m_pageSize(pageSize)
     {
     }
 
-    ~PagedAllocator() { freePages(); }
+    ~ArenaAllocator() { freePages(); }
 
-    PagedAllocator(const PagedAllocator&) = delete;
-    PagedAllocator& operator=(const PagedAllocator&) = delete;
+    ArenaAllocator(const ArenaAllocator&) = delete;
+    ArenaAllocator& operator=(const ArenaAllocator&) = delete;
 
-    PagedAllocator(PagedAllocator&&) = delete;
-    PagedAllocator& operator=(PagedAllocator&&) = delete;
+    ArenaAllocator(ArenaAllocator&&) = delete;
+    ArenaAllocator& operator=(ArenaAllocator&&) = delete;
 
     void* allocate(size_t size, size_t alignment = 16)
     {

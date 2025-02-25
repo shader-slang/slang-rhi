@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 #include "core/common.h"
-#include "core/paged-allocator.h"
+#include "core/arena-allocator.h"
 
 #include <utility>
 #include <set>
@@ -379,7 +379,7 @@ public:
         void* data;
     };
 
-    CommandList(PagedAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects);
+    CommandList(ArenaAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects);
 
     void reset();
 
@@ -437,7 +437,7 @@ public:
     }
 
 private:
-    PagedAllocator& m_allocator;
+    ArenaAllocator& m_allocator;
     std::set<RefPtr<RefObject>>& m_trackedObjects;
     CommandSlot* m_commandSlots = nullptr;
     CommandSlot* m_lastCommandSlot = nullptr;

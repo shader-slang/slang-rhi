@@ -11,7 +11,7 @@ namespace rhi::wgpu {
 struct BindingDataBuilder
 {
     DeviceImpl* m_device;
-    PagedAllocator* m_allocator;
+    ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
     CommandList* m_commandList;

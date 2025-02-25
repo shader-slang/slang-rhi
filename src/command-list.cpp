@@ -3,7 +3,7 @@
 
 namespace rhi {
 
-CommandList::CommandList(PagedAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects)
+CommandList::CommandList(ArenaAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects)
     : m_allocator(allocator)
     , m_trackedObjects(trackedObjects)
 {

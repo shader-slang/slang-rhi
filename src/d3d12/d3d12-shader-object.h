@@ -24,7 +24,7 @@ struct DescriptorSet
 struct BindingDataBuilder
 {
     DeviceImpl* m_device;
-    PagedAllocator* m_allocator;
+    ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
     ConstantBufferPool* m_constantBufferPool;

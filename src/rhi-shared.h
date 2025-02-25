@@ -1035,7 +1035,7 @@ public:
         return SLANG_OK;
     }
 
-    PagedAllocator m_allocator;
+    ArenaAllocator m_allocator;
     CommandList m_commandList;
     std::set<RefPtr<RefObject>> m_trackedObjects;
 };
