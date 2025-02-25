@@ -18,7 +18,7 @@ struct BindingDataBuilder
     DeviceImpl* m_device;
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
-    PagedAllocator* m_allocator;
+    ArenaAllocator* m_allocator;
 
     /// Bind this object as a root shader object
     Result bindAsRoot(

@@ -10,7 +10,7 @@ struct BindingDataBuilder
 {
     DeviceImpl* m_device;
     ConstantBufferPool* m_constantBufferPool;
-    PagedAllocator* m_allocator;
+    ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
 

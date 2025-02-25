@@ -21,7 +21,7 @@ struct BindingDataBuilder
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
     ConstantBufferPool* m_constantBufferPool;
-    PagedAllocator* m_allocator;
+    ArenaAllocator* m_allocator;
 
     /// Bind this object as a root shader object
     Result bindAsRoot(
