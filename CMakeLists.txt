@@ -631,6 +631,7 @@ if(SLANG_RHI_BUILD_TESTS)
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
+        tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
         tests/test-clear-texture.cpp

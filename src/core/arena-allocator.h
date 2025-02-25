@@ -5,7 +5,9 @@
 namespace rhi {
 
 /// Simple arena allocator.
-/// Allocates memory in pages and frees all pages on destruction.
+/// Allocates memory in pages and allows reuse of memory by resetting the allocator.
+/// All pages are freed when the allocator is destroyed.
+/// The allocator is not thread-safe.
 class ArenaAllocator
 {
 public:
@@ -25,30 +27,35 @@ public:
     ArenaAllocator(ArenaAllocator&&) = delete;
     ArenaAllocator& operator=(ArenaAllocator&&) = delete;
 
+    /// Allocate memory of the given size with the given alignment.
+    /// Alignment must be a power of 2.
     void* allocate(size_t size, size_t alignment = 16)
     {
-        m_currentOffset = (m_currentOffset + alignment - 1) & ~(alignment - 1);
-        if (!m_currentPage || m_currentOffset + size > m_currentPage->size)
+        m_pos = (m_pos + alignment - 1) & ~(alignment - 1);
+        if (!m_page || m_pos + size > m_page->end)
         {
-            if (!m_currentPage)
+            if (!m_page)
             {
-                m_pages = m_currentPage = allocatePage(m_pageSize);
+                m_pages = m_page = allocatePage(m_pageSize);
             }
             else
             {
-                if (!m_currentPage->next)
+                if (!m_page->next)
                 {
-                    m_currentPage->next = allocatePage(max(size, m_pageSize));
+                    m_page->next = allocatePage(max(size + alignment, m_pageSize));
                 }
-                m_currentPage = m_currentPage->next;
+                m_page = m_page->next;
             }
-            m_currentOffset = 0;
+            m_pos = (m_page->begin + alignment - 1) & ~(alignment - 1);
         }
-        void* result = m_currentPage->getData() + m_currentOffset;
-        m_currentOffset += size;
+        void* result = (void*)m_pos;
+        m_pos += size;
+        SLANG_RHI_ASSERT(result != nullptr);
+        SLANG_RHI_ASSERT(((uintptr_t)result & (alignment - 1)) == 0);
         return result;
     }
 
+    /// Allocate memory for the given number of elements of type T.
     template<typename T>
     T* allocate(size_t count = 1)
     {
@@ -56,10 +63,11 @@ public:
         return reinterpret_cast<T*>(allocate(count * sizeof(T), alignof(T)));
     }
 
+    /// Reset the allocator.
     void reset()
     {
-        m_currentPage = nullptr;
-        m_currentOffset = 0;
+        m_page = m_pages;
+        m_pos = m_page ? m_page->begin : 0;
     }
 
 private:
@@ -67,14 +75,15 @@ private:
     {
         Page* next;
         size_t size;
-        uint8_t* getData() { return reinterpret_cast<uint8_t*>(this) + sizeof(Page); }
+        uintptr_t begin;
+        uintptr_t end;
     };
-    static_assert(sizeof(Page) == 16);
+    static_assert(sizeof(Page) == 32);
 
     size_t m_pageSize;
     Page* m_pages = nullptr;
-    Page* m_currentPage = nullptr;
-    uint32_t m_currentOffset = 0;
+    Page* m_page = nullptr;
+    uintptr_t m_pos = 0;
 
     Page* allocatePage(size_t size)
     {
@@ -82,6 +91,8 @@ private:
         Page* page = reinterpret_cast<Page*>(data);
         page->next = nullptr;
         page->size = size - sizeof(Page);
+        page->begin = reinterpret_cast<uintptr_t>(data) + sizeof(Page);
+        page->end = page->begin + page->size;
         return page;
     }
 
