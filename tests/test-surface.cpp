@@ -192,9 +192,9 @@ struct RenderSurfaceTest : SurfaceTest
         auto rootObject = passEncoder->bindPipeline(pipeline);
 
         RenderState renderState = {};
-        renderState.viewports[0] = Viewport(width, height);
+        renderState.viewports[0] = Viewport::fromSize(width, height);
         renderState.viewportCount = 1;
-        renderState.scissorRects[0] = ScissorRect(width, height);
+        renderState.scissorRects[0] = ScissorRect::fromSize(width, height);
         renderState.scissorRectCount = 1;
         renderState.vertexBuffers[0] = vertexBuffer;
         renderState.vertexBufferCount = 1;

@@ -167,9 +167,9 @@ struct BaseResolveResourceTest
         passEncoder->bindPipeline(pipeline);
 
         RenderState state;
-        state.viewports[0] = Viewport(extent.width, extent.height);
+        state.viewports[0] = Viewport::fromSize(extent.width, extent.height);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect(extent.width, extent.height);
+        state.scissorRects[0] = ScissorRect::fromSize(extent.width, extent.height);
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBufferCount = 1;

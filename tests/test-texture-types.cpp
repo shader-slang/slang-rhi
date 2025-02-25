@@ -382,9 +382,9 @@ struct RenderTargetTests : TextureTest
         passEncoder->bindPipeline(pipeline);
 
         RenderState state;
-        state.viewports[0] = Viewport(textureInfo->extents.width, textureInfo->extents.height);
+        state.viewports[0] = Viewport::fromSize(textureInfo->extents.width, textureInfo->extents.height);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect(textureInfo->extents.width, textureInfo->extents.height);
+        state.scissorRects[0] = ScissorRect::fromSize(textureInfo->extents.width, textureInfo->extents.height);
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBufferCount = 1;

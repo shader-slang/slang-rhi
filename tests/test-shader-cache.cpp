@@ -773,9 +773,9 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
         auto rootObject = passEncoder->bindPipeline(renderPipeline);
         RenderState state;
-        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBufferCount = 1;

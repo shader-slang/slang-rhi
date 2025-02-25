@@ -221,9 +221,9 @@ struct DrawInstancedTest : BaseDrawTest
         passEncoder->bindPipeline(pipeline);
 
         RenderState state;
-        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBuffers[1] = instanceBuffer;
@@ -282,9 +282,9 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         state.vertexBufferCount = 2;
         state.indexBuffer = indexBuffer;
         state.indexFormat = IndexFormat::UInt32;
-        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
         state.scissorRectCount = 1;
         passEncoder->setRenderState(state);
 
@@ -362,9 +362,9 @@ struct DrawIndirectTest : BaseDrawTest
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBuffers[1] = instanceBuffer;
         state.vertexBufferCount = 2;
-        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
         state.scissorRectCount = 1;
         passEncoder->setRenderState(state);
 
@@ -445,9 +445,9 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         state.vertexBufferCount = 2;
         state.indexBuffer = indexBuffer;
         state.indexFormat = IndexFormat::UInt32;
-        state.viewports[0] = Viewport(kWidth, kHeight);
+        state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect(kWidth, kHeight);
+        state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
         state.scissorRectCount = 1;
         passEncoder->setRenderState(state);
 
