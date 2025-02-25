@@ -40,14 +40,18 @@ TEST_CASE("arena-allocator")
     SUBCASE("reset")
     {
         ArenaAllocator allocator(1024);
+
         std::vector<void*> allocations;
+
         for (size_t i = 0; i < 100; i++)
         {
             void* a = allocator.allocate(100);
             CHECK(a != nullptr);
             allocations.push_back(a);
         }
+
         allocator.reset();
+
         for (size_t i = 0; i < 100; i++)
         {
             void* a = allocator.allocate(100);
