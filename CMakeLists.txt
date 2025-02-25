@@ -399,6 +399,7 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-gnu-anonymous-struct
+        -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
         -Wshadow
     >
@@ -406,11 +407,12 @@ target_compile_options(slang-rhi PRIVATE
 
 target_sources(slang-rhi PRIVATE
     src/command-list.cpp
+    src/cuda-driver-api.cpp
     src/enum-strings.cpp
     src/flag-combiner.cpp
     src/resource-desc-utils.cpp
-    src/rhi.cpp
     src/rhi-shared.cpp
+    src/rhi.cpp
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/offset-allocator.cpp
@@ -564,7 +566,6 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-command.cpp
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
-        src/cuda/cuda-driver-api.cpp
         src/cuda/cuda-fence.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-pipeline.cpp
