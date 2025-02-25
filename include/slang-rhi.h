@@ -1484,12 +1484,12 @@ struct ScissorRect
     int32_t maxX = 0;
     int32_t maxY = 0;
 
-    ScissorRect() = default;
-
-    ScissorRect(int32_t width, int32_t height)
-        : maxX(width)
-        , maxY(height)
+    static ScissorRect fromSize(int32_t width, int32_t height)
     {
+        ScissorRect scissorRect;
+        scissorRect.maxX = width;
+        scissorRect.maxY = height;
+        return scissorRect;
     }
 };
 
@@ -1502,12 +1502,12 @@ struct Viewport
     float minZ = 0.0f;
     float maxZ = 1.0f;
 
-    Viewport() = default;
-
-    Viewport(float width, float height)
-        : extentX(width)
-        , extentY(height)
+    static Viewport fromSize(float width, float height)
     {
+        Viewport viewport;
+        viewport.extentX = width;
+        viewport.extentY = height;
+        return viewport;
     }
 };
 
