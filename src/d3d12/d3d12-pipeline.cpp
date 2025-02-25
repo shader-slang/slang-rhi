@@ -94,7 +94,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.targets[i].color.srcFactor);
                 d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.srcFactor);
             }
-            auto equalBlendState = [](const ColorTargetState& a, const ColorTargetState& b)
+            auto equalBlendState = [](const ColorTargetDesc& a, const ColorTargetDesc& b)
             {
                 return a.enableBlend == b.enableBlend && a.color.op == b.color.op &&
                        a.color.srcFactor == b.color.srcFactor && a.color.dstFactor == b.color.dstFactor &&

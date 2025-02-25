@@ -60,7 +60,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     for (uint32_t i = 0; i < desc.targetCount; ++i)
     {
-        const ColorTargetState& targetState = desc.targets[i];
+        const ColorTargetDesc& targetState = desc.targets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
         colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetState.format));
 
@@ -75,7 +75,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     }
     if (desc.depthStencil.format != Format::Unknown)
     {
-        const DepthStencilState& depthStencil = desc.depthStencil;
+        const DepthStencilDesc& depthStencil = desc.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
         if (MetalUtil::isDepthFormat(pixelFormat))
         {
