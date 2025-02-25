@@ -563,6 +563,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-command.cpp
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
+        src/cuda/cuda-driver-api.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp

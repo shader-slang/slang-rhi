@@ -119,7 +119,7 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
 
 Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
 {
-    if (!rhiCudaApiInit())
+    if (!rhiCudaDriverApiInit())
     {
         return SLANG_FAIL;
     }
