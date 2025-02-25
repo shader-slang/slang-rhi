@@ -1469,31 +1469,38 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
+Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     // Increment last submitted ID which is used to track command buffer completion.
     ++m_lastSubmittedID;
 
-    short_vector<ID3D12CommandList*> commandLists;
-    for (uint32_t i = 0; i < count; i++)
+    // Wait on fences.
+    for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
-        auto commandBuffer = checked_cast<CommandBufferImpl*>(commandBuffers[i]);
+        FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
+        m_d3dQueue->Wait(fence->m_fence.get(), desc.waitFenceValues[i]);
+    }
+
+    // Execute command lists.
+    short_vector<ID3D12CommandList*> commandLists;
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
+    {
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
         m_commandBuffersInFlight.push_back(commandBuffer);
         commandLists.push_back(commandBuffer->m_d3dCommandList);
     }
-    if (count > 0)
+    if (commandLists.size() > 0)
     {
-        m_d3dQueue->ExecuteCommandLists(count, commandLists.data());
+        m_d3dQueue->ExecuteCommandLists(commandLists.size(), commandLists.data());
     }
 
-    if (fence)
+    // Signal fences.
+    for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
-        auto fenceImpl = checked_cast<FenceImpl*>(fence);
-        SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(fenceImpl->m_fence.get(), valueToSignal));
+        FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
+        SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(fence->m_fence.get(), desc.signalFenceValues[i]));
     }
-
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID));
 
     retireCommandBuffers();
 
@@ -1509,16 +1516,6 @@ Result CommandQueueImpl::waitOnHost()
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
     m_device->flushValidationMessages();
     retireCommandBuffers();
-    return SLANG_OK;
-}
-
-Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
-{
-    for (uint32_t i = 0; i < fenceCount; ++i)
-    {
-        auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
-        m_d3dQueue->Wait(fenceImpl->m_fence.get(), waitValues[i]);
-    }
     return SLANG_OK;
 }
 

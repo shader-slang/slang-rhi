@@ -689,10 +689,34 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
+Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    outHandle->type = NativeHandleType::WGPUQueue;
-    outHandle->value = (uint64_t)m_queue;
+    // Wait for fences.
+    for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
+    {
+        // TODO: wait for fence
+        uint64_t fenceValue;
+        SLANG_RETURN_ON_FAIL(desc.waitFences[i]->getCurrentValue(&fenceValue));
+        if (fenceValue < desc.waitFenceValues[i])
+        {
+            return SLANG_FAIL;
+        }
+    }
+
+    // Submit command buffers.
+    short_vector<WGPUCommandBuffer, 16> commandBuffers;
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
+    {
+        commandBuffers.push_back(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->m_commandBuffer);
+    }
+    m_device->m_ctx.api.wgpuQueueSubmit(m_queue, commandBuffers.size(), commandBuffers.data());
+
+    // Signal fences.
+    for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+    {
+        SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
+    }
+
     return SLANG_OK;
 }
 
@@ -720,37 +744,10 @@ Result CommandQueueImpl::waitOnHost()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    // for (uint32_t i = 0; i < fenceCount; ++i)
-    // {
-    //     FenceWaitInfo waitInfo;
-    //     waitInfo.fence = checked_cast<FenceImpl*>(fences[i]);
-    //     waitInfo.waitValue = waitValues[i];
-    //     m_pendingWaitFences.push_back(waitInfo);
-    // }
-    return SLANG_OK;
-}
-
-Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
-{
-    if (count == 0 && fence == nullptr)
-    {
-        return SLANG_OK;
-    }
-
-    short_vector<WGPUCommandBuffer, 16> buffers;
-    buffers.resize(count);
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        buffers[i] = checked_cast<CommandBufferImpl*>(commandBuffers[i])->m_commandBuffer;
-    }
-
-    m_device->m_ctx.api.wgpuQueueSubmit(m_queue, buffers.size(), buffers.data());
-
-    // TODO signal fence
-    // m_device->m_ctx.api.wgpuQueueOnSubmittedWorkDone
-
+    outHandle->type = NativeHandleType::WGPUQueue;
+    outHandle->value = (uint64_t)m_queue;
     return SLANG_OK;
 }
 

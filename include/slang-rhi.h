@@ -1966,6 +1966,18 @@ enum class QueueType
     Graphics,
 };
 
+struct SubmitDesc
+{
+    ICommandBuffer** commandBuffers;
+    uint32_t commandBufferCount;
+    IFence** waitFences;
+    uint64_t* waitFenceValues;
+    uint32_t waitFenceCount;
+    IFence** signalFences;
+    uint64_t* signalFenceValues;
+    uint32_t signalFenceCount;
+};
+
 class ICommandQueue : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xc530a6bd, 0x6d1b, 0x475f, {0x9a, 0x71, 0xc2, 0x06, 0x67, 0x1f, 0x59, 0xc3});
@@ -1982,21 +1994,19 @@ public:
         return encoder;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fenceToSignal, uint64_t newFenceValue) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) = 0;
 
-    inline Result submit(ICommandBuffer* commandBuffer, IFence* fenceToSignal = nullptr, uint64_t newFenceValue = 0)
+    inline Result submit(ICommandBuffer* commandBuffer)
     {
-        return submit(1, &commandBuffer, fenceToSignal, newFenceValue);
+        SubmitDesc desc = {};
+        desc.commandBuffers = &commandBuffer;
+        desc.commandBufferCount = 1;
+        return submit(desc);
     }
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() = 0;
 
-    /// Queues a device side wait for the given fences.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
 struct SurfaceInfo
@@ -2517,6 +2527,13 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) = 0;
+
+    inline ComPtr<IFence> createFence(const FenceDesc& desc)
+    {
+        ComPtr<IFence> fence;
+        SLANG_RETURN_NULL_ON_FAIL(createFence(desc, fence.writeRef()));
+        return fence;
+    }
 
     /// Wait on the host for the fences to signals.
     /// `timeout` is in nanoseconds, can be set to `kTimeoutInfinite`.

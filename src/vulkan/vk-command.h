@@ -15,12 +15,7 @@ public:
     VulkanApi& m_api;
     VkQueue m_queue;
     uint32_t m_queueFamilyIndex;
-    struct FenceWaitInfo
-    {
-        RefPtr<FenceImpl> fence;
-        uint64_t waitValue;
-    };
-    std::vector<FenceWaitInfo> m_pendingWaitFences;
+
     VkSemaphore m_pendingWaitSemaphores[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
 
     VkSemaphore m_semaphore;
@@ -44,20 +39,10 @@ public:
     uint64_t updateLastFinishedID();
 
     // ICommandQueue implementation
-
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
-
+    virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) override;
-
-    void queueSubmitImpl(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal);
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
 
 class CommandEncoderImpl : public CommandEncoder

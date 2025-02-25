@@ -305,12 +305,6 @@ Result SurfaceImpl::present()
         return SLANG_FAIL;
     }
 
-    // If there are pending fence wait operations, flush them as an empty vkQueueSubmit.
-    if (!m_device->m_queue->m_pendingWaitFences.empty())
-    {
-        m_device->m_queue->queueSubmitImpl(0, nullptr, nullptr, 0);
-    }
-
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.swapchainCount = 1;

@@ -334,25 +334,34 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::submit(
-    uint32_t count,
-    ICommandBuffer** commandBuffers,
-    IFence* fenceToSignal,
-    uint64_t newFenceValue
-)
+Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    for (uint32_t i = 0; i < count; i++)
+    // Wait for fences.
+    for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
+    {
+        // TODO: wait for fence
+        uint64_t fenceValue;
+        SLANG_RETURN_ON_FAIL(desc.waitFences[i]->getCurrentValue(&fenceValue));
+        if (fenceValue < desc.waitFenceValues[i])
+        {
+            return SLANG_FAIL;
+        }
+    }
+
+    // Execute command buffers.
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
         CommandExecutor executor(m_device);
-        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));
+        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
-    return SLANG_OK;
-}
 
-Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    *outHandle = {};
-    return SLANG_E_NOT_AVAILABLE;
+    // Signal fences.
+    for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+    {
+        SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
+    }
+
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::waitOnHost()
@@ -360,8 +369,9 @@ Result CommandQueueImpl::waitOnHost()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
+Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
+    *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
 }
 

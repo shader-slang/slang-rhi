@@ -538,17 +538,35 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal)
+Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    SLANG_UNUSED(valueToSignal);
-    // TODO: implement fence.
-    SLANG_RHI_ASSERT(fence == nullptr);
-    for (uint32_t i = 0; i < count; i++)
+    // Wait for fences.
+    for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
+    {
+        // TODO: wait for fence
+        uint64_t fenceValue;
+        SLANG_RETURN_ON_FAIL(desc.waitFences[i]->getCurrentValue(&fenceValue));
+        if (fenceValue < desc.waitFenceValues[i])
+        {
+            return SLANG_FAIL;
+        }
+    }
+
+    // Execute command buffers.
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
         CommandExecutor executor(m_device, m_stream);
-        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(commandBuffers[i])));
+        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
+
+    // Signal fences.
+    for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+    {
+        SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
+    }
+
     SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
+
     return SLANG_OK;
 }
 
@@ -557,11 +575,6 @@ Result CommandQueueImpl::waitOnHost()
     SLANG_CUDA_RETURN_ON_FAIL(cuStreamSynchronize(m_stream));
     SLANG_CUDA_RETURN_ON_FAIL(cuCtxSynchronize());
     return SLANG_OK;
-}
-
-Result CommandQueueImpl::waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues)
-{
-    return SLANG_FAIL;
 }
 
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)

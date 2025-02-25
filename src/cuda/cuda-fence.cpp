@@ -1,10 +1,10 @@
-#include "wgpu-fence.h"
-#include "wgpu-device.h"
+#include "cuda-fence.h"
+#include "cuda-device.h"
 
 #include <thread>
 #include <chrono>
 
-namespace rhi::wgpu {
+namespace rhi::cuda {
 
 FenceImpl::~FenceImpl() {}
 
@@ -89,4 +89,4 @@ Result DeviceImpl::waitForFences(
     return SLANG_E_TIME_OUT;
 }
 
-} // namespace rhi::wgpu
+} // namespace rhi::cuda

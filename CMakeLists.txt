@@ -439,6 +439,7 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-buffer.cpp
         src/cpu/cpu-command.cpp
         src/cpu/cpu-device.cpp
+        src/cpu/cpu-fence.cpp
         src/cpu/cpu-helper-functions.cpp
         src/cpu/cpu-pipeline.cpp
         src/cpu/cpu-query.cpp
@@ -564,6 +565,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
         src/cuda/cuda-driver-api.cpp
+        src/cuda/cuda-fence.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
@@ -639,6 +641,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-copy-texture.cpp
         tests/test-create-buffer-from-handle.cpp
         tests/test-existing-device-handle.cpp
+        tests/test-fence.cpp
         tests/test-formats.cpp
         tests/test-instanced-draw.cpp
         tests/test-link-time-constant.cpp

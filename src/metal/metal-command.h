@@ -10,13 +10,6 @@ class CommandQueueImpl : public CommandQueue<DeviceImpl>
 public:
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
 
-    struct FenceWaitInfo
-    {
-        RefPtr<FenceImpl> fence;
-        uint64_t waitValue;
-    };
-    std::vector<FenceWaitInfo> m_pendingWaitFences;
-
     CommandQueueImpl(DeviceImpl* device, QueueType type);
     ~CommandQueueImpl();
 
@@ -24,12 +17,9 @@ public:
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFenceValuesOnDevice(uint32_t fenceCount, IFence** fences, uint64_t* waitValues) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    submit(uint32_t count, ICommandBuffer** commandBuffers, IFence* fence, uint64_t valueToSignal) override;
 };
 
 class CommandEncoderImpl : public CommandEncoder
