@@ -2,9 +2,6 @@
 
 #include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
-#if SLANG_RHI_ENABLE_CUDA
-#include "cuda/cuda-api.h"
-#endif
 
 #include "core/common.h"
 #include "core/task-pool.h"
@@ -291,11 +288,7 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     case DeviceType::CPU:
         return SLANG_RHI_ENABLE_CPU;
     case DeviceType::CUDA:
-#if SLANG_RHI_ENABLE_CUDA
-        return rhiCudaApiInit();
-#else
-        return false;
-#endif
+        return SLANG_RHI_ENABLE_CUDA;
     case DeviceType::WGPU:
         return SLANG_RHI_ENABLE_WGPU;
     default:
