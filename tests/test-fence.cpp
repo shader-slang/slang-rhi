@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("fence-default-value", D3D12 | Vulkan | Metal | WGPU | CPU)
+GPU_TEST_CASE("fence-default-value", ALL & ~D3D11)
 {
     FenceDesc fenceDesc = {};
     ComPtr<IFence> fence;
@@ -13,7 +13,7 @@ GPU_TEST_CASE("fence-default-value", D3D12 | Vulkan | Metal | WGPU | CPU)
     CHECK(value == 0);
 }
 
-GPU_TEST_CASE("fence-initial-value", D3D12 | Vulkan | Metal | WGPU | CPU)
+GPU_TEST_CASE("fence-initial-value", ALL & ~D3D11)
 {
     FenceDesc fenceDesc = {};
     fenceDesc.initialValue = 10;
@@ -24,7 +24,7 @@ GPU_TEST_CASE("fence-initial-value", D3D12 | Vulkan | Metal | WGPU | CPU)
     CHECK(value == 10);
 }
 
-GPU_TEST_CASE("fence-set-value", D3D12 | Vulkan | Metal | WGPU | CPU)
+GPU_TEST_CASE("fence-set-value", ALL & ~D3D11)
 {
     FenceDesc fenceDesc = {};
     ComPtr<IFence> fence;
@@ -35,7 +35,7 @@ GPU_TEST_CASE("fence-set-value", D3D12 | Vulkan | Metal | WGPU | CPU)
     CHECK(value == 20);
 }
 
-GPU_TEST_CASE("fence-wait-without-timeout", D3D12 | Vulkan | Metal | WGPU | CPU)
+GPU_TEST_CASE("fence-wait-without-timeout", ALL & ~D3D11)
 {
     FenceDesc fenceDesc = {};
     ComPtr<IFence> fence1;
@@ -84,7 +84,7 @@ GPU_TEST_CASE("fence-wait-without-timeout", D3D12 | Vulkan | Metal | WGPU | CPU)
     }
 }
 
-GPU_TEST_CASE("fence-wait-with-timeout", D3D12 | Vulkan | Metal | WGPU | CPU)
+GPU_TEST_CASE("fence-wait-with-timeout", ALL & ~D3D11)
 {
     FenceDesc fenceDesc = {};
     ComPtr<IFence> fence1;
