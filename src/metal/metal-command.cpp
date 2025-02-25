@@ -867,10 +867,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         // Signal fences if this is the last command buffer.
         if (desc.signalFenceCount > 0 && i == desc.commandBufferCount - 1)
         {
-            for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
+            for (uint32_t j = 0; j < desc.signalFenceCount; ++j)
             {
-                FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
-                commandBuffer->m_commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
+                FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[j]);
+                commandBuffer->m_commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[j]);
             }
         }
         commandBuffer->m_commandBuffer->commit();
@@ -883,7 +883,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
         {
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
-            commandBuffer->m_commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
+            commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
         }
         commandBuffer->commit();
     }
