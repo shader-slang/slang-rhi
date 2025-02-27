@@ -976,8 +976,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         m_features.push_back("hardware-device");
     }
 
-    m_queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
-    SLANG_RHI_ASSERT(m_queueFamilyIndex >= 0);
+    int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+    SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
+    m_queueFamilyIndex = queueFamilyIndex;
 
 #if defined(SLANG_RHI_NV_AFTERMATH)
     VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};

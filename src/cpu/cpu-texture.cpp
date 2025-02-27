@@ -32,11 +32,6 @@ void _unpackFloat16Texel(const void* texelData, void* outData, size_t outSize)
     memcpy(outData, temp, outSize);
 }
 
-static inline float _unpackUnorm8Value(uint8_t value)
-{
-    return value / 255.0f;
-}
-
 template<int N>
 void _unpackUnorm8Texel(const void* texelData, void* outData, size_t outSize)
 {

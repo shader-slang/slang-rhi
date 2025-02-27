@@ -393,6 +393,12 @@ target_compile_options(slang-rhi PRIVATE
         /wd4127 # conditional expression is constant
         /wd4389 # signed/unsigned mismatch
     >
+    $<$<CXX_COMPILER_ID:GNU,Clang>:
+        -Wall -Wextra -Wpedantic -Wshadow=local -Werror
+        -Wno-unused-parameter
+        -Wno-missing-field-initializers
+        -Wno-sign-compare
+    >
     $<$<CXX_COMPILER_ID:AppleClang>:
         -Wall -Wextra -Wpedantic -Werror
         -Wno-unused-parameter
