@@ -36,24 +36,26 @@ void shaderObjectSetBinding(
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
         uint64_t handle = textureView->m_texture->m_cudaTexObj;
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
+        break;
     }
-    break;
     case slang::BindingType::MutableTexture:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
         uint64_t handle = textureView->m_texture->m_cudaSurfObj;
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
+        break;
     }
-    break;
 #if SLANG_RHI_ENABLE_OPTIX
     case slang::BindingType::RayTracingAccelerationStructure:
     {
         AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
         OptixTraversableHandle handle = as->m_handle;
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
+        break;
     }
-    break;
 #endif
+    default:
+        break;
     }
 }
 

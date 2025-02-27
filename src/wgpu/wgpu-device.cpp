@@ -109,13 +109,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
         WGPURequestAdapterCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPURequestAdapterStatus status,
+        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
                                    WGPUAdapter adapter,
                                    const char* message,
                                    void* userdata1,
                                    void* userdata2)
         {
-            *(WGPURequestAdapterStatus*)userdata1 = status;
+            *(WGPURequestAdapterStatus*)userdata1 = status_;
             *(WGPUAdapter*)userdata2 = adapter;
         };
         callbackInfo.userdata1 = &status;
@@ -156,9 +156,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         WGPURequestDeviceCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback =
-            [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userdata1, void* userdata2)
+            [](WGPURequestDeviceStatus status_, WGPUDevice device, const char* message, void* userdata1, void* userdata2
+            )
         {
-            *(WGPURequestDeviceStatus*)userdata1 = status;
+            *(WGPURequestDeviceStatus*)userdata1 = status_;
             *(WGPUDevice*)userdata2 = device;
         };
         callbackInfo.userdata1 = &status;
@@ -277,8 +278,8 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
         WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2)
-        { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+        { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
@@ -296,8 +297,8 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
         WGPUBufferMapCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPUMapAsyncStatus status, const char* message, void* userdata1, void* userdata2)
-        { *(WGPUMapAsyncStatus*)userdata1 = status; };
+        callbackInfo.callback = [](WGPUMapAsyncStatus status_, const char* message, void* userdata1, void* userdata2)
+        { *(WGPUMapAsyncStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, bufferSize, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
@@ -362,8 +363,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
         WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2)
-        { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+        { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
@@ -381,8 +382,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
         WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
         WGPUBufferMapCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPUMapAsyncStatus status, const char* message, void* userdata1, void* userdata2)
-        { *(WGPUMapAsyncStatus*)userdata1 = status; };
+        callbackInfo.callback = [](WGPUMapAsyncStatus status_, const char* message, void* userdata1, void* userdata2)
+        { *(WGPUMapAsyncStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
