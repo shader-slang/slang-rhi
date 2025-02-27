@@ -412,6 +412,7 @@ target_compile_options(slang-rhi PRIVATE
 )
 
 target_sources(slang-rhi PRIVATE
+    src/command-buffer.cpp
     src/command-list.cpp
     src/cuda-driver-api.cpp
     src/device.cpp
