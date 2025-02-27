@@ -2,3 +2,5 @@
 .vscode/
 build/
 external/optix
+
+.vs/
