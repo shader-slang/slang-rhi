@@ -414,6 +414,7 @@ target_compile_options(slang-rhi PRIVATE
 target_sources(slang-rhi PRIVATE
     src/command-list.cpp
     src/cuda-driver-api.cpp
+    src/device.cpp
     src/enum-strings.cpp
     src/flag-combiner.cpp
     src/resource-desc-utils.cpp
