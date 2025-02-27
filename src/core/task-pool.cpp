@@ -1,5 +1,6 @@
 #include "task-pool.h"
 
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <queue>
