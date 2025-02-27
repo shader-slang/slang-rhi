@@ -15,6 +15,10 @@
 #include "device.h"
 #include "command-buffer.h"
 
+#include "rhi-shared-fwd.h"
+
+#include "device.h"
+
 #include <map>
 #include <set>
 #include <memory>
