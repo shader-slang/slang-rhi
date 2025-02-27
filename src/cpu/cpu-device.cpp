@@ -4,8 +4,6 @@
 #include "cpu-shader-object.h"
 #include "cpu-shader-program.h"
 
-#include <chrono>
-
 namespace rhi::cpu {
 
 DeviceImpl::~DeviceImpl() {}

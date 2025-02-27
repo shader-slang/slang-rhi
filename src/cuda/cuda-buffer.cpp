@@ -105,7 +105,7 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     SLANG_UNUSED(buffer);
-    outData = nullptr;
+    *outData = nullptr;
     return SLANG_E_NOT_AVAILABLE;
 }
 

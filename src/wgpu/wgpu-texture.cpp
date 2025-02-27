@@ -130,8 +130,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
             WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
             callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-            callbackInfo.callback = [](WGPUQueueWorkDoneStatus status, void* userdata1, void* userdata2)
-            { *(WGPUQueueWorkDoneStatus*)userdata1 = status; };
+            callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+            { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
             callbackInfo.userdata1 = &status;
             WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
             constexpr size_t futureCount = 1;

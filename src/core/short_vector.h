@@ -42,18 +42,11 @@ inline void copy_range(T* begin, T* end, T* dest)
 template<typename T>
 inline void move_range(T* begin, T* end, T* dest)
 {
-    if (std::is_trivial_v<T>)
+    while (begin != end)
     {
-        std::memcpy(dest, begin, (end - begin) * sizeof(T));
-    }
-    else
-    {
-        while (begin != end)
-        {
-            *dest = std::move(*begin);
-            begin++;
-            dest++;
-        }
+        *dest = std::move(*begin);
+        begin++;
+        dest++;
     }
 }
 

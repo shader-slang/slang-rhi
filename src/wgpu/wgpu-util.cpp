@@ -595,7 +595,7 @@ WGPULoadOp translateLoadOp(LoadOp op)
     case LoadOp::Clear:
         return WGPULoadOp_Clear;
     case LoadOp::DontCare:
-        return WGPULoadOp_Clear;
+        return WGPULoadOp_Undefined;
     default:
         return WGPULoadOp_Undefined;
     }
@@ -608,11 +608,10 @@ WGPUStoreOp translateStoreOp(StoreOp op)
     case StoreOp::Store:
         return WGPUStoreOp_Store;
     case StoreOp::DontCare:
-        return WGPUStoreOp_Discard;
+        return WGPUStoreOp_Undefined;
     default:
         return WGPUStoreOp_Undefined;
     }
 }
-
 
 } // namespace rhi::wgpu
