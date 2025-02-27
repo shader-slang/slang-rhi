@@ -4,6 +4,8 @@
 #include "../command-list.h"
 #include "../strings.h"
 
+#include <chrono>
+
 namespace rhi::cpu {
 
 class CommandExecutor
