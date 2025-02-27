@@ -6,6 +6,80 @@
 
 namespace rhi {
 
+// ----------------------------------------------------------------------------
+// ShaderCache
+// ----------------------------------------------------------------------------
+
+
+ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
+{
+    ComponentKey key;
+    key.typeName = string::from_cstr(type->getName());
+    switch (type->getKind())
+    {
+    case slang::TypeReflection::Kind::Specialized:
+    {
+        auto baseType = type->getElementType();
+
+        std::string str;
+        str += string::from_cstr(baseType->getName());
+
+        auto rawType = (SlangReflectionType*)type;
+
+        str += '<';
+        SlangInt argCount = spReflectionType_getSpecializedTypeArgCount(rawType);
+        for (SlangInt a = 0; a < argCount; ++a)
+        {
+            if (a != 0)
+                str += ',';
+            if (auto rawArgType = spReflectionType_getSpecializedTypeArgType(rawType, a))
+            {
+                auto argType = (slang::TypeReflection*)rawArgType;
+                str += string::from_cstr(argType->getName());
+            }
+        }
+        str += '>';
+        key.typeName = std::move(str);
+        key.updateHash();
+        return getComponentId(key);
+    }
+        // TODO: collect specialization arguments and append them to `key`.
+        SLANG_RHI_UNIMPLEMENTED("specialized type");
+    default:
+        break;
+    }
+    key.updateHash();
+    return getComponentId(key);
+}
+
+ShaderComponentID ShaderCache::getComponentId(std::string_view name)
+{
+    ComponentKey key;
+    key.typeName = name;
+    key.updateHash();
+    return getComponentId(key);
+}
+
+ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
+{
+    auto it = componentIds.find(key);
+    if (it != componentIds.end())
+        return it->second;
+    ShaderComponentID resultId = static_cast<ShaderComponentID>(componentIds.size());
+    componentIds.emplace(key, resultId);
+    return resultId;
+}
+
+void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline)
+{
+    specializedPipelines[key] = specializedPipeline;
+}
+
+// ----------------------------------------------------------------------------
+// Device
+// ----------------------------------------------------------------------------
+
+
 Result Device::getEntryPointCodeFromShaderCache(
     slang::IComponentType* program,
     SlangInt entryPointIndex,
