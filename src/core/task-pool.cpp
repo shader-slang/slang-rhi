@@ -53,7 +53,7 @@ void* BlockingTaskPool::getTaskPayload(TaskHandle task)
 {
     SLANG_RHI_ASSERT(task);
 
-    Task* taskImpl = checked_cast<Task*>(task);
+    Task* taskImpl = static_cast<Task*>(task);
     return taskImpl->payload;
 }
 
@@ -61,7 +61,7 @@ void BlockingTaskPool::releaseTask(TaskHandle task)
 {
     SLANG_RHI_ASSERT(task);
 
-    Task* taskImpl = checked_cast<Task*>(task);
+    Task* taskImpl = static_cast<Task*>(task);
     if (taskImpl->payloadDeleter)
     {
         taskImpl->payloadDeleter(taskImpl->payload);
@@ -354,22 +354,22 @@ ITaskPool::TaskHandle ThreadedTaskPool::submitTask(
 
 void* ThreadedTaskPool::getTaskPayload(TaskHandle task)
 {
-    return checked_cast<Task*>(task)->payload;
+    return static_cast<Task*>(task)->payload;
 }
 
 void ThreadedTaskPool::releaseTask(TaskHandle task)
 {
-    m_pool->releaseTask(checked_cast<Task*>(task));
+    m_pool->releaseTask(static_cast<Task*>(task));
 }
 
 void ThreadedTaskPool::waitTask(TaskHandle task)
 {
-    m_pool->waitTask(checked_cast<Task*>(task));
+    m_pool->waitTask(static_cast<Task*>(task));
 }
 
 bool ThreadedTaskPool::isTaskDone(TaskHandle task)
 {
-    return m_pool->isTaskDone(checked_cast<Task*>(task));
+    return m_pool->isTaskDone(static_cast<Task*>(task));
 }
 
 void ThreadedTaskPool::waitAll()
