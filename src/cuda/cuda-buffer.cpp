@@ -6,9 +6,16 @@ namespace rhi::cuda {
 
 BufferImpl::~BufferImpl()
 {
-    if (m_cudaMemory)
+    if (m_cudaMemory && !m_cudaExternalMemory)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree((CUdeviceptr)m_cudaMemory));
+        if (m_desc.memoryType == MemoryType::DeviceLocal)
+        {
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree((CUdeviceptr)m_cudaMemory));
+        }
+        else
+        {
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemFreeHost(m_cudaMemory));
+        }
     }
 }
 
@@ -33,8 +40,16 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 {
     auto desc = fixupBufferDesc(descIn);
     RefPtr<BufferImpl> buffer = new BufferImpl(desc);
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL)
-    );
+    if (desc.memoryType == MemoryType::DeviceLocal)
+    {
+        SLANG_CUDA_RETURN_ON_FAIL(
+            cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL)
+        );
+    }
+    else
+    {
+        SLANG_CUDA_RETURN_ON_FAIL(cuMemAllocHost(&buffer->m_cudaMemory, desc.size));
+    }
     if (initData)
     {
         SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.size));
@@ -104,15 +119,15 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
 
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
-    SLANG_UNUSED(buffer);
-    *outData = nullptr;
-    return SLANG_E_NOT_AVAILABLE;
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    *outData = (void*)bufferImpl->m_cudaMemory;
+    return SLANG_OK;
 }
 
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     SLANG_UNUSED(buffer);
-    return SLANG_E_NOT_AVAILABLE;
+    return SLANG_OK;
 }
 
 } // namespace rhi::cuda
