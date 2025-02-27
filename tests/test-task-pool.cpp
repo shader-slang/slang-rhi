@@ -44,6 +44,7 @@ void testSimple(ITaskPool* pool)
 
     for (size_t i = 0; i < N; ++i)
     {
+        CAPTURE(i);
         CHECK(!deleted[i]);
         pool->waitTask(tasks[i]);
         pool->releaseTask(tasks[i]);
@@ -91,6 +92,7 @@ void testWaitAll(ITaskPool* pool)
 
     for (size_t i = 0; i < N; ++i)
     {
+        CAPTURE(i);
         CHECK(result[i] == (size_t)i);
         CHECK(deleted[i]);
     }
@@ -136,6 +138,7 @@ void testSimpleDependency(ITaskPool* pool)
 
     for (size_t i = 0; i < N; ++i)
     {
+        CAPTURE(i);
         CHECK(result[i] == (size_t)i);
     }
 }
