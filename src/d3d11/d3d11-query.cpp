@@ -2,6 +2,7 @@
 #include "d3d11-device.h"
 
 #include <thread>
+#include <chrono>
 
 namespace rhi::d3d11 {
 
