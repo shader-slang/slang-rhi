@@ -412,52 +412,27 @@ target_compile_options(slang-rhi PRIVATE
 )
 
 target_sources(slang-rhi PRIVATE
-    include/slang-rhi.h
-    include/slang-rhi/acceleration-structure-utils.h
-    include/slang-rhi/agility-sdk.h
-    include/slang-rhi/cuda-driver-api.h
-    include/slang-rhi/glfw.h
-    include/slang-rhi/shader-cursor.h
     src/command-list.cpp
-    src/command-list.h
     src/cuda-driver-api.cpp
     src/enum-strings.cpp
-    src/enum-strings.h
     src/flag-combiner.cpp
-    src/flag-combiner.h
     src/resource-desc-utils.cpp
-    src/resource-desc-utils.h
     src/rhi-shared.cpp
-    src/rhi-shared.h
     src/rhi.cpp
     src/core/assert.cpp
-    src/core/assert.h
     src/core/blob.cpp
-    src/core/blob.h
     src/core/offset-allocator.cpp
-    src/core/offset-allocator.h
     src/core/platform.cpp
-    src/core/platform.h
     src/core/task-pool.cpp
-    src/core/task-pool.h
     src/debug-layer/debug-command-buffer.cpp
-    src/debug-layer/debug-command-buffer.h
     src/debug-layer/debug-command-encoder.cpp
-    src/debug-layer/debug-command-encoder.h
     src/debug-layer/debug-command-queue.cpp
-    src/debug-layer/debug-command-queue.h
     src/debug-layer/debug-device.cpp
-    src/debug-layer/debug-device.h
     src/debug-layer/debug-fence.cpp
-    src/debug-layer/debug-fence.h
     src/debug-layer/debug-helper-functions.cpp
-    src/debug-layer/debug-helper-functions.h
     src/debug-layer/debug-query.cpp
-    src/debug-layer/debug-query.h
     src/debug-layer/debug-shader-object.cpp
-    src/debug-layer/debug-shader-object.h
     src/debug-layer/debug-surface.cpp
-    src/debug-layer/debug-surface.h
 )
 
 if(APPLE)
@@ -470,159 +445,92 @@ endif()
 if(SLANG_RHI_ENABLE_CPU)
     target_sources(slang-rhi PRIVATE
         src/cpu/cpu-buffer.cpp
-        src/cpu/cpu-buffer.h
         src/cpu/cpu-command.cpp
-        src/cpu/cpu-command.h
         src/cpu/cpu-device.cpp
-        src/cpu/cpu-device.h
         src/cpu/cpu-fence.cpp
-        src/cpu/cpu-fence.h
         src/cpu/cpu-helper-functions.cpp
-        src/cpu/cpu-helper-functions.h
         src/cpu/cpu-pipeline.cpp
-        src/cpu/cpu-pipeline.h
         src/cpu/cpu-query.cpp
-        src/cpu/cpu-query.h
         src/cpu/cpu-shader-object-layout.cpp
-        src/cpu/cpu-shader-object-layout.h
         src/cpu/cpu-shader-object.cpp
-        src/cpu/cpu-shader-object.h
         src/cpu/cpu-shader-program.cpp
-        src/cpu/cpu-shader-program.h
         src/cpu/cpu-texture.cpp
-        src/cpu/cpu-texture.h
     )
 endif()
 
 if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d/d3d-util.cpp
-        src/d3d/d3d-util.h
         src/nvapi/nvapi-util.cpp
-        src/nvapi/nvapi-util.h
     )
 endif()
 
 if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
         src/d3d11/d3d11-buffer.cpp
-        src/d3d11/d3d11-buffer.h
         src/d3d11/d3d11-command.cpp
-        src/d3d11/d3d11-command.h
         src/d3d11/d3d11-constant-buffer-pool.cpp
-        src/d3d11/d3d11-constant-buffer-pool.h
         src/d3d11/d3d11-device.cpp
-        src/d3d11/d3d11-device.h
         src/d3d11/d3d11-helper-functions.cpp
-        src/d3d11/d3d11-helper-functions.h
         src/d3d11/d3d11-input-layout.cpp
-        src/d3d11/d3d11-input-layout.h
         src/d3d11/d3d11-pipeline.cpp
-        src/d3d11/d3d11-pipeline.h
         src/d3d11/d3d11-query.cpp
-        src/d3d11/d3d11-query.h
         src/d3d11/d3d11-sampler.cpp
-        src/d3d11/d3d11-sampler.h
         src/d3d11/d3d11-shader-object-layout.cpp
-        src/d3d11/d3d11-shader-object-layout.h
         src/d3d11/d3d11-shader-object.cpp
-        src/d3d11/d3d11-shader-object.h
         src/d3d11/d3d11-shader-program.cpp
-        src/d3d11/d3d11-shader-program.h
         src/d3d11/d3d11-surface.cpp
-        src/d3d11/d3d11-surface.h
         src/d3d11/d3d11-texture.cpp
-        src/d3d11/d3d11-texture.h
     )
 endif()
 
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
-        src/d3d12/d3d12-acceleration-structure.h
         src/d3d12/d3d12-buffer.cpp
-        src/d3d12/d3d12-buffer.h
         src/d3d12/d3d12-command.cpp
-        src/d3d12/d3d12-command.h
         src/d3d12/d3d12-constant-buffer-pool.cpp
-        src/d3d12/d3d12-constant-buffer-pool.h
         src/d3d12/d3d12-descriptor-heap.cpp
-        src/d3d12/d3d12-descriptor-heap.h
         src/d3d12/d3d12-device.cpp
-        src/d3d12/d3d12-device.h
         src/d3d12/d3d12-fence.cpp
-        src/d3d12/d3d12-fence.h
         src/d3d12/d3d12-helper-functions.cpp
-        src/d3d12/d3d12-helper-functions.h
         src/d3d12/d3d12-pipeline.cpp
-        src/d3d12/d3d12-pipeline.h
         src/d3d12/d3d12-posix-synchapi.cpp
-        src/d3d12/d3d12-posix-synchapi.h
         src/d3d12/d3d12-query.cpp
-        src/d3d12/d3d12-query.h
         src/d3d12/d3d12-resource.cpp
-        src/d3d12/d3d12-resource.h
         src/d3d12/d3d12-sampler.cpp
-        src/d3d12/d3d12-sampler.h
         src/d3d12/d3d12-shader-object-layout.cpp
-        src/d3d12/d3d12-shader-object-layout.h
         src/d3d12/d3d12-shader-object.cpp
-        src/d3d12/d3d12-shader-object.h
         src/d3d12/d3d12-shader-program.cpp
-        src/d3d12/d3d12-shader-program.h
         src/d3d12/d3d12-shader-table.cpp
-        src/d3d12/d3d12-shader-table.h
         src/d3d12/d3d12-surface.cpp
-        src/d3d12/d3d12-surface.h
         src/d3d12/d3d12-texture.cpp
-        src/d3d12/d3d12-texture.h
     )
 endif()
 
 if(SLANG_RHI_ENABLE_VULKAN)
     target_sources(slang-rhi PRIVATE
         src/vulkan/vk-acceleration-structure.cpp
-        src/vulkan/vk-acceleration-structure.h
         src/vulkan/vk-api.cpp
-        src/vulkan/vk-api.h
         src/vulkan/vk-buffer.cpp
-        src/vulkan/vk-buffer.h
         src/vulkan/vk-command.cpp
-        src/vulkan/vk-command.h
         src/vulkan/vk-constant-buffer-pool.cpp
-        src/vulkan/vk-constant-buffer-pool.h
         src/vulkan/vk-descriptor-allocator.cpp
-        src/vulkan/vk-descriptor-allocator.h
         src/vulkan/vk-device-queue.cpp
-        src/vulkan/vk-device-queue.h
         src/vulkan/vk-device.cpp
-        src/vulkan/vk-device.h
         src/vulkan/vk-fence.cpp
-        src/vulkan/vk-fence.h
         src/vulkan/vk-helper-functions.cpp
-        src/vulkan/vk-helper-functions.h
         src/vulkan/vk-module.cpp
-        src/vulkan/vk-module.h
         src/vulkan/vk-pipeline.cpp
-        src/vulkan/vk-pipeline.h
         src/vulkan/vk-query.cpp
-        src/vulkan/vk-query.h
         src/vulkan/vk-sampler.cpp
-        src/vulkan/vk-sampler.h
         src/vulkan/vk-shader-object-layout.cpp
-        src/vulkan/vk-shader-object-layout.h
         src/vulkan/vk-shader-object.cpp
-        src/vulkan/vk-shader-object.h
         src/vulkan/vk-shader-program.cpp
-        src/vulkan/vk-shader-program.h
         src/vulkan/vk-shader-table.cpp
-        src/vulkan/vk-shader-table.h
         src/vulkan/vk-surface.cpp
-        src/vulkan/vk-surface.h
         src/vulkan/vk-texture.cpp
-        src/vulkan/vk-texture.h
         src/vulkan/vk-util.cpp
-        src/vulkan/vk-util.h
     )
     add_library(slang-rhi-vulkan-headers INTERFACE)
     target_include_directories(slang-rhi-vulkan-headers INTERFACE external/vulkan-headers/include)
@@ -632,41 +540,23 @@ endif()
 if(SLANG_RHI_ENABLE_METAL)
     target_sources(slang-rhi PRIVATE
         src/metal/metal-acceleration-structure.cpp
-        src/metal/metal-acceleration-structure.h
         src/metal/metal-api.cpp
-        src/metal/metal-api.h
         src/metal/metal-buffer.cpp
-        src/metal/metal-buffer.h
         src/metal/metal-command.cpp
-        src/metal/metal-command.h
         src/metal/metal-device.cpp
-        src/metal/metal-device.h
         src/metal/metal-fence.cpp
-        src/metal/metal-fence.h
         src/metal/metal-helper-functions.cpp
-        src/metal/metal-helper-functions.h
         src/metal/metal-input-layout.cpp
-        src/metal/metal-input-layout.h
         src/metal/metal-pipeline.cpp
-        src/metal/metal-pipeline.h
         src/metal/metal-query.cpp
-        src/metal/metal-query.h
         src/metal/metal-sampler.cpp
-        src/metal/metal-sampler.h
         src/metal/metal-shader-object-layout.cpp
-        src/metal/metal-shader-object-layout.h
         src/metal/metal-shader-object.cpp
-        src/metal/metal-shader-object.h
         src/metal/metal-shader-program.cpp
-        src/metal/metal-shader-program.h
         src/metal/metal-shader-table.cpp
-        src/metal/metal-shader-table.h
         src/metal/metal-surface.cpp
-        src/metal/metal-surface.h
         src/metal/metal-texture.cpp
-        src/metal/metal-texture.h
         src/metal/metal-util.cpp
-        src/metal/metal-util.h
     )
     add_library(slang-rhi-metal-cpp INTERFACE)
     target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
@@ -677,76 +567,43 @@ endif()
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-acceleration-structure.cpp
-        src/cuda/cuda-acceleration-structure.h
         src/cuda/cuda-api.cpp
-        src/cuda/cuda-api.h
         src/cuda/cuda-buffer.cpp
-        src/cuda/cuda-buffer.h
         src/cuda/cuda-command.cpp
-        src/cuda/cuda-command.h
         src/cuda/cuda-constant-buffer-pool.cpp
-        src/cuda/cuda-constant-buffer-pool.h
         src/cuda/cuda-device.cpp
-        src/cuda/cuda-device.h
         src/cuda/cuda-fence.cpp
-        src/cuda/cuda-fence.h
         src/cuda/cuda-helper-functions.cpp
-        src/cuda/cuda-helper-functions.h
         src/cuda/cuda-pipeline.cpp
-        src/cuda/cuda-pipeline.h
         src/cuda/cuda-query.cpp
-        src/cuda/cuda-query.h
         src/cuda/cuda-shader-object-layout.cpp
-        src/cuda/cuda-shader-object-layout.h
         src/cuda/cuda-shader-object.cpp
-        src/cuda/cuda-shader-object.h
         src/cuda/cuda-shader-program.cpp
-        src/cuda/cuda-shader-program.h
         src/cuda/cuda-shader-table.cpp
-        src/cuda/cuda-shader-table.h
         src/cuda/cuda-surface.cpp
-        src/cuda/cuda-surface.h
         src/cuda/cuda-texture.cpp
-        src/cuda/cuda-texture.h
     )
 endif()
 
 if(SLANG_RHI_ENABLE_WGPU)
     target_sources(slang-rhi PRIVATE
         src/wgpu/wgpu-api.cpp
-        src/wgpu/wgpu-api.h
         src/wgpu/wgpu-buffer.cpp
-        src/wgpu/wgpu-buffer.h
         src/wgpu/wgpu-command.cpp
-        src/wgpu/wgpu-command.h
         src/wgpu/wgpu-constant-buffer-pool.cpp
-        src/wgpu/wgpu-constant-buffer-pool.h
         src/wgpu/wgpu-device.cpp
-        src/wgpu/wgpu-device.h
         src/wgpu/wgpu-fence.cpp
-        src/wgpu/wgpu-fence.h
         src/wgpu/wgpu-helper-functions.cpp
-        src/wgpu/wgpu-helper-functions.h
         src/wgpu/wgpu-input-layout.cpp
-        src/wgpu/wgpu-input-layout.h
         src/wgpu/wgpu-pipeline.cpp
-        src/wgpu/wgpu-pipeline.h
         src/wgpu/wgpu-query.cpp
-        src/wgpu/wgpu-query.h
         src/wgpu/wgpu-sampler.cpp
-        src/wgpu/wgpu-sampler.h
         src/wgpu/wgpu-shader-object-layout.cpp
-        src/wgpu/wgpu-shader-object-layout.h
         src/wgpu/wgpu-shader-object.cpp
-        src/wgpu/wgpu-shader-object.h
         src/wgpu/wgpu-shader-program.cpp
-        src/wgpu/wgpu-shader-program.h
         src/wgpu/wgpu-surface.cpp
-        src/wgpu/wgpu-surface.h
         src/wgpu/wgpu-texture.cpp
-        src/wgpu/wgpu-texture.h
         src/wgpu/wgpu-util.cpp
-        src/wgpu/wgpu-util.h
     )
 endif()
 
@@ -817,9 +674,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
-        tests/testing.h
         tests/texture-utils.cpp
-        tests/texture-utils.h
         tests/test-task-pool.cpp
     )
     target_compile_definitions(slang-rhi-tests
