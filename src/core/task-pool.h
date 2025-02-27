@@ -43,7 +43,7 @@ public:
 
 public:
     ThreadedTaskPool(int workerCount = -1);
-    ~ThreadedTaskPool();
+    ~ThreadedTaskPool() override;
 
     TaskHandle submitTask(
         void (*func)(void*),

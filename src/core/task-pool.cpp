@@ -296,7 +296,10 @@ void ThreadedTaskPool::Pool::workerThread()
         // Mark the task as done.
         task->done.store(true, std::memory_order_release);
         // Notify waiters.
-        task->waitCV.notify_all();
+        {
+            std::lock_guard<std::mutex> lock(task->waitMutex);
+            task->waitCV.notify_all();
+        }
         // Notify child tasks waiting on this dependency.
         {
             std::lock_guard<std::mutex> lock(task->childrenMutex);

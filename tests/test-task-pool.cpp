@@ -49,6 +49,13 @@ void testSimple(ITaskPool* pool)
         pool->waitTask(tasks[i]);
         pool->releaseTask(tasks[i]);
         CHECK(result[i] == (size_t)i);
+    }
+
+    pool->waitAll();
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        CAPTURE(i);
         CHECK(deleted[i]);
     }
 }
@@ -224,8 +231,8 @@ void testFibonacci(ITaskPool* pool)
 
     fibonacciPool = pool;
     int N = 25;
-    ITaskPool::TaskHandle task = fibonacciTask(N);
     int expected = fibonacci(N);
+    ITaskPool::TaskHandle task = fibonacciTask(N);
     pool->waitTask(task);
     int result = static_cast<FibonacciPayload*>(pool->getTaskPayload(task))->result;
     CHECK(result == expected);
@@ -234,7 +241,7 @@ void testFibonacci(ITaskPool* pool)
 
 TEST_CASE("task-pool-blocking")
 {
-    ITaskPool* pool = new BlockingTaskPool();
+    ComPtr<ITaskPool> pool(new BlockingTaskPool());
 
     SUBCASE("simple")
     {
@@ -260,7 +267,7 @@ TEST_CASE("task-pool-blocking")
 
 TEST_CASE("task-pool-threaded")
 {
-    ITaskPool* pool = new ThreadedTaskPool();
+    ComPtr<ITaskPool> pool(new ThreadedTaskPool());
 
     SUBCASE("simple")
     {
