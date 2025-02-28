@@ -109,7 +109,7 @@ inline void convertAccelerationStructureInstanceDesc(
         dstMetal->options = (uint32_t)src->flags;
         dstMetal->mask = src->instanceMask;
         dstMetal->intersectionFunctionTableOffset = src->instanceContributionToHitGroupIndex;
-        dstMetal->accelerationStructureIndex = src->accelerationStructure.value;
+        dstMetal->accelerationStructureIndex = (uint32_t)src->accelerationStructure.value;
         dstMetal->userID = src->instanceID;
         break;
     }

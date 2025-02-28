@@ -121,7 +121,8 @@ Result AccelerationStructureBuildDescConverter::convert(
             buildInput.triangleArray.numSbtRecords = 1;
             buildInput.triangleArray.preTransform =
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
-            buildInput.triangleArray.transformFormat = OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12;
+            buildInput.triangleArray.transformFormat =
+                triangles.preTransformBuffer ? OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12 : OPTIX_TRANSFORM_FORMAT_NONE;
         }
         break;
     }
