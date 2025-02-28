@@ -77,20 +77,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
-        uint32_t maxDrawCount,
-        IBuffer* argBuffer,
-        uint64_t argOffset,
-        IBuffer* countBuffer = nullptr,
-        uint64_t countOffset = 0
-    ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
-        uint32_t maxDrawCount,
-        IBuffer* argBuffer,
-        uint64_t argOffset,
-        IBuffer* countBuffer = nullptr,
-        uint64_t countOffset = 0
-    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    drawIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    drawIndexedIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) override;
 
     // IPassEncoder implementation
@@ -125,7 +115,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(BufferOffsetPair argBuffer) override;
 
     // IPassEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;

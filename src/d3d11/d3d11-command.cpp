@@ -480,9 +480,9 @@ void CommandExecutor::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         return;
     }
 
-    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
+    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
 
-    m_immediateContext->DrawInstancedIndirect(argBuffer->m_buffer, cmd.argOffset);
+    m_immediateContext->DrawInstancedIndirect(argBuffer->m_buffer, cmd.argBuffer.offset);
 }
 
 void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
@@ -497,9 +497,9 @@ void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
         return;
     }
 
-    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
+    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
 
-    m_immediateContext->DrawIndexedInstancedIndirect(argBuffer->m_buffer, cmd.argOffset);
+    m_immediateContext->DrawIndexedInstancedIndirect(argBuffer->m_buffer, cmd.argBuffer.offset);
 }
 
 void CommandExecutor::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
@@ -564,8 +564,8 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
-    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
-    m_immediateContext->DispatchIndirect(argBuffer->m_buffer, cmd.offset);
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    m_immediateContext->DispatchIndirect(argBuffer->m_buffer, cmd.argBuffer.offset);
 }
 
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)

@@ -369,9 +369,8 @@ struct DrawIndirectTest : BaseDrawTest
         passEncoder->setRenderState(state);
 
         uint32_t maxDrawCount = 1;
-        uint64_t argOffset = offsetof(IndirectArgData, args);
-
-        passEncoder->drawIndirect(maxDrawCount, indirectBuffer, argOffset);
+        BufferOffsetPair argBuffer = {indirectBuffer, offsetof(IndirectArgData, args)};
+        passEncoder->drawIndirect(maxDrawCount, argBuffer);
         passEncoder->end();
 
         queue->submit(commandEncoder->finish());
@@ -452,9 +451,8 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         passEncoder->setRenderState(state);
 
         uint32_t maxDrawCount = 1;
-        uint64_t argOffset = offsetof(IndexedIndirectArgData, args);
-
-        passEncoder->drawIndexedIndirect(maxDrawCount, indirectBuffer, argOffset);
+        BufferOffsetPair argBuffer = {indirectBuffer, offsetof(IndexedIndirectArgData, args)};
+        passEncoder->drawIndexedIndirect(maxDrawCount, argBuffer);
         passEncoder->end();
 
         queue->submit(commandEncoder->finish());
