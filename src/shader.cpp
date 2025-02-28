@@ -1,7 +1,6 @@
 #include "shader.h"
 
 #include "rhi-shared.h"
-#include "shader-object.h"
 
 namespace rhi {
 
