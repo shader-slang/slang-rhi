@@ -259,7 +259,7 @@ public:
         const AccelerationStructureBuildDesc& desc,
         IAccelerationStructure* dst,
         IAccelerationStructure* src,
-        BufferWithOffset scratchBuffer,
+        BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) override;
@@ -278,10 +278,10 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) override;
+    serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
+    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
@@ -326,4 +326,4 @@ public:
     std::set<RefPtr<RefObject>> m_trackedObjects;
 };
 
-}
+} // namespace rhi

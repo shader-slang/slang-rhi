@@ -152,8 +152,8 @@ struct BaseRayTracingTest
         // Build bottom level acceleration structure.
         {
             AccelerationStructureBuildInputTriangles triangles = {};
-            BufferWithOffset vertexBufferWithOffset = vertexBuffer;
-            triangles.vertexBuffers = &vertexBufferWithOffset;
+            BufferOffsetPair vertexBuffers[] = {vertexBuffer};
+            triangles.vertexBuffers = vertexBuffers;
             triangles.vertexBufferCount = 1;
             triangles.vertexFormat = Format::R32G32B32_FLOAT;
             triangles.vertexCount = kVertexCount;

@@ -590,7 +590,7 @@ void CommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
-    BufferWithOffset scratchBuffer,
+    BufferOffsetPair scratchBuffer,
     uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
@@ -628,7 +628,7 @@ void CommandEncoder::queryAccelerationStructureProperties(
     SLANG_RHI_UNIMPLEMENTED("queryAccelerationStructureProperties");
 }
 
-void CommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
+void CommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
 {
     commands::SerializeAccelerationStructure cmd;
     cmd.dst = dst;
@@ -636,7 +636,7 @@ void CommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccel
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
+void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
 {
     commands::DeserializeAccelerationStructure cmd;
     cmd.dst = checked_cast<AccelerationStructure*>(dst);
@@ -782,4 +782,4 @@ ICommandBuffer* CommandBuffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
-}
+} // namespace rhi

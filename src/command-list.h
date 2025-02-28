@@ -248,7 +248,7 @@ struct BuildAccelerationStructure
     AccelerationStructureBuildDesc desc;
     IAccelerationStructure* dst;
     IAccelerationStructure* src;
-    BufferWithOffset scratchBuffer;
+    BufferOffsetPair scratchBuffer;
     uint32_t propertyQueryCount;
     AccelerationStructureQueryDesc* queryDescs;
 };
@@ -270,14 +270,14 @@ struct QueryAccelerationStructureProperties
 
 struct SerializeAccelerationStructure
 {
-    BufferWithOffset dst;
+    BufferOffsetPair dst;
     IAccelerationStructure* src;
 };
 
 struct DeserializeAccelerationStructure
 {
     IAccelerationStructure* dst;
-    BufferWithOffset src;
+    BufferOffsetPair src;
 };
 
 struct ConvertCooperativeVectorMatrix

@@ -940,4 +940,4 @@ Result RootShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList&
     return SLANG_OK;
 }
 
-}
+} // namespace rhi

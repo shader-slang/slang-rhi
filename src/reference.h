@@ -139,4 +139,4 @@ void returnRefPtrMove(TDest** outPtr, RefPtr<TImpl>& refPtr)
     *outPtr = refPtr.detach();
 }
 
-}
+} // namespace rhi

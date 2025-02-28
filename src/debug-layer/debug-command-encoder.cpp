@@ -416,7 +416,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
-    BufferWithOffset scratchBuffer,
+    BufferOffsetPair scratchBuffer,
     uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
@@ -476,7 +476,7 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     );
 }
 
-void DebugCommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
+void DebugCommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
@@ -484,7 +484,7 @@ void DebugCommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, I
     baseObject->serializeAccelerationStructure(dst, src);
 }
 
-void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
+void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();

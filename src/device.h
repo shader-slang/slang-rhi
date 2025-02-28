@@ -313,5 +313,4 @@ public:
     IDebugCallback* m_debugCallback = nullptr;
 };
 
-}
-
+} // namespace rhi

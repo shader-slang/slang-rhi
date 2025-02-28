@@ -200,8 +200,6 @@ public:
 };
 
 
-
-
 using ShaderObjectSetBindingHook = void (*)(
     ShaderObject* object,
     const ShaderOffset& offset,
@@ -344,4 +342,4 @@ public:
 };
 
 
-}
+} // namespace rhi

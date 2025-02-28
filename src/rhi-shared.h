@@ -295,7 +295,6 @@ public:
 };
 
 
-
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
 class ShaderTable : public IShaderTable, public ComObject
@@ -339,7 +338,6 @@ public:
     SurfaceConfig m_config;
     StructHolder m_configHolder;
 };
-
 
 
 bool isDepthFormat(Format format);
