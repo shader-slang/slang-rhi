@@ -37,7 +37,7 @@ Result VirtualRenderPipeline::getNativeHandle(NativeHandle* outHandle)
 }
 
 // ----------------------------------------------------------------------------
-// VirtualRenderPipeline
+// ComputePipeline
 // ----------------------------------------------------------------------------
 
 IPipeline* ComputePipeline::getInterface(const Guid& guid)
@@ -47,6 +47,10 @@ IPipeline* ComputePipeline::getInterface(const Guid& guid)
         return static_cast<IComputePipeline*>(this);
     return nullptr;
 }
+
+// ----------------------------------------------------------------------------
+// VirtualComputePipeline
+// ----------------------------------------------------------------------------
 
 Result VirtualComputePipeline::init(Device* device, const ComputePipelineDesc& desc)
 {
@@ -62,6 +66,10 @@ Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+// ----------------------------------------------------------------------------
+// RayTracingPipeline
+// ----------------------------------------------------------------------------
+
 IPipeline* RayTracingPipeline::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
@@ -69,6 +77,10 @@ IPipeline* RayTracingPipeline::getInterface(const Guid& guid)
         return static_cast<IRayTracingPipeline*>(this);
     return nullptr;
 }
+
+// ----------------------------------------------------------------------------
+// VirtualRayTracingPipeline
+// ----------------------------------------------------------------------------
 
 Result VirtualRayTracingPipeline::init(Device* device, const RayTracingPipelineDesc& desc)
 {
