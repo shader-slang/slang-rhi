@@ -11,6 +11,68 @@ namespace rhi {
 // ShaderCache
 // ----------------------------------------------------------------------------
 
+Result ShaderTable::init(const ShaderTableDesc& desc)
+{
+    m_rayGenShaderCount = desc.rayGenShaderCount;
+    m_missShaderCount = desc.missShaderCount;
+    m_hitGroupCount = desc.hitGroupCount;
+    m_callableShaderCount = desc.callableShaderCount;
+    m_shaderGroupNames.reserve(
+        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
+    );
+    m_recordOverwrites.reserve(
+        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
+    );
+    for (uint32_t i = 0; i < desc.rayGenShaderCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.rayGenShaderEntryPointNames[i]);
+        if (desc.rayGenShaderRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.rayGenShaderRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
+    for (uint32_t i = 0; i < desc.missShaderCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.missShaderEntryPointNames[i]);
+        if (desc.missShaderRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.missShaderRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
+    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.hitGroupNames[i]);
+        if (desc.hitGroupRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.hitGroupRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
+    for (uint32_t i = 0; i < desc.callableShaderCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.callableShaderEntryPointNames[i]);
+        if (desc.callableShaderRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.callableShaderRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
+    return SLANG_OK;
+}
 
 ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
 {
@@ -80,6 +142,190 @@ void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> speci
 // Device
 // ----------------------------------------------------------------------------
 
+Result Device::createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject)
+{
+    return ShaderObject::create(this, layout, outObject);
+}
+
+Result Device::createRootShaderObject(ShaderProgram* program, RootShaderObject** outObject)
+{
+    return RootShaderObject::create(this, program, outObject);
+}
+
+Result Device::getSpecializedProgram(
+    ShaderProgram* program,
+    const ExtendedShaderObjectTypeList& specializationArgs,
+    ShaderProgram** outSpecializedProgram
+)
+{
+    // TODO make thread-safe
+    SpecializationKey key(specializationArgs);
+    auto it = program->m_specializedPrograms.find(key);
+    if (it != program->m_specializedPrograms.end())
+    {
+        returnRefPtr(outSpecializedProgram, it->second);
+        return SLANG_OK;
+    }
+    else
+    {
+        RefPtr<ShaderProgram> specializedProgram;
+        SLANG_RETURN_ON_FAIL(specializeProgram(program, specializationArgs, specializedProgram.writeRef()));
+        program->m_specializedPrograms[key] = specializedProgram;
+        // Program is owned by the cache
+        specializedProgram->comFree();
+        returnRefPtr(outSpecializedProgram, specializedProgram);
+        return SLANG_OK;
+    }
+}
+
+
+Result Device::specializeProgram(
+    ShaderProgram* program,
+    const ExtendedShaderObjectTypeList& specializationArgs,
+    ShaderProgram** outSpecializedProgram
+)
+{
+    ComPtr<slang::IComponentType> specializedComponentType;
+    ComPtr<slang::IBlob> diagnosticBlob;
+    Result result = program->linkedProgram->specialize(
+        specializationArgs.components.data(),
+        specializationArgs.getCount(),
+        specializedComponentType.writeRef(),
+        diagnosticBlob.writeRef()
+    );
+    if (diagnosticBlob)
+    {
+        handleMessage(
+            result == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
+            DebugMessageSource::Slang,
+            (char*)diagnosticBlob->getBufferPointer()
+        );
+    }
+    SLANG_RETURN_ON_FAIL(result);
+
+    // Now create the specialized shader program using compiled binaries.
+    RefPtr<ShaderProgram> specializedProgram;
+    ShaderProgramDesc programDesc = program->m_desc;
+    programDesc.slangGlobalScope = specializedComponentType;
+
+    if (programDesc.linkingStyle == LinkingStyle::SingleProgram)
+    {
+        // When linking style is SingleProgram, the specialized global scope already contains
+        // entry-points, so we do not need to supply them again when creating the specialized
+        // pipeline.
+        programDesc.slangEntryPointCount = 0;
+    }
+    SLANG_RETURN_ON_FAIL(createShaderProgram(programDesc, (IShaderProgram**)specializedProgram.writeRef()));
+    returnRefPtr(outSpecializedProgram, specializedProgram);
+    return SLANG_OK;
+}
+
+Result Device::getConcretePipeline(
+    Pipeline* pipeline,
+    ExtendedShaderObjectTypeList* specializationArgs,
+    Pipeline*& outPipeline
+)
+{
+    // If this is already a concrete pipeline, then we are done.
+    if (!pipeline->isVirtual())
+    {
+        outPipeline = pipeline;
+        return SLANG_OK;
+    }
+
+    // Create key for looking up cached pipelines.
+    PipelineKey pipelineKey;
+    pipelineKey.pipeline = pipeline;
+
+    // If the pipeline is specializable, collect specialization arguments from bound shader objects.
+    if (pipeline->m_program->isSpecializable())
+    {
+        if (!specializationArgs)
+            return SLANG_FAIL;
+        for (const auto& componentID : specializationArgs->componentIDs)
+        {
+            pipelineKey.specializationArgs.push_back(componentID);
+        }
+    }
+
+    // Look up pipeline in cache.
+    pipelineKey.updateHash();
+    RefPtr<Pipeline> concretePipeline = m_shaderCache.getSpecializedPipeline(pipelineKey);
+    if (!concretePipeline)
+    {
+        // Specialize program if needed.
+        RefPtr<ShaderProgram> program = pipeline->m_program;
+        if (program->isSpecializable())
+        {
+            RefPtr<ShaderProgram> specializedProgram;
+            SLANG_RETURN_ON_FAIL(specializeProgram(program, *specializationArgs, specializedProgram.writeRef()));
+            program = specializedProgram;
+            // Program is owned by the specialized pipeline.
+            program->comFree();
+        }
+
+        // Ensure sure shaders are compiled.
+        SLANG_RETURN_ON_FAIL(program->compileShaders(this));
+
+        switch (pipeline->getType())
+        {
+        case PipelineType::Render:
+        {
+            RenderPipelineDesc desc = checked_cast<VirtualRenderPipeline*>(pipeline)->m_desc;
+            desc.program = program;
+            ComPtr<IRenderPipeline> renderPipeline;
+            SLANG_RETURN_ON_FAIL(createRenderPipeline2(desc, renderPipeline.writeRef()));
+            concretePipeline = checked_cast<RenderPipeline*>(renderPipeline.get());
+            break;
+        }
+        case PipelineType::Compute:
+        {
+            ComputePipelineDesc desc = checked_cast<VirtualComputePipeline*>(pipeline)->m_desc;
+            desc.program = program;
+            ComPtr<IComputePipeline> computePipeline;
+            SLANG_RETURN_ON_FAIL(createComputePipeline2(desc, computePipeline.writeRef()));
+            concretePipeline = checked_cast<ComputePipeline*>(computePipeline.get());
+            break;
+        }
+        case PipelineType::RayTracing:
+        {
+            RayTracingPipelineDesc desc = checked_cast<VirtualRayTracingPipeline*>(pipeline)->m_desc;
+            desc.program = program;
+            ComPtr<IRayTracingPipeline> rayTracingPipeline;
+            SLANG_RETURN_ON_FAIL(createRayTracingPipeline2(desc, rayTracingPipeline.writeRef()));
+            concretePipeline = checked_cast<RayTracingPipeline*>(rayTracingPipeline.get());
+            break;
+        }
+        }
+        m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
+        // Pipeline is owned by the cache.
+        concretePipeline->comFree();
+    }
+
+    outPipeline = concretePipeline;
+    return SLANG_OK;
+}
+
+Result Device::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
 
 Result Device::getEntryPointCodeFromShaderCache(
     slang::IComponentType* program,
