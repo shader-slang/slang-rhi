@@ -6,6 +6,9 @@ class AccelerationStructure;
 class Buffer;
 class Resource;
 class Texture;
+class QueryPool;
+class InputLayout;
+class ShaderTable;
 
 class CommandBuffer;
 class CommandEncoder;
@@ -25,13 +28,17 @@ struct ExtendedShaderObjectTypeList;
 class ExtendedShaderObjectTypeListObject;
 class ShaderObjectLayout;
 
-class ShaderProgram;
-
-class QueryPool;
 class Pipeline;
 class RenderPipeline;
+class VirtualRenderPipeline;
 class ComputePipeline;
+class VirtualComputePipeline;
 class RayTracingPipeline;
+class VirtualRayTracingPipeline;
+
+struct SpecializationKey;
+class ShaderProgram;
+
 
 typedef uint32_t ShaderComponentID;
 } // namespace rhi

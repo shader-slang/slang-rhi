@@ -422,6 +422,7 @@ target_sources(slang-rhi PRIVATE
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
     src/rhi.cpp
+    src/shader.cpp
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/offset-allocator.cpp
