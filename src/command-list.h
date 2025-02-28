@@ -431,12 +431,6 @@ public:
         return *reinterpret_cast<const T*>(command->data);
     }
 
-private:
-    ArenaAllocator& m_allocator;
-    std::set<RefPtr<RefObject>>& m_trackedObjects;
-    CommandSlot* m_commandSlots = nullptr;
-    CommandSlot* m_lastCommandSlot = nullptr;
-
     void retainResource(RefObject* resource)
     {
         if (resource)
@@ -454,6 +448,12 @@ private:
             retainResource(obj);
         }
     }
+
+private:
+    ArenaAllocator& m_allocator;
+    std::set<RefPtr<RefObject>>& m_trackedObjects;
+    CommandSlot* m_commandSlots = nullptr;
+    CommandSlot* m_lastCommandSlot = nullptr;
 
     const void* writeData(const void* data, size_t size)
     {

@@ -379,6 +379,8 @@ Result Device::initialize(const DeviceDesc& desc)
 
     m_persistentShaderCache = desc.persistentShaderCache;
 
+    m_heap.initialize(this);
+
     if (desc.apiCommandDispatcher)
     {
         desc.apiCommandDispatcher->queryInterface(

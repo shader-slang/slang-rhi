@@ -7,6 +7,8 @@
 #include "core/common.h"
 #include "core/short_vector.h"
 
+#include "staging-heap.h"
+
 #include "rhi-shared-fwd.h"
 
 #include <map>
@@ -304,6 +306,7 @@ protected:
 public:
     SlangContext m_slangContext;
     ShaderCache m_shaderCache;
+    StagingHeap m_heap;
 
     ComPtr<IPersistentShaderCache> m_persistentShaderCache;
 

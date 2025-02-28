@@ -4,8 +4,6 @@
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-constant-buffer-pool.h"
 
-#include "../buffer-pool.h"
-
 #include "core/short_vector.h"
 
 #include <vector>
