@@ -7,6 +7,8 @@
 
 #include "reference.h"
 
+#include "device.h"
+
 #include "rhi-shared-fwd.h"
 
 #include <set>

@@ -2,6 +2,7 @@
 
 #include "rhi-shared.h"
 #include "device.h"
+#include "shader.h"
 
 namespace rhi {
 
