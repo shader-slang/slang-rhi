@@ -57,7 +57,7 @@ Result DeviceImpl::createAccelerationStructure(
     return SLANG_OK;
 }
 
-Result AccelerationStructureDescBuilder::convert(
+Result AccelerationStructureBuildDescConverter::convert(
     const AccelerationStructureBuildDesc& buildDesc,
     const NS::Array* accelerationStructureArray,
     IDebugCallback* debugCallback
