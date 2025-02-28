@@ -14,6 +14,7 @@
 
 #include "device.h"
 #include "command-buffer.h"
+#include "shader-object.h"
 
 #include "rhi-shared-fwd.h"
 
@@ -192,6 +193,11 @@ struct SpecializationKey
         }
     };
 };
+
+bool _doesValueFitInExistentialPayload(
+    slang::TypeLayoutReflection* concreteTypeLayout,
+    slang::TypeLayoutReflection* existentialFieldLayout
+);
 
 class ShaderProgram : public IShaderProgram, public ComObject
 {

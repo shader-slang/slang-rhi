@@ -197,10 +197,6 @@ public:
     void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };
 
-bool _doesValueFitInExistentialPayload(
-    slang::TypeLayoutReflection* concreteTypeLayout,
-    slang::TypeLayoutReflection* existentialFieldLayout
-);
 
 
 
