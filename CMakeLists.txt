@@ -418,6 +418,7 @@ target_sources(slang-rhi PRIVATE
     src/device.cpp
     src/enum-strings.cpp
     src/flag-combiner.cpp
+    src/shader-object.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
     src/rhi.cpp

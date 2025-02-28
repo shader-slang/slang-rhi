@@ -1,6 +1,7 @@
 #include "device.h"
 
 #include "rhi-shared.h"
+#include "shader-object.h"
 
 #include <algorithm>
 

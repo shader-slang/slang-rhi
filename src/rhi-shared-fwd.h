@@ -4,6 +4,7 @@ namespace rhi {
 
 class AccelerationStructure;
 class Buffer;
+class Resource;
 class Texture;
 
 class CommandBuffer;
@@ -15,7 +16,15 @@ class CommandList;
 
 class Device;
 
+class ShaderObject;
+class RootShaderObject;
+struct ShaderObjectID;
+struct ResourceSlot;
+struct ExtendedShaderObjectType;
+struct ExtendedShaderObjectTypeList;
+class ExtendedShaderObjectTypeListObject;
 class ShaderObjectLayout;
+
 class ShaderProgram;
 
 class QueryPool;
@@ -23,10 +32,6 @@ class Pipeline;
 class RenderPipeline;
 class ComputePipeline;
 class RayTracingPipeline;
-class ShaderObject;
-class RootShaderObject;
-struct ExtendedShaderObjectTypeList;
-class ExtendedShaderObjectTypeListObject;
 
 typedef uint32_t ShaderComponentID;
 } // namespace rhi
