@@ -1,5 +1,4 @@
 #include "metal-util.h"
-#include "metal-buffer.h"
 #include "core/common.h"
 
 #include <stdio.h>

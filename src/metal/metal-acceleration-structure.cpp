@@ -1,5 +1,6 @@
 #include "metal-acceleration-structure.h"
 #include "metal-device.h"
+#include "metal-buffer.h"
 #include "metal-util.h"
 
 namespace rhi::metal {
