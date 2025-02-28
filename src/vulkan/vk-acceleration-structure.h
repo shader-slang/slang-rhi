@@ -26,7 +26,7 @@ public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 };
 
-struct AccelerationStructureBuildGeometryInfoBuilder
+struct AccelerationStructureBuildDescConverter
 {
 public:
     VkAccelerationStructureBuildGeometryInfoKHR buildInfo = {
@@ -34,7 +34,7 @@ public:
     };
     std::vector<uint32_t> primitiveCounts;
 
-    Result build(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
+    Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
 
 private:
     std::vector<VkAccelerationStructureGeometryKHR> geometries;

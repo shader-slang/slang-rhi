@@ -1353,13 +1353,13 @@ Result DeviceImpl::getAccelerationStructureSizes(
         return SLANG_E_NOT_AVAILABLE;
     }
     VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
-    AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
-    SLANG_RETURN_ON_FAIL(geomInfoBuilder.build(desc, m_debugCallback));
+    AccelerationStructureBuildDescConverter converter;
+    SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
     m_api.vkGetAccelerationStructureBuildSizesKHR(
         m_api.m_device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-        &geomInfoBuilder.buildInfo,
-        geomInfoBuilder.primitiveCounts.data(),
+        &converter.buildInfo,
+        converter.primitiveCounts.data(),
         &sizeInfo
     );
     outSizes->accelerationStructureSize = sizeInfo.accelerationStructureSize;

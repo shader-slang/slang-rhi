@@ -29,12 +29,12 @@ public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 };
 
-struct AccelerationStructureInputsBuilder
+struct AccelerationStructureBuildDescConverter
 {
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
     std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs;
-    Result build(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* callback);
+    Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* callback);
 
 private:
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS translateBuildFlags(AccelerationStructureBuildFlags flags)

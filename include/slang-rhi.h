@@ -943,22 +943,15 @@ enum class AccelerationStructureBuildInputType
     ProceduralPrimitives,
 };
 
-struct AccelerationStructureBuildInput
-{};
-
-struct AccelerationStructureBuildInputInstances : public AccelerationStructureBuildInput
+struct AccelerationStructureBuildInputInstances
 {
-    const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Instances;
-
     BufferOffsetPair instanceBuffer;
     uint32_t instanceStride;
     uint32_t instanceCount;
 };
 
-struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBuildInput
+struct AccelerationStructureBuildInputTriangles
 {
-    const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Triangles;
-
     /// List of vertex buffers, one for each motion step.
     BufferOffsetPair* vertexBuffers = nullptr;
     uint32_t vertexBufferCount = 0;
@@ -976,10 +969,8 @@ struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBu
     AccelerationStructureGeometryFlags flags;
 };
 
-struct AccelerationStructureBuildInputProceduralPrimitives : public AccelerationStructureBuildInput
+struct AccelerationStructureBuildInputProceduralPrimitives
 {
-    const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::ProceduralPrimitives;
-
     /// List of AABB buffers, one for each motion step.
     BufferOffsetPair* aabbBuffers = nullptr;
     uint32_t aabbBufferCount = 0;
@@ -987,6 +978,18 @@ struct AccelerationStructureBuildInputProceduralPrimitives : public Acceleration
     uint32_t primitiveCount = 0;
 
     AccelerationStructureGeometryFlags flags;
+};
+
+
+struct AccelerationStructureBuildInput
+{
+    AccelerationStructureBuildInputType type;
+    union
+    {
+        AccelerationStructureBuildInputInstances instances;
+        AccelerationStructureBuildInputTriangles triangles;
+        AccelerationStructureBuildInputProceduralPrimitives proceduralPrimitives;
+    };
 };
 
 struct AccelerationStructureBuildInputMotionOptions

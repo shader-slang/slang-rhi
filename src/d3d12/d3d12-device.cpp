@@ -1750,11 +1750,11 @@ Result DeviceImpl::getAccelerationStructureSizes(
     if (!m_device5)
         return SLANG_E_NOT_AVAILABLE;
 
-    AccelerationStructureInputsBuilder inputsBuilder;
-    SLANG_RETURN_ON_FAIL(inputsBuilder.build(desc, m_debugCallback));
+    AccelerationStructureBuildDescConverter converter;
+    SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
-    m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&inputsBuilder.desc, &prebuildInfo);
+    m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&converter.desc, &prebuildInfo);
 
     outSizes->accelerationStructureSize = prebuildInfo.ResultDataMaxSizeInBytes;
     outSizes->scratchSize = prebuildInfo.ScratchDataSizeInBytes;

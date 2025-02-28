@@ -621,15 +621,15 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 {
     MTL::AccelerationStructureCommandEncoder* encoder = getAccelerationStructureCommandEncoder();
 
-    AccelerationStructureDescBuilder builder;
-    builder.build(cmd.desc, m_device->getAccelerationStructureArray(), m_device->m_debugCallback);
+    AccelerationStructureBuildDescConverter converter;
+    converter.convert(cmd.desc, m_device->getAccelerationStructureArray(), m_device->m_debugCallback);
 
     switch (cmd.desc.mode)
     {
     case AccelerationStructureBuildMode::Build:
         encoder->buildAccelerationStructure(
             checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_accelerationStructure.get(),
-            builder.descriptor.get(),
+            converter.descriptor.get(),
             checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer)->m_buffer.get(),
             cmd.scratchBuffer.offset
         );
@@ -637,7 +637,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     case AccelerationStructureBuildMode::Update:
         encoder->refitAccelerationStructure(
             checked_cast<AccelerationStructureImpl*>(cmd.src)->m_accelerationStructure.get(),
-            builder.descriptor.get(),
+            converter.descriptor.get(),
             checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_accelerationStructure.get(),
             checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer)->m_buffer.get(),
             cmd.scratchBuffer.offset

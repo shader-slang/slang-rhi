@@ -566,14 +566,14 @@ Result DeviceImpl::getAccelerationStructureSizes(
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    AccelerationStructureBuildInputBuilder builder;
-    builder.build(desc, m_debugCallback);
+    AccelerationStructureBuildDescConverter converter;
+    converter.convert(desc, m_debugCallback);
     OptixAccelBufferSizes sizes;
     SLANG_OPTIX_RETURN_ON_FAIL(optixAccelComputeMemoryUsage(
         m_ctx.optixContext,
-        &builder.buildOptions,
-        builder.buildInputs.data(),
-        builder.buildInputs.size(),
+        &converter.buildOptions,
+        converter.buildInputs.data(),
+        converter.buildInputs.size(),
         &sizes
     ));
     outSizes->accelerationStructureSize = sizes.outputSizeInBytes;

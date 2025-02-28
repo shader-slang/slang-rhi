@@ -194,49 +194,36 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
 {
     if (cmd.desc.inputs && cmd.desc.inputCount > 0)
     {
-        AccelerationStructureBuildInputType type = *(AccelerationStructureBuildInputType*)cmd.desc.inputs;
-        switch (type)
+        cmd.desc.inputs = (AccelerationStructureBuildInput*)
+            writeData(cmd.desc.inputs, cmd.desc.inputCount * sizeof(AccelerationStructureBuildInput));
+        for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
         {
-        case AccelerationStructureBuildInputType::Instances:
-        {
-            AccelerationStructureBuildInputInstances* inputs = (AccelerationStructureBuildInputInstances*)
-                writeData(cmd.desc.inputs, cmd.desc.inputCount * sizeof(AccelerationStructureBuildInputInstances));
-            cmd.desc.inputs = inputs;
-            for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
+            switch (cmd.desc.inputs[i].type)
             {
-                retainResource<Buffer>(inputs[i].instanceBuffer.buffer);
-            }
-            break;
-        }
-        case AccelerationStructureBuildInputType::Triangles:
-        {
-            AccelerationStructureBuildInputTriangles* inputs = (AccelerationStructureBuildInputTriangles*)
-                writeData(cmd.desc.inputs, cmd.desc.inputCount * sizeof(AccelerationStructureBuildInputTriangles));
-            cmd.desc.inputs = inputs;
-            for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
+            case AccelerationStructureBuildInputType::Instances:
             {
-                for (uint32_t j = 0; j < inputs[i].vertexBufferCount; ++j)
-                    retainResource<Buffer>(inputs[i].vertexBuffers[j].buffer);
-                retainResource<Buffer>(inputs[i].indexBuffer.buffer);
-                retainResource<Buffer>(inputs[i].preTransformBuffer.buffer);
+                const AccelerationStructureBuildInputInstances& instances = cmd.desc.inputs[i].instances;
+                retainResource<Buffer>(instances.instanceBuffer.buffer);
+                break;
             }
-            break;
-        }
-        case AccelerationStructureBuildInputType::ProceduralPrimitives:
-        {
-            AccelerationStructureBuildInputProceduralPrimitives* inputs =
-                (AccelerationStructureBuildInputProceduralPrimitives*)writeData(
-                    cmd.desc.inputs,
-                    cmd.desc.inputCount * sizeof(AccelerationStructureBuildInputProceduralPrimitives)
-                );
-            cmd.desc.inputs = inputs;
-            for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
+            case AccelerationStructureBuildInputType::Triangles:
             {
-                for (uint32_t j = 0; j < inputs[i].aabbBufferCount; ++j)
-                    retainResource<Buffer>(inputs[i].aabbBuffers[j].buffer);
+                const AccelerationStructureBuildInputTriangles& triangles = cmd.desc.inputs[i].triangles;
+                for (uint32_t j = 0; j < triangles.vertexBufferCount; ++j)
+                    retainResource<Buffer>(triangles.vertexBuffers[j].buffer);
+                retainResource<Buffer>(triangles.indexBuffer.buffer);
+                retainResource<Buffer>(triangles.preTransformBuffer.buffer);
+                break;
             }
-            break;
-        }
+            case AccelerationStructureBuildInputType::ProceduralPrimitives:
+            {
+                const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
+                    cmd.desc.inputs[i].proceduralPrimitives;
+                for (uint32_t j = 0; j < proceduralPrimitives.aabbBufferCount; ++j)
+                    retainResource<Buffer>(proceduralPrimitives.aabbBuffers[j].buffer);
+                break;
+            }
+            }
         }
     }
     retainResource<AccelerationStructure>(cmd.dst);

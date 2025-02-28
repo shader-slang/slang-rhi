@@ -367,8 +367,8 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
 #if SLANG_RHI_ENABLE_OPTIX
-    AccelerationStructureBuildInputBuilder builder;
-    if (builder.build(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
+    AccelerationStructureBuildDescConverter converter;
+    if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
         return;
 
     AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
@@ -390,9 +390,9 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
     SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelBuild(
         m_device->m_ctx.optixContext,
         m_stream,
-        &builder.buildOptions,
-        builder.buildInputs.data(),
-        builder.buildInputs.size(),
+        &converter.buildOptions,
+        converter.buildInputs.data(),
+        converter.buildInputs.size(),
         cmd.scratchBuffer.getDeviceAddress(),
         checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer)->m_desc.size - cmd.scratchBuffer.offset,
         dst->m_buffer,
