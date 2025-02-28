@@ -938,4 +938,64 @@ Result RootShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList&
     return SLANG_OK;
 }
 
+
+bool _doesValueFitInExistentialPayload(
+    slang::TypeLayoutReflection* concreteTypeLayout,
+    slang::TypeLayoutReflection* existentialTypeLayout
+)
+{
+    // Our task here is to figure out if a value of `concreteTypeLayout`
+    // can fit into an existential value using `existentialTypelayout`.
+
+    // We can start by asking how many bytes the concrete type of the object consumes.
+    //
+    auto concreteValueSize = concreteTypeLayout->getSize();
+
+    // We can also compute how many bytes the existential-type value provides,
+    // but we need to remember that the *payload* part of that value comes after
+    // the header with RTTI and witness-table IDs, so the payload is 16 bytes
+    // smaller than the entire value.
+    //
+    auto existentialValueSize = existentialTypeLayout->getSize();
+    auto existentialPayloadSize = existentialValueSize - 16;
+
+    // If the concrete type consumes more ordinary bytes than we have in the payload,
+    // it cannot possibly fit.
+    //
+    if (concreteValueSize > existentialPayloadSize)
+        return false;
+
+    // It is possible that the ordinary bytes of `concreteTypeLayout` can fit
+    // in the payload, but that type might also use storage other than ordinary
+    // bytes. In that case, the value would *not* fit, because all the non-ordinary
+    // data can't fit in the payload at all.
+    //
+    auto categoryCount = concreteTypeLayout->getCategoryCount();
+    for (unsigned int i = 0; i < categoryCount; ++i)
+    {
+        auto category = concreteTypeLayout->getCategoryByIndex(i);
+        switch (category)
+        {
+        // We want to ignore any ordinary/uniform data usage, since that
+        // was already checked above.
+        //
+        case slang::ParameterCategory::Uniform:
+            break;
+
+        // Any other kind of data consumed means the value cannot possibly fit.
+        default:
+            return false;
+
+            // TODO: Are there any cases of resource usage that need to be ignored here?
+            // E.g., if the sub-object contains its own existential-type fields (which
+            // get reflected as consuming "existential value" storage) should that be
+            // ignored?
+        }
+    }
+
+    // If we didn't reject the concrete type above for either its ordinary
+    // data or some use of non-ordinary data, then it seems like it must fit.
+    //
+    return true;
+}
 } // namespace rhi

@@ -341,5 +341,10 @@ public:
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 };
 
+bool _doesValueFitInExistentialPayload(
+    slang::TypeLayoutReflection* concreteTypeLayout,
+    slang::TypeLayoutReflection* existentialFieldLayout
+);
+
 
 } // namespace rhi

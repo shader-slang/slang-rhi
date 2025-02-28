@@ -169,12 +169,6 @@ public:
     StructHolder m_descHolder;
 };
 
-bool _doesValueFitInExistentialPayload(
-    slang::TypeLayoutReflection* concreteTypeLayout,
-    slang::TypeLayoutReflection* existentialFieldLayout
-);
-
-
 class InputLayout : public IInputLayout, public ComObject
 {
 public:
