@@ -953,7 +953,7 @@ struct AccelerationStructureBuildInputInstances
 struct AccelerationStructureBuildInputTriangles
 {
     /// List of vertex buffers, one for each motion step.
-    BufferOffsetPair* vertexBuffers = nullptr;
+    BufferOffsetPair vertexBuffers[2];
     uint32_t vertexBufferCount = 0;
     Format vertexFormat = Format::Unknown;
     uint32_t vertexCount = 0;
@@ -972,7 +972,7 @@ struct AccelerationStructureBuildInputTriangles
 struct AccelerationStructureBuildInputProceduralPrimitives
 {
     /// List of AABB buffers, one for each motion step.
-    BufferOffsetPair* aabbBuffers = nullptr;
+    BufferOffsetPair aabbBuffers[2];
     uint32_t aabbBufferCount = 0;
     uint32_t aabbStride = 0;
     uint32_t primitiveCount = 0;
