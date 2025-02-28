@@ -151,20 +151,21 @@ struct BaseRayTracingTest
 
         // Build bottom level acceleration structure.
         {
-            AccelerationStructureBuildInputTriangles triangles = {};
+            AccelerationStructureBuildInput buildInput = {};
             BufferOffsetPair vertexBuffers[] = {vertexBuffer};
-            triangles.vertexBuffers = vertexBuffers;
-            triangles.vertexBufferCount = 1;
-            triangles.vertexFormat = Format::R32G32B32_FLOAT;
-            triangles.vertexCount = kVertexCount;
-            triangles.vertexStride = sizeof(Vertex);
-            triangles.indexBuffer = indexBuffer;
-            triangles.indexFormat = IndexFormat::UInt32;
-            triangles.indexCount = kIndexCount;
-            triangles.preTransformBuffer = transformBuffer;
-            triangles.flags = AccelerationStructureGeometryFlags::Opaque;
+            buildInput.type = AccelerationStructureBuildInputType::Triangles;
+            buildInput.triangles.vertexBuffers = vertexBuffers;
+            buildInput.triangles.vertexBufferCount = 1;
+            buildInput.triangles.vertexFormat = Format::R32G32B32_FLOAT;
+            buildInput.triangles.vertexCount = kVertexCount;
+            buildInput.triangles.vertexStride = sizeof(Vertex);
+            buildInput.triangles.indexBuffer = indexBuffer;
+            buildInput.triangles.indexFormat = IndexFormat::UInt32;
+            buildInput.triangles.indexCount = kIndexCount;
+            buildInput.triangles.preTransformBuffer = transformBuffer;
+            buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
             AccelerationStructureBuildDesc buildDesc = {};
-            buildDesc.inputs = &triangles;
+            buildDesc.inputs = &buildInput;
             buildDesc.inputCount = 1;
             buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction;
 
@@ -247,12 +248,13 @@ struct BaseRayTracingTest
             instanceBuffer = device->createBuffer(instanceBufferDesc, nativeInstanceDescs.data());
             REQUIRE(instanceBuffer != nullptr);
 
-            AccelerationStructureBuildInputInstances instances = {};
-            instances.instanceBuffer = instanceBuffer;
-            instances.instanceCount = 1;
-            instances.instanceStride = nativeInstanceDescSize;
+            AccelerationStructureBuildInput buildInput = {};
+            buildInput.type = AccelerationStructureBuildInputType::Instances;
+            buildInput.instances.instanceBuffer = instanceBuffer;
+            buildInput.instances.instanceCount = 1;
+            buildInput.instances.instanceStride = nativeInstanceDescSize;
             AccelerationStructureBuildDesc buildDesc = {};
-            buildDesc.inputs = &instances;
+            buildDesc.inputs = &buildInput;
             buildDesc.inputCount = 1;
 
             // Query buffer size for acceleration structure build.

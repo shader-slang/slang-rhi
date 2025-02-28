@@ -33,7 +33,7 @@ public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 };
 
-struct AccelerationStructureBuildInputBuilder
+struct AccelerationStructureBuildDescConverter
 {
 public:
     stable_vector<CUdeviceptr> pointerList;
@@ -41,7 +41,7 @@ public:
     std::vector<OptixBuildInput> buildInputs;
     OptixAccelBuildOptions buildOptions;
 
-    Result build(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
+    Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
 
 private:
     unsigned int translateBuildFlags(AccelerationStructureBuildFlags flags) const;

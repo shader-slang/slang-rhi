@@ -1066,9 +1066,9 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     buildDesc.DestAccelerationStructureData = dst->getDeviceAddress();
     buildDesc.SourceAccelerationStructureData = src ? src->getDeviceAddress() : 0;
     buildDesc.ScratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
-    AccelerationStructureInputsBuilder builder;
-    builder.build(cmd.desc, m_device->m_debugCallback);
-    buildDesc.Inputs = builder.desc;
+    AccelerationStructureBuildDescConverter converter;
+    converter.convert(cmd.desc, m_device->m_debugCallback);
+    buildDesc.Inputs = converter.desc;
 
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
     translatePostBuildInfoDescs(cmd.propertyQueryCount, cmd.queryDescs, postBuildInfoDescs);

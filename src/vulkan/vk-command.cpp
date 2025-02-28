@@ -944,31 +944,30 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 
 void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
-    AccelerationStructureBuildGeometryInfoBuilder geomInfoBuilder;
-    if (geomInfoBuilder.build(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
+    AccelerationStructureBuildDescConverter converter;
+    if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
         return;
 
-    geomInfoBuilder.buildInfo.dstAccelerationStructure = checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_vkHandle;
+    converter.buildInfo.dstAccelerationStructure = checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_vkHandle;
     if (cmd.src)
     {
-        geomInfoBuilder.buildInfo.srcAccelerationStructure =
-            checked_cast<AccelerationStructureImpl*>(cmd.src)->m_vkHandle;
+        converter.buildInfo.srcAccelerationStructure = checked_cast<AccelerationStructureImpl*>(cmd.src)->m_vkHandle;
     }
-    geomInfoBuilder.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
+    converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
 
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
-    rangeInfos.resize(geomInfoBuilder.primitiveCounts.size());
-    for (size_t i = 0; i < geomInfoBuilder.primitiveCounts.size(); i++)
+    rangeInfos.resize(converter.primitiveCounts.size());
+    for (size_t i = 0; i < converter.primitiveCounts.size(); i++)
     {
         auto& rangeInfo = rangeInfos[i];
-        rangeInfo.primitiveCount = geomInfoBuilder.primitiveCounts[i];
+        rangeInfo.primitiveCount = converter.primitiveCounts[i];
         rangeInfo.firstVertex = 0;
         rangeInfo.primitiveOffset = 0;
         rangeInfo.transformOffset = 0;
     }
 
     auto rangeInfoPtr = rangeInfos.data();
-    m_api.vkCmdBuildAccelerationStructuresKHR(m_cmdBuffer, 1, &geomInfoBuilder.buildInfo, &rangeInfoPtr);
+    m_api.vkCmdBuildAccelerationStructuresKHR(m_cmdBuffer, 1, &converter.buildInfo, &rangeInfoPtr);
 
     if (cmd.propertyQueryCount)
     {

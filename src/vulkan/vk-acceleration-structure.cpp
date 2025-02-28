@@ -30,7 +30,7 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return m_buffer->getDeviceAddress();
 }
 
-Result AccelerationStructureBuildGeometryInfoBuilder::build(
+Result AccelerationStructureBuildDescConverter::convert(
     const AccelerationStructureBuildDesc& buildDesc,
     IDebugCallback* debugCallback
 )
@@ -40,10 +40,10 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
         return SLANG_E_INVALID_ARG;
     }
 
-    AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
-    for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+    AccelerationStructureBuildInputType type = buildDesc.inputs[0].type;
+    for (uint32_t i = 1; i < buildDesc.inputCount; ++i)
     {
-        if ((AccelerationStructureBuildInputType&)buildDesc.inputs[i] != type)
+        if (buildDesc.inputs[i].type != type)
         {
             return SLANG_E_INVALID_ARG;
         }
@@ -75,8 +75,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
         {
             return SLANG_E_INVALID_ARG;
         }
-        const AccelerationStructureBuildInputInstances& instances =
-            (const AccelerationStructureBuildInputInstances&)buildDesc.inputs[0];
+        const AccelerationStructureBuildInputInstances& instances = buildDesc.inputs[0].instances;
 
         VkAccelerationStructureGeometryKHR& geometry = geometries[0];
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -94,8 +93,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
     {
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
-            const AccelerationStructureBuildInputTriangles& triangles =
-                (const AccelerationStructureBuildInputTriangles&)buildDesc.inputs[i];
+            const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
             if (triangles.vertexBufferCount != 1)
             {
                 return SLANG_E_INVALID_ARG;
@@ -135,7 +133,7 @@ Result AccelerationStructureBuildGeometryInfoBuilder::build(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
-                (const AccelerationStructureBuildInputProceduralPrimitives&)buildDesc.inputs[i];
+                buildDesc.inputs[i].proceduralPrimitives;
             if (proceduralPrimitives.aabbBufferCount != 1)
             {
                 return SLANG_E_INVALID_ARG;
