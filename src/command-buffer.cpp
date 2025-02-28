@@ -84,13 +84,7 @@ void RenderPassEncoder::drawIndexed(const DrawArguments& args)
     }
 }
 
-void RenderPassEncoder::drawIndirect(
-    uint32_t maxDrawCount,
-    IBuffer* argBuffer,
-    uint64_t argOffset,
-    IBuffer* countBuffer,
-    uint64_t countOffset
-)
+void RenderPassEncoder::drawIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer)
 {
     if (m_commandList)
     {
@@ -98,19 +92,15 @@ void RenderPassEncoder::drawIndirect(
         commands::DrawIndirect cmd;
         cmd.maxDrawCount = maxDrawCount;
         cmd.argBuffer = argBuffer;
-        cmd.argOffset = argOffset;
         cmd.countBuffer = countBuffer;
-        cmd.countOffset = countOffset;
         m_commandList->write(std::move(cmd));
     }
 }
 
 void RenderPassEncoder::drawIndexedIndirect(
     uint32_t maxDrawCount,
-    IBuffer* argBuffer,
-    uint64_t argOffset,
-    IBuffer* countBuffer,
-    uint64_t countOffset
+    BufferOffsetPair argBuffer,
+    BufferOffsetPair countBuffer
 )
 {
     if (m_commandList)
@@ -119,9 +109,7 @@ void RenderPassEncoder::drawIndexedIndirect(
         commands::DrawIndexedIndirect cmd;
         cmd.maxDrawCount = maxDrawCount;
         cmd.argBuffer = argBuffer;
-        cmd.argOffset = argOffset;
         cmd.countBuffer = countBuffer;
-        cmd.countOffset = countOffset;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -245,14 +233,13 @@ void ComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
     }
 }
 
-void ComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset)
+void ComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer)
 {
     if (m_commandList)
     {
         writeComputeState();
         commands::DispatchComputeIndirect cmd;
         cmd.argBuffer = argBuffer;
-        cmd.offset = offset;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -590,7 +577,7 @@ void CommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
-    BufferWithOffset scratchBuffer,
+    BufferOffsetPair scratchBuffer,
     uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
@@ -628,7 +615,7 @@ void CommandEncoder::queryAccelerationStructureProperties(
     SLANG_RHI_UNIMPLEMENTED("queryAccelerationStructureProperties");
 }
 
-void CommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
+void CommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
 {
     commands::SerializeAccelerationStructure cmd;
     cmd.dst = dst;
@@ -636,7 +623,7 @@ void CommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccel
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
+void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
 {
     commands::DeserializeAccelerationStructure cmd;
     cmd.dst = checked_cast<AccelerationStructure*>(dst);
@@ -782,4 +769,4 @@ ICommandBuffer* CommandBuffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
-}
+} // namespace rhi

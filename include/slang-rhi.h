@@ -811,18 +811,18 @@ public:
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() = 0;
 };
 
-struct BufferWithOffset
+struct BufferOffsetPair
 {
     IBuffer* buffer = nullptr;
     Offset offset = 0;
 
-    BufferWithOffset() = default;
-    BufferWithOffset(IBuffer* buffer, Offset offset = 0)
+    BufferOffsetPair() = default;
+    BufferOffsetPair(IBuffer* buffer, Offset offset = 0)
         : buffer(buffer)
         , offset(offset)
     {
     }
-    BufferWithOffset(ComPtr<IBuffer> buffer, Offset offset = 0)
+    BufferOffsetPair(ComPtr<IBuffer> buffer, Offset offset = 0)
         : buffer(buffer.get())
         , offset(offset)
     {
@@ -950,7 +950,7 @@ struct AccelerationStructureBuildInputInstances : public AccelerationStructureBu
 {
     const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Instances;
 
-    BufferWithOffset instanceBuffer;
+    BufferOffsetPair instanceBuffer;
     uint32_t instanceStride;
     uint32_t instanceCount;
 };
@@ -960,18 +960,18 @@ struct AccelerationStructureBuildInputTriangles : public AccelerationStructureBu
     const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::Triangles;
 
     /// List of vertex buffers, one for each motion step.
-    BufferWithOffset* vertexBuffers = nullptr;
+    BufferOffsetPair* vertexBuffers = nullptr;
     uint32_t vertexBufferCount = 0;
     Format vertexFormat = Format::Unknown;
     uint32_t vertexCount = 0;
     uint32_t vertexStride = 0;
 
-    BufferWithOffset indexBuffer;
+    BufferOffsetPair indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
     uint32_t indexCount = 0;
 
     /// Optional buffer containing 3x4 transform matrix applied to each vertex.
-    BufferWithOffset preTransformBuffer;
+    BufferOffsetPair preTransformBuffer;
 
     AccelerationStructureGeometryFlags flags;
 };
@@ -981,7 +981,7 @@ struct AccelerationStructureBuildInputProceduralPrimitives : public Acceleration
     const AccelerationStructureBuildInputType type = AccelerationStructureBuildInputType::ProceduralPrimitives;
 
     /// List of AABB buffers, one for each motion step.
-    BufferWithOffset* aabbBuffers = nullptr;
+    BufferOffsetPair* aabbBuffers = nullptr;
     uint32_t aabbBufferCount = 0;
     uint32_t aabbStride = 0;
     uint32_t primitiveCount = 0;
@@ -1664,9 +1664,9 @@ struct RenderState
     uint32_t viewportCount = 0;
     ScissorRect scissorRects[16];
     uint32_t scissorRectCount = 0;
-    BufferWithOffset vertexBuffers[16];
+    BufferOffsetPair vertexBuffers[16];
     uint32_t vertexBufferCount = 0;
-    BufferWithOffset indexBuffer;
+    BufferOffsetPair indexBuffer;
     IndexFormat indexFormat = IndexFormat::UInt32;
 };
 
@@ -1781,20 +1781,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
-        uint32_t maxDrawCount,
-        IBuffer* argBuffer,
-        uint64_t argOffset,
-        IBuffer* countBuffer = nullptr,
-        uint64_t countOffset = 0
-    ) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
-        uint32_t maxDrawCount,
-        IBuffer* argBuffer,
-        uint64_t argOffset,
-        IBuffer* countBuffer = nullptr,
-        uint64_t countOffset = 0
-    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    drawIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer = {}) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    drawIndexedIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer = {}) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) = 0;
 };
 
@@ -1807,7 +1797,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(BufferOffsetPair argBuffer) = 0;
 };
 
 class IRayTracingPassEncoder : public IPassEncoder
@@ -1895,7 +1885,7 @@ public:
         const AccelerationStructureBuildDesc& desc,
         IAccelerationStructure* dst,
         IAccelerationStructure* src,
-        BufferWithOffset scratchBuffer,
+        BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) = 0;
@@ -1914,10 +1904,10 @@ public:
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) = 0;
+    serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) = 0;
+    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;

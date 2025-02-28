@@ -25,20 +25,10 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
-        uint32_t maxDrawCount,
-        IBuffer* argBuffer,
-        uint64_t argOffset,
-        IBuffer* countBuffer = nullptr,
-        uint64_t countOffset = 0
-    ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
-        uint32_t maxDrawCount,
-        IBuffer* argBuffer,
-        uint64_t argOffset,
-        IBuffer* countBuffer = nullptr,
-        uint64_t countOffset = 0
-    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    drawIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    drawIndexedIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
@@ -67,7 +57,7 @@ public:
     bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(BufferOffsetPair argBuffer) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
@@ -177,7 +167,7 @@ public:
         const AccelerationStructureBuildDesc& desc,
         IAccelerationStructure* dst,
         IAccelerationStructure* src,
-        BufferWithOffset scratchBuffer,
+        BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         AccelerationStructureQueryDesc* queryDescs
     ) override;
@@ -196,10 +186,10 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src) override;
+    serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
-    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src) override;
+    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;

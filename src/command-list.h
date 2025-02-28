@@ -173,19 +173,15 @@ struct DrawIndexed
 struct DrawIndirect
 {
     uint32_t maxDrawCount;
-    IBuffer* argBuffer;
-    uint64_t argOffset;
-    IBuffer* countBuffer;
-    uint64_t countOffset;
+    BufferOffsetPair argBuffer;
+    BufferOffsetPair countBuffer;
 };
 
 struct DrawIndexedIndirect
 {
     uint32_t maxDrawCount;
-    IBuffer* argBuffer;
-    uint64_t argOffset;
-    IBuffer* countBuffer;
-    uint64_t countOffset;
+    BufferOffsetPair argBuffer;
+    BufferOffsetPair countBuffer;
 };
 
 struct DrawMeshTasks
@@ -217,8 +213,7 @@ struct DispatchCompute
 
 struct DispatchComputeIndirect
 {
-    IBuffer* argBuffer;
-    uint64_t offset;
+    BufferOffsetPair argBuffer;
 };
 
 struct BeginRayTracingPass
@@ -248,7 +243,7 @@ struct BuildAccelerationStructure
     AccelerationStructureBuildDesc desc;
     IAccelerationStructure* dst;
     IAccelerationStructure* src;
-    BufferWithOffset scratchBuffer;
+    BufferOffsetPair scratchBuffer;
     uint32_t propertyQueryCount;
     AccelerationStructureQueryDesc* queryDescs;
 };
@@ -270,14 +265,14 @@ struct QueryAccelerationStructureProperties
 
 struct SerializeAccelerationStructure
 {
-    BufferWithOffset dst;
+    BufferOffsetPair dst;
     IAccelerationStructure* src;
 };
 
 struct DeserializeAccelerationStructure
 {
     IAccelerationStructure* dst;
-    BufferWithOffset src;
+    BufferOffsetPair src;
 };
 
 struct ConvertCooperativeVectorMatrix

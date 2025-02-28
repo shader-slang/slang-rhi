@@ -165,4 +165,4 @@ bool ShaderProgram::isMeshShaderProgram() const
     return false;
 }
 
-}
+} // namespace rhi

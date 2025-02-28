@@ -726,4 +726,4 @@ Result Device::getShaderObjectLayout(
     return SLANG_OK;
 }
 
-}
+} // namespace rhi

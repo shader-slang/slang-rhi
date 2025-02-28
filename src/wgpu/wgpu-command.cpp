@@ -434,11 +434,11 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndirect(
         m_renderPassEncoder,
-        checked_cast<BufferImpl*>(cmd.argBuffer)->m_buffer,
-        cmd.argOffset,
+        checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+        cmd.argBuffer.offset,
         cmd.maxDrawCount,
-        cmd.countBuffer ? checked_cast<BufferImpl*>(cmd.countBuffer)->m_buffer : nullptr,
-        cmd.countOffset
+        cmd.countBuffer ? checked_cast<BufferImpl*>(cmd.countBuffer.buffer)->m_buffer : nullptr,
+        cmd.countBuffer.offset
     );
 }
 
@@ -449,11 +449,11 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndexedIndirect(
         m_renderPassEncoder,
-        checked_cast<BufferImpl*>(cmd.argBuffer)->m_buffer,
-        cmd.argOffset,
+        checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+        cmd.argBuffer.offset,
         cmd.maxDrawCount,
-        cmd.countBuffer ? checked_cast<BufferImpl*>(cmd.countBuffer)->m_buffer : nullptr,
-        cmd.countOffset
+        cmd.countBuffer ? checked_cast<BufferImpl*>(cmd.countBuffer.buffer)->m_buffer : nullptr,
+        cmd.countBuffer.offset
     );
 }
 
@@ -527,8 +527,8 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
 
     m_ctx.api.wgpuComputePassEncoderDispatchWorkgroupsIndirect(
         m_computePassEncoder,
-        checked_cast<BufferImpl*>(cmd.argBuffer)->m_buffer,
-        cmd.offset
+        checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+        cmd.argBuffer.offset
     );
 }
 

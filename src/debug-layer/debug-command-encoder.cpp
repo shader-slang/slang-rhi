@@ -58,30 +58,26 @@ void DebugRenderPassEncoder::drawIndexed(const DrawArguments& args)
 
 void DebugRenderPassEncoder::drawIndirect(
     uint32_t maxDrawCount,
-    IBuffer* argBuffer,
-    uint64_t argOffset,
-    IBuffer* countBuffer,
-    uint64_t countOffset
+    BufferOffsetPair argBuffer,
+    BufferOffsetPair countBuffer
 )
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
-    baseObject->drawIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
+    baseObject->drawIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
 void DebugRenderPassEncoder::drawIndexedIndirect(
     uint32_t maxDrawCount,
-    IBuffer* argBuffer,
-    uint64_t argOffset,
-    IBuffer* countBuffer,
-    uint64_t countOffset
+    BufferOffsetPair argBuffer,
+    BufferOffsetPair countBuffer
 )
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
-    baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, argOffset, countBuffer, countOffset);
+    baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
 void DebugRenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
@@ -158,12 +154,12 @@ void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z
     baseObject->dispatchCompute(x, y, z);
 }
 
-void DebugComputePassEncoder::dispatchComputeIndirect(IBuffer* argBuffer, uint64_t offset)
+void DebugComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
-    baseObject->dispatchComputeIndirect(argBuffer, offset);
+    baseObject->dispatchComputeIndirect(argBuffer);
 }
 
 void DebugComputePassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
@@ -416,7 +412,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
-    BufferWithOffset scratchBuffer,
+    BufferOffsetPair scratchBuffer,
     uint32_t propertyQueryCount,
     AccelerationStructureQueryDesc* queryDescs
 )
@@ -476,7 +472,7 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     );
 }
 
-void DebugCommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, IAccelerationStructure* src)
+void DebugCommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
@@ -484,7 +480,7 @@ void DebugCommandEncoder::serializeAccelerationStructure(BufferWithOffset dst, I
     baseObject->serializeAccelerationStructure(dst, src);
 }
 
-void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferWithOffset src)
+void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();

@@ -124,15 +124,15 @@ void CommandList::write(commands::DrawIndexed&& cmd)
 
 void CommandList::write(commands::DrawIndirect&& cmd)
 {
-    retainResource<Buffer>(cmd.argBuffer);
-    retainResource<Buffer>(cmd.countBuffer);
+    retainResource<Buffer>(cmd.argBuffer.buffer);
+    retainResource<Buffer>(cmd.countBuffer.buffer);
     writeCommand(std::move(cmd));
 }
 
 void CommandList::write(commands::DrawIndexedIndirect&& cmd)
 {
-    retainResource<Buffer>(cmd.argBuffer);
-    retainResource<Buffer>(cmd.countBuffer);
+    retainResource<Buffer>(cmd.argBuffer.buffer);
+    retainResource<Buffer>(cmd.countBuffer.buffer);
     writeCommand(std::move(cmd));
 }
 
@@ -164,7 +164,7 @@ void CommandList::write(commands::DispatchCompute&& cmd)
 
 void CommandList::write(commands::DispatchComputeIndirect&& cmd)
 {
-    retainResource<Buffer>(cmd.argBuffer);
+    retainResource<Buffer>(cmd.argBuffer.buffer);
     writeCommand(std::move(cmd));
 }
 

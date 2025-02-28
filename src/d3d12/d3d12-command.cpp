@@ -856,8 +856,8 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     if (!m_renderStateValid)
         return;
 
-    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
-    BufferImpl* countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer);
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    BufferImpl* countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer.buffer);
 
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     if (countBuffer)
@@ -869,9 +869,9 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         m_device->drawIndirectCmdSignature,
         cmd.maxDrawCount,
         argBuffer->m_resource,
-        cmd.argOffset,
+        cmd.argBuffer.offset,
         countBuffer ? countBuffer->m_resource.getResource() : nullptr,
-        cmd.countOffset
+        cmd.countBuffer.offset
     );
 }
 
@@ -880,8 +880,8 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     if (!m_renderStateValid)
         return;
 
-    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
-    BufferImpl* countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer);
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    BufferImpl* countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer.buffer);
 
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     if (countBuffer)
@@ -893,9 +893,9 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
         m_device->drawIndexedIndirectCmdSignature,
         cmd.maxDrawCount,
         argBuffer->m_resource,
-        cmd.argOffset,
+        cmd.argBuffer.offset,
         countBuffer ? countBuffer->m_resource.getResource() : nullptr,
-        cmd.countOffset
+        cmd.countBuffer.offset
     );
 }
 
@@ -954,7 +954,7 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
     if (!m_computeStateValid)
         return;
 
-    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
 
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     commitBarriers();
@@ -963,7 +963,7 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
         m_device->dispatchIndirectCmdSignature,
         (UINT)1,
         argBuffer->m_resource,
-        (UINT64)cmd.offset,
+        (UINT64)cmd.argBuffer.offset,
         nullptr,
         0
     );

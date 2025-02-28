@@ -722,8 +722,8 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     if (!m_renderStateValid)
         return;
 
-    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
-    auto countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer);
+    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    auto countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer.buffer);
 
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     if (countBuffer)
@@ -737,9 +737,9 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         m_api.vkCmdDrawIndirectCount(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
-            cmd.argOffset,
+            cmd.argBuffer.offset,
             countBuffer->m_buffer.m_buffer,
-            cmd.countOffset,
+            cmd.argBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndirectCommand)
         );
@@ -749,7 +749,7 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         m_api.vkCmdDrawIndirect(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
-            cmd.argOffset,
+            cmd.argBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndirectCommand)
         );
@@ -761,8 +761,8 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     if (!m_renderStateValid)
         return;
 
-    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
-    auto countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer);
+    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    auto countBuffer = checked_cast<BufferImpl*>(cmd.countBuffer.buffer);
 
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     if (countBuffer)
@@ -776,9 +776,9 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
         m_api.vkCmdDrawIndexedIndirectCount(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
-            cmd.argOffset,
+            cmd.argBuffer.offset,
             countBuffer->m_buffer.m_buffer,
-            cmd.countOffset,
+            cmd.countBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndexedIndirectCommand)
         );
@@ -788,7 +788,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
         m_api.vkCmdDrawIndexedIndirect(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
-            cmd.argOffset,
+            cmd.argBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndexedIndirectCommand)
         );
@@ -851,11 +851,11 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
     if (!m_computeStateValid)
         return;
 
-    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer);
+    auto argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     commitBarriers();
 
-    m_api.vkCmdDispatchIndirect(m_cmdBuffer, argBuffer->m_buffer.m_buffer, cmd.offset);
+    m_api.vkCmdDispatchIndirect(m_cmdBuffer, argBuffer->m_buffer.m_buffer, cmd.argBuffer.offset);
 }
 
 void CommandRecorder::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
