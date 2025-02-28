@@ -119,10 +119,10 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
         RHI_VALIDATION_WARNING("AccelerationStructureBuildDesc::inputCount must be >= 1.");
     }
 
-    AccelerationStructureBuildInputType type = (AccelerationStructureBuildInputType&)buildDesc.inputs[0];
-    for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+    AccelerationStructureBuildInputType type = buildDesc.inputs[0].type;
+    for (uint32_t i = 1; i < buildDesc.inputCount; ++i)
     {
-        if (type != (AccelerationStructureBuildInputType&)buildDesc.inputs[i])
+        if (type != buildDesc.inputs[i].type)
         {
             RHI_VALIDATION_WARNING("AccelerationStructureBuildDesc::inputs must have the same type.");
         }
@@ -130,12 +130,11 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
 
     for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
     {
-        switch ((AccelerationStructureBuildInputType&)buildDesc.inputs[i])
+        switch (buildDesc.inputs[i].type)
         {
         case AccelerationStructureBuildInputType::Instances:
         {
-            const AccelerationStructureBuildInputInstances& instances =
-                (const AccelerationStructureBuildInputInstances&)buildDesc.inputs[i];
+            const AccelerationStructureBuildInputInstances& instances = buildDesc.inputs[i].instances;
             if (instances.instanceCount < 1)
             {
                 RHI_VALIDATION_ERROR("instanceCount must be >= 1.");
@@ -152,8 +151,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
         }
         case AccelerationStructureBuildInputType::Triangles:
         {
-            const AccelerationStructureBuildInputTriangles& triangles =
-                (const AccelerationStructureBuildInputTriangles&)buildDesc.inputs[i];
+            const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
 
             switch (triangles.vertexFormat)
             {
@@ -201,7 +199,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
         case AccelerationStructureBuildInputType::ProceduralPrimitives:
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
-                (const AccelerationStructureBuildInputProceduralPrimitives&)buildDesc.inputs[i];
+                buildDesc.inputs[i].proceduralPrimitives;
             SLANG_UNUSED(proceduralPrimitives);
             break;
         }
