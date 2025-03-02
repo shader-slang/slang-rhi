@@ -71,7 +71,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         }
         const AccelerationStructureBuildInputInstances& instances = buildDesc.inputs[0].instances;
         desc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-        desc.NumDescs = 1;
+        desc.NumDescs = buildDesc.inputs[0].instances.instanceCount;
         desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
         desc.InstanceDescs = instances.instanceBuffer.getDeviceAddress();
         break;
