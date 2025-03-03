@@ -85,10 +85,10 @@ public:
         RefPtr<Buffer> getBuffer() const { return m_buffer; }
 
         // Get total capacity of the page.
-        size_t getCapacity() const { return m_total_capacity; }
+        size_t getCapacity() const { return m_totalCapacity; }
 
         // Get total used in the page.
-        size_t getUsed() const { return m_total_used; }
+        size_t getUsed() const { return m_totalUsed; }
 
         // Debug check consistency of page's heap.
         void checkConsistency();
@@ -97,8 +97,8 @@ public:
         int m_id;
         RefPtr<Buffer> m_buffer;
         std::list<Node> m_nodes;
-        size_t m_total_capacity = 0;
-        size_t m_total_used = 0;
+        size_t m_totalCapacity = 0;
+        size_t m_totalUsed = 0;
     };
 
     // Initialize with device pointer.
@@ -127,27 +127,27 @@ public:
     size_t getNumPages() { return m_pages.size(); }
 
     // Get total capacity of heap.
-    Size getCapacity() const { return m_total_capacity; }
+    Size getCapacity() const { return m_totalCapacity; }
 
     // Get current usage in heap.
-    Size getUsed() const { return m_total_used; }
+    Size getUsed() const { return m_totalUsed; }
 
     // Get alignment of heap.
     Size getAlignment() const { return m_alignment; }
 
     // Get default page size.
-    Size getPageSize() const { return m_page_size; }
+    Size getPageSize() const { return m_pageSize; }
 
     // Align a size to that of heap allocations.
     Size alignUp(Size value) { return (value + m_alignment - 1) / m_alignment * m_alignment; }
 
 private:
     Device* m_device = nullptr;
-    int m_next_page_id = 1;
-    Size m_total_capacity = 0;
-    Size m_total_used = 0;
+    int m_nextPageId = 1;
+    Size m_totalCapacity = 0;
+    Size m_totalUsed = 0;
     Size m_alignment = 1024;
-    Size m_page_size = 16 * 1024 * 1024;
+    Size m_pageSize = 16 * 1024 * 1024;
     std::unordered_map<int, RefPtr<Page>> m_pages;
 
     RefPtr<Page> allocPage(size_t size);
