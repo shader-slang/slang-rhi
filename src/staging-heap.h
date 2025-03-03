@@ -106,6 +106,12 @@ public:
     // Initialize with device pointer.
     void initialize(Device* device);
 
+    // Attempt to cleanup and check no allocations remain
+    void release();
+
+    // Immediately free all pages
+    void releaseAllFreePages();
+
     // Allocate block of memory and wrap in a ref counted handle that automatically
     // frees the allocation when handle is freed.
     RefPtr<Handle> allocHandle(size_t size, MetaData metadata);

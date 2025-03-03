@@ -10,6 +10,27 @@ void StagingHeap::initialize(Device* device)
     m_device = device;
 }
 
+void StagingHeap::releaseAllFreePages()
+{
+    std::vector<int> pages_to_remove;
+    for (auto& page : m_pages)
+    {
+        if (page.second->getUsed() == 0)
+            pages_to_remove.push_back(page.first);
+    }
+    for (auto page_id : pages_to_remove)
+        m_pages.erase(page_id);    
+
+}
+
+void StagingHeap::release()
+{
+    releaseAllFreePages();
+    SLANG_RHI_ASSERT(m_total_used == 0);
+    SLANG_RHI_ASSERT(m_pages.size() == 0);
+    m_pages.clear();
+}
+
 RefPtr<StagingHeap::Handle> StagingHeap::allocHandle(size_t size, MetaData metadata)
 {
     Allocation allocation = alloc(size, metadata);
@@ -84,7 +105,7 @@ RefPtr<StagingHeap::Page> StagingHeap::allocPage(size_t size)
 {
     ComPtr<IBuffer> bufferPtr;
     BufferDesc bufferDesc;
-    bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
+    bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource | BufferUsage::ConstantBuffer;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.memoryType = MemoryType::Upload;
     bufferDesc.size = size;

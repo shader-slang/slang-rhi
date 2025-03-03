@@ -26,14 +26,14 @@ struct UploadData
     Offset offset;
     Size size;
 
-    void init(IDevice* device, Size _size, Offset _offset)
+    void init(IDevice* device, Size _size, Offset _offset, int seed)
     {
         // Store size/offset.
         size = _size;
         offset = _offset;
 
         // Generate random data.
-        std::mt19937 rng(42);
+        std::mt19937 rng(seed);
         std::uniform_int_distribution<int> dist(0, 255);
         data.resize(size);
         for (auto& byte : data)
@@ -65,7 +65,7 @@ void testUploadToBuffer(IDevice* device, Size size, Offset offset, int tests, bo
     std::vector<UploadData> uploads(tests);
 
     for (int i = 0; i < tests; i++)
-        uploads[i].init(device, size, offset);
+        uploads[i].init(device, size, offset, i + 42);
 
     {
         // Create commands to upload, either with 1 or individual encoders.
