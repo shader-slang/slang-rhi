@@ -6,14 +6,24 @@
 #include <memory>
 
 #include "rhi-shared.h"
+#include "debug-layer/debug-device.h"
 
 using namespace rhi;
 using namespace rhi::testing;
 
+Device* getSharedDevice(IDevice* device) {
+    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
+        return (Device*)debugDevice->baseObject.get();
+    else
+        return (Device*)device;
+}
+
 void testUploadToBuffer(IDevice* device)
 {
-    uint8_t srcData[] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+    StagingHeap& heap = getSharedDevice(device)->m_heap;
+    CHECK_EQ(heap.getUsed(), 0);
 
+    uint8_t srcData[] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
 
     BufferDesc bufferDesc = {};
     bufferDesc.size = 16;
@@ -26,8 +36,16 @@ void testUploadToBuffer(IDevice* device)
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
         encoder->uploadBufferData(dst, 0, sizeof(srcData), srcData);
+
+        // Having requested upload, a chunk of heap should be allocated for the memory.
+        CHECK_EQ(heap.getUsed(), heap.alignUp(sizeof(srcData)));
+
+        // Submit+wait.
         queue->submit(encoder->finish());
         queue->waitOnHost();
+
+        // Having waited, command buffers should be reset so heap memory should be free.
+        CHECK_EQ(heap.getUsed(), 0);
 
         ComPtr<ISlangBlob> blob;
         REQUIRE_CALL(device->readBuffer(dst, 0, 16, blob.writeRef()));
