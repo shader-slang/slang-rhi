@@ -1926,13 +1926,9 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, const BufferRange* range = nullptr) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range = kEntireBuffer) = 0;
 
-    inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size)
-    {
-        BufferRange range = {offset, size};
-        clearBuffer(buffer, &range);
-    }
+    inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size) { clearBuffer(buffer, {offset, size}); }
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearTexture(
         ITexture* texture,

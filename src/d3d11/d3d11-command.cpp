@@ -149,8 +149,11 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearBuffer);
+    BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
+
+    ID3D11UnorderedAccessView* uav = buffer->getUAV(Format::R32_UINT, cmd.range);
+    UINT clearValues[4] = {0, 0, 0, 0};
+    m_immediateContext->ClearUnorderedAccessViewUint(uav, clearValues);
 }
 
 void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
