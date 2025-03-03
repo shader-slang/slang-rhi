@@ -4,6 +4,7 @@
 #include <map>
 #include <functional>
 #include <memory>
+#include <random>
 
 #include "rhi-shared.h"
 #include "debug-layer/debug-device.h"
@@ -18,42 +19,84 @@ Device* getSharedDevice(IDevice* device) {
         return (Device*)device;
 }
 
-void testUploadToBuffer(IDevice* device)
+struct UploadData
+{
+    std::vector<uint8_t> data;
+    ComPtr<IBuffer> dst;
+    Offset offset;
+    Size size;
+
+    void init(IDevice* device, Size _size, Offset _offset)
+    {
+        // Store size/offset.
+        size = _size;
+        offset = _offset;
+
+        // Generate random data.
+        std::mt19937 rng(42);
+        std::uniform_int_distribution<int> dist(0, 255);
+        data.resize(size);
+        for (auto& byte : data)
+            byte = (uint8_t)dist(rng);
+
+        // Create buffer big enough to contain data with offset.
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = offset + size;
+        bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
+        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, dst.writeRef()));
+    }
+
+    void check(IDevice* device)
+    {
+        // Download buffer data and validate it.
+        ComPtr<ISlangBlob> blob;
+        REQUIRE_CALL(device->readBuffer(dst, offset, size, blob.writeRef()));
+        auto buffer_data = (uint8_t*)blob->getBufferPointer();
+        auto source_data = (uint8_t*)data.data();
+        CHECK_EQ(memcmp(buffer_data, source_data, size), 0);
+    }
+};
+
+void testUploadToBuffer(IDevice* device, Size size, Offset offset, int tests, bool multi_encoder = false)
 {
     StagingHeap& heap = getSharedDevice(device)->m_heap;
     CHECK_EQ(heap.getUsed(), 0);
 
-    uint8_t srcData[] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+    std::vector<UploadData> uploads(tests);
 
-    BufferDesc bufferDesc = {};
-    bufferDesc.size = 16;
-    bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
-
-    ComPtr<IBuffer> dst;
-    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, dst.writeRef()));
+    for (int i = 0; i < tests; i++)
+        uploads[i].init(device, size, offset);
 
     {
+        // Create commands to upload, either with 1 or individual encoders.
         auto queue = device->getQueue(QueueType::Graphics);
-        auto encoder = queue->createCommandEncoder();
-        encoder->uploadBufferData(dst, 0, sizeof(srcData), srcData);
+        if (!multi_encoder)
+        {
+            auto encoder = queue->createCommandEncoder();
+            for (int i = 0; i < tests; i++)
+                encoder->uploadBufferData(uploads[i].dst, uploads[i].offset, uploads[i].size, uploads[i].data.data());
+            CHECK_EQ(heap.getUsed(), heap.alignUp(uploads[0].size) * tests);
+            queue->submit(encoder->finish());
+        }
+        else
+        {
+            for (int i = 0; i < tests; i++)
+            {
+                auto encoder = queue->createCommandEncoder();
+                encoder->uploadBufferData(uploads[i].dst, uploads[i].offset, uploads[i].size, uploads[i].data.data());
+                CHECK_EQ(heap.getUsed(), heap.alignUp(uploads[0].size) * tests);
+                queue->submit(encoder->finish());
+            }
+        }
 
-        // Having requested upload, a chunk of heap should be allocated for the memory.
-        CHECK_EQ(heap.getUsed(), heap.alignUp(sizeof(srcData)));
-
-        // Submit+wait.
-        queue->submit(encoder->finish());
         queue->waitOnHost();
 
         // Having waited, command buffers should be reset so heap memory should be free.
         CHECK_EQ(heap.getUsed(), 0);
 
-        ComPtr<ISlangBlob> blob;
-        REQUIRE_CALL(device->readBuffer(dst, 0, 16, blob.writeRef()));
-        auto data = (uint8_t*)blob->getBufferPointer();
-        for (int i = 0; i < 16; i++)
-        {
-            CHECK_EQ(data[i], srcData[i]);
-        }
+        // Download buffer data and validate it.
+        for (int i = 0; i < tests; i++)
+            uploads[i].check(device);
     }
 }
 
@@ -179,7 +222,27 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
     CHECK_EQ(heap.getUsed(), 0);
 }
 
-GPU_TEST_CASE("cmd-upload-buffer", ALL)
+GPU_TEST_CASE("cmd-upload-buffer-small", ALL)
 {
-    testUploadToBuffer(device);
+    testUploadToBuffer(device, 16, 0, 1);
+}
+
+GPU_TEST_CASE("cmd-upload-buffer-big", ALL)
+{
+    testUploadToBuffer(device, 32 * 1024 * 1024, 0, 1);
+}
+
+GPU_TEST_CASE("cmd-upload-buffer-offset", ALL)
+{
+    testUploadToBuffer(device, 2048, 128, 1);
+}
+
+GPU_TEST_CASE("cmd-upload-buffer-multi", ALL)
+{
+    testUploadToBuffer(device, 16, 0, 30);
+}
+
+GPU_TEST_CASE("cmd-upload-buffer-multienc", ALL)
+{
+    testUploadToBuffer(device, 16, 0, 30);
 }
