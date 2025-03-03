@@ -102,7 +102,7 @@ public:
     };
 
     // Initialize with device pointer.
-    void initialize(Device* device);
+    void initialize(Device* device, Size pageSize);
 
     // Attempt to cleanup and check no allocations remain
     void release();

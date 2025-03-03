@@ -5,9 +5,10 @@
 
 namespace rhi {
 
-void StagingHeap::initialize(Device* device)
+void StagingHeap::initialize(Device* device, Size pageSize)
 {
     m_device = device;
+    m_pageSize = pageSize;
 }
 
 void StagingHeap::releaseAllFreePages()

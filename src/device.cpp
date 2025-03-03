@@ -379,7 +379,7 @@ Result Device::initialize(const DeviceDesc& desc)
 
     m_persistentShaderCache = desc.persistentShaderCache;
 
-    m_heap.initialize(this);
+    m_heap.initialize(this, desc.stagingHeapPageSize);
 
     if (desc.apiCommandDispatcher)
     {
