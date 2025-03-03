@@ -248,12 +248,12 @@ GPU_TEST_CASE("cmd-upload-buffer-offset", ALL)
     testUploadToBuffer(device, 2048, 128, 1);
 }
 
-GPU_TEST_CASE("cmd-upload-buffer-multi", ALL & ~D3D11)
+GPU_TEST_CASE("cmd-upload-buffer-multi", ALL)
 {
     testUploadToBuffer(device, 16, 0, 30);
 }
 
-GPU_TEST_CASE("cmd-upload-buffer-multienc", ALL & ~D3D11)
+GPU_TEST_CASE("cmd-upload-buffer-multienc", ALL)
 {
     testUploadToBuffer(device, 16, 0, 30);
 }
