@@ -32,7 +32,6 @@ public:
 struct AccelerationStructureBuildDescConverter
 {
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};
-    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
     std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs;
     Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* callback);
 
@@ -75,6 +74,57 @@ private:
         return (D3D12_RAYTRACING_GEOMETRY_FLAGS)flags;
     }
 };
+
+#if SLANG_RHI_ENABLE_NVAPI
+struct AccelerationStructureBuildDescConverterNVAPI
+{
+    NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX desc = {};
+    std::vector<NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX> geomDescs;
+    Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* callback);
+
+private:
+    NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS_EX translateBuildFlags(
+        AccelerationStructureBuildFlags flags
+    )
+    {
+        static_assert(
+            uint32_t(AccelerationStructureBuildFlags::None) ==
+            NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE_EX
+        );
+        static_assert(
+            uint32_t(AccelerationStructureBuildFlags::AllowUpdate) ==
+            NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE_EX
+        );
+        static_assert(
+            uint32_t(AccelerationStructureBuildFlags::AllowCompaction) ==
+            NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION_EX
+        );
+        static_assert(
+            uint32_t(AccelerationStructureBuildFlags::PreferFastTrace) ==
+            NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE_EX
+        );
+        static_assert(
+            uint32_t(AccelerationStructureBuildFlags::PreferFastBuild) ==
+            NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD_EX
+        );
+        static_assert(
+            uint32_t(AccelerationStructureBuildFlags::MinimizeMemory) ==
+            NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY_EX
+        );
+        return (NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS_EX)flags;
+    }
+    D3D12_RAYTRACING_GEOMETRY_FLAGS translateGeometryFlags(AccelerationStructureGeometryFlags flags)
+    {
+        static_assert(uint32_t(AccelerationStructureGeometryFlags::None) == D3D12_RAYTRACING_GEOMETRY_FLAG_NONE);
+        static_assert(uint32_t(AccelerationStructureGeometryFlags::Opaque) == D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE);
+        static_assert(
+            uint32_t(AccelerationStructureGeometryFlags::NoDuplicateAnyHitInvocation) ==
+            D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION
+        );
+        return (D3D12_RAYTRACING_GEOMETRY_FLAGS)flags;
+    }
+};
+#endif // SLANG_RHI_ENABLE_NVAPI
 
 #endif // SLANG_RHI_DXR
 
