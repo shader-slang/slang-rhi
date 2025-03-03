@@ -952,10 +952,12 @@ struct AccelerationStructureBuildInputInstances
     uint32_t instanceCount;
 };
 
+static const uint32_t kMaxAccelerationStructureMotionKeyCount = 2;
+
 struct AccelerationStructureBuildInputTriangles
 {
     /// List of vertex buffers, one for each motion step.
-    BufferOffsetPair vertexBuffers[2];
+    BufferOffsetPair vertexBuffers[kMaxAccelerationStructureMotionKeyCount];
     uint32_t vertexBufferCount = 0;
     Format vertexFormat = Format::Unknown;
     uint32_t vertexCount = 0;
@@ -974,7 +976,7 @@ struct AccelerationStructureBuildInputTriangles
 struct AccelerationStructureBuildInputProceduralPrimitives
 {
     /// List of AABB buffers, one for each motion step.
-    BufferOffsetPair aabbBuffers[2];
+    BufferOffsetPair aabbBuffers[kMaxAccelerationStructureMotionKeyCount];
     uint32_t aabbBufferCount = 0;
     uint32_t aabbStride = 0;
     uint32_t primitiveCount = 0;
@@ -987,11 +989,11 @@ struct AccelerationStructureBuildInputSpheres
     uint32_t vertexBufferCount = 0;
     uint32_t vertexCount = 0;
 
-    BufferOffsetPair vertexPositionBuffers[2];
+    BufferOffsetPair vertexPositionBuffers[kMaxAccelerationStructureMotionKeyCount];
     Format vertexPositionFormat = Format::Unknown;
     uint32_t vertexPositionStride = 0;
 
-    BufferOffsetPair vertexRadiusBuffers[2];
+    BufferOffsetPair vertexRadiusBuffers[kMaxAccelerationStructureMotionKeyCount];
     Format vertexRadiusFormat = Format::Unknown;
     uint32_t vertexRadiusStride = 0;
 
@@ -1020,11 +1022,11 @@ struct AccelerationStructureBuildInputLinearSweptSpheres
     uint32_t vertexCount = 0;
     uint32_t primitiveCount = 0;
 
-    BufferOffsetPair vertexPositionBuffers[2];
+    BufferOffsetPair vertexPositionBuffers[kMaxAccelerationStructureMotionKeyCount];
     Format vertexPositionFormat = Format::Unknown;
     uint32_t vertexPositionStride = 0;
 
-    BufferOffsetPair vertexRadiusBuffers[2];
+    BufferOffsetPair vertexRadiusBuffers[kMaxAccelerationStructureMotionKeyCount];
     Format vertexRadiusFormat = Format::Unknown;
     uint32_t vertexRadiusStride = 0;
 
