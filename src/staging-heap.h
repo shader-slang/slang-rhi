@@ -12,10 +12,9 @@
 
 namespace rhi {
 
-class StagingHeap: public RefObject
+class StagingHeap : public RefObject
 {
 public:
-
     // Arbitrary meta data that sits within heap node to store extra info about allocation.
     struct MetaData
     {
@@ -71,7 +70,6 @@ public:
     class Page : public RefObject
     {
     public:
-
         Page(int id, RefPtr<Buffer> buffer);
 
         // Allocate a node from the page heap.
@@ -141,10 +139,7 @@ public:
     Size getPageSize() const { return m_page_size; }
 
     // Align a size to that of heap allocations.
-    Size alignUp(Size value)
-    {
-        return (value + m_alignment - 1) / m_alignment * m_alignment;
-    }
+    Size alignUp(Size value) { return (value + m_alignment - 1) / m_alignment * m_alignment; }
 
 private:
     Device* m_device = nullptr;
@@ -158,4 +153,4 @@ private:
     RefPtr<Page> allocPage(size_t size);
 };
 
-}
+} // namespace rhi

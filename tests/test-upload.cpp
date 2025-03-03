@@ -12,7 +12,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-Device* getSharedDevice(IDevice* device) {
+Device* getSharedDevice(IDevice* device)
+{
     if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
         return (Device*)debugDevice->baseObject.get();
     else
@@ -152,7 +153,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     CHECK_EQ(allocation.getOffset(), 0);
     CHECK_EQ(allocation.getPageId(), 1);
 
-    auto big_allocation = heap.alloc(heap.getPageSize()+1, {2});
+    auto big_allocation = heap.alloc(heap.getPageSize() + 1, {2});
     heap.checkConsistency();
     CHECK_EQ(big_allocation.getOffset(), 0);
     CHECK_EQ(big_allocation.getPageId(), 2);
@@ -169,7 +170,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
 
     auto allocation3 = heap.alloc(16, {2});
     heap.checkConsistency();
-    CHECK_EQ(allocation3.getOffset(), heap.getAlignment()*2);
+    CHECK_EQ(allocation3.getOffset(), heap.getAlignment() * 2);
     CHECK_EQ(allocation3.getPageId(), 1);
 }
 
@@ -186,7 +187,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
     {
         auto allocation = heap.alloc(alloc_size, {(int)i});
         heap.checkConsistency();
-        CHECK_EQ(allocation.getOffset(), i*alloc_size);
+        CHECK_EQ(allocation.getOffset(), i * alloc_size);
         CHECK_EQ(allocation.getPageId(), 1);
         allocations.push_back(allocation);
     }

@@ -19,8 +19,7 @@ void StagingHeap::releaseAllFreePages()
             pages_to_remove.push_back(page.first);
     }
     for (auto page_id : pages_to_remove)
-        m_pages.erase(page_id);    
-
+        m_pages.erase(page_id);
 }
 
 void StagingHeap::release()

@@ -536,7 +536,7 @@ void CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, vo
 
     void* buffer;
     getDevice()->mapBuffer(cmd.src, CpuAccessMode::Write, &buffer);
-    memcpy(((uint8_t*)buffer)+cmd.srcOffset, data, cmd.size);
+    memcpy(((uint8_t*)buffer) + cmd.srcOffset, data, cmd.size);
     getDevice()->unmapBuffer(cmd.src);
 
     m_commandList->write(std::move(cmd));
