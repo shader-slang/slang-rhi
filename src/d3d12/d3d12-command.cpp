@@ -74,7 +74,6 @@ public:
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
     void cmdClearTexture(const commands::ClearTexture& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
-    void cmdUploadBufferData(const commands::UploadBufferData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
@@ -482,19 +481,6 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
         srcRegion.pResource = bufferImpl->m_resource.getResource();
         m_cmdList->CopyTextureRegion(&dstRegion, offset.x, offset.y, offset.z, &srcRegion, nullptr);
     }
-#endif
-}
-
-void CommandRecorder::cmdUploadBufferData(const commands::UploadBufferData& cmd)
-{
-    m_device->warning("uploadBufferData command not implemented");
-#if 0
-    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(dst);
-
-    requireBufferState(dstBuffer, ResourceState::CopyDestination);
-    commitBarriers();
-
-    uploadBufferDataImpl(m_device->m_device, m_cmdList, m_transientHeap, dstBuffer, offset, size, data);
 #endif
 }
 
@@ -1587,12 +1573,6 @@ void CommandEncoderImpl::uploadTextureData(
 {
     // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer
     CommandEncoder::uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
-}
-
-void CommandEncoderImpl::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
-{
-    // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer
-    CommandEncoder::uploadBufferData(dst, offset, size, data);
 }
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
