@@ -649,6 +649,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-buffer-barrier.cpp
         tests/test-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
+        tests/test-cmd-upload.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
@@ -676,10 +677,10 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-shader-cache.cpp
         tests/test-shared-buffer.cpp
         tests/test-shared-texture.cpp
+        tests/test-staging-heap.cpp
         tests/test-surface.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
-        tests/test-upload.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/test-task-pool.cpp
