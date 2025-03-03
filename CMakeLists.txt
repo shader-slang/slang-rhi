@@ -648,6 +648,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
         tests/test-clear-texture.cpp
+        tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-copy-buffer.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp

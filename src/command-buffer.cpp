@@ -543,11 +543,11 @@ void CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, vo
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void CommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
 {
     commands::ClearBuffer cmd;
     cmd.buffer = buffer;
-    cmd.range = range ? *range : checked_cast<Buffer*>(buffer)->resolveBufferRange(kEntireBuffer);
+    cmd.range = checked_cast<Buffer*>(buffer)->resolveBufferRange(range);
     m_commandList->write(std::move(cmd));
 }
 

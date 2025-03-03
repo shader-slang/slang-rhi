@@ -209,7 +209,12 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
 void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearBuffer);
+    auto encoder = getBlitCommandEncoder();
+    encoder->fillBuffer(
+        checked_cast<BufferImpl*>(cmd.buffer)->m_buffer.get(),
+        NS::Range(cmd.range.offset, cmd.range.size),
+        0
+    );
 }
 
 void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)

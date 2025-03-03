@@ -332,8 +332,21 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
 void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(clearBuffer);
+    BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE uav = buffer->getUAV(Format::R32_UINT, 0, cmd.range);
+    GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
+    m_device->m_device
+        ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    UINT clearValues[4] = {0, 0, 0, 0};
+    m_cmdList->ClearUnorderedAccessViewUint(
+        descriptor.getGpuHandle(0),
+        uav,
+        buffer->m_resource.getResource(),
+        clearValues,
+        0,
+        nullptr
+    );
 }
 
 void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)

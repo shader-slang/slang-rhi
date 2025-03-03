@@ -355,11 +355,21 @@ void DebugCommandEncoder::uploadTextureData(
     baseObject->uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
-void DebugCommandEncoder::clearBuffer(IBuffer* buffer, const BufferRange* range)
+void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
+    if (range.offset % 4 != 0)
+    {
+        RHI_VALIDATION_ERROR("The range offset must be a multiple of 4.");
+        return;
+    }
+    if (range.size != kEntireBuffer.size && range.size % 4 != 0)
+    {
+        RHI_VALIDATION_ERROR("The range size must be a multiple of 4.");
+        return;
+    }
     baseObject->clearBuffer(buffer, range);
 }
 
