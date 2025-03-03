@@ -1754,20 +1754,27 @@ Result DeviceImpl::getAccelerationStructureSizes(
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
 
 #if SLANG_RHI_ENABLE_NVAPI
-    AccelerationStructureBuildDescConverterNVAPI converter;
-    SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
+    if (!NVAPIUtil::isAvailable())
+    {
 
-    NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS params = {};
-    params.version = NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS_VER;
-    params.pDesc = &converter.desc;
-    params.pInfo = &prebuildInfo;
-    SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx(m_device5, &params));
-#else  // SLANG_RHI_ENABLE_NVAPI
-    AccelerationStructureBuildDescConverter converter;
-    SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
+        AccelerationStructureBuildDescConverterNVAPI converter;
+        SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
 
-    m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&converter.desc, &prebuildInfo);
+        NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS params = {};
+        params.version = NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS_VER;
+        params.pDesc = &converter.desc;
+        params.pInfo = &prebuildInfo;
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx(m_device5, &params)
+        );
+    }
+    else
 #endif // SLANG_RHI_ENABLE_NVAPI
+    {
+        AccelerationStructureBuildDescConverter converter;
+        SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
+
+        m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&converter.desc, &prebuildInfo);
+    }
 
     outSizes->accelerationStructureSize = prebuildInfo.ResultDataMaxSizeInBytes;
     outSizes->scratchSize = prebuildInfo.ScratchDataSizeInBytes;
