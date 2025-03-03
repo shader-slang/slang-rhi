@@ -292,6 +292,8 @@ struct FormatInfo
     /// The height of a block in pixels.
     uint8_t blockHeight;
 
+    bool hasDepth : 1;
+    bool hasStencil : 1;
     bool isTypeless : 1;
     bool isCompressed : 1;
 };

@@ -215,6 +215,8 @@ struct FormatInfoMap
         info.blockWidth = blockWidth;
         info.blockHeight = blockHeight;
 
+        info.hasDepth = isDepthFormat(format);
+        info.hasStencil = isStencilFormat(format);
         info.isTypeless = isTypless(format);
         info.isCompressed = isCompressed(format);
     }
