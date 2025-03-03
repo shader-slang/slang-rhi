@@ -12,7 +12,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
 
 public:
-    DebugDevice(IDebugCallback* debugCallback);
+    DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback);
     IDevice* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
