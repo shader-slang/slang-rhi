@@ -150,6 +150,49 @@ Result AccelerationStructureBuildDescConverter::convert(
         }
         break;
     }
+    case AccelerationStructureBuildInputType::Spheres:
+    {
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputSpheres& spheres = buildDesc.inputs[i].spheres;
+            if (spheres.vertexBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (spheres.vertexPositionFormat != Format::R32G32B32_FLOAT)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (spheres.vertexRadiusFormat != Format::R32_FLOAT)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (spheres.indexBuffer)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
+            OptixBuildInput& buildInput = buildInputs[i];
+            buildInput = {};
+            buildInput.type = OPTIX_BUILD_INPUT_TYPE_SPHERES;
+
+            pointerList.push_back(spheres.vertexPositionBuffers[0].getDeviceAddress());
+            buildInput.sphereArray.vertexBuffers = &pointerList.back();
+            buildInput.sphereArray.vertexStrideInBytes = spheres.vertexPositionStride;
+            buildInput.sphereArray.numVertices = spheres.vertexCount;
+            pointerList.push_back(spheres.vertexRadiusBuffers[0].getDeviceAddress());
+            buildInput.sphereArray.radiusBuffers = &pointerList.back();
+            buildInput.sphereArray.radiusStrideInBytes = spheres.vertexRadiusStride;
+            flagList.push_back(translateGeometryFlags(spheres.flags));
+            buildInput.sphereArray.flags = &flagList.back();
+            buildInput.sphereArray.numSbtRecords = 1;
+        }
+        break;
+    }
+    case AccelerationStructureBuildInputType::LinearSweptSpheres:
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
     default:
         return SLANG_E_INVALID_ARG;
     }

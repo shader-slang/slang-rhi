@@ -223,6 +223,28 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
                     retainResource<Buffer>(proceduralPrimitives.aabbBuffers[j].buffer);
                 break;
             }
+            case AccelerationStructureBuildInputType::Spheres:
+            {
+                const AccelerationStructureBuildInputSpheres& spheres = cmd.desc.inputs[i].spheres;
+                for (uint32_t j = 0; j < spheres.vertexBufferCount; ++j)
+                {
+                    retainResource<Buffer>(spheres.vertexPositionBuffers[j].buffer);
+                    retainResource<Buffer>(spheres.vertexRadiusBuffers[j].buffer);
+                }
+                retainResource<Buffer>(spheres.indexBuffer.buffer);
+                break;
+            }
+            case AccelerationStructureBuildInputType::LinearSweptSpheres:
+            {
+                const AccelerationStructureBuildInputLinearSweptSpheres lss = cmd.desc.inputs[i].linearSweptSpheres;
+                for (uint32_t j = 0; j < lss.vertexBufferCount; ++j)
+                {
+                    retainResource<Buffer>(lss.vertexPositionBuffers[j].buffer);
+                    retainResource<Buffer>(lss.vertexRadiusBuffers[j].buffer);
+                }
+                retainResource<Buffer>(lss.indexBuffer.buffer);
+                break;
+            }
             }
         }
     }

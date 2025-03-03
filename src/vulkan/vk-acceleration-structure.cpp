@@ -140,6 +140,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             }
 
             VkAccelerationStructureGeometryKHR& geometry = geometries[i];
+            geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
             geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
             geometry.flags = translateGeometryFlags(proceduralPrimitives.flags);
             geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
@@ -147,6 +148,100 @@ Result AccelerationStructureBuildDescConverter::convert(
             geometry.geometry.aabbs.stride = proceduralPrimitives.aabbStride;
 
             primitiveCounts[i] = proceduralPrimitives.primitiveCount;
+        }
+
+        buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        break;
+    }
+    case AccelerationStructureBuildInputType::Spheres:
+    {
+        spheresDatas.resize(buildDesc.inputCount);
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputSpheres& spheres = buildDesc.inputs[i].spheres;
+            if (spheres.vertexBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
+            VkAccelerationStructureGeometrySpheresDataNV& spheresData = spheresDatas[i];
+            spheresData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_SPHERES_DATA_NV;
+
+            spheresData.vertexFormat = VulkanUtil::getVkFormat(spheres.vertexPositionFormat);
+            spheresData.vertexData.deviceAddress = spheres.vertexPositionBuffers[0].getDeviceAddress();
+            spheresData.vertexStride = spheres.vertexPositionStride;
+            spheresData.radiusFormat = VulkanUtil::getVkFormat(spheres.vertexRadiusFormat);
+            spheresData.radiusData.deviceAddress = spheres.vertexRadiusBuffers[0].getDeviceAddress();
+            spheresData.radiusStride = spheres.vertexRadiusStride;
+            if (spheres.indexBuffer)
+            {
+                spheresData.indexType =
+                    spheres.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+                spheresData.indexData.deviceAddress = spheres.indexBuffer.getDeviceAddress();
+                spheresData.indexStride = spheres.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+            }
+            else
+            {
+                spheresData.indexType = VK_INDEX_TYPE_NONE_KHR;
+                spheresData.indexData.deviceAddress = 0;
+                spheresData.indexStride = 0;
+            }
+
+            VkAccelerationStructureGeometryKHR& geometry = geometries[i];
+            geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+            geometry.pNext = &spheresDatas[i];
+            geometry.geometryType = VK_GEOMETRY_TYPE_SPHERES_NV;
+            geometry.flags = translateGeometryFlags(spheres.flags);
+
+            primitiveCounts[i] = spheres.vertexCount;
+        }
+
+        buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        break;
+    }
+    case AccelerationStructureBuildInputType::LinearSweptSpheres:
+    {
+        linearSweptSpheresDatas.resize(buildDesc.inputCount);
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputLinearSweptSpheres& lss = buildDesc.inputs[i].linearSweptSpheres;
+            if (lss.vertexBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
+            VkAccelerationStructureGeometryLinearSweptSpheresDataNV& lssData = linearSweptSpheresDatas[i];
+            lssData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_SPHERES_DATA_NV;
+
+            lssData.vertexFormat = VulkanUtil::getVkFormat(lss.vertexPositionFormat);
+            lssData.vertexData.deviceAddress = lss.vertexPositionBuffers[0].getDeviceAddress();
+            lssData.vertexStride = lss.vertexPositionStride;
+            lssData.radiusFormat = VulkanUtil::getVkFormat(lss.vertexRadiusFormat);
+            lssData.radiusData.deviceAddress = lss.vertexRadiusBuffers[0].getDeviceAddress();
+            lssData.radiusStride = lss.vertexRadiusStride;
+            if (lss.indexBuffer)
+            {
+                lssData.indexType =
+                    lss.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+                lssData.indexData.deviceAddress = lss.indexBuffer.getDeviceAddress();
+                lssData.indexStride = lss.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+            }
+            else
+            {
+                lssData.indexType = VK_INDEX_TYPE_NONE_KHR;
+                lssData.indexData.deviceAddress = 0;
+                lssData.indexStride = 0;
+            }
+            lssData.indexingMode = translateIndexingMode(lss.indexingMode);
+            lssData.endCapsMode = translateEndCapsMode(lss.endCapsMode);
+
+            VkAccelerationStructureGeometryKHR& geometry = geometries[i];
+            geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+            geometry.pNext = &linearSweptSpheresDatas[i];
+            geometry.geometryType = VK_GEOMETRY_TYPE_LINEAR_SWEPT_SPHERES_NV;
+            geometry.flags = translateGeometryFlags(lss.flags);
+
+            primitiveCounts[i] = lss.primitiveCount;
         }
 
         buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;

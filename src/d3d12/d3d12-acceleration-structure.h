@@ -113,6 +113,7 @@ private:
         );
         return (NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS_EX)flags;
     }
+
     D3D12_RAYTRACING_GEOMETRY_FLAGS translateGeometryFlags(AccelerationStructureGeometryFlags flags)
     {
         static_assert(uint32_t(AccelerationStructureGeometryFlags::None) == D3D12_RAYTRACING_GEOMETRY_FLAG_NONE);
@@ -122,6 +123,32 @@ private:
             D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION
         );
         return (D3D12_RAYTRACING_GEOMETRY_FLAGS)flags;
+    }
+
+    NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT translateIndexingMode(LinearSweptSpheresIndexingMode mode)
+    {
+        switch (mode)
+        {
+        case LinearSweptSpheresIndexingMode::List:
+            return NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT_LIST;
+        case LinearSweptSpheresIndexingMode::Successive:
+            return NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT_SUCCESSIVE_IMPLICIT;
+        default:
+            return NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT(0);
+        }
+    }
+
+    NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE translateEndCapsMode(LinearSweptSpheresEndCapsMode mode)
+    {
+        switch (mode)
+        {
+        case LinearSweptSpheresEndCapsMode::None:
+            return NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE_NONE;
+        case LinearSweptSpheresEndCapsMode::Chained:
+            return NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE_CHAINED;
+        default:
+            return NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE(0);
+        }
     }
 };
 #endif // SLANG_RHI_ENABLE_NVAPI

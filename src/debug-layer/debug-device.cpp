@@ -47,6 +47,7 @@ DebugDevice::DebugDevice(IDebugCallback* debugCallback)
     : DebugObject(&m_ctx)
 {
     ctx->debugCallback = debugCallback;
+    ctx->deviceType = baseObject->getDeviceInfo().deviceType;
     SLANG_RHI_API_FUNC_NAME("CreateDevice");
     RHI_VALIDATION_INFO("Debug layer is enabled.");
 }

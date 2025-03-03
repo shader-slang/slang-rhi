@@ -138,6 +138,9 @@ Result AccelerationStructureBuildDescConverter::convert(
         desc.pGeometryDescs = geomDescs.data();
         break;
     }
+    case AccelerationStructureBuildInputType::Spheres:
+    case AccelerationStructureBuildInputType::LinearSweptSpheres:
+        return SLANG_E_NOT_AVAILABLE;
     default:
         return SLANG_E_INVALID_ARG;
     }
@@ -249,6 +252,91 @@ Result AccelerationStructureBuildDescConverterNVAPI::convert(
             geomDesc.aabbs.AABBCount = proceduralPrimitives.primitiveCount;
             geomDesc.aabbs.AABBs.StartAddress = proceduralPrimitives.aabbBuffers[0].getDeviceAddress();
             geomDesc.aabbs.AABBs.StrideInBytes = proceduralPrimitives.aabbStride;
+        }
+        desc.type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+        desc.numDescs = geomDescs.size();
+        desc.descsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+        desc.pGeometryDescs = geomDescs.data();
+        break;
+    }
+    case AccelerationStructureBuildInputType::Spheres:
+    {
+        geomDescs.resize(buildDesc.inputCount);
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputSpheres& spheres = buildDesc.inputs[i].spheres;
+            if (spheres.vertexBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& geomDesc = geomDescs[i];
+            geomDesc.type = NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_SPHERES_EX;
+            geomDesc.flags = translateGeometryFlags(spheres.flags);
+            geomDesc.spheres.vertexCount = spheres.vertexCount;
+            geomDesc.spheres.vertexPositionBuffer.StartAddress = spheres.vertexPositionBuffers[0].getDeviceAddress();
+            geomDesc.spheres.vertexPositionBuffer.StrideInBytes = spheres.vertexPositionStride;
+            geomDesc.spheres.vertexPositionFormat = D3DUtil::getMapFormat(spheres.vertexPositionFormat);
+            geomDesc.spheres.vertexRadiusBuffer.StartAddress = spheres.vertexRadiusBuffers[0].getDeviceAddress();
+            geomDesc.spheres.vertexRadiusBuffer.StrideInBytes = spheres.vertexRadiusStride;
+            geomDesc.spheres.vertexRadiusFormat = D3DUtil::getMapFormat(spheres.vertexRadiusFormat);
+            if (spheres.indexBuffer)
+            {
+                geomDesc.spheres.indexCount = spheres.indexCount;
+                geomDesc.spheres.indexBuffer.StartAddress = spheres.indexBuffer.getDeviceAddress();
+                geomDesc.spheres.indexBuffer.StrideInBytes = spheres.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+                geomDesc.spheres.indexFormat = D3DUtil::getIndexFormat(spheres.indexFormat);
+            }
+            else
+            {
+                geomDesc.spheres.indexCount = 0;
+                geomDesc.spheres.indexBuffer.StartAddress = 0;
+                geomDesc.spheres.indexBuffer.StrideInBytes = 0;
+                geomDesc.spheres.indexFormat = DXGI_FORMAT_UNKNOWN;
+            }
+        }
+        desc.type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+        desc.numDescs = geomDescs.size();
+        desc.descsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+        desc.pGeometryDescs = geomDescs.data();
+        break;
+    }
+    case AccelerationStructureBuildInputType::LinearSweptSpheres:
+    {
+        geomDescs.resize(buildDesc.inputCount);
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputLinearSweptSpheres& lss = buildDesc.inputs[i].linearSweptSpheres;
+            if (lss.vertexBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& geomDesc = geomDescs[i];
+            geomDesc.type = NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_SPHERES_EX;
+            geomDesc.flags = translateGeometryFlags(lss.flags);
+            geomDesc.lss.vertexCount = lss.vertexCount;
+            geomDesc.lss.vertexPositionBuffer.StartAddress = lss.vertexPositionBuffers[0].getDeviceAddress();
+            geomDesc.lss.vertexPositionBuffer.StrideInBytes = lss.vertexPositionStride;
+            geomDesc.lss.vertexPositionFormat = D3DUtil::getMapFormat(lss.vertexPositionFormat);
+            geomDesc.lss.vertexRadiusBuffer.StartAddress = lss.vertexRadiusBuffers[0].getDeviceAddress();
+            geomDesc.lss.vertexRadiusBuffer.StrideInBytes = lss.vertexRadiusStride;
+            geomDesc.lss.vertexRadiusFormat = D3DUtil::getMapFormat(lss.vertexRadiusFormat);
+            if (lss.indexBuffer)
+            {
+                geomDesc.lss.indexCount = lss.indexCount;
+                geomDesc.lss.indexBuffer.StartAddress = lss.indexBuffer.getDeviceAddress();
+                geomDesc.lss.indexBuffer.StrideInBytes = lss.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+                geomDesc.lss.indexFormat = D3DUtil::getIndexFormat(lss.indexFormat);
+            }
+            else
+            {
+                geomDesc.lss.indexCount = 0;
+                geomDesc.lss.indexBuffer.StartAddress = 0;
+                geomDesc.lss.indexBuffer.StrideInBytes = 0;
+                geomDesc.lss.indexFormat = DXGI_FORMAT_UNKNOWN;
+            }
+            geomDesc.lss.primitiveCount = lss.primitiveCount;
+            geomDesc.lss.primitiveFormat = translateIndexingMode(lss.indexingMode);
+            geomDesc.lss.endcapMode = translateEndCapsMode(lss.endCapsMode);
         }
         desc.type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
         desc.numDescs = geomDescs.size();

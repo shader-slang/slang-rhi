@@ -540,6 +540,28 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 m_features.push_back("realtime-clock");
             }
+            NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
+                    &spheresCaps,
+                    sizeof(spheresCaps)
+                ) == NVAPI_OK &&
+                spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
+            {
+                m_features.push_back("acceleration-structure-spheres");
+            }
+            NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
+                    &lssCaps,
+                    sizeof(lssCaps)
+                ) == NVAPI_OK &&
+                lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
+            {
+                m_features.push_back("acceleration-structure-linear-swept-spheres");
+            }
             NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
             if (NvAPI_D3D12_GetRaytracingCaps(
                     m_device,

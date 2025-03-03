@@ -38,6 +38,8 @@ public:
 
 private:
     std::vector<VkAccelerationStructureGeometryKHR> geometries;
+    std::vector<VkAccelerationStructureGeometrySpheresDataNV> spheresDatas;
+    std::vector<VkAccelerationStructureGeometryLinearSweptSpheresDataNV> linearSweptSpheresDatas;
 
     VkBuildAccelerationStructureFlagsKHR translateBuildFlags(AccelerationStructureBuildFlags flags)
     {
@@ -64,6 +66,7 @@ private:
         }
         return result;
     }
+
     VkGeometryFlagsKHR translateGeometryFlags(AccelerationStructureGeometryFlags flags)
     {
         VkGeometryFlagsKHR result = VkGeometryFlagsKHR(0);
@@ -72,6 +75,32 @@ private:
         if (is_set(flags, AccelerationStructureGeometryFlags::NoDuplicateAnyHitInvocation))
             result |= VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR;
         return result;
+    }
+
+    VkRayTracingLssIndexingModeNV translateIndexingMode(LinearSweptSpheresIndexingMode mode)
+    {
+        switch (mode)
+        {
+        case LinearSweptSpheresIndexingMode::List:
+            return VK_RAY_TRACING_LSS_INDEXING_MODE_LIST_NV;
+        case LinearSweptSpheresIndexingMode::Successive:
+            return VK_RAY_TRACING_LSS_INDEXING_MODE_SUCCESSIVE_NV;
+        default:
+            return VkRayTracingLssIndexingModeNV(0);
+        }
+    }
+
+    VkRayTracingLssPrimitiveEndCapsModeNV translateEndCapsMode(LinearSweptSpheresEndCapsMode mode)
+    {
+        switch (mode)
+        {
+        case LinearSweptSpheresEndCapsMode::None:
+            return VK_RAY_TRACING_LSS_PRIMITIVE_END_CAPS_MODE_NONE_NV;
+        case LinearSweptSpheresEndCapsMode::Chained:
+            return VK_RAY_TRACING_LSS_PRIMITIVE_END_CAPS_MODE_CHAINED_NV;
+        default:
+            return VkRayTracingLssPrimitiveEndCapsModeNV(0);
+        }
     }
 };
 

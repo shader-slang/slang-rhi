@@ -941,6 +941,8 @@ enum class AccelerationStructureBuildInputType
     Instances,
     Triangles,
     ProceduralPrimitives,
+    Spheres,
+    LinearSweptSpheres,
 };
 
 struct AccelerationStructureBuildInputInstances
@@ -980,6 +982,61 @@ struct AccelerationStructureBuildInputProceduralPrimitives
     AccelerationStructureGeometryFlags flags;
 };
 
+struct AccelerationStructureBuildInputSpheres
+{
+    uint32_t vertexBufferCount = 0;
+    uint32_t vertexCount = 0;
+
+    BufferOffsetPair vertexPositionBuffers[2];
+    Format vertexPositionFormat = Format::Unknown;
+    uint32_t vertexPositionStride = 0;
+
+    BufferOffsetPair vertexRadiusBuffers[2];
+    Format vertexRadiusFormat = Format::Unknown;
+    uint32_t vertexRadiusStride = 0;
+
+    BufferOffsetPair indexBuffer;
+    IndexFormat indexFormat = IndexFormat::UInt32;
+    uint32_t indexCount = 0;
+
+    AccelerationStructureGeometryFlags flags;
+};
+
+enum class LinearSweptSpheresIndexingMode
+{
+    List,
+    Successive,
+};
+
+enum class LinearSweptSpheresEndCapsMode
+{
+    None,
+    Chained,
+};
+
+struct AccelerationStructureBuildInputLinearSweptSpheres
+{
+    uint32_t vertexBufferCount = 0;
+    uint32_t vertexCount = 0;
+    uint32_t primitiveCount = 0;
+
+    BufferOffsetPair vertexPositionBuffers[2];
+    Format vertexPositionFormat = Format::Unknown;
+    uint32_t vertexPositionStride = 0;
+
+    BufferOffsetPair vertexRadiusBuffers[2];
+    Format vertexRadiusFormat = Format::Unknown;
+    uint32_t vertexRadiusStride = 0;
+
+    BufferOffsetPair indexBuffer;
+    IndexFormat indexFormat = IndexFormat::UInt32;
+    uint32_t indexCount = 0;
+
+    LinearSweptSpheresIndexingMode indexingMode = LinearSweptSpheresIndexingMode::List;
+    LinearSweptSpheresEndCapsMode endCapsMode = LinearSweptSpheresEndCapsMode::None;
+
+    AccelerationStructureGeometryFlags flags;
+};
 
 struct AccelerationStructureBuildInput
 {
@@ -989,6 +1046,8 @@ struct AccelerationStructureBuildInput
         AccelerationStructureBuildInputInstances instances;
         AccelerationStructureBuildInputTriangles triangles;
         AccelerationStructureBuildInputProceduralPrimitives proceduralPrimitives;
+        AccelerationStructureBuildInputSpheres spheres;
+        AccelerationStructureBuildInputLinearSweptSpheres linearSweptSpheres;
     };
 };
 
