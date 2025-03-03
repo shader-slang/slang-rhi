@@ -256,6 +256,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
             SLANG_OPTIX_RETURN_ON_FAIL(optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext));
 
+            m_features.push_back("acceleration-structure");
             m_features.push_back("ray-tracing");
         }
         else
@@ -567,7 +568,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
         return SLANG_E_NOT_AVAILABLE;
     }
     AccelerationStructureBuildDescConverter converter;
-    converter.convert(desc, m_debugCallback);
+    SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
     OptixAccelBufferSizes sizes;
     SLANG_OPTIX_RETURN_ON_FAIL(optixAccelComputeMemoryUsage(
         m_ctx.optixContext,

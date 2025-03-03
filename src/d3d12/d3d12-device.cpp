@@ -697,6 +697,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 if (options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
                 {
+                    m_features.push_back("acceleration-structure");
                     m_features.push_back("ray-tracing");
                 }
                 if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)

@@ -58,13 +58,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_commandQueue);
 
-    m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;
-
     // Supports surface/swapchain
     m_features.push_back("surface");
     // Supports rasterization
     m_features.push_back("rasterization");
 
+    if (m_device->supportsRaytracing())
+    {
+        m_features.push_back("acceleration-structure");
+    }
+
+    m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;
     if (m_hasArgumentBufferTier2)
     {
         m_features.push_back("argument-buffer-tier-2");
@@ -219,7 +223,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AUTORELEASEPOOL
 
     AccelerationStructureBuildDescConverter converter;
-    converter.convert(desc, nullptr, m_debugCallback);
+    SLANG_RETURN_ON_FAIL(converter.convert(desc, nullptr, m_debugCallback));
     MTL::AccelerationStructureSizes sizes = m_device->accelerationStructureSizes(converter.descriptor.get());
     outSizes->accelerationStructureSize = sizes.accelerationStructureSize;
     outSizes->scratchSize = sizes.buildScratchBufferSize;
