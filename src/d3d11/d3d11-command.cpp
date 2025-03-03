@@ -160,14 +160,31 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    Format format = texture->getDesc().format;
+    TextureUsage usage = texture->getDesc().usage;
+    if (is_set(usage, TextureUsage::RenderTarget))
+    {
+        ID3D11RenderTargetView* rtv = texture->getRTV(format, cmd.subresourceRange);
+        m_immediateContext->ClearRenderTargetView(rtv, cmd.clearValue);
+    }
+    else if (is_set(usage, TextureUsage::UnorderedAccess))
+    {
+        ID3D11UnorderedAccessView* uav = texture->getUAV(format, cmd.subresourceRange);
+        m_immediateContext->ClearUnorderedAccessViewFloat(uav, cmd.clearValue);
+    }
 }
 
 void CommandExecutor::cmdClearTextureUInt(const commands::ClearTextureUInt& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureUInt);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    Format format = texture->getDesc().format;
+    TextureUsage usage = texture->getDesc().usage;
+    if (is_set(usage, TextureUsage::UnorderedAccess))
+    {
+        ID3D11UnorderedAccessView* uav = texture->getUAV(format, cmd.subresourceRange);
+        m_immediateContext->ClearUnorderedAccessViewUint(uav, cmd.clearValue);
+    }
 }
 
 void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
