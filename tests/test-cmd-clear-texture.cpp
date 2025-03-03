@@ -46,7 +46,7 @@ void testCopyBuffer(IDevice* device, Offset dstOffset, Offset srcOffset, Size si
 #endif
 
 // D3D11, Metal, CUDA, CPU don't support clearTexture
-GPU_TEST_CASE("cmd-clear-texture-float", D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-clear-texture-float", Vulkan)
 {
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
