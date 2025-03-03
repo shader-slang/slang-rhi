@@ -677,10 +677,10 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-shader-cache.cpp
         tests/test-shared-buffer.cpp
         tests/test-shared-texture.cpp
+        tests/test-staging-heap.cpp
         tests/test-surface.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
-        tests/test-upload.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/test-task-pool.cpp
