@@ -424,6 +424,7 @@ target_sources(slang-rhi PRIVATE
     src/rhi-shared.cpp
     src/rhi.cpp
     src/shader.cpp
+    src/staging-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/offset-allocator.cpp
@@ -678,6 +679,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-surface.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/test-upload.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/test-task-pool.cpp

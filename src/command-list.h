@@ -16,7 +16,6 @@
     x(ClearBuffer) \
     x(ClearTexture) \
     x(UploadTextureData) \
-    x(UploadBufferData) \
     x(ResolveQuery) \
     x(BeginRenderPass) \
     x(EndRenderPass) \
@@ -124,15 +123,6 @@ struct UploadTextureData
     // also, SubresourceData needs a size field to know how much to copy
     SubresourceData* subresourceData;
     uint32_t subresourceDataCount;
-};
-
-struct UploadBufferData
-{
-    IBuffer* dst;
-    uint64_t offset;
-    // TODO: we could use some owned memory blob to avoid copying data
-    const void* data;
-    Size size;
 };
 
 struct ResolveQuery
@@ -384,7 +374,6 @@ public:
     void write(commands::ClearBuffer&& cmd);
     void write(commands::ClearTexture&& cmd);
     void write(commands::UploadTextureData&& cmd);
-    void write(commands::UploadBufferData&& cmd);
     void write(commands::ResolveQuery&& cmd);
     void write(commands::BeginRenderPass&& cmd);
     void write(commands::EndRenderPass&& cmd);
@@ -431,12 +420,6 @@ public:
         return *reinterpret_cast<const T*>(command->data);
     }
 
-private:
-    ArenaAllocator& m_allocator;
-    std::set<RefPtr<RefObject>>& m_trackedObjects;
-    CommandSlot* m_commandSlots = nullptr;
-    CommandSlot* m_lastCommandSlot = nullptr;
-
     void retainResource(RefObject* resource)
     {
         if (resource)
@@ -454,6 +437,12 @@ private:
             retainResource(obj);
         }
     }
+
+private:
+    ArenaAllocator& m_allocator;
+    std::set<RefPtr<RefObject>>& m_trackedObjects;
+    CommandSlot* m_commandSlots = nullptr;
+    CommandSlot* m_lastCommandSlot = nullptr;
 
     const void* writeData(const void* data, size_t size)
     {

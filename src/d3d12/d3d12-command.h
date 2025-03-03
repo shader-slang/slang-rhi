@@ -68,8 +68,6 @@ public:
         SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };

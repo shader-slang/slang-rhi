@@ -43,6 +43,7 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_shaderCache.free();
+    m_heap.release();
 
     if (m_api.vkDestroySampler)
     {

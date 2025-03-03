@@ -46,7 +46,6 @@ public:
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
     void cmdClearTexture(const commands::ClearTexture& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
-    void cmdUploadBufferData(const commands::UploadBufferData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
@@ -153,14 +152,6 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
-}
-
-void CommandExecutor::cmdUploadBufferData(const commands::UploadBufferData& cmd)
-{
-    BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
-    SLANG_CUDA_ASSERT_ON_FAIL(
-        cuMemcpy((CUdeviceptr)((uint8_t*)dst->m_cudaMemory + cmd.offset), (CUdeviceptr)cmd.data, cmd.size)
-    );
 }
 
 void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)

@@ -135,6 +135,7 @@ DeviceImpl::~DeviceImpl()
     m_queue.setNull();
 
     m_shaderCache.free();
+    m_heap.release();
 
 #if SLANG_RHI_ENABLE_OPTIX
     if (m_ctx.optixContext)

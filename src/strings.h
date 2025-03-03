@@ -226,7 +226,6 @@
 #define S_CommandEncoder_clearBuffer "clearBuffer"
 #define S_CommandEncoder_clearTexture "clearTexture"
 #define S_CommandEncoder_uploadTextureData "uploadTextureData"
-#define S_CommandEncoder_uploadBufferData "uploadBufferData"
 #define S_CommandEncoder_resolveQuery "resolveQuery"
 #define S_CommandEncoder_buildAccelerationStructure "buildAccelerationStructure"
 #define S_CommandEncoder_copyAccelerationStructure "copyAccelerationStructure"

@@ -58,7 +58,6 @@ public:
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
     void cmdClearTexture(const commands::ClearTexture& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
-    void cmdUploadBufferData(const commands::UploadBufferData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
     void cmdEndRenderPass(const commands::EndRenderPass& cmd);
@@ -210,11 +209,6 @@ void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
     NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
-}
-
-void CommandRecorder::cmdUploadBufferData(const commands::UploadBufferData& cmd)
-{
-    NOT_SUPPORTED(S_CommandEncoder_uploadBufferData);
 }
 
 void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)

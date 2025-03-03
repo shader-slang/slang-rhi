@@ -62,14 +62,6 @@ void CommandList::write(commands::UploadTextureData&& cmd)
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::UploadBufferData&& cmd)
-{
-    retainResource<Buffer>(cmd.dst);
-    if (cmd.data)
-        cmd.data = writeData(cmd.data, cmd.size);
-    writeCommand(std::move(cmd));
-}
-
 void CommandList::write(commands::ResolveQuery&& cmd)
 {
     retainResource<QueryPool>(cmd.queryPool);
