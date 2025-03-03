@@ -526,6 +526,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.cooperativeVectorFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.cooperativeVectorFeatures;
 
+        extendedFeatures.rayTracingLinearSweptSpheresFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.rayTracingLinearSweptSpheresFeatures;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
@@ -676,6 +679,23 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
                 "ray-tracing-pipeline"
             );
+
+            if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
+                extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
+            {
+                if (extensionNames.count(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME))
+                {
+                    deviceExtensions.push_back(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME);
+                }
+                if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres)
+                {
+                    m_features.push_back("acceleration-structure-spheres");
+                }
+                if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
+                {
+                    m_features.push_back("acceleration-structure-linear-swept-spheres");
+                }
+            }
         }
 
         SIMPLE_EXTENSION_FEATURE(

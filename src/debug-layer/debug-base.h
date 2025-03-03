@@ -11,6 +11,7 @@ namespace rhi::debug {
 
 struct DebugContext
 {
+    DeviceType deviceType = DeviceType::Default;
     IDebugCallback* debugCallback = nullptr;
 };
 

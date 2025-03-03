@@ -190,9 +190,11 @@ Result AccelerationStructureBuildDescConverter::convert(
             boundingDescriptor->setBoundingBoxStride(proceduralPrimitives.aabbStride);
             boundingDescriptor->setBoundingBoxCount(proceduralPrimitives.primitiveCount);
         }
-
         break;
     }
+    case AccelerationStructureBuildInputType::Spheres:
+    case AccelerationStructureBuildInputType::LinearSweptSpheres:
+        return SLANG_E_NOT_AVAILABLE;
     default:
         return SLANG_E_INVALID_ARG;
     }

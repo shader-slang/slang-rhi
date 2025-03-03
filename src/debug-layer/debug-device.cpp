@@ -43,9 +43,10 @@ Result DebugDevice::getFormatSupport(Format format, FormatSupport* outFormatSupp
     return baseObject->getFormatSupport(format, outFormatSupport);
 }
 
-DebugDevice::DebugDevice(IDebugCallback* debugCallback)
+DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
     : DebugObject(&m_ctx)
 {
+    ctx->deviceType = deviceType;
     ctx->debugCallback = debugCallback;
     SLANG_RHI_API_FUNC_NAME("CreateDevice");
     RHI_VALIDATION_INFO("Debug layer is enabled.");

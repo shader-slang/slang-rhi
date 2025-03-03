@@ -540,6 +540,28 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 m_features.push_back("realtime-clock");
             }
+            NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
+                    &spheresCaps,
+                    sizeof(spheresCaps)
+                ) == NVAPI_OK &&
+                spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
+            {
+                m_features.push_back("acceleration-structure-spheres");
+            }
+            NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
+                    &lssCaps,
+                    sizeof(lssCaps)
+                ) == NVAPI_OK &&
+                lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
+            {
+                m_features.push_back("acceleration-structure-linear-swept-spheres");
+            }
             NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
             if (NvAPI_D3D12_GetRaytracingCaps(
                     m_device,
@@ -697,6 +719,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 if (options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
                 {
+                    m_features.push_back("acceleration-structure");
                     m_features.push_back("ray-tracing");
                 }
                 if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
@@ -1750,15 +1773,35 @@ Result DeviceImpl::getAccelerationStructureSizes(
     if (!m_device5)
         return SLANG_E_NOT_AVAILABLE;
 
-    AccelerationStructureBuildDescConverter converter;
-    SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
 
-    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
-    m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&converter.desc, &prebuildInfo);
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!NVAPIUtil::isAvailable())
+    {
+
+        AccelerationStructureBuildDescConverterNVAPI converter;
+        SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
+
+        NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS params = {};
+        params.version = NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS_VER;
+        params.pDesc = &converter.desc;
+        params.pInfo = &prebuildInfo;
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx(m_device5, &params)
+        );
+    }
+    else
+#endif // SLANG_RHI_ENABLE_NVAPI
+    {
+        AccelerationStructureBuildDescConverter converter;
+        SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
+
+        m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&converter.desc, &prebuildInfo);
+    }
 
     outSizes->accelerationStructureSize = prebuildInfo.ResultDataMaxSizeInBytes;
     outSizes->scratchSize = prebuildInfo.ScratchDataSizeInBytes;
     outSizes->updateScratchSize = prebuildInfo.UpdateScratchDataSizeInBytes;
+
     return SLANG_OK;
 }
 

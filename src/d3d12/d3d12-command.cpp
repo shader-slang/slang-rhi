@@ -1062,17 +1062,48 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
 
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
-    buildDesc.DestAccelerationStructureData = dst->getDeviceAddress();
-    buildDesc.SourceAccelerationStructureData = src ? src->getDeviceAddress() : 0;
-    buildDesc.ScratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
-    AccelerationStructureBuildDescConverter converter;
-    converter.convert(cmd.desc, m_device->m_debugCallback);
-    buildDesc.Inputs = converter.desc;
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!NVAPIUtil::isAvailable())
+    {
 
-    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
-    translatePostBuildInfoDescs(cmd.propertyQueryCount, cmd.queryDescs, postBuildInfoDescs);
-    m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
+        NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EX desc = {};
+        desc.destAccelerationStructureData = dst->getDeviceAddress();
+        desc.sourceAccelerationStructureData = src ? src->getDeviceAddress() : 0;
+        desc.scratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
+
+        AccelerationStructureBuildDescConverterNVAPI converter;
+        if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
+            return;
+        desc.inputs = converter.desc;
+
+        std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
+        translatePostBuildInfoDescs(cmd.propertyQueryCount, cmd.queryDescs, postBuildInfoDescs);
+
+        NVAPI_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_EX_PARAMS params = {};
+        params.version = NVAPI_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_EX_PARAMS_VER;
+        params.pDesc = &desc;
+        params.pPostbuildInfoDescs = postBuildInfoDescs.data();
+        params.numPostbuildInfoDescs = (NvU32)postBuildInfoDescs.size();
+        NvAPI_D3D12_BuildRaytracingAccelerationStructureEx(m_cmdList4, &params);
+    }
+    else
+#endif // SLANG_RHI_ENABLE_NVAPI
+    {
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+        buildDesc.DestAccelerationStructureData = dst->getDeviceAddress();
+        buildDesc.SourceAccelerationStructureData = src ? src->getDeviceAddress() : 0;
+        buildDesc.ScratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
+
+        AccelerationStructureBuildDescConverter converter;
+        if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
+            return;
+        buildDesc.Inputs = converter.desc;
+
+        std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC> postBuildInfoDescs;
+        translatePostBuildInfoDescs(cmd.propertyQueryCount, cmd.queryDescs, postBuildInfoDescs);
+
+        m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
+    }
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)

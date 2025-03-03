@@ -203,6 +203,61 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
             SLANG_UNUSED(proceduralPrimitives);
             break;
         }
+        case AccelerationStructureBuildInputType::Spheres:
+        {
+            const AccelerationStructureBuildInputSpheres& spheres = buildDesc.inputs[i].spheres;
+
+            switch (spheres.vertexPositionFormat)
+            {
+            case Format::R32G32B32_FLOAT:
+            case Format::R32G32_FLOAT:
+            case Format::R16G16B16A16_FLOAT:
+            case Format::R16G16_FLOAT:
+            case Format::R16G16B16A16_SNORM:
+            case Format::R16G16_SNORM:
+                break;
+            default:
+                RHI_VALIDATION_ERROR(
+                    "Unsupported vertexPositionFormat. Valid values are R32G32B32_FLOAT, R32G32_FLOAT, "
+                    "R16G16B16A16_FLOAT, "
+                    "R16G16_FLOAT, R16G16B16A16_SNORM or R16G16_SNORM."
+                );
+            }
+
+            switch (spheres.vertexRadiusFormat)
+            {
+            case Format::R32_FLOAT:
+            case Format::R16_FLOAT:
+                break;
+            default:
+                RHI_VALIDATION_ERROR("Unsupported vertexRadiusFormat. Valid values are R32_FLOAT or R16_FLOAT.");
+            }
+            break;
+
+            if (ctx->deviceType == DeviceType::CUDA)
+            {
+                if (spheres.vertexPositionFormat != Format::R32G32B32_FLOAT)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires vertexPositionFormat to be R32G32B32_FLOAT.");
+                }
+                if (spheres.vertexRadiusFormat != Format::R32_FLOAT)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires vertexRadiusFormat to be R32_FLOAT.");
+                }
+                if (spheres.indexBuffer)
+                {
+                    RHI_VALIDATION_ERROR("OptiX does not support indexBuffer.");
+                }
+            }
+            break;
+        }
+        case AccelerationStructureBuildInputType::LinearSweptSpheres:
+        {
+            const AccelerationStructureBuildInputLinearSweptSpheres& linearSweptSpheres =
+                buildDesc.inputs[i].linearSweptSpheres;
+            SLANG_UNUSED(linearSweptSpheres);
+            break;
+        }
         default:
             RHI_VALIDATION_ERROR("Invalid AccelerationStructureBuildInputType.");
             break;

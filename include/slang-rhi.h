@@ -941,6 +941,8 @@ enum class AccelerationStructureBuildInputType
     Instances,
     Triangles,
     ProceduralPrimitives,
+    Spheres,
+    LinearSweptSpheres,
 };
 
 struct AccelerationStructureBuildInputInstances
@@ -950,10 +952,12 @@ struct AccelerationStructureBuildInputInstances
     uint32_t instanceCount;
 };
 
+static const uint32_t kMaxAccelerationStructureMotionKeyCount = 2;
+
 struct AccelerationStructureBuildInputTriangles
 {
     /// List of vertex buffers, one for each motion step.
-    BufferOffsetPair vertexBuffers[2];
+    BufferOffsetPair vertexBuffers[kMaxAccelerationStructureMotionKeyCount];
     uint32_t vertexBufferCount = 0;
     Format vertexFormat = Format::Unknown;
     uint32_t vertexCount = 0;
@@ -972,7 +976,7 @@ struct AccelerationStructureBuildInputTriangles
 struct AccelerationStructureBuildInputProceduralPrimitives
 {
     /// List of AABB buffers, one for each motion step.
-    BufferOffsetPair aabbBuffers[2];
+    BufferOffsetPair aabbBuffers[kMaxAccelerationStructureMotionKeyCount];
     uint32_t aabbBufferCount = 0;
     uint32_t aabbStride = 0;
     uint32_t primitiveCount = 0;
@@ -980,6 +984,61 @@ struct AccelerationStructureBuildInputProceduralPrimitives
     AccelerationStructureGeometryFlags flags;
 };
 
+struct AccelerationStructureBuildInputSpheres
+{
+    uint32_t vertexBufferCount = 0;
+    uint32_t vertexCount = 0;
+
+    BufferOffsetPair vertexPositionBuffers[kMaxAccelerationStructureMotionKeyCount];
+    Format vertexPositionFormat = Format::Unknown;
+    uint32_t vertexPositionStride = 0;
+
+    BufferOffsetPair vertexRadiusBuffers[kMaxAccelerationStructureMotionKeyCount];
+    Format vertexRadiusFormat = Format::Unknown;
+    uint32_t vertexRadiusStride = 0;
+
+    BufferOffsetPair indexBuffer;
+    IndexFormat indexFormat = IndexFormat::UInt32;
+    uint32_t indexCount = 0;
+
+    AccelerationStructureGeometryFlags flags;
+};
+
+enum class LinearSweptSpheresIndexingMode
+{
+    List,
+    Successive,
+};
+
+enum class LinearSweptSpheresEndCapsMode
+{
+    None,
+    Chained,
+};
+
+struct AccelerationStructureBuildInputLinearSweptSpheres
+{
+    uint32_t vertexBufferCount = 0;
+    uint32_t vertexCount = 0;
+    uint32_t primitiveCount = 0;
+
+    BufferOffsetPair vertexPositionBuffers[kMaxAccelerationStructureMotionKeyCount];
+    Format vertexPositionFormat = Format::Unknown;
+    uint32_t vertexPositionStride = 0;
+
+    BufferOffsetPair vertexRadiusBuffers[kMaxAccelerationStructureMotionKeyCount];
+    Format vertexRadiusFormat = Format::Unknown;
+    uint32_t vertexRadiusStride = 0;
+
+    BufferOffsetPair indexBuffer;
+    IndexFormat indexFormat = IndexFormat::UInt32;
+    uint32_t indexCount = 0;
+
+    LinearSweptSpheresIndexingMode indexingMode = LinearSweptSpheresIndexingMode::List;
+    LinearSweptSpheresEndCapsMode endCapsMode = LinearSweptSpheresEndCapsMode::None;
+
+    AccelerationStructureGeometryFlags flags;
+};
 
 struct AccelerationStructureBuildInput
 {
@@ -989,6 +1048,8 @@ struct AccelerationStructureBuildInput
         AccelerationStructureBuildInputInstances instances;
         AccelerationStructureBuildInputTriangles triangles;
         AccelerationStructureBuildInputProceduralPrimitives proceduralPrimitives;
+        AccelerationStructureBuildInputSpheres spheres;
+        AccelerationStructureBuildInputLinearSweptSpheres linearSweptSpheres;
     };
 };
 
