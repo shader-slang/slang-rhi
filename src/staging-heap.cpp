@@ -227,7 +227,7 @@ void StagingHeap::Page::checkConsistency()
     size_t totalUsed = 0;
     size_t offset = 0;
     bool prevFree = false;
-    for (StagingHeap::Node& node : m_nodes)
+    for (const StagingHeap::Node& node : m_nodes)
     {
         // Check node page is correct.
         SLANG_RHI_ASSERT(node.pageid == m_id);
