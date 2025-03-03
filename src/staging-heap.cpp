@@ -114,7 +114,7 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
 
     ComPtr<IBuffer> bufferPtr;
     BufferDesc bufferDesc;
-    bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource | BufferUsage::ConstantBuffer;
+    bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.memoryType = MemoryType::Upload;
     bufferDesc.size = size;

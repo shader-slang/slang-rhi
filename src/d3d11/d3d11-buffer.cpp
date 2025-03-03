@@ -116,16 +116,27 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     D3D11_BUFFER_DESC bufferDesc = {0};
     bufferDesc.ByteWidth = UINT(alignedSizeInBytes);
     bufferDesc.BindFlags = d3dBindFlags;
-    // For read we'll need to do some staging
     bufferDesc.CPUAccessFlags = _calcResourceAccessFlags(descIn.memoryType);
     bufferDesc.Usage = D3D11_USAGE_DEFAULT;
 
-    // If written by CPU, make it dynamic
-    if (descIn.memoryType == MemoryType::Upload && !is_set(descIn.usage, BufferUsage::UnorderedAccess))
+    // If buffer will be used for upload, then:
+    //  - if pure copying, create as a staging buffer (D3D11_USAGE_STAGING)
+    //  - if not, create as a dynamic buffer (D3D11_USAGE_DYNAMIC) unless unordered access is specified
+    if (srcDesc.memoryType == MemoryType::Upload)
     {
-        bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
+        if ((srcDesc.usage & (BufferUsage::CopySource | BufferUsage::CopyDestination)) == srcDesc.usage)
+        {
+            bufferDesc.Usage = D3D11_USAGE_STAGING;
+            bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ; // Support read, so can be mapped as read/write
+        }
+        else if (!is_set(srcDesc.usage, BufferUsage::UnorderedAccess))
+        {
+            bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        }
     }
 
+    // If buffer will be used for read-back, then it must be staging.
     if (srcDesc.memoryType == MemoryType::ReadBack)
     {
         bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
@@ -163,11 +174,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
         }
     }
 
-    if (srcDesc.memoryType == MemoryType::Upload)
-    {
-        bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
-    }
-
     D3D11_SUBRESOURCE_DATA subresourceData = {0};
     subresourceData.pSysMem = initData;
 
@@ -194,7 +200,8 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         mapType = D3D11_MAP_READ;
         break;
     case CpuAccessMode::Write:
-        mapType = D3D11_MAP_WRITE_DISCARD;
+        // For upload, map as read-write if a staging buffer, or write-discard if dynamic buffer
+        mapType = bufferImpl->m_d3dUsage == D3D11_USAGE_STAGING ? D3D11_MAP_READ_WRITE : D3D11_MAP_WRITE_DISCARD;
         break;
     default:
         return SLANG_E_INVALID_ARG;
