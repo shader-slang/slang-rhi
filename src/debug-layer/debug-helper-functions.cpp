@@ -249,6 +249,7 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
                     RHI_VALIDATION_ERROR("OptiX does not support indexBuffer.");
                 }
             }
+            break;
         }
         case AccelerationStructureBuildInputType::LinearSweptSpheres:
         {
