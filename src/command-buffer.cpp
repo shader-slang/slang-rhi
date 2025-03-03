@@ -522,7 +522,8 @@ void CommandEncoder::uploadTextureData(
 
 void CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
-    RefPtr<StagingHeap::Handle> handle = getDevice()->m_heap.allocHandle(size, {});
+    RefPtr<StagingHeap::Handle> handle;
+    getDevice()->m_heap.allocHandle(size, {}, handle.writeRef());
 
     m_commandList->retainResource(handle);
 

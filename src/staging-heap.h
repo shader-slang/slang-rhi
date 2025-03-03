@@ -112,10 +112,10 @@ public:
 
     // Allocate block of memory and wrap in a ref counted handle that automatically
     // frees the allocation when handle is freed.
-    RefPtr<Handle> allocHandle(size_t size, MetaData metadata);
+    Result allocHandle(size_t size, MetaData metadata, Handle** outHandle);
 
     // Allocate a block of memory.
-    Allocation alloc(size_t size, MetaData metadata);
+    Result alloc(size_t size, MetaData metadata, Allocation* outAllocation);
 
     // Free existing allocation.
     void free(Allocation allocation);
@@ -150,7 +150,7 @@ private:
     Size m_pageSize = 16 * 1024 * 1024;
     std::unordered_map<int, RefPtr<Page>> m_pages;
 
-    RefPtr<Page> allocPage(size_t size);
+    Result allocPage(size_t size, StagingHeap::Page** outPage);
 };
 
 } // namespace rhi

@@ -30,13 +30,18 @@ void StagingHeap::release()
     m_pages.clear();
 }
 
-RefPtr<StagingHeap::Handle> StagingHeap::allocHandle(size_t size, MetaData metadata)
+Result StagingHeap::allocHandle(size_t size, MetaData metadata, StagingHeap::Handle** outHandle)
 {
-    Allocation allocation = alloc(size, metadata);
-    return new Handle(this, allocation);
+    *outHandle = nullptr;
+    Allocation allocation;
+    SLANG_RETURN_ON_FAIL(alloc(size, metadata, &allocation));
+
+    RefPtr<Handle> res = new Handle(this, allocation);
+    returnRefPtr(outHandle, res);
+    return SLANG_OK;
 }
 
-StagingHeap::Allocation StagingHeap::alloc(size_t size, MetaData metadata)
+Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocation* outAllocation)
 {
     // Get aligned size.
     size_t alignedSize = alignUp(size);
@@ -53,14 +58,16 @@ StagingHeap::Allocation StagingHeap::alloc(size_t size, MetaData metadata)
                 res.buffer = page.second->getBuffer();
                 res.node = node;
                 m_totalUsed += alignedSize;
-                return res;
+                *outAllocation = res;
+                return SLANG_OK;
             }
         }
     }
 
     // Can't fit in existing page, so allocate from new one
     size_t pageSize = alignedSize < m_pageSize ? m_pageSize : alignedSize;
-    RefPtr<Page> page = allocPage(pageSize);
+    Page* page;
+    SLANG_RETURN_ON_FAIL(allocPage(pageSize, &page));
     std::list<Node>::iterator node;
     page->allocNode(alignedSize, metadata, node);
 
@@ -69,7 +76,8 @@ StagingHeap::Allocation StagingHeap::alloc(size_t size, MetaData metadata)
     res.node = node;
     m_totalUsed += alignedSize;
 
-    return res;
+    *outAllocation = res;
+    return SLANG_OK;
 }
 
 void StagingHeap::free(Allocation allocation)
@@ -100,8 +108,10 @@ void StagingHeap::free(Allocation allocation)
     }
 }
 
-RefPtr<StagingHeap::Page> StagingHeap::allocPage(size_t size)
+Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
 {
+    *outPage = nullptr;
+
     ComPtr<IBuffer> bufferPtr;
     BufferDesc bufferDesc;
     bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource | BufferUsage::ConstantBuffer;
@@ -109,19 +119,19 @@ RefPtr<StagingHeap::Page> StagingHeap::allocPage(size_t size)
     bufferDesc.memoryType = MemoryType::Upload;
     bufferDesc.size = size;
 
-    // TODO(staging-heap): Check for failure
-    m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef());
+    // Attempt to create buffer.
+    SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
-    // Create page and store buffer pointer
-    RefPtr<Page> page = new Page(m_nextPageId++, checked_cast<Buffer*>(bufferPtr.get()));
+    // Create page and store buffer pointer.
+    StagingHeap::Page* page = new Page(m_nextPageId++, checked_cast<Buffer*>(bufferPtr.get()));
     m_pages.insert({page->getId(), page});
     m_totalCapacity += size;
 
-    // TODO(staging-heap): Find out what this is
-    //  The buffer is owned by the page.
+    // Break references to device as buffer is owned by heap, which is owned by device.
     page->getBuffer()->comFree();
 
-    return page;
+    *outPage = page;
+    return SLANG_OK;
 }
 
 void StagingHeap::checkConsistency()

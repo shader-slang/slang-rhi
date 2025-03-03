@@ -111,7 +111,8 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
     CHECK_EQ(heap.getUsed(), 0);
     CHECK_EQ(heap.getNumPages(), 0);
 
-    auto allocation = heap.alloc(16, {2});
+    StagingHeap::Allocation allocation;
+    heap.alloc(16, {2}, &allocation);
     heap.checkConsistency();
 
     CHECK_EQ(allocation.getOffset(), 0);
@@ -121,7 +122,8 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
     CHECK_EQ(heap.getNumPages(), 1);
     CHECK_EQ(heap.getUsed(), alloc_size);
 
-    auto allocation2 = heap.alloc(16, {3});
+    StagingHeap::Allocation allocation2;
+    heap.alloc(16, {3}, &allocation2);
     heap.checkConsistency();
 
     CHECK_EQ(allocation2.getOffset(), alloc_size);
@@ -148,27 +150,32 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     StagingHeap heap;
     heap.initialize((Device*)device);
 
-    auto allocation = heap.alloc(16, {2});
+    StagingHeap::Allocation allocation;
+    heap.alloc(16, {2}, &allocation);
     heap.checkConsistency();
     CHECK_EQ(allocation.getOffset(), 0);
     CHECK_EQ(allocation.getPageId(), 1);
 
-    auto big_allocation = heap.alloc(heap.getPageSize() + 1, {2});
+    StagingHeap::Allocation big_allocation;
+    heap.alloc(heap.getPageSize() + 1, {2}, &big_allocation);
     heap.checkConsistency();
     CHECK_EQ(big_allocation.getOffset(), 0);
     CHECK_EQ(big_allocation.getPageId(), 2);
 
-    auto allocation2 = heap.alloc(16, {2});
+    StagingHeap::Allocation allocation2;
+    heap.alloc(16, {2}, &allocation2);
     heap.checkConsistency();
     CHECK_EQ(allocation2.getOffset(), heap.getAlignment());
     CHECK_EQ(allocation2.getPageId(), 1);
 
-    auto big_allocation2 = heap.alloc(heap.getPageSize() + 1, {2});
+    StagingHeap::Allocation big_allocation2;
+    heap.alloc(heap.getPageSize() + 1, {2}, &big_allocation2);
     heap.checkConsistency();
     CHECK_EQ(big_allocation2.getOffset(), 0);
     CHECK_EQ(big_allocation2.getPageId(), 3);
 
-    auto allocation3 = heap.alloc(16, {2});
+    StagingHeap::Allocation allocation3;
+    heap.alloc(16, {2}, &allocation3);
     heap.checkConsistency();
     CHECK_EQ(allocation3.getOffset(), heap.getAlignment() * 2);
     CHECK_EQ(allocation3.getPageId(), 1);
@@ -185,7 +192,8 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
     std::vector<StagingHeap::Allocation> allocations;
     for (Size i = 0; i < 16; i++)
     {
-        auto allocation = heap.alloc(alloc_size, {(int)i});
+        StagingHeap::Allocation allocation;
+        heap.alloc(alloc_size, {(int)i}, &allocation);
         heap.checkConsistency();
         CHECK_EQ(allocation.getOffset(), i * alloc_size);
         CHECK_EQ(allocation.getPageId(), 1);
@@ -199,7 +207,8 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
     heap.checkConsistency();
 
     // Make a new allocation that should reuse the free space.
-    auto allocation = heap.alloc(alloc_size * 2, {2});
+    StagingHeap::Allocation allocation;
+    heap.alloc(alloc_size * 2, {2}, &allocation);
     heap.checkConsistency();
     CHECK_EQ(allocation.getOffset(), 3 * alloc_size);
     CHECK_EQ(allocation.getPageId(), 1);
@@ -212,7 +221,8 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
 
     // Make an allocation using ref counted handle within a scope.
     {
-        auto handle = heap.allocHandle(16, {2});
+        RefPtr<StagingHeap::Handle> handle;
+        heap.allocHandle(16, {2}, handle.writeRef());
         heap.checkConsistency();
         CHECK_EQ(handle->getOffset(), 0);
         CHECK_EQ(handle->getPageId(), 1);
