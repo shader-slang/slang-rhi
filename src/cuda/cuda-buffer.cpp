@@ -117,10 +117,12 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
     return SLANG_OK;
 }
 
-Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    *outData = (void*)bufferImpl->m_cudaMemory;
+    if (offset + size > bufferImpl->m_desc.size)
+        return SLANG_E_BUFFER_TOO_SMALL;
+    *outData = ((uint8_t*)bufferImpl->m_cudaMemory)+offset;
     return SLANG_OK;
 }
 

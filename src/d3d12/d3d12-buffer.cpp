@@ -152,9 +152,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
     return allocation.cpuHandle;
 }
 
-Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (offset + size > bufferImpl->m_desc.size)
+        return SLANG_E_BUFFER_TOO_SMALL;
     SLANG_RETURN_ON_FAIL(bufferImpl->m_resource.getResource()->Map(0, nullptr, outData));
     return SLANG_OK;
 }

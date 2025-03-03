@@ -47,7 +47,8 @@ public:
     createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

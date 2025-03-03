@@ -91,7 +91,7 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     *outData = bufferImpl->m_buffer->contents();

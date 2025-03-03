@@ -102,7 +102,7 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
@@ -116,9 +116,6 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         mapMode = WGPUMapMode_Write;
         break;
     }
-
-    size_t offset = 0;
-    size_t size = bufferImpl->m_desc.size;
 
     WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
     WGPUBufferMapCallbackInfo2 callbackInfo = {};

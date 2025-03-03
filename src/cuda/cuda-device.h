@@ -50,7 +50,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 

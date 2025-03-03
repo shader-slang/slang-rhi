@@ -33,9 +33,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
 {
-    *outData = checked_cast<BufferImpl*>(buffer)->m_data;
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (offset + size > bufferImpl->m_desc.size)
+        return SLANG_E_BUFFER_TOO_SMALL;
+
+    *outData = checked_cast<BufferImpl*>(buffer)->m_data+offset;
     return SLANG_OK;
 }
 

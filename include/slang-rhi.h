@@ -2318,6 +2318,28 @@ public:
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
+    {
+        // Default implementation just maps the whole buffer and returns a
+        // pointer to the correct region.
+
+        // Verify the range fits.
+        Size total_size = buffer->getDesc().size;
+        if (offset + size > total_size)
+        {
+            *outData = nullptr;
+            return SLANG_E_BUFFER_TOO_SMALL;
+        }
+
+        // Map the whole buffer, bailing on failure.
+        SLANG_RETURN_ON_FAIL(mapBuffer(buffer, mode, outData));
+
+        // Adjust result to account for the offset and return.
+        *outData = ((uint8_t*)*outData) + offset;
+        return SLANG_OK;
+    }
+
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) = 0;

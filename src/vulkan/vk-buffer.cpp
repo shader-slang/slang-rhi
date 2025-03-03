@@ -331,11 +331,11 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     return SLANG_OK;
 }
 
-Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
+Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData)
+        m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, offset, size, 0, outData)
     );
     return SLANG_OK;
 }
