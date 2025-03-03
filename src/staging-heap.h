@@ -15,11 +15,14 @@ namespace rhi {
 class StagingHeap: public RefObject
 {
 public:
+
+    // Arbitrary meta data that sits within heap node to store extra info about allocation.
     struct MetaData
     {
         int use;
     };
 
+    // Heap node, represents a free or allocated range of memory in a page.
     struct Node
     {
         Offset offset;
@@ -29,6 +32,7 @@ public:
         MetaData metadata;
     };
 
+    // Memory allocation within heap.
     struct Allocation
     {
         std::list<Node>::iterator node;
@@ -38,11 +42,9 @@ public:
         Size getSize() const { return node->size; }
         int getPageId() const { return node->pageid; }
         const MetaData& getMetaData() const { return node->metadata; }
-
     };
 
-
-
+    // Handle to a memory allocation that automatically frees the allocation when handle is freed.
     class Handle : public RefObject
     {
     public:
@@ -65,22 +67,32 @@ public:
         Allocation m_allocation;
     };
 
+    // Memory page within heap.
     class Page : public RefObject
     {
     public:
 
         Page(int id, RefPtr<Buffer> buffer);
 
+        // Allocate a node from the page heap.
         bool allocNode(Size size, StagingHeap::MetaData metadata, std::list<Node>::iterator& res);
 
+        // Free a node.
         void freeNode(std::list<Node>::iterator node);
 
+        // Get page id.
         int getId() const { return m_id; }
+
+        // Get device buffer mapped to this page.
         RefPtr<Buffer> getBuffer() const { return m_buffer; }
 
+        // Get total capacity of the page.
         size_t getCapacity() const { return m_total_capacity; }
+
+        // Get total used in the page.
         size_t getUsed() const { return m_total_used; }
 
+        // Debug check consistency of page's heap.
         void checkConsistency();
 
     private:
@@ -104,16 +116,25 @@ public:
     // Free existing allocation.
     void free(Allocation allocation);
 
-    // Get total allocated pages.
-    size_t getNumPages() { return m_pages.size(); }
-
     // Debug check consistency of heap
     void checkConsistency();
 
+    // Get total allocated pages.
+    size_t getNumPages() { return m_pages.size(); }
+
+    // Get total capacity of heap.
     Size getCapacity() const { return m_total_capacity; }
+
+    // Get current usage in heap.
     Size getUsed() const { return m_total_used; }
+
+    // Get alignment of heap.
     Size getAlignment() const { return m_alignment; }
 
+    // Get default page size.
+    Size getPageSize() const { return m_page_size; }
+
+    // Align a size to that of heap allocations.
     Size alignUp(Size value)
     {
         return (value + m_alignment - 1) / m_alignment * m_alignment;

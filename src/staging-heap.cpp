@@ -97,7 +97,7 @@ RefPtr<StagingHeap::Page> StagingHeap::allocPage(size_t size)
     m_pages.insert({page->getId(), page});
     m_total_capacity += size;
 
-    // TODO(staging-heap): Check wtf this is
+    // TODO(staging-heap): Find out what this is
     //  The buffer is owned by the page.
     page->getBuffer()->comFree();
 
@@ -126,23 +126,33 @@ StagingHeap::Page::Page(int id, RefPtr<Buffer> buffer)
 
 bool StagingHeap::Page::allocNode(Size size, StagingHeap::MetaData metadta, std::list<Node>::iterator& res)
 {
+    // Scan nodes for a free slot greater than or equal to size requested
     for (auto node = m_nodes.begin(); node != m_nodes.end(); ++node)
     {
         if (node->free && node->size >= size)
         {
+            // Got one. Increment total used in page.
             m_total_used += size;
+
+            // If node is bigger than necessary, split it.
             if (node->size > size)
             {
                 auto next = std::next(node);
                 m_nodes.insert(next, {node->offset + size, node->size - size, true, m_id, {}});
                 node->size = size;
             }
+
+            // Mark node as not free, and store meta data.
             node->free = false;
             node->metadata = metadta;
+
+            // Return iterator to node.
             res = node;
             return true;
         }
     }
+
+    // No free node found.
     res = m_nodes.end();
     return false;
 }
@@ -152,8 +162,10 @@ void StagingHeap::Page::freeNode(std::list<StagingHeap::Node>::iterator node)
     SLANG_RHI_ASSERT(!node->free);
     SLANG_RHI_ASSERT(node->pageid == m_id);
 
+    // Decrement total used in page.
     m_total_used -= node->size;
 
+    // Merge with previous node if it exists and is free.
     if (node != m_nodes.begin())
     {
         auto prev = std::prev(node);
@@ -165,6 +177,7 @@ void StagingHeap::Page::freeNode(std::list<StagingHeap::Node>::iterator node)
         }
     }
 
+    // Merge with next node if it exists and is free.
     auto next = std::next(node);
     if (next != m_nodes.end())
     {
@@ -175,6 +188,7 @@ void StagingHeap::Page::freeNode(std::list<StagingHeap::Node>::iterator node)
         }
     }
 
+    // Mark node as free.
     node->free = true;
 }
 
@@ -185,20 +199,33 @@ void StagingHeap::Page::checkConsistency()
     bool prev_free = false;
     for (StagingHeap::Node& node : m_nodes)
     {
+        // Check node page is correct.
         SLANG_RHI_ASSERT(node.pageid == m_id);
+
+        // Check node offset matches the tracked offset.
         SLANG_RHI_ASSERT(node.offset == offset);
+
+        // Track total allocated.
         if (!node.free)
         {
             total_used += node.size;
         }
+
+        // Check for free node following a free node.
         if (offset != 0 && node.free)
         {
             SLANG_RHI_ASSERT(!prev_free);
         }
+
+        // Track offset + free state.
         offset += node.size;
         prev_free = node.free;
     }
+
+    // Check total used matches tracked total used.
     SLANG_RHI_ASSERT(total_used == m_total_used);
+
+    // Check total capacity matches tracked total capacity.
     SLANG_RHI_ASSERT(offset == m_total_capacity);
 }
 
