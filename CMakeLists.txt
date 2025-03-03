@@ -647,8 +647,8 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
-        tests/test-clear-texture.cpp
         tests/test-cmd-clear-buffer.cpp
+        tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
         tests/test-cmd-upload.cpp
         tests/test-compute-smoke.cpp

@@ -54,7 +54,9 @@ public:
     void cmdCopyTexture(const commands::CopyTexture& cmd);
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
-    void cmdClearTexture(const commands::ClearTexture& cmd);
+    void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
+    void cmdClearTextureUInt(const commands::ClearTextureUInt& cmd);
+    void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -156,10 +158,28 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
     m_immediateContext->ClearUnorderedAccessViewUint(uav, clearValues);
 }
 
-void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
+void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+}
+
+void CommandExecutor::cmdClearTextureUInt(const commands::ClearTextureUInt& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureUInt);
+}
+
+void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    ID3D11DepthStencilView* dsv = texture->getDSV(texture->m_desc.format, cmd.subresourceRange);
+    UINT clearFlags = 0;
+    if (cmd.clearDepth)
+        clearFlags |= D3D11_CLEAR_DEPTH;
+    if (cmd.clearStencil)
+        clearFlags |= D3D11_CLEAR_STENCIL;
+    m_immediateContext->ClearDepthStencilView(dsv, clearFlags, cmd.depthValue, cmd.stencilValue);
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)

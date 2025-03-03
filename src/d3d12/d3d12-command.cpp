@@ -72,7 +72,9 @@ public:
     void cmdCopyTexture(const commands::CopyTexture& cmd);
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
-    void cmdClearTexture(const commands::ClearTexture& cmd);
+    void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
+    void cmdClearTextureUInt(const commands::ClearTextureUInt& cmd);
+    void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -349,6 +351,7 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     );
 }
 
+#if 0
 void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
@@ -398,6 +401,25 @@ void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
             m_cmdList->ClearRenderTargetView(rtv, cmd.clearValue.color.floatValues, 0, nullptr);
         }
     }
+}
+#endif
+
+void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd) {}
+
+void CommandRecorder::cmdClearTextureUInt(const commands::ClearTextureUInt& cmd) {}
+
+void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    requireTextureState(texture, cmd.subresourceRange, ResourceState::DepthWrite);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv =
+        texture->getDSV(texture->m_desc.format, texture->m_desc.type, TextureAspect::All, cmd.subresourceRange);
+    D3D12_CLEAR_FLAGS clearFlags = (D3D12_CLEAR_FLAGS)0;
+    if (cmd.clearDepth)
+        clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
+    if (cmd.clearStencil)
+        clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
+    m_cmdList->ClearDepthStencilView(dsv, clearFlags, cmd.depthValue, cmd.stencilValue, 0, nullptr);
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
