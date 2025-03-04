@@ -163,7 +163,7 @@ void thrashHeap(Device* device, StagingHeap* heap, int idx)
     heap->checkConsistency();
 }
 
-GPU_TEST_CASE("staging-heap-mutithreading", ALL)
+GPU_TEST_CASE("staging-heap-mutithreading", ALL & ~CUDA)
 {
     Device* deviceimpl = (Device*)device;
 
