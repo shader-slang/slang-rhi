@@ -697,7 +697,6 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
 template<typename T>
 void testCopyTexture(IDevice* device)
 {
-    // Skip Type::Unknown and Type::Buffer as well as Format::Undefined
     // TODO: Add support for TextureCube
     Format formats[] = {
         Format::R8G8B8A8_UNORM,
