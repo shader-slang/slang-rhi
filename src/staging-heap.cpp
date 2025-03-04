@@ -5,11 +5,18 @@
 
 namespace rhi {
 
+const std::thread::id NO_THREAD_ID;
+
 void StagingHeap::initialize(Device* device, Size pageSize)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_device = device;
     m_pageSize = pageSize;
+
+    // Can safely keep pages mapped for all platforms other than Web GPU.
+    // If this gets any more complex, should init staging heap separately per device
+    // with correct configs, but for a single bool that seems overkill.
+    m_keepPagesMapped = device->getDeviceInfo().deviceType != DeviceType::WGPU;
 }
 
 void StagingHeap::releaseAllFreePages()
@@ -35,38 +42,54 @@ void StagingHeap::release()
 
 Result StagingHeap::allocHandle(size_t size, MetaData metadata, StagingHeap::Handle** outHandle)
 {
-    // note: no lock here - alloc does the mutex locking internally.
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return allocHandleInternal(size, metadata, outHandle);
+}
 
+Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocation* outAllocation)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return allocInternal(size, metadata, outAllocation);
+}
+
+Result StagingHeap::allocHandleInternal(size_t size, MetaData metadata, StagingHeap::Handle** outHandle)
+{
     *outHandle = nullptr;
     Allocation allocation;
-    SLANG_RETURN_ON_FAIL(alloc(size, metadata, &allocation));
+    SLANG_RETURN_ON_FAIL(allocInternal(size, metadata, &allocation));
 
     RefPtr<Handle> res = new Handle(this, allocation);
     returnRefPtr(outHandle, res);
     return SLANG_OK;
 }
 
-Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocation* outAllocation)
+Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::Allocation* outAllocation)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     // Get aligned size.
     size_t alignedSize = alignUp(size);
+
+    // If pages are kept mapped, then can't have multiple threads allocating from the same page,
+    // so record the thread id to lock pages to.
+    auto thread_id = m_keepPagesMapped ? NO_THREAD_ID : std::this_thread::get_id();
 
     // Attempt to allocate from page if size is less than page size.
     if (alignedSize < m_pageSize)
     {
-        for (auto& page : m_pages)
+        for (auto& page_pair : m_pages)
         {
-            std::list<Node>::iterator node;
-            if (page.second->allocNode(alignedSize, metadata, node))
+            Page* page = page_pair.second;
+            if (page->getLockedToThread() == NO_THREAD_ID || page->getLockedToThread() == thread_id)
             {
-                Allocation res;
-                res.buffer = page.second->getBuffer();
-                res.node = node;
-                m_totalUsed += alignedSize;
-                *outAllocation = res;
-                return SLANG_OK;
+                std::list<Node>::iterator node;
+                if (page->allocNode(alignedSize, metadata, thread_id, node))
+                {
+                    Allocation res;
+                    res.buffer = page->getBuffer();
+                    res.node = node;
+                    m_totalUsed += alignedSize;
+                    *outAllocation = res;
+                    return SLANG_OK;
+                }
             }
         }
     }
@@ -76,7 +99,7 @@ Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocatio
     Page* page;
     SLANG_RETURN_ON_FAIL(allocPage(pageSize, &page));
     std::list<Node>::iterator node;
-    page->allocNode(alignedSize, metadata, node);
+    page->allocNode(alignedSize, metadata, thread_id, node);
 
     Allocation res;
     res.buffer = page->getBuffer();
@@ -84,6 +107,58 @@ Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocatio
     m_totalUsed += alignedSize;
 
     *outAllocation = res;
+    return SLANG_OK;
+}
+
+Result StagingHeap::stageHandle(void* data, size_t size, MetaData metadata, Handle** outHandle)
+{
+    // Perform thread safe allocation + get pointer to page.
+    Page* page;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RETURN_ON_FAIL(allocHandleInternal(size, metadata, outHandle));
+        page = m_pages[(*outHandle)->getPageId()];
+    }
+
+    if (m_keepPagesMapped)
+    {
+        // Fast path for targets that can maintain mapped pages.
+        memcpy(page->getMapped() + (*outHandle)->getOffset(), data, size);
+    }
+    else
+    {
+        // Slow path for targets that need to map/unmap on demand. Note once allocated, the
+        // page is locked to the thread, so it's safe to use outside of mutex context.
+        page->map(m_device);
+        memcpy(page->getMapped() + (*outHandle)->getOffset(), data, size);
+        page->unmap(m_device);
+    }
+    return SLANG_OK;
+}
+
+Result StagingHeap::stage(void* data, size_t size, MetaData metadata, Allocation* outAllocation)
+{
+    // Perform thread safe allocation + get pointer to page.
+    Page* page;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RETURN_ON_FAIL(allocInternal(size, metadata, outAllocation));
+        page = m_pages[outAllocation->getPageId()];
+    }
+
+    if (m_keepPagesMapped)
+    {
+        // Fast path for targets that can maintain mapped pages
+        memcpy(page->getMapped() + outAllocation->getOffset(), data, size);
+    }
+    else
+    {
+        // Slow path for targets that need to map/unmap on demand. Note once allocated, the
+        // page is locked to the thread, so it's safe to use outside of mutex context.
+        page->map(m_device);
+        memcpy(page->getMapped() + outAllocation->getOffset(), data, size);
+        page->unmap(m_device);
+    }
     return SLANG_OK;
 }
 
@@ -139,6 +214,10 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
     // Break references to device as buffer is owned by heap, which is owned by device.
     page->getBuffer()->comFree();
 
+    // If always mapped, map page now
+    if (m_keepPagesMapped)
+        page->map(m_device);
+
     *outPage = page;
     return SLANG_OK;
 }
@@ -147,6 +226,11 @@ void StagingHeap::freePage(StagingHeap::Page* page)
 {
     SLANG_RHI_ASSERT(page->getUsed() == 0);
     m_totalCapacity -= page->getCapacity();
+
+    // If always mapped, unmap page now
+    if (m_keepPagesMapped)
+        page->unmap(m_device);
+
     m_pages.erase(page->getId());
 }
 
@@ -171,8 +255,16 @@ StagingHeap::Page::Page(int id, RefPtr<Buffer> buffer)
     m_nodes.push_back({0, m_totalCapacity, true, m_id, {}});
 };
 
-bool StagingHeap::Page::allocNode(Size size, StagingHeap::MetaData metadta, std::list<Node>::iterator& res)
+bool StagingHeap::Page::allocNode(
+    Size size,
+    StagingHeap::MetaData metadta,
+    std::thread::id lock_to_thread,
+    std::list<Node>::iterator& res
+)
 {
+    // Check if page is locked to a thread, and if so, that it is the same thread.
+    SLANG_RHI_ASSERT(m_locked_to_thread == lock_to_thread || m_locked_to_thread == NO_THREAD_ID);
+
     // Scan nodes for a free slot greater than or equal to size requested
     for (auto node = m_nodes.begin(); node != m_nodes.end(); ++node)
     {
@@ -192,6 +284,9 @@ bool StagingHeap::Page::allocNode(Size size, StagingHeap::MetaData metadta, std:
             // Mark node as not free, and store meta data.
             node->free = false;
             node->metadata = metadta;
+
+            // Lock to the thread (if specified)
+            m_locked_to_thread = lock_to_thread;
 
             // Return iterator to node.
             res = node;
@@ -237,6 +332,10 @@ void StagingHeap::Page::freeNode(std::list<StagingHeap::Node>::iterator node)
 
     // Mark node as free.
     node->free = true;
+
+    // Unlock thread if back to 0 allocs
+    if (m_totalUsed == 0)
+        m_locked_to_thread = NO_THREAD_ID;
 }
 
 void StagingHeap::Page::checkConsistency()
@@ -274,6 +373,20 @@ void StagingHeap::Page::checkConsistency()
 
     // Check total capacity matches tracked total capacity.
     SLANG_RHI_ASSERT(offset == m_totalCapacity);
+}
+
+Result StagingHeap::Page::map(Device* device)
+{
+    SLANG_RHI_ASSERT(!m_mapped);
+    return device->mapBuffer(m_buffer, CpuAccessMode::Write, &m_mapped);
+}
+
+Result StagingHeap::Page::unmap(Device* device)
+{
+    SLANG_RHI_ASSERT(m_mapped);
+    SLANG_RETURN_ON_FAIL(device->unmapBuffer(m_buffer));
+    m_mapped = nullptr;
+    return SLANG_OK;
 }
 
 } // namespace rhi

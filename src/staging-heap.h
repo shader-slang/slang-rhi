@@ -10,6 +10,7 @@
 #include <list>
 #include <unordered_map>
 #include <mutex>
+#include <thread>
 
 namespace rhi {
 
@@ -74,7 +75,12 @@ public:
         Page(int id, RefPtr<Buffer> buffer);
 
         // Allocate a node from the page heap.
-        bool allocNode(Size size, StagingHeap::MetaData metadata, std::list<Node>::iterator& res);
+        bool allocNode(
+            Size size,
+            StagingHeap::MetaData metadata,
+            std::thread::id lock_to_thread,
+            std::list<Node>::iterator& res
+        );
 
         // Free a node.
         void freeNode(std::list<Node>::iterator node);
@@ -91,6 +97,18 @@ public:
         // Get total used in the page.
         size_t getUsed() const { return m_totalUsed; }
 
+        // Get mapped address
+        uint8_t* getMapped() const { return (uint8_t*)m_mapped; }
+
+        // Get thread id page is locked to (if any)
+        std::thread::id getLockedToThread() const { return m_locked_to_thread; }
+
+        // Map page
+        Result map(Device* device);
+
+        // Unmap page
+        Result unmap(Device* device);
+
         // Debug check consistency of page's heap.
         void checkConsistency();
 
@@ -100,6 +118,8 @@ public:
         std::list<Node> m_nodes;
         size_t m_totalCapacity = 0;
         size_t m_totalUsed = 0;
+        void* m_mapped = nullptr;
+        std::thread::id m_locked_to_thread;
     };
 
     // Initialize with device pointer.
@@ -114,6 +134,13 @@ public:
 
     // Allocate a block of memory.
     Result alloc(size_t size, MetaData metadata, Allocation* outAllocation);
+
+    // Allocate/store a block of data in the heap and wrap in a ref counted
+    // handle that automatically frees the allocation when handle is freed.
+    Result stageHandle(void* data, size_t size, MetaData metadata, Handle** outHandle);
+
+    // Allocate/store a block of data in the heap.
+    Result stage(void* data, size_t size, MetaData metadata, Allocation* outAllocation);
 
     // Free existing allocation.
     void free(Allocation allocation);
@@ -151,6 +178,9 @@ public:
     // Align a size to that of heap allocations.
     Size alignUp(Size value) { return (value + m_alignment - 1) / m_alignment * m_alignment; }
 
+    // Used by testing system to change whether pages stay mapped
+    void testOnlySetKeepPagesMapped(bool keepPagesMapped) { m_keepPagesMapped = keepPagesMapped; }
+
 private:
     Device* m_device = nullptr;
     int m_nextPageId = 1;
@@ -158,8 +188,13 @@ private:
     Size m_totalUsed = 0;
     Size m_alignment = 1024;
     Size m_pageSize = 16 * 1024 * 1024;
+    bool m_keepPagesMapped = true;
     std::unordered_map<int, RefPtr<Page>> m_pages;
     mutable std::mutex m_mutex;
+
+    Result allocHandleInternal(size_t size, MetaData metadata, Handle** outHandle);
+
+    Result allocInternal(size_t size, MetaData metadata, Allocation* outAllocation);
 
     Result allocPage(size_t size, StagingHeap::Page** outPage);
 

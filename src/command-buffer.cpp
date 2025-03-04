@@ -523,7 +523,7 @@ void CommandEncoder::uploadTextureData(
 void CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     RefPtr<StagingHeap::Handle> handle;
-    getDevice()->m_heap.allocHandle(size, {}, handle.writeRef());
+    getDevice()->m_heap.stageHandle(data, size, {}, handle.writeRef());
 
     m_commandList->retainResource(handle);
 
@@ -534,11 +534,6 @@ void CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, vo
     cmd.src = handle->getBuffer();
     cmd.srcOffset = handle->getOffset();
     cmd.size = size;
-
-    void* buffer;
-    getDevice()->mapBuffer(cmd.src, CpuAccessMode::Write, &buffer);
-    memcpy(((uint8_t*)buffer) + cmd.srcOffset, data, cmd.size);
-    getDevice()->unmapBuffer(cmd.src);
 
     m_commandList->write(std::move(cmd));
 }
