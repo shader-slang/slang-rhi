@@ -8,6 +8,11 @@
 
 namespace rhi::d3d11 {
 
+RenderPipelineImpl::RenderPipelineImpl(Device* device)
+    : RenderPipeline(device)
+{
+}
+
 Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
@@ -154,7 +159,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_programImpl = program;
     pipeline->m_inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
@@ -172,6 +177,11 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_sampleMask = 0xFFFFFFFF;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
+}
+
+ComputePipelineImpl::ComputePipelineImpl(Device* device)
+    : ComputePipeline(device)
+{
 }
 
 Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
@@ -206,7 +216,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         ));
     }
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_programImpl = program;
     pipeline->m_computeShader = computeShader;

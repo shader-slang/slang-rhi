@@ -4,6 +4,11 @@
 
 namespace rhi::d3d11 {
 
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
+    : Buffer(device, desc)
+{
+}
+
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     return 0;
@@ -11,6 +16,8 @@ DeviceAddress BufferImpl::getDeviceAddress()
 
 ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& range)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, range};
 
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -47,13 +54,15 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
         srvDesc.Buffer.NumElements = UINT(range.size / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
     }
 
-    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateShaderResourceView(m_buffer, &srvDesc, srv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateShaderResourceView(m_buffer, &srvDesc, srv.writeRef()));
 
     return srv.get();
 }
 
 ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& range)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, range};
 
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -85,7 +94,7 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
         uavDesc.Buffer.NumElements = UINT(range.size / (formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock));
     }
 
-    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateUnorderedAccessView(m_buffer, &uavDesc, uav.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateUnorderedAccessView(m_buffer, &uavDesc, uav.writeRef()));
 
     return uav.get();
 }
@@ -178,7 +187,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     subresourceData.pSysMem = initData;
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
-    buffer->m_device = this;
 
     SLANG_RETURN_ON_FAIL(
         m_device->CreateBuffer(&bufferDesc, initData ? &subresourceData : nullptr, buffer->m_buffer.writeRef())
