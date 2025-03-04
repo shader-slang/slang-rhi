@@ -29,44 +29,9 @@ public:
         Offset offset;
         Size size;
         bool free;
-        int pageid;
         MetaData metadata;
     };
 
-    // Memory allocation within heap.
-    struct Allocation
-    {
-        std::list<Node>::iterator node;
-        Buffer* buffer;
-
-        Offset getOffset() const { return node->offset; }
-        Size getSize() const { return node->size; }
-        int getPageId() const { return node->pageid; }
-        const MetaData& getMetaData() const { return node->metadata; }
-    };
-
-    // Handle to a memory allocation that automatically frees the allocation when handle is freed.
-    class Handle : public RefObject
-    {
-    public:
-        Handle(StagingHeap* heap, Allocation allocation)
-            : m_heap(heap)
-            , m_allocation(allocation)
-        {
-        }
-        ~Handle() { m_heap->free(m_allocation); }
-
-        Buffer* getBuffer() const { return m_allocation.buffer; }
-
-        Offset getOffset() const { return m_allocation.getOffset(); }
-        Size getSize() const { return m_allocation.getSize(); }
-        int getPageId() const { return m_allocation.getPageId(); }
-        const MetaData& getMetaData() const { return m_allocation.getMetaData(); }
-
-    private:
-        StagingHeap* m_heap;
-        Allocation m_allocation;
-    };
 
     // Memory page within heap.
     class Page : public RefObject
@@ -120,6 +85,43 @@ public:
         size_t m_totalUsed = 0;
         void* m_mapped = nullptr;
         std::thread::id m_locked_to_thread;
+    };
+
+    // Memory allocation within heap.
+    struct Allocation
+    {
+        std::list<Node>::iterator node;
+        Page* page;
+
+        Offset getOffset() const { return node->offset; }
+        Size getSize() const { return node->size; }
+        Page* getPage() const { return page; }
+        int getPageId() const { return page->getId(); }
+        Buffer* getBuffer() const { return page->getBuffer().get(); }
+        const MetaData& getMetaData() const { return node->metadata; }
+    };
+
+    // Handle to a memory allocation that automatically frees the allocation when handle is freed.
+    class Handle : public RefObject
+    {
+    public:
+        Handle(StagingHeap* heap, Allocation allocation)
+            : m_heap(heap)
+            , m_allocation(allocation)
+        {
+        }
+        ~Handle() { m_heap->free(m_allocation); }
+
+        Offset getOffset() const { return m_allocation.getOffset(); }
+        Size getSize() const { return m_allocation.getSize(); }
+        Page* getPage() const { return m_allocation.page; }
+        int getPageId() const { return m_allocation.getPageId(); }
+        Buffer* getBuffer() const { return m_allocation.getBuffer(); }
+        const MetaData& getMetaData() const { return m_allocation.getMetaData(); }
+
+    private:
+        StagingHeap* m_heap;
+        Allocation m_allocation;
     };
 
     // Initialize with device pointer.

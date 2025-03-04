@@ -84,7 +84,7 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
                 if (page->allocNode(alignedSize, metadata, thread_id, node))
                 {
                     Allocation res;
-                    res.buffer = page->getBuffer();
+                    res.page = page;
                     res.node = node;
                     m_totalUsed += alignedSize;
                     *outAllocation = res;
@@ -102,7 +102,7 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
     page->allocNode(alignedSize, metadata, thread_id, node);
 
     Allocation res;
-    res.buffer = page->getBuffer();
+    res.page = page;
     res.node = node;
     m_totalUsed += alignedSize;
 
@@ -112,25 +112,26 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
 
 Result StagingHeap::stageHandle(void* data, size_t size, MetaData metadata, Handle** outHandle)
 {
-    // Perform thread safe allocation + get pointer to page.
-    Page* page;
+    // Perform thread safe allocation.
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         SLANG_RETURN_ON_FAIL(allocHandleInternal(size, metadata, outHandle));
-        page = m_pages[(*outHandle)->getPageId()];
     }
+
+    Page* page = (*outHandle)->getPage();
+    Offset offset = (*outHandle)->getOffset();
 
     if (m_keepPagesMapped)
     {
         // Fast path for targets that can maintain mapped pages.
-        memcpy(page->getMapped() + (*outHandle)->getOffset(), data, size);
+        memcpy(page->getMapped() + offset, data, size);
     }
     else
     {
         // Slow path for targets that need to map/unmap on demand. Note once allocated, the
         // page is locked to the thread, so it's safe to use outside of mutex context.
         page->map(m_device);
-        memcpy(page->getMapped() + (*outHandle)->getOffset(), data, size);
+        memcpy(page->getMapped() + offset, data, size);
         page->unmap(m_device);
     }
     return SLANG_OK;
@@ -138,25 +139,26 @@ Result StagingHeap::stageHandle(void* data, size_t size, MetaData metadata, Hand
 
 Result StagingHeap::stage(void* data, size_t size, MetaData metadata, Allocation* outAllocation)
 {
-    // Perform thread safe allocation + get pointer to page.
-    Page* page;
+    // Perform thread safe allocation.
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         SLANG_RETURN_ON_FAIL(allocInternal(size, metadata, outAllocation));
-        page = m_pages[outAllocation->getPageId()];
     }
+
+    Page* page = outAllocation->getPage();
+    Offset offset = outAllocation->getOffset();
 
     if (m_keepPagesMapped)
     {
         // Fast path for targets that can maintain mapped pages
-        memcpy(page->getMapped() + outAllocation->getOffset(), data, size);
+        memcpy(page->getMapped() + offset, data, size);
     }
     else
     {
         // Slow path for targets that need to map/unmap on demand. Note once allocated, the
         // page is locked to the thread, so it's safe to use outside of mutex context.
         page->map(m_device);
-        memcpy(page->getMapped() + outAllocation->getOffset(), data, size);
+        memcpy(page->getMapped() + offset, data, size);
         page->unmap(m_device);
     }
     return SLANG_OK;
@@ -252,7 +254,7 @@ StagingHeap::Page::Page(int id, RefPtr<Buffer> buffer)
 {
     m_totalCapacity = buffer->getDesc().size;
     m_totalUsed = 0;
-    m_nodes.push_back({0, m_totalCapacity, true, m_id, {}});
+    m_nodes.push_back({0, m_totalCapacity, true, {}});
 };
 
 bool StagingHeap::Page::allocNode(
@@ -277,7 +279,7 @@ bool StagingHeap::Page::allocNode(
             if (node->size > size)
             {
                 auto next = std::next(node);
-                m_nodes.insert(next, {node->offset + size, node->size - size, true, m_id, {}});
+                m_nodes.insert(next, {node->offset + size, node->size - size, true, {}});
                 node->size = size;
             }
 
@@ -302,7 +304,6 @@ bool StagingHeap::Page::allocNode(
 void StagingHeap::Page::freeNode(std::list<StagingHeap::Node>::iterator node)
 {
     SLANG_RHI_ASSERT(!node->free);
-    SLANG_RHI_ASSERT(node->pageid == m_id);
 
     // Decrement total used in page.
     m_totalUsed -= node->size;
@@ -345,9 +346,6 @@ void StagingHeap::Page::checkConsistency()
     bool prevFree = false;
     for (const StagingHeap::Node& node : m_nodes)
     {
-        // Check node page is correct.
-        SLANG_RHI_ASSERT(node.pageid == m_id);
-
         // Check node offset matches the tracked offset.
         SLANG_RHI_ASSERT(node.offset == offset);
 
