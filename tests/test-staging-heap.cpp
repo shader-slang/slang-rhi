@@ -11,10 +11,12 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+static const Size kPageSize = 16 * 1024 * 1024;
+
 GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     Size allocSize = heap.alignUp(16);
 
@@ -58,7 +60,7 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 GPU_TEST_CASE("staging-heap-large-page", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     StagingHeap::Allocation allocation;
     heap.alloc(16, {2}, &allocation);
@@ -94,7 +96,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     Size allocSize = heap.getPageSize() / 16;
 
@@ -127,7 +129,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
 GPU_TEST_CASE("staging-heap-handles", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     // Make an allocation using ref counted handle within a scope.
     {
@@ -141,4 +143,45 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
 
     // Allocation should be freed when handle goes out of scope.
     CHECK_EQ(heap.getUsed(), 0);
+}
+
+void thrashHeap(Device* device, StagingHeap* heap, int idx)
+{
+    std::vector<StagingHeap::Allocation> allocations;
+    for (int i = 0; i < 1000; i++)
+    {
+        StagingHeap::Allocation allocation;
+        heap->alloc(16, {idx}, &allocation);
+        allocations.push_back(allocation);
+    }
+    heap->checkConsistency();
+    for (auto& allocation : allocations)
+    {
+        heap->free(allocation);
+    }
+    heap->checkConsistency();
+}
+
+GPU_TEST_CASE("staging-heap-mutithreading", ALL)
+{
+    Device* deviceimpl = (Device*)device;
+
+    StagingHeap heap;
+    heap.initialize(deviceimpl, kPageSize);
+
+    std::thread t1(thrashHeap, deviceimpl, &heap, 1);
+    std::thread t2(thrashHeap, deviceimpl, &heap, 2);
+    std::thread t3(thrashHeap, deviceimpl, &heap, 3);
+    std::thread t4(thrashHeap, deviceimpl, &heap, 4);
+    std::thread t5(thrashHeap, deviceimpl, &heap, 5);
+    std::thread t6(thrashHeap, deviceimpl, &heap, 6);
+
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
+    t6.join();
+
+    heap.checkConsistency();
 }

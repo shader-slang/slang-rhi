@@ -9,6 +9,7 @@
 
 #include <list>
 #include <unordered_map>
+#include <mutex>
 
 namespace rhi {
 
@@ -107,9 +108,6 @@ public:
     // Attempt to cleanup and check no allocations remain
     void release();
 
-    // Immediately free all pages
-    void releaseAllFreePages();
-
     // Allocate block of memory and wrap in a ref counted handle that automatically
     // frees the allocation when handle is freed.
     Result allocHandle(size_t size, MetaData metadata, Handle** outHandle);
@@ -124,13 +122,25 @@ public:
     void checkConsistency();
 
     // Get total allocated pages.
-    size_t getNumPages() { return m_pages.size(); }
+    size_t getNumPages()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_pages.size();
+    }
 
     // Get total capacity of heap.
-    Size getCapacity() const { return m_totalCapacity; }
+    Size getCapacity() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_totalCapacity;
+    }
 
     // Get current usage in heap.
-    Size getUsed() const { return m_totalUsed; }
+    Size getUsed() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_totalUsed;
+    }
 
     // Get alignment of heap.
     Size getAlignment() const { return m_alignment; }
@@ -149,8 +159,13 @@ private:
     Size m_alignment = 1024;
     Size m_pageSize = 16 * 1024 * 1024;
     std::unordered_map<int, RefPtr<Page>> m_pages;
+    mutable std::mutex m_mutex;
 
     Result allocPage(size_t size, StagingHeap::Page** outPage);
+
+    void freePage(StagingHeap::Page* page);
+
+    void releaseAllFreePages();
 };
 
 } // namespace rhi

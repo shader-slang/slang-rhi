@@ -7,24 +7,26 @@ namespace rhi {
 
 void StagingHeap::initialize(Device* device, Size pageSize)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_device = device;
     m_pageSize = pageSize;
 }
 
 void StagingHeap::releaseAllFreePages()
 {
-    std::vector<int> pagesToRemove;
+    std::vector<Page*> pagesToRemove;
     for (auto& page : m_pages)
     {
         if (page.second->getUsed() == 0)
-            pagesToRemove.push_back(page.first);
+            pagesToRemove.push_back(page.second.get());
     }
-    for (auto page_id : pagesToRemove)
-        m_pages.erase(page_id);
+    for (auto page : pagesToRemove)
+        freePage(page);
 }
 
 void StagingHeap::release()
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     releaseAllFreePages();
     SLANG_RHI_ASSERT(m_totalUsed == 0);
     SLANG_RHI_ASSERT(m_pages.size() == 0);
@@ -33,6 +35,8 @@ void StagingHeap::release()
 
 Result StagingHeap::allocHandle(size_t size, MetaData metadata, StagingHeap::Handle** outHandle)
 {
+    // note: no lock here - alloc does the mutex locking internally.
+
     *outHandle = nullptr;
     Allocation allocation;
     SLANG_RETURN_ON_FAIL(alloc(size, metadata, &allocation));
@@ -44,6 +48,8 @@ Result StagingHeap::allocHandle(size_t size, MetaData metadata, StagingHeap::Han
 
 Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocation* outAllocation)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     // Get aligned size.
     size_t alignedSize = alignUp(size);
 
@@ -83,6 +89,8 @@ Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocatio
 
 void StagingHeap::free(Allocation allocation)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     // Decrement overall total used (before freeing node).
     m_totalUsed -= allocation.node->size;
 
@@ -100,11 +108,11 @@ void StagingHeap::free(Allocation allocation)
                 if (p.second->getUsed() == 0)
                     empty_pages++;
             if (empty_pages > 1)
-                m_pages.erase(page->getId());
+                freePage(page);
         }
         else
         {
-            m_pages.erase(page->getId());
+            freePage(page);
         }
     }
 }
@@ -135,8 +143,16 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
     return SLANG_OK;
 }
 
+void StagingHeap::freePage(StagingHeap::Page* page)
+{
+    SLANG_RHI_ASSERT(page->getUsed() == 0);
+    m_totalCapacity -= page->getCapacity();
+    m_pages.erase(page->getId());
+}
+
 void StagingHeap::checkConsistency()
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     size_t totalUsed = 0;
     for (auto& page : m_pages)
     {
