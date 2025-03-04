@@ -32,7 +32,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         return SLANG_FAIL;
     }
 
-    Format format = config.format == Format::Unknown ? m_info.preferredFormat : config.format;
+    Format format = config.format == Format::Undefined ? m_info.preferredFormat : config.format;
     m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(format));
     m_metalLayer->setDrawableSize(CGSize{(float)config.width, (float)config.height});
     m_metalLayer->setFramebufferOnly(config.usage == TextureUsage::RenderTarget);

@@ -382,7 +382,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 {
     RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
-    if (view->m_desc.format == Format::Unknown)
+    if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
     returnComPtr(outView, view);

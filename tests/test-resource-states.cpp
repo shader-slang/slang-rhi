@@ -39,7 +39,7 @@ GPU_TEST_CASE("buffer-resource-states", D3D12 | Vulkan)
 
     BufferDesc bufferDesc = {};
     bufferDesc.size = 256;
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = bufferUsage;
     bufferDesc.memoryType = MemoryType::DeviceLocal;

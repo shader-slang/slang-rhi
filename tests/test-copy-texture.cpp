@@ -97,7 +97,7 @@ struct BaseCopyTextureTest
         alignedRowStride = (bufferCopyExtents.width * texelSize + alignment - 1) & ~(alignment - 1);
         BufferDesc bufferDesc = {};
         bufferDesc.size = bufferCopyExtents.height * bufferCopyExtents.depth * alignedRowStride;
-        bufferDesc.format = Format::Unknown;
+        bufferDesc.format = Format::Undefined;
         bufferDesc.elementSize = 0;
         bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                            BufferUsage::CopySource;
@@ -697,7 +697,7 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
 template<typename T>
 void testCopyTexture(IDevice* device)
 {
-    // Skip Type::Unknown and Type::Buffer as well as Format::Unknown
+    // Skip Type::Unknown and Type::Buffer as well as Format::Undefined
     // TODO: Add support for TextureCube
     Format formats[] = {
         Format::R8G8B8A8_UNORM,

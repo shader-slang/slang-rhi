@@ -15,7 +15,7 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(float);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource | BufferUsage::Shared;

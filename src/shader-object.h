@@ -28,7 +28,7 @@ struct ResourceSlot
     BindingType type = BindingType::Unknown;
     RefPtr<Resource> resource;
     RefPtr<Resource> resource2;
-    Format format = Format::Unknown;
+    Format format = Format::Undefined;
     union
     {
         BufferRange bufferRange = kEntireBuffer;

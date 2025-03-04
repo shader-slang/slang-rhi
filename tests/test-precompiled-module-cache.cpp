@@ -148,7 +148,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
     float initialData[] = {0.0f, 0.0f, 0.0f, 0.0f};
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(float);
-    bufferDesc.format = gfx::Format::Unknown;
+    bufferDesc.format = gfx::Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
@@ -160,7 +160,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
     ComPtr<IResourceView> bufferView;
     IResourceView::Desc viewDesc = {};
     viewDesc.type = IResourceView::Type::UnorderedAccess;
-    viewDesc.format = Format::Unknown;
+    viewDesc.format = Format::Undefined;
     REQUIRE_CALL(device->createBufferView(numbersBuffer, nullptr, viewDesc, bufferView.writeRef()));
 
     // We have done all the set up work, now it is time to start recording a command buffer for

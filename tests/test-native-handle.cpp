@@ -15,7 +15,7 @@ GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal)
     const int numberCount = 1;
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(float);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;

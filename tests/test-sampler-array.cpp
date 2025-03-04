@@ -8,7 +8,7 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.size = sizeof(uint32_t);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;

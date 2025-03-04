@@ -157,7 +157,7 @@ enum class Format
     // D3D formats omitted: 19-22, 44-47, 65-66, 68-70, 73, 76, 79, 82, 88-89, 92-94, 97, 100-114
     // These formats are omitted due to lack of a corresponding Vulkan format. D24_UNORM_S8_UINT (DXGI_FORMAT 45)
     // has a matching Vulkan format but is also omitted as it is only supported by Nvidia.
-    Unknown,
+    Undefined,
 
     R32G32B32A32_TYPELESS,
     R32G32B32_TYPELESS,
@@ -533,7 +533,7 @@ struct BufferDesc
     /// Get the element stride. If > 0, this is a structured buffer.
     uint32_t elementSize = 0;
     /// Format used for typed views.
-    Format format = Format::Unknown;
+    Format format = Format::Undefined;
 
     MemoryType memoryType = MemoryType::DeviceLocal;
 
@@ -735,7 +735,7 @@ struct TextureViewDesc
     StructType structType = StructType::TextureViewDesc;
     void* next = nullptr;
 
-    Format format = Format::Unknown;
+    Format format = Format::Undefined;
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
     const char* label = nullptr;
@@ -959,7 +959,7 @@ struct AccelerationStructureBuildInputTriangles
     /// List of vertex buffers, one for each motion step.
     BufferOffsetPair vertexBuffers[kMaxAccelerationStructureMotionKeyCount];
     uint32_t vertexBufferCount = 0;
-    Format vertexFormat = Format::Unknown;
+    Format vertexFormat = Format::Undefined;
     uint32_t vertexCount = 0;
     uint32_t vertexStride = 0;
 
@@ -990,11 +990,11 @@ struct AccelerationStructureBuildInputSpheres
     uint32_t vertexCount = 0;
 
     BufferOffsetPair vertexPositionBuffers[kMaxAccelerationStructureMotionKeyCount];
-    Format vertexPositionFormat = Format::Unknown;
+    Format vertexPositionFormat = Format::Undefined;
     uint32_t vertexPositionStride = 0;
 
     BufferOffsetPair vertexRadiusBuffers[kMaxAccelerationStructureMotionKeyCount];
-    Format vertexRadiusFormat = Format::Unknown;
+    Format vertexRadiusFormat = Format::Undefined;
     uint32_t vertexRadiusStride = 0;
 
     BufferOffsetPair indexBuffer;
@@ -1023,11 +1023,11 @@ struct AccelerationStructureBuildInputLinearSweptSpheres
     uint32_t primitiveCount = 0;
 
     BufferOffsetPair vertexPositionBuffers[kMaxAccelerationStructureMotionKeyCount];
-    Format vertexPositionFormat = Format::Unknown;
+    Format vertexPositionFormat = Format::Undefined;
     uint32_t vertexPositionStride = 0;
 
     BufferOffsetPair vertexRadiusBuffers[kMaxAccelerationStructureMotionKeyCount];
-    Format vertexRadiusFormat = Format::Unknown;
+    Format vertexRadiusFormat = Format::Undefined;
     uint32_t vertexRadiusStride = 0;
 
     BufferOffsetPair indexBuffer;
@@ -1318,7 +1318,7 @@ struct DepthStencilOpDesc
 
 struct DepthStencilDesc
 {
-    Format format = Format::Unknown;
+    Format format = Format::Undefined;
 
     bool depthTestEnable = false;
     bool depthWriteEnable = true;
@@ -1407,7 +1407,7 @@ struct AspectBlendDesc
 
 struct ColorTargetDesc
 {
-    Format format = Format::Unknown;
+    Format format = Format::Undefined;
     AspectBlendDesc color;
     AspectBlendDesc alpha;
     bool enableBlend = false;
@@ -2073,7 +2073,7 @@ struct SurfaceInfo
 
 struct SurfaceConfig
 {
-    Format format = Format::Unknown;
+    Format format = Format::Undefined;
     TextureUsage usage = TextureUsage::RenderTarget;
     // size_t viewFormatCount;
     // const Format* viewFormats;

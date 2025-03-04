@@ -36,7 +36,7 @@ Format convertTypelessFormat(Format format)
     case Format::R10G10B10A2_TYPELESS:
         return Format::R10G10B10A2_UINT;
     default:
-        return Format::Unknown;
+        return Format::Undefined;
     }
 }
 

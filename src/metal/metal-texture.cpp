@@ -208,7 +208,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     auto textureImpl = checked_cast<TextureImpl*>(texture);
     RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(desc);
     viewImpl->m_texture = textureImpl;
-    if (viewImpl->m_desc.format == Format::Unknown)
+    if (viewImpl->m_desc.format == Format::Undefined)
         viewImpl->m_desc.format = viewImpl->m_texture->m_desc.format;
     viewImpl->m_desc.subresourceRange = viewImpl->m_texture->resolveSubresourceRange(desc.subresourceRange);
 
@@ -224,7 +224,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     }
 
     MTL::PixelFormat pixelFormat =
-        desc.format == Format::Unknown ? textureImpl->m_pixelFormat : MetalUtil::translatePixelFormat(desc.format);
+        desc.format == Format::Undefined ? textureImpl->m_pixelFormat : MetalUtil::translatePixelFormat(desc.format);
     NS::Range levelRange(sr.mipLevel, sr.mipLevelCount);
     NS::Range sliceRange(sr.baseArrayLayer, sr.layerCount);
 

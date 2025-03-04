@@ -12,7 +12,7 @@
 namespace rhi::wgpu {
 
 static auto translateWGPUFormat =
-    reverseMap<Format, WGPUTextureFormat>(translateTextureFormat, Format::Unknown, Format::_Count);
+    reverseMap<Format, WGPUTextureFormat>(translateTextureFormat, Format::Undefined, Format::_Count);
 
 SurfaceImpl::~SurfaceImpl()
 {
@@ -77,16 +77,16 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_device->m_ctx.api.wgpuSurfaceGetCapabilities(m_surface, m_device->m_ctx.adapter, &capabilities);
 
     // Get supported formats
-    Format preferredFormat = Format::Unknown;
+    Format preferredFormat = Format::Undefined;
     for (size_t i = 0; i < capabilities.formatCount; i++)
     {
         Format format = translateWGPUFormat(capabilities.formats[i]);
-        if (format != Format::Unknown)
+        if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
         if (format == Format::B8G8R8A8_UNORM)
             preferredFormat = format;
     }
-    if (preferredFormat == Format::Unknown && !m_supportedFormats.empty())
+    if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())
     {
         preferredFormat = m_supportedFormats[0];
     }
@@ -150,7 +150,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     {
         return SLANG_FAIL;
     }
-    if (m_config.format == Format::Unknown)
+    if (m_config.format == Format::Undefined)
     {
         m_config.format = m_info.preferredFormat;
     }

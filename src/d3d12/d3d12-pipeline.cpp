@@ -39,7 +39,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         uint32_t numRenderTargets = desc.targetCount;
 
         {
-            if (desc.depthStencil.format != Format::Unknown)
+            if (desc.depthStencil.format != Format::Undefined)
             {
                 psoDesc.DSVFormat = D3DUtil::getMapFormat(desc.depthStencil.format);
             }

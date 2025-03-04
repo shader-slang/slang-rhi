@@ -66,7 +66,7 @@ ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
 {
     BufferDesc bufferDesc = {};
     bufferDesc.size = size * sizeof(T);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(T);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;

@@ -30,7 +30,7 @@ GPU_TEST_CASE("benchmark-command", ALL)
     }
     BufferDesc bufferDesc = {};
     bufferDesc.size = 32 * sizeof(float);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;

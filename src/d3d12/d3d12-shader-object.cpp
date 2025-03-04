@@ -342,15 +342,17 @@ Result BindingDataBuilder::bindAsValue(
                         d3dDevice->CopyDescriptorsSimple(
                             1,
                             descriptorSet.resources.getCpuHandle(resourceIndex + i),
-                            isSrv
-                                ? buffer
-                                      ->getSRV(Format::Unknown, bindingRangeInfo.bufferElementStride, slot.bufferRange)
-                                : buffer->getUAV(
-                                      Format::Unknown,
-                                      bindingRangeInfo.bufferElementStride,
-                                      slot.bufferRange,
-                                      counterBuffer
-                                  ),
+                            isSrv ? buffer->getSRV(
+                                        Format::Undefined,
+                                        bindingRangeInfo.bufferElementStride,
+                                        slot.bufferRange
+                                    )
+                                  : buffer->getUAV(
+                                        Format::Undefined,
+                                        bindingRangeInfo.bufferElementStride,
+                                        slot.bufferRange,
+                                        counterBuffer
+                                    ),
                             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                         );
                     }

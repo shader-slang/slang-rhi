@@ -102,7 +102,7 @@ struct TextureAccessTest : TextureTest
         // All of the values read back from the shader will be uint32_t
         bufferDesc.size =
             textureDesc.size.width * textureDesc.size.height * textureDesc.size.depth * texelSize * sizeof(uint32_t);
-        bufferDesc.format = Format::Unknown;
+        bufferDesc.format = Format::Undefined;
         bufferDesc.elementSize = sizeof(uint32_t);
         bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
         bufferDesc.defaultState = ResourceState::UnorderedAccess;

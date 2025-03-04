@@ -8,7 +8,7 @@ WGPUTextureFormat translateTextureFormat(Format format)
 {
     switch (format)
     {
-    case Format::Unknown:
+    case Format::Undefined:
         return WGPUTextureFormat_Undefined;
 
     case Format::R32G32B32A32_TYPELESS:

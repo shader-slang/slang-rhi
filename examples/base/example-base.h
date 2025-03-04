@@ -72,7 +72,7 @@ public:
 
     Result createDevice(DeviceType deviceType);
     Result createWindow(uint32_t width = 640, uint32_t height = 360);
-    Result createSurface(Format format = Format::Unknown);
+    Result createSurface(Format format = Format::Undefined);
 };
 
 ExampleBase::~ExampleBase()
