@@ -4,14 +4,15 @@
 
 namespace rhi::vk {
 
-Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
+Result QueryPoolImpl::init()
 {
-    m_device = device;
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     m_pool = VK_NULL_HANDLE;
     VkQueryPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-    createInfo.queryCount = desc.count;
-    switch (desc.type)
+    createInfo.queryCount = m_desc.count;
+    switch (m_desc.type)
     {
     case QueryType::Timestamp:
         createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
@@ -28,20 +29,29 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     default:
         return SLANG_E_INVALID_ARG;
     }
-    SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkCreateQueryPool(m_device->m_api.m_device, &createInfo, nullptr, &m_pool));
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkCreateQueryPool(device->m_api.m_device, &createInfo, nullptr, &m_pool));
 
-    m_device->_labelObject((uint64_t)m_pool, VK_OBJECT_TYPE_QUERY_POOL, desc.label);
+    device->_labelObject((uint64_t)m_pool, VK_OBJECT_TYPE_QUERY_POOL, m_desc.label);
 
     return SLANG_OK;
 }
 
+QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
+    : QueryPool(device, desc)
+{
+}
+
 QueryPoolImpl::~QueryPoolImpl()
 {
-    m_device->m_api.vkDestroyQueryPool(m_device->m_api.m_device, m_pool, nullptr);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    device->m_api.vkDestroyQueryPool(device->m_api.m_device, m_pool, nullptr);
 }
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (!m_pool)
     {
         // Vulkan does not support CurrentSize query, return 0 here.
@@ -50,8 +60,8 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
         return SLANG_OK;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkGetQueryPoolResults(
-        m_device->m_api.m_device,
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(
+        device->m_api.m_device,
         m_pool,
         queryIndex,
         count,
@@ -72,8 +82,8 @@ void _writeTimestamp(VulkanApi* api, VkCommandBuffer vkCmdBuffer, IQueryPool* qu
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
-    RefPtr<QueryPoolImpl> result = new QueryPoolImpl();
-    SLANG_RETURN_ON_FAIL(result->init(desc, this));
+    RefPtr<QueryPoolImpl> result = new QueryPoolImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(result->init());
     returnComPtr(outPool, result);
     return SLANG_OK;
 }

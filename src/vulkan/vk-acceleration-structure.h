@@ -7,17 +7,11 @@ namespace rhi::vk {
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
-    RefPtr<DeviceImpl> m_device;
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
     RefPtr<BufferImpl> m_buffer;
 
 public:
-    AccelerationStructureImpl(DeviceImpl* device, const AccelerationStructureDesc& desc)
-        : AccelerationStructure(desc)
-        , m_device(device)
-    {
-    }
-
+    AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
     ~AccelerationStructureImpl();
 
     // IAccelerationStructure implementation

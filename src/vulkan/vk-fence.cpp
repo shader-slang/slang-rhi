@@ -4,29 +4,33 @@
 
 namespace rhi::vk {
 
-FenceImpl::FenceImpl(DeviceImpl* device)
-    : m_device(device)
+FenceImpl::FenceImpl(Device* device, const FenceDesc& desc)
+    : Fence(device, desc)
 {
 }
 
 FenceImpl::~FenceImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_semaphore)
     {
-        m_device->m_api.vkDestroySemaphore(m_device->m_api.m_device, m_semaphore, nullptr);
+        device->m_api.vkDestroySemaphore(device->m_api.m_device, m_semaphore, nullptr);
     }
 }
 
-Result FenceImpl::init(const FenceDesc& desc)
+Result FenceImpl::init()
 {
-    if (!m_device->m_api.m_extendedFeatures.vulkan12Features.timelineSemaphore)
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_api.m_extendedFeatures.vulkan12Features.timelineSemaphore)
         return SLANG_E_NOT_AVAILABLE;
 
     VkSemaphoreTypeCreateInfo timelineCreateInfo;
     timelineCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
     timelineCreateInfo.pNext = nullptr;
     timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-    timelineCreateInfo.initialValue = desc.initialValue;
+    timelineCreateInfo.initialValue = m_desc.initialValue;
 
     VkSemaphoreCreateInfo createInfo;
     createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -37,7 +41,7 @@ Result FenceImpl::init(const FenceDesc& desc)
     VkExportSemaphoreWin32HandleInfoKHR exportSemaphoreWin32HandleInfoKHR;
 #endif
     VkExportSemaphoreCreateInfoKHR exportSemaphoreCreateInfo;
-    if (desc.isShared)
+    if (m_desc.isShared)
     {
 #if SLANG_WINDOWS_FAMILY
         exportSemaphoreWin32HandleInfoKHR.sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR;
@@ -57,27 +61,26 @@ Result FenceImpl::init(const FenceDesc& desc)
         timelineCreateInfo.pNext = &exportSemaphoreCreateInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkCreateSemaphore(m_device->m_api.m_device, &createInfo, nullptr, &m_semaphore)
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkCreateSemaphore(device->m_api.m_device, &createInfo, nullptr, &m_semaphore)
     );
 
-    m_device->_labelObject((uint64_t)m_semaphore, VK_OBJECT_TYPE_FENCE, desc.label);
+    device->_labelObject((uint64_t)m_semaphore, VK_OBJECT_TYPE_FENCE, m_desc.label);
 
     return SLANG_OK;
 }
 
 Result FenceImpl::getCurrentValue(uint64_t* outValue)
 {
-    SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkGetSemaphoreCounterValue(m_device->m_api.m_device, m_semaphore, outValue)
-    );
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetSemaphoreCounterValue(device->m_api.m_device, m_semaphore, outValue));
     return SLANG_OK;
 }
 
 Result FenceImpl::setCurrentValue(uint64_t value)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     uint64_t currentValue = 0;
-    SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkGetSemaphoreCounterValue(m_device->m_api.m_device, m_semaphore, &currentValue)
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetSemaphoreCounterValue(device->m_api.m_device, m_semaphore, &currentValue)
     );
     if (currentValue < value)
     {
@@ -87,7 +90,7 @@ Result FenceImpl::setCurrentValue(uint64_t value)
         signalInfo.semaphore = m_semaphore;
         signalInfo.value = value;
 
-        SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkSignalSemaphore(m_device->m_api.m_device, &signalInfo));
+        SLANG_VK_RETURN_ON_FAIL(device->m_api.vkSignalSemaphore(device->m_api.m_device, &signalInfo));
     }
     return SLANG_OK;
 }
@@ -101,6 +104,8 @@ Result FenceImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     // Check if a shared handle already exists.
     if (sharedHandle)
     {
@@ -114,11 +119,9 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
     handleInfo.semaphore = m_semaphore;
     handleInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
-    SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkGetSemaphoreWin32HandleKHR(
-        m_device->m_api.m_device,
-        &handleInfo,
-        (HANDLE*)&sharedHandle.value
-    ));
+    SLANG_VK_RETURN_ON_FAIL(
+        device->m_api.vkGetSemaphoreWin32HandleKHR(device->m_api.m_device, &handleInfo, (HANDLE*)&sharedHandle.value)
+    );
     sharedHandle.type = NativeHandleType::Win32;
 #else
     VkSemaphoreGetFdInfoKHR fdInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
@@ -127,7 +130,7 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
     fdInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
 
     SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkGetSemaphoreFdKHR(m_device->m_api.m_device, &fdInfo, (int*)&sharedHandle.value)
+        device->m_api.vkGetSemaphoreFdKHR(device->m_api.m_device, &fdInfo, (int*)&sharedHandle.value)
     );
     sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
@@ -137,8 +140,8 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
-    RefPtr<FenceImpl> fence = new FenceImpl(this);
-    SLANG_RETURN_ON_FAIL(fence->init(desc));
+    RefPtr<FenceImpl> fence = new FenceImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(fence->init());
     returnComPtr(outFence, fence);
     return SLANG_OK;
 }

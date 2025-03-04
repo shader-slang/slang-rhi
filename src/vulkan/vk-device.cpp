@@ -1405,7 +1405,6 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
-    result->m_device = this;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
     createInfo.offset = 0;
@@ -1738,9 +1737,7 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
-    RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
-    result->m_device = this;
-    result->init(desc);
+    RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;
 }

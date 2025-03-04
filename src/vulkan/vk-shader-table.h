@@ -7,8 +7,6 @@ namespace rhi::vk {
 class ShaderTableImpl : public ShaderTable
 {
 public:
-    RefPtr<DeviceImpl> m_device;
-
     uint32_t m_raygenTableSize;
     uint32_t m_missTableSize;
     uint32_t m_hitTableSize;
@@ -16,6 +14,8 @@ public:
 
     std::mutex m_mutex;
     std::map<RayTracingPipelineImpl*, RefPtr<BufferImpl>> m_buffers;
+
+    ShaderTableImpl(Device* device, const ShaderTableDesc& desc);
 
     BufferImpl* getBuffer(RayTracingPipelineImpl* pipeline);
 };
