@@ -4,18 +4,21 @@
 
 namespace rhi::metal {
 
+FenceImpl::FenceImpl(Device* device, const FenceDesc& desc)
+    : Fence(device, desc)
+{
+}
+
 FenceImpl::~FenceImpl() {}
 
-Result FenceImpl::init(DeviceImpl* device, const FenceDesc& desc)
+Result FenceImpl::init()
 {
-    m_device = device;
-
-    m_event = NS::TransferPtr(m_device->m_device->newSharedEvent());
+    m_event = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newSharedEvent());
     if (!m_event)
     {
         return SLANG_FAIL;
     }
-    m_event->setSignaledValue(desc.initialValue);
+    m_event->setSignaledValue(m_desc.initialValue);
 
     m_eventListener = NS::TransferPtr(MTL::SharedEventListener::alloc()->init());
     if (!m_eventListener)
@@ -90,8 +93,8 @@ Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
     AUTORELEASEPOOL
 
-    RefPtr<FenceImpl> fenceImpl = new FenceImpl();
-    SLANG_RETURN_ON_FAIL(fenceImpl->init(this, desc));
+    RefPtr<FenceImpl> fenceImpl = new FenceImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(fenceImpl->init());
     returnComPtr(outFence, fenceImpl);
     return SLANG_OK;
 }

@@ -17,6 +17,8 @@ public:
     RasterizerDesc m_rasterizerDesc;
     NS::UInteger m_vertexBufferOffset;
 
+    RenderPipelineImpl(Device* device);
+
     // IRenderPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
@@ -27,6 +29,8 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     NS::SharedPtr<MTL::ComputePipelineState> m_pipelineState;
     MTL::Size m_threadGroupSize;
+
+    ComputePipelineImpl(Device* device);
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

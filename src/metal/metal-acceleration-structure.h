@@ -7,17 +7,11 @@ namespace rhi::metal {
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
-    DeviceImpl* m_device;
     NS::SharedPtr<MTL::AccelerationStructure> m_accelerationStructure;
     uint32_t m_globalIndex;
 
 public:
-    AccelerationStructureImpl(DeviceImpl* device, const AccelerationStructureDesc& desc)
-        : AccelerationStructure(desc)
-        , m_device(device)
-    {
-    }
-
+    AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
     ~AccelerationStructureImpl();
 
     // IAccelerationStructure implementation

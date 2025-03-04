@@ -59,7 +59,7 @@ Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
     textureDesc.size.depth = 1;
     textureDesc.mipLevelCount = 1;
     textureDesc.defaultState = ResourceState::Present;
-    RefPtr<TextureImpl> texture = new TextureImpl(textureDesc);
+    RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
     texture->m_texture = NS::RetainPtr(m_currentDrawable->texture());
     texture->m_textureType = texture->m_texture->textureType();
     texture->m_pixelFormat = texture->m_texture->pixelFormat();

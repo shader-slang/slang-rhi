@@ -4,8 +4,8 @@
 
 namespace rhi::metal {
 
-BufferImpl::BufferImpl(const BufferDesc& desc)
-    : Buffer(desc)
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
+    : Buffer(device, desc)
 {
 }
 
@@ -53,7 +53,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     resourceOptions |=
         (desc.memoryType == MemoryType::DeviceLocal) ? MTL::ResourceStorageModePrivate : MTL::ResourceStorageModeShared;
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(desc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
     buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
     if (!buffer->m_buffer)
     {

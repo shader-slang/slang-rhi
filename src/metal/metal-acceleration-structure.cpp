@@ -5,11 +5,17 @@
 
 namespace rhi::metal {
 
+AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc)
+    : AccelerationStructure(device, desc)
+{
+}
+
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
-    m_device->m_accelerationStructures.freeList.push_back(m_globalIndex);
-    m_device->m_accelerationStructures.list[m_globalIndex] = nullptr;
-    m_device->m_accelerationStructures.dirty = true;
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    device->m_accelerationStructures.freeList.push_back(m_globalIndex);
+    device->m_accelerationStructures.list[m_globalIndex] = nullptr;
+    device->m_accelerationStructures.dirty = true;
 }
 
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
