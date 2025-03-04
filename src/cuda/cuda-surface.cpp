@@ -1,3 +1,5 @@
+#if SLANG_RHI_ENABLE_VULKAN
+
 #include "cuda-surface.h"
 #include "cuda-device.h"
 #include "cuda-texture.h"
@@ -1015,3 +1017,21 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
 }
 
 } // namespace rhi::cuda
+
+#else // SLANG_RHI_ENABLE_VULKAN
+
+#include "cuda-base.h"
+#include "cuda-device.h"
+
+namespace rhi::cuda {
+
+Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurface)
+{
+    SLANG_UNUSED(windowHandle);
+    *outSurface = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+} // namespace rhi::cuda
+
+#endif // SLANG_RHI_ENABLE_VULKAN

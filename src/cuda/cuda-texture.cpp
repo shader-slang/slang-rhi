@@ -4,6 +4,11 @@
 
 namespace rhi::cuda {
 
+TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
+    : Texture(device, desc)
+{
+}
+
 TextureImpl::~TextureImpl()
 {
     if (m_cudaSurfObj)
@@ -40,7 +45,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 {
     TextureDesc srcDesc = fixupTextureDesc(desc);
 
-    RefPtr<TextureImpl> tex = new TextureImpl(srcDesc);
+    RefPtr<TextureImpl> tex = new TextureImpl(this, srcDesc);
 
     CUresourcetype resourceType;
 
@@ -454,7 +459,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
         return SLANG_OK;
     }
 
-    RefPtr<TextureImpl> texture = new TextureImpl(desc);
+    RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship
@@ -529,9 +534,14 @@ Result DeviceImpl::createTextureFromSharedHandle(
     return SLANG_OK;
 }
 
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
+}
+
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;

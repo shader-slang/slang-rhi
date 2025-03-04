@@ -13,9 +13,10 @@ public:
     /// The event that marks the starting point.
     CUevent m_startEvent;
 
-    Result init(const QueryPoolDesc& desc);
-
+    QueryPoolImpl(Device* device, const QueryPoolDesc& desc);
     ~QueryPoolImpl();
+
+    Result init();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 };
@@ -26,12 +27,12 @@ public:
 class PlainBufferProxyQueryPoolImpl : public QueryPool
 {
 public:
-    DeviceImpl* m_device;
     CUdeviceptr m_buffer;
 
-    Result init(const QueryPoolDesc& desc, DeviceImpl* device);
-
+    PlainBufferProxyQueryPoolImpl(Device* device, const QueryPoolDesc& desc);
     ~PlainBufferProxyQueryPoolImpl();
+
+    Result init();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;

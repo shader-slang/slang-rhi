@@ -7,11 +7,7 @@ namespace rhi::cuda {
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(const BufferDesc& desc)
-        : Buffer(desc)
-    {
-    }
-
+    BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
     uint64_t getBindlessHandle();

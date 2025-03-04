@@ -3,16 +3,9 @@
 
 namespace rhi::cuda {
 
-Result QueryPoolImpl::init(const QueryPoolDesc& desc)
+QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
+    : QueryPool(device, desc)
 {
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_startEvent, 0));
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(m_startEvent, 0));
-    m_events.resize(desc.count);
-    for (size_t i = 0; i < m_events.size(); i++)
-    {
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_events[i], 0));
-    }
-    return SLANG_OK;
 }
 
 QueryPoolImpl::~QueryPoolImpl()
@@ -22,6 +15,18 @@ QueryPoolImpl::~QueryPoolImpl()
         SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(e));
     }
     SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(m_startEvent));
+}
+
+Result QueryPoolImpl::init()
+{
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_startEvent, 0));
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(m_startEvent, 0));
+    m_events.resize(m_desc.count);
+    for (size_t i = 0; i < m_events.size(); i++)
+    {
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&m_events[i], 0));
+    }
+    return SLANG_OK;
 }
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
@@ -36,12 +41,9 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
     return SLANG_OK;
 }
 
-Result PlainBufferProxyQueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
+PlainBufferProxyQueryPoolImpl::PlainBufferProxyQueryPoolImpl(Device* device, const QueryPoolDesc& desc)
+    : QueryPool(device, desc)
 {
-    m_desc = desc;
-    m_device = device;
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&m_buffer, desc.count * sizeof(uint64_t)));
-    return SLANG_OK;
 }
 
 PlainBufferProxyQueryPoolImpl::~PlainBufferProxyQueryPoolImpl()
@@ -50,6 +52,12 @@ PlainBufferProxyQueryPoolImpl::~PlainBufferProxyQueryPoolImpl()
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
     }
+}
+
+Result PlainBufferProxyQueryPoolImpl::init()
+{
+    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&m_buffer, m_desc.count * sizeof(uint64_t)));
+    return SLANG_OK;
 }
 
 Result PlainBufferProxyQueryPoolImpl::reset()

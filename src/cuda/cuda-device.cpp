@@ -202,8 +202,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Supports ParameterBlock
     m_features.push_back("parameter-block");
+#if SLANG_RHI_ENABLE_VULKAN
     // Supports surface/swapchain (implemented in Vulkan).
     m_features.push_back("surface");
+#endif
     // Not clear how to detect half support on CUDA. For now we'll assume we have it
     m_features.push_back("half");
     // CUDA has support for realtime clock
@@ -402,15 +404,15 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
     {
     case QueryType::Timestamp:
     {
-        RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
-        SLANG_RETURN_ON_FAIL(pool->init(desc));
+        RefPtr<QueryPoolImpl> pool = new QueryPoolImpl(this, desc);
+        SLANG_RETURN_ON_FAIL(pool->init());
         returnComPtr(outPool, pool);
         return SLANG_OK;
     }
     case QueryType::AccelerationStructureCompactedSize:
     {
-        RefPtr<PlainBufferProxyQueryPoolImpl> pool = new PlainBufferProxyQueryPoolImpl();
-        SLANG_RETURN_ON_FAIL(pool->init(desc, this));
+        RefPtr<PlainBufferProxyQueryPoolImpl> pool = new PlainBufferProxyQueryPoolImpl(this, desc);
+        SLANG_RETURN_ON_FAIL(pool->init());
         returnComPtr(outPool, pool);
         return SLANG_OK;
         break;
@@ -448,8 +450,7 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
-    SLANG_RETURN_ON_FAIL(result->init(desc));
+    RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;
 #else
