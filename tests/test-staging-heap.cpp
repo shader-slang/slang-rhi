@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <random>
+#include <thread>
 
 #include "rhi-shared.h"
 
@@ -178,8 +179,8 @@ GPU_TEST_CASE("staging-heap-mutithreading", ALL)
 
     t1.join();
     t2.join();
-    t3.join();
     t4.join();
+    t3.join();
     t5.join();
     t6.join();
 
