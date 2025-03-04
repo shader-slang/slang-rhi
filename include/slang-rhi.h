@@ -1178,7 +1178,7 @@ enum class ShaderObjectContainerType
 
 enum class BindingType
 {
-    Unknown,
+    Undefined,
     Buffer,
     BufferWithCounter,
     Texture,
@@ -1191,7 +1191,7 @@ enum class BindingType
 
 struct Binding
 {
-    BindingType type = BindingType::Unknown;
+    BindingType type = BindingType::Undefined;
     IResource* resource = nullptr;
     IResource* resource2 = nullptr;
     union
@@ -1200,7 +1200,7 @@ struct Binding
     };
 
     // clang-format off
-    Binding() : type(BindingType::Unknown) {}
+    Binding() : type(BindingType::Undefined) {}
 
     Binding(IBuffer* buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer), bufferRange(range) {}
     Binding(const ComPtr<IBuffer>& buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer.get()), bufferRange(range) {}

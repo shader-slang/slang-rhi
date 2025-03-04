@@ -25,7 +25,7 @@ struct ShaderObjectID
 
 struct ResourceSlot
 {
-    BindingType type = BindingType::Unknown;
+    BindingType type = BindingType::Undefined;
     RefPtr<Resource> resource;
     RefPtr<Resource> resource2;
     Format format = Format::Undefined;
@@ -33,7 +33,7 @@ struct ResourceSlot
     {
         BufferRange bufferRange = kEntireBuffer;
     };
-    operator bool() const { return type != BindingType::Unknown && resource; }
+    operator bool() const { return type != BindingType::Undefined && resource; }
 };
 
 const ShaderComponentID kInvalidComponentID = 0xFFFFFFFF;
