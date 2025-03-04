@@ -83,7 +83,7 @@ public:
     void operator=(RefPtr<T>& p)
     {
         m_strongPtr = p;
-        m_weakPtr = p.Ptr();
+        m_weakPtr = p.get();
     }
 
     void operator=(T* p)
@@ -111,7 +111,7 @@ void returnComPtr(TInterface** outInterface, const RefPtr<TImpl>& refPtr)
 {
     static_assert(!std::is_base_of<RefObject, TInterface>::value, "TInterface must be an interface type.");
     refPtr->addRef();
-    *outInterface = refPtr.Ptr();
+    *outInterface = refPtr.get();
 }
 
 template<typename TInterface, typename TImpl>
@@ -127,7 +127,7 @@ void returnRefPtr(TDest** outPtr, RefPtr<TImpl>& refPtr)
 {
     static_assert(std::is_base_of<RefObject, TDest>::value, "TDest must be a non-interface type.");
     static_assert(std::is_base_of<RefObject, TImpl>::value, "TImpl must be a non-interface type.");
-    *outPtr = refPtr.Ptr();
+    *outPtr = refPtr.get();
     refPtr->addReference();
 }
 
