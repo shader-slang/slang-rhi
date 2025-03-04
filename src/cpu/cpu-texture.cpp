@@ -81,6 +81,11 @@ void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize)
     memcpy(outData, temp, outSize);
 }
 
+TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
+    : Texture(device, desc)
+{
+}
+
 TextureImpl::~TextureImpl()
 {
     free(m_data);
@@ -212,6 +217,11 @@ Result TextureImpl::init(const SubresourceData* initData)
     }
 
     return SLANG_OK;
+}
+
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
 }
 
 slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mipLevel)
@@ -372,7 +382,7 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
 Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
 {
     TextureDesc desc = fixupTextureDesc(descIn);
-    RefPtr<TextureImpl> texture = new TextureImpl(desc);
+    RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
     SLANG_RETURN_ON_FAIL(texture->init(initData));
     returnComPtr(outTexture, texture);
     return SLANG_OK;
@@ -380,7 +390,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;

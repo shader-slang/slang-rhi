@@ -6,10 +6,10 @@
 
 namespace rhi::cpu {
 
-class CommandQueueImpl : public CommandQueue<DeviceImpl>
+class CommandQueueImpl : public CommandQueue
 {
 public:
-    CommandQueueImpl(DeviceImpl* device, QueueType type);
+    CommandQueueImpl(Device* device, QueueType type);
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
@@ -21,14 +21,12 @@ public:
 class CommandEncoderImpl : public CommandEncoder
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<CommandBufferImpl> m_commandBuffer;
 
-    CommandEncoderImpl(DeviceImpl* device);
+    CommandEncoderImpl(Device* device);
 
     Result init();
 
-    virtual Device* getDevice() override;
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
 
     // ICommandEncoder implementation
@@ -40,6 +38,8 @@ class CommandBufferImpl : public CommandBuffer
 {
 public:
     BindingCache m_bindingCache;
+
+    CommandBufferImpl(Device* device);
 
     // ICommandBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

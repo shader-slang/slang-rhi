@@ -3,6 +3,11 @@
 
 namespace rhi::cpu {
 
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
+    : Buffer(device, desc)
+{
+}
+
 BufferImpl::~BufferImpl()
 {
     if (m_data)
@@ -19,7 +24,7 @@ DeviceAddress BufferImpl::getDeviceAddress()
 Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     BufferDesc desc = fixupBufferDesc(descIn);
-    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     buffer->m_data = (uint8_t*)std::malloc(desc.size);
     if (!buffer->m_data)
     {

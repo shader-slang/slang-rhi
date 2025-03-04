@@ -9,10 +9,10 @@ namespace rhi::cpu {
 class FenceImpl : public Fence
 {
 public:
-    RefPtr<DeviceImpl> m_device;
     uint64_t m_currentValue;
     std::mutex m_mutex;
 
+    FenceImpl(Device* device, const FenceDesc& desc);
     ~FenceImpl();
 
     // IFence implementation

@@ -316,7 +316,7 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 
 // CommandQueueImpl
 
-CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
 }
@@ -346,7 +346,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Execute command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(m_device);
+        CommandExecutor executor(getDevice<DeviceImpl>());
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
 
@@ -372,21 +372,16 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device)
-    : m_device(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device)
+    : CommandEncoder(device)
 {
-}
-
-Device* CommandEncoderImpl::getDevice()
-{
-    return m_device;
 }
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
-    builder.m_device = m_device;
+    builder.m_device = getDevice<DeviceImpl>();
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     builder.m_allocator = &m_commandBuffer->m_allocator;
     ShaderObjectLayout* specializedLayout = nullptr;
@@ -400,7 +395,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 
 Result CommandEncoderImpl::init()
 {
-    m_commandBuffer = new CommandBufferImpl();
+    m_commandBuffer = new CommandBufferImpl(m_device);
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
 }
@@ -421,6 +416,11 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 }
 
 // CommandBufferImpl
+
+CommandBufferImpl::CommandBufferImpl(Device* device)
+    : CommandBuffer(device)
+{
+}
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
