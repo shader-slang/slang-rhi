@@ -366,7 +366,7 @@ enum class MemoryType
 
 enum class NativeHandleType
 {
-    Unknown = 0x00000000,
+    Undefined = 0x00000000,
 
     Win32 = 0x00000001,
     FileDescriptor = 0x00000002,
@@ -430,10 +430,10 @@ enum class NativeHandleType
 
 struct NativeHandle
 {
-    NativeHandleType type = NativeHandleType::Unknown;
+    NativeHandleType type = NativeHandleType::Undefined;
     uint64_t value = 0;
 
-    operator bool() const { return type != NativeHandleType::Unknown; }
+    operator bool() const { return type != NativeHandleType::Undefined; }
 };
 
 struct InputElementDesc
