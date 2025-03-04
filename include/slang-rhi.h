@@ -1577,7 +1577,7 @@ struct Viewport
 
 enum class WindowHandleType
 {
-    Unknown,
+    Undefined,
     HWND,
     NSWindow,
     XlibWindow,
@@ -1585,7 +1585,7 @@ enum class WindowHandleType
 
 struct WindowHandle
 {
-    WindowHandleType type = WindowHandleType::Unknown;
+    WindowHandleType type = WindowHandleType::Undefined;
     uint64_t handleValues[2];
 
     static WindowHandle fromHwnd(void* hwnd)
