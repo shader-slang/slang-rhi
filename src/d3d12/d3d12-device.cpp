@@ -1382,8 +1382,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     // entries that we check before we go to the heap, and then
     // when we are done with a sampler we simply add it to the free list.
     //
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(desc);
-    samplerImpl->m_device = this;
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_descriptor = descriptor;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
@@ -1391,7 +1390,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
@@ -1608,9 +1607,7 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
-    RefPtr<ShaderTableImpl> result = new ShaderTableImpl();
-    result->m_device = this;
-    result->init(desc);
+    RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;
 }
@@ -1713,18 +1710,18 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outSt
     case QueryType::AccelerationStructureSerializedSize:
     case QueryType::AccelerationStructureCurrentSize:
     {
-        RefPtr<PlainBufferProxyQueryPoolImpl> queryPoolImpl = new PlainBufferProxyQueryPoolImpl();
+        RefPtr<PlainBufferProxyQueryPoolImpl> queryPoolImpl = new PlainBufferProxyQueryPoolImpl(this, desc);
         uint32_t stride = 8;
         if (desc.type == QueryType::AccelerationStructureSerializedSize)
             stride = 16;
-        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(desc, this, stride));
+        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(stride));
         returnComPtr(outState, queryPoolImpl);
         return SLANG_OK;
     }
     default:
     {
-        RefPtr<QueryPoolImpl> queryPoolImpl = new QueryPoolImpl();
-        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(desc, this));
+        RefPtr<QueryPoolImpl> queryPoolImpl = new QueryPoolImpl(this, desc);
+        SLANG_RETURN_ON_FAIL(queryPoolImpl->init());
         returnComPtr(outState, queryPoolImpl);
         return SLANG_OK;
     }
@@ -1733,8 +1730,8 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outSt
 
 Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
-    RefPtr<FenceImpl> fence = new FenceImpl();
-    SLANG_RETURN_ON_FAIL(fence->init(this, desc));
+    RefPtr<FenceImpl> fence = new FenceImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(fence->init());
     returnComPtr(outFence, fence);
     return SLANG_OK;
 }

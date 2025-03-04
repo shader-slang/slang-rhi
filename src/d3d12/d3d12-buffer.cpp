@@ -3,27 +3,28 @@
 
 namespace rhi::d3d12 {
 
-BufferImpl::BufferImpl(DeviceImpl* device, const BufferDesc& desc)
-    : Buffer(desc)
-    , m_device(device)
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
+    : Buffer(device, desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
 BufferImpl::~BufferImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     for (auto& srv : m_srvs)
     {
         if (srv.second)
         {
-            m_device->m_cpuCbvSrvUavHeap->free(srv.second);
+            device->m_cpuCbvSrvUavHeap->free(srv.second);
         }
     }
     for (auto& uav : m_uavs)
     {
         if (uav.second)
         {
-            m_device->m_cpuCbvSrvUavHeap->free(uav.second);
+            device->m_cpuCbvSrvUavHeap->free(uav.second);
         }
     }
 
@@ -72,6 +73,8 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 
 D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, stride, range, nullptr};
     CPUDescriptorAllocation& allocation = m_srvs[key];
     if (allocation)
@@ -102,8 +105,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, c
         viewDesc.Buffer.NumElements = UINT(range.size / formatInfo.blockSizeInBytes);
     }
 
-    allocation = m_device->m_cpuCbvSrvUavHeap->allocate();
-    m_device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
+    allocation = device->m_cpuCbvSrvUavHeap->allocate();
+    device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
 
     return allocation.cpuHandle;
 }
@@ -115,6 +118,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
     BufferImpl* counter
 )
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, stride, range, counter};
     CPUDescriptorAllocation& allocation = m_uavs[key];
     if (allocation)
@@ -144,9 +149,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
         viewDesc.Buffer.NumElements = UINT(range.size / formatInfo.blockSizeInBytes);
     }
 
-    allocation = m_device->m_cpuCbvSrvUavHeap->allocate();
+    allocation = device->m_cpuCbvSrvUavHeap->allocate();
     ID3D12Resource* counterResource = counter ? counter->m_resource.getResource() : nullptr;
-    m_device->m_device
+    device->m_device
         ->CreateUnorderedAccessView(m_resource.getResource(), counterResource, &viewDesc, allocation.cpuHandle);
 
     return allocation.cpuHandle;

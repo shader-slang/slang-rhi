@@ -6,15 +6,20 @@
 
 namespace rhi::d3d12 {
 
-Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
+QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
+    : QueryPool(device, desc)
 {
-    m_desc = desc;
+}
+
+Result QueryPoolImpl::init()
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
 
     // Translate query type.
     D3D12_QUERY_HEAP_DESC heapDesc = {};
-    heapDesc.Count = (UINT)desc.count;
+    heapDesc.Count = (UINT)m_desc.count;
     heapDesc.NodeMask = 1;
-    switch (desc.type)
+    switch (m_desc.type)
     {
     case QueryType::Timestamp:
         heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -28,9 +33,9 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     auto d3dDevice = device->m_device;
     SLANG_RETURN_ON_FAIL(d3dDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(m_queryHeap.writeRef())));
 
-    if (desc.label)
+    if (m_desc.label)
     {
-        m_queryHeap->SetName(string::to_wstring(desc.label).c_str());
+        m_queryHeap->SetName(string::to_wstring(m_desc.label).c_str());
     }
 
     // Create readback buffer.
@@ -41,7 +46,7 @@ Result QueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device)
     heapProps.CreationNodeMask = 1;
     heapProps.VisibleNodeMask = 1;
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initBufferDesc(sizeof(uint64_t) * desc.count, resourceDesc);
+    initBufferDesc(sizeof(uint64_t) * m_desc.count, resourceDesc);
     SLANG_RETURN_ON_FAIL(m_readBackBuffer.initCommitted(
         d3dDevice,
         heapProps,
@@ -118,44 +123,54 @@ IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
     return nullptr;
 }
 
-Result PlainBufferProxyQueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl* device, uint32_t stride)
+PlainBufferProxyQueryPoolImpl::PlainBufferProxyQueryPoolImpl(Device* device, const QueryPoolDesc& desc)
+    : QueryPool(device, desc)
 {
+}
+
+Result PlainBufferProxyQueryPoolImpl::init(uint32_t stride)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.defaultState = ResourceState::CopySource;
     bufferDesc.elementSize = 0;
-    bufferDesc.size = desc.count * stride;
+    bufferDesc.size = m_desc.count * stride;
     bufferDesc.format = Format::Undefined;
     bufferDesc.usage = BufferUsage::UnorderedAccess;
     SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
     m_buffer = checked_cast<BufferImpl*>(buffer.get());
-    m_queryType = desc.type;
+    m_queryType = m_desc.type;
     m_device = device;
     m_stride = stride;
-    m_count = (uint32_t)desc.count;
-    m_desc = desc;
+    m_count = (uint32_t)m_desc.count;
     return SLANG_OK;
 }
 
 Result PlainBufferProxyQueryPoolImpl::reset()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     m_resultDirty = true;
-    ID3D12GraphicsCommandList* commandList = m_device->beginImmediateCommandList();
+    ID3D12GraphicsCommandList* commandList = device->beginImmediateCommandList();
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     barrier.Transition.pResource = m_buffer->m_resource.getResource();
     commandList->ResourceBarrier(1, &barrier);
-    m_device->endImmediateCommandList();
+    device->endImmediateCommandList();
     return SLANG_OK;
 }
 
 Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_resultDirty)
     {
-        ID3D12GraphicsCommandList* commandList = m_device->beginImmediateCommandList();
+        ID3D12GraphicsCommandList* commandList = device->beginImmediateCommandList();
         D3D12_RESOURCE_BARRIER barrier = {};
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
@@ -177,7 +192,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
         initBufferDesc(size, stagingDesc);
 
         SLANG_RETURN_ON_FAIL(stageBuf.initCommitted(
-            m_device->m_device,
+            device->m_device,
             heapProps,
             D3D12_HEAP_FLAG_NONE,
             stagingDesc,
@@ -186,7 +201,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
         ));
 
         commandList->CopyBufferRegion(stageBuf, 0, m_buffer->m_resource.getResource(), 0, size);
-        m_device->endImmediateCommandList();
+        device->endImmediateCommandList();
         void* ptr = nullptr;
         stageBuf.getResource()->Map(0, nullptr, &ptr);
         m_result.resize(m_count * m_stride);

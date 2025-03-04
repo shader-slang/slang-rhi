@@ -7,14 +7,9 @@ namespace rhi::d3d12 {
 class SamplerImpl : public Sampler
 {
 public:
-    DeviceImpl* m_device;
     CPUDescriptorAllocation m_descriptor;
 
-    SamplerImpl(const SamplerDesc& desc)
-        : Sampler(desc)
-    {
-    }
-
+    SamplerImpl(Device* device, const SamplerDesc& desc);
     ~SamplerImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

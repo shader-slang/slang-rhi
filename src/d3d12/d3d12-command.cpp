@@ -1405,7 +1405,7 @@ void CommandRecorder::commitBarriers()
 
 // CommandQueueImpl
 
-CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
 }
@@ -1418,8 +1418,9 @@ CommandQueueImpl::~CommandQueueImpl()
 
 Result CommandQueueImpl::init(uint32_t queueIndex)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     m_queueIndex = queueIndex;
-    m_d3dDevice = m_device->m_device;
+    m_d3dDevice = device->m_device;
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
@@ -1539,12 +1540,13 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     m_lastSubmittedID++;
     m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID);
     ResetEvent(m_globalWaitHandle);
     m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle);
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
-    m_device->flushValidationMessages();
+    device->flushValidationMessages();
     retireCommandBuffers();
     return SLANG_OK;
 }
@@ -1560,8 +1562,8 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
+    : CommandEncoder(device)
     , m_queue(queue)
 {
 }
@@ -1582,16 +1584,11 @@ Result CommandEncoderImpl::init()
     return SLANG_OK;
 }
 
-Device* CommandEncoderImpl::getDevice()
-{
-    return m_device;
-}
-
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
-    builder.m_device = m_device;
+    builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
@@ -1622,7 +1619,7 @@ void CommandEncoderImpl::uploadTextureData(
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
-    CommandRecorder recorder(m_device);
+    CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -1638,8 +1635,8 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandBufferImpl
 
-CommandBufferImpl::CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandBufferImpl::CommandBufferImpl(Device* device, CommandQueueImpl* queue)
+    : CommandBuffer(device)
     , m_queue(queue)
 {
 }
@@ -1648,11 +1645,12 @@ CommandBufferImpl::~CommandBufferImpl() {}
 
 Result CommandBufferImpl::init()
 {
-    SLANG_RETURN_ON_FAIL(m_device->m_device->CreateCommandAllocator(
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    SLANG_RETURN_ON_FAIL(device->m_device->CreateCommandAllocator(
         D3D12_COMMAND_LIST_TYPE_DIRECT,
         IID_PPV_ARGS(m_d3dCommandAllocator.writeRef())
     ));
-    SLANG_RETURN_ON_FAIL(m_device->m_device->CreateCommandList(
+    SLANG_RETURN_ON_FAIL(device->m_device->CreateCommandList(
         0,
         D3D12_COMMAND_LIST_TYPE_DIRECT,
         m_d3dCommandAllocator,
@@ -1661,26 +1659,27 @@ Result CommandBufferImpl::init()
     ));
 
     ID3D12DescriptorHeap* heaps[] = {
-        m_device->m_gpuCbvSrvUavHeap->getHeap(),
-        m_device->m_gpuSamplerHeap->getHeap(),
+        device->m_gpuCbvSrvUavHeap->getHeap(),
+        device->m_gpuSamplerHeap->getHeap(),
     };
     m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
 
-    m_constantBufferPool.init(m_device);
+    m_constantBufferPool.init(device);
 
-    SLANG_RETURN_ON_FAIL(m_cbvSrvUavArena.init(m_device->m_gpuCbvSrvUavHeap, 128));
-    SLANG_RETURN_ON_FAIL(m_samplerArena.init(m_device->m_gpuSamplerHeap, 4));
+    SLANG_RETURN_ON_FAIL(m_cbvSrvUavArena.init(device->m_gpuCbvSrvUavHeap, 128));
+    SLANG_RETURN_ON_FAIL(m_samplerArena.init(device->m_gpuSamplerHeap, 4));
 
     return SLANG_OK;
 }
 
 Result CommandBufferImpl::reset()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     SLANG_RETURN_ON_FAIL(m_d3dCommandAllocator->Reset());
     SLANG_RETURN_ON_FAIL(m_d3dCommandList->Reset(m_d3dCommandAllocator, nullptr));
     ID3D12DescriptorHeap* heaps[] = {
-        m_device->m_gpuCbvSrvUavHeap->getHeap(),
-        m_device->m_gpuSamplerHeap->getHeap(),
+        device->m_gpuCbvSrvUavHeap->getHeap(),
+        device->m_gpuSamplerHeap->getHeap(),
     };
     m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
 

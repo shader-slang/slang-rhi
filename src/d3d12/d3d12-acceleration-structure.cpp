@@ -6,10 +6,17 @@ namespace rhi::d3d12 {
 
 #if SLANG_RHI_DXR
 
+AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc)
+    : AccelerationStructure(device, desc)
+{
+}
+
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_descriptor)
-        m_device->m_cpuCbvSrvUavHeap->free(m_descriptor);
+        device->m_cpuCbvSrvUavHeap->free(m_descriptor);
 }
 
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)

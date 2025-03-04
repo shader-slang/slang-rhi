@@ -7,11 +7,9 @@ namespace rhi::d3d12 {
 class TextureImpl : public Texture
 {
 public:
-    TextureImpl(DeviceImpl* device, const TextureDesc& desc);
-
+    TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
-    DeviceImpl* m_device;
     D3D12Resource m_resource;
     D3D12_RESOURCE_STATES m_defaultState;
 
@@ -82,10 +80,7 @@ public:
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(const TextureViewDesc& desc)
-        : TextureView(desc)
-    {
-    }
+    TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
     RefPtr<TextureImpl> m_texture;
 

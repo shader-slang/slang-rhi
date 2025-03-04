@@ -14,6 +14,11 @@
 
 namespace rhi::d3d12 {
 
+RenderPipelineImpl::RenderPipelineImpl(Device* device)
+    : RenderPipeline(device)
+{
+}
+
 Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12PipelineState;
@@ -248,7 +253,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         }
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_inputLayout = inputLayout;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
@@ -256,6 +261,11 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_primitiveTopology = D3DUtil::getPrimitiveTopology(desc.primitiveTopology);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
+}
+
+ComputePipelineImpl::ComputePipelineImpl(Device* device)
+    : ComputePipeline(device)
+{
 }
 
 Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
@@ -320,12 +330,17 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         }
     }
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
+}
+
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device)
+    : RayTracingPipeline(device)
+{
 }
 
 Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
@@ -517,7 +532,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 #endif // SLANG_RHI_ENABLE_NVAPI
     }
 
-    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
+    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;

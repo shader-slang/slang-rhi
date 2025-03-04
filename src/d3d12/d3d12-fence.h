@@ -10,11 +10,12 @@ public:
     ComPtr<ID3D12Fence> m_fence;
     HANDLE m_waitEvent = 0;
 
+    FenceImpl(Device* device, const FenceDesc& desc);
     ~FenceImpl();
 
-    HANDLE getWaitEvent();
+    Result init();
 
-    Result init(DeviceImpl* device, const FenceDesc& desc);
+    HANDLE getWaitEvent();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentValue(uint64_t* outValue) override;
 

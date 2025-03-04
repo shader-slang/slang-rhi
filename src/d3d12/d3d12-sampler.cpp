@@ -3,9 +3,16 @@
 
 namespace rhi::d3d12 {
 
+SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
+    : Sampler(device, desc)
+{
+}
+
 SamplerImpl::~SamplerImpl()
 {
-    m_device->m_cpuSamplerHeap->free(m_descriptor);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    device->m_cpuSamplerHeap->free(m_descriptor);
 }
 
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)

@@ -3,41 +3,42 @@
 
 namespace rhi::d3d12 {
 
-TextureImpl::TextureImpl(DeviceImpl* device, const TextureDesc& desc)
-    : Texture(desc)
-    , m_device(device)
+TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
+    : Texture(device, desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
 TextureImpl::~TextureImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     for (auto& srv : m_srvs)
     {
         if (srv.second)
         {
-            m_device->m_cpuCbvSrvUavHeap->free(srv.second);
+            device->m_cpuCbvSrvUavHeap->free(srv.second);
         }
     }
     for (auto& uav : m_uavs)
     {
         if (uav.second)
         {
-            m_device->m_cpuCbvSrvUavHeap->free(uav.second);
+            device->m_cpuCbvSrvUavHeap->free(uav.second);
         }
     }
     for (auto& rtv : m_rtvs)
     {
         if (rtv.second)
         {
-            m_device->m_cpuRtvHeap->free(rtv.second);
+            device->m_cpuRtvHeap->free(rtv.second);
         }
     }
     for (auto& dsv : m_dsvs)
     {
         if (dsv.second)
         {
-            m_device->m_cpuDsvHeap->free(dsv.second);
+            device->m_cpuDsvHeap->free(dsv.second);
         }
     }
 
@@ -86,6 +87,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getSRV(
     const SubresourceRange& range
 )
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_srvs[key];
     if (allocation)
@@ -172,8 +175,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getSRV(
         break;
     }
 
-    allocation = m_device->m_cpuCbvSrvUavHeap->allocate();
-    m_device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
+    allocation = device->m_cpuCbvSrvUavHeap->allocate();
+    device->m_device->CreateShaderResourceView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
 
     return allocation.cpuHandle;
 }
@@ -185,6 +188,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
     const SubresourceRange& range
 )
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_uavs[key];
     if (allocation)
@@ -239,8 +244,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         break;
     }
 
-    allocation = m_device->m_cpuCbvSrvUavHeap->allocate();
-    m_device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, allocation.cpuHandle);
+    allocation = device->m_cpuCbvSrvUavHeap->allocate();
+    device->m_device->CreateUnorderedAccessView(m_resource.getResource(), nullptr, &viewDesc, allocation.cpuHandle);
 
     return allocation.cpuHandle;
 }
@@ -252,6 +257,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
     const SubresourceRange& range
 )
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_rtvs[key];
     if (allocation)
@@ -318,8 +325,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
         break;
     }
 
-    allocation = m_device->m_cpuRtvHeap->allocate();
-    m_device->m_device->CreateRenderTargetView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
+    allocation = device->m_cpuRtvHeap->allocate();
+    device->m_device->CreateRenderTargetView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
 
     return allocation.cpuHandle;
 }
@@ -331,6 +338,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
     const SubresourceRange& range
 )
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_dsvs[key];
     if (allocation)
@@ -379,10 +388,15 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
         break;
     }
 
-    allocation = m_device->m_cpuDsvHeap->allocate();
-    m_device->m_device->CreateDepthStencilView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
+    allocation = device->m_cpuDsvHeap->allocate();
+    device->m_device->CreateDepthStencilView(m_resource.getResource(), &viewDesc, allocation.cpuHandle);
 
     return allocation.cpuHandle;
+}
+
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
 }
 
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)

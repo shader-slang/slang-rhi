@@ -7,7 +7,9 @@ namespace rhi::d3d12 {
 class QueryPoolImpl : public QueryPool
 {
 public:
-    Result init(const QueryPoolDesc& desc, DeviceImpl* device);
+    QueryPoolImpl(Device* device, const QueryPoolDesc& desc);
+
+    Result init();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 
@@ -35,7 +37,9 @@ public:
     IQueryPool* getInterface(const Guid& guid);
 
 public:
-    Result init(const QueryPoolDesc& desc, DeviceImpl* device, uint32_t stride);
+    PlainBufferProxyQueryPoolImpl(Device* device, const QueryPoolDesc& desc);
+
+    Result init(uint32_t stride);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
@@ -43,7 +47,6 @@ public:
 public:
     QueryType m_queryType;
     RefPtr<BufferImpl> m_buffer;
-    RefPtr<DeviceImpl> m_device;
     std::vector<uint8_t> m_result;
     bool m_resultDirty = true;
     uint32_t m_stride = 0;
