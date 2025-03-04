@@ -7,9 +7,9 @@ namespace rhi::wgpu {
 class QueryPoolImpl : public QueryPool
 {
 public:
-    RefPtr<DeviceImpl> m_device;
     WGPUQuerySet m_querySet = nullptr;
 
+    QueryPoolImpl(Device* device, const QueryPoolDesc& desc);
     ~QueryPoolImpl();
 
     // IQueryPool implementation

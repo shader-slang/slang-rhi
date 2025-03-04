@@ -662,17 +662,19 @@ void CommandRecorder::endPassEncoder()
 
 // CommandQueueImpl
 
-CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
-    : CommandQueue(device, type)
+CommandQueueImpl::CommandQueueImpl(Device* device_, QueueType type)
+    : CommandQueue(device_, type)
 {
-    m_queue = m_device->m_ctx.api.wgpuDeviceGetQueue(m_device->m_ctx.device);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    m_queue = device->m_ctx.api.wgpuDeviceGetQueue(device->m_ctx.device);
 }
 
 CommandQueueImpl::~CommandQueueImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     if (m_queue)
     {
-        m_device->m_ctx.api.wgpuQueueRelease(m_queue);
+        device->m_ctx.api.wgpuQueueRelease(m_queue);
     }
 }
 
@@ -685,6 +687,8 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
@@ -703,7 +707,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         commandBuffers.push_back(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->m_commandBuffer);
     }
-    m_device->m_ctx.api.wgpuQueueSubmit(m_queue, commandBuffers.size(), commandBuffers.data());
+    device->m_ctx.api.wgpuQueueSubmit(m_queue, commandBuffers.size(), commandBuffers.data());
 
     // Signal fences.
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
@@ -716,6 +720,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     // Wait for the command buffer to finish executing
     {
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
@@ -724,12 +730,12 @@ Result CommandQueueImpl::waitOnHost()
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
-        WGPUFuture future = m_device->m_ctx.api.wgpuQueueOnSubmittedWorkDone2(m_queue, callbackInfo);
+        WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone2(m_queue, callbackInfo);
         constexpr size_t futureCount = 1;
         WGPUFutureWaitInfo futures[futureCount] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
-            m_device->m_ctx.api.wgpuInstanceWaitAny(m_device->m_ctx.instance, futureCount, futures, timeoutNS);
+            device->m_ctx.api.wgpuInstanceWaitAny(device->m_ctx.instance, futureCount, futures, timeoutNS);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
@@ -756,8 +762,8 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
+    : CommandEncoder(device)
     , m_queue(queue)
 {
     m_commandBuffer = new CommandBufferImpl(device, queue);
@@ -766,16 +772,13 @@ CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* que
 
 CommandEncoderImpl::~CommandEncoderImpl() {}
 
-Device* CommandEncoderImpl::getDevice()
-{
-    return m_device;
-}
-
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
-    builder.m_device = m_device;
+    builder.m_device = device;
     builder.m_commandList = m_commandList;
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
     builder.m_allocator = &m_commandBuffer->m_allocator;
@@ -793,7 +796,7 @@ Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();
-    CommandRecorder recorder(m_device);
+    CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -809,26 +812,29 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandBufferImpl
 
-CommandBufferImpl::CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandBufferImpl::CommandBufferImpl(Device* device_, CommandQueueImpl* queue)
+    : CommandBuffer(device_)
     , m_queue(queue)
 {
-    m_constantBufferPool.init(m_device);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    m_constantBufferPool.init(device);
 }
 
 CommandBufferImpl::~CommandBufferImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     reset();
     if (m_commandBuffer)
     {
-        m_device->m_ctx.api.wgpuCommandBufferRelease(m_commandBuffer);
+        device->m_ctx.api.wgpuCommandBufferRelease(m_commandBuffer);
     }
 }
 
 Result CommandBufferImpl::reset()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     m_constantBufferPool.reset();
-    m_bindingCache.reset(m_device);
+    m_bindingCache.reset(device);
     return CommandBuffer::reset();
 }
 

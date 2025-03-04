@@ -7,10 +7,10 @@ namespace rhi::wgpu {
 class RenderPipelineImpl : public RenderPipeline
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     WGPURenderPipeline m_renderPipeline = nullptr;
 
+    RenderPipelineImpl(Device* device);
     ~RenderPipelineImpl();
 
     // IRenderPipeline implementation
@@ -20,10 +20,10 @@ public:
 class ComputePipelineImpl : public ComputePipeline
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     WGPUComputePipeline m_computePipeline = nullptr;
 
+    ComputePipelineImpl(Device* device);
     ~ComputePipelineImpl();
 
     // IComputePipeline implementation

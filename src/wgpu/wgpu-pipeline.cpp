@@ -7,11 +7,18 @@
 
 namespace rhi::wgpu {
 
+RenderPipelineImpl::RenderPipelineImpl(Device* device)
+    : RenderPipeline(device)
+{
+}
+
 RenderPipelineImpl::~RenderPipelineImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_renderPipeline)
     {
-        m_device->m_ctx.api.wgpuRenderPipelineRelease(m_renderPipeline);
+        device->m_ctx.api.wgpuRenderPipelineRelease(m_renderPipeline);
     }
 }
 
@@ -107,8 +114,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     fragment.targets = targets.data();
     pipelineDesc.fragment = &fragment;
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
-    pipeline->m_device = this;
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_renderPipeline = m_ctx.api.wgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
@@ -120,11 +126,18 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     return SLANG_OK;
 }
 
+ComputePipelineImpl::ComputePipelineImpl(Device* device)
+    : ComputePipeline(device)
+{
+}
+
 ComputePipelineImpl::~ComputePipelineImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_computePipeline)
     {
-        m_device->m_ctx.api.wgpuComputePipelineRelease(m_computePipeline);
+        device->m_ctx.api.wgpuComputePipelineRelease(m_computePipeline);
     }
 }
 
@@ -150,8 +163,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipelineDesc.compute.module = computeModule->module;
     pipelineDesc.compute.entryPoint = computeModule->entryPointName.c_str();
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
-    pipeline->m_device = this;
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_computePipeline = m_ctx.api.wgpuDeviceCreateComputePipeline(m_ctx.device, &pipelineDesc);

@@ -6,9 +6,8 @@
 
 namespace rhi::wgpu {
 
-TextureImpl::TextureImpl(DeviceImpl* device, const TextureDesc& desc)
-    : Texture(desc)
-    , m_device(device)
+TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
+    : Texture(device, desc)
 {
 }
 
@@ -16,7 +15,7 @@ TextureImpl::~TextureImpl()
 {
     if (m_texture)
     {
-        m_device->m_ctx.api.wgpuTextureRelease(m_texture);
+        getDevice<DeviceImpl>()->m_ctx.api.wgpuTextureRelease(m_texture);
     }
 }
 
@@ -150,9 +149,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 }
 
 
-TextureViewImpl::TextureViewImpl(DeviceImpl* device, const TextureViewDesc& desc)
-    : TextureView(desc)
-    , m_device(device)
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
 {
 }
 
@@ -160,7 +158,7 @@ TextureViewImpl::~TextureViewImpl()
 {
     if (m_textureView)
     {
-        m_device->m_ctx.api.wgpuTextureViewRelease(m_textureView);
+        getDevice<DeviceImpl>()->m_ctx.api.wgpuTextureViewRelease(m_textureView);
     }
 }
 

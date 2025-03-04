@@ -6,12 +6,12 @@
 
 namespace rhi::wgpu {
 
-class CommandQueueImpl : public CommandQueue<DeviceImpl>
+class CommandQueueImpl : public CommandQueue
 {
 public:
     WGPUQueue m_queue = nullptr;
 
-    CommandQueueImpl(DeviceImpl* device, QueueType type);
+    CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
 
     // ICommandQueue implementation
@@ -24,16 +24,14 @@ public:
 class CommandEncoderImpl : public CommandEncoder
 {
 public:
-    DeviceImpl* m_device;
     CommandQueueImpl* m_queue;
     RefPtr<CommandBufferImpl> m_commandBuffer;
 
-    CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* queue);
+    CommandEncoderImpl(Device* device, CommandQueueImpl* queue);
     ~CommandEncoderImpl();
 
     Result init();
 
-    virtual Device* getDevice() override;
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
 
     // ICommandEncoder implementation
@@ -44,13 +42,12 @@ public:
 class CommandBufferImpl : public CommandBuffer
 {
 public:
-    DeviceImpl* m_device;
     CommandQueueImpl* m_queue;
     WGPUCommandBuffer m_commandBuffer = nullptr;
     ConstantBufferPool m_constantBufferPool;
     BindingCache m_bindingCache;
 
-    CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);
+    CommandBufferImpl(Device* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 
     virtual Result reset() override;

@@ -4,9 +4,8 @@
 
 namespace rhi::wgpu {
 
-SamplerImpl::SamplerImpl(DeviceImpl* device, const SamplerDesc& desc)
-    : Sampler(desc)
-    , m_device(device)
+SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
+    : Sampler(device, desc)
 {
 }
 
@@ -14,7 +13,7 @@ SamplerImpl::~SamplerImpl()
 {
     if (m_sampler)
     {
-        m_device->m_ctx.api.wgpuSamplerRelease(m_sampler);
+        getDevice<DeviceImpl>()->m_ctx.api.wgpuSamplerRelease(m_sampler);
     }
 }
 
