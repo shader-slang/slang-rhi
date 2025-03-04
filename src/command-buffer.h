@@ -9,6 +9,7 @@
 
 #include "reference.h"
 #include "command-list.h"
+#include "device-child.h"
 
 #include "rhi-shared-fwd.h"
 
@@ -19,8 +20,7 @@ namespace rhi {
 struct BindingData
 {};
 
-template<typename TDevice>
-class CommandQueue : public ICommandQueue, public ComObject
+class CommandQueue : public ICommandQueue, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -31,12 +31,11 @@ public:
         return nullptr;
     }
 
-    virtual void comFree() override { breakStrongReferenceToDevice(); }
-
 public:
-    CommandQueue(TDevice* device, QueueType type)
+    CommandQueue(Device* device, QueueType type)
+        : DeviceChild(device)
     {
-        m_device.setWeakReference(device);
+        m_device.breakStrongReference();
         m_type = type;
     }
 
@@ -47,7 +46,6 @@ public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
 
 public:
-    BreakableReference<TDevice> m_device;
     QueueType m_type;
 };
 
@@ -161,7 +159,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 
-class CommandEncoder : public ICommandEncoder, public ComObject
+class CommandEncoder : public ICommandEncoder, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -179,9 +177,14 @@ public:
     // This is populated during command encoding and later used when asynchronously resolving pipelines.
     std::vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_pipelineSpecializationArgs;
 
-    CommandEncoder();
+    CommandEncoder(Device* device)
+        : DeviceChild(device)
+        , m_renderPassEncoder(this)
+        , m_computePassEncoder(this)
+        , m_rayTracingPassEncoder(this)
+    {
+    }
 
-    virtual Device* getDevice() = 0;
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) = 0;
 
     Result getPipelineSpecializationArgs(
@@ -290,15 +293,16 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
 };
 
-class CommandBuffer : public ICommandBuffer, public ComObject
+class CommandBuffer : public ICommandBuffer, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     ICommandBuffer* getInterface(const Guid& guid);
 
 public:
-    CommandBuffer()
-        : m_commandList(m_allocator, m_trackedObjects)
+    CommandBuffer(Device* device)
+        : DeviceChild(device)
+        , m_commandList(m_allocator, m_trackedObjects)
     {
     }
     virtual ~CommandBuffer() = default;

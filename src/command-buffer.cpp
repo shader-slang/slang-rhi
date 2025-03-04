@@ -414,13 +414,6 @@ ICommandEncoder* CommandEncoder::getInterface(const Guid& guid)
     return nullptr;
 }
 
-CommandEncoder::CommandEncoder()
-    : m_renderPassEncoder(this)
-    , m_computePassEncoder(this)
-    , m_rayTracingPassEncoder(this)
-{
-}
-
 IRenderPassEncoder* CommandEncoder::beginRenderPass(const RenderPassDesc& desc)
 {
     commands::BeginRenderPass cmd;

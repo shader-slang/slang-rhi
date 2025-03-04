@@ -2,6 +2,7 @@
 
 namespace rhi {
 
+class DeviceChild;
 class AccelerationStructure;
 class Buffer;
 class Resource;

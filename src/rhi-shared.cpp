@@ -1,4 +1,5 @@
 #include "rhi-shared.h"
+#include "device-child.h"
 #include "command-list.h"
 
 #include "core/common.h"
@@ -190,6 +191,73 @@ IQueryPool* QueryPool::getInterface(const Guid& guid)
     if (guid == ISlangUnknown::getTypeGuid() || guid == IQueryPool::getTypeGuid())
         return static_cast<IQueryPool*>(this);
     return nullptr;
+}
+
+// ----------------------------------------------------------------------------
+// ShaderTable
+// ----------------------------------------------------------------------------
+
+ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
+    : DeviceChild(device)
+{
+    m_rayGenShaderCount = desc.rayGenShaderCount;
+    m_missShaderCount = desc.missShaderCount;
+    m_hitGroupCount = desc.hitGroupCount;
+    m_callableShaderCount = desc.callableShaderCount;
+    m_shaderGroupNames.reserve(
+        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
+    );
+    m_recordOverwrites.reserve(
+        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
+    );
+    for (uint32_t i = 0; i < desc.rayGenShaderCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.rayGenShaderEntryPointNames[i]);
+        if (desc.rayGenShaderRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.rayGenShaderRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
+    for (uint32_t i = 0; i < desc.missShaderCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.missShaderEntryPointNames[i]);
+        if (desc.missShaderRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.missShaderRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
+    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.hitGroupNames[i]);
+        if (desc.hitGroupRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.hitGroupRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
+    for (uint32_t i = 0; i < desc.callableShaderCount; i++)
+    {
+        m_shaderGroupNames.push_back(desc.callableShaderEntryPointNames[i]);
+        if (desc.callableShaderRecordOverwrites)
+        {
+            m_recordOverwrites.push_back(desc.callableShaderRecordOverwrites[i]);
+        }
+        else
+        {
+            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

@@ -7,6 +7,7 @@
 #include "shader.h"
 
 #include "rhi-shared-fwd.h"
+#include "device-child.h"
 
 namespace rhi {
 
@@ -17,10 +18,15 @@ enum class PipelineType
     RayTracing,
 };
 
-class Pipeline : public ComObject
+class Pipeline : public DeviceChild
 {
 public:
     RefPtr<ShaderProgram> m_program;
+
+    Pipeline(Device* device)
+        : DeviceChild(device)
+    {
+    }
 
     virtual PipelineType getType() const = 0;
     virtual bool isVirtual() const { return false; }
@@ -33,6 +39,11 @@ public:
     IPipeline* getInterface(const Guid& guid);
 
 public:
+    RenderPipeline(Device* device)
+        : Pipeline(device)
+    {
+    }
+
     virtual PipelineType getType() const override { return PipelineType::Render; }
 
     // IPipeline interface
@@ -42,12 +53,11 @@ public:
 class VirtualRenderPipeline : public RenderPipeline
 {
 public:
-    Device* m_device;
     RenderPipelineDesc m_desc;
     StructHolder m_descHolder;
     RefPtr<InputLayout> m_inputLayout;
 
-    Result init(Device* device, const RenderPipelineDesc& desc);
+    VirtualRenderPipeline(Device* device, const RenderPipelineDesc& desc);
 
     virtual bool isVirtual() const override { return true; }
 
@@ -62,6 +72,11 @@ public:
     IPipeline* getInterface(const Guid& guid);
 
 public:
+    ComputePipeline(Device* device)
+        : Pipeline(device)
+    {
+    }
+
     virtual PipelineType getType() const override { return PipelineType::Compute; }
 
     // IPipeline interface
@@ -71,10 +86,9 @@ public:
 class VirtualComputePipeline : public ComputePipeline
 {
 public:
-    Device* m_device;
     ComputePipelineDesc m_desc;
 
-    Result init(Device* device, const ComputePipelineDesc& desc);
+    VirtualComputePipeline(Device* device, const ComputePipelineDesc& desc);
 
     virtual bool isVirtual() const override { return true; }
 
@@ -89,6 +103,11 @@ public:
     IPipeline* getInterface(const Guid& guid);
 
 public:
+    RayTracingPipeline(Device* device)
+        : Pipeline(device)
+    {
+    }
+
     virtual PipelineType getType() const override { return PipelineType::RayTracing; }
 
     // IPipeline interface
@@ -98,11 +117,10 @@ public:
 class VirtualRayTracingPipeline : public RayTracingPipeline
 {
 public:
-    Device* m_device;
     RayTracingPipelineDesc m_desc;
     StructHolder m_descHolder;
 
-    Result init(Device* device, const RayTracingPipelineDesc& desc);
+    VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc);
 
     virtual bool isVirtual() const override { return true; }
 
