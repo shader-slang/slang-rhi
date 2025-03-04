@@ -7,10 +7,9 @@ namespace rhi::wgpu {
 class TextureImpl : public Texture
 {
 public:
-    DeviceImpl* m_device;
     WGPUTexture m_texture = nullptr;
 
-    TextureImpl(DeviceImpl* device, const TextureDesc& desc);
+    TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
     // ITexture implementation
@@ -21,11 +20,10 @@ public:
 class TextureViewImpl : public TextureView
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<TextureImpl> m_texture;
     WGPUTextureView m_textureView = nullptr;
 
-    TextureViewImpl(DeviceImpl* device, const TextureViewDesc& desc);
+    TextureViewImpl(Device* device, const TextureViewDesc& desc);
     ~TextureViewImpl();
 
     // ITextureView implementation

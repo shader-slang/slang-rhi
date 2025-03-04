@@ -4,26 +4,26 @@
 
 namespace rhi::metal {
 
-SamplerImpl::SamplerImpl(const SamplerDesc& desc)
-    : Sampler(desc)
+SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
+    : Sampler(device, desc)
 {
 }
 
 SamplerImpl::~SamplerImpl() {}
 
-Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
+Result SamplerImpl::init()
 {
     NS::SharedPtr<MTL::SamplerDescriptor> samplerDesc = NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
 
-    samplerDesc->setMinFilter(MetalUtil::translateSamplerMinMagFilter(desc.minFilter));
-    samplerDesc->setMagFilter(MetalUtil::translateSamplerMinMagFilter(desc.magFilter));
-    samplerDesc->setMipFilter(MetalUtil::translateSamplerMipFilter(desc.mipFilter));
+    samplerDesc->setMinFilter(MetalUtil::translateSamplerMinMagFilter(m_desc.minFilter));
+    samplerDesc->setMagFilter(MetalUtil::translateSamplerMinMagFilter(m_desc.magFilter));
+    samplerDesc->setMipFilter(MetalUtil::translateSamplerMipFilter(m_desc.mipFilter));
 
-    samplerDesc->setSAddressMode(MetalUtil::translateSamplerAddressMode(desc.addressU));
-    samplerDesc->setTAddressMode(MetalUtil::translateSamplerAddressMode(desc.addressV));
-    samplerDesc->setRAddressMode(MetalUtil::translateSamplerAddressMode(desc.addressW));
+    samplerDesc->setSAddressMode(MetalUtil::translateSamplerAddressMode(m_desc.addressU));
+    samplerDesc->setTAddressMode(MetalUtil::translateSamplerAddressMode(m_desc.addressV));
+    samplerDesc->setRAddressMode(MetalUtil::translateSamplerAddressMode(m_desc.addressW));
 
-    samplerDesc->setMaxAnisotropy(clamp(desc.maxAnisotropy, 1u, 16u));
+    samplerDesc->setMaxAnisotropy(clamp(m_desc.maxAnisotropy, 1u, 16u));
 
     // TODO: support translation of border color...
     MTL::SamplerBorderColor borderColor = MTL::SamplerBorderColorOpaqueBlack;
@@ -31,19 +31,19 @@ Result SamplerImpl::init(DeviceImpl* device, const SamplerDesc& desc)
 
     samplerDesc->setNormalizedCoordinates(true);
 
-    samplerDesc->setCompareFunction(MetalUtil::translateCompareFunction(desc.comparisonFunc));
-    samplerDesc->setLodMinClamp(clamp(desc.minLOD, 0.f, 1000.f));
-    samplerDesc->setLodMaxClamp(clamp(desc.maxLOD, samplerDesc->lodMinClamp(), 1000.f));
+    samplerDesc->setCompareFunction(MetalUtil::translateCompareFunction(m_desc.comparisonFunc));
+    samplerDesc->setLodMinClamp(clamp(m_desc.minLOD, 0.f, 1000.f));
+    samplerDesc->setLodMaxClamp(clamp(m_desc.maxLOD, samplerDesc->lodMinClamp(), 1000.f));
 
     samplerDesc->setSupportArgumentBuffers(true);
-    if (desc.label)
+    if (m_desc.label)
     {
-        samplerDesc->setLabel(MetalUtil::createString(desc.label).get());
+        samplerDesc->setLabel(MetalUtil::createString(m_desc.label).get());
     }
 
     // TODO: no support for reduction op
 
-    m_samplerState = NS::TransferPtr(device->m_device->newSamplerState(samplerDesc.get()));
+    m_samplerState = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newSamplerState(samplerDesc.get()));
 
     return m_samplerState ? SLANG_OK : SLANG_FAIL;
 }
@@ -59,8 +59,8 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     AUTORELEASEPOOL
 
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(desc);
-    SLANG_RETURN_ON_FAIL(samplerImpl->init(this, desc));
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(samplerImpl->init());
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }

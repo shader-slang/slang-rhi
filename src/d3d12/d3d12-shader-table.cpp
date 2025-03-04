@@ -7,6 +7,11 @@
 
 namespace rhi::d3d12 {
 
+ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
+    : ShaderTable(device, desc)
+{
+}
+
 BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
 {
     std::lock_guard<std::mutex> lock(m_mutex);

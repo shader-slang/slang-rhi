@@ -10,69 +10,6 @@ namespace rhi {
 // ShaderCache
 // ----------------------------------------------------------------------------
 
-Result ShaderTable::init(const ShaderTableDesc& desc)
-{
-    m_rayGenShaderCount = desc.rayGenShaderCount;
-    m_missShaderCount = desc.missShaderCount;
-    m_hitGroupCount = desc.hitGroupCount;
-    m_callableShaderCount = desc.callableShaderCount;
-    m_shaderGroupNames.reserve(
-        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
-    );
-    m_recordOverwrites.reserve(
-        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
-    );
-    for (uint32_t i = 0; i < desc.rayGenShaderCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.rayGenShaderEntryPointNames[i]);
-        if (desc.rayGenShaderRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.rayGenShaderRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
-    }
-    for (uint32_t i = 0; i < desc.missShaderCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.missShaderEntryPointNames[i]);
-        if (desc.missShaderRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.missShaderRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
-    }
-    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.hitGroupNames[i]);
-        if (desc.hitGroupRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.hitGroupRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
-    }
-    for (uint32_t i = 0; i < desc.callableShaderCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.callableShaderEntryPointNames[i]);
-        if (desc.callableShaderRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.callableShaderRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
-    }
-    return SLANG_OK;
-}
-
 ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
 {
     ComponentKey key;
@@ -497,8 +434,7 @@ Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipel
     bool createVirtual = program->isSpecializable();
     if (createVirtual)
     {
-        RefPtr<VirtualRenderPipeline> pipeline = new VirtualRenderPipeline();
-        SLANG_RETURN_ON_FAIL(pipeline->init(this, desc));
+        RefPtr<VirtualRenderPipeline> pipeline = new VirtualRenderPipeline(this, desc);
         returnComPtr(outPipeline, pipeline);
         return SLANG_OK;
     }
@@ -515,8 +451,7 @@ Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePi
     bool createVirtual = program->isSpecializable();
     if (createVirtual)
     {
-        RefPtr<VirtualComputePipeline> pipeline = new VirtualComputePipeline();
-        SLANG_RETURN_ON_FAIL(pipeline->init(this, desc));
+        RefPtr<VirtualComputePipeline> pipeline = new VirtualComputePipeline(this, desc);
         returnComPtr(outPipeline, pipeline);
         return SLANG_OK;
     }
@@ -533,8 +468,7 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRay
     bool createVirtual = program->isSpecializable();
     if (createVirtual)
     {
-        RefPtr<VirtualRayTracingPipeline> pipeline = new VirtualRayTracingPipeline();
-        SLANG_RETURN_ON_FAIL(pipeline->init(this, desc));
+        RefPtr<VirtualRayTracingPipeline> pipeline = new VirtualRayTracingPipeline(this, desc);
         returnComPtr(outPipeline, pipeline);
         return SLANG_OK;
     }

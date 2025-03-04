@@ -3,10 +3,31 @@
 
 namespace rhi::d3d12 {
 
+FenceImpl::FenceImpl(Device* device, const FenceDesc& desc)
+    : Fence(device, desc)
+{
+}
+
 FenceImpl::~FenceImpl()
 {
     if (m_waitEvent)
         ::CloseHandle(m_waitEvent);
+}
+
+Result FenceImpl::init()
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    SLANG_RETURN_ON_FAIL(device->m_device->CreateFence(
+        m_desc.initialValue,
+        m_desc.isShared ? D3D12_FENCE_FLAG_SHARED : D3D12_FENCE_FLAG_NONE,
+        IID_PPV_ARGS(m_fence.writeRef())
+    ));
+    if (m_desc.label)
+    {
+        m_fence->SetName(string::to_wstring(m_desc.label).c_str());
+    }
+    return SLANG_OK;
 }
 
 HANDLE FenceImpl::getWaitEvent()
@@ -15,20 +36,6 @@ HANDLE FenceImpl::getWaitEvent()
         return m_waitEvent;
     m_waitEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
     return m_waitEvent;
-}
-
-Result FenceImpl::init(DeviceImpl* device, const FenceDesc& desc)
-{
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateFence(
-        desc.initialValue,
-        desc.isShared ? D3D12_FENCE_FLAG_SHARED : D3D12_FENCE_FLAG_NONE,
-        IID_PPV_ARGS(m_fence.writeRef())
-    ));
-    if (desc.label)
-    {
-        m_fence->SetName(string::to_wstring(desc.label).c_str());
-    }
-    return SLANG_OK;
 }
 
 Result FenceImpl::getCurrentValue(uint64_t* outValue)

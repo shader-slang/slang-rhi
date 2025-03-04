@@ -1353,9 +1353,9 @@ void CommandRecorder::accelerationStructureBarrier(
 
 // CommandQueueImpl
 
-CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
-    , m_api(device->m_api)
+    , m_api(getDevice<DeviceImpl>()->m_api)
 {
 }
 
@@ -1545,7 +1545,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
-    auto& api = m_device->m_api;
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    auto& api = device->m_api;
     api.vkQueueWaitIdle(m_queue);
     retireCommandBuffers();
     return SLANG_OK;
@@ -1560,8 +1561,8 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
+    : CommandEncoder(device)
     , m_queue(queue)
 {
 }
@@ -1582,16 +1583,11 @@ Result CommandEncoderImpl::init()
     return SLANG_OK;
 }
 
-Device* CommandEncoderImpl::getDevice()
-{
-    return m_device;
-}
-
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
-    builder.m_device = m_device;
+    builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
@@ -1622,7 +1618,7 @@ Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();
-    CommandRecorder recorder(m_device);
+    CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -1638,37 +1634,38 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandBufferImpl
 
-CommandBufferImpl::CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandBufferImpl::CommandBufferImpl(Device* device, CommandQueueImpl* queue)
+    : CommandBuffer(device)
     , m_queue(queue)
 {
 }
 
 CommandBufferImpl::~CommandBufferImpl()
 {
-    m_device->m_api.vkFreeCommandBuffers(m_device->m_api.m_device, m_commandPool, 1, &m_commandBuffer);
-    m_device->m_api.vkDestroyCommandPool(m_device->m_api.m_device, m_commandPool, nullptr);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    device->m_api.vkFreeCommandBuffers(device->m_api.m_device, m_commandPool, 1, &m_commandBuffer);
+    device->m_api.vkDestroyCommandPool(device->m_api.m_device, m_commandPool, nullptr);
     m_descriptorSetAllocator.close();
 }
 
 Result CommandBufferImpl::init()
 {
-    m_constantBufferPool.init(m_device);
-    m_descriptorSetAllocator.init(&m_device->m_api);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    m_constantBufferPool.init(device);
+    m_descriptorSetAllocator.init(&device->m_api);
 
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     createInfo.queueFamilyIndex = m_queue->m_queueFamilyIndex;
     SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkCreateCommandPool(m_device->m_api.m_device, &createInfo, nullptr, &m_commandPool)
+        device->m_api.vkCreateCommandPool(device->m_api.m_device, &createInfo, nullptr, &m_commandPool)
     );
 
     VkCommandBufferAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     allocInfo.commandPool = m_commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkAllocateCommandBuffers(m_device->m_api.m_device, &allocInfo, &m_commandBuffer)
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer)
     );
 
     return SLANG_OK;
@@ -1676,8 +1673,9 @@ Result CommandBufferImpl::init()
 
 Result CommandBufferImpl::reset()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
     m_commandList.reset();
-    SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkResetCommandBuffer(m_commandBuffer, 0));
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkResetCommandBuffer(m_commandBuffer, 0));
     m_constantBufferPool.reset();
     m_descriptorSetAllocator.reset();
     m_bindingCache.reset();

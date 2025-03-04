@@ -12,10 +12,10 @@ public:
     uint32_t m_hitGroupTableOffset;
     uint32_t m_callableTableOffset;
 
-    DeviceImpl* m_device;
-
     std::mutex m_mutex;
     std::map<RayTracingPipelineImpl*, RefPtr<BufferImpl>> m_buffers;
+
+    ShaderTableImpl(Device* device, const ShaderTableDesc& desc);
 
     BufferImpl* getBuffer(RayTracingPipelineImpl* pipeline);
 };

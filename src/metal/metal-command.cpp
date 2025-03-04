@@ -810,7 +810,7 @@ void CommandRecorder::endCommandEncoder()
 
 // CommandQueueImpl
 
-CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
 }
@@ -893,8 +893,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
+    : CommandEncoder(device)
     , m_queue(queue)
 {
 }
@@ -909,16 +909,11 @@ Result CommandEncoderImpl::init()
     return SLANG_OK;
 }
 
-Device* CommandEncoderImpl::getDevice()
-{
-    return m_device;
-}
-
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
-    builder.m_device = m_device;
+    builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     ShaderObjectLayout* specializedLayout = nullptr;
@@ -932,8 +927,9 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
-    SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
-    CommandRecorder recorder(m_device);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    SLANG_RETURN_ON_FAIL(resolvePipelines(device));
+    CommandRecorder recorder(device);
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -949,8 +945,8 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandBufferImpl
 
-CommandBufferImpl::CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue)
-    : m_device(device)
+CommandBufferImpl::CommandBufferImpl(Device* device, CommandQueueImpl* queue)
+    : CommandBuffer(device)
     , m_queue(queue)
 {
 }

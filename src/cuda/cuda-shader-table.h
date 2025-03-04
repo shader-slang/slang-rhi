@@ -11,6 +11,7 @@ namespace rhi::cuda {
 class ShaderTableImpl : public ShaderTable
 {
 public:
+    ShaderTableImpl(Device* device, const ShaderTableDesc& desc);
     ~ShaderTableImpl();
 
     struct Instance

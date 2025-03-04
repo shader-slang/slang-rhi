@@ -7,11 +7,7 @@ namespace rhi::cuda {
 class TextureImpl : public Texture
 {
 public:
-    TextureImpl(const TextureDesc& desc)
-        : Texture(desc)
-    {
-    }
-
+    TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
     uint64_t getBindlessHandle();
@@ -34,10 +30,7 @@ public:
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(const TextureViewDesc& desc)
-        : TextureView(desc)
-    {
-    }
+    TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
     RefPtr<TextureImpl> m_texture;
 };

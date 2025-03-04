@@ -9,7 +9,7 @@
 
 namespace rhi::d3d12 {
 
-class CommandQueueImpl : public CommandQueue<DeviceImpl>
+class CommandQueueImpl : public CommandQueue
 {
 
 public:
@@ -26,7 +26,7 @@ public:
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
-    CommandQueueImpl(DeviceImpl* device, QueueType type);
+    CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
 
     Result init(uint32_t queueIndex);
@@ -47,16 +47,14 @@ public:
 class CommandEncoderImpl : public CommandEncoder
 {
 public:
-    DeviceImpl* m_device;
     CommandQueueImpl* m_queue;
     RefPtr<CommandBufferImpl> m_commandBuffer;
 
-    CommandEncoderImpl(DeviceImpl* device, CommandQueueImpl* queue);
+    CommandEncoderImpl(Device* device, CommandQueueImpl* queue);
     ~CommandEncoderImpl();
 
     Result init();
 
-    virtual Device* getDevice() override;
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
 
     // ICommandEncoder implementation
@@ -75,7 +73,6 @@ public:
 class CommandBufferImpl : public CommandBuffer
 {
 public:
-    DeviceImpl* m_device;
     CommandQueueImpl* m_queue;
     ComPtr<ID3D12CommandAllocator> m_d3dCommandAllocator;
     ComPtr<ID3D12GraphicsCommandList> m_d3dCommandList;
@@ -85,7 +82,7 @@ public:
     BindingCache m_bindingCache;
     uint64_t m_submissionID = 0;
 
-    CommandBufferImpl(DeviceImpl* device, CommandQueueImpl* queue);
+    CommandBufferImpl(Device* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 
     Result init();

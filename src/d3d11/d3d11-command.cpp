@@ -676,7 +676,7 @@ void CommandExecutor::clearState()
 
 // CommandQueueImpl
 
-CommandQueueImpl::CommandQueueImpl(DeviceImpl* device, QueueType type)
+CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
 }
@@ -693,7 +693,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(m_device);
+        CommandExecutor executor(getDevice<DeviceImpl>());
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
     return SLANG_OK;
@@ -712,29 +712,25 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(DeviceImpl* device)
-    : m_device(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device)
+    : CommandEncoder(device)
 {
 }
 
 Result CommandEncoderImpl::init()
 {
-    m_commandBuffer = new CommandBufferImpl();
-    m_commandBuffer->m_constantBufferPool.init(m_device);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    m_commandBuffer = new CommandBufferImpl(device);
+    m_commandBuffer->m_constantBufferPool.init(device);
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
-}
-
-Device* CommandEncoderImpl::getDevice()
-{
-    return m_device;
 }
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
-    builder.m_device = m_device;
+    builder.m_device = getDevice<DeviceImpl>();
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
@@ -764,6 +760,11 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 }
 
 // CommandBufferImpl
+
+CommandBufferImpl::CommandBufferImpl(Device* device)
+    : CommandBuffer(device)
+{
+}
 
 Result CommandBufferImpl::reset()
 {

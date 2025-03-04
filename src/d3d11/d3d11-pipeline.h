@@ -22,6 +22,8 @@ public:
     float m_blendColor[4];
     UINT m_sampleMask;
 
+    RenderPipelineImpl(Device* device);
+
     // IRenderPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
@@ -32,6 +34,8 @@ public:
     RefPtr<ShaderProgramImpl> m_programImpl;
 
     ComPtr<ID3D11ComputeShader> m_computeShader;
+
+    ComputePipelineImpl(Device* device);
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

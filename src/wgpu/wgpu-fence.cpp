@@ -6,6 +6,11 @@
 
 namespace rhi::wgpu {
 
+FenceImpl::FenceImpl(Device* device, const FenceDesc& desc)
+    : Fence(device, desc)
+{
+}
+
 FenceImpl::~FenceImpl() {}
 
 Result FenceImpl::getCurrentValue(uint64_t* outValue)
@@ -34,8 +39,7 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
-    RefPtr<FenceImpl> fence = new FenceImpl();
-    fence->m_device = this;
+    RefPtr<FenceImpl> fence = new FenceImpl(this, desc);
     fence->m_currentValue = desc.initialValue;
     returnComPtr(outFence, fence);
     return SLANG_OK;

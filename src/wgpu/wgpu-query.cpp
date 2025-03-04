@@ -3,11 +3,16 @@
 
 namespace rhi::wgpu {
 
+QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
+    : QueryPool(device, desc)
+{
+}
+
 QueryPoolImpl::~QueryPoolImpl()
 {
     if (m_querySet)
     {
-        m_device->m_ctx.api.wgpuQuerySetRelease(m_querySet);
+        getDevice<DeviceImpl>()->m_ctx.api.wgpuQuerySetRelease(m_querySet);
     }
 }
 
@@ -18,9 +23,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
-    RefPtr<QueryPoolImpl> pool = new QueryPoolImpl();
-    pool->m_device = this;
-    pool->m_desc = desc;
+    RefPtr<QueryPoolImpl> pool = new QueryPoolImpl(this, desc);
 
     WGPUQuerySetDescriptor querySetDesc = {};
     querySetDesc.count = desc.count;

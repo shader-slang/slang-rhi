@@ -5,6 +5,11 @@
 
 namespace rhi::cuda {
 
+AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc)
+    : AccelerationStructure(device, desc)
+{
+}
+
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));

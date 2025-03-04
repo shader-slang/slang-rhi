@@ -4,6 +4,11 @@
 
 namespace rhi::metal {
 
+QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
+    : QueryPool(device, desc)
+{
+}
+
 QueryPoolImpl::~QueryPoolImpl() {}
 
 static MTL::CounterSet* findCounterSet(MTL::Device* device, QueryType queryType)
@@ -28,12 +33,11 @@ static MTL::CounterSet* findCounterSet(MTL::Device* device, QueryType queryType)
     return nullptr;
 }
 
-Result QueryPoolImpl::init(DeviceImpl* device, const QueryPoolDesc& desc)
+Result QueryPoolImpl::init()
 {
-    m_device = device;
-    m_desc = desc;
+    DeviceImpl* device = getDevice<DeviceImpl>();
 
-    MTL::CounterSet* counterSet = findCounterSet(m_device->m_device.get(), m_desc.type);
+    MTL::CounterSet* counterSet = findCounterSet(device->m_device.get(), m_desc.type);
     if (!counterSet)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -49,11 +53,11 @@ Result QueryPoolImpl::init(DeviceImpl* device, const QueryPoolDesc& desc)
         counterSampleBufferDesc->setLabel(MetalUtil::createString(m_desc.label).get());
     }
 
-    m_device->m_device->counterSets();
+    device->m_device->counterSets();
 
     NS::Error* error;
     m_counterSampleBuffer =
-        NS::TransferPtr(m_device->m_device->newCounterSampleBuffer(counterSampleBufferDesc.get(), &error));
+        NS::TransferPtr(device->m_device->newCounterSampleBuffer(counterSampleBufferDesc.get(), &error));
 
     return m_counterSampleBuffer ? SLANG_OK : SLANG_FAIL;
 }

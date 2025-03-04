@@ -4,6 +4,11 @@
 
 namespace rhi::cuda {
 
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
+    : Buffer(device, desc)
+{
+}
+
 BufferImpl::~BufferImpl()
 {
     if (m_cudaMemory && !m_cudaExternalMemory)
@@ -39,7 +44,7 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
 {
     auto desc = fixupBufferDesc(descIn);
-    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     if (desc.memoryType == MemoryType::DeviceLocal)
     {
         SLANG_CUDA_RETURN_ON_FAIL(
@@ -66,7 +71,7 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
         return SLANG_OK;
     }
 
-    RefPtr<BufferImpl> buffer = new BufferImpl(desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
 
     // CUDA manages sharing of buffers through the idea of an
     // "external memory" object, which represents the relationship

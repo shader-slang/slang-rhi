@@ -4,8 +4,8 @@
 
 namespace rhi::metal {
 
-TextureImpl::TextureImpl(const TextureDesc& desc)
-    : Texture(desc)
+TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
+    : Texture(device, desc)
 {
 }
 
@@ -22,6 +22,11 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
 }
 
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
@@ -49,7 +54,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         return SLANG_FAIL;
     }
 
-    RefPtr<TextureImpl> textureImpl(new TextureImpl(desc));
+    RefPtr<TextureImpl> textureImpl(new TextureImpl(this, desc));
 
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
     switch (desc.memoryType)
@@ -206,7 +211,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     AUTORELEASEPOOL
 
     auto textureImpl = checked_cast<TextureImpl*>(texture);
-    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(desc);
+    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(this, desc);
     viewImpl->m_texture = textureImpl;
     if (viewImpl->m_desc.format == Format::Undefined)
         viewImpl->m_desc.format = viewImpl->m_texture->m_desc.format;

@@ -365,8 +365,8 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 {
     AUTORELEASEPOOL
 
-    RefPtr<QueryPoolImpl> poolImpl = new QueryPoolImpl();
-    SLANG_RETURN_ON_FAIL(poolImpl->init(this, desc));
+    RefPtr<QueryPoolImpl> poolImpl = new QueryPoolImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(poolImpl->init());
     returnComPtr(outPool, poolImpl);
     return SLANG_OK;
 }

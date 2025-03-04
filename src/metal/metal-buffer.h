@@ -9,7 +9,7 @@ class BufferImpl : public Buffer
 public:
     NS::SharedPtr<MTL::Buffer> m_buffer;
 
-    BufferImpl(const BufferDesc& desc);
+    BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;

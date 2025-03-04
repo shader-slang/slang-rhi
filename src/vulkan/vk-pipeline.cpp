@@ -13,11 +13,18 @@
 
 namespace rhi::vk {
 
+RenderPipelineImpl::RenderPipelineImpl(Device* device)
+    : RenderPipeline(device)
+{
+}
+
 RenderPipelineImpl::~RenderPipelineImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_pipeline != VK_NULL_HANDLE)
     {
-        m_device->m_api.vkDestroyPipeline(m_device->m_api.m_device, m_pipeline, nullptr);
+        device->m_api.vkDestroyPipeline(device->m_api.m_device, m_pipeline, nullptr);
     }
 }
 
@@ -235,8 +242,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         );
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
-    pipeline->m_device = this;
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
@@ -244,11 +250,18 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     return SLANG_OK;
 }
 
+ComputePipelineImpl::ComputePipelineImpl(Device* device)
+    : ComputePipeline(device)
+{
+}
+
 ComputePipelineImpl::~ComputePipelineImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_pipeline != VK_NULL_HANDLE)
     {
-        m_device->m_api.vkDestroyPipeline(m_device->m_api.m_device, m_pipeline, nullptr);
+        device->m_api.vkDestroyPipeline(device->m_api.m_device, m_pipeline, nullptr);
     }
 }
 
@@ -284,8 +297,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         );
     }
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
-    pipeline->m_device = this;
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
@@ -293,11 +305,18 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     return SLANG_OK;
 }
 
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device)
+    : RayTracingPipeline(device)
+{
+}
+
 RayTracingPipelineImpl::~RayTracingPipelineImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (m_pipeline != VK_NULL_HANDLE)
     {
-        m_device->m_api.vkDestroyPipeline(m_device->m_api.m_device, m_pipeline, nullptr);
+        device->m_api.vkDestroyPipeline(device->m_api.m_device, m_pipeline, nullptr);
     }
 }
 
@@ -430,8 +449,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         m_pipelineCreationAPIDispatcher->afterCreateRayTracingState(this, program->linkedProgram.get());
     }
 
-    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl();
-    pipeline->m_device = this;
+    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;

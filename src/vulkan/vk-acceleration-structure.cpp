@@ -5,11 +5,17 @@
 
 namespace rhi::vk {
 
+AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc)
+    : AccelerationStructure(device, desc)
+{
+}
+
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
-    if (m_device)
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (device)
     {
-        m_device->m_api.vkDestroyAccelerationStructureKHR(m_device->m_api.m_device, m_vkHandle, nullptr);
+        device->m_api.vkDestroyAccelerationStructureKHR(device->m_api.m_device, m_vkHandle, nullptr);
     }
 }
 

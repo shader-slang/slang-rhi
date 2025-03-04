@@ -41,15 +41,11 @@ public:
 class BufferImpl : public Buffer
 {
 public:
-    BufferImpl(DeviceImpl* device, const BufferDesc& desc);
-
+    BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
-    BreakableReference<DeviceImpl> m_device;
     VKBufferHandleRAII m_buffer;
     VKBufferHandleRAII m_uploadBuffer;
-
-    virtual void comFree() override { m_device.breakStrongReference(); }
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 

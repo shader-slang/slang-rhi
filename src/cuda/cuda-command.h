@@ -6,12 +6,12 @@
 
 namespace rhi::cuda {
 
-class CommandQueueImpl : public CommandQueue<DeviceImpl>
+class CommandQueueImpl : public CommandQueue
 {
 public:
     CUstream m_stream;
 
-    CommandQueueImpl(DeviceImpl* device, QueueType type);
+    CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
 
     // ICommandQueue implementation
@@ -24,14 +24,12 @@ public:
 class CommandEncoderImpl : public CommandEncoder
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<CommandBufferImpl> m_commandBuffer;
 
-    CommandEncoderImpl(DeviceImpl* device);
+    CommandEncoderImpl(Device* device);
 
     Result init();
 
-    virtual Device* getDevice() override;
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
 
     // ICommandEncoder implementation
@@ -44,6 +42,8 @@ class CommandBufferImpl : public CommandBuffer
 public:
     BindingCache m_bindingCache;
     ConstantBufferPool m_constantBufferPool;
+
+    CommandBufferImpl(Device* device);
 
     virtual Result reset() override;
 

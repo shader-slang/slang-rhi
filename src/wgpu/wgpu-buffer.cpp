@@ -6,9 +6,8 @@
 
 namespace rhi::wgpu {
 
-BufferImpl::BufferImpl(DeviceImpl* device, const BufferDesc& desc)
-    : Buffer(desc)
-    , m_device(device)
+BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
+    : Buffer(device, desc)
 {
 }
 
@@ -16,7 +15,7 @@ BufferImpl::~BufferImpl()
 {
     if (m_buffer)
     {
-        m_device->m_ctx.api.wgpuBufferRelease(m_buffer);
+        getDevice<DeviceImpl>()->m_ctx.api.wgpuBufferRelease(m_buffer);
     }
 }
 

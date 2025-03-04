@@ -4,8 +4,15 @@
 
 namespace rhi::d3d11 {
 
+TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
+    : Texture(device, desc)
+{
+}
+
 ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRange& range_)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
 
@@ -15,13 +22,15 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
     if (rtv)
         return rtv;
 
-    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateRenderTargetView(m_resource, nullptr, rtv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateRenderTargetView(m_resource, nullptr, rtv.writeRef()));
 
     return rtv;
 }
 
 ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRange& range_)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
 
@@ -31,13 +40,15 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     if (dsv)
         return dsv;
 
-    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateDepthStencilView(m_resource, nullptr, dsv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateDepthStencilView(m_resource, nullptr, dsv.writeRef()));
 
     return dsv;
 }
 
 ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRange& range_)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
 
@@ -51,13 +62,15 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
     initSrvDesc(m_desc, D3DUtil::getMapFormat(format), srvDesc);
 
-    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateShaderResourceView(m_resource, &srvDesc, srv.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateShaderResourceView(m_resource, &srvDesc, srv.writeRef()));
 
     return srv;
 }
 
 ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceRange& range_)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
 
@@ -67,7 +80,7 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
     if (uav)
         return uav;
 
-    SLANG_RETURN_NULL_ON_FAIL(m_device->m_device->CreateUnorderedAccessView(m_resource, nullptr, uav.writeRef()));
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateUnorderedAccessView(m_resource, nullptr, uav.writeRef()));
 
     return uav;
 }
@@ -190,9 +203,14 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     return SLANG_OK;
 }
 
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
+}
+
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(desc);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;

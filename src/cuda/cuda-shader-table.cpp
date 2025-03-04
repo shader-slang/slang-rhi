@@ -13,6 +13,11 @@ struct alignas(OPTIX_SBT_RECORD_ALIGNMENT) SbtRecord
     char header[OPTIX_SBT_RECORD_HEADER_SIZE];
 };
 
+ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
+    : ShaderTable(device, desc)
+{
+}
+
 ShaderTableImpl::~ShaderTableImpl()
 {
     for (auto it : m_instances)

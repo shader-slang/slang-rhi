@@ -4,6 +4,11 @@
 
 namespace rhi::d3d11 {
 
+SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
+    : Sampler(device, desc)
+{
+}
+
 Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     D3D11_FILTER_REDUCTION_TYPE dxReduction = translateFilterReduction(desc.reductionOp);
@@ -37,7 +42,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     ComPtr<ID3D11SamplerState> sampler;
     SLANG_RETURN_ON_FAIL(m_device->CreateSamplerState(&dxDesc, sampler.writeRef()));
 
-    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(desc);
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_sampler = sampler;
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;

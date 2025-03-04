@@ -9,15 +9,22 @@
 
 namespace rhi::vk {
 
+ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
+    : ShaderTable(device, desc)
+{
+}
+
 BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
 
     auto bufferIt = m_buffers.find(pipeline);
     if (bufferIt != m_buffers.end())
         return bufferIt->second.get();
 
-    auto& api = m_device->m_api;
+    auto& api = device->m_api;
     const auto& rtProps = api.m_rtProperties;
     uint32_t handleSize = rtProps.shaderGroupHandleSize;
     m_raygenTableSize = m_rayGenShaderCount * rtProps.shaderGroupBaseAlignment;
@@ -34,7 +41,7 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     auto totalHandleSize = handleSize * handleCount;
     handles.resize(totalHandleSize);
     auto result = api.vkGetRayTracingShaderGroupHandlesKHR(
-        m_device->m_device,
+        device->m_device,
         pipeline->m_pipeline,
         0,
         (uint32_t)handleCount,
@@ -108,7 +115,7 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.size = tableSize;
-    m_device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef());
+    device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef());
 
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer.get());
     m_buffers.emplace(pipeline, bufferImpl);

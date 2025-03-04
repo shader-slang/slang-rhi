@@ -7,6 +7,11 @@
 
 namespace rhi::metal {
 
+RenderPipelineImpl::RenderPipelineImpl(Device* device)
+    : RenderPipeline(device)
+{
+}
+
 Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLRenderPipelineState;
@@ -143,7 +148,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         );
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl();
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
@@ -153,6 +158,11 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_vertexBufferOffset = vertexBufferOffset;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
+}
+
+ComputePipelineImpl::ComputePipelineImpl(Device* device)
+    : ComputePipeline(device)
+{
 }
 
 Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
@@ -195,7 +205,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SlangUInt threadGroupSize[3];
     program->linkedProgram->getLayout()->getEntryPointByIndex(0)->getComputeThreadGroupSize(3, threadGroupSize);
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl();
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;

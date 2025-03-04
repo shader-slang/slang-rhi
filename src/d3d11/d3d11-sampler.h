@@ -7,10 +7,7 @@ namespace rhi::d3d11 {
 class SamplerImpl : public Sampler
 {
 public:
-    SamplerImpl(const SamplerDesc& desc)
-        : Sampler(desc)
-    {
-    }
+    SamplerImpl(Device* device, const SamplerDesc& desc);
 
     ComPtr<ID3D11SamplerState> m_sampler;
 };

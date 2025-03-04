@@ -20,14 +20,13 @@ IPipeline* RenderPipeline::getInterface(const Guid& guid)
 // VirtualRenderPipeline
 // ----------------------------------------------------------------------------
 
-Result VirtualRenderPipeline::init(Device* device, const RenderPipelineDesc& desc)
+VirtualRenderPipeline::VirtualRenderPipeline(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device)
+    , m_desc(desc)
 {
-    m_device = device;
-    m_desc = desc;
     m_descHolder.holdList(m_desc.targets, m_desc.targetCount);
     m_program = checked_cast<ShaderProgram*>(desc.program);
     m_inputLayout = checked_cast<InputLayout*>(desc.inputLayout);
-    return SLANG_OK;
 }
 
 Result VirtualRenderPipeline::getNativeHandle(NativeHandle* outHandle)
@@ -52,12 +51,11 @@ IPipeline* ComputePipeline::getInterface(const Guid& guid)
 // VirtualComputePipeline
 // ----------------------------------------------------------------------------
 
-Result VirtualComputePipeline::init(Device* device, const ComputePipelineDesc& desc)
+VirtualComputePipeline::VirtualComputePipeline(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device)
+    , m_desc(desc)
 {
-    m_device = device;
-    m_desc = desc;
     m_program = checked_cast<ShaderProgram*>(desc.program);
-    return SLANG_OK;
 }
 
 Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
@@ -82,9 +80,9 @@ IPipeline* RayTracingPipeline::getInterface(const Guid& guid)
 // VirtualRayTracingPipeline
 // ----------------------------------------------------------------------------
 
-Result VirtualRayTracingPipeline::init(Device* device, const RayTracingPipelineDesc& desc)
+VirtualRayTracingPipeline::VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device)
 {
-    m_device = device;
     m_desc = desc;
     m_descHolder.holdList(m_desc.hitGroups, m_desc.hitGroupCount);
     for (uint32_t i = 0; i < m_desc.hitGroupCount; i++)
@@ -95,7 +93,6 @@ Result VirtualRayTracingPipeline::init(Device* device, const RayTracingPipelineD
         m_descHolder.holdString(m_desc.hitGroups[i].intersectionEntryPoint);
     }
     m_program = checked_cast<ShaderProgram*>(desc.program);
-    return SLANG_OK;
 }
 
 Result VirtualRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)

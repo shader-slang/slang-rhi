@@ -9,18 +9,12 @@ namespace rhi::d3d12 {
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<BufferImpl> m_buffer;
     CPUDescriptorAllocation m_descriptor;
     ComPtr<ID3D12Device5> m_device5;
 
 public:
-    AccelerationStructureImpl(DeviceImpl* device, const AccelerationStructureDesc& desc)
-        : AccelerationStructure(desc)
-        , m_device(device)
-    {
-    }
-
+    AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
     ~AccelerationStructureImpl();
 
     // IAccelerationStructure implementation

@@ -38,19 +38,34 @@ struct DescStructHeader
     DescStructHeader* next;
 };
 
-
-class Fence : public IFence, public ComObject
+class Fence : public IFence, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IFence* getInterface(const Guid& guid);
 
+public:
+    Fence(Device* device, const FenceDesc& desc)
+        : DeviceChild(device)
+        , m_desc(desc)
+    {
+        m_descHolder.holdString(m_desc.label);
+    }
+
 protected:
+    FenceDesc m_desc;
+    StructHolder m_descHolder;
     NativeHandle sharedHandle = {};
 };
 
-class Resource : public ComObject
-{};
+class Resource : public DeviceChild
+{
+public:
+    Resource(Device* device)
+        : DeviceChild(device)
+    {
+    }
+};
 
 class Buffer : public IBuffer, public Resource
 {
@@ -59,8 +74,9 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Buffer(const BufferDesc& desc)
-        : m_desc(desc)
+    Buffer(Device* device, const BufferDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -85,8 +101,9 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Texture(const TextureDesc& desc)
-        : m_desc(desc)
+    Texture(Device* device, const TextureDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -112,8 +129,9 @@ public:
     ITextureView* getInterface(const Guid& guid);
 
 public:
-    TextureView(const TextureViewDesc& desc)
-        : m_desc(desc)
+    TextureView(Device* device, const TextureViewDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -133,8 +151,9 @@ public:
     ISampler* getInterface(const Guid& guid);
 
 public:
-    Sampler(const SamplerDesc& desc)
-        : m_desc(desc)
+    Sampler(Device* device, const SamplerDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -155,8 +174,9 @@ public:
     IAccelerationStructure* getInterface(const Guid& guid);
 
 public:
-    AccelerationStructure(const AccelerationStructureDesc& desc)
-        : m_desc(desc)
+    AccelerationStructure(Device* device, const AccelerationStructureDesc& desc)
+        : Resource(device)
+        , m_desc(desc)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -176,13 +196,19 @@ public:
     IInputLayout* getInterface(const Guid& guid);
 };
 
-class QueryPool : public IQueryPool, public ComObject
+class QueryPool : public IQueryPool, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IQueryPool* getInterface(const Guid& guid);
 
 public:
+    QueryPool(Device* device, const QueryPoolDesc& desc)
+        : DeviceChild(device)
+        , m_desc(desc)
+    {
+    }
+
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
 
 public:
@@ -191,7 +217,7 @@ public:
 
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
 
-class ShaderTable : public IShaderTable, public ComObject
+class ShaderTable : public IShaderTable, public DeviceChild
 {
 public:
     std::vector<std::string> m_shaderGroupNames;
@@ -210,7 +236,7 @@ public:
         return nullptr;
     }
 
-    Result init(const ShaderTableDesc& desc);
+    ShaderTable(Device* device, const ShaderTableDesc& desc);
 };
 
 class Surface : public ISurface, public ComObject

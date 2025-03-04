@@ -7,10 +7,9 @@ namespace rhi::wgpu {
 class SamplerImpl : public Sampler
 {
 public:
-    DeviceImpl* m_device;
     WGPUSampler m_sampler = nullptr;
 
-    SamplerImpl(DeviceImpl* device, const SamplerDesc& desc);
+    SamplerImpl(Device* device, const SamplerDesc& desc);
     ~SamplerImpl();
 
     // ISampler implementation

@@ -97,11 +97,7 @@ class TextureImpl : public Texture
     };
 
 public:
-    TextureImpl(const TextureDesc& desc)
-        : Texture(desc)
-    {
-    }
-
+    TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
     Result init(const SubresourceData* initData);
@@ -128,10 +124,7 @@ public:
 class TextureViewImpl : public TextureView, public slang_prelude::IRWTexture
 {
 public:
-    TextureViewImpl(const TextureViewDesc& desc)
-        : TextureView(desc)
-    {
-    }
+    TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
     //
     // ITexture interface

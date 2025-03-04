@@ -7,10 +7,9 @@ namespace rhi::wgpu {
 class BufferImpl : public Buffer
 {
 public:
-    DeviceImpl* m_device;
     WGPUBuffer m_buffer = nullptr;
 
-    BufferImpl(DeviceImpl* device, const BufferDesc& desc);
+    BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
     // IBuffer implementation
