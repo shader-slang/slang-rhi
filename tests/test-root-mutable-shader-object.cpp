@@ -20,7 +20,7 @@ GPU_TEST_CASE("root-mutable-shader-object", WGPU)
     const int numberCount = SLANG_COUNT_OF(initialData);
     BufferDesc bufferDesc = {};
     bufferDesc.size = sizeof(initialData);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;

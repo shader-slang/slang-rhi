@@ -51,7 +51,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipelineDesc.primitive.unclippedDepth = !desc.rasterizer.depthClipEnable;
 
     WGPUDepthStencilState depthStencil = {};
-    if (desc.depthStencil.format != Format::Unknown)
+    if (desc.depthStencil.format != Format::Undefined)
     {
         const DepthStencilDesc& depthStencilIn = desc.depthStencil;
         depthStencil.format = translateTextureFormat(depthStencilIn.format);

@@ -73,7 +73,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetState.alpha.op));
         colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetState.writeMask));
     }
-    if (desc.depthStencil.format != Format::Unknown)
+    if (desc.depthStencil.format != Format::Undefined)
     {
         const DepthStencilDesc& depthStencil = desc.depthStencil;
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);

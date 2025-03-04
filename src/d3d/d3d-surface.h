@@ -109,7 +109,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override
     {
         setConfig(config);
-        m_config.format = m_config.format == Format::Unknown ? m_info.preferredFormat : m_config.format;
+        m_config.format = m_config.format == Format::Undefined ? m_info.preferredFormat : m_config.format;
 
         m_configured = false;
         destroySwapchain();

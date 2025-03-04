@@ -125,7 +125,7 @@ GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU |
     float initialData[] = {0.0f, 0.0f, 0.0f, 0.0f};
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(float);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;

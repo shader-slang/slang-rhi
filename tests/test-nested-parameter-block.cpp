@@ -9,7 +9,7 @@ ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t data, ResourceState defau
     const int numberCount = SLANG_COUNT_OF(initialData);
     BufferDesc bufferDesc = {};
     bufferDesc.size = sizeof(initialData);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(uint32_t) * 4;
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;

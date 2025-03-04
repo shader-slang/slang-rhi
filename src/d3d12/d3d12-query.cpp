@@ -125,7 +125,7 @@ Result PlainBufferProxyQueryPoolImpl::init(const QueryPoolDesc& desc, DeviceImpl
     bufferDesc.defaultState = ResourceState::CopySource;
     bufferDesc.elementSize = 0;
     bufferDesc.size = desc.count * stride;
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.usage = BufferUsage::UnorderedAccess;
     SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
     m_buffer = checked_cast<BufferImpl*>(buffer.get());

@@ -28,7 +28,7 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
         srvDesc.Buffer.FirstElement = UINT(range.offset / m_desc.elementSize);
         srvDesc.Buffer.NumElements = UINT(range.size / m_desc.elementSize);
     }
-    else if (format == Format::Unknown)
+    else if (format == Format::Undefined)
     {
         // We need to switch to a different member of the `union`,
         // so that we can set the `BufferEx.Flags` member.
@@ -71,7 +71,7 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
         uavDesc.Buffer.FirstElement = UINT(range.offset / m_desc.elementSize);
         uavDesc.Buffer.NumElements = UINT(range.size / m_desc.elementSize);
     }
-    else if (format == Format::Unknown)
+    else if (format == Format::Undefined)
     {
         uavDesc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
         uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;

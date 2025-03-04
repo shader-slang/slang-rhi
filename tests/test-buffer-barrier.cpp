@@ -20,7 +20,7 @@ ComPtr<IBuffer> createFloatBuffer(
 {
     BufferDesc bufferDesc = {};
     bufferDesc.size = elementCount * sizeof(float);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(float);
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination | BufferUsage::CopySource;

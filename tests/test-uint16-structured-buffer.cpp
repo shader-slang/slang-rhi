@@ -20,7 +20,7 @@ GPU_TEST_CASE("uint16-structured-buffer", D3D12 | Vulkan | Metal | CPU | CUDA)
     uint16_t initialData[] = {0, 1, 2, 3};
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(uint16_t);
-    bufferDesc.format = Format::Unknown;
+    bufferDesc.format = Format::Undefined;
     // Note: we don't specify any element size here, and rhi should be able to derive the
     // correct element size from the reflection infomation.
     bufferDesc.elementSize = 0;

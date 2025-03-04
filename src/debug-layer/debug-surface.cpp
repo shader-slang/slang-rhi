@@ -23,12 +23,12 @@ Result DebugSurface::configure(const SurfaceConfig& config)
 
     m_configured = false;
 
-    // format must be Format::Unknown (selecting preferred format) or any of the supported formats.
-    if (config.format == Format::Unknown)
+    // format must be Format::Undefined (selecting preferred format) or any of the supported formats.
+    if (config.format == Format::Undefined)
     {
         RHI_VALIDATION_INFO("Configuring with unknown surface format, choosing the preferred format.");
     }
-    if (config.format != Format::Unknown && !contains(info.formats, info.formatCount, config.format))
+    if (config.format != Format::Undefined && !contains(info.formats, info.formatCount, config.format))
     {
         RHI_VALIDATION_ERROR("Unsupported format");
         return SLANG_E_INVALID_ARG;

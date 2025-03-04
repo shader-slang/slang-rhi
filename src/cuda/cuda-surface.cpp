@@ -103,7 +103,7 @@ public:
 };
 
 static auto translateVkFormat =
-    reverseMap<Format, VkFormat>(vk::VulkanUtil::getVkFormat, Format::Unknown, Format::_Count);
+    reverseMap<Format, VkFormat>(vk::VulkanUtil::getVkFormat, Format::Undefined, Format::_Count);
 
 SurfaceImpl::~SurfaceImpl()
 {
@@ -170,18 +170,18 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
     m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &formatCount, surfaceFormats.data());
 
-    Format preferredFormat = Format::Unknown;
+    Format preferredFormat = Format::Undefined;
     for (uint32_t i = 0; i < formatCount; ++i)
     {
         Format format = translateVkFormat(surfaceFormats[i].format);
-        if (format != Format::Unknown)
+        if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
         // if (format == Format::B8G8R8A8_UNORM)
         //     preferredFormat = format;
         if (format == Format::R8G8B8A8_UNORM)
             preferredFormat = format;
     }
-    if (preferredFormat == Format::Unknown && !m_supportedFormats.empty())
+    if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())
     {
         preferredFormat = m_supportedFormats.front();
     }
@@ -738,7 +738,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     {
         return SLANG_FAIL;
     }
-    if (m_config.format == Format::Unknown)
+    if (m_config.format == Format::Undefined)
     {
         m_config.format = m_info.preferredFormat;
     }

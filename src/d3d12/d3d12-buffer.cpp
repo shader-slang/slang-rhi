@@ -87,7 +87,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, c
         viewDesc.Buffer.NumElements = UINT(range.size / stride);
         viewDesc.Buffer.StructureByteStride = stride;
     }
-    else if (format == Format::Unknown)
+    else if (format == Format::Undefined)
     {
         viewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
         viewDesc.Buffer.FirstElement = range.offset / 4;
@@ -129,7 +129,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
         viewDesc.Buffer.NumElements = UINT(range.size / stride);
         viewDesc.Buffer.StructureByteStride = stride;
     }
-    else if (format == Format::Unknown)
+    else if (format == Format::Undefined)
     {
         viewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
         viewDesc.Buffer.FirstElement = range.offset / 4;
