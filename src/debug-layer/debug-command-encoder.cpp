@@ -356,10 +356,23 @@ Result DebugCommandEncoder::uploadTextureData(
     if (subresourceRange.mipLevelCount != 1)
     {
         if (offset.x != 0 || offset.y != 0 || offset.z != 0)
+        {
             RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires offset to be 0");
+            return SLANG_FAIL;
+        }
+
         if (extent.width != kRemainingTextureSize || extent.height != kRemainingTextureSize ||
             extent.depth != kRemainingTextureSize)
+        {
             RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires extent to be Extents::WholeTexture");
+            return SLANG_FAIL;
+        }
+    }
+
+    if (subresourceRange.mipLevelCount * subresourceRange.layerCount != subresourceDataCount)
+    {
+        RHI_VALIDATION_ERROR("The number of subresource data must match the number of subresources.");
+        return SLANG_FAIL;
     }
 
     return baseObject->uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
