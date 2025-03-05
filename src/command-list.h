@@ -438,11 +438,7 @@ public:
         }
     }
 
-private:
-    ArenaAllocator& m_allocator;
-    std::set<RefPtr<RefObject>>& m_trackedObjects;
-    CommandSlot* m_commandSlots = nullptr;
-    CommandSlot* m_lastCommandSlot = nullptr;
+    const void* allocData(size_t size) { return m_allocator.allocate(size); }
 
     const void* writeData(const void* data, size_t size)
     {
@@ -450,6 +446,12 @@ private:
         std::memcpy(dst, data, size);
         return dst;
     }
+
+private:
+    ArenaAllocator& m_allocator;
+    std::set<RefPtr<RefObject>>& m_trackedObjects;
+    CommandSlot* m_commandSlots = nullptr;
+    CommandSlot* m_lastCommandSlot = nullptr;
 
     template<typename T>
     void writeCommand(T&& cmd)
