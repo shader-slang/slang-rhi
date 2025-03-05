@@ -112,6 +112,7 @@ public:
         }
         ~Handle() { m_heap->free(m_allocation); }
 
+        const Allocation& getAllocation() const { return m_allocation; }
         Offset getOffset() const { return m_allocation.getOffset(); }
         Size getSize() const { return m_allocation.getSize(); }
         Page* getPage() const { return m_allocation.page; }
@@ -182,6 +183,12 @@ public:
 
     // Used by testing system to change whether pages stay mapped
     void testOnlySetKeepPagesMapped(bool keepPagesMapped) { m_keepPagesMapped = keepPagesMapped; }
+
+    // Map memory for allocation (if not mapped already) and return ptr to it
+    void* map(const Allocation& allocation);
+
+    // Unmap memory for allocation if necessary (for heap that keeps pages mapped, this is noop)
+    void unmap(const Allocation& allocation);
 
 private:
     Device* m_device = nullptr;
