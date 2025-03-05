@@ -402,7 +402,56 @@ void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
-    m_device->warning("uploadTextureData command not implemented");
+    auto dst = checked_cast<TextureImpl*>(cmd.dst);
+    SubresourceRange subresourceRange = cmd.subresourceRange;
+
+    requireTextureState(dst, subresourceRange, ResourceState::CopyDestination);
+    commitBarriers();
+
+    SubresourceLayout* srLayout = cmd.layouts;
+    Offset bufferOffset = cmd.srcOffset;
+    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
+    {
+        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        {
+            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+
+            D3D12_RESOURCE_DESC texDesc = dst->m_resource.getResource()->GetDesc();
+
+            D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
+            dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            dstRegion.pResource = dst->m_resource.getResource();
+
+            dstRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
+                mipLevel,
+                layerIndex,
+                0,
+                dst->m_desc.mipLevelCount,
+                dst->m_desc.arrayLength
+            );
+
+            D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
+            srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            srcRegion.pResource = buffer->m_resource.getResource();
+
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = srcRegion.PlacedFootprint;
+            footprint.Offset = bufferOffset;
+            footprint.Footprint.Format = texDesc.Format;
+            footprint.Footprint.Width = srLayout->size.width;
+            footprint.Footprint.Height = srLayout->size.height;
+            footprint.Footprint.Depth = srLayout->size.depth;
+            footprint.Footprint.RowPitch = srLayout->strideY;
+
+            m_cmdList->CopyTextureRegion(&dstRegion, cmd.offset.x, cmd.offset.y, cmd.offset.z, &srcRegion, nullptr);
+
+            bufferOffset += srLayout->sizeInBytes;
+            srLayout++;
+        }
+    }
+
 #if 0
     TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
 

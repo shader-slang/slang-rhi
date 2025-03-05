@@ -539,11 +539,8 @@ Result CommandEncoder::uploadTextureData(
         uint8_t* srDestData = dstData;
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
         {
-            uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
             for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
             {
-                uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
-
                 // Source and dest rows may have different alignments, so its valid for strides to be
                 // different (even if data itself isn't). We copy the minimum of the two to avoid
                 // reading/writing out of bounds.
