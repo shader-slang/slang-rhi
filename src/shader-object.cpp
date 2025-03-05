@@ -237,7 +237,7 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
     return SLANG_OK;
 }
 
-Result ShaderObject::setBinding(const ShaderOffset& offset, Binding binding)
+Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)
 {
     SLANG_RETURN_ON_FAIL(checkFinalized());
 

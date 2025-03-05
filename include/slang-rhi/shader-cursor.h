@@ -99,7 +99,7 @@ struct ShaderCursor
 
     Result setObject(IShaderObject* object) const { return m_baseObject->setObject(m_offset, object); }
 
-    Result setBinding(Binding binding) const { return m_baseObject->setBinding(m_offset, binding); }
+    Result setBinding(const Binding& binding) const { return m_baseObject->setBinding(m_offset, binding); }
 
     Result setSpecializationArgs(const slang::SpecializationArg* args, uint32_t count) const
     {
