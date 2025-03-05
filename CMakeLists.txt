@@ -384,6 +384,7 @@ endif()
 target_compile_options(slang-rhi PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:
         /W4 /WX
+        /w14062 # enumerator 'identifier' in switch of enum 'enumeration' is not handled
         /wd4267 # conversion from 'size_t' to 'type', possible loss of data
         /wd4244 # conversion from 'type1' to 'type2', possible loss of data
         /wd4100 # unreferenced formal parameter
