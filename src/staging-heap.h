@@ -120,6 +120,9 @@ public:
         Buffer* getBuffer() const { return m_allocation.getBuffer(); }
         const MetaData& getMetaData() const { return m_allocation.getMetaData(); }
 
+        void* map() { return m_heap->map(m_allocation); }
+        void unmap() { m_heap->unmap(m_allocation); }
+
     private:
         StagingHeap* m_heap;
         Allocation m_allocation;

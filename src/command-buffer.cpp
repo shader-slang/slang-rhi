@@ -503,13 +503,93 @@ Result CommandEncoder::uploadTextureData(
     uint32_t subresourceDataCount
 )
 {
+    // Allocate space in command list memory for layout information on each subresource.
+    SubresourceLayout* layouts =
+        (SubresourceLayout*)m_commandList->allocData(sizeof(SubresourceLayout) * subresourceDataCount);
+
+    // Gather subresource layout for each layer/mip and sum up total required staging buffer size.
+    Size totalSize = 0;
+    {
+        SubresourceLayout* srLayout = layouts;
+        for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
+        {
+            uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+            for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+            {
+                uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+
+                ((Texture*)dst)->getSubresourceRegionLayout(mipLevel, layerIndex, offset, extent, srLayout);
+                totalSize += srLayout->sizeInBytes;
+                srLayout++;
+            }
+        }
+    }
+
+    // Allocate and retain a staging buffer for the upload.
+    RefPtr<StagingHeap::Handle> handle;
+    SLANG_RETURN_ON_FAIL(getDevice()->m_heap.allocHandle(totalSize, {}, handle.writeRef()));
+    m_commandList->retainResource(handle);
+
+    // Copy subresources a row at a time into the staging buffer.
+    uint8_t* dstData = (uint8_t*)handle->map();
+    {
+        // Iterate over sub resources by layer and mip level
+        SubresourceLayout* srLayout = layouts;
+        SubresourceData* srSrcData = subresourceData;
+        uint8_t* srDestData = dstData;
+        for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
+        {
+            uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+            for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+            {
+                uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+
+                // Source and dest rows may have different alignments, so its valid for strides to be
+                // different (even if data itself isn't). We copy the minimum of the two to avoid
+                // reading/writing out of bounds.
+                Size rowCopyStride = srSrcData->strideY < srLayout->strideY ? srSrcData->strideY : srLayout->strideY;
+
+                // Iterate over slices and rows, copying a row at a time
+                uint8_t* sliceSrcData = (uint8_t*)srSrcData->data;
+                uint8_t* sliceDestData = srDestData;
+                for (uint32_t z = 0; z < srLayout->size.depth; z++)
+                {
+                    uint8_t* rowSrcData = sliceSrcData;
+                    uint8_t* rowDestData = sliceDestData;
+                    for (uint32_t y = 0; y < srLayout->size.height; y++)
+                    {
+                        // Copy the row.
+                        memcpy(rowDestData, rowSrcData, rowCopyStride);
+
+                        // Increment src/dest position within this slice.
+                        rowSrcData += srSrcData->strideY;
+                        rowDestData += srLayout->strideY;
+                    }
+
+                    // Increment src/dest position of current slice.
+                    sliceSrcData += srSrcData->strideZ;
+                    sliceDestData += srLayout->strideZ;
+                }
+
+                // Move to next subresource.
+                srDestData += srLayout->sizeInBytes;
+                srSrcData++;
+                srLayout++;
+            }
+        }
+    }
+    handle->unmap();
+
+    // Store command that contains the basic parameters plus info
+    // on layouts and the staging buffer.
     commands::UploadTextureData cmd;
     cmd.dst = dst;
     cmd.subresourceRange = subresourceRange;
     cmd.offset = offset;
     cmd.extent = extent;
-    cmd.subresourceData = subresourceData;
-    cmd.subresourceDataCount = subresourceDataCount;
+    cmd.layouts = layouts;
+    cmd.srcBuffer = handle->getBuffer();
+    cmd.srcOffset = handle->getOffset();
     m_commandList->write(std::move(cmd));
     return SLANG_OK;
 }

@@ -112,6 +112,7 @@ Result TextureImpl::getSubresourceRegionLayout(
     outLayout->size = extents;
     outLayout->strideY = rowPitch;
     outLayout->strideZ = layerPitch;
+    outLayout->sizeInBytes = layerPitch * extents.depth;
 
     return SLANG_OK;
 }

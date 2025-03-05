@@ -119,10 +119,12 @@ struct UploadTextureData
     SubresourceRange subresourceRange;
     Offset3D offset;
     Extents extent;
-    // TODO: we could use some owned memory blob to avoid copying data
-    // also, SubresourceData needs a size field to know how much to copy
-    SubresourceData* subresourceData;
-    uint32_t subresourceDataCount;
+
+    // Inside uploadTextureData, layouts for each subresource are stored.
+    // src and offset are the location of the staged data in the staging heap.
+    SubresourceLayout* layouts;
+    IBuffer* srcBuffer;
+    uint64_t srcOffset;
 };
 
 struct ResolveQuery

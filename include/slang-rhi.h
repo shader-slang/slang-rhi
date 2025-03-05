@@ -704,6 +704,9 @@ struct SubresourceLayout
 
     /// Stride in bytes between layers of the subresource tensor.
     Size strideZ;
+
+    /// Overall size required to fit the subresource data (typically size.z*strideZ).
+    Size sizeInBytes;
 };
 
 struct TextureDesc
