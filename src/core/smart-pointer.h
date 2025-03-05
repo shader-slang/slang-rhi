@@ -220,8 +220,6 @@ struct SLANG_RHI_API RefPtr
 
     T* operator->() const { return pointer; }
 
-    T* Ptr() const { return pointer; }
-
     T* get() const { return pointer; }
 
     operator T*() const { return pointer; }

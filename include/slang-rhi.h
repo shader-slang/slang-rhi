@@ -721,15 +721,6 @@ struct TextureDesc
     const char* label = nullptr;
 };
 
-class ITexture : public IResource
-{
-    SLANG_COM_INTERFACE(0x423090a2, 0x8be7, 0x4421, {0x98, 0x71, 0x7e, 0xe2, 0x63, 0xf4, 0xea, 0x3d});
-
-public:
-    virtual SLANG_NO_THROW const TextureDesc& SLANG_MCALL getDesc() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
-};
-
 struct TextureViewDesc
 {
     StructType structType = StructType::TextureViewDesc;
@@ -744,6 +735,24 @@ struct TextureViewDesc
 class ITextureView : public IResource
 {
     SLANG_COM_INTERFACE(0xe6078d78, 0x3bd3, 0x40e8, {0x90, 0x42, 0x3b, 0x5e, 0x0c, 0x45, 0xde, 0x1f});
+};
+
+class ITexture : public IResource
+{
+    SLANG_COM_INTERFACE(0x423090a2, 0x8be7, 0x4421, {0x98, 0x71, 0x7e, 0xe2, 0x63, 0xf4, 0xea, 0x3d});
+
+public:
+    virtual SLANG_NO_THROW const TextureDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createView(const TextureViewDesc& desc, ITextureView** outTextureView) = 0;
+
+    inline ComPtr<ITextureView> createView(const TextureViewDesc& desc)
+    {
+        ComPtr<ITextureView> view;
+        createView(desc, view.writeRef());
+        return view;
+    }
 };
 
 enum class ComparisonFunc : uint8_t
@@ -1182,18 +1191,16 @@ enum class BindingType
     Buffer,
     BufferWithCounter,
     Texture,
-    TextureView,
     Sampler,
     CombinedTextureSampler,
-    CombinedTextureViewSampler,
     AccelerationStructure,
 };
 
 struct Binding
 {
     BindingType type = BindingType::Undefined;
-    IResource* resource = nullptr;
-    IResource* resource2 = nullptr;
+    ComPtr<IResource> resource;
+    ComPtr<IResource> resource2;
     union
     {
         BufferRange bufferRange;
@@ -1203,28 +1210,28 @@ struct Binding
     Binding() : type(BindingType::Undefined) {}
 
     Binding(IBuffer* buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer), bufferRange(range) {}
-    Binding(const ComPtr<IBuffer>& buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer.get()), bufferRange(range) {}
+    Binding(const ComPtr<IBuffer>& buffer, const BufferRange& range = kEntireBuffer) : type(BindingType::Buffer), resource(buffer), bufferRange(range) {}
 
     Binding(IBuffer* buffer, IBuffer* counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
-    Binding(const ComPtr<IBuffer>& buffer, const ComPtr<IBuffer>& counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer.get()), resource2(counter.get()), bufferRange(range) {}
+    Binding(const ComPtr<IBuffer>& buffer, const ComPtr<IBuffer>& counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
 
-    Binding(ITexture* texture) : type(BindingType::Texture), resource(texture) {}
-    Binding(const ComPtr<ITexture>& texture) : type(BindingType::Texture), resource(texture.get()) {}
+    Binding(ITexture* texture) : type(BindingType::Texture), resource(texture->createView({})) {}
+    Binding(const ComPtr<ITexture>& texture) : type(BindingType::Texture), resource(texture->createView({})) {}
 
-    Binding(ITextureView* textureView) : type(BindingType::TextureView), resource(textureView) {}
-    Binding(const ComPtr<ITextureView>& textureView) : type(BindingType::TextureView), resource(textureView.get()) {}
+    Binding(ITextureView* textureView) : type(BindingType::Texture), resource(textureView) {}
+    Binding(const ComPtr<ITextureView>& textureView) : type(BindingType::Texture), resource(textureView) {}
 
     Binding(ISampler* sampler) : type(BindingType::Sampler) , resource(sampler) {}
-    Binding(const ComPtr<ISampler>& sampler) : type(BindingType::Sampler) , resource(sampler.get()) {}
+    Binding(const ComPtr<ISampler>& sampler) : type(BindingType::Sampler) , resource(sampler) {}
 
-    Binding(ITexture* texture, ISampler* sampler) : type(BindingType::CombinedTextureSampler), resource(texture), resource2(sampler) {}
-    Binding(const ComPtr<ITexture>& texture, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureSampler), resource(texture.get()), resource2(sampler.get()) {}
+    Binding(ITexture* texture, ISampler* sampler) : type(BindingType::CombinedTextureSampler), resource(texture->createView({})), resource2(sampler) {}
+    Binding(const ComPtr<ITexture>& texture, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureSampler), resource(texture->createView({})), resource2(sampler) {}
 
-    Binding(ITextureView* textureView, ISampler* sampler) : type(BindingType::CombinedTextureViewSampler) , resource(textureView), resource2(sampler) {}
-    Binding(const ComPtr<ITextureView>& textureView, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureViewSampler) , resource(textureView.get()), resource2(sampler.get()) {}
+    Binding(ITextureView* textureView, ISampler* sampler) : type(BindingType::CombinedTextureSampler) , resource(textureView), resource2(sampler) {}
+    Binding(const ComPtr<ITextureView>& textureView, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureSampler) , resource(textureView), resource2(sampler) {}
 
     Binding(IAccelerationStructure* as) : type(BindingType::AccelerationStructure), resource(as) {}
-    Binding(const ComPtr<IAccelerationStructure>& as) : type(BindingType::AccelerationStructure), resource(as.get()) {}
+    Binding(const ComPtr<IAccelerationStructure>& as) : type(BindingType::AccelerationStructure), resource(as) {}
     // clang-format on
 };
 
@@ -1240,7 +1247,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, Binding binding) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type

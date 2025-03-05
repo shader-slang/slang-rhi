@@ -114,7 +114,7 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
     return baseObject->setObject(offset, getInnerObj(object));
 }
 
-Result DebugShaderObject::setBinding(const ShaderOffset& offset, Binding binding)
+Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();

@@ -237,7 +237,7 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
     return SLANG_OK;
 }
 
-Result ShaderObject::setBinding(const ShaderOffset& offset, Binding binding)
+Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)
 {
     SLANG_RETURN_ON_FAIL(checkFinalized());
 
@@ -256,40 +256,29 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, Binding binding)
     case BindingType::Buffer:
     case BindingType::BufferWithCounter:
     {
-        Buffer* buffer = checked_cast<Buffer*>(binding.resource);
+        Buffer* buffer = checked_cast<Buffer*>(binding.resource.get());
         if (!buffer)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
         if (binding.type == BindingType::BufferWithCounter)
-            slot.resource2 = checked_cast<Buffer*>(binding.resource2);
+            slot.resource2 = checked_cast<Buffer*>(binding.resource2.get());
         slot.format = buffer->m_desc.format;
         slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         break;
     }
     case BindingType::Texture:
     {
-        // TODO(shaderobject)
-        // we might want to remove BindingType::Texture and instead introduce
-        // a getDefaultView() method on ITexture objects that can be used when
-        // creating the binding
-        Texture* texture = checked_cast<Texture*>(binding.resource);
-        if (!texture)
-            return SLANG_E_INVALID_ARG;
-        return setBinding(offset, m_device->createTextureView(texture, {}));
-    }
-    case BindingType::TextureView:
-    {
-        TextureView* textureView = checked_cast<TextureView*>(binding.resource);
+        TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
         if (!textureView)
             return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::TextureView;
+        slot.type = BindingType::Texture;
         slot.resource = textureView;
         break;
     }
     case BindingType::Sampler:
     {
-        Sampler* sampler = checked_cast<Sampler*>(binding.resource);
+        Sampler* sampler = checked_cast<Sampler*>(binding.resource.get());
         if (!sampler)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::Sampler;
@@ -298,7 +287,7 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, Binding binding)
     }
     case BindingType::AccelerationStructure:
     {
-        AccelerationStructure* accelerationStructure = checked_cast<AccelerationStructure*>(binding.resource);
+        AccelerationStructure* accelerationStructure = checked_cast<AccelerationStructure*>(binding.resource.get());
         if (!accelerationStructure)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::AccelerationStructure;
@@ -307,23 +296,11 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, Binding binding)
     }
     case BindingType::CombinedTextureSampler:
     {
-        // TODO(shaderobject)
-        // we might want to remove BindingType::CombinedTextureSampler and instead introduce
-        // a getDefaultView() method on ITexture objects that can be used when
-        // creating the binding
-        Texture* texture = checked_cast<Texture*>(binding.resource);
-        Sampler* sampler = checked_cast<Sampler*>(binding.resource2);
-        if (!texture || !sampler)
-            return SLANG_E_INVALID_ARG;
-        return setBinding(offset, {m_device->createTextureView(texture, {}), sampler});
-    }
-    case BindingType::CombinedTextureViewSampler:
-    {
-        TextureView* textureView = checked_cast<TextureView*>(binding.resource);
-        Sampler* sampler = checked_cast<Sampler*>(binding.resource2);
+        TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
+        Sampler* sampler = checked_cast<Sampler*>(binding.resource2.get());
         if (!textureView || !sampler)
             return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::CombinedTextureViewSampler;
+        slot.type = BindingType::CombinedTextureSampler;
         slot.resource = textureView;
         slot.resource2 = sampler;
         break;

@@ -115,6 +115,8 @@ public:
     virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
 
 public:
     TextureDesc m_desc;

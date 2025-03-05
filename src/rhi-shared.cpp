@@ -114,6 +114,11 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextureView)
+{
+    return m_device->createTextureView(this, desc, outTextureView);
+}
+
 // ----------------------------------------------------------------------------
 // TextureView
 // ----------------------------------------------------------------------------
