@@ -159,20 +159,6 @@ enum class Format
     // has a matching Vulkan format but is also omitted as it is only supported by Nvidia.
     Undefined,
 
-    R32G32B32A32_TYPELESS,
-    R32G32B32_TYPELESS,
-    R32G32_TYPELESS,
-    R32_TYPELESS,
-
-    R16G16B16A16_TYPELESS,
-    R16G16_TYPELESS,
-    R16_TYPELESS,
-
-    R8G8B8A8_TYPELESS,
-    R8G8_TYPELESS,
-    R8_TYPELESS,
-    B8G8R8A8_TYPELESS,
-
     R32G32B32A32_FLOAT,
     R32G32B32_FLOAT,
     R32G32_FLOAT,
@@ -232,14 +218,12 @@ enum class Format
     D32_FLOAT,
     D16_UNORM,
     D32_FLOAT_S8_UINT,
-    R32_FLOAT_X32_TYPELESS,
 
     B4G4R4A4_UNORM,
     B5G6R5_UNORM,
     B5G5R5A1_UNORM,
 
     R9G9B9E5_SHAREDEXP,
-    R10G10B10A2_TYPELESS,
     R10G10B10A2_UNORM,
     R10G10B10A2_UINT,
     R11G11B10_FLOAT,
@@ -292,7 +276,6 @@ struct FormatInfo
     /// The height of a block in pixels.
     uint8_t blockHeight;
 
-    bool isTypeless : 1;
     bool isCompressed : 1;
 };
 
@@ -586,7 +569,8 @@ enum class TextureUsage
     CopyDestination = (1 << 7),
     ResolveSource = (1 << 8),
     ResolveDestination = (1 << 9),
-    Shared = (1 << 10),
+    Typeless = (1 << 10),
+    Shared = (1 << 11),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 

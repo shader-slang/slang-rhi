@@ -11,31 +11,6 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::Undefined:
         return WGPUTextureFormat_Undefined;
 
-    case Format::R32G32B32A32_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::R32G32B32_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::R32G32_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::R32_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-
-    case Format::R16G16B16A16_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::R16G16_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::R16_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-
-    case Format::R8G8B8A8_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::R8G8_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::R8_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::B8G8R8A8_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
-
     case Format::R32G32B32A32_FLOAT:
         return WGPUTextureFormat_RGBA32Float;
     case Format::R32G32B32_FLOAT:
@@ -142,8 +117,6 @@ WGPUTextureFormat translateTextureFormat(Format format)
         return WGPUTextureFormat_Depth16Unorm;
     case Format::D32_FLOAT_S8_UINT:
         return WGPUTextureFormat_Depth32FloatStencil8;
-    case Format::R32_FLOAT_X32_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
 
     case Format::B4G4R4A4_UNORM:
         return WGPUTextureFormat_Undefined; // not supported
@@ -154,8 +127,6 @@ WGPUTextureFormat translateTextureFormat(Format format)
 
     case Format::R9G9B9E5_SHAREDEXP:
         return WGPUTextureFormat_RGB9E5Ufloat;
-    case Format::R10G10B10A2_TYPELESS:
-        return WGPUTextureFormat_Undefined; // not supported
     case Format::R10G10B10A2_UNORM:
         return WGPUTextureFormat_RGB10A2Unorm;
     case Format::R10G10B10A2_UINT:

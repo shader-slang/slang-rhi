@@ -11,31 +11,6 @@ VkFormat VulkanUtil::getVkFormat(Format format)
 {
     switch (format)
     {
-    case Format::R32G32B32A32_TYPELESS:
-        return VK_FORMAT_R32G32B32A32_SFLOAT;
-    case Format::R32G32B32_TYPELESS:
-        return VK_FORMAT_R32G32B32_SFLOAT;
-    case Format::R32G32_TYPELESS:
-        return VK_FORMAT_R32G32_SFLOAT;
-    case Format::R32_TYPELESS:
-        return VK_FORMAT_R32_SFLOAT;
-
-    case Format::R16G16B16A16_TYPELESS:
-        return VK_FORMAT_R16G16B16A16_SFLOAT;
-    case Format::R16G16_TYPELESS:
-        return VK_FORMAT_R16G16_SFLOAT;
-    case Format::R16_TYPELESS:
-        return VK_FORMAT_R16_SFLOAT;
-
-    case Format::R8G8B8A8_TYPELESS:
-        return VK_FORMAT_R8G8B8A8_UNORM;
-    case Format::R8G8_TYPELESS:
-        return VK_FORMAT_R8G8_UNORM;
-    case Format::R8_TYPELESS:
-        return VK_FORMAT_R8_UNORM;
-    case Format::B8G8R8A8_TYPELESS:
-        return VK_FORMAT_B8G8R8A8_UNORM;
-
     case Format::R64_UINT:
         return VK_FORMAT_R64_UINT;
 
@@ -148,8 +123,6 @@ VkFormat VulkanUtil::getVkFormat(Format format)
         return VK_FORMAT_D16_UNORM;
     case Format::D32_FLOAT_S8_UINT:
         return VK_FORMAT_D32_SFLOAT_S8_UINT;
-    case Format::R32_FLOAT_X32_TYPELESS:
-        return VK_FORMAT_R32_SFLOAT;
 
     case Format::B4G4R4A4_UNORM:
         return VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT;
@@ -160,8 +133,6 @@ VkFormat VulkanUtil::getVkFormat(Format format)
 
     case Format::R9G9B9E5_SHAREDEXP:
         return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
-    case Format::R10G10B10A2_TYPELESS:
-        return VK_FORMAT_A2B10G10R10_UINT_PACK32;
     case Format::R10G10B10A2_UINT:
         return VK_FORMAT_A2B10G10R10_UINT_PACK32;
     case Format::R10G10B10A2_UNORM:

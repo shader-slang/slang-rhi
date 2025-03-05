@@ -67,6 +67,16 @@ public:
         ComPtr<ID3DBlob>& shaderBlobOut
     );
 
+    struct FormatMapping
+    {
+        Format format;
+        DXGI_FORMAT typelessFormat;
+        DXGI_FORMAT srvFormat;
+        DXGI_FORMAT rtvFormat;
+    };
+
+    static const FormatMapping& getFormatMapping(Format format);
+
     /// Given a slang pixel format returns the equivalent DXGI_ pixel format. If the format is not known, will return
     /// DXGI_FORMAT_UNKNOWN
     static DXGI_FORMAT getMapFormat(Format format);
@@ -78,8 +88,6 @@ public:
     static DXGI_FORMAT calcFormat(UsageType usage, DXGI_FORMAT format);
     /// Calculate appropriate format for creating a buffer for usage and flags
     static DXGI_FORMAT calcResourceFormat(UsageType usage, uint32_t usageFlags, DXGI_FORMAT format);
-    /// True if the type is 'typeless'
-    static bool isTypeless(DXGI_FORMAT format);
 
     /// Returns number of bits used for color channel for format (for channels with multiple sizes, returns smallest ie
     /// RGB565 -> 5)

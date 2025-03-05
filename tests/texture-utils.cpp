@@ -40,31 +40,6 @@ RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format)
 {
     switch (format)
     {
-    case Format::R32G32B32A32_TYPELESS:
-        return new ValidationTextureFormat<uint32_t>(4);
-    case Format::R32G32B32_TYPELESS:
-        return new ValidationTextureFormat<uint32_t>(3);
-    case Format::R32G32_TYPELESS:
-        return new ValidationTextureFormat<uint32_t>(2);
-    case Format::R32_TYPELESS:
-        return new ValidationTextureFormat<uint32_t>(1);
-
-    case Format::R16G16B16A16_TYPELESS:
-        return new ValidationTextureFormat<uint16_t>(4);
-    case Format::R16G16_TYPELESS:
-        return new ValidationTextureFormat<uint16_t>(2);
-    case Format::R16_TYPELESS:
-        return new ValidationTextureFormat<uint16_t>(1);
-
-    case Format::R8G8B8A8_TYPELESS:
-        return new ValidationTextureFormat<uint8_t>(4);
-    case Format::R8G8_TYPELESS:
-        return new ValidationTextureFormat<uint8_t>(2);
-    case Format::R8_TYPELESS:
-        return new ValidationTextureFormat<uint8_t>(1);
-    case Format::B8G8R8A8_TYPELESS:
-        return new ValidationTextureFormat<uint8_t>(4);
-
     case Format::R32G32B32A32_FLOAT:
         return new ValidationTextureFormat<float>(4);
     case Format::R32G32B32_FLOAT:
@@ -185,8 +160,6 @@ RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format)
 
     case Format::R9G9B9E5_SHAREDEXP:
         return new ValidationTextureFormat<uint32_t>(1);
-    case Format::R10G10B10A2_TYPELESS:
-        return new PackedValidationTextureFormat<uint32_t>(10, 10, 10, 2);
     case Format::R10G10B10A2_UNORM:
         return new PackedValidationTextureFormat<uint32_t>(10, 10, 10, 2);
     case Format::R10G10B10A2_UINT:
