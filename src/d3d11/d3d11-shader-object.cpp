@@ -196,6 +196,8 @@ Result BindingDataBuilder::bindAsValue(
                 m_bindingData->uavCount = max(m_bindingData->uavCount, registerIndex + 1);
             }
             break;
+        default:
+            break;
         }
     }
 

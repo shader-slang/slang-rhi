@@ -372,6 +372,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         case StructType::D3D12ExperimentalFeaturesDesc:
             processExperimentalFeaturesDesc(d3dModule, header);
             break;
+        default:
+            break;
         }
     }
 

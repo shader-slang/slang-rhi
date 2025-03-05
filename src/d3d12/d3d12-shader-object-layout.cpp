@@ -133,8 +133,10 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             {
                 bufferElementStride = (uint32_t)bufferElementType->getStride();
             }
+            break;
         }
-        break;
+        default:
+            break;
         }
         if (isRootParameter)
         {
@@ -144,6 +146,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             case slang::BindingType::MutableRawBuffer:
             case slang::BindingType::MutableTypedBuffer:
                 rootInfo.isUAV = true;
+                break;
+            default:
                 break;
             }
             slotIndex = m_slotCount;
@@ -810,9 +814,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             elementOffset += BindingRegisterOffsetPair(elementVarLayout);
 
             addAsConstantBuffer(elementTypeLayout, physicalDescriptorSetIndex, containerOffset, elementOffset);
+            break;
         }
-        break;
-
         case slang::BindingType::ParameterBlock:
         {
             auto containerVarLayout = subObjectTypeLayout->getContainerVarLayout();
@@ -849,9 +852,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
                 offsetForChildrenThatNeedNewSpace,
                 offsetForOrindaryChildren
             );
+            break;
         }
-        break;
-
         case slang::BindingType::ExistentialValue:
         {
             // Any nested binding ranges in the sub-object will "leak" into the
@@ -865,8 +867,10 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
 
                 addAsValue(specializedTypeLayout, physicalDescriptorSetIndex, pendingOffset, pendingOffset);
             }
+            break;
         }
-        break;
+        default:
+            break;
         }
     }
 }

@@ -386,6 +386,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
         break;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported texture type");
+        break;
     }
 
     allocation = device->m_cpuDsvHeap->allocate();

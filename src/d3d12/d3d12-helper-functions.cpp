@@ -402,6 +402,8 @@ void translatePostBuildInfoDescs(
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
+        default:
+            break;
         }
     }
 }
