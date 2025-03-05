@@ -2292,6 +2292,9 @@ struct DeviceDesc
     bool enableRayTracingValidation = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
+
+    /// Size of a page in staging heap.
+    Size stagingHeapPageSize = 16 * 1024 * 1024;
 };
 
 class IDevice : public ISlangUnknown

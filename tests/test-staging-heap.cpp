@@ -5,16 +5,19 @@
 #include <functional>
 #include <memory>
 #include <random>
+#include <thread>
 
 #include "rhi-shared.h"
 
 using namespace rhi;
 using namespace rhi::testing;
 
+static const Size kPageSize = 16 * 1024 * 1024;
+
 GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     Size allocSize = heap.alignUp(16);
 
@@ -58,7 +61,7 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 GPU_TEST_CASE("staging-heap-large-page", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     StagingHeap::Allocation allocation;
     heap.alloc(16, {2}, &allocation);
@@ -94,7 +97,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     Size allocSize = heap.getPageSize() / 16;
 
@@ -127,7 +130,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
 GPU_TEST_CASE("staging-heap-handles", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device);
+    heap.initialize((Device*)device, kPageSize);
 
     // Make an allocation using ref counted handle within a scope.
     {
@@ -141,4 +144,155 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
 
     // Allocation should be freed when handle goes out of scope.
     CHECK_EQ(heap.getUsed(), 0);
+}
+
+void thrashHeap(Device* device, StagingHeap* heap, int idx)
+{
+    std::vector<StagingHeap::Allocation> allocations;
+    for (int i = 0; i < 1000; i++)
+    {
+        StagingHeap::Allocation allocation;
+        heap->alloc(16, {idx}, &allocation);
+        allocations.push_back(allocation);
+    }
+    heap->checkConsistency();
+    for (auto& allocation : allocations)
+    {
+        heap->free(allocation);
+    }
+    heap->checkConsistency();
+}
+
+GPU_TEST_CASE("staging-heap-mutithreading", ALL & ~CUDA)
+{
+    Device* deviceimpl = (Device*)device;
+
+    StagingHeap heap;
+    heap.initialize(deviceimpl, kPageSize);
+
+    std::thread t1(thrashHeap, deviceimpl, &heap, 1);
+    std::thread t2(thrashHeap, deviceimpl, &heap, 2);
+    std::thread t3(thrashHeap, deviceimpl, &heap, 3);
+    std::thread t4(thrashHeap, deviceimpl, &heap, 4);
+    std::thread t5(thrashHeap, deviceimpl, &heap, 5);
+    std::thread t6(thrashHeap, deviceimpl, &heap, 6);
+
+    t1.join();
+    t2.join();
+    t4.join();
+    t3.join();
+    t5.join();
+    t6.join();
+
+    heap.checkConsistency();
+}
+
+void doTenAllocations(Device* device, StagingHeap* heap, int idx)
+{
+    std::vector<StagingHeap::Allocation> allocations;
+    for (int i = 0; i < 10; i++)
+    {
+        StagingHeap::Allocation allocation;
+        heap->alloc(16, {idx}, &allocation);
+        allocations.push_back(allocation);
+    }
+}
+
+GPU_TEST_CASE("staging-heap-threadlock-pages", ALL & ~CUDA)
+{
+    Device* deviceimpl = (Device*)device;
+
+    // When pages AREN'T being kept mapped, heap should allocate a new
+    // page for each thread. As a result, after 3 threads have done 10
+    // allocations we should have 3 pages.
+
+    StagingHeap heap;
+    heap.initialize(deviceimpl, kPageSize);
+    heap.testOnlySetKeepPagesMapped(false);
+
+    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
+    std::thread t2(doTenAllocations, deviceimpl, &heap, 2);
+    std::thread t3(doTenAllocations, deviceimpl, &heap, 3);
+
+    t1.join();
+    t2.join();
+    t3.join();
+
+    heap.checkConsistency();
+
+    CHECK_EQ(heap.getNumPages(), 3);
+}
+
+GPU_TEST_CASE("staging-heap-shared-pages", ALL & ~CUDA)
+{
+    Device* deviceimpl = (Device*)device;
+
+    // When pages ARE being kept mapped, heap should share pages
+    // between threads, so 10 small allocations from 3 threads should
+    // all fit in the same page.
+
+    StagingHeap heap;
+    heap.initialize(deviceimpl, kPageSize);
+    heap.testOnlySetKeepPagesMapped(true);
+
+    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
+    std::thread t2(doTenAllocations, deviceimpl, &heap, 2);
+    std::thread t3(doTenAllocations, deviceimpl, &heap, 3);
+
+    t1.join();
+    t2.join();
+    t3.join();
+
+    heap.checkConsistency();
+
+    CHECK_EQ(heap.getNumPages(), 1);
+}
+
+GPU_TEST_CASE("staging-heap-unlockpage-1", ALL & ~CUDA)
+{
+    Device* deviceimpl = (Device*)device;
+
+    // Verify that in none sharing mode, when this thread and another
+    // one attempt to allocate, we end up with 2 pages (effectively
+    // same as staging-heap-threadlock-pages but with local thread).
+
+    StagingHeap heap;
+    heap.initialize(deviceimpl, kPageSize);
+    heap.testOnlySetKeepPagesMapped(false);
+
+    StagingHeap::Allocation alloc;
+    heap.alloc(16, {1}, &alloc);
+
+    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
+
+    t1.join();
+
+    heap.checkConsistency();
+
+    CHECK_EQ(heap.getNumPages(), 2);
+}
+
+GPU_TEST_CASE("staging-heap-unlockpage-2", ALL & ~CUDA)
+{
+    Device* deviceimpl = (Device*)device;
+
+    // Verify that if staging-heap-unlockpage-1 is repeated, but
+    // the current thread frees its allocation, the 2nd thread
+    // will reuse the page.
+
+    StagingHeap heap;
+    heap.initialize(deviceimpl, kPageSize);
+    heap.testOnlySetKeepPagesMapped(false);
+
+    StagingHeap::Allocation alloc;
+    heap.alloc(16, {1}, &alloc);
+    heap.free(alloc);
+
+    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
+
+    t1.join();
+
+    heap.checkConsistency();
+
+    CHECK_EQ(heap.getNumPages(), 1);
 }
