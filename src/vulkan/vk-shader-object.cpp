@@ -388,7 +388,10 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 writeTextureDescriptor(device, descriptorSet, binding, i, descriptorType, textureView);
-                m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                if (textureView)
+                {
+                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                }
             }
             break;
         }
@@ -402,7 +405,10 @@ Result BindingDataBuilder::bindAsValue(
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource2.get());
                 writeTextureSamplerDescriptor(device, descriptorSet, binding, i, textureView, sampler);
-                m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                if (textureView)
+                {
+                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                }
             }
             break;
         }
@@ -431,7 +437,10 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
                 writePlainBufferDescriptor(device, descriptorSet, binding, i, descriptorType, buffer, slot.bufferRange);
-                m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                if (buffer)
+                {
+                    m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                }
             }
             break;
         }
@@ -459,7 +468,10 @@ Result BindingDataBuilder::bindAsValue(
                     slot.format,
                     slot.bufferRange
                 );
-                m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                if (buffer)
+                {
+                    m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                }
             }
             break;
         }

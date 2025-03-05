@@ -243,14 +243,29 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                SLANG_RHI_ASSERT(resourceIndex + i < descriptorSet.resources.count);
+                D3D12_CPU_DESCRIPTOR_HANDLE descriptor = {};
+                if (textureView)
+                {
+                    SLANG_RHI_ASSERT(resourceIndex + i < descriptorSet.resources.count);
+                    d3dDevice->CopyDescriptorsSimple(
+                        1,
+                        descriptorSet.resources.getCpuHandle(resourceIndex + i),
+                        isSrv ? textureView->getSRV() : textureView->getUAV(),
+                        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+                    );
+                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                }
+                else
+                {
+                    descriptor =
+                        m_device->getNullDescriptor(bindingRangeInfo.bindingType, bindingRangeInfo.resourceShape);
+                }
                 d3dDevice->CopyDescriptorsSimple(
                     1,
                     descriptorSet.resources.getCpuHandle(resourceIndex + i),
-                    isSrv ? textureView->getSRV() : textureView->getUAV(),
+                    descriptor,
                     D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                 );
-                m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
             }
             break;
         }
@@ -264,23 +279,29 @@ Result BindingDataBuilder::bindAsValue(
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource2.get());
                 SLANG_RHI_ASSERT(resourceIndex + i < descriptorSet.resources.count);
-                d3dDevice->CopyDescriptorsSimple(
-                    1,
-                    descriptorSet.resources.getCpuHandle(resourceIndex + i),
-                    textureView->getUAV(),
-                    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-                );
+                if (textureView)
+                {
+                    d3dDevice->CopyDescriptorsSimple(
+                        1,
+                        descriptorSet.resources.getCpuHandle(resourceIndex + i),
+                        textureView->getUAV(),
+                        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+                    );
+                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {
+                        textureView,
+                        ResourceState::UnorderedAccess
+                    };
+                }
                 SLANG_RHI_ASSERT(samplerIndex + i < descriptorSet.samplers.count);
-                d3dDevice->CopyDescriptorsSimple(
-                    1,
-                    descriptorSet.samplers.getCpuHandle(samplerIndex + i),
-                    sampler->m_descriptor.cpuHandle,
-                    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
-                );
-                m_bindingData->textureStates[m_bindingData->textureStateCount++] = {
-                    textureView,
-                    ResourceState::UnorderedAccess
-                };
+                if (sampler)
+                {
+                    d3dDevice->CopyDescriptorsSimple(
+                        1,
+                        descriptorSet.samplers.getCpuHandle(samplerIndex + i),
+                        sampler->m_descriptor.cpuHandle,
+                        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
+                    );
+                }
             }
             break;
         }
@@ -292,10 +313,19 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
                 SLANG_RHI_ASSERT(samplerIndex + i < descriptorSet.samplers.count);
+                D3D12_CPU_DESCRIPTOR_HANDLE descriptor = {};
+                if (sampler)
+                {
+                    descriptor = sampler->m_descriptor.cpuHandle;
+                }
+                else
+                {
+                    descriptor = m_device->getNullSamplerDescriptor();
+                }
                 d3dDevice->CopyDescriptorsSimple(
                     1,
                     descriptorSet.samplers.getCpuHandle(samplerIndex + i),
-                    sampler->m_descriptor.cpuHandle,
+                    descriptor,
                     D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
                 );
             }
@@ -320,44 +350,59 @@ Result BindingDataBuilder::bindAsValue(
                 if (bindingRangeInfo.isRootParameter)
                 {
                     SLANG_RHI_ASSERT(rootParamIndex < m_bindingData->rootParameterCount);
-                    m_bindingData->rootParameters[rootParamIndex] =
-                        isSrv ? createRootSRV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset)
-                              : createRootUAV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset);
+                    if (buffer)
+                    {
+                        m_bindingData->rootParameters[rootParamIndex] =
+                            isSrv ? createRootSRV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset)
+                                  : createRootUAV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset);
+                    }
                     rootParamIndex++;
                 }
                 else
                 {
+                    D3D12_CPU_DESCRIPTOR_HANDLE descriptor = {};
                     if (isTyped)
                     {
-                        d3dDevice->CopyDescriptorsSimple(
-                            1,
-                            descriptorSet.resources.getCpuHandle(resourceIndex + i),
-                            isSrv ? buffer->getSRV(buffer->m_desc.format, 0, slot.bufferRange)
-                                  : buffer->getUAV(buffer->m_desc.format, 0, slot.bufferRange, counterBuffer),
-                            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-                        );
+                        if (buffer)
+                        {
+                            descriptor =
+                                isSrv ? buffer->getSRV(buffer->m_desc.format, 0, slot.bufferRange)
+                                      : buffer->getUAV(buffer->m_desc.format, 0, slot.bufferRange, counterBuffer);
+                        }
                     }
                     else
                     {
-                        d3dDevice->CopyDescriptorsSimple(
-                            1,
-                            descriptorSet.resources.getCpuHandle(resourceIndex + i),
-                            isSrv ? buffer->getSRV(
-                                        Format::Undefined,
-                                        bindingRangeInfo.bufferElementStride,
-                                        slot.bufferRange
-                                    )
-                                  : buffer->getUAV(
-                                        Format::Undefined,
-                                        bindingRangeInfo.bufferElementStride,
-                                        slot.bufferRange,
-                                        counterBuffer
-                                    ),
-                            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-                        );
+                        if (buffer)
+                        {
+                            descriptor = isSrv ? buffer->getSRV(
+                                                     Format::Undefined,
+                                                     bindingRangeInfo.bufferElementStride,
+                                                     slot.bufferRange
+                                                 )
+                                               : buffer->getUAV(
+                                                     Format::Undefined,
+                                                     bindingRangeInfo.bufferElementStride,
+                                                     slot.bufferRange,
+                                                     counterBuffer
+                                                 );
+                        }
                     }
+                    if (!descriptor.ptr)
+                    {
+                        descriptor =
+                            m_device->getNullDescriptor(bindingRangeInfo.bindingType, bindingRangeInfo.resourceShape);
+                    }
+                    d3dDevice->CopyDescriptorsSimple(
+                        1,
+                        descriptorSet.resources.getCpuHandle(resourceIndex + i),
+                        descriptor,
+                        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+                    );
                 }
-                m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                if (buffer)
+                {
+                    m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                }
             }
             break;
         }
@@ -371,19 +416,25 @@ Result BindingDataBuilder::bindAsValue(
                 if (bindingRangeInfo.isRootParameter)
                 {
                     SLANG_RHI_ASSERT(rootParamIndex < m_bindingData->rootParameterCount);
-                    m_bindingData->rootParameters[rootParamIndex] =
-                        createRootSRV(rootParamIndex, as->getDeviceAddress());
+                    if (as)
+                    {
+                        m_bindingData->rootParameters[rootParamIndex] =
+                            createRootSRV(rootParamIndex, as->getDeviceAddress());
+                    }
                     rootParamIndex++;
                 }
                 else
                 {
                     SLANG_RHI_ASSERT(resourceIndex + i < descriptorSet.resources.count);
-                    d3dDevice->CopyDescriptorsSimple(
-                        1,
-                        descriptorSet.resources.getCpuHandle(resourceIndex + i),
-                        as->m_descriptor.cpuHandle,
-                        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-                    );
+                    if (as)
+                    {
+                        d3dDevice->CopyDescriptorsSimple(
+                            1,
+                            descriptorSet.resources.getCpuHandle(resourceIndex + i),
+                            as->m_descriptor.cpuHandle,
+                            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+                        );
+                    }
                 }
             }
             break;

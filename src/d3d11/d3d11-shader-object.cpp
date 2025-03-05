@@ -144,10 +144,13 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRange.registerOffset + offset.srv + i;
-                SLANG_RHI_ASSERT(registerIndex < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
-                m_bindingData->srvs[registerIndex] = textureView->getSRV();
-                m_bindingData->srvCount = max(m_bindingData->srvCount, registerIndex + 1);
+                if (textureView)
+                {
+                    uint32_t registerIndex = bindingRange.registerOffset + offset.srv + i;
+                    SLANG_RHI_ASSERT(registerIndex < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
+                    m_bindingData->srvs[registerIndex] = textureView->getSRV();
+                    m_bindingData->srvCount = max(m_bindingData->srvCount, registerIndex + 1);
+                }
             }
             break;
         case slang::BindingType::MutableTexture:
@@ -155,10 +158,13 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRange.registerOffset + offset.uav + i;
-                SLANG_RHI_ASSERT(registerIndex < D3D11_PS_CS_UAV_REGISTER_COUNT);
-                m_bindingData->uavs[registerIndex] = textureView->getUAV();
-                m_bindingData->uavCount = max(m_bindingData->uavCount, registerIndex + 1);
+                if (textureView)
+                {
+                    uint32_t registerIndex = bindingRange.registerOffset + offset.uav + i;
+                    SLANG_RHI_ASSERT(registerIndex < D3D11_PS_CS_UAV_REGISTER_COUNT);
+                    m_bindingData->uavs[registerIndex] = textureView->getUAV();
+                    m_bindingData->uavCount = max(m_bindingData->uavCount, registerIndex + 1);
+                }
             }
             break;
         case slang::BindingType::Sampler:
@@ -166,10 +172,13 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRange.registerOffset + offset.sampler + i;
-                SLANG_RHI_ASSERT(registerIndex < D3D11_COMMONSHADER_SAMPLER_REGISTER_COUNT);
-                m_bindingData->samplers[registerIndex] = sampler->m_sampler;
-                m_bindingData->samplerCount = max(m_bindingData->samplerCount, registerIndex + 1);
+                if (sampler)
+                {
+                    uint32_t registerIndex = bindingRange.registerOffset + offset.sampler + i;
+                    SLANG_RHI_ASSERT(registerIndex < D3D11_COMMONSHADER_SAMPLER_REGISTER_COUNT);
+                    m_bindingData->samplers[registerIndex] = sampler->m_sampler;
+                    m_bindingData->samplerCount = max(m_bindingData->samplerCount, registerIndex + 1);
+                }
             }
             break;
         case slang::BindingType::RawBuffer:
@@ -178,10 +187,13 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRange.registerOffset + offset.srv + i;
-                SLANG_RHI_ASSERT(registerIndex < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
-                m_bindingData->srvs[registerIndex] = buffer->getSRV(slot.format, slot.bufferRange);
-                m_bindingData->srvCount = max(m_bindingData->srvCount, registerIndex + 1);
+                if (buffer)
+                {
+                    uint32_t registerIndex = bindingRange.registerOffset + offset.srv + i;
+                    SLANG_RHI_ASSERT(registerIndex < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
+                    m_bindingData->srvs[registerIndex] = buffer->getSRV(slot.format, slot.bufferRange);
+                    m_bindingData->srvCount = max(m_bindingData->srvCount, registerIndex + 1);
+                }
             }
             break;
         case slang::BindingType::MutableRawBuffer:
@@ -190,10 +202,13 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRange.registerOffset + offset.uav + i;
-                SLANG_RHI_ASSERT(registerIndex < D3D11_PS_CS_UAV_REGISTER_COUNT);
-                m_bindingData->uavs[registerIndex] = buffer->getUAV(slot.format, slot.bufferRange);
-                m_bindingData->uavCount = max(m_bindingData->uavCount, registerIndex + 1);
+                if (buffer)
+                {
+                    uint32_t registerIndex = bindingRange.registerOffset + offset.uav + i;
+                    SLANG_RHI_ASSERT(registerIndex < D3D11_PS_CS_UAV_REGISTER_COUNT);
+                    m_bindingData->uavs[registerIndex] = buffer->getUAV(slot.format, slot.bufferRange);
+                    m_bindingData->uavCount = max(m_bindingData->uavCount, registerIndex + 1);
+                }
             }
             break;
         default:
