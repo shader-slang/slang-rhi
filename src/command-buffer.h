@@ -223,7 +223,7 @@ public:
         Extents extent
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subresourceRange,
         Offset3D offset,
@@ -232,7 +232,7 @@ public:
         uint32_t subresourceDataCount
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range) override;

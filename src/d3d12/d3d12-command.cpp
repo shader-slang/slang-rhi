@@ -1603,19 +1603,6 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     );
 }
 
-void CommandEncoderImpl::uploadTextureData(
-    ITexture* dst,
-    SubresourceRange subresourceRange,
-    Offset3D offset,
-    Extents extent,
-    SubresourceData* subresourceData,
-    uint32_t subresourceDataCount
-)
-{
-    // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer
-    CommandEncoder::uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
-}
-
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));

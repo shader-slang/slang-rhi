@@ -94,6 +94,13 @@ public:
     NativeHandle m_sharedHandle;
 };
 
+struct SubResourceLayout
+{
+    Extents size;
+    Size strideY;
+    Size strideZ;
+};
+
 class Texture : public ITexture, public Resource
 {
 public:
@@ -111,10 +118,28 @@ public:
     SubresourceRange resolveSubresourceRange(const SubresourceRange& range);
     bool isEntireTexture(const SubresourceRange& range);
 
+    // Get layout the target requires for a given region within a given sub resource
+    // of this texture. Supply offset==0 and extents==kRemainingTextureSize to indicate whole sub resource.
+    virtual Result getSubresourceRegionLayout(
+        uint32_t mipLevel,
+        uint32_t layerIndex,
+        Offset3D offset,
+        Extents extents,
+        SubresourceLayout* outLayout
+    )
+    {
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+
     // ITexture interface
     virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getSubresourceLayout(uint32_t mipLevel, uint32_t layerIndex, SubresourceLayout* outLayout) override
+    {
+        return getSubresourceRegionLayout(mipLevel, layerIndex, Offset3D(), Extents(), outLayout);
+    }
 
 public:
     TextureDesc m_desc;

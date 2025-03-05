@@ -494,7 +494,7 @@ void CommandEncoder::copyTextureToBuffer(
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::uploadTextureData(
+Result CommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -511,12 +511,13 @@ void CommandEncoder::uploadTextureData(
     cmd.subresourceData = subresourceData;
     cmd.subresourceDataCount = subresourceDataCount;
     m_commandList->write(std::move(cmd));
+    return SLANG_OK;
 }
 
-void CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+Result CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     RefPtr<StagingHeap::Handle> handle;
-    getDevice()->m_heap.stageHandle(data, size, {}, handle.writeRef());
+    SLANG_RETURN_ON_FAIL(getDevice()->m_heap.stageHandle(data, size, {}, handle.writeRef()));
 
     m_commandList->retainResource(handle);
 
@@ -529,6 +530,7 @@ void CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, vo
     cmd.size = size;
 
     m_commandList->write(std::move(cmd));
+    return SLANG_OK;
 }
 
 void CommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)

@@ -80,12 +80,44 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getSRV(
-    Format format,
-    TextureType type,
-    TextureAspect aspect,
-    const SubresourceRange& range
+Result TextureImpl::getSubresourceRegionLayout(
+    uint32_t mipLevel,
+    uint32_t layerIndex,
+    Offset3D offset,
+    Extents extents,
+    SubresourceLayout* outLayout
 )
+{
+    Extents textureSize = m_desc.size;
+    const FormatInfo& formatInfo = getFormatInfo(m_desc.format);
+
+    if (extents.width == kRemainingTextureSize)
+    {
+        extents.width = max(1, (textureSize.width >> mipLevel)) - offset.x;
+    }
+    if (extents.height == kRemainingTextureSize)
+    {
+        extents.height = max(1, (textureSize.height >> mipLevel)) - offset.y;
+    }
+    if (extents.depth == kRemainingTextureSize)
+    {
+        extents.depth = max(1, (textureSize.depth >> mipLevel)) - offset.z;
+    }
+
+    size_t rowSize = (extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth * formatInfo.blockSizeInBytes;
+    size_t rowCount = (extents.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight;
+    size_t rowPitch = (rowSize + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+    size_t layerPitch = rowPitch * rowCount;
+
+    outLayout->size = extents;
+    outLayout->strideY = rowPitch;
+    outLayout->strideZ = layerPitch;
+
+    return SLANG_OK;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE
+TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
