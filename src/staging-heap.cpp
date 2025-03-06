@@ -119,7 +119,8 @@ Result StagingHeap::stageHandle(void* data, size_t size, MetaData metadata, Hand
     }
 
     // Copy data to page.
-    void* buffer = map((*outHandle)->getAllocation());
+    void* buffer;
+    SLANG_RETURN_ON_FAIL(map((*outHandle)->getAllocation(), &buffer));
     memcpy(buffer, data, size);
     unmap((*outHandle)->getAllocation());
     return SLANG_OK;
@@ -134,25 +135,29 @@ Result StagingHeap::stage(void* data, size_t size, MetaData metadata, Allocation
     }
 
     // Copy data to page.
-    void* buffer = map(*outAllocation);
+    void* buffer;
+    SLANG_RETURN_ON_FAIL(map(*outAllocation, &buffer));
     memcpy(buffer, data, size);
     unmap(*outAllocation);
     return SLANG_OK;
 }
 
-void* StagingHeap::map(const Allocation& allocation)
+Result StagingHeap::map(const Allocation& allocation, void** outAddress)
 {
     Page* page = allocation.getPage();
     Offset offset = allocation.getOffset();
     if (!m_keepPagesMapped)
-        page->map(m_device);
-    return page->getMapped() + offset;
+        SLANG_RETURN_ON_FAIL(page->map(m_device));
+    *outAddress = page->getMapped() + offset;
+    return SLANG_OK;
 }
 
-void StagingHeap::unmap(const Allocation& allocation)
+Result StagingHeap::unmap(const Allocation& allocation)
 {
     if (!m_keepPagesMapped)
-        allocation.getPage()->unmap(m_device);
+        return allocation.getPage()->unmap(m_device);
+    else
+        return SLANG_OK;
 }
 
 void StagingHeap::free(Allocation allocation)

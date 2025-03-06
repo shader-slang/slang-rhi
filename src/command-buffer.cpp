@@ -531,7 +531,10 @@ Result CommandEncoder::uploadTextureData(
     m_commandList->retainResource(handle);
 
     // Copy subresources a row at a time into the staging buffer.
-    uint8_t* dstData = (uint8_t*)handle->map();
+    uint8_t* dstData;
+    void* mappedData;
+    SLANG_RETURN_ON_FAIL(handle->map(&mappedData));
+    dstData = (uint8_t*)mappedData;
     {
         // Iterate over sub resources by layer and mip level
         SubresourceLayout* srLayout = layouts;
