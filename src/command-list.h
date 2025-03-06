@@ -440,7 +440,7 @@ public:
         }
     }
 
-    const void* allocData(size_t size) { return m_allocator.allocate(size); }
+    void* allocData(size_t size) { return m_allocator.allocate(size); }
 
     const void* writeData(const void* data, size_t size)
     {

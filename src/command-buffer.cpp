@@ -505,7 +505,10 @@ Result CommandEncoder::uploadTextureData(
 {
     // Allocate space in command list memory for layout information on each subresource.
     SubresourceLayout* layouts =
-        (SubresourceLayout*)m_commandList->allocData(sizeof(SubresourceLayout) * subresourceDataCount);
+        static_cast<SubresourceLayout*>(m_commandList->allocData(sizeof(SubresourceLayout) * subresourceDataCount));
+
+    // Get texture
+    Texture* textureImpl = checked_cast<Texture*>(dst);
 
     // Gather subresource layout for each layer/mip and sum up total required staging buffer size.
     Size totalSize = 0;
@@ -518,7 +521,7 @@ Result CommandEncoder::uploadTextureData(
             {
                 uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 
-                ((Texture*)dst)->getSubresourceRegionLayout(mipLevel, layerIndex, offset, extent, srLayout);
+                textureImpl->getSubresourceRegionLayout(mipLevel, layerIndex, offset, extent, srLayout);
                 totalSize += srLayout->sizeInBytes;
                 srLayout++;
             }
@@ -531,7 +534,10 @@ Result CommandEncoder::uploadTextureData(
     m_commandList->retainResource(handle);
 
     // Copy subresources a row at a time into the staging buffer.
-    uint8_t* dstData = (uint8_t*)handle->map();
+    uint8_t* dstData;
+    void* mappedData;
+    SLANG_RETURN_ON_FAIL(handle->map(&mappedData));
+    dstData = (uint8_t*)mappedData;
     {
         // Iterate over sub resources by layer and mip level
         SubresourceLayout* srLayout = layouts;
@@ -544,12 +550,12 @@ Result CommandEncoder::uploadTextureData(
                 // Source and dest rows may have different alignments, so its valid for strides to be
                 // different (even if data itself isn't). We copy the minimum of the two to avoid
                 // reading/writing out of bounds.
-                Size rowCopyStride = srSrcData->strideY < srLayout->strideY ? srSrcData->strideY : srLayout->strideY;
+                Size rowCopyStride = min(srSrcData->strideY, srLayout->strideY);
 
                 // Iterate over slices and rows, copying a row at a time
                 uint8_t* sliceSrcData = (uint8_t*)srSrcData->data;
                 uint8_t* sliceDestData = srDestData;
-                for (uint32_t z = 0; z < srLayout->size.depth; z++)
+                for (uint32_t slice = 0; slice < srLayout->size.depth; slice++)
                 {
                     uint8_t* rowSrcData = sliceSrcData;
                     uint8_t* rowDestData = sliceDestData;

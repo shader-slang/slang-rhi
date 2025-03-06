@@ -690,7 +690,7 @@ struct Extents
     /// Depth (if 3d).
     int32_t depth = 0;
 
-    static Extents WholeTexture;
+    static Extents kWholeTexture;
 };
 
 /// Layout of a single subresource in a texture. (see also SubresourceData)

@@ -120,8 +120,8 @@ public:
         Buffer* getBuffer() const { return m_allocation.getBuffer(); }
         const MetaData& getMetaData() const { return m_allocation.getMetaData(); }
 
-        void* map() { return m_heap->map(m_allocation); }
-        void unmap() { m_heap->unmap(m_allocation); }
+        Result map(void** outAddress) { return m_heap->map(m_allocation, outAddress); }
+        Result unmap() { return m_heap->unmap(m_allocation); }
 
     private:
         StagingHeap* m_heap;
@@ -188,10 +188,10 @@ public:
     void testOnlySetKeepPagesMapped(bool keepPagesMapped) { m_keepPagesMapped = keepPagesMapped; }
 
     // Map memory for allocation (if not mapped already) and return ptr to it
-    void* map(const Allocation& allocation);
+    Result map(const Allocation& allocation, void** outAddress);
 
     // Unmap memory for allocation if necessary (for heap that keeps pages mapped, this is noop)
-    void unmap(const Allocation& allocation);
+    Result unmap(const Allocation& allocation);
 
 private:
     Device* m_device = nullptr;

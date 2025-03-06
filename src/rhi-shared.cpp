@@ -18,7 +18,7 @@ namespace rhi {
 // Extents
 // ----------------------------------------------------------------------------
 
-Extents Extents::WholeTexture = {kRemainingTextureSize, kRemainingTextureSize, kRemainingTextureSize};
+Extents Extents::kWholeTexture = {kRemainingTextureSize, kRemainingTextureSize, kRemainingTextureSize};
 
 // ----------------------------------------------------------------------------
 // Fence
@@ -86,15 +86,24 @@ Result calcSubresourceRegionLayout(
 
     if (extents.width == kRemainingTextureSize)
     {
-        extents.width = max(1, (textureSize.width >> mipLevel)) - offset.x;
+        extents.width = max(1, (textureSize.width >> mipLevel));
+        if (offset.x >= extents.width)
+            return SLANG_E_INVALID_ARG;
+        extents.width -= offset.x;
     }
     if (extents.height == kRemainingTextureSize)
     {
-        extents.height = max(1, (textureSize.height >> mipLevel)) - offset.y;
+        extents.height = max(1, (textureSize.height >> mipLevel));
+        if (offset.y >= extents.height)
+            return SLANG_E_INVALID_ARG;
+        extents.height -= offset.y;
     }
     if (extents.depth == kRemainingTextureSize)
     {
-        extents.depth = max(1, (textureSize.depth >> mipLevel)) - offset.z;
+        extents.depth = max(1, (textureSize.depth >> mipLevel));
+        if (offset.z >= extents.depth)
+            return SLANG_E_INVALID_ARG;
+        extents.depth -= offset.z;
     }
 
     size_t rowSize = (extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth * formatInfo.blockSizeInBytes;
