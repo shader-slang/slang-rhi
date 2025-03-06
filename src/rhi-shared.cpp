@@ -18,7 +18,7 @@ namespace rhi {
 // Extents
 // ----------------------------------------------------------------------------
 
-Extents Extents::WholeTexture = {kRemainingTextureSize, kRemainingTextureSize, kRemainingTextureSize};
+Extents Extents::kWholeTexture = {kRemainingTextureSize, kRemainingTextureSize, kRemainingTextureSize};
 
 // ----------------------------------------------------------------------------
 // Fence
