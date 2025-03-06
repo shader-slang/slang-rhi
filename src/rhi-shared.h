@@ -101,6 +101,18 @@ struct SubResourceLayout
     Size strideZ;
 };
 
+// Shared helper to calculate the layout of a subresource region from
+// a texture description given a minimum row alignment.
+Result calcSubresourceRegionLayout(
+    const TextureDesc& desc,
+    uint32_t mipLevel,
+    uint32_t layerIndex,
+    Offset3D offset,
+    Extents extents,
+    Size rowAlignment,
+    SubresourceLayout* outLayout
+);
+
 class Texture : public ITexture, public Resource
 {
 public:
@@ -120,7 +132,7 @@ public:
 
     // Get layout the target requires for a given region within a given sub resource
     // of this texture. Supply offset==0 and extents==kRemainingTextureSize to indicate whole sub resource.
-    // Default implementation applies 256B alignment to rows
+    // Default implementation applies no alignment to rows.
     virtual Result getSubresourceRegionLayout(
         uint32_t mipLevel,
         uint32_t layerIndex,
