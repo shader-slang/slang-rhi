@@ -175,6 +175,11 @@ Result Texture::getSubresourceRegionLayout(
     return calcSubresourceRegionLayout(m_desc, mipLevel, layerIndex, offset, extents, 1, outLayout);
 }
 
+Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextureView)
+{
+    return m_device->createTextureView(this, desc, outTextureView);
+}
+
 // ----------------------------------------------------------------------------
 // TextureView
 // ----------------------------------------------------------------------------

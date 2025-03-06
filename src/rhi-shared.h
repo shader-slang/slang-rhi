@@ -146,6 +146,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
+    createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     getSubresourceLayout(uint32_t mipLevel, uint32_t layerIndex, SubresourceLayout* outLayout) override
     {
         return getSubresourceRegionLayout(mipLevel, layerIndex, Offset3D(), Extents(), outLayout);
