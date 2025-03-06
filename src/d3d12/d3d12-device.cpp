@@ -937,7 +937,14 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
@@ -999,7 +1006,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
         D3D12_TEXTURE_COPY_LOCATION srcLoc;
         srcLoc.pResource = resource;
         srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        srcLoc.SubresourceIndex = 0;
+        srcLoc.SubresourceIndex = layer * rhiDesc.mipLevelCount + mipLevel;
 
         D3D12_TEXTURE_COPY_LOCATION dstLoc;
         dstLoc.pResource = stagingResource;

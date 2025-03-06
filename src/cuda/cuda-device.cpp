@@ -511,7 +511,14 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 

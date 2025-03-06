@@ -2567,8 +2567,21 @@ public:
     }
 
     /// Read back texture resource and stores the result in `outBlob`.
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mipLevel,
+        ISlangBlob** outBlob,
+        Size* outRowPitch,
+        Size* outPixelSize = nullptr
+    ) = 0;
+
+    /// Helper overload that reads the entire texture (layer 0, mip level 0)
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) = 0;
+    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize = nullptr)
+    {
+        return readTexture(texture, 0, 0, outBlob, outRowPitch, outPixelSize);
+    };
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;

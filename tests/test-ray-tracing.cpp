@@ -313,7 +313,7 @@ struct BaseRayTracingTest
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTexture(resultTexture, resultBlob.writeRef(), &rowPitch, &pixelSize));
+        REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &rowPitch, &pixelSize));
 #if 0 // for debugging only
         writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);
 #endif

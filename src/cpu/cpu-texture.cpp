@@ -399,7 +399,14 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     return SLANG_E_NOT_AVAILABLE;
 }

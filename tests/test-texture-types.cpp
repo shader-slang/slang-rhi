@@ -177,7 +177,7 @@ struct TextureAccessTest : TextureTest
             ComPtr<ISlangBlob> textureBlob;
             size_t rowPitch;
             size_t pixelSize;
-            REQUIRE_CALL(device->readTexture(texture, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
             auto textureValues = (uint8_t*)textureBlob->getBufferPointer();
 
             ValidationTextureData textureResults;
@@ -434,11 +434,11 @@ struct RenderTargetTests : TextureTest
         size_t pixelSize;
         if (sampleCount > 1)
         {
-            REQUIRE_CALL(device->readTexture(texture, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
         }
         else
         {
-            REQUIRE_CALL(device->readTexture(renderTexture, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTexture(renderTexture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
         }
         auto textureValues = (float*)textureBlob->getBufferPointer();
 
