@@ -20,7 +20,7 @@ void testTextureLayout(
 )
 {
     SubresourceLayout layout;
-    REQUIRE_CALL(texture->getSubresourceLayout(mipLevel, layerIndex, &layout));
+    REQUIRE_CALL(texture->getSubresourceLayout(mipLevel, &layout));
 
     CHECK_EQ(layout.size.width, expectedLayout.size.width);
     CHECK_EQ(layout.size.height, expectedLayout.size.height);
@@ -41,7 +41,7 @@ void testTextureLayout2(
 )
 {
     SubresourceLayout layout;
-    REQUIRE_CALL(((Texture*)texture.get())->getSubresourceRegionLayout(mipLevel, layerIndex, offset, extents, &layout));
+    REQUIRE_CALL(((Texture*)texture.get())->getSubresourceRegionLayout(mipLevel, offset, extents, &layout));
 
     CHECK_EQ(layout.size.width, expectedLayout.size.width);
     CHECK_EQ(layout.size.height, expectedLayout.size.height);

@@ -516,12 +516,11 @@ Result CommandEncoder::uploadTextureData(
         SubresourceLayout* srLayout = layouts;
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
         {
-            uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
             for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
             {
                 uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 
-                textureImpl->getSubresourceRegionLayout(mipLevel, layerIndex, offset, extent, srLayout);
+                textureImpl->getSubresourceRegionLayout(mipLevel, offset, extent, srLayout);
                 totalSize += srLayout->sizeInBytes;
                 srLayout++;
             }
