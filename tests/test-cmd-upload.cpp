@@ -131,7 +131,7 @@ GPU_TEST_CASE("cmd-upload-buffer-multienc", ALL)
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("cmd-upload-texture-2d-nomip", D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-upload-texture-2d-nomip", D3D12 | Vulkan | WGPU)
 {
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;

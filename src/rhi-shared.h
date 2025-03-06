@@ -120,16 +120,14 @@ public:
 
     // Get layout the target requires for a given region within a given sub resource
     // of this texture. Supply offset==0 and extents==kRemainingTextureSize to indicate whole sub resource.
+    // Default implementation applies 256B alignment to rows
     virtual Result getSubresourceRegionLayout(
         uint32_t mipLevel,
         uint32_t layerIndex,
         Offset3D offset,
         Extents extents,
         SubresourceLayout* outLayout
-    )
-    {
-        return SLANG_E_NOT_IMPLEMENTED;
-    }
+    );
 
     // ITexture interface
     virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override;

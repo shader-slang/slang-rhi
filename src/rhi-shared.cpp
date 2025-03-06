@@ -120,6 +120,43 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Texture::getSubresourceRegionLayout(
+    uint32_t mipLevel,
+    uint32_t layerIndex,
+    Offset3D offset,
+    Extents extents,
+    SubresourceLayout* outLayout
+)
+{
+    Extents textureSize = m_desc.size;
+    const FormatInfo& formatInfo = getFormatInfo(m_desc.format);
+
+    if (extents.width == kRemainingTextureSize)
+    {
+        extents.width = max(1, (textureSize.width >> mipLevel)) - offset.x;
+    }
+    if (extents.height == kRemainingTextureSize)
+    {
+        extents.height = max(1, (textureSize.height >> mipLevel)) - offset.y;
+    }
+    if (extents.depth == kRemainingTextureSize)
+    {
+        extents.depth = max(1, (textureSize.depth >> mipLevel)) - offset.z;
+    }
+
+    size_t rowSize = (extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth * formatInfo.blockSizeInBytes;
+    size_t rowCount = (extents.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight;
+    size_t rowPitch = rowSize;
+    size_t layerPitch = rowPitch * rowCount;
+
+    outLayout->size = extents;
+    outLayout->strideY = rowPitch;
+    outLayout->strideZ = layerPitch;
+    outLayout->sizeInBytes = layerPitch * extents.depth;
+
+    return SLANG_OK;
+}
+
 // ----------------------------------------------------------------------------
 // TextureView
 // ----------------------------------------------------------------------------
