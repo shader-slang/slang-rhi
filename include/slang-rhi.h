@@ -771,6 +771,9 @@ public:
         createView(desc, view.writeRef());
         return view;
     }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getSubresourceLayout(uint32_t mipLevel, uint32_t layerIndex, SubresourceLayout* outLayout) = 0;
 };
 
 enum class ComparisonFunc : uint8_t
