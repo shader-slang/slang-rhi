@@ -17,14 +17,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
 
-    Result getSubresourceRegionLayout(
-        uint32_t mipLevel,
-        uint32_t layerIndex,
-        Offset3D offset,
-        Extents extents,
-        SubresourceLayout* outLayout
-    ) override;
-
 public:
     struct ViewKey
     {

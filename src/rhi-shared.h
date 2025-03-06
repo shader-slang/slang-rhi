@@ -132,7 +132,7 @@ public:
 
     // Get layout the target requires for a given region within a given sub resource
     // of this texture. Supply offset==0 and extents==kRemainingTextureSize to indicate whole sub resource.
-    // Default implementation applies no alignment to rows.
+    // Default implementation uses Device::getTextureRowAlignment for alignment.
     virtual Result getSubresourceRegionLayout(
         uint32_t mipLevel,
         uint32_t layerIndex,

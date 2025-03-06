@@ -81,25 +81,6 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
-Result TextureImpl::getSubresourceRegionLayout(
-    uint32_t mipLevel,
-    uint32_t layerIndex,
-    Offset3D offset,
-    Extents extents,
-    SubresourceLayout* outLayout
-)
-{
-    return calcSubresourceRegionLayout(
-        m_desc,
-        mipLevel,
-        layerIndex,
-        offset,
-        extents,
-        D3D12_TEXTURE_DATA_PITCH_ALIGNMENT,
-        outLayout
-    );
-}
-
 D3D12_CPU_DESCRIPTOR_HANDLE
 TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range)
 {
