@@ -131,7 +131,14 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     AUTORELEASEPOOL
 
@@ -169,8 +176,6 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
     encoder->copyFromTexture(
         srcTexture.get(),
-        0,
-        0,
         MTL::Origin(0, 0, 0),
         MTL::Size(width, height, depth),
         stagingBuffer.get(),

@@ -37,7 +37,7 @@ GPU_TEST_CASE("clear-texture", D3D12 | Vulkan)
 
         ComPtr<ISlangBlob> blob;
         size_t rowPitch, pixelSize;
-        device->readTexture(texture, blob.writeRef(), &rowPitch, &pixelSize);
+        device->readTexture(texture, 0, 0, blob.writeRef(), &rowPitch, &pixelSize);
         float* data = (float*)blob->getBufferPointer();
         for (int i = 0; i < 4; i++)
         {
