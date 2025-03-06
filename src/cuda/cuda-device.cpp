@@ -622,4 +622,10 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
 }
 
+Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+{
+    *outAlignment = 1;
+    return SLANG_OK;
+}
+
 } // namespace rhi::cuda

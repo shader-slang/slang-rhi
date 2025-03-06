@@ -70,6 +70,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 
+    Result getTextureRowAlignment(Size* outAlignment);
+
+
 public:
     // D3D11Device members.
 

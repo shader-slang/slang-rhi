@@ -459,6 +459,12 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
+Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+{
+    *outAlignment = 256;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createShaderProgram(
     const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,
