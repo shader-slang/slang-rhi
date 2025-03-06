@@ -51,14 +51,7 @@ void CommandList::write(commands::ClearTexture&& cmd)
 void CommandList::write(commands::UploadTextureData&& cmd)
 {
     retainResource<Texture>(cmd.dst);
-    if (cmd.subresourceData && cmd.subresourceDataCount > 0)
-    {
-        cmd.subresourceData =
-            (SubresourceData*)writeData(cmd.subresourceData, cmd.subresourceDataCount * sizeof(SubresourceData));
-        // TODO
-        // for (uint32_t i = 0; i < cmd.subresourceDataCount; ++i)
-        //     cmd.subresourceData[i].data = writeData(cmd.subresourceData[i].data, cmd.subresourceData[i].size);
-    }
+    retainResource<Buffer>(cmd.srcBuffer);
     writeCommand(std::move(cmd));
 }
 

@@ -118,22 +118,11 @@ Result StagingHeap::stageHandle(void* data, size_t size, MetaData metadata, Hand
         SLANG_RETURN_ON_FAIL(allocHandleInternal(size, metadata, outHandle));
     }
 
-    Page* page = (*outHandle)->getPage();
-    Offset offset = (*outHandle)->getOffset();
-
-    if (m_keepPagesMapped)
-    {
-        // Fast path for targets that can maintain mapped pages.
-        memcpy(page->getMapped() + offset, data, size);
-    }
-    else
-    {
-        // Slow path for targets that need to map/unmap on demand. Note once allocated, the
-        // page is locked to the thread, so it's safe to use outside of mutex context.
-        page->map(m_device);
-        memcpy(page->getMapped() + offset, data, size);
-        page->unmap(m_device);
-    }
+    // Copy data to page.
+    void* buffer;
+    SLANG_RETURN_ON_FAIL(map((*outHandle)->getAllocation(), &buffer));
+    memcpy(buffer, data, size);
+    unmap((*outHandle)->getAllocation());
     return SLANG_OK;
 }
 
@@ -145,23 +134,30 @@ Result StagingHeap::stage(void* data, size_t size, MetaData metadata, Allocation
         SLANG_RETURN_ON_FAIL(allocInternal(size, metadata, outAllocation));
     }
 
-    Page* page = outAllocation->getPage();
-    Offset offset = outAllocation->getOffset();
-
-    if (m_keepPagesMapped)
-    {
-        // Fast path for targets that can maintain mapped pages
-        memcpy(page->getMapped() + offset, data, size);
-    }
-    else
-    {
-        // Slow path for targets that need to map/unmap on demand. Note once allocated, the
-        // page is locked to the thread, so it's safe to use outside of mutex context.
-        page->map(m_device);
-        memcpy(page->getMapped() + offset, data, size);
-        page->unmap(m_device);
-    }
+    // Copy data to page.
+    void* buffer;
+    SLANG_RETURN_ON_FAIL(map(*outAllocation, &buffer));
+    memcpy(buffer, data, size);
+    unmap(*outAllocation);
     return SLANG_OK;
+}
+
+Result StagingHeap::map(const Allocation& allocation, void** outAddress)
+{
+    Page* page = allocation.getPage();
+    Offset offset = allocation.getOffset();
+    if (!m_keepPagesMapped)
+        SLANG_RETURN_ON_FAIL(page->map(m_device));
+    *outAddress = page->getMapped() + offset;
+    return SLANG_OK;
+}
+
+Result StagingHeap::unmap(const Allocation& allocation)
+{
+    if (!m_keepPagesMapped)
+        return allocation.getPage()->unmap(m_device);
+    else
+        return SLANG_OK;
 }
 
 void StagingHeap::free(Allocation allocation)

@@ -350,7 +350,57 @@ void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
-    m_device->warning("uploadTextureData command not implemented");
+    auto dst = checked_cast<TextureImpl*>(cmd.dst);
+    SubresourceRange subresourceRange = cmd.subresourceRange;
+
+    requireTextureState(dst, subresourceRange, ResourceState::CopyDestination);
+    commitBarriers();
+
+    SubresourceLayout* srLayout = cmd.layouts;
+    Offset bufferOffset = cmd.srcOffset;
+    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
+    {
+        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        {
+            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+
+            // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkBufferImageCopy.html
+            // bufferRowLength and bufferImageHeight specify the data in buffer
+            // memory as a subregion of a larger two- or three-dimensional image,
+            // and control the addressing calculations of data in buffer memory. If
+            // either of these values is zero, that aspect of the buffer memory is
+            // considered to be tightly packed according to the imageExtent.
+
+            VkBufferImageCopy region = {};
+
+            region.bufferOffset = bufferOffset;
+            region.bufferRowLength = 0; // rowSizeInBytes;
+            region.bufferImageHeight = 0;
+
+            region.imageSubresource.aspectMask = getAspectMaskFromFormat(dst->m_vkformat);
+            region.imageSubresource.mipLevel = mipLevel;
+            region.imageSubresource.baseArrayLayer = layerIndex;
+            region.imageSubresource.layerCount = 1;
+            region.imageOffset = {cmd.offset.x, cmd.offset.y, cmd.offset.z};
+            region.imageExtent =
+                {uint32_t(srLayout->size.width), uint32_t(srLayout->size.height), uint32_t(srLayout->size.depth)};
+
+            m_api.vkCmdCopyBufferToImage(
+                m_cmdBuffer,
+                buffer->m_buffer.m_buffer,
+                dst->m_image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1,
+                &region
+            );
+
+            bufferOffset += srLayout->sizeInBytes;
+            srLayout++;
+        }
+    }
 }
 
 void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
@@ -1599,19 +1649,6 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
         checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
         (BindingDataImpl*&)outBindingData
     );
-}
-
-void CommandEncoderImpl::uploadTextureData(
-    ITexture* dst,
-    SubresourceRange subresourceRange,
-    Offset3D offset,
-    Extents extent,
-    SubresourceData* subresourceData,
-    uint32_t subresourceDataCount
-)
-{
-    // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer
-    CommandEncoder::uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)

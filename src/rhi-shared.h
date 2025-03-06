@@ -94,6 +94,25 @@ public:
     NativeHandle m_sharedHandle;
 };
 
+struct SubResourceLayout
+{
+    Extents size;
+    Size strideY;
+    Size strideZ;
+};
+
+// Shared helper to calculate the layout of a subresource region from
+// a texture description given a minimum row alignment.
+Result calcSubresourceRegionLayout(
+    const TextureDesc& desc,
+    uint32_t mipLevel,
+    uint32_t layerIndex,
+    Offset3D offset,
+    Extents extents,
+    Size rowAlignment,
+    SubresourceLayout* outLayout
+);
+
 class Texture : public ITexture, public Resource
 {
 public:
@@ -111,12 +130,29 @@ public:
     SubresourceRange resolveSubresourceRange(const SubresourceRange& range);
     bool isEntireTexture(const SubresourceRange& range);
 
+    // Get layout the target requires for a given region within a given sub resource
+    // of this texture. Supply offset==0 and extents==kRemainingTextureSize to indicate whole sub resource.
+    // Default implementation uses Device::getTextureRowAlignment for alignment.
+    virtual Result getSubresourceRegionLayout(
+        uint32_t mipLevel,
+        uint32_t layerIndex,
+        Offset3D offset,
+        Extents extents,
+        SubresourceLayout* outLayout
+    );
+
     // ITexture interface
     virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getSubresourceLayout(uint32_t mipLevel, uint32_t layerIndex, SubresourceLayout* outLayout) override
+    {
+        return getSubresourceRegionLayout(mipLevel, layerIndex, Offset3D(), Extents(), outLayout);
+    }
 
 public:
     TextureDesc m_desc;

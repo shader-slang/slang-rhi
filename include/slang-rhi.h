@@ -689,6 +689,24 @@ struct Extents
     int32_t height = 0;
     /// Depth (if 3d).
     int32_t depth = 0;
+
+    static Extents kWholeTexture;
+};
+
+/// Layout of a single subresource in a texture. (see also SubresourceData)
+struct SubresourceLayout
+{
+    /// Dimensions of the subresource (in texels).
+    Extents size;
+
+    /// Stride in bytes between rows of the subresource tensor.
+    Size strideY;
+
+    /// Stride in bytes between layers of the subresource tensor.
+    Size strideZ;
+
+    /// Overall size required to fit the subresource data (typically size.z*strideZ).
+    Size sizeInBytes;
 };
 
 struct TextureDesc
@@ -753,6 +771,9 @@ public:
         createView(desc, view.writeRef());
         return view;
     }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getSubresourceLayout(uint32_t mipLevel, uint32_t layerIndex, SubresourceLayout* outLayout) = 0;
 };
 
 enum class ComparisonFunc : uint8_t
@@ -1922,7 +1943,7 @@ public:
         Extents extent
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subresourceRange,
         Offset3D offset,
@@ -1931,7 +1952,7 @@ public:
         uint32_t subresourceDataCount
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range = kEntireBuffer) = 0;
 

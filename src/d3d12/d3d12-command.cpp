@@ -402,99 +402,55 @@ void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
-    m_device->warning("uploadTextureData command not implemented");
-#if 0
-    TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
+    auto dst = checked_cast<TextureImpl*>(cmd.dst);
+    SubresourceRange subresourceRange = cmd.subresourceRange;
 
-    requireTextureState(dstTexture, subresourceRange, ResourceState::CopyDestination);
+    requireTextureState(dst, subresourceRange, ResourceState::CopyDestination);
     commitBarriers();
 
-    auto baseSubresourceIndex = D3DUtil::getSubresourceIndex(
-        subresourceRange.mipLevel,
-        subresourceRange.baseArrayLayer,
-        0,
-        dstTexture->m_desc.mipLevelCount,
-        dstTexture->m_desc.arrayLength
-    );
-    auto textureSize = dstTexture->m_desc.size;
-    const FormatInfo& formatInfo = getFormatInfo(dstTexture->m_desc.format);
-    for (uint32_t i = 0; i < subresourceDataCount; i++)
+    SubresourceLayout* srLayout = cmd.layouts;
+    Offset bufferOffset = cmd.srcOffset;
+    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
-        auto subresourceIndex = baseSubresourceIndex + i;
-        // Get the footprint
-        D3D12_RESOURCE_DESC texDesc = dstTexture->m_resource.getResource()->GetDesc();
+        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        {
+            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 
-        D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
+            D3D12_RESOURCE_DESC texDesc = dst->m_resource.getResource()->GetDesc();
 
-        dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        dstRegion.SubresourceIndex = subresourceIndex;
-        dstRegion.pResource = dstTexture->m_resource.getResource();
+            D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
+            dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            dstRegion.pResource = dst->m_resource.getResource();
 
-        D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
-        srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-        D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = srcRegion.PlacedFootprint;
-        footprint.Offset = 0;
-        footprint.Footprint.Format = texDesc.Format;
-        uint32_t mipLevel = D3DUtil::getSubresourceMipLevel(subresourceIndex, dstTexture->m_desc.mipLevelCount);
-        if (extent.width != kRemainingTextureSize)
-        {
-            footprint.Footprint.Width = extent.width;
-        }
-        else
-        {
-            footprint.Footprint.Width = max(1, (textureSize.width >> mipLevel)) - offset.x;
-        }
-        if (extent.height != kRemainingTextureSize)
-        {
-            footprint.Footprint.Height = extent.height;
-        }
-        else
-        {
-            footprint.Footprint.Height = max(1, (textureSize.height >> mipLevel)) - offset.y;
-        }
-        if (extent.depth != kRemainingTextureSize)
-        {
-            footprint.Footprint.Depth = extent.depth;
-        }
-        else
-        {
-            footprint.Footprint.Depth = max(1, (textureSize.depth >> mipLevel)) - offset.z;
-        }
-        auto rowSize = (footprint.Footprint.Width + formatInfo.blockWidth - 1) / formatInfo.blockWidth *
-                       formatInfo.blockSizeInBytes;
-        auto rowCount = (footprint.Footprint.Height + formatInfo.blockHeight - 1) / formatInfo.blockHeight;
-        footprint.Footprint.RowPitch =
-            (UINT)D3DUtil::calcAligned(rowSize, (uint32_t)D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+            dstRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
+                mipLevel,
+                layerIndex,
+                0,
+                dst->m_desc.mipLevelCount,
+                dst->m_desc.arrayLength
+            );
 
-        auto bufferSize = footprint.Footprint.RowPitch * rowCount * footprint.Footprint.Depth;
+            D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
+            srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            srcRegion.pResource = buffer->m_resource.getResource();
 
-        IBuffer* stagingBuffer;
-        Offset stagingBufferOffset = 0;
-        m_transientHeap
-            ->allocateStagingBuffer(bufferSize, stagingBuffer, stagingBufferOffset, MemoryType::Upload, true);
-        SLANG_RHI_ASSERT(stagingBufferOffset == 0);
-        BufferImpl* bufferImpl = checked_cast<BufferImpl*>(stagingBuffer);
-        uint8_t* bufferData = nullptr;
-        D3D12_RANGE mapRange = {0, 0};
-        bufferImpl->m_resource.getResource()->Map(0, &mapRange, (void**)&bufferData);
-        for (uint32_t z = 0; z < footprint.Footprint.Depth; z++)
-        {
-            auto imageStart = bufferData + footprint.Footprint.RowPitch * rowCount * (Size)z;
-            auto srcData = (uint8_t*)subresourceData->data + subresourceData->strideZ * z;
-            for (uint32_t row = 0; row < rowCount; row++)
-            {
-                memcpy(
-                    imageStart + row * (Size)footprint.Footprint.RowPitch,
-                    srcData + subresourceData->strideY * row,
-                    rowSize
-                );
-            }
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = srcRegion.PlacedFootprint;
+            footprint.Offset = bufferOffset;
+            footprint.Footprint.Format = texDesc.Format;
+            footprint.Footprint.Width = srLayout->size.width;
+            footprint.Footprint.Height = srLayout->size.height;
+            footprint.Footprint.Depth = srLayout->size.depth;
+            footprint.Footprint.RowPitch = srLayout->strideY;
+
+            m_cmdList->CopyTextureRegion(&dstRegion, cmd.offset.x, cmd.offset.y, cmd.offset.z, &srcRegion, nullptr);
+
+            bufferOffset += srLayout->sizeInBytes;
+            srLayout++;
         }
-        bufferImpl->m_resource.getResource()->Unmap(0, nullptr);
-        srcRegion.pResource = bufferImpl->m_resource.getResource();
-        m_cmdList->CopyTextureRegion(&dstRegion, offset.x, offset.y, offset.z, &srcRegion, nullptr);
     }
-#endif
 }
 
 void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
@@ -1601,19 +1557,6 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
         checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
         (BindingDataImpl*&)outBindingData
     );
-}
-
-void CommandEncoderImpl::uploadTextureData(
-    ITexture* dst,
-    SubresourceRange subresourceRange,
-    Offset3D offset,
-    Extents extent,
-    SubresourceData* subresourceData,
-    uint32_t subresourceDataCount
-)
-{
-    // TODO: we should upload to the staging buffer here and only encode the copy command in the command buffer
-    CommandEncoder::uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)

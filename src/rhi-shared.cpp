@@ -15,6 +15,12 @@
 namespace rhi {
 
 // ----------------------------------------------------------------------------
+// Extents
+// ----------------------------------------------------------------------------
+
+Extents Extents::kWholeTexture = {kRemainingTextureSize, kRemainingTextureSize, kRemainingTextureSize};
+
+// ----------------------------------------------------------------------------
 // Fence
 // ----------------------------------------------------------------------------
 
@@ -60,6 +66,59 @@ Result Buffer::getSharedHandle(NativeHandle* outHandle)
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
 }
+
+// ----------------------------------------------------------------------------
+// Texture helpers
+// ----------------------------------------------------------------------------
+
+Result calcSubresourceRegionLayout(
+    const TextureDesc& desc,
+    uint32_t mipLevel,
+    uint32_t layerIndex,
+    Offset3D offset,
+    Extents extents,
+    Size rowAlignment,
+    SubresourceLayout* outLayout
+)
+{
+    Extents textureSize = desc.size;
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+
+    if (extents.width == kRemainingTextureSize)
+    {
+        extents.width = max(1, (textureSize.width >> mipLevel));
+        if (offset.x >= extents.width)
+            return SLANG_E_INVALID_ARG;
+        extents.width -= offset.x;
+    }
+    if (extents.height == kRemainingTextureSize)
+    {
+        extents.height = max(1, (textureSize.height >> mipLevel));
+        if (offset.y >= extents.height)
+            return SLANG_E_INVALID_ARG;
+        extents.height -= offset.y;
+    }
+    if (extents.depth == kRemainingTextureSize)
+    {
+        extents.depth = max(1, (textureSize.depth >> mipLevel));
+        if (offset.z >= extents.depth)
+            return SLANG_E_INVALID_ARG;
+        extents.depth -= offset.z;
+    }
+
+    size_t rowSize = (extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth * formatInfo.blockSizeInBytes;
+    size_t rowCount = (extents.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight;
+    size_t rowPitch = (rowSize + rowAlignment - 1) & ~(rowAlignment - 1);
+    size_t layerPitch = rowPitch * rowCount;
+
+    outLayout->size = extents;
+    outLayout->strideY = rowPitch;
+    outLayout->strideZ = layerPitch;
+    outLayout->sizeInBytes = layerPitch * extents.depth;
+
+    return SLANG_OK;
+}
+
 
 // ----------------------------------------------------------------------------
 // Texture
@@ -112,6 +171,19 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Texture::getSubresourceRegionLayout(
+    uint32_t mipLevel,
+    uint32_t layerIndex,
+    Offset3D offset,
+    Extents extents,
+    SubresourceLayout* outLayout
+)
+{
+    size_t rowAlignment;
+    SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(&rowAlignment));
+    return calcSubresourceRegionLayout(m_desc, mipLevel, layerIndex, offset, extents, rowAlignment, outLayout);
 }
 
 Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextureView)

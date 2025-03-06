@@ -60,15 +60,6 @@ public:
 
     // ICommandEncoder implementation
 
-    virtual SLANG_NO_THROW void SLANG_MCALL uploadTextureData(
-        ITexture* dst,
-        SubresourceRange subresourceRange,
-        Offset3D offset,
-        Extents extent,
-        SubresourceData* subresourceData,
-        uint32_t subresourceDataCount
-    ) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

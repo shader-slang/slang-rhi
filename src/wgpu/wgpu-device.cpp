@@ -225,7 +225,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
     uint32_t depth = max(desc.size.depth, 1);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    Size bytesPerRow = Size(width) * bytesPerPixel;
+    Size bytesPerRow = (Size(width) * bytesPerPixel + 256 - 1) & ~(256 - 1);
     Size bytesPerSlice = Size(height) * bytesPerRow;
     Size bufferSize = Size(depth) * bytesPerSlice;
     if (outRowPitch)

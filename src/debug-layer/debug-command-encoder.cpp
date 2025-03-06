@@ -316,12 +316,12 @@ void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* sr
     baseObject->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
-void DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+Result DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-    baseObject->uploadBufferData(dst, offset, size, data);
+    return baseObject->uploadBufferData(dst, offset, size, data);
 }
 
 void DebugCommandEncoder::copyTexture(
@@ -340,7 +340,7 @@ void DebugCommandEncoder::copyTexture(
     baseObject->copyTexture(dst, dstSubresource, dstOffset, src, srcSubresource, srcOffset, extent);
 }
 
-void DebugCommandEncoder::uploadTextureData(
+Result DebugCommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
@@ -352,7 +352,30 @@ void DebugCommandEncoder::uploadTextureData(
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-    baseObject->uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
+
+    if (subresourceRange.mipLevelCount != 1)
+    {
+        if (offset.x != 0 || offset.y != 0 || offset.z != 0)
+        {
+            RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires offset to be 0");
+            return SLANG_E_INVALID_ARG;
+        }
+
+        if (extent.width != kRemainingTextureSize || extent.height != kRemainingTextureSize ||
+            extent.depth != kRemainingTextureSize)
+        {
+            RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires extent to be Extents::WholeTexture");
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
+    if (subresourceRange.mipLevelCount * subresourceRange.layerCount != subresourceDataCount)
+    {
+        RHI_VALIDATION_ERROR("The number of subresource data must match the number of subresources.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
 void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)

@@ -112,12 +112,16 @@ public:
         }
         ~Handle() { m_heap->free(m_allocation); }
 
+        const Allocation& getAllocation() const { return m_allocation; }
         Offset getOffset() const { return m_allocation.getOffset(); }
         Size getSize() const { return m_allocation.getSize(); }
         Page* getPage() const { return m_allocation.page; }
         int getPageId() const { return m_allocation.getPageId(); }
         Buffer* getBuffer() const { return m_allocation.getBuffer(); }
         const MetaData& getMetaData() const { return m_allocation.getMetaData(); }
+
+        Result map(void** outAddress) { return m_heap->map(m_allocation, outAddress); }
+        Result unmap() { return m_heap->unmap(m_allocation); }
 
     private:
         StagingHeap* m_heap;
@@ -182,6 +186,12 @@ public:
 
     // Used by testing system to change whether pages stay mapped
     void testOnlySetKeepPagesMapped(bool keepPagesMapped) { m_keepPagesMapped = keepPagesMapped; }
+
+    // Map memory for allocation (if not mapped already) and return ptr to it
+    Result map(const Allocation& allocation, void** outAddress);
+
+    // Unmap memory for allocation if necessary (for heap that keeps pages mapped, this is noop)
+    Result unmap(const Allocation& allocation);
 
 private:
     Device* m_device = nullptr;

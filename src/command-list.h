@@ -119,10 +119,12 @@ struct UploadTextureData
     SubresourceRange subresourceRange;
     Offset3D offset;
     Extents extent;
-    // TODO: we could use some owned memory blob to avoid copying data
-    // also, SubresourceData needs a size field to know how much to copy
-    SubresourceData* subresourceData;
-    uint32_t subresourceDataCount;
+
+    // Inside uploadTextureData, layouts for each subresource are stored.
+    // src and offset are the location of the staged data in the staging heap.
+    SubresourceLayout* layouts;
+    IBuffer* srcBuffer;
+    uint64_t srcOffset;
 };
 
 struct ResolveQuery
@@ -438,11 +440,7 @@ public:
         }
     }
 
-private:
-    ArenaAllocator& m_allocator;
-    std::set<RefPtr<RefObject>>& m_trackedObjects;
-    CommandSlot* m_commandSlots = nullptr;
-    CommandSlot* m_lastCommandSlot = nullptr;
+    void* allocData(size_t size) { return m_allocator.allocate(size); }
 
     const void* writeData(const void* data, size_t size)
     {
@@ -450,6 +448,12 @@ private:
         std::memcpy(dst, data, size);
         return dst;
     }
+
+private:
+    ArenaAllocator& m_allocator;
+    std::set<RefPtr<RefObject>>& m_trackedObjects;
+    CommandSlot* m_commandSlots = nullptr;
+    CommandSlot* m_lastCommandSlot = nullptr;
 
     template<typename T>
     void writeCommand(T&& cmd)

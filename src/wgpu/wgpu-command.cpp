@@ -208,7 +208,48 @@ void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
+    auto dst = checked_cast<TextureImpl*>(cmd.dst);
+    SubresourceRange subresourceRange = cmd.subresourceRange;
+
+
+    SubresourceLayout* srLayout = cmd.layouts;
+    Offset bufferOffset = cmd.srcOffset;
+    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
+    {
+        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        {
+            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+
+            WGPUImageCopyBuffer srcRegion;
+            srcRegion.buffer = buffer->m_buffer;
+            srcRegion.layout.bytesPerRow = srLayout->strideY;
+            srcRegion.layout.rowsPerImage = srLayout->size.height;
+            srcRegion.layout.offset = bufferOffset;
+
+            // Can't be copying multiple layers from a volume texture
+            SLANG_RHI_ASSERT(layerIndex == 0 || cmd.offset.z == 0);
+            uint32_t z = cmd.offset.z + layerIndex;
+
+            WGPUImageCopyTexture dstRegion;
+            dstRegion.aspect = WGPUTextureAspect_All;
+            dstRegion.mipLevel = mipLevel;
+            dstRegion.origin = {(uint32_t)cmd.offset.x, (uint32_t)cmd.offset.y, z};
+            dstRegion.texture = dst->m_texture;
+
+            WGPUExtent3D copySize;
+            copySize.width = srLayout->size.width;
+            copySize.height = srLayout->size.height;
+            copySize.depthOrArrayLayers = srLayout->size.depth;
+
+            m_ctx.api.wgpuCommandEncoderCopyBufferToTexture(m_commandEncoder, &srcRegion, &dstRegion, &copySize);
+
+            bufferOffset += srLayout->sizeInBytes;
+            srLayout++;
+        }
+    }
 }
 
 void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)

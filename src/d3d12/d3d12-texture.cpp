@@ -3,6 +3,7 @@
 
 namespace rhi::d3d12 {
 
+
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
     : Texture(device, desc)
     , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
@@ -80,12 +81,8 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getSRV(
-    Format format,
-    TextureType type,
-    TextureAspect aspect,
-    const SubresourceRange& range
-)
+D3D12_CPU_DESCRIPTOR_HANDLE
+TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 

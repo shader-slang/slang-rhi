@@ -94,6 +94,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+
 TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect, const SubresourceRange& range)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
