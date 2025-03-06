@@ -609,8 +609,13 @@ struct SubresourceRange
 {
     uint32_t mipLevel;
     uint32_t mipLevelCount;
+
+    // TODO: Check this comment - many areas explicitly specify a 3D offset / extents,
+    // and this is expected to be 0 for 3D texture.
     uint32_t baseArrayLayer; // For Texture3D, this is WSlice.
-    uint32_t layerCount;     // For cube maps, this is a multiple of 6.
+
+    uint32_t layerCount; // For cube maps, this is a multiple of 6.
+
     bool operator==(const SubresourceRange& other) const
     {
         return mipLevel == other.mipLevel && mipLevelCount == other.mipLevelCount &&

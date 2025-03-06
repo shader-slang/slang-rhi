@@ -651,6 +651,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-clear-texture.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-copy-buffer.cpp
+        tests/test-cmd-read-texture-to-buffer.cpp
         tests/test-cmd-upload.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
@@ -681,6 +682,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-shared-texture.cpp
         tests/test-staging-heap.cpp
         tests/test-surface.cpp
+        tests/test-texture-layout.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
