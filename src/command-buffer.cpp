@@ -550,7 +550,7 @@ Result CommandEncoder::uploadTextureData(
                 // Source and dest rows may have different alignments, so its valid for strides to be
                 // different (even if data itself isn't). We copy the minimum of the two to avoid
                 // reading/writing out of bounds.
-                Size rowCopyStride = srSrcData->strideY < srLayout->strideY ? srSrcData->strideY : srLayout->strideY;
+                Size rowCopyStride = min(srSrcData->strideY, srLayout->strideY);
 
                 // Iterate over slices and rows, copying a row at a time
                 uint8_t* sliceSrcData = (uint8_t*)srSrcData->data;
