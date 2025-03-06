@@ -172,7 +172,9 @@ Result Texture::getSubresourceRegionLayout(
     SubresourceLayout* outLayout
 )
 {
-    return calcSubresourceRegionLayout(m_desc, mipLevel, layerIndex, offset, extents, 1, outLayout);
+    size_t rowAlignment;
+    SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(&rowAlignment));
+    return calcSubresourceRegionLayout(m_desc, mipLevel, layerIndex, offset, extents, rowAlignment, outLayout);
 }
 
 Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextureView)

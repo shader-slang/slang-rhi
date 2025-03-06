@@ -32,16 +32,6 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result TextureImpl::getSubresourceRegionLayout(
-    uint32_t mipLevel,
-    uint32_t layerIndex,
-    Offset3D offset,
-    Extents extents,
-    SubresourceLayout* outLayout
-)
-{
-    return calcSubresourceRegionLayout(m_desc, mipLevel, layerIndex, offset, extents, 256, outLayout);
-}
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     TextureDesc desc = fixupTextureDesc(desc_);
