@@ -505,7 +505,7 @@ Result CommandEncoder::uploadTextureData(
 {
     // Allocate space in command list memory for layout information on each subresource.
     SubresourceLayout* layouts =
-        (SubresourceLayout*)m_commandList->allocData(sizeof(SubresourceLayout) * subresourceDataCount);
+        static_cast<SubresourceLayout*>(m_commandList->allocData(sizeof(SubresourceLayout) * subresourceDataCount));
 
     // Gather subresource layout for each layer/mip and sum up total required staging buffer size.
     Size totalSize = 0;
