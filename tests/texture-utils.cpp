@@ -218,6 +218,8 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
 {
     auto extents = texture->extents;
     auto arrayLayers = texture->arrayLength;
+    if (texture->textureType == TextureType::TextureCube)
+        arrayLayers *= 6;
     auto mipLevels = texture->mipLevelCount;
     auto texelSize = getTexelSize(texture->format);
 

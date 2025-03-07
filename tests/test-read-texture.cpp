@@ -14,6 +14,22 @@ struct TextureReadInfo
     SubresourceRange srcSubresource = {0, 1, 0, 1};
 };
 
+int32_t heightFromWidth(TextureType type, int32_t width)
+{
+    switch (type)
+    {
+    case TextureType::Texture1D:
+        return 1; // 1D is always 1 high.
+    case TextureType::Texture2D:
+    case TextureType::Texture3D:
+        return width / 2; // Height is half width (so not a square!)
+    case TextureType::TextureCube:
+        return width; // Cube map dimensions match
+    default:
+        return 0;
+    }
+}
+
 struct BaseReadTextureTest
 {
     IDevice* device;
@@ -27,14 +43,22 @@ struct BaseReadTextureTest
 
     RefPtr<ValidationTextureFormatBase> validationFormat;
 
-    void init(IDevice* device, Format format, RefPtr<ValidationTextureFormatBase> validationFormat, TextureType type)
+    void init(
+        IDevice* _device,
+        Format _format,
+        RefPtr<ValidationTextureFormatBase> _validationFormat,
+        TextureType _type
+    )
     {
-        this->device = device;
-        this->validationFormat = validationFormat;
+        device = _device;
+        validationFormat = _validationFormat;
 
-        this->srcTextureInfo = new TextureInfo();
-        this->srcTextureInfo->format = format;
-        this->srcTextureInfo->textureType = type;
+        srcTextureInfo = new TextureInfo();
+        srcTextureInfo->format = _format;
+        srcTextureInfo->textureType = _type;
+        srcTextureInfo->extents.width = 8;
+        srcTextureInfo->extents.height = heightFromWidth(_type, srcTextureInfo->extents.width);
+        srcTextureInfo->extents.depth = (_type == TextureType::Texture3D) ? 2 : 1;
     }
 
     void createRequiredResources()
@@ -76,9 +100,7 @@ struct BaseReadTextureTest
 
         TextureDesc desc = srcTexture->getDesc();
 
-        uint32_t layerCount = desc.type == TextureType::TextureCube ? 6 : 1;
-        layerCount *= desc.arrayLength;
-
+        uint32_t layerCount = desc.getLayerCount();
         for (uint32_t layerIndex = 0; layerIndex < layerCount; layerIndex++)
         {
             for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; mipLevel++)
@@ -120,11 +142,7 @@ struct SimpleReadTexture : BaseReadTextureTest
     void run()
     {
         auto textureType = srcTextureInfo->textureType;
-        auto format = srcTextureInfo->format;
 
-        srcTextureInfo->extents.width = 8;
-        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
-        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLength = 1;
 
@@ -137,16 +155,12 @@ struct ArrayReadTexture : BaseReadTextureTest
     void run()
     {
         auto textureType = srcTextureInfo->textureType;
-        auto format = srcTextureInfo->format;
 
         if (textureType == TextureType::Texture3D)
             return;
         if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
             return;
 
-        srcTextureInfo->extents.width = 8;
-        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
-        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLength = 8;
 
@@ -159,14 +173,10 @@ struct MipsReadTexture : BaseReadTextureTest
     void run()
     {
         auto textureType = srcTextureInfo->textureType;
-        auto format = srcTextureInfo->format;
 
         if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
             return;
 
-        srcTextureInfo->extents.width = 8;
-        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
-        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 2;
         srcTextureInfo->arrayLength = 1;
 
@@ -177,7 +187,6 @@ struct MipsReadTexture : BaseReadTextureTest
 template<typename T>
 void testReadTexture(IDevice* device)
 {
-    // TODO: Add support for TextureCube
     Format formats[] = {
         Format::R8G8B8A8_UNORM,
         Format::R16_FLOAT,
@@ -185,7 +194,7 @@ void testReadTexture(IDevice* device)
         Format::R10G10B10A2_UNORM,
         Format::B5G5R5A1_UNORM
     };
-    for (uint32_t i = (uint32_t)(TextureType::Texture1D); i <= (uint32_t)TextureType::Texture3D; ++i)
+    for (uint32_t i = (uint32_t)(TextureType::Texture1D); i <= (uint32_t)TextureType::TextureCube; ++i)
     {
         for (auto format : formats)
         {
@@ -204,17 +213,16 @@ void testReadTexture(IDevice* device)
         }
     }
 }
-// Texture support is currently very limited for D3D11, Metal, CUDA and CPU
 
-GPU_TEST_CASE("read-texture-simple", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("read-texture-simple", D3D12 | Vulkan | WGPU | Metal)
 {
     testReadTexture<SimpleReadTexture>(device);
 }
-GPU_TEST_CASE("read-texture-array", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("read-texture-array", D3D12 | Vulkan | WGPU | Metal)
 {
     testReadTexture<ArrayReadTexture>(device);
 }
-GPU_TEST_CASE("read-texture-mips", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("read-texture-mips", D3D12 | Vulkan | WGPU | Metal)
 {
     testReadTexture<MipsReadTexture>(device);
 }
