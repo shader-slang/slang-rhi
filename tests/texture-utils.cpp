@@ -217,7 +217,7 @@ RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format)
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat)
 {
     auto extents = texture->extents;
-    auto arrayLayers = texture->arrayLayerCount;
+    auto arrayLayers = texture->arrayLength;
     auto mipLevels = texture->mipLevelCount;
     auto texelSize = getTexelSize(texture->format);
 
