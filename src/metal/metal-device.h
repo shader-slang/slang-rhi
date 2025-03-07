@@ -57,7 +57,6 @@ public:
     createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
-#if 0
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
         uint32_t layer,
@@ -66,7 +65,6 @@ public:
         Size* outRowPitch,
         Size* outPixelSize
     ) override;
-#endif
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
