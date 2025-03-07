@@ -608,6 +608,8 @@ Result Device::readTexture(
 
     SLANG_RETURN_ON_FAIL(m_readbackHeap.unmap(stagingAllocation));
 
+    m_readbackHeap.free(stagingAllocation);
+
     if (outRowPitch)
         *outRowPitch = layout.strideY;
 
