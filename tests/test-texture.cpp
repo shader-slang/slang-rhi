@@ -256,6 +256,16 @@ GPU_TEST_CASE("texture-create", ALL & ~CUDA)
         // WGPU does not support 1D texture arrays.
         if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1DArray)
             expectFailure = true;
+        // Metal does not support mip levels for 1D textures (and 1d texture arrays).
+        if (device->getDeviceType() == DeviceType::Metal &&
+            (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) &&
+            desc.mipLevelCount != 1)
+            expectFailure = true;
+        // Metal does not support multisampled textures with 1 sample
+        if (device->getDeviceType() == DeviceType::Metal &&
+            (desc.type == TextureType::Texture2DMS || desc.type == TextureType::Texture2DMSArray) &&
+            desc.sampleCount == 1)
+            expectFailure = true;
         // CUDA does not support multisample textures.
         if (device->getDeviceType() == DeviceType::CUDA &&
             (desc.type == TextureType::Texture2DMS || desc.type == TextureType::Texture2DMSArray))
