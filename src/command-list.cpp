@@ -90,9 +90,10 @@ void CommandList::write(commands::EndRenderPass&& cmd)
 
 void CommandList::write(commands::SetRenderState&& cmd)
 {
-    for (uint32_t i = 0; i < cmd.state.vertexBufferCount; ++i)
-        retainResource<Buffer>(cmd.state.vertexBuffers[i].buffer);
-    retainResource<Buffer>(cmd.state.indexBuffer.buffer);
+    // Resources are already retained in the CommandEncoder
+    // for (uint32_t i = 0; i < cmd.state.vertexBufferCount; ++i)
+    //     retainResource<Buffer>(cmd.state.vertexBuffers[i].buffer);
+    // retainResource<Buffer>(cmd.state.indexBuffer.buffer);
     retainResource<RenderPipeline>(cmd.pipeline);
     writeCommand(std::move(cmd));
 }
