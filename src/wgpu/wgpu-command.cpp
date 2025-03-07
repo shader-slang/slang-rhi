@@ -156,15 +156,21 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
+    // z is either base array layer or z offset depending on whether this is 3D or array texture
+    SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
+    SLANG_RHI_ASSERT(cmd.dstSubresource.baseArrayLayer == 0 || cmd.dstOffset.z == 0);
+    uint32_t srcZ = cmd.srcOffset.z + cmd.srcSubresource.baseArrayLayer;
+    uint32_t dstZ = cmd.dstOffset.z + cmd.dstSubresource.baseArrayLayer;
+
     WGPUImageCopyTexture source = {};
     source.texture = src->m_texture;
-    source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, (uint32_t)cmd.srcOffset.z};
+    source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, srcZ};
     source.mipLevel = cmd.srcSubresource.mipLevel;
     source.aspect = WGPUTextureAspect_All;
 
     WGPUImageCopyTexture destination = {};
     destination.texture = dst->m_texture;
-    destination.origin = {(uint32_t)cmd.dstOffset.x, (uint32_t)cmd.dstOffset.y, (uint32_t)cmd.dstOffset.z};
+    destination.origin = {(uint32_t)cmd.dstOffset.x, (uint32_t)cmd.dstOffset.y, dstZ};
     destination.mipLevel = cmd.dstSubresource.mipLevel;
     destination.aspect = WGPUTextureAspect_All;
 

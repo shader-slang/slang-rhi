@@ -288,6 +288,13 @@ struct CopyTextureSection : BaseCopyTextureTest
         auto textureType = srcTextureInfo->textureType;
         auto format = srcTextureInfo->format;
 
+        auto dt = device->getDeviceInfo().deviceType;
+        if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
+        {
+            if (textureType == TextureType::Texture1D)
+                return;
+        }
+
         srcTextureInfo->extents.width = 4;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
@@ -451,6 +458,13 @@ struct CopyBetweenMips : BaseCopyTextureTest
         auto textureType = srcTextureInfo->textureType;
         auto format = srcTextureInfo->format;
 
+        auto dt = device->getDeviceInfo().deviceType;
+        if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
+        {
+            if (textureType == TextureType::Texture1D)
+                return;
+        }
+
         srcTextureInfo->extents.width = 16;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 16;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
@@ -511,6 +525,13 @@ struct CopyBetweenLayers : BaseCopyTextureTest
     {
         auto textureType = srcTextureInfo->textureType;
         auto format = srcTextureInfo->format;
+
+        auto dt = device->getDeviceInfo().deviceType;
+        if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
+        {
+            if (textureType == TextureType::Texture1D)
+                return;
+        }
 
         srcTextureInfo->extents.width = 4;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
@@ -747,15 +768,12 @@ GPU_TEST_CASE("copy-texture-small-to-large", D3D12 | Vulkan | Metal | WGPU)
     testCopyTexture<SmallSrcToLargeDst>(device);
 }
 
-// TODO Metal: no support for 1D mips
-// TODO WGPU: no support for 1D mips
-GPU_TEST_CASE("copy-texture-between-mips", D3D12 | Vulkan)
+GPU_TEST_CASE("copy-texture-between-mips", D3D12 | Vulkan | Metal | WGPU)
 {
     testCopyTexture<CopyBetweenMips>(device);
 }
 
-// TODO WGPU: no support for layers
-GPU_TEST_CASE("copy-texture-between-layers", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("copy-texture-between-layers", D3D12 | Vulkan | Metal | WGPU)
 {
     testCopyTexture<CopyBetweenLayers>(device);
 }
