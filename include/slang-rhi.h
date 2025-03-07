@@ -2602,7 +2602,7 @@ public:
     ) = 0;
 
     /// Helper overload that reads the entire texture (layer 0, mip level 0)
-    virtual SLANG_NO_THROW Result SLANG_MCALL
+    SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize = nullptr)
     {
         return readTexture(texture, 0, 0, outBlob, outRowPitch, outPixelSize);
