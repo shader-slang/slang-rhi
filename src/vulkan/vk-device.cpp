@@ -1423,7 +1423,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     return SLANG_OK;
 }
 
-Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 1;
     return SLANG_OK;

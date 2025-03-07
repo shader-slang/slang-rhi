@@ -92,7 +92,7 @@ public:
     waitForFences(uint32_t fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

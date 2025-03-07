@@ -631,7 +631,7 @@ Result Device::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, 
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::getTextureRowAlignment(Size* outAlignment)
+Result Device::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 0;
     return SLANG_E_NOT_AVAILABLE;

@@ -180,7 +180,7 @@ Result Texture::getSubresourceRegionLayout(
 )
 {
     size_t rowAlignment;
-    SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(&rowAlignment));
+    SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(m_desc.format, &rowAlignment));
     return calcSubresourceRegionLayout(m_desc, mipLevel, offset, extents, rowAlignment, outLayout);
 }
 
