@@ -226,17 +226,13 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0)
     {
         extent = dstDesc.size;
-        dstSubresource.layerCount = dstDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
-        if (dstSubresource.layerCount == 0)
-            dstSubresource.layerCount = 1;
+        dstSubresource.layerCount = dstDesc.getLayerCount();
         dstSubresource.mipLevelCount = dstDesc.mipLevelCount;
     }
     if (srcSubresource.layerCount == 0 && srcSubresource.mipLevelCount == 0)
     {
         extent = srcDesc.size;
-        srcSubresource.layerCount = srcDesc.arrayLength * (dstDesc.type == TextureType::TextureCube ? 6 : 1);
-        if (srcSubresource.layerCount == 0)
-            srcSubresource.layerCount = 1;
+        srcSubresource.layerCount = dstDesc.getLayerCount();
         srcSubresource.mipLevelCount = dstDesc.mipLevelCount;
     }
     VkImageCopy region = {};

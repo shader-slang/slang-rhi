@@ -409,7 +409,7 @@ ComPtr<IDevice> createTestingDevice(
         deviceDesc.next = &extDesc;
     }
 
-#ifdef _DEBUG
+#if SLANG_RHI_DEBUG
     deviceDesc.enableValidation = true;
     deviceDesc.enableRayTracingValidation = true;
     deviceDesc.debugCallback = &sDebugCallback;
@@ -417,7 +417,7 @@ ComPtr<IDevice> createTestingDevice(
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
 
-#ifdef _DEBUG
+#if SLANG_RHI_DEBUG
     const char* features[128];
     uint32_t featureCount;
     REQUIRE_CALL(device->getFeatures(features, SLANG_COUNT_OF(features), &featureCount));

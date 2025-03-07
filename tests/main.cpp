@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 {
     rhi::testing::cleanupTestTempDirectories();
 
-#ifdef _DEBUG
+#if SLANG_RHI_DEBUG
     rhi::getRHI()->enableDebugLayers();
 #endif
 

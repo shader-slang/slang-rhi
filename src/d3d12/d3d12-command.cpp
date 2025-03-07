@@ -187,16 +187,19 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
 
-    requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
-    requireTextureState(src, srcSubresource, ResourceState::CopySource);
-    commitBarriers();
-
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
         srcSubresource.mipLevelCount == 0)
     {
+        requireTextureState(dst, kEntireTexture, ResourceState::CopyDestination);
+        requireTextureState(src, kEntireTexture, ResourceState::CopySource);
+        commitBarriers();
         m_cmdList->CopyResource(dst->m_resource.getResource(), src->m_resource.getResource());
         return;
     }
+
+    requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
+    requireTextureState(src, srcSubresource, ResourceState::CopySource);
+    commitBarriers();
 
     DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(dst->m_desc.format);
     uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
@@ -215,7 +218,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                     dstSubresource.baseArrayLayer + layer,
                     planeIndex,
                     dst->m_desc.mipLevelCount,
-                    dst->m_desc.arrayLength
+                    dst->m_desc.getLayerCount()
                 );
 
                 D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
@@ -226,7 +229,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                     srcSubresource.baseArrayLayer + layer,
                     planeIndex,
                     src->m_desc.mipLevelCount,
-                    src->m_desc.arrayLength
+                    src->m_desc.getLayerCount()
                 );
 
                 D3D12_BOX srcBox = {};
@@ -1325,8 +1328,7 @@ void CommandRecorder::commitBarriers()
         else
         {
             uint32_t mipLevelCount = texture->m_desc.mipLevelCount;
-            uint32_t arrayLayerCount =
-                texture->m_desc.arrayLength * (texture->m_desc.type == TextureType::TextureCube ? 6 : 1);
+            uint32_t layerCount = texture->m_desc.getLayerCount();
             DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(texture->m_desc.format);
             uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -1344,7 +1346,7 @@ void CommandRecorder::commitBarriers()
                     textureBarrier.arrayLayer,
                     planeIndex,
                     mipLevelCount,
-                    arrayLayerCount
+                    layerCount
                 );
                 barriers.push_back(barrier);
             }

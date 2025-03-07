@@ -1078,8 +1078,8 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         ID3D12Resource* uploadResource = uploadTexture;
 
         uint32_t subresourceIndex = 0;
-        uint32_t arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
-        for (uint32_t arrayIndex = 0; arrayIndex < arrayLayerCount; arrayIndex++)
+        uint32_t layerCount = srcDesc.getLayerCount();
+        for (uint32_t layer = 0; layer < layerCount; layer++)
         {
             uint8_t* p;
             uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));

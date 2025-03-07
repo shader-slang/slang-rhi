@@ -266,9 +266,6 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;
     Extents extents = desc.size;
-    extents.width = extents.width ? extents.width : 1;
-    extents.height = extents.height ? extents.height : 1;
-    extents.depth = extents.depth ? extents.depth : 1;
 
     for (uint32_t i = 0; i < desc.mipLevelCount; ++i)
     {
@@ -277,11 +274,11 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
         rowSize = alignTo(rowSize, alignment);
         Size sliceSize = rowSize * alignTo(extents.height, formatInfo.blockHeight);
         size += sliceSize * extents.depth;
-        extents.width = max(1, extents.width / 2);
-        extents.height = max(1, extents.height / 2);
-        extents.depth = max(1, extents.depth / 2);
+        extents.width = max(1, extents.width >> 1);
+        extents.height = max(1, extents.height >> 1);
+        extents.depth = max(1, extents.depth >> 1);
     }
-    size *= desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+    size *= desc.getLayerCount();
 
     *outSize = size;
     *outAlignment = alignment;

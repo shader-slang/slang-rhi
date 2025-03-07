@@ -619,6 +619,7 @@ target_include_directories(slang-rhi PRIVATE src)
 # target_link_libraries(slang-rhi PRIVATE nanothread)
 target_compile_definitions(slang-rhi
     PRIVATE
+    SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
     SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
     SLANG_RHI_ENABLE_D3D11=$<BOOL:${SLANG_RHI_ENABLE_D3D11}>
     SLANG_RHI_ENABLE_D3D12=$<BOOL:${SLANG_RHI_ENABLE_D3D12}>
@@ -684,6 +685,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-surface.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-types.cpp
+        tests/test-texture.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
@@ -691,6 +693,7 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
+        SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"

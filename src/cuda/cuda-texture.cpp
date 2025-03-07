@@ -29,16 +29,21 @@ TextureImpl::~TextureImpl()
     }
 }
 
-uint64_t TextureImpl::getBindlessHandle()
-{
-    return (uint64_t)m_cudaTexObj;
-}
-
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    outHandle->type = NativeHandleType::CUtexObject;
-    outHandle->value = getBindlessHandle();
-    return SLANG_OK;
+    if (m_cudaArray)
+    {
+        outHandle->type = NativeHandleType::CUarray;
+        outHandle->value = (uint64_t)m_cudaArray;
+        return SLANG_OK;
+    }
+    else if (m_cudaMipMappedArray)
+    {
+        outHandle->type = NativeHandleType::CUmipmappedArray;
+        outHandle->value = (uint64_t)m_cudaMipMappedArray;
+        return SLANG_OK;
+    }
+    return SLANG_FAIL;
 }
 
 Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
@@ -47,184 +52,164 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, srcDesc);
 
-    CUresourcetype resourceType;
+    // CUresourcetype resourceType = CU_RESOURCE_TYPE_ARRAY;
 
     // The size of the element/texel in bytes
     size_t elementSize = 0;
+    CUarray_format format = CU_AD_FORMAT_FLOAT;
+    int numChannels = 0;
 
-    // Our `TextureDesc` uses an enumeration to specify
-    // the "shape"/rank of a texture (1D, 2D, 3D, Cube), but CUDA's
-    // `cuMipmappedArrayCreate` seemingly relies on a policy where
-    // the extents of the array in dimenions above the rank are
-    // specified as zero (e.g., a 1D texture requires `height==0`).
-    //
-    // We will start by massaging the extents as specified by the
-    // user into a form that CUDA wants/expects, based on the
-    // texture shape as specified in the `desc`.
-    //
-    int width = desc.size.width;
-    int height = desc.size.height;
-    int depth = desc.size.depth;
+    SLANG_RETURN_ON_FAIL(getCUDAFormat(desc.format, &format));
+    const FormatInfo& info = getFormatInfo(desc.format);
+    numChannels = info.channelCount;
+
+    switch (format)
+    {
+    case CU_AD_FORMAT_UNSIGNED_INT8:
+    case CU_AD_FORMAT_SIGNED_INT8:
+        elementSize = 1 * numChannels;
+        break;
+    case CU_AD_FORMAT_UNSIGNED_INT16:
+    case CU_AD_FORMAT_SIGNED_INT16:
+        elementSize = 2 * numChannels;
+        break;
+    case CU_AD_FORMAT_UNSIGNED_INT32:
+    case CU_AD_FORMAT_SIGNED_INT32:
+        elementSize = 4 * numChannels;
+        break;
+    case CU_AD_FORMAT_HALF:
+        elementSize = 2 * numChannels;
+        break;
+    case CU_AD_FORMAT_FLOAT:
+        elementSize = 4 * numChannels;
+        break;
+    default:
+    {
+        SLANG_RHI_ASSERT_FAILURE("Unsupported format");
+        return SLANG_FAIL;
+    }
+    }
+
     switch (desc.type)
     {
     case TextureType::Texture1D:
-        height = 0;
-        depth = 0;
-        break;
-
-    case TextureType::Texture2D:
-        depth = 0;
-        break;
-
-    case TextureType::Texture3D:
-        break;
-
-    case TextureType::TextureCube:
-        depth = 1;
-        break;
-    }
-
-    {
-        CUarray_format format = CU_AD_FORMAT_FLOAT;
-        int numChannels = 0;
-
-        SLANG_RETURN_ON_FAIL(getCUDAFormat(desc.format, &format));
-        const FormatInfo& info = getFormatInfo(desc.format);
-        numChannels = info.channelCount;
-
-        switch (format)
+        if (desc.mipLevelCount == 1)
         {
-        case CU_AD_FORMAT_FLOAT:
-        {
-            elementSize = sizeof(float) * numChannels;
-            break;
-        }
-        case CU_AD_FORMAT_HALF:
-        {
-            elementSize = sizeof(uint16_t) * numChannels;
-            break;
-        }
-        case CU_AD_FORMAT_UNSIGNED_INT8:
-        {
-            elementSize = sizeof(uint8_t) * numChannels;
-            break;
-        }
-        default:
-        {
-            SLANG_RHI_ASSERT_FAILURE("Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
-            return SLANG_FAIL;
-        }
-        }
-
-        if (desc.mipLevelCount > 1)
-        {
-            resourceType = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
-
-            CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
-            memset(&arrayDesc, 0, sizeof(arrayDesc));
-
-            arrayDesc.Width = width;
-            arrayDesc.Height = height;
-            arrayDesc.Depth = depth;
+            CUDA_ARRAY_DESCRIPTOR arrayDesc = {};
+            arrayDesc.Width = desc.size.width;
             arrayDesc.Format = format;
             arrayDesc.NumChannels = numChannels;
-            arrayDesc.Flags = 0;
-
-            if (desc.arrayLength > 1)
-            {
-                if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
-                    desc.type == TextureType::TextureCube)
-                {
-                    arrayDesc.Flags |= CUDA_ARRAY3D_LAYERED;
-                    arrayDesc.Depth = desc.arrayLength;
-                }
-                else
-                {
-                    SLANG_RHI_ASSERT_FAILURE("Arrays only supported for 1D and 2D");
-                    return SLANG_FAIL;
-                }
-            }
-
-            if (desc.type == TextureType::TextureCube)
-            {
-                arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
-                arrayDesc.Depth *= 6;
-            }
-
-            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
-            );
+            SLANG_CUDA_RETURN_ON_FAIL(cuArrayCreate(&tex->m_cudaArray, &arrayDesc));
         }
         else
         {
-            resourceType = CU_RESOURCE_TYPE_ARRAY;
-
-            if (desc.arrayLength > 1)
-            {
-                if (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
-                    desc.type == TextureType::TextureCube)
-                {
-                    SLANG_RHI_ASSERT_FAILURE("Only 1D, 2D and Cube arrays supported");
-                    return SLANG_FAIL;
-                }
-
-                CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
-                memset(&arrayDesc, 0, sizeof(arrayDesc));
-
-                // Set the depth as the array length
-                arrayDesc.Depth = desc.arrayLength;
-                if (desc.type == TextureType::TextureCube)
-                {
-                    arrayDesc.Depth *= 6;
-                }
-
-                arrayDesc.Height = height;
-                arrayDesc.Width = width;
-                arrayDesc.Format = format;
-                arrayDesc.NumChannels = numChannels;
-
-                if (desc.type == TextureType::TextureCube)
-                {
-                    arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
-                }
-
-                SLANG_CUDA_RETURN_ON_FAIL(cuArray3DCreate(&tex->m_cudaArray, &arrayDesc));
-            }
-            else if (desc.type == TextureType::Texture3D || desc.type == TextureType::TextureCube)
-            {
-                CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
-                memset(&arrayDesc, 0, sizeof(arrayDesc));
-
-                arrayDesc.Depth = depth;
-                arrayDesc.Height = height;
-                arrayDesc.Width = width;
-                arrayDesc.Format = format;
-                arrayDesc.NumChannels = numChannels;
-
-                arrayDesc.Flags = 0;
-
-                // Handle cube texture
-                if (desc.type == TextureType::TextureCube)
-                {
-                    arrayDesc.Depth = 6;
-                    arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
-                }
-
-                SLANG_CUDA_RETURN_ON_FAIL(cuArray3DCreate(&tex->m_cudaArray, &arrayDesc));
-            }
-            else
-            {
-                CUDA_ARRAY_DESCRIPTOR arrayDesc;
-                memset(&arrayDesc, 0, sizeof(arrayDesc));
-
-                arrayDesc.Height = height;
-                arrayDesc.Width = width;
-                arrayDesc.Format = format;
-                arrayDesc.NumChannels = numChannels;
-
-                // Allocate the array, will work for 1D or 2D case
-                SLANG_CUDA_RETURN_ON_FAIL(cuArrayCreate(&tex->m_cudaArray, &arrayDesc));
-            }
+            CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
+            arrayDesc.Width = desc.size.width;
+            arrayDesc.Format = format;
+            arrayDesc.NumChannels = numChannels;
+            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+            );
         }
+        break;
+    case TextureType::Texture1DArray:
+    {
+        CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Depth = desc.arrayLength;
+        arrayDesc.Format = format;
+        arrayDesc.NumChannels = numChannels;
+        arrayDesc.Flags = CUDA_ARRAY3D_LAYERED;
+        SLANG_CUDA_RETURN_ON_FAIL(
+            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+        );
+        break;
+    }
+    case TextureType::Texture2D:
+    {
+        if (desc.mipLevelCount == 1)
+        {
+            CUDA_ARRAY_DESCRIPTOR arrayDesc = {};
+            arrayDesc.Width = desc.size.width;
+            arrayDesc.Height = desc.size.height;
+            arrayDesc.Format = format;
+            arrayDesc.NumChannels = numChannels;
+            SLANG_CUDA_RETURN_ON_FAIL(cuArrayCreate(&tex->m_cudaArray, &arrayDesc));
+        }
+        else
+        {
+            CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
+            arrayDesc.Width = desc.size.width;
+            arrayDesc.Height = desc.size.height;
+            arrayDesc.Format = format;
+            arrayDesc.NumChannels = numChannels;
+            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+            );
+        }
+        break;
+    }
+    case TextureType::Texture2DArray:
+    {
+        CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = desc.arrayLength;
+        arrayDesc.Format = format;
+        arrayDesc.NumChannels = numChannels;
+        arrayDesc.Flags = CUDA_ARRAY3D_LAYERED;
+        SLANG_CUDA_RETURN_ON_FAIL(
+            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+        );
+        break;
+    }
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        return SLANG_E_NOT_AVAILABLE;
+    case TextureType::Texture3D:
+    {
+        CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = desc.size.depth;
+        arrayDesc.Format = format;
+        arrayDesc.NumChannels = numChannels;
+        SLANG_CUDA_RETURN_ON_FAIL(
+            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+        );
+        break;
+    }
+    case TextureType::TextureCube:
+    {
+        CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = 6;
+        arrayDesc.Format = format;
+        arrayDesc.NumChannels = numChannels;
+        arrayDesc.Flags = CUDA_ARRAY3D_CUBEMAP;
+        SLANG_CUDA_RETURN_ON_FAIL(
+            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+        );
+        break;
+    }
+    case TextureType::TextureCubeArray:
+    {
+        CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = desc.arrayLength * 6;
+        arrayDesc.Format = format;
+        arrayDesc.NumChannels = numChannels;
+        arrayDesc.Flags = CUDA_ARRAY3D_CUBEMAP | CUDA_ARRAY3D_LAYERED;
+        SLANG_CUDA_RETURN_ON_FAIL(
+            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+        );
+        break;
+    }
     }
 
     // Work space for holding data for uploading if it needs to be rearranged
@@ -233,9 +218,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
         std::vector<uint8_t> workspace;
         for (int mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
         {
-            int mipWidth = width >> mipLevel;
-            int mipHeight = height >> mipLevel;
-            int mipDepth = depth >> mipLevel;
+            int mipWidth = desc.size.width >> mipLevel;
+            int mipHeight = desc.size.height >> mipLevel;
+            int mipDepth = desc.size.depth >> mipLevel;
 
             mipWidth = (mipWidth == 0) ? 1 : mipWidth;
             mipHeight = (mipHeight == 0) ? 1 : mipHeight;
@@ -326,12 +311,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                     desc.type == TextureType::TextureCube
                 );
 
-                CUDA_MEMCPY3D copyParam;
-                memset(&copyParam, 0, sizeof(copyParam));
-
+                CUDA_MEMCPY3D copyParam = {};
                 copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
                 copyParam.dstArray = dstArray;
-
                 copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
                 copyParam.srcHost = srcDataPtr;
                 copyParam.srcPitch = mipWidth * elementSize;
@@ -354,8 +336,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 case TextureType::Texture1D:
                 case TextureType::Texture2D:
                 {
-                    CUDA_MEMCPY2D copyParam;
-                    memset(&copyParam, 0, sizeof(copyParam));
+                    CUDA_MEMCPY2D copyParam = {};
                     copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
                     copyParam.dstArray = dstArray;
                     copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
@@ -369,12 +350,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
                 case TextureType::Texture3D:
                 case TextureType::TextureCube:
                 {
-                    CUDA_MEMCPY3D copyParam;
-                    memset(&copyParam, 0, sizeof(copyParam));
-
+                    CUDA_MEMCPY3D copyParam = {};
                     copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
                     copyParam.dstArray = dstArray;
-
                     copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
                     copyParam.srcHost = srcDataPtr;
                     copyParam.srcPitch = mipWidth * elementSize;
@@ -398,16 +376,16 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
     // Set up texture sampling parameters, and create final texture obj
 
     {
-        CUDA_RESOURCE_DESC resDesc;
-        memset(&resDesc, 0, sizeof(CUDA_RESOURCE_DESC));
-        resDesc.resType = resourceType;
+        CUDA_RESOURCE_DESC resDesc = {};
 
         if (tex->m_cudaArray)
         {
+            resDesc.resType = CU_RESOURCE_TYPE_ARRAY;
             resDesc.res.array.hArray = tex->m_cudaArray;
         }
         if (tex->m_cudaMipMappedArray)
         {
+            resDesc.resType = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
             resDesc.res.mipmap.hMipmappedArray = tex->m_cudaMipMappedArray;
         }
 

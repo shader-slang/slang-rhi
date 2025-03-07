@@ -435,6 +435,33 @@ bool MetalUtil::isStencilFormat(MTL::PixelFormat format)
     }
 }
 
+MTL::TextureType MetalUtil::translateTextureType(TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Texture1D:
+        return MTL::TextureType1D;
+    case TextureType::Texture1DArray:
+        return MTL::TextureType1DArray;
+    case TextureType::Texture2D:
+        return MTL::TextureType2D;
+    case TextureType::Texture2DArray:
+        return MTL::TextureType2DArray;
+    case TextureType::Texture2DMS:
+        return MTL::TextureType2DMultisample;
+    case TextureType::Texture2DMSArray:
+        return MTL::TextureType2DMultisampleArray;
+    case TextureType::Texture3D:
+        return MTL::TextureType3D;
+    case TextureType::TextureCube:
+        return MTL::TextureTypeCube;
+    case TextureType::TextureCubeArray:
+        return MTL::TextureTypeCubeArray;
+    default:
+        return MTL::TextureType(0);
+    }
+}
+
 MTL::SamplerMinMagFilter MetalUtil::translateSamplerMinMagFilter(TextureFilteringMode mode)
 {
     switch (mode)

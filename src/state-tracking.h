@@ -78,24 +78,19 @@ public:
         else
         {
             // Transition subresources.
-            uint32_t arrayLayerCount =
-                texture->m_desc.arrayLength * (texture->m_desc.type == TextureType::TextureCube ? 6 : 1);
-
             if (textureState->subresourceStates.empty())
             {
-                textureState->subresourceStates.resize(
-                    texture->m_desc.mipLevelCount * arrayLayerCount,
-                    textureState->state
-                );
+                textureState->subresourceStates.resize(texture->m_desc.getSubresourceCount(), textureState->state);
                 textureState->state = ResourceState::Undefined;
             }
-            for (uint32_t arrayLayer = subresourceRange.baseArrayLayer; arrayLayer < arrayLayerCount; arrayLayer++)
+            uint32_t layerCount = texture->m_desc.getLayerCount();
+            for (uint32_t layer = subresourceRange.baseArrayLayer; layer < layerCount; layer++)
             {
                 for (uint32_t mipLevel = subresourceRange.mipLevel;
                      mipLevel < subresourceRange.mipLevel + subresourceRange.mipLevelCount;
                      mipLevel++)
                 {
-                    uint32_t subresourceIndex = arrayLayer * texture->m_desc.mipLevelCount + mipLevel;
+                    uint32_t subresourceIndex = layer * texture->m_desc.mipLevelCount + mipLevel;
                     if (state != textureState->subresourceStates[subresourceIndex] ||
                         state == ResourceState::UnorderedAccess)
                     {
@@ -103,7 +98,7 @@ public:
                             texture,
                             false,
                             mipLevel,
-                            arrayLayer,
+                            layer,
                             textureState->subresourceStates[subresourceIndex],
                             state,
                         });

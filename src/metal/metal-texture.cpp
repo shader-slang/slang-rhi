@@ -43,9 +43,15 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     TextureDesc desc = fixupTextureDesc(descIn);
 
     // Metal doesn't support mip-mapping for 1D textures
-    // However, we still need to use the provided mip level count when initializing the texture
-    uint32_t initMipLevels = desc.mipLevelCount;
-    desc.mipLevelCount = desc.type == TextureType::Texture1D ? 1 : desc.mipLevelCount;
+    if ((desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipLevelCount > 1)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    // Metal doesn't support multi-sampled textures with 1 sample
+    if ((desc.type == TextureType::Texture2DMS || desc.type == TextureType::Texture2DMSArray) && desc.sampleCount == 1)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
 
     const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     if (pixelFormat == MTL::PixelFormat::PixelFormatInvalid)
@@ -71,42 +77,14 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         break;
     }
 
-    bool isArray = desc.arrayLength > 1;
-
-    switch (desc.type)
-    {
-    case TextureType::Texture1D:
-        textureDesc->setTextureType(isArray ? MTL::TextureType1DArray : MTL::TextureType1D);
-        textureDesc->setWidth(desc.size.width);
-        break;
-    case TextureType::Texture2D:
-        if (desc.sampleCount > 1)
-        {
-            textureDesc->setTextureType(isArray ? MTL::TextureType2DMultisampleArray : MTL::TextureType2DMultisample);
-            textureDesc->setSampleCount(desc.sampleCount);
-        }
-        else
-        {
-            textureDesc->setTextureType(isArray ? MTL::TextureType2DArray : MTL::TextureType2D);
-        }
-        textureDesc->setWidth(descIn.size.width);
-        textureDesc->setHeight(descIn.size.height);
-        break;
-    case TextureType::TextureCube:
-        textureDesc->setTextureType(isArray ? MTL::TextureTypeCubeArray : MTL::TextureTypeCube);
-        textureDesc->setWidth(descIn.size.width);
-        textureDesc->setHeight(descIn.size.height);
-        break;
-    case TextureType::Texture3D:
-        textureDesc->setTextureType(MTL::TextureType::TextureType3D);
-        textureDesc->setWidth(descIn.size.width);
-        textureDesc->setHeight(descIn.size.height);
-        textureDesc->setDepth(descIn.size.depth);
-        break;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unsupported texture type");
-        return SLANG_FAIL;
-    }
+    textureDesc->setTextureType(MetalUtil::translateTextureType(desc.type));
+    textureDesc->setWidth(desc.size.width);
+    textureDesc->setHeight(desc.size.height);
+    textureDesc->setDepth(desc.size.depth);
+    textureDesc->setMipmapLevelCount(desc.mipLevelCount);
+    textureDesc->setArrayLength(desc.arrayLength);
+    textureDesc->setPixelFormat(pixelFormat);
+    textureDesc->setSampleCount(desc.sampleCount);
 
     MTL::TextureUsage textureUsage = MTL::TextureUsageUnknown;
     if (is_set(desc.usage, TextureUsage::RenderTarget))
@@ -136,11 +114,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
     }
 
-    textureDesc->setMipmapLevelCount(desc.mipLevelCount);
-    textureDesc->setArrayLength(desc.arrayLength);
-    textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setUsage(textureUsage);
-    textureDesc->setSampleCount(desc.sampleCount);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
 
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
@@ -169,18 +143,18 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             return SLANG_FAIL;
         }
 
-        uint32_t sliceCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+        uint32_t sliceCount = desc.getLayerCount();
 
         for (uint32_t slice = 0; slice < sliceCount; ++slice)
         {
             MTL::Region region;
             region.origin = MTL::Origin(0, 0, 0);
             region.size = MTL::Size(desc.size.width, desc.size.height, desc.size.depth);
-            for (uint32_t level = 0; level < initMipLevels; ++level)
+            for (uint32_t level = 0; level < desc.mipLevelCount; ++level)
             {
                 if (level >= desc.mipLevelCount)
                     continue;
-                const SubresourceData& subresourceData = initData[slice * initMipLevels + level];
+                const SubresourceData& subresourceData = initData[slice * desc.mipLevelCount + level];
                 stagingTexture->replaceRegion(
                     region,
                     level,
