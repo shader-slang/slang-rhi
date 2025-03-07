@@ -106,6 +106,13 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         return SLANG_E_INVALID_ARG;
     }
 
+    if (desc.type != TextureType::Texture1DArray && desc.type != TextureType::Texture2DArray &&
+        desc.type != TextureType::TextureCubeArray && desc.arrayLength > 1)
+    {
+        RHI_VALIDATION_ERROR("Texture array length must be 1 for non-array textures");
+        return SLANG_E_INVALID_ARG;
+    }
+
     switch (desc.type)
     {
     case TextureType::Texture1D:
