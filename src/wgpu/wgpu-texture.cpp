@@ -43,6 +43,12 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         return SLANG_FAIL;
     }
 
+    // WebGPU does not support 1D texture arrays
+    if ((desc.type == TextureType::Texture1D) && (desc.arrayLength > 1))
+    {
+        return SLANG_FAIL;
+    }
+
     RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
     WGPUTextureDescriptor textureDesc = {};
     textureDesc.size.width = desc.size.width;
@@ -54,17 +60,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     else
     {
         uint32_t arrayLayers = max(1u, desc.arrayLength);
-        switch (desc.type)
-        {
-        case TextureType::TextureCube:
+        if (desc.type == TextureType::TextureCube)
             arrayLayers *= 6U;
-            break;
-        case TextureType::Texture1D:
-            arrayLayers = 1U;
-            break;
-        default:
-            break;
-        }
         textureDesc.size.depthOrArrayLayers = arrayLayers;
     }
     textureDesc.usage = translateTextureUsage(desc.usage);
@@ -90,7 +87,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
         SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
         uint32_t mipLevelCount = desc.mipLevelCount;
-        uint32_t arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+        uint32_t arrayLayerCount = desc.getLayerCount();
 
         for (uint32_t arrayLayer = 0; arrayLayer < arrayLayerCount; ++arrayLayer)
         {
@@ -103,7 +100,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 WGPUImageCopyTexture imageCopyTexture = {};
                 imageCopyTexture.texture = texture->m_texture;
                 imageCopyTexture.mipLevel = mipLevel;
-                imageCopyTexture.origin = {0, 0, desc.type == TextureType::TextureCube ? arrayLayer : 0U};
+                imageCopyTexture.origin = {0, 0, arrayLayer};
                 imageCopyTexture.aspect = WGPUTextureAspect_All;
 
                 WGPUExtent3D writeSize = {};

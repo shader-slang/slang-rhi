@@ -438,6 +438,25 @@ void DebugCommandEncoder::copyTextureToBuffer(
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
+
+    const TextureDesc& desc = src->getDesc();
+
+    if (srcSubresource.baseArrayLayer > desc.getLayerCount())
+    {
+        RHI_VALIDATION_ERROR("The base array layer is out of bounds.");
+        return;
+    }
+    if (srcSubresource.mipLevel > desc.mipLevelCount)
+    {
+        RHI_VALIDATION_ERROR("Mip level is out of bounds.");
+        return;
+    }
+    if (srcSubresource.baseArrayLayer > 0 && srcOffset.z != 0)
+    {
+        RHI_VALIDATION_ERROR("3D textures don't support array layers.");
+        return;
+    }
+
     baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowStride, src, srcSubresource, srcOffset, extent);
 }
 
