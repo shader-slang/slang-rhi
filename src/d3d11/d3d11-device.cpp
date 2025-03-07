@@ -99,7 +99,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         // to override UseDebug of default rather than leave it
         // up to each back-end to specify.
 
-#if _DEBUG
+#if SLANG_RHI_DEBUG
         /// First try debug then non debug
         combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);
 #else
