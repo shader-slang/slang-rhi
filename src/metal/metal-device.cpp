@@ -131,6 +131,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
+#if 0
 Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
@@ -195,6 +196,7 @@ Result DeviceImpl::readTexture(
     returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
+#endif
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
