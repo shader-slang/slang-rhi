@@ -226,7 +226,7 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
 {
     AUTORELEASEPOOL
 
-    *outAlignment = 1;
+    *outAlignment = 256;
     return SLANG_OK;
 }
 
