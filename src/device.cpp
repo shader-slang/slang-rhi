@@ -608,6 +608,15 @@ Result Device::readTexture(
 
     SLANG_RETURN_ON_FAIL(m_readbackHeap.unmap(stagingAllocation));
 
+    if (outRowPitch)
+        *outRowPitch = layout.strideY;
+
+    if (outPixelSize)
+    {
+        const FormatInfo& formatInfo = getFormatInfo(texture->getDesc().format);
+        *outPixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
+    }
+
     returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
