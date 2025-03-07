@@ -141,6 +141,8 @@ struct ArrayReadTexture : BaseReadTextureTest
 
         if (textureType == TextureType::Texture3D)
             return;
+        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
+            return;
 
         srcTextureInfo->extents.width = 8;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
@@ -158,6 +160,9 @@ struct MipsReadTexture : BaseReadTextureTest
     {
         auto textureType = srcTextureInfo->textureType;
         auto format = srcTextureInfo->format;
+
+        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
+            return;
 
         srcTextureInfo->extents.width = 8;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;

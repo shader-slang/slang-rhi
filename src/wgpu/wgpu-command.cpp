@@ -178,9 +178,13 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
+    // z is either base array layer or z offset depending on whether this is 3D or array texture
+    SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
+    uint32_t z = cmd.srcOffset.z + cmd.srcSubresource.baseArrayLayer;
+
     WGPUImageCopyTexture source = {};
     source.texture = src->m_texture;
-    source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, (uint32_t)cmd.srcOffset.z};
+    source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, z};
     source.mipLevel = cmd.srcSubresource.mipLevel;
     source.aspect = WGPUTextureAspect_All;
 
