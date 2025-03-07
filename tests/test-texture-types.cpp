@@ -86,7 +86,7 @@ struct TextureAccessTest : TextureTest
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
         textureDesc.mipLevelCount = textureInfo->mipLevelCount;
-        textureDesc.arrayLength = textureInfo->arrayLayerCount;
+        textureDesc.arrayLength = textureInfo->arrayLength;
         textureDesc.size = textureInfo->extents;
         textureDesc.usage = (readWrite ? TextureUsage::UnorderedAccess : TextureUsage::ShaderResource) |
                             TextureUsage::CopySource | TextureUsage::CopyDestination;
@@ -220,7 +220,7 @@ struct TextureAccessTest : TextureTest
         textureInfo->extents.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
         textureInfo->extents.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
         textureInfo->mipLevelCount = 1;
-        textureInfo->arrayLayerCount = 1;
+        textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);
 
         // We need to save the pointer to the original texture data for results checking because the texture will be
@@ -298,7 +298,7 @@ struct RenderTargetTests : TextureTest
         TextureDesc renderTextureDesc = {};
         renderTextureDesc.type = textureInfo->textureType;
         renderTextureDesc.mipLevelCount = textureInfo->mipLevelCount;
-        renderTextureDesc.arrayLength = textureInfo->arrayLayerCount;
+        renderTextureDesc.arrayLength = textureInfo->arrayLength;
         renderTextureDesc.size = textureInfo->extents;
         renderTextureDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource | TextureUsage::CopySource;
         renderTextureDesc.defaultState = ResourceState::RenderTarget;
@@ -314,7 +314,7 @@ struct RenderTargetTests : TextureTest
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
         textureDesc.mipLevelCount = textureInfo->mipLevelCount;
-        textureDesc.arrayLength = textureInfo->arrayLayerCount;
+        textureDesc.arrayLength = textureInfo->arrayLength;
         textureDesc.size = textureInfo->extents;
         textureDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
         textureDesc.defaultState = ResourceState::ResolveDestination;
@@ -462,7 +462,7 @@ struct RenderTargetTests : TextureTest
         textureInfo->extents.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
         textureInfo->extents.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
         textureInfo->mipLevelCount = 1;
-        textureInfo->arrayLayerCount = 1;
+        textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);
 
         // We need to save the pointer to the original texture data for results checking because the texture will be
