@@ -198,7 +198,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     destination.buffer = dst->m_buffer;
     destination.layout.offset = cmd.dstOffset;
     destination.layout.bytesPerRow = cmd.dstRowStride;
-    destination.layout.rowsPerImage = src->m_desc.size.height >> cmd.srcSubresource.mipLevel;
+    destination.layout.rowsPerImage = max(src->m_desc.size.height >> cmd.srcSubresource.mipLevel, 1);
 
     WGPUExtent3D copySize = {(uint32_t)cmd.extent.width, (uint32_t)cmd.extent.height, (uint32_t)cmd.extent.depth};
 
