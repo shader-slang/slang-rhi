@@ -60,7 +60,7 @@ struct UploadData
 
 void testUploadToBuffer(IDevice* device, Size size, Offset offset, int tests, bool multi_encoder = false)
 {
-    StagingHeap& heap = getSharedDevice(device)->m_heap;
+    StagingHeap& heap = getSharedDevice(device)->m_uploadHeap;
     CHECK_EQ(heap.getUsed(), 0);
 
     std::vector<UploadData> uploads(tests);

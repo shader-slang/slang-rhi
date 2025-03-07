@@ -341,7 +341,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
     // Don't bother supporting MSAA for right now
@@ -449,6 +456,12 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     }
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+{
+    *outAlignment = 256;
     return SLANG_OK;
 }
 

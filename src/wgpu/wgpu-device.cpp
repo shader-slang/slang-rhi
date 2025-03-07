@@ -41,7 +41,8 @@ DeviceImpl::~DeviceImpl()
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
 
     m_shaderCache.free();
-    m_heap.release();
+    m_uploadHeap.release();
+    m_readbackHeap.release();
 
     m_queue.setNull();
 }
@@ -210,7 +211,14 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
 
@@ -253,7 +261,7 @@ Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* ou
 
     WGPUImageCopyTexture source = {};
     source.texture = textureImpl->m_texture;
-    source.mipLevel = 0;
+    source.mipLevel = mipLevel;
     source.origin = {0, 0, 0};
     source.aspect = WGPUTextureAspect_All;
     WGPUImageCopyBuffer destination = {};

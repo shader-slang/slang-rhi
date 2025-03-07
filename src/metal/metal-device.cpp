@@ -131,7 +131,14 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     AUTORELEASEPOOL
 
@@ -283,9 +290,8 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
 Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
 {
     AUTORELEASEPOOL
-
-    *outAlignment = 1;
-    return SLANG_E_NOT_IMPLEMENTED;
+    *outAlignment = 256;
+    return SLANG_OK;
 }
 
 Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)

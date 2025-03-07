@@ -522,12 +522,11 @@ Result CommandEncoder::uploadTextureData(
         SubresourceLayout* srLayout = layouts;
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
         {
-            uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
             for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
             {
                 uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 
-                textureImpl->getSubresourceRegionLayout(mipLevel, layerIndex, offset, extent, srLayout);
+                textureImpl->getSubresourceRegionLayout(mipLevel, offset, extent, srLayout);
                 totalSize += srLayout->sizeInBytes;
                 srLayout++;
             }
@@ -536,7 +535,7 @@ Result CommandEncoder::uploadTextureData(
 
     // Allocate and retain a staging buffer for the upload.
     RefPtr<StagingHeap::Handle> handle;
-    SLANG_RETURN_ON_FAIL(getDevice()->m_heap.allocHandle(totalSize, {}, handle.writeRef()));
+    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.allocHandle(totalSize, {}, handle.writeRef()));
     m_commandList->retainResource(handle);
 
     // Copy subresources a row at a time into the staging buffer.
@@ -606,7 +605,7 @@ Result CommandEncoder::uploadTextureData(
 Result CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
 {
     RefPtr<StagingHeap::Handle> handle;
-    SLANG_RETURN_ON_FAIL(getDevice()->m_heap.stageHandle(data, size, {}, handle.writeRef()));
+    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.stageHandle(data, size, {}, handle.writeRef()));
 
     m_commandList->retainResource(handle);
 

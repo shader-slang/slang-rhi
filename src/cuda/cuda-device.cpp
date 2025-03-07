@@ -135,7 +135,8 @@ DeviceImpl::~DeviceImpl()
     m_queue.setNull();
 
     m_shaderCache.free();
-    m_heap.release();
+    m_uploadHeap.release();
+    m_readbackHeap.release();
 
 #if SLANG_RHI_ENABLE_OPTIX
     if (m_ctx.optixContext)
@@ -511,7 +512,14 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize)
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
@@ -613,6 +621,12 @@ Result DeviceImpl::createAccelerationStructure(
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 {
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
+}
+
+Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+{
+    *outAlignment = 1;
+    return SLANG_OK;
 }
 
 } // namespace rhi::cuda

@@ -106,7 +106,6 @@ struct SubResourceLayout
 Result calcSubresourceRegionLayout(
     const TextureDesc& desc,
     uint32_t mipLevel,
-    uint32_t layerIndex,
     Offset3D offset,
     Extents extents,
     Size rowAlignment,
@@ -135,7 +134,6 @@ public:
     // Default implementation uses Device::getTextureRowAlignment for alignment.
     virtual Result getSubresourceRegionLayout(
         uint32_t mipLevel,
-        uint32_t layerIndex,
         Offset3D offset,
         Extents extents,
         SubresourceLayout* outLayout
@@ -149,9 +147,9 @@ public:
     createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mipLevel, uint32_t layerIndex, SubresourceLayout* outLayout) override
+    getSubresourceLayout(uint32_t mipLevel, SubresourceLayout* outLayout) override
     {
-        return getSubresourceRegionLayout(mipLevel, layerIndex, Offset3D(), Extents(), outLayout);
+        return getSubresourceRegionLayout(mipLevel, Offset3D(), Extents::kWholeTexture, outLayout);
     }
 
 public:

@@ -17,7 +17,7 @@ static const Size kPageSize = 16 * 1024 * 1024;
 GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize);
+    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
 
     Size allocSize = heap.alignUp(16);
 
@@ -61,7 +61,7 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 GPU_TEST_CASE("staging-heap-large-page", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize);
+    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
 
     StagingHeap::Allocation allocation;
     heap.alloc(16, {2}, &allocation);
@@ -97,7 +97,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize);
+    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
 
     Size allocSize = heap.getPageSize() / 16;
 
@@ -130,7 +130,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
 GPU_TEST_CASE("staging-heap-handles", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize);
+    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
 
     // Make an allocation using ref counted handle within a scope.
     {
@@ -168,7 +168,7 @@ GPU_TEST_CASE("staging-heap-mutithreading", ALL & ~CUDA)
     Device* deviceimpl = (Device*)device;
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize);
+    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
 
     std::thread t1(thrashHeap, deviceimpl, &heap, 1);
     std::thread t2(thrashHeap, deviceimpl, &heap, 2);
@@ -207,7 +207,7 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL & ~CUDA)
     // allocations we should have 3 pages.
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize);
+    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(false);
 
     std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
@@ -232,7 +232,7 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL & ~CUDA)
     // all fit in the same page.
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize);
+    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(true);
 
     std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
@@ -257,7 +257,7 @@ GPU_TEST_CASE("staging-heap-unlockpage-1", ALL & ~CUDA)
     // same as staging-heap-threadlock-pages but with local thread).
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize);
+    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(false);
 
     StagingHeap::Allocation alloc;
@@ -281,7 +281,7 @@ GPU_TEST_CASE("staging-heap-unlockpage-2", ALL & ~CUDA)
     // will reuse the page.
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize);
+    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(false);
 
     StagingHeap::Allocation alloc;

@@ -7,11 +7,12 @@ namespace rhi {
 
 const std::thread::id NO_THREAD_ID;
 
-void StagingHeap::initialize(Device* device, Size pageSize)
+void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_device = device;
     m_pageSize = pageSize;
+    m_memoryType = memoryType;
 
     // Can safely keep pages mapped for all platforms other than Web GPU.
     // If this gets any more complex, should init staging heap separately per device
@@ -198,7 +199,7 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
     BufferDesc bufferDesc;
     bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::General;
-    bufferDesc.memoryType = MemoryType::Upload;
+    bufferDesc.memoryType = m_memoryType;
     bufferDesc.size = size;
 
     // Attempt to create buffer.
@@ -214,7 +215,7 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
 
     // If always mapped, map page now
     if (m_keepPagesMapped)
-        page->map(m_device);
+        SLANG_RETURN_ON_FAIL(page->map(m_device));
 
     *outPage = page;
     return SLANG_OK;
@@ -372,7 +373,11 @@ void StagingHeap::Page::checkConsistency()
 Result StagingHeap::Page::map(Device* device)
 {
     SLANG_RHI_ASSERT(!m_mapped);
-    return device->mapBuffer(m_buffer, CpuAccessMode::Write, &m_mapped);
+    return device->mapBuffer(
+        m_buffer,
+        m_buffer->m_desc.memoryType == MemoryType::Upload ? CpuAccessMode::Write : CpuAccessMode::Read,
+        &m_mapped
+    );
 }
 
 Result StagingHeap::Page::unmap(Device* device)

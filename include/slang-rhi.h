@@ -609,8 +609,13 @@ struct SubresourceRange
 {
     uint32_t mipLevel;
     uint32_t mipLevelCount;
+
+    // TODO: Check this comment - many areas explicitly specify a 3D offset / extents,
+    // and this is expected to be 0 for 3D texture.
     uint32_t baseArrayLayer; // For Texture3D, this is WSlice.
-    uint32_t layerCount;     // For cube maps, this is a multiple of 6.
+
+    uint32_t layerCount; // For cube maps, this is a multiple of 6.
+
     bool operator==(const SubresourceRange& other) const
     {
         return mipLevel == other.mipLevel && mipLevelCount == other.mipLevelCount &&
@@ -772,8 +777,7 @@ public:
         return view;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mipLevel, uint32_t layerIndex, SubresourceLayout* outLayout) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSubresourceLayout(uint32_t mipLevel, SubresourceLayout* outLayout) = 0;
 };
 
 enum class ComparisonFunc : uint8_t
@@ -2588,8 +2592,21 @@ public:
     }
 
     /// Read back texture resource and stores the result in `outBlob`.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mipLevel,
+        ISlangBlob** outBlob,
+        Size* outRowPitch,
+        Size* outPixelSize = nullptr
+    ) = 0;
+
+    /// Helper overload that reads the entire texture (layer 0, mip level 0)
+    inline SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize = nullptr)
+    {
+        return readTexture(texture, 0, 0, outBlob, outRowPitch, outPixelSize);
+    };
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;

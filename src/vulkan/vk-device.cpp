@@ -43,7 +43,8 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_shaderCache.free();
-    m_heap.release();
+    m_uploadHeap.release();
+    m_readbackHeap.release();
 
     if (m_api.vkDestroySampler)
     {
@@ -1148,142 +1149,6 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
         return SLANG_FAIL;
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
-{
-    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
-
-    const TextureDesc& desc = textureImpl->m_desc;
-    uint32_t width = desc.size.width;
-    const FormatInfo& formatInfo = getFormatInfo(desc.format);
-    Size pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    Size rowPitch = width * pixelSize;
-    uint32_t arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
-
-    std::vector<Extents> mipSizes;
-
-    // Calculate how large the buffer has to be
-    Size bufferSize = 0;
-    // Calculate how large an array entry is
-    for (uint32_t j = 0; j < desc.mipLevelCount; ++j)
-    {
-        const Extents mipSize = calcMipSize(desc.size, j);
-
-        auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
-        auto numRows = calcNumRows(desc.format, mipSize.height);
-
-        mipSizes.push_back(mipSize);
-
-        bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
-    }
-    // Calculate the total size taking into account the array
-    bufferSize *= arrayLayerCount;
-
-    VKBufferHandleRAII staging;
-    SLANG_RETURN_ON_FAIL(staging.init(
-        m_api,
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    ));
-
-    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
-    VkImage srcImage = textureImpl->m_image;
-
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.image = srcImage;
-    barrier.oldLayout = translateImageLayout(textureImpl->m_desc.defaultState);
-    barrier.newLayout = translateImageLayout(ResourceState::CopySource);
-    barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(textureImpl->m_desc.format));
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-    barrier.srcAccessMask = calcAccessFlags(textureImpl->m_desc.defaultState);
-    barrier.dstAccessMask = calcAccessFlags(ResourceState::CopySource);
-
-    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(textureImpl->m_desc.defaultState, true);
-    VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(ResourceState::CopySource, false);
-
-    m_api.vkCmdPipelineBarrier(
-        commandBuffer,
-        srcStageFlags,
-        dstStageFlags,
-        VkDependencyFlags(0),
-        0,
-        nullptr,
-        0,
-        nullptr,
-        1,
-        &barrier
-    );
-
-    VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-
-    uint64_t dstOffset = 0;
-    for (uint32_t i = 0; i < arrayLayerCount; ++i)
-    {
-        for (size_t j = 0; j < mipSizes.size(); ++j)
-        {
-            const auto& mipSize = mipSizes[j];
-
-            auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
-            auto numRows = calcNumRows(desc.format, mipSize.height);
-
-            VkBufferImageCopy region = {};
-
-            region.bufferOffset = dstOffset;
-            region.bufferRowLength = 0;
-            region.bufferImageHeight = 0;
-
-            region.imageSubresource.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(desc.format));
-            region.imageSubresource.mipLevel = uint32_t(j);
-            region.imageSubresource.baseArrayLayer = i;
-            region.imageSubresource.layerCount = 1;
-            region.imageOffset = {0, 0, 0};
-            region.imageExtent = {uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth)};
-
-            m_api.vkCmdCopyImageToBuffer(commandBuffer, srcImage, srcImageLayout, staging.m_buffer, 1, &region);
-
-            dstOffset += rowSizeInBytes * numRows * mipSize.depth;
-        }
-    }
-
-    std::swap(barrier.oldLayout, barrier.newLayout);
-    std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
-    std::swap(srcStageFlags, dstStageFlags);
-
-    m_api.vkCmdPipelineBarrier(
-        commandBuffer,
-        srcStageFlags,
-        dstStageFlags,
-        VkDependencyFlags(0),
-        0,
-        nullptr,
-        0,
-        nullptr,
-        1,
-        &barrier
-    );
-
-    m_deviceQueue.flushAndWait();
-
-    auto blob = OwnedBlob::create(bufferSize);
-
-    // Write out the data from the buffer
-    void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, bufferSize, 0, &mappedData));
-
-    ::memcpy((void*)blob->getBufferPointer(), mappedData, bufferSize);
-    m_api.vkUnmapMemory(m_device, staging.m_memory);
-
-    *outPixelSize = pixelSize;
-    *outRowPitch = rowPitch;
-
-    returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
 

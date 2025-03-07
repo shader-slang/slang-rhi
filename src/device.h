@@ -207,6 +207,16 @@ public:
     waitForFences(uint32_t fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
         override;
 
+    // Default implementation uses encoder.copyTextureToBuffer to copy to the read-back heap
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mipLevel,
+        ISlangBlob** outBlob,
+        Size* outRowPitch,
+        Size* outPixelSize
+    ) override;
+
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
@@ -306,7 +316,8 @@ protected:
 public:
     SlangContext m_slangContext;
     ShaderCache m_shaderCache;
-    StagingHeap m_heap;
+    StagingHeap m_uploadHeap;
+    StagingHeap m_readbackHeap;
 
     ComPtr<IPersistentShaderCache> m_persistentShaderCache;
 

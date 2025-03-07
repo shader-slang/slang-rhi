@@ -109,8 +109,14 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, size_t* outRowPitch, size_t* outPixelSize) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mipLevel,
+        ISlangBlob** outBlob,
+        Size* outRowPitch,
+        Size* outPixelSize
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;
@@ -132,6 +138,8 @@ public:
         override;
 
     void customizeShaderObject(ShaderObject* shaderObject) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;
 };
 
 } // namespace rhi::cuda

@@ -399,9 +399,4 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     return SLANG_OK;
 }
 
-Result DeviceImpl::readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize)
-{
-    return SLANG_E_NOT_AVAILABLE;
-}
-
 } // namespace rhi::cpu

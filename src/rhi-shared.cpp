@@ -74,7 +74,6 @@ Result Buffer::getSharedHandle(NativeHandle* outHandle)
 Result calcSubresourceRegionLayout(
     const TextureDesc& desc,
     uint32_t mipLevel,
-    uint32_t layerIndex,
     Offset3D offset,
     Extents extents,
     Size rowAlignment,
@@ -175,7 +174,6 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
 
 Result Texture::getSubresourceRegionLayout(
     uint32_t mipLevel,
-    uint32_t layerIndex,
     Offset3D offset,
     Extents extents,
     SubresourceLayout* outLayout
@@ -183,7 +181,7 @@ Result Texture::getSubresourceRegionLayout(
 {
     size_t rowAlignment;
     SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(&rowAlignment));
-    return calcSubresourceRegionLayout(m_desc, mipLevel, layerIndex, offset, extents, rowAlignment, outLayout);
+    return calcSubresourceRegionLayout(m_desc, mipLevel, offset, extents, rowAlignment, outLayout);
 }
 
 Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextureView)

@@ -198,7 +198,7 @@ struct BaseResolveResourceTest
         ComPtr<ISlangBlob> resultBlob;
         size_t rowPitch = 0;
         size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTexture(dstTexture, resultBlob.writeRef(), &rowPitch, &pixelSize));
+        REQUIRE_CALL(device->readTexture(dstTexture, 0, 0, resultBlob.writeRef(), &rowPitch, &pixelSize));
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
