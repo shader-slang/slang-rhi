@@ -236,19 +236,19 @@ void testUploadTexture(IDevice* device)
     }
 }
 
-GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | WGPU)
 {
     testUploadTexture<SimpleUploadTexture>(device);
 }
-GPU_TEST_CASE("cmd-upload-texture-array", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-array", D3D12 | Vulkan | WGPU)
 {
     testUploadTexture<ArrayUploadTexture>(device);
 }
-GPU_TEST_CASE("cmd-upload-texture-mips", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-mips", D3D12 | Vulkan | WGPU)
 {
     testUploadTexture<MipsUploadTexture>(device);
 }
-GPU_TEST_CASE("cmd-upload-texture-arraymips", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-arraymips", D3D12 | Vulkan | WGPU)
 {
     testUploadTexture<ArrayMipsUploadTexture>(device);
 }
