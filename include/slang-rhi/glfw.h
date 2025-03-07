@@ -10,8 +10,9 @@ inline WindowHandle getWindowHandleFromGLFW(GLFWwindow* window)
     HWND hwnd = glfwGetWin32Window(window);
     return WindowHandle::fromHwnd(hwnd);
 #elif SLANG_LINUX_FAMILY && defined(GLFW_EXPOSE_NATIVE_X11)
+    Display* display = glfwGetX11Display();
     Window xwindow = glfwGetX11Window(window);
-    return WindowHandle::fromXlibWindow(0, xwindow);
+    return WindowHandle::fromXlibWindow(display, xwindow);
 #elif SLANG_APPLE_FAMILY && defined(GLFW_EXPOSE_NATIVE_COCOA)
     id nswindow = glfwGetCocoaWindow(window);
     return WindowHandle::fromNSWindow(nswindow);
