@@ -14,10 +14,14 @@ void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryTyp
     m_pageSize = pageSize;
     m_memoryType = memoryType;
 
-    // Can safely keep pages mapped for all platforms other than Web GPU.
+    // Can safely keep pages mapped for all platforms other than WebGPU and Metal.
+    // On WebGPU, mapped buffers cannot be used during dispatches.
+    // On Metal, this is required to add synchronization between CPU/GPU resource.
     // If this gets any more complex, should init staging heap separately per device
     // with correct configs, but for a single bool that seems overkill.
-    m_keepPagesMapped = device->getDeviceInfo().deviceType != DeviceType::WGPU;
+    m_keepPagesMapped =
+        !(device->getDeviceInfo().deviceType == DeviceType::WGPU ||
+          device->getDeviceInfo().deviceType == DeviceType::Metal);
 }
 
 void StagingHeap::releaseAllFreePages()

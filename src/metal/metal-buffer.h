@@ -8,6 +8,7 @@ class BufferImpl : public Buffer
 {
 public:
     NS::SharedPtr<MTL::Buffer> m_buffer;
+    CpuAccessMode m_lastCpuAccessMode;
 
     BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();

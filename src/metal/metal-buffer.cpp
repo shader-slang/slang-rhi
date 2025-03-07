@@ -50,8 +50,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
         resourceOptions = MTL::ResourceStorageModeShared;
         break;
     }
-    resourceOptions |=
-        (desc.memoryType == MemoryType::DeviceLocal) ? MTL::ResourceStorageModePrivate : MTL::ResourceStorageModeShared;
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
     buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
@@ -94,12 +92,33 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    bufferImpl->m_lastCpuAccessMode = mode;
+    if (mode == CpuAccessMode::Read)
+    {
+        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
+        encoder->synchronizeResource(bufferImpl->m_buffer.get());
+        encoder->endEncoding();
+        commandBuffer->commit();
+        commandBuffer->waitUntilCompleted();
+    }
     *outData = bufferImpl->m_buffer->contents();
     return SLANG_OK;
 }
 
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (bufferImpl->m_lastCpuAccessMode == CpuAccessMode::Write)
+    {
+        bufferImpl->m_buffer->didModifyRange(NS::Range(0, bufferImpl->m_desc.size));
+        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
+        encoder->synchronizeResource(bufferImpl->m_buffer.get());
+        encoder->endEncoding();
+        commandBuffer->commit();
+        commandBuffer->waitUntilCompleted();
+    }
     return SLANG_OK;
 }
 
