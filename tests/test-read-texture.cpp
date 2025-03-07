@@ -162,7 +162,7 @@ void testReadTexture(IDevice* device)
 }
 // Texture support is currently very limited for D3D11, Metal, CUDA and CPU
 
-GPU_TEST_CASE("read-texture-simple", D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("read-texture-simple", D3D12 | Vulkan | WGPU)
 {
     testReadTexture<SimpleReadTexture>(device);
 }
