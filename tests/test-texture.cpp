@@ -3,6 +3,7 @@
 #include "core/common.h"
 
 #include <memory>
+#include <cmath>
 
 using namespace rhi;
 using namespace rhi::testing;
