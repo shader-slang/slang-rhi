@@ -5,7 +5,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-int32_t heightFromWidth(TextureType type, int32_t width)
+inline int32_t heightFromWidth(TextureType type, int32_t width)
 {
     switch (type)
     {
