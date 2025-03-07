@@ -135,7 +135,10 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         return SLANG_FAIL;
     }
 
-    *outData = m_ctx.api.wgpuBufferGetMappedRange(bufferImpl->m_buffer, offset, size);
+    if (mapMode == WGPUMapMode_Read)
+        *outData = const_cast<void*>(m_ctx.api.wgpuBufferGetConstMappedRange(bufferImpl->m_buffer, offset, size));
+    else
+        *outData = m_ctx.api.wgpuBufferGetMappedRange(bufferImpl->m_buffer, offset, size);
     return SLANG_OK;
 }
 

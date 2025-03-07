@@ -459,7 +459,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 256;
     return SLANG_OK;

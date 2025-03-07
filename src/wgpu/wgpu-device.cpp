@@ -211,129 +211,6 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-Result DeviceImpl::readTexture(
-    ITexture* texture,
-    uint32_t layer,
-    uint32_t mipLevel,
-    ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
-)
-{
-    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
-
-    if (textureImpl->m_desc.sampleCount > 1)
-    {
-        return SLANG_E_NOT_IMPLEMENTED;
-    }
-
-    const TextureDesc& desc = textureImpl->m_desc;
-    uint32_t width = max(desc.size.width, 1);
-    uint32_t height = max(desc.size.height, 1);
-    uint32_t depth = max(desc.size.depth, 1);
-    const FormatInfo& formatInfo = getFormatInfo(desc.format);
-    Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    Size bytesPerRow = (Size(width) * bytesPerPixel + 256 - 1) & ~(256 - 1);
-    Size bytesPerSlice = Size(height) * bytesPerRow;
-    Size bufferSize = Size(depth) * bytesPerSlice;
-    if (outRowPitch)
-        *outRowPitch = bytesPerRow;
-    if (outPixelSize)
-        *outPixelSize = bytesPerPixel;
-
-    // create staging buffer
-    WGPUBufferDescriptor stagingBufferDesc = {};
-    stagingBufferDesc.size = bufferSize;
-    stagingBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
-    WGPUBuffer stagingBuffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &stagingBufferDesc);
-    if (!stagingBuffer)
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferRelease(stagingBuffer); });
-
-    WGPUCommandEncoder encoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr);
-    if (!encoder)
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(encoder); });
-
-    WGPUImageCopyTexture source = {};
-    source.texture = textureImpl->m_texture;
-    source.mipLevel = mipLevel;
-    source.origin = {0, 0, 0};
-    source.aspect = WGPUTextureAspect_All;
-    WGPUImageCopyBuffer destination = {};
-    destination.layout.offset = 0;
-    destination.layout.bytesPerRow = bytesPerRow;
-    destination.layout.rowsPerImage = height;
-    destination.buffer = stagingBuffer;
-    WGPUExtent3D copySize = {(uint32_t)width, (uint32_t)height, (uint32_t)depth};
-    m_ctx.api.wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &copySize);
-    WGPUCommandBuffer commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr);
-    if (!commandBuffer)
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
-
-    WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
-    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
-    m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
-
-    // Wait for the command buffer to finish executing
-    {
-        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
-        WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-        { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
-        callbackInfo.userdata1 = &status;
-        WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
-
-    // Map the staging buffer
-    {
-        WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
-        WGPUBufferMapCallbackInfo2 callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPUMapAsyncStatus status_, const char* message, void* userdata1, void* userdata2)
-        { *(WGPUMapAsyncStatus*)userdata1 = status_; };
-        callbackInfo.userdata1 = &status;
-        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, bufferSize, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
-    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferUnmap(stagingBuffer); });
-
-    const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, bufferSize);
-    if (!data)
-    {
-        return SLANG_FAIL;
-    }
-
-    auto blob = OwnedBlob::create(bufferSize);
-    ::memcpy((void*)blob->getBufferPointer(), data, bufferSize);
-
-    returnComPtr(outBlob, blob);
-    return SLANG_OK;
-}
-
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
@@ -424,7 +301,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 256;
     return SLANG_OK;
