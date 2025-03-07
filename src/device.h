@@ -222,7 +222,7 @@ public:
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;

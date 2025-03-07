@@ -2641,7 +2641,14 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Size* outAlignment) = 0;
+    /// Get row alignment for a given texture format.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) = 0;
+
+    // Gets default row alignment if target has one. Returns error otherwise.
+    inline SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(size_t* outAlignment)
+    {
+        return getTextureRowAlignment(Format::Undefined, outAlignment);
+    };
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) = 0;
