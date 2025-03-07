@@ -316,7 +316,8 @@ Result Device::initialize(const DeviceDesc& desc)
 
     m_persistentShaderCache = desc.persistentShaderCache;
 
-    m_heap.initialize(this, desc.stagingHeapPageSize);
+    m_uploadHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::Upload);
+    m_readbackHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::ReadBack);
 
     if (desc.apiCommandDispatcher)
     {
@@ -563,6 +564,52 @@ Result Device::waitForFences(
     SLANG_UNUSED(waitForAll);
     SLANG_UNUSED(timeout);
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
+{
+    ComPtr<ICommandQueue> queue;
+    SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
+
+    ComPtr<ICommandEncoder> commandEncoder;
+    SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
+
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+
+    StagingHeap::Allocation stagingAllocation;
+    SLANG_RETURN_ON_FAIL(m_readbackHeap.alloc(layout.sizeInBytes, {}, &stagingAllocation));
+
+    commandEncoder->copyTextureToBuffer(
+        stagingAllocation.getBuffer(),
+        stagingAllocation.getOffset(),
+        layout.sizeInBytes,
+        layout.strideY,
+        texture,
+        {mipLevel, 1, layer, 1},
+        {0, 0, 0},
+        {layout.size.width, layout.size.height, layout.size.depth}
+    );
+
+    SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+    SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+
+    void* mappedData;
+    SLANG_RETURN_ON_FAIL(m_readbackHeap.map(stagingAllocation, &mappedData));
+
+    auto blob = OwnedBlob::create(mappedData, layout.sizeInBytes);
+
+    SLANG_RETURN_ON_FAIL(m_readbackHeap.unmap(stagingAllocation));
+
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
 }
 
 Result Device::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)

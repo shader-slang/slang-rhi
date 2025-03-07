@@ -129,7 +129,7 @@ public:
     };
 
     // Initialize with device pointer.
-    void initialize(Device* device, Size pageSize);
+    void initialize(Device* device, Size pageSize, MemoryType memoryType);
 
     // Attempt to cleanup and check no allocations remain
     void release();
@@ -202,6 +202,7 @@ private:
     Size m_pageSize = 16 * 1024 * 1024;
     bool m_keepPagesMapped = true;
     std::unordered_map<int, RefPtr<Page>> m_pages;
+    MemoryType m_memoryType;
     mutable std::mutex m_mutex;
 
     Result allocHandleInternal(size_t size, MetaData metadata, Handle** outHandle);

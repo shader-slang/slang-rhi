@@ -651,7 +651,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-clear-texture.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-copy-buffer.cpp
-        tests/test-cmd-read-texture-to-buffer.cpp
+
         tests/test-cmd-upload.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
@@ -672,6 +672,7 @@ if(SLANG_RHI_BUILD_TESTS)
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
+        tests/test-read-texture.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
