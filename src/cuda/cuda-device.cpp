@@ -623,7 +623,7 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
 }
 
-Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 1;
     return SLANG_OK;

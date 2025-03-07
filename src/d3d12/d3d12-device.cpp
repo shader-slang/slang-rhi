@@ -948,7 +948,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc, Size* outSi
     return SLANG_OK;
 }
 
-Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
     return SLANG_OK;

@@ -287,10 +287,13 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     return SLANG_OK;
 }
 
-Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
+Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     AUTORELEASEPOOL
-    *outAlignment = 256;
+    if (format == Format::Undefined)
+        return SLANG_FAIL;
+    MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(format);
+    *outAlignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     return SLANG_OK;
 }
 

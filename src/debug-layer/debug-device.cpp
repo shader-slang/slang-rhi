@@ -392,10 +392,10 @@ Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* ou
     return baseObject->getTextureAllocationInfo(desc, outSize, outAlignment);
 }
 
-Result DebugDevice::getTextureRowAlignment(size_t* outAlignment)
+Result DebugDevice::getTextureRowAlignment(Format format, size_t* outAlignment)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getTextureRowAlignment(outAlignment);
+    return baseObject->getTextureRowAlignment(format, outAlignment);
 }
 
 Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
