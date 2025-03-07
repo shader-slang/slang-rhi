@@ -652,6 +652,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-copy-buffer.cpp
         tests/test-cmd-upload.cpp
+        tests/test-cmd-upload-texture.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
