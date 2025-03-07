@@ -58,9 +58,9 @@ GPU_TEST_CASE("nested-parameter-block", ALL)
             ShaderObjectContainerType::None,
             materialObject.writeRef()
         ));
-        ShaderCursor curor(materialObject);
-        curor["cb"].setData(uint4{1000, 1000, 1000, 1000});
-        curor["data"].setBinding(buffers[2]);
+        ShaderCursor cursor(materialObject);
+        cursor["cb"].setData(uint4{1000, 1000, 1000, 1000});
+        cursor["data"].setBinding(buffers[2]);
         materialObject->finalize();
     }
 
