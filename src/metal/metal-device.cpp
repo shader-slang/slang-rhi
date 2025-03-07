@@ -176,6 +176,8 @@ Result DeviceImpl::readTexture(
     MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
     encoder->copyFromTexture(
         srcTexture.get(),
+        0,
+        0,
         MTL::Origin(0, 0, 0),
         MTL::Size(width, height, depth),
         stagingBuffer.get(),
