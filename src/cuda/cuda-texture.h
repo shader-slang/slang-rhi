@@ -10,17 +10,16 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
-    uint64_t getBindlessHandle();
-
     // The texObject is for reading 'texture' like things. This is an opaque type, that's backed by
     // a long long
-    CUtexObject m_cudaTexObj = CUtexObject();
+    CUtexObject m_cudaTexObj = 0;
 
     // The surfObj is for reading/writing 'texture like' things, but not for sampling.
-    CUsurfObject m_cudaSurfObj = CUsurfObject();
+    CUsurfObject m_cudaSurfObj = 0;
 
-    CUarray m_cudaArray = CUarray();
-    CUmipmappedArray m_cudaMipMappedArray = CUmipmappedArray();
+    // Texture is either stored in cuda array or mip mapped array.
+    CUarray m_cudaArray = 0;
+    CUmipmappedArray m_cudaMipMappedArray = 0;
 
     void* m_cudaExternalMemory = nullptr;
 

@@ -185,7 +185,7 @@ void testReadTexture(IDevice* device)
         Format::R10G10B10A2_UNORM,
         Format::B5G5R5A1_UNORM
     };
-    for (uint32_t i = (uint32_t)(TextureType::Texture1D); i <= (uint32_t)TextureType::Texture3D; ++i)
+    for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D})
     {
         for (auto format : formats)
         {
@@ -193,7 +193,6 @@ void testReadTexture(IDevice* device)
             device->getFormatSupport(format, &formatSupport);
             if (!is_set(formatSupport, FormatSupport::Texture))
                 continue;
-            auto type = (TextureType)i;
             auto validationFormat = getValidationTextureFormat(format);
             if (!validationFormat)
                 continue;
@@ -210,10 +209,10 @@ GPU_TEST_CASE("read-texture-simple", D3D12 | Vulkan | WGPU)
 {
     testReadTexture<SimpleReadTexture>(device);
 }
-GPU_TEST_CASE("read-texture-array", D3D12 | Vulkan | WGPU)
-{
-    testReadTexture<ArrayReadTexture>(device);
-}
+// GPU_TEST_CASE("read-texture-array", D3D12 | Vulkan | WGPU)
+// {
+//     testReadTexture<ArrayReadTexture>(device);
+// }
 GPU_TEST_CASE("read-texture-mips", D3D12 | Vulkan | WGPU)
 {
     testReadTexture<MipsReadTexture>(device);

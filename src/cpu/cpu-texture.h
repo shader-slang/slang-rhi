@@ -12,10 +12,15 @@ struct CPUTextureBaseShapeInfo
 };
 
 static const CPUTextureBaseShapeInfo kCPUTextureBaseShapeInfos[] = {
-    /* Texture1D */ {1, 1, 1},
-    /* Texture2D */ {2, 2, 1},
-    /* Texture3D */ {3, 3, 1},
-    /* TextureCube */ {2, 3, 6},
+    {1, 1, 1}, // Texture1D
+    {1, 1, 1}, // Texture1DArray
+    {2, 2, 1}, // Texture2D
+    {2, 2, 1}, // Texture2DArray
+    {2, 2, 1}, // Texture2DMS
+    {2, 2, 1}, // Texture2DMSArray
+    {3, 3, 1}, // Texture3D
+    {2, 2, 6}, // TextureCube
+    {2, 2, 6}, // TextureCubeArray
 };
 
 typedef void (*CPUTextureUnpackFunc)(const void* texelData, void* outData, size_t outSize);
@@ -52,6 +57,8 @@ struct CPUFormatInfoMap
     CPUFormatInfoMap()
     {
         memset(m_infos, 0, sizeof(m_infos));
+
+        set(Format::R32G32B32A32_UINT, &_unpackUInt32Texel<4>);
 
         set(Format::R32G32B32A32_FLOAT, &_unpackFloatTexel<4>);
         set(Format::R32G32B32_FLOAT, &_unpackFloatTexel<3>);

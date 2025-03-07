@@ -4,6 +4,7 @@
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
 
+#include "enum-strings.h"
 #include "../src/core/blob.h"
 
 #include <array>
@@ -210,3 +211,14 @@ enum TestFlags
         return;                                                                                                        \
     }                                                                                                                  \
     while (0)
+
+namespace rhi {
+inline doctest::String toString(Format value)
+{
+    return enumToString(value);
+}
+inline doctest::String toString(TextureType value)
+{
+    return enumToString(value);
+}
+} // namespace rhi

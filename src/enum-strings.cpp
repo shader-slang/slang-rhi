@@ -148,12 +148,22 @@ const char* enumToString(TextureType value)
     {
     case TextureType::Texture1D:
         return S_TextureType_Texture1D;
+    case TextureType::Texture1DArray:
+        return S_TextureType_Texture1DArray;
     case TextureType::Texture2D:
         return S_TextureType_Texture2D;
+    case TextureType::Texture2DArray:
+        return S_TextureType_Texture2DArray;
+    case TextureType::Texture2DMS:
+        return S_TextureType_Texture2DMS;
+    case TextureType::Texture2DMSArray:
+        return S_TextureType_Texture2DMSArray;
     case TextureType::Texture3D:
         return S_TextureType_Texture3D;
     case TextureType::TextureCube:
         return S_TextureType_TextureCube;
+    case TextureType::TextureCubeArray:
+        return S_TextureType_TextureCubeArray;
     }
     return S_INVALID;
 }

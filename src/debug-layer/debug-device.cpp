@@ -70,6 +70,79 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
 {
     SLANG_RHI_API_FUNC;
 
+    if (uint32_t(desc.type) > uint32_t(TextureType::TextureCubeArray))
+    {
+        RHI_VALIDATION_ERROR("Invalid texture type");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.size.width < 1)
+    {
+        RHI_VALIDATION_ERROR("Texture width must be at least 1");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.size.height < 1)
+    {
+        RHI_VALIDATION_ERROR("Texture height must be at least 1");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.size.depth < 1)
+    {
+        RHI_VALIDATION_ERROR("Texture depth must be at least 1");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.arrayLength < 1)
+    {
+        RHI_VALIDATION_ERROR("Texture array length must be at least 1");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.mipLevelCount < 1)
+    {
+        RHI_VALIDATION_ERROR("Texture mip level count must be at least 1");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.format == Format::Undefined)
+    {
+        RHI_VALIDATION_ERROR("Texture format must be specified");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    switch (desc.type)
+    {
+    case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
+        if (desc.size.height != 1 || desc.size.depth != 1)
+        {
+            RHI_VALIDATION_ERROR("1D textures must have height and depth set to 1");
+            return SLANG_E_INVALID_ARG;
+        }
+        break;
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        if (desc.size.depth != 1)
+        {
+            RHI_VALIDATION_ERROR("2D textures must have depth set to 1");
+            return SLANG_E_INVALID_ARG;
+        }
+        break;
+    case TextureType::Texture3D:
+        break;
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        if (desc.size.width != desc.size.height)
+        {
+            RHI_VALIDATION_ERROR("Cube textures must have width equal to height");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (desc.size.depth != 1)
+        {
+            RHI_VALIDATION_ERROR("Cube textures must have depth set to 1");
+            return SLANG_E_INVALID_ARG;
+        }
+        break;
+    }
+
     TextureDesc patchedDesc = fixupTextureDesc(desc);
     std::string label;
     if (!patchedDesc.label)
