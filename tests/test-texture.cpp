@@ -293,7 +293,9 @@ GPU_TEST_CASE("texture-create", ALL & ~CUDA)
                 ComPtr<ISlangBlob> readbackData;
                 size_t rowPitch;
                 size_t pixelSize;
-                REQUIRE_CALL(device->readTexture(texture, layer, mipLevel, readbackData.writeRef(), &rowPitch, &pixelSize));
+                REQUIRE_CALL(
+                    device->readTexture(texture, layer, mipLevel, readbackData.writeRef(), &rowPitch, &pixelSize)
+                );
                 testData.validate(
                     layer,
                     mipLevel,

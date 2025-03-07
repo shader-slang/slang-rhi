@@ -285,18 +285,23 @@ struct CopyTextureSection : BaseCopyTextureTest
 {
     void run()
     {
-        auto textureType = srcTextureInfo->textureType;
-        auto format = srcTextureInfo->format;
-
         auto dt = device->getDeviceInfo().deviceType;
         if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
         {
-            if (textureType == TextureType::Texture1D)
+            if (srcTextureInfo->textureType == TextureType::Texture1D)
                 return;
         }
 
+        if (srcTextureInfo->textureType == TextureType::Texture1D)
+            srcTextureInfo->textureType = TextureType::Texture1DArray;
+        if (srcTextureInfo->textureType == TextureType::Texture2D)
+            srcTextureInfo->textureType = TextureType::Texture2DArray;
+
+        auto textureType = srcTextureInfo->textureType;
+        auto format = srcTextureInfo->format;
+
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1DArray) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLength = (textureType == TextureType::Texture3D) ? 1 : 2;
@@ -308,7 +313,7 @@ struct CopyTextureSection : BaseCopyTextureTest
         SubresourceRange srcSubresource = {};
         srcSubresource.mipLevel = 0;
         srcSubresource.mipLevelCount = 1;
-        srcSubresource.baseArrayLayer = 0; //(textureType == TextureType::Texture3D) ? 0 : 1;
+        srcSubresource.baseArrayLayer = (textureType == TextureType::Texture3D) ? 0 : 1;
         srcSubresource.layerCount = 1;
 
         SubresourceRange dstSubresource = {};
@@ -523,18 +528,23 @@ struct CopyBetweenLayers : BaseCopyTextureTest
 {
     void run()
     {
-        auto textureType = srcTextureInfo->textureType;
-        auto format = srcTextureInfo->format;
-
         auto dt = device->getDeviceInfo().deviceType;
         if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
         {
-            if (textureType == TextureType::Texture1D)
+            if (srcTextureInfo->textureType == TextureType::Texture1D)
                 return;
         }
 
+        if (srcTextureInfo->textureType == TextureType::Texture1D)
+            srcTextureInfo->textureType = TextureType::Texture1DArray;
+        if (srcTextureInfo->textureType == TextureType::Texture2D)
+            srcTextureInfo->textureType = TextureType::Texture2DArray;
+
+        auto textureType = srcTextureInfo->textureType;
+        auto format = srcTextureInfo->format;
+
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1DArray) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLength = (textureType == TextureType::Texture3D) ? 1 : 2;
@@ -772,10 +782,10 @@ GPU_TEST_CASE("copy-texture-between-mips", D3D12 | Vulkan | Metal | WGPU)
     testCopyTexture<CopyBetweenMips>(device);
 }
 
-// GPU_TEST_CASE("copy-texture-between-layers", D3D12 | Vulkan | Metal | WGPU)
-// {
-//     testCopyTexture<CopyBetweenLayers>(device);
-// }
+GPU_TEST_CASE("copy-texture-between-layers", D3D12 | Vulkan | Metal | WGPU)
+{
+    testCopyTexture<CopyBetweenLayers>(device);
+}
 
 GPU_TEST_CASE("copy-texture-with-offsets", D3D12 | Vulkan | Metal | WGPU)
 {
