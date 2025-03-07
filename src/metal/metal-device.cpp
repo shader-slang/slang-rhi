@@ -227,7 +227,7 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
     AUTORELEASEPOOL
 
     *outAlignment = 1;
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_OK;
 }
 
 Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
