@@ -71,42 +71,14 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         break;
     }
 
-    bool isArray = desc.arrayLength > 1;
-
-    switch (desc.type)
-    {
-    case TextureType::Texture1D:
-        textureDesc->setTextureType(isArray ? MTL::TextureType1DArray : MTL::TextureType1D);
-        textureDesc->setWidth(desc.size.width);
-        break;
-    case TextureType::Texture2D:
-        if (desc.sampleCount > 1)
-        {
-            textureDesc->setTextureType(isArray ? MTL::TextureType2DMultisampleArray : MTL::TextureType2DMultisample);
-            textureDesc->setSampleCount(desc.sampleCount);
-        }
-        else
-        {
-            textureDesc->setTextureType(isArray ? MTL::TextureType2DArray : MTL::TextureType2D);
-        }
-        textureDesc->setWidth(descIn.size.width);
-        textureDesc->setHeight(descIn.size.height);
-        break;
-    case TextureType::TextureCube:
-        textureDesc->setTextureType(isArray ? MTL::TextureTypeCubeArray : MTL::TextureTypeCube);
-        textureDesc->setWidth(descIn.size.width);
-        textureDesc->setHeight(descIn.size.height);
-        break;
-    case TextureType::Texture3D:
-        textureDesc->setTextureType(MTL::TextureType::TextureType3D);
-        textureDesc->setWidth(descIn.size.width);
-        textureDesc->setHeight(descIn.size.height);
-        textureDesc->setDepth(descIn.size.depth);
-        break;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unsupported texture type");
-        return SLANG_FAIL;
-    }
+    textureDesc->setTextureType(MetalUtil::translateTextureType(desc.type));
+    textureDesc->setWidth(desc.size.width);
+    textureDesc->setHeight(desc.size.height);
+    textureDesc->setDepth(desc.size.depth);
+    textureDesc->setMipmapLevelCount(desc.mipLevelCount);
+    textureDesc->setArrayLength(desc.arrayLength);
+    textureDesc->setPixelFormat(pixelFormat);
+    textureDesc->setSampleCount(desc.sampleCount);
 
     MTL::TextureUsage textureUsage = MTL::TextureUsageUnknown;
     if (is_set(desc.usage, TextureUsage::RenderTarget))
@@ -136,11 +108,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
     }
 
-    textureDesc->setMipmapLevelCount(desc.mipLevelCount);
-    textureDesc->setArrayLength(desc.arrayLength);
-    textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setUsage(textureUsage);
-    textureDesc->setSampleCount(desc.sampleCount);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
 
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));

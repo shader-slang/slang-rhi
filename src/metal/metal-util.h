@@ -33,6 +33,8 @@ struct MetalUtil
     static bool isDepthFormat(MTL::PixelFormat format);
     static bool isStencilFormat(MTL::PixelFormat format);
 
+    static MTL::TextureType translateTextureType(TextureType type);
+
     static MTL::SamplerMinMagFilter translateSamplerMinMagFilter(TextureFilteringMode mode);
     static MTL::SamplerMipFilter translateSamplerMipFilter(TextureFilteringMode mode);
     static MTL::SamplerAddressMode translateSamplerAddressMode(TextureAddressingMode mode);
