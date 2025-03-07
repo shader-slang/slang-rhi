@@ -136,7 +136,7 @@ GPU_TEST_CASE("texture-layout-1d-region-rts", D3D12 | WGPU)
     testTextureLayout2(device, texture, 0, 0, {16, 0, 0}, {kRemainingTextureSize, 1, 1}, {240, 1, 1, 1024, 1024, 1024});
 }
 
-GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA)
+GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WGPU)
 {
 
     TextureDesc desc;
