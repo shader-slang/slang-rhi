@@ -59,6 +59,12 @@ void RenderPassEncoder::setRenderState(const RenderState& state)
     if (m_commandList)
     {
         m_renderState = state;
+        // Retain resources now instead of when writing the SetRenderState command.
+        // This is needed to allow clients to release resources after calling setRenderState
+        // but before issuing any draw calls.
+        for (uint32_t i = 0; i < m_renderState.vertexBufferCount; ++i)
+            m_commandList->retainResource<Buffer>(m_renderState.vertexBuffers[i].buffer);
+        m_commandList->retainResource<Buffer>(m_renderState.indexBuffer.buffer);
     }
 }
 
