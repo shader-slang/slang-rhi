@@ -184,6 +184,24 @@ struct MipsReadTexture : BaseReadTextureTest
     }
 };
 
+struct ArrayMipsReadTexture : BaseReadTextureTest
+{
+    void run()
+    {
+        auto textureType = srcTextureInfo->textureType;
+
+        if (textureType == TextureType::Texture3D)
+            return;
+        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
+            return;
+
+        srcTextureInfo->mipLevelCount = 2;
+        srcTextureInfo->arrayLength = 4;
+
+        checkTestResults();
+    }
+};
+
 template<typename T>
 void testReadTexture(IDevice* device)
 {
@@ -225,4 +243,8 @@ GPU_TEST_CASE("read-texture-array", D3D12 | Vulkan | WGPU | Metal)
 GPU_TEST_CASE("read-texture-mips", D3D12 | Vulkan | WGPU | Metal)
 {
     testReadTexture<MipsReadTexture>(device);
+}
+GPU_TEST_CASE("read-texture-arraymips", D3D12 | Vulkan | WGPU | Metal)
+{
+    testReadTexture<ArrayMipsReadTexture>(device);
 }
