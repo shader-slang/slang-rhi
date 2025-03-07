@@ -63,7 +63,7 @@ struct BaseCopyTextureTest
         TextureDesc srcTexDesc = {};
         srcTexDesc.type = srcTextureInfo->textureType;
         srcTexDesc.mipLevelCount = srcTextureInfo->mipLevelCount;
-        srcTexDesc.arrayLength = srcTextureInfo->arrayLayerCount;
+        srcTexDesc.arrayLength = srcTextureInfo->arrayLength;
         srcTexDesc.size = srcTextureInfo->extents;
         srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
         if (srcTextureInfo->format == Format::D32_FLOAT || srcTextureInfo->format == Format::D16_UNORM)
@@ -78,7 +78,7 @@ struct BaseCopyTextureTest
         TextureDesc dstTexDesc = {};
         dstTexDesc.type = dstTextureInfo->textureType;
         dstTexDesc.mipLevelCount = dstTextureInfo->mipLevelCount;
-        dstTexDesc.arrayLength = dstTextureInfo->arrayLayerCount;
+        dstTexDesc.arrayLength = dstTextureInfo->arrayLength;
         dstTexDesc.size = dstTextureInfo->extents;
         dstTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;
         if (dstTextureInfo->format == Format::D32_FLOAT || dstTextureInfo->format == Format::D16_UNORM)
@@ -242,7 +242,7 @@ struct SimpleCopyTexture : BaseCopyTextureTest
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = 1;
+        srcTextureInfo->arrayLength = 1;
 
         dstTextureInfo = srcTextureInfo;
 
@@ -288,11 +288,18 @@ struct CopyTextureSection : BaseCopyTextureTest
         auto textureType = srcTextureInfo->textureType;
         auto format = srcTextureInfo->format;
 
+        auto dt = device->getDeviceInfo().deviceType;
+        if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
+        {
+            if (textureType == TextureType::Texture1D)
+                return;
+        }
+
         srcTextureInfo->extents.width = 4;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = (textureType == TextureType::Texture3D) ? 1 : 2;
+        srcTextureInfo->arrayLength = (textureType == TextureType::Texture3D) ? 1 : 2;
 
         dstTextureInfo = srcTextureInfo;
 
@@ -342,7 +349,7 @@ struct LargeSrcToSmallDst : BaseCopyTextureTest
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = 1;
+        srcTextureInfo->arrayLength = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
@@ -350,7 +357,7 @@ struct LargeSrcToSmallDst : BaseCopyTextureTest
         dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         dstTextureInfo->mipLevelCount = 1;
-        dstTextureInfo->arrayLayerCount = 1;
+        dstTextureInfo->arrayLength = 1;
 
         SubresourceRange srcSubresource = {};
         srcSubresource.mipLevel = 0;
@@ -396,7 +403,7 @@ struct SmallSrcToLargeDst : BaseCopyTextureTest
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = 1;
+        srcTextureInfo->arrayLength = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
@@ -404,7 +411,7 @@ struct SmallSrcToLargeDst : BaseCopyTextureTest
         dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
         dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         dstTextureInfo->mipLevelCount = 1;
-        dstTextureInfo->arrayLayerCount = 1;
+        dstTextureInfo->arrayLength = 1;
 
         generateTextureData(dstTextureInfo, validationFormat);
 
@@ -451,11 +458,18 @@ struct CopyBetweenMips : BaseCopyTextureTest
         auto textureType = srcTextureInfo->textureType;
         auto format = srcTextureInfo->format;
 
+        auto dt = device->getDeviceInfo().deviceType;
+        if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
+        {
+            if (textureType == TextureType::Texture1D)
+                return;
+        }
+
         srcTextureInfo->extents.width = 16;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 16;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 4;
-        srcTextureInfo->arrayLayerCount = 1;
+        srcTextureInfo->arrayLength = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
@@ -463,7 +477,7 @@ struct CopyBetweenMips : BaseCopyTextureTest
         dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 16;
         dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         dstTextureInfo->mipLevelCount = 4;
-        dstTextureInfo->arrayLayerCount = 1;
+        dstTextureInfo->arrayLength = 1;
 
         generateTextureData(dstTextureInfo, validationFormat);
 
@@ -512,11 +526,18 @@ struct CopyBetweenLayers : BaseCopyTextureTest
         auto textureType = srcTextureInfo->textureType;
         auto format = srcTextureInfo->format;
 
+        auto dt = device->getDeviceInfo().deviceType;
+        if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
+        {
+            if (textureType == TextureType::Texture1D)
+                return;
+        }
+
         srcTextureInfo->extents.width = 4;
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = (textureType == TextureType::Texture3D) ? 1 : 2;
+        srcTextureInfo->arrayLength = (textureType == TextureType::Texture3D) ? 1 : 2;
 
         generateTextureData(srcTextureInfo, validationFormat);
         dstTextureInfo = srcTextureInfo;
@@ -568,7 +589,7 @@ struct CopyWithOffsets : BaseCopyTextureTest
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = 1;
+        srcTextureInfo->arrayLength = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
 
@@ -576,7 +597,7 @@ struct CopyWithOffsets : BaseCopyTextureTest
         dstTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 16;
         dstTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 4 : 1;
         dstTextureInfo->mipLevelCount = 1;
-        dstTextureInfo->arrayLayerCount = 1;
+        dstTextureInfo->arrayLength = 1;
 
         generateTextureData(dstTextureInfo, validationFormat);
 
@@ -641,7 +662,7 @@ struct CopySectionWithSetExtent : BaseCopyTextureTest
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 8;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = 1;
+        srcTextureInfo->arrayLength = 1;
 
         generateTextureData(srcTextureInfo, validationFormat);
         dstTextureInfo = srcTextureInfo;
@@ -747,15 +768,12 @@ GPU_TEST_CASE("copy-texture-small-to-large", D3D12 | Vulkan | Metal | WGPU)
     testCopyTexture<SmallSrcToLargeDst>(device);
 }
 
-// TODO Metal: no support for 1D mips
-// TODO WGPU: no support for 1D mips
-GPU_TEST_CASE("copy-texture-between-mips", D3D12 | Vulkan)
+GPU_TEST_CASE("copy-texture-between-mips", D3D12 | Vulkan | Metal | WGPU)
 {
     testCopyTexture<CopyBetweenMips>(device);
 }
 
-// TODO WGPU: no support for layers
-GPU_TEST_CASE("copy-texture-between-layers", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("copy-texture-between-layers", D3D12 | Vulkan | Metal | WGPU)
 {
     testCopyTexture<CopyBetweenLayers>(device);
 }

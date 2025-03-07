@@ -742,6 +742,8 @@ struct TextureDesc
 
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
+
+    uint32_t getLayerCount() const { return type == TextureType::TextureCube ? 6 * arrayLength : arrayLength; }
 };
 
 struct TextureViewDesc

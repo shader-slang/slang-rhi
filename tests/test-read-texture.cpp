@@ -42,7 +42,7 @@ struct BaseReadTextureTest
         TextureDesc srcTexDesc = {};
         srcTexDesc.type = srcTextureInfo->textureType;
         srcTexDesc.mipLevelCount = srcTextureInfo->mipLevelCount;
-        srcTexDesc.arrayLength = srcTextureInfo->arrayLayerCount;
+        srcTexDesc.arrayLength = srcTextureInfo->arrayLength;
         srcTexDesc.size = srcTextureInfo->extents;
         srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
         srcTexDesc.defaultState = ResourceState::ShaderResource;
@@ -74,42 +74,44 @@ struct BaseReadTextureTest
 
         createRequiredResources();
 
-        uint32_t subresourceIndex = getSubresourceIndex(
-            texReadInfo.srcSubresource.mipLevel,
-            srcTextureInfo->mipLevelCount,
-            texReadInfo.srcSubresource.baseArrayLayer
-        );
+        TextureDesc desc = srcTexture->getDesc();
 
-        SubresourceLayout layout;
-        REQUIRE_CALL(srcTexture->getSubresourceLayout(texReadInfo.srcSubresource.mipLevel, &layout));
+        uint32_t layerCount = desc.type == TextureType::TextureCube ? 6 : 1;
+        layerCount *= desc.arrayLength;
 
-        SubresourceData subresourceData = srcTextureInfo->subresourceDatas[subresourceIndex];
+        for (uint32_t layerIndex = 0; layerIndex < layerCount; layerIndex++)
+        {
+            for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; mipLevel++)
+            {
+                uint32_t subresourceIndex = getSubresourceIndex(mipLevel, desc.mipLevelCount, layerIndex);
 
-        ValidationTextureData expectedCopied;
-        expectedCopied.extents = layout.size;
-        expectedCopied.textureData = subresourceData.data;
-        expectedCopied.strides.x = getTexelSize(srcTextureInfo->format);
-        expectedCopied.strides.y = subresourceData.strideY;
-        expectedCopied.strides.z = subresourceData.strideZ;
+                SubresourceLayout layout;
+                REQUIRE_CALL(srcTexture->getSubresourceLayout(mipLevel, &layout));
 
-        ComPtr<ISlangBlob> readBlob;
-        REQUIRE_CALL(device->readTexture(
-            srcTexture,
-            texReadInfo.srcSubresource.baseArrayLayer,
-            texReadInfo.srcSubresource.mipLevel,
-            readBlob.writeRef(),
-            nullptr,
-            nullptr
-        ));
+                SubresourceData subresourceData = srcTextureInfo->subresourceDatas[subresourceIndex];
 
-        auto readResults = readBlob->getBufferPointer();
+                ValidationTextureData expectedCopied;
+                expectedCopied.extents = layout.size;
+                expectedCopied.textureData = subresourceData.data;
+                expectedCopied.strides.x = getTexelSize(desc.format);
+                expectedCopied.strides.y = subresourceData.strideY;
+                expectedCopied.strides.z = subresourceData.strideZ;
 
-        ValidationTextureData actual = expectedCopied;
-        actual.textureData = readResults;
-        actual.strides.y = layout.strideY;
-        actual.strides.z = layout.strideZ;
+                ComPtr<ISlangBlob> readBlob;
+                REQUIRE_CALL(
+                    device->readTexture(srcTexture, layerIndex, mipLevel, readBlob.writeRef(), nullptr, nullptr)
+                );
 
-        validateTestResults(actual, expectedCopied);
+                auto readResults = readBlob->getBufferPointer();
+
+                ValidationTextureData actual = expectedCopied;
+                actual.textureData = readResults;
+                actual.strides.y = layout.strideY;
+                actual.strides.z = layout.strideZ;
+
+                validateTestResults(actual, expectedCopied);
+            }
+        }
     }
 };
 
@@ -124,7 +126,49 @@ struct SimpleReadTexture : BaseReadTextureTest
         srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLayerCount = 1;
+        srcTextureInfo->arrayLength = 1;
+
+        checkTestResults();
+    }
+};
+
+struct ArrayReadTexture : BaseReadTextureTest
+{
+    void run()
+    {
+        auto textureType = srcTextureInfo->textureType;
+        auto format = srcTextureInfo->format;
+
+        if (textureType == TextureType::Texture3D)
+            return;
+        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
+            return;
+
+        srcTextureInfo->extents.width = 8;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
+        srcTextureInfo->mipLevelCount = 1;
+        srcTextureInfo->arrayLength = 8;
+
+        checkTestResults();
+    }
+};
+
+struct MipsReadTexture : BaseReadTextureTest
+{
+    void run()
+    {
+        auto textureType = srcTextureInfo->textureType;
+        auto format = srcTextureInfo->format;
+
+        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
+            return;
+
+        srcTextureInfo->extents.width = 8;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
+        srcTextureInfo->mipLevelCount = 2;
+        srcTextureInfo->arrayLength = 1;
 
         checkTestResults();
     }
@@ -165,4 +209,12 @@ void testReadTexture(IDevice* device)
 GPU_TEST_CASE("read-texture-simple", D3D12 | Vulkan | WGPU)
 {
     testReadTexture<SimpleReadTexture>(device);
+}
+GPU_TEST_CASE("read-texture-array", D3D12 | Vulkan | WGPU)
+{
+    testReadTexture<ArrayReadTexture>(device);
+}
+GPU_TEST_CASE("read-texture-mips", D3D12 | Vulkan | WGPU)
+{
+    testReadTexture<MipsReadTexture>(device);
 }
