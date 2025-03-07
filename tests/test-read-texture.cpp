@@ -2,17 +2,8 @@
 
 #include "texture-utils.h"
 
-#if SLANG_WINDOWS_FAMILY
-#include <d3d12.h>
-#endif
-
 using namespace rhi;
 using namespace rhi::testing;
-
-struct TextureReadInfo
-{
-    SubresourceRange srcSubresource = {0, 1, 0, 1};
-};
 
 int32_t heightFromWidth(TextureType type, int32_t width)
 {
@@ -34,11 +25,7 @@ struct BaseReadTextureTest
 {
     IDevice* device;
 
-    Size alignedRowStride;
-
     RefPtr<TextureInfo> srcTextureInfo;
-    TextureReadInfo texReadInfo;
-
     ComPtr<ITexture> srcTexture;
 
     RefPtr<ValidationTextureFormatBase> validationFormat;
@@ -210,7 +197,8 @@ void testReadTexture(IDevice* device)
         Format::R16_FLOAT,
         Format::R16G16_FLOAT,
         Format::R10G10B10A2_UNORM,
-        Format::B5G5R5A1_UNORM
+        Format::B5G5R5A1_UNORM,
+        Format::R32G32B32A32_FLOAT
     };
     for (uint32_t i = (uint32_t)(TextureType::Texture1D); i <= (uint32_t)TextureType::TextureCube; ++i)
     {
