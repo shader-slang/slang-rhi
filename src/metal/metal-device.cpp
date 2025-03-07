@@ -131,6 +131,69 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
+{
+    AUTORELEASEPOOL
+
+    TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
+
+    if (textureImpl->m_desc.sampleCount > 1)
+    {
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+
+    NS::SharedPtr<MTL::Texture> srcTexture = textureImpl->m_texture;
+
+    const TextureDesc& desc = textureImpl->m_desc;
+    uint32_t width = max(desc.size.width, 1);
+    uint32_t height = max(desc.size.height, 1);
+    uint32_t depth = max(desc.size.depth, 1);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+    Size bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
+    Size bytesPerRow = Size(width) * bytesPerPixel;
+    Size bytesPerSlice = Size(height) * bytesPerRow;
+    Size bufferSize = Size(depth) * bytesPerSlice;
+    if (outRowPitch)
+        *outRowPitch = bytesPerRow;
+    if (outPixelSize)
+        *outPixelSize = bytesPerPixel;
+
+    // create staging buffer
+    NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(bufferSize, MTL::StorageModeShared));
+    if (!stagingBuffer)
+    {
+        return SLANG_FAIL;
+    }
+
+    MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+    MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
+    encoder->copyFromTexture(
+        srcTexture.get(),
+        MTL::Origin(0, 0, 0),
+        MTL::Size(width, height, depth),
+        stagingBuffer.get(),
+        0,
+        bytesPerRow,
+        bytesPerSlice
+    );
+    encoder->endEncoding();
+    commandBuffer->commit();
+    commandBuffer->waitUntilCompleted();
+
+    auto blob = OwnedBlob::create(bufferSize);
+    ::memcpy((void*)blob->getBufferPointer(), stagingBuffer->contents(), bufferSize);
+
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
+}
+
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
     AUTORELEASEPOOL
@@ -226,8 +289,8 @@ Result DeviceImpl::getTextureRowAlignment(Size* outAlignment)
 {
     AUTORELEASEPOOL
 
-    *outAlignment = 256;
-    return SLANG_OK;
+    *outAlignment = 1;
+    return SLANG_E_NOT_IMPLEMENTED;
 }
 
 Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
