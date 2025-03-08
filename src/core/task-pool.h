@@ -4,36 +4,72 @@
 
 namespace rhi {
 
-class Task : public RefObject
+class BlockingTaskPool : public ITaskPool, public ComObject
 {
 public:
-    virtual ~Task() {}
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
 
-    virtual void run() = 0;
+    ITaskPool* getInterface(const Guid& guid);
+
+public:
+    TaskHandle submitTask(
+        void (*func)(void*),
+        void* payload,
+        void (*payloadDeleter)(void*),
+        TaskHandle* deps,
+        size_t depsCount
+    ) override;
+
+    void* getTaskPayload(TaskHandle task) override;
+
+    void releaseTask(TaskHandle task) override;
+
+    void waitTask(TaskHandle task) override;
+
+    bool isTaskDone(TaskHandle task) override;
+
+    void waitAll() override;
 
 private:
-    std::string m_name;
+    struct Task;
 };
 
-using TaskHandle = ITaskScheduler::TaskHandle;
-
-class TaskPool
+class ThreadedTaskPool : public ITaskPool, public ComObject
 {
 public:
-    static constexpr uint32_t kAutoWorkerCount = uint32_t(-1);
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
 
-    TaskPool(uint32_t workerCount = kAutoWorkerCount);
-    TaskPool(ITaskScheduler* scheduler);
-    ~TaskPool();
+    ITaskPool* getInterface(const Guid& guid);
 
-    TaskHandle submitTask(Task* task, TaskHandle* parentTaskHandles = nullptr, uint32_t parentTaskHandleCount = 0);
-    void releaseTask(TaskHandle taskHandle);
-    void waitForCompletion(TaskHandle taskHandle);
-    void waitForCompletion(TaskHandle* taskHandles, uint32_t taskHandleCount);
+public:
+    ThreadedTaskPool(int workerCount = -1);
+    ~ThreadedTaskPool() override;
+
+    TaskHandle submitTask(
+        void (*func)(void*),
+        void* payload,
+        void (*payloadDeleter)(void*),
+        TaskHandle* deps,
+        size_t depsCount
+    ) override;
+
+    void* getTaskPayload(TaskHandle task) override;
+
+    void releaseTask(TaskHandle task) override;
+
+    void waitTask(TaskHandle task) override;
+
+    bool isTaskDone(TaskHandle task) override;
+
+    void waitAll() override;
 
 private:
-    ComPtr<ITaskScheduler> m_scheduler;
+    struct Task;
+    struct Pool;
+
+    Pool* m_pool;
 };
+
 
 /// Set the global task pool worker count.
 /// Must be called before first accessing the global task pool.
@@ -42,9 +78,9 @@ Result setGlobalTaskPoolWorkerCount(uint32_t count);
 
 /// Set the global task scheduler.
 /// Must be called before first accessing the global task pool.
-Result setGlobalTaskScheduler(ITaskScheduler* scheduler);
+Result setGlobalTaskPool(ITaskPool* taskPool);
 
 /// Returns the global task pool.
-TaskPool& globalTaskPool();
+ITaskPool* globalTaskPool();
 
 } // namespace rhi
