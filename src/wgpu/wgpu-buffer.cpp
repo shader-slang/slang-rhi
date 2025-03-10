@@ -123,7 +123,11 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
     WGPUBufferMapCallbackInfo2 callbackInfo = {};
     callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
     callbackInfo.callback = [](WGPUMapAsyncStatus status_, const char* message, void* userdata1, void* userdata2)
-    { *(WGPUMapAsyncStatus*)userdata1 = status_; };
+    {
+        *(WGPUMapAsyncStatus*)userdata1 = status_;
+        if (status_ != WGPUMapAsyncStatus_Success)
+            fprintf(stderr, "MapAsync wait failed with message: %s\n", message);
+    };
     callbackInfo.userdata1 = &status;
     WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(bufferImpl->m_buffer, mapMode, offset, size, callbackInfo);
     WGPUFutureWaitInfo futures[1] = {{future}};
