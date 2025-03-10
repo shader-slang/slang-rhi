@@ -46,13 +46,11 @@ Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_FAIL;
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureDesc srcDesc = fixupTextureDesc(desc);
+    TextureDesc desc = fixupTextureDesc(desc_);
 
-    RefPtr<TextureImpl> tex = new TextureImpl(this, srcDesc);
-
-    // CUresourcetype resourceType = CU_RESOURCE_TYPE_ARRAY;
+    RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
 
     // The size of the element/texel in bytes
     size_t elementSize = 0;
