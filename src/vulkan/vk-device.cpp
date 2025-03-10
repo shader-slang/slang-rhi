@@ -1351,9 +1351,9 @@ void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const ch
     }
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
 {
-    TextureDesc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(desc_);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -1368,7 +1368,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     case TextureType::Texture1DArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
-        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), 1, 1};
         break;
     }
     case TextureType::Texture2D:
@@ -1377,7 +1377,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     case TextureType::Texture2DMSArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), 1};
         break;
     }
     case TextureType::Texture3D:
@@ -1385,15 +1385,14 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
         // Can't have an array and 3d texture
         SLANG_RHI_ASSERT(desc.arrayLength <= 1);
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent =
-            VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), uint32_t(desc.size.depth)};
         break;
     }
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }

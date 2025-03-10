@@ -45,7 +45,7 @@ public:
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer) override;
+    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;

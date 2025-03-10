@@ -161,27 +161,23 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
     return baseObject->createTexture(patchedDesc, initData, outTexture);
 }
 
-Result DebugDevice::createTextureFromNativeHandle(
-    NativeHandle handle,
-    const TextureDesc& srcDesc,
-    ITexture** outTexture
-)
+Result DebugDevice::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createTextureFromNativeHandle(handle, srcDesc, outTexture);
+    return baseObject->createTextureFromNativeHandle(handle, desc, outTexture);
 }
 
 Result DebugDevice::createTextureFromSharedHandle(
     NativeHandle handle,
-    const TextureDesc& srcDesc,
+    const TextureDesc& desc,
     const size_t size,
     ITexture** outTexture
 )
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createTextureFromSharedHandle(handle, srcDesc, size, outTexture);
+    return baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
 }
 
 Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
@@ -198,18 +194,18 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
     return baseObject->createBuffer(patchedDesc, initData, outBuffer);
 }
 
-Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createBufferFromNativeHandle(handle, srcDesc, outBuffer);
+    return baseObject->createBufferFromNativeHandle(handle, desc, outBuffer);
 }
 
-Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createBufferFromSharedHandle(handle, srcDesc, outBuffer);
+    return baseObject->createBufferFromSharedHandle(handle, desc, outBuffer);
 }
 
 Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)

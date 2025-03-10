@@ -36,9 +36,9 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
-    auto desc = fixupBufferDesc(descIn);
+    auto desc = fixupBufferDesc(desc_);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     if (desc.memoryType == MemoryType::DeviceLocal)
     {

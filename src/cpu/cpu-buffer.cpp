@@ -21,9 +21,9 @@ DeviceAddress BufferImpl::getDeviceAddress()
     return (DeviceAddress)m_data;
 }
 
-Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
-    BufferDesc desc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(desc_);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     buffer->m_data = (uint8_t*)std::malloc(desc.size);
     if (!buffer->m_data)

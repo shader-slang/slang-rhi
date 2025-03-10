@@ -178,15 +178,15 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
     }
 }
 
-Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc)
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc)
 {
-    const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
+    const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(textureDesc.format);
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;
     }
 
-    const D3D12_RESOURCE_DIMENSION dimension = calcResourceDimension(srcDesc.type);
+    const D3D12_RESOURCE_DIMENSION dimension = calcResourceDimension(textureDesc.type);
     if (dimension == D3D12_RESOURCE_DIMENSION_UNKNOWN)
     {
         return SLANG_FAIL;
@@ -194,32 +194,32 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
 
     resourceDesc.Dimension = dimension;
     resourceDesc.Format = pixelFormat;
-    resourceDesc.Width = srcDesc.size.width;
-    resourceDesc.Height = srcDesc.size.height;
-    if (srcDesc.type == TextureType::Texture3D)
+    resourceDesc.Width = textureDesc.size.width;
+    resourceDesc.Height = textureDesc.size.height;
+    if (textureDesc.type == TextureType::Texture3D)
     {
-        resourceDesc.DepthOrArraySize = srcDesc.size.depth;
+        resourceDesc.DepthOrArraySize = textureDesc.size.depth;
     }
     else
     {
-        resourceDesc.DepthOrArraySize = srcDesc.getLayerCount();
+        resourceDesc.DepthOrArraySize = textureDesc.getLayerCount();
     }
 
-    resourceDesc.MipLevels = srcDesc.mipLevelCount;
-    resourceDesc.SampleDesc.Count = srcDesc.sampleCount;
-    resourceDesc.SampleDesc.Quality = srcDesc.sampleQuality;
+    resourceDesc.MipLevels = textureDesc.mipLevelCount;
+    resourceDesc.SampleDesc.Count = textureDesc.sampleCount;
+    resourceDesc.SampleDesc.Quality = textureDesc.sampleQuality;
 
     resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
     resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
-    resourceDesc.Flags |= calcResourceFlags(srcDesc.usage);
+    resourceDesc.Flags |= calcResourceFlags(textureDesc.usage);
 
     resourceDesc.Alignment = 0;
 
-    if (isDepthFormat(srcDesc.format) &&
-        (is_set(srcDesc.usage, TextureUsage::ShaderResource) || is_set(srcDesc.usage, TextureUsage::UnorderedAccess)))
+    if (isDepthFormat(textureDesc.format) && (is_set(textureDesc.usage, TextureUsage::ShaderResource) ||
+                                              is_set(textureDesc.usage, TextureUsage::UnorderedAccess)))
     {
-        resourceDesc.Format = getTypelessFormatFromDepthFormat(srcDesc.format);
+        resourceDesc.Format = getTypelessFormatFromDepthFormat(textureDesc.format);
     }
 
     return SLANG_OK;

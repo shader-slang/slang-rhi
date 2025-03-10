@@ -216,9 +216,9 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
     return view;
 }
 
-Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
-    BufferDesc desc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(desc_);
 
     const Size bufferSize = desc.size;
 
@@ -313,9 +313,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
 
     if (handle.type == NativeHandleType::VkBuffer)
     {

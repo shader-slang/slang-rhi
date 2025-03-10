@@ -96,7 +96,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc, const void* initData, IB
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     return SLANG_E_NOT_IMPLEMENTED;
 }
