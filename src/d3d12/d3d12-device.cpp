@@ -494,6 +494,24 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Set the device
     m_device = m_deviceInfo.m_device;
 
+    // Disable noisy debug layer messages.
+    if (isDebugLayersEnabled())
+    {
+        ComPtr<ID3D12InfoQueue> infoQueue;
+        m_device->QueryInterface(infoQueue.writeRef());
+        if (infoQueue)
+        {
+            D3D12_MESSAGE_ID hideMessages[] = {
+                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+                D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+            };
+            D3D12_INFO_QUEUE_FILTER f = {};
+            f.DenyList.NumIDs = (UINT)std::size(hideMessages);
+            f.DenyList.pIDList = hideMessages;
+            infoQueue->AddStorageFilterEntries(&f);
+        }
+    }
+
     // Initialize DXR interface.
 #if SLANG_RHI_DXR
     m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
