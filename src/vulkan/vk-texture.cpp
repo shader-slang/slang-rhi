@@ -218,10 +218,10 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     }
     }
 
-    uint32_t arrayLayerCount = desc.getLayerCount();
+    uint32_t layerCount = desc.getLayerCount();
 
     imageInfo.mipLevels = desc.mipLevelCount;
-    imageInfo.arrayLayers = arrayLayerCount;
+    imageInfo.arrayLayers = layerCount;
 
     imageInfo.format = format;
 
@@ -309,7 +309,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
 
         // Calculate the total size taking into account the array
-        bufferSize *= arrayLayerCount;
+        bufferSize *= layerCount;
 
         SLANG_RETURN_ON_FAIL(uploadBuffer.init(
             m_api,
@@ -328,7 +328,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, (void**)&dstData);
 
             uint64_t dstSubresourceOffset = 0;
-            for (uint32_t i = 0; i < arrayLayerCount; ++i)
+            for (uint32_t i = 0; i < layerCount; ++i)
             {
                 for (uint32_t j = 0; j < mipSizes.size(); ++j)
                 {
@@ -472,7 +472,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         else
         {
             uint64_t srcOffset = 0;
-            for (int i = 0; i < arrayLayerCount; ++i)
+            for (int i = 0; i < layerCount; ++i)
             {
                 for (size_t j = 0; j < mipSizes.size(); ++j)
                 {
