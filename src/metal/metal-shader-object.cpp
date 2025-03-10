@@ -167,9 +167,12 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
-                SLANG_RHI_ASSERT(registerIndex < m_bindingData->textureCount);
-                m_bindingData->textures[registerIndex] = textureView->m_textureView.get();
+                if (textureView)
+                {
+                    uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
+                    SLANG_RHI_ASSERT(registerIndex < m_bindingData->textureCount);
+                    m_bindingData->textures[registerIndex] = textureView->m_textureView.get();
+                }
             }
             break;
         case slang::BindingType::Sampler:
@@ -177,9 +180,12 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.sampler + i;
-                SLANG_RHI_ASSERT(registerIndex < m_bindingData->samplerCount);
-                m_bindingData->samplers[registerIndex] = sampler->m_samplerState.get();
+                if (sampler)
+                {
+                    uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.sampler + i;
+                    SLANG_RHI_ASSERT(registerIndex < m_bindingData->samplerCount);
+                    m_bindingData->samplers[registerIndex] = sampler->m_samplerState.get();
+                }
             }
             break;
         case slang::BindingType::RawBuffer:
@@ -190,9 +196,12 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.buffer + i;
-                m_bindingData->bufferCount = max(m_bindingData->bufferCount, registerIndex + 1);
-                m_bindingData->buffers[registerIndex] = buffer->m_buffer.get();
+                if (buffer)
+                {
+                    uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.buffer + i;
+                    m_bindingData->bufferCount = max(m_bindingData->bufferCount, registerIndex + 1);
+                    m_bindingData->buffers[registerIndex] = buffer->m_buffer.get();
+                }
             }
             break;
         case slang::BindingType::VaryingInput:
