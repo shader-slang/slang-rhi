@@ -2432,11 +2432,11 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) = 0;
+    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         NativeHandle handle,
-        const TextureDesc& srcDesc,
+        const TextureDesc& desc,
         const Size size,
         ITexture** outTexture
     ) = 0;
@@ -2453,10 +2453,10 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) = 0;

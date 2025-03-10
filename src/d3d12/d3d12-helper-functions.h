@@ -29,7 +29,7 @@ D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op);
 D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode);
 D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
 
-Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc);
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
 
 Result createNullDescriptor(

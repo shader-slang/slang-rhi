@@ -384,40 +384,40 @@ Result Device::getSlangSession(slang::ISession** outSlangSession)
     return SLANG_OK;
 }
 
-Result Device::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
+Result Device::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
 {
     SLANG_UNUSED(handle);
-    SLANG_UNUSED(srcDesc);
+    SLANG_UNUSED(desc);
     SLANG_UNUSED(outTexture);
     return SLANG_E_NOT_AVAILABLE;
 }
 
 Result Device::createTextureFromSharedHandle(
     NativeHandle handle,
-    const TextureDesc& srcDesc,
+    const TextureDesc& desc,
     const Size size,
     ITexture** outTexture
 )
 {
     SLANG_UNUSED(handle);
-    SLANG_UNUSED(srcDesc);
+    SLANG_UNUSED(desc);
     SLANG_UNUSED(size);
     SLANG_UNUSED(outTexture);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result Device::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
-    SLANG_UNUSED(srcDesc);
+    SLANG_UNUSED(desc);
     SLANG_UNUSED(outBuffer);
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result Device::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     SLANG_UNUSED(handle);
-    SLANG_UNUSED(srcDesc);
+    SLANG_UNUSED(desc);
     SLANG_UNUSED(outBuffer);
     return SLANG_E_NOT_AVAILABLE;
 }
