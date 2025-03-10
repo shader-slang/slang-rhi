@@ -101,7 +101,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     WGPURequestAdapterOptions options = {};
     options.powerPreference = WGPUPowerPreference_HighPerformance;
 #if SLANG_WINDOWS_FAMILY
-    options.backendType = WGPUBackendType_D3D12;
+    // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
+    options.backendType = WGPUBackendType_Vulkan;
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
@@ -166,6 +167,24 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         };
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &m_ctx.device;
+
+        WGPUDeviceLostCallbackInfo2 deviceLostCallbackInfo = {};
+        deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
+                                             WGPUDeviceLostReason reason,
+                                             const char* message,
+                                             void* userdata1,
+                                             void* userdata2)
+        {
+            if (reason != WGPUDeviceLostReason_Destroyed)
+            {
+                DeviceImpl* deviceimpl = static_cast<DeviceImpl*>(userdata1);
+                deviceimpl->handleError(WGPUErrorType_DeviceLost, message);
+            }
+        };
+        deviceLostCallbackInfo.userdata1 = this;
+        deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
+        deviceDesc.deviceLostCallbackInfo2 = deviceLostCallbackInfo;
+
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice2(m_ctx.adapter, &deviceDesc, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
@@ -202,7 +221,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-
     return SLANG_OK;
 }
 
