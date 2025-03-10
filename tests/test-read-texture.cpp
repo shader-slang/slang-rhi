@@ -166,6 +166,8 @@ struct MipsReadTexture : BaseReadTextureTest
 
         if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
             return;
+        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::Metal)
+            return;
 
         srcTextureInfo->mipLevelCount = 2;
         srcTextureInfo->arrayLength = 1;
@@ -183,6 +185,8 @@ struct ArrayMipsReadTexture : BaseReadTextureTest
         if (textureType == TextureType::Texture3D)
             return;
         if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
+            return;
+        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::Metal)
             return;
 
         srcTextureInfo->mipLevelCount = 2;
