@@ -50,6 +50,9 @@ struct BaseReadTextureTest
 
     void createRequiredResources()
     {
+        if (srcTextureInfo->arrayLength > 1)
+            srcTextureInfo->textureType = toArrayType(srcTextureInfo->textureType);
+
         TextureDesc srcTexDesc = {};
         srcTexDesc.type = srcTextureInfo->textureType;
         srcTexDesc.mipLevelCount = srcTextureInfo->mipLevelCount;
@@ -200,7 +203,7 @@ void testReadTexture(IDevice* device)
         Format::B5G5R5A1_UNORM,
         Format::R32G32B32A32_FLOAT
     };
-    for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D, TextureType::TexturCube})
+    for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D, TextureType::TextureCube})
     {
         for (auto format : formats)
         {
