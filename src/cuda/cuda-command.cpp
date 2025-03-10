@@ -170,34 +170,17 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
                 SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, mipLevel));
             }
 
-            if ((dst->m_desc.type == TextureType::Texture1D || dst->m_desc.type == TextureType::Texture2D))
-            {
-                // Use 2D copy.
-                CUDA_MEMCPY2D copyParam = {};
-                copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
-                copyParam.dstArray = dstArray;
-                copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
-                copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
-                copyParam.srcPitch = srLayout->strideY;
-                copyParam.WidthInBytes = srLayout->strideY;
-                copyParam.Height = srLayout->size.height;
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy2D(&copyParam));
-            }
-            else
-            {
-                // Use 3D copy.
-                CUDA_MEMCPY3D copyParam = {};
-                copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
-                copyParam.dstArray = dstArray;
-                copyParam.dstZ = layer;
-                copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
-                copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
-                copyParam.srcPitch = srLayout->strideY;
-                copyParam.WidthInBytes = srLayout->strideY;
-                copyParam.Height = srLayout->size.height;
-                copyParam.Depth = srLayout->size.depth;
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
-            }
+            CUDA_MEMCPY3D copyParam = {};
+            copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
+            copyParam.dstArray = dstArray;
+            copyParam.dstZ = layer;
+            copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+            copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
+            copyParam.srcPitch = srLayout->strideY;
+            copyParam.WidthInBytes = srLayout->strideY;
+            copyParam.Height = srLayout->size.height;
+            copyParam.Depth = srLayout->size.depth;
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
         }
     }
 }
