@@ -217,6 +217,14 @@ public:
 
     void flushValidationMessages();
 
+
+    using NullDescriptorKey = std::pair<slang::BindingType, SlangResourceShape>;
+    std::map<NullDescriptorKey, CPUDescriptorAllocation> m_nullDescriptors;
+    CPUDescriptorAllocation m_nullSamplerDescriptor;
+    std::mutex m_nullDescriptorsMutex;
+    D3D12_CPU_DESCRIPTOR_HANDLE getNullDescriptor(slang::BindingType bindingType, SlangResourceShape resourceShape);
+    D3D12_CPU_DESCRIPTOR_HANDLE getNullSamplerDescriptor();
+
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* desc);
 };

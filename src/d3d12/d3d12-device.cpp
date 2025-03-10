@@ -1580,6 +1580,44 @@ void DeviceImpl::flushValidationMessages()
 #endif
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullDescriptor(
+    slang::BindingType bindingType,
+    SlangResourceShape resourceShape
+)
+{
+    std::lock_guard<std::mutex> lock(m_nullDescriptorsMutex);
+    NullDescriptorKey key = {bindingType, resourceShape};
+    auto it = m_nullDescriptors.find(key);
+    if (it != m_nullDescriptors.end())
+    {
+        return it->second.cpuHandle;
+    }
+    CPUDescriptorAllocation allocation = m_cpuCbvSrvUavHeap->allocate();
+    Result result = createNullDescriptor(m_device, allocation.cpuHandle, bindingType, resourceShape);
+    if (!SLANG_SUCCEEDED(result))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to create null descriptor");
+    }
+    m_nullDescriptors[key] = allocation;
+    return allocation.cpuHandle;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullSamplerDescriptor()
+{
+    std::lock_guard<std::mutex> lock(m_nullDescriptorsMutex);
+    if (m_nullSamplerDescriptor)
+    {
+        return m_nullSamplerDescriptor.cpuHandle;
+    }
+    m_nullSamplerDescriptor = m_cpuSamplerHeap->allocate();
+    D3D12_SAMPLER_DESC desc = {};
+    desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    m_device->CreateSampler(&desc, m_nullSamplerDescriptor.cpuHandle);
+    return m_nullSamplerDescriptor.cpuHandle;
+}
+
 void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* inDesc)
 {
     typedef HRESULT(WINAPI * PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
@@ -1829,6 +1867,15 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_queue.setNull();
+
+    for (const auto& [_, allocation] : m_nullDescriptors)
+    {
+        m_cpuCbvSrvUavHeap->free(allocation);
+    }
+    if (m_nullSamplerDescriptor)
+    {
+        m_cpuSamplerHeap->free(m_nullSamplerDescriptor);
+    }
 }
 
 } // namespace rhi::d3d12
