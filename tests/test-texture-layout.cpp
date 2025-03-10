@@ -86,14 +86,15 @@ GPU_TEST_CASE("texture-layout-1d-nomip-alignment", D3D12 | WGPU)
     testTextureLayout(device, texture, 0, 0, {4, 1, 1, 256, 256, 256});
 }
 
-GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WGPU)
+// Metal doesn't support 1D textures with mip maps.
+GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WGPU & ~Metal)
 {
 
     TextureDesc desc;
     desc.type = TextureType::Texture1D;
     desc.size = {256, 1, 1};
     desc.format = Format::R8G8B8A8_UINT;
-    desc.mipLevelCount = 0;
+    desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
 
     ComPtr<ITexture> texture;
@@ -140,7 +141,7 @@ GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WGPU)
 {
 
     TextureDesc desc;
-    desc.type = TextureType::Texture1D;
+    desc.type = TextureType::Texture1DArray;
     desc.size = {256, 1, 1};
     desc.format = Format::R8G8B8A8_UINT;
     desc.mipLevelCount = 1;
@@ -153,14 +154,15 @@ GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WGPU)
     testTextureLayout(device, texture, 3, 0, {256, 1, 1, 1024, 1024, 1024});
 }
 
-GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WGPU)
+// Metal doesn't support 1D textures with mip maps.
+GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WGPU & ~Metal)
 {
 
     TextureDesc desc;
-    desc.type = TextureType::Texture1D;
+    desc.type = TextureType::Texture1DArray;
     desc.size = {256, 1, 1};
     desc.format = Format::R8G8B8A8_UINT;
-    desc.mipLevelCount = 0;
+    desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 4;
 
     ComPtr<ITexture> texture;
@@ -211,7 +213,7 @@ GPU_TEST_CASE("texture-layout-2d-mip", ALL_TEX)
     desc.type = TextureType::Texture2D;
     desc.size = {256, 32, 1};
     desc.format = Format::R8G8B8A8_UINT;
-    desc.mipLevelCount = 0;
+    desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
 
     ComPtr<ITexture> texture;
@@ -225,7 +227,7 @@ GPU_TEST_CASE("texture-layout-2d-array-nomip", ALL_TEX & ~CUDA)
 {
 
     TextureDesc desc;
-    desc.type = TextureType::Texture2D;
+    desc.type = TextureType::Texture2DArray;
     desc.size = {256, 32, 1};
     desc.format = Format::R8G8B8A8_UINT;
     desc.mipLevelCount = 1;
@@ -242,10 +244,10 @@ GPU_TEST_CASE("texture-layout-2d-array-mips", ALL_TEX & ~CUDA)
 {
 
     TextureDesc desc;
-    desc.type = TextureType::Texture2D;
+    desc.type = TextureType::Texture2DArray;
     desc.size = {256, 32, 1};
     desc.format = Format::R8G8B8A8_UINT;
-    desc.mipLevelCount = 0;
+    desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 4;
 
     ComPtr<ITexture> texture;
@@ -297,7 +299,7 @@ GPU_TEST_CASE("texture-layout-3d-mip", ALL_TEX)
     desc.type = TextureType::Texture3D;
     desc.size = {256, 32, 16};
     desc.format = Format::R8G8B8A8_UINT;
-    desc.mipLevelCount = 0;
+    desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
 
     ComPtr<ITexture> texture;
@@ -330,7 +332,7 @@ GPU_TEST_CASE("texture-layout-cube-mip", ALL_TEX)
     desc.type = TextureType::TextureCube;
     desc.size = {256, 256, 1};
     desc.format = Format::R8G8B8A8_UINT;
-    desc.mipLevelCount = 0;
+    desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
 
     ComPtr<ITexture> texture;
@@ -344,7 +346,7 @@ GPU_TEST_CASE("texture-layout-cube-array-nomip", ALL_TEX & ~CUDA)
 {
 
     TextureDesc desc;
-    desc.type = TextureType::TextureCube;
+    desc.type = TextureType::TextureCubeArray;
     desc.size = {256, 256, 1};
     desc.format = Format::R8G8B8A8_UINT;
     desc.mipLevelCount = 1;
@@ -361,10 +363,10 @@ GPU_TEST_CASE("texture-layout-cube-array-mips", ALL_TEX & ~CUDA)
 {
 
     TextureDesc desc;
-    desc.type = TextureType::TextureCube;
+    desc.type = TextureType::TextureCubeArray;
     desc.size = {256, 256, 1};
     desc.format = Format::R8G8B8A8_UINT;
-    desc.mipLevelCount = 0;
+    desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 4;
 
     ComPtr<ITexture> texture;

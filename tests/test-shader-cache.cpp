@@ -199,7 +199,7 @@ struct ShaderCacheTest
         // TODO: We should also set the debug callback
         // (And in general reduce the differences (and duplication) between
         // here and render-test-main.cpp)
-#ifdef _DEBUG
+#if SLANG_RHI_DEBUG
         deviceDesc.enableValidation = true;
 #endif
 

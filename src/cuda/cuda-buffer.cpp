@@ -24,11 +24,6 @@ BufferImpl::~BufferImpl()
     }
 }
 
-uint64_t BufferImpl::getBindlessHandle()
-{
-    return (uint64_t)m_cudaMemory;
-}
-
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     return (DeviceAddress)m_cudaMemory;
@@ -37,7 +32,7 @@ DeviceAddress BufferImpl::getDeviceAddress()
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::CUdeviceptr;
-    outHandle->value = getBindlessHandle();
+    outHandle->value = (uint64_t)m_cudaMemory;
     return SLANG_OK;
 }
 

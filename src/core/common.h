@@ -26,7 +26,7 @@ template<typename T, typename U>
 T checked_cast(U u)
 {
     static_assert(!std::is_same<T, U>::value, "Redundant checked_cast");
-#ifdef _DEBUG
+#if SLANG_RHI_DEBUG
     if (!u)
         return nullptr;
     T t = dynamic_cast<T>(u);

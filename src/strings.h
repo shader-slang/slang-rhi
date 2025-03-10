@@ -55,9 +55,14 @@
 
 // TextureType
 #define S_TextureType_Texture1D "Texture1D"
+#define S_TextureType_Texture1DArray "Texture1DArray"
 #define S_TextureType_Texture2D "Texture2D"
+#define S_TextureType_Texture2DArray "Texture2DArray"
+#define S_TextureType_Texture2DMS "Texture2DMS"
+#define S_TextureType_Texture2DMSArray "Texture2DMSArray"
 #define S_TextureType_Texture3D "Texture3D"
 #define S_TextureType_TextureCube "TextureCube"
+#define S_TextureType_TextureCubeArray "TextureCubeArray"
 
 // TextureAspect
 #define S_TextureAspect_All "All"

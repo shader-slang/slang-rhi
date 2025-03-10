@@ -285,18 +285,23 @@ struct CopyTextureSection : BaseCopyTextureTest
 {
     void run()
     {
-        auto textureType = srcTextureInfo->textureType;
-        auto format = srcTextureInfo->format;
-
         auto dt = device->getDeviceInfo().deviceType;
         if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
         {
-            if (textureType == TextureType::Texture1D)
+            if (srcTextureInfo->textureType == TextureType::Texture1D)
                 return;
         }
 
+        if (srcTextureInfo->textureType == TextureType::Texture1D)
+            srcTextureInfo->textureType = TextureType::Texture1DArray;
+        if (srcTextureInfo->textureType == TextureType::Texture2D)
+            srcTextureInfo->textureType = TextureType::Texture2DArray;
+
+        auto textureType = srcTextureInfo->textureType;
+        auto format = srcTextureInfo->format;
+
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1DArray) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLength = (textureType == TextureType::Texture3D) ? 1 : 2;
@@ -523,18 +528,23 @@ struct CopyBetweenLayers : BaseCopyTextureTest
 {
     void run()
     {
-        auto textureType = srcTextureInfo->textureType;
-        auto format = srcTextureInfo->format;
-
         auto dt = device->getDeviceInfo().deviceType;
         if (dt == DeviceType::Metal || dt == DeviceType::WGPU)
         {
-            if (textureType == TextureType::Texture1D)
+            if (srcTextureInfo->textureType == TextureType::Texture1D)
                 return;
         }
 
+        if (srcTextureInfo->textureType == TextureType::Texture1D)
+            srcTextureInfo->textureType = TextureType::Texture1DArray;
+        if (srcTextureInfo->textureType == TextureType::Texture2D)
+            srcTextureInfo->textureType = TextureType::Texture2DArray;
+
+        auto textureType = srcTextureInfo->textureType;
+        auto format = srcTextureInfo->format;
+
         srcTextureInfo->extents.width = 4;
-        srcTextureInfo->extents.height = (textureType == TextureType::Texture1D) ? 1 : 4;
+        srcTextureInfo->extents.height = (textureType == TextureType::Texture1DArray) ? 1 : 4;
         srcTextureInfo->extents.depth = (textureType == TextureType::Texture3D) ? 2 : 1;
         srcTextureInfo->mipLevelCount = 1;
         srcTextureInfo->arrayLength = (textureType == TextureType::Texture3D) ? 1 : 2;
@@ -726,7 +736,7 @@ void testCopyTexture(IDevice* device)
         Format::R10G10B10A2_UNORM,
         Format::B5G5R5A1_UNORM
     };
-    for (uint32_t i = (uint32_t)(TextureType::Texture1D); i <= (uint32_t)TextureType::Texture3D; ++i)
+    for (TextureType type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D})
     {
         for (auto format : formats)
         {
@@ -734,7 +744,6 @@ void testCopyTexture(IDevice* device)
             device->getFormatSupport(format, &formatSupport);
             if (!is_set(formatSupport, FormatSupport::Texture))
                 continue;
-            auto type = (TextureType)i;
             auto validationFormat = getValidationTextureFormat(format);
             if (!validationFormat)
                 continue;
