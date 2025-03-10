@@ -90,7 +90,7 @@ set(SLANG_RHI_FETCH_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/
 
 # Fetch Agility SDK options
 option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
-set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.614.1" CACHE STRING "Agility SDK version to fetch")
+set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.615.1" CACHE STRING "Agility SDK version to fetch")
 
 # Fetch NVAPI options
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
