@@ -55,33 +55,6 @@ inline uint32_t calcMipLevelCount(const TextureDesc& desc)
     return calcMipLevelCount(desc.type, desc.size);
 }
 
-inline uint32_t calcLayerCount(TextureType type, uint32_t arrayLength)
-{
-    switch (type)
-    {
-    case TextureType::Texture1D:
-    case TextureType::Texture2D:
-    case TextureType::Texture2DMS:
-    case TextureType::Texture3D:
-        return 1;
-    case TextureType::Texture1DArray:
-    case TextureType::Texture2DArray:
-    case TextureType::Texture2DMSArray:
-        return arrayLength;
-    case TextureType::TextureCube:
-        return 6;
-    case TextureType::TextureCubeArray:
-        return arrayLength * 6;
-    }
-    return 0;
-}
-
-inline uint32_t calcLayerCount(const TextureDesc& desc)
-{
-    return calcLayerCount(desc.type, desc.arrayLength);
-}
-
-
 BufferDesc fixupBufferDesc(const BufferDesc& desc);
 TextureDesc fixupTextureDesc(const TextureDesc& desc);
 
