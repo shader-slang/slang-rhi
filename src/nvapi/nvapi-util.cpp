@@ -47,7 +47,7 @@ NVAPIShaderExtension NVAPIUtil::findShaderExtension(slang::ProgramLayout* layout
 Result NVAPIUtil::handleFail(int res, const char* file, int line, const char* call)
 {
 #if SLANG_RHI_ENABLE_NVAPI
-#ifdef _DEBUG
+#if SLANG_RHI_DEBUG
     NvAPI_ShortString msg;
     NvAPI_GetErrorMessage(NvAPI_Status(res), msg);
     printf("%s returned error %s (%d)\n", call, msg, res);

@@ -85,30 +85,34 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
     return uav;
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureDesc srcDesc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(desc_);
 
-    const DXGI_FORMAT format = D3DUtil::getMapFormat(srcDesc.format);
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+
+    uint32_t mipLevelCount = desc.mipLevelCount;
+    uint32_t layerCount = desc.getLayerCount();
+
+    const DXGI_FORMAT format = D3DUtil::getMapFormat(desc.format);
     if (format == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;
     }
 
-    UINT bindFlags = _calcResourceBindFlags(srcDesc.usage);
+    UINT bindFlags = _calcResourceBindFlags(desc.usage);
 
     // Set up the initialize data
     std::vector<D3D11_SUBRESOURCE_DATA> subRes;
     D3D11_SUBRESOURCE_DATA* subresourcesPtr = nullptr;
     if (initData)
     {
-        uint32_t arrayLayerCount = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
-        subRes.resize(srcDesc.mipLevelCount * arrayLayerCount);
+        subRes.resize(mipLevelCount * layerCount);
         {
             uint32_t subresourceIndex = 0;
-            for (uint32_t i = 0; i < arrayLayerCount; i++)
+            for (uint32_t i = 0; i < layerCount; i++)
             {
-                for (uint32_t j = 0; j < srcDesc.mipLevelCount; j++)
+                for (uint32_t j = 0; j < mipLevelCount; j++)
                 {
                     D3D11_SUBRESOURCE_DATA& data = subRes[subresourceIndex];
                     auto& srcData = initData[subresourceIndex];
@@ -124,79 +128,79 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         subresourcesPtr = subRes.data();
     }
 
-    UINT accessFlags = _calcResourceAccessFlags(srcDesc.memoryType);
+    UINT accessFlags = _calcResourceAccessFlags(desc.memoryType);
 
-    RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
-
-    switch (srcDesc.type)
+    switch (desc.type)
     {
     case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
     {
-        D3D11_TEXTURE1D_DESC desc = {0};
-        desc.BindFlags = bindFlags;
-        desc.CPUAccessFlags = accessFlags;
-        desc.Format = format;
-        desc.MiscFlags = 0;
-        desc.MipLevels = srcDesc.mipLevelCount;
-        desc.ArraySize = srcDesc.arrayLength;
-        desc.Width = srcDesc.size.width;
-        desc.Usage = D3D11_USAGE_DEFAULT;
+        D3D11_TEXTURE1D_DESC d3dDesc = {0};
+        d3dDesc.BindFlags = bindFlags;
+        d3dDesc.CPUAccessFlags = accessFlags;
+        d3dDesc.Format = format;
+        d3dDesc.MiscFlags = 0;
+        d3dDesc.MipLevels = mipLevelCount;
+        d3dDesc.ArraySize = layerCount;
+        d3dDesc.Width = desc.size.width;
+        d3dDesc.Usage = D3D11_USAGE_DEFAULT;
 
         ComPtr<ID3D11Texture1D> texture1D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture1D(&desc, subresourcesPtr, texture1D.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->CreateTexture1D(&d3dDesc, subresourcesPtr, texture1D.writeRef()));
 
         texture->m_resource = texture1D;
         break;
     }
-    case TextureType::TextureCube:
     case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
     {
-        D3D11_TEXTURE2D_DESC desc = {0};
-        desc.BindFlags = bindFlags;
-        desc.CPUAccessFlags = accessFlags;
-        desc.Format = format;
-        desc.MiscFlags = 0;
-        desc.MipLevels = srcDesc.mipLevelCount;
-        desc.ArraySize = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+        D3D11_TEXTURE2D_DESC d3dDesc = {0};
+        d3dDesc.BindFlags = bindFlags;
+        d3dDesc.CPUAccessFlags = accessFlags;
+        d3dDesc.Format = format;
+        d3dDesc.MiscFlags = 0;
+        d3dDesc.MipLevels = mipLevelCount;
+        d3dDesc.ArraySize = layerCount;
 
-        desc.Width = srcDesc.size.width;
-        desc.Height = srcDesc.size.height;
-        desc.Usage = D3D11_USAGE_DEFAULT;
-        desc.SampleDesc.Count = srcDesc.sampleCount;
-        desc.SampleDesc.Quality = srcDesc.sampleQuality;
-
-        if (srcDesc.type == TextureType::TextureCube)
+        d3dDesc.Width = desc.size.width;
+        d3dDesc.Height = desc.size.height;
+        d3dDesc.Usage = D3D11_USAGE_DEFAULT;
+        d3dDesc.SampleDesc.Count = desc.sampleCount;
+        d3dDesc.SampleDesc.Quality = desc.sampleQuality;
+        if (desc.type == TextureType::TextureCube || desc.type == TextureType::TextureCubeArray)
         {
-            desc.MiscFlags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
+            d3dDesc.MiscFlags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
         }
 
         ComPtr<ID3D11Texture2D> texture2D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture2D(&desc, subresourcesPtr, texture2D.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->CreateTexture2D(&d3dDesc, subresourcesPtr, texture2D.writeRef()));
 
         texture->m_resource = texture2D;
         break;
     }
     case TextureType::Texture3D:
     {
-        D3D11_TEXTURE3D_DESC desc = {0};
-        desc.BindFlags = bindFlags;
-        desc.CPUAccessFlags = accessFlags;
-        desc.Format = format;
-        desc.MiscFlags = 0;
-        desc.MipLevels = srcDesc.mipLevelCount;
-        desc.Width = srcDesc.size.width;
-        desc.Height = srcDesc.size.height;
-        desc.Depth = srcDesc.size.depth;
-        desc.Usage = D3D11_USAGE_DEFAULT;
+        D3D11_TEXTURE3D_DESC d3dDesc = {0};
+        d3dDesc.BindFlags = bindFlags;
+        d3dDesc.CPUAccessFlags = accessFlags;
+        d3dDesc.Format = format;
+        d3dDesc.MiscFlags = 0;
+        d3dDesc.MipLevels = mipLevelCount;
+        d3dDesc.Width = desc.size.width;
+        d3dDesc.Height = desc.size.height;
+        d3dDesc.Depth = desc.size.depth;
+        d3dDesc.Usage = D3D11_USAGE_DEFAULT;
 
         ComPtr<ID3D11Texture3D> texture3D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture3D(&desc, subresourcesPtr, texture3D.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->CreateTexture3D(&d3dDesc, subresourcesPtr, texture3D.writeRef()));
 
         texture->m_resource = texture3D;
         break;
     }
-    default:
-        return SLANG_FAIL;
     }
 
     returnComPtr(outTexture, texture);

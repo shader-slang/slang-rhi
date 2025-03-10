@@ -1365,22 +1365,19 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
     switch (desc.type)
     {
     case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
     case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
-        break;
-    }
-    case TextureType::TextureCube:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
-        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
     case TextureType::Texture3D:
@@ -1392,15 +1389,18 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* out
             VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
         break;
     }
-    default:
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
     {
-        SLANG_RHI_ASSERT_FAILURE("Unhandled type");
-        return SLANG_FAIL;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+        break;
     }
     }
 
     imageInfo.mipLevels = desc.mipLevelCount;
-    imageInfo.arrayLayers = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+    imageInfo.arrayLayers = desc.getLayerCount();
 
     imageInfo.format = format;
 

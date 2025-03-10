@@ -200,7 +200,7 @@ void testReadTexture(IDevice* device)
         Format::B5G5R5A1_UNORM,
         Format::R32G32B32A32_FLOAT
     };
-    for (uint32_t i = (uint32_t)(TextureType::Texture1D); i <= (uint32_t)TextureType::TextureCube; ++i)
+    for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D, TextureType::TexturCube})
     {
         for (auto format : formats)
         {
@@ -208,7 +208,6 @@ void testReadTexture(IDevice* device)
             device->getFormatSupport(format, &formatSupport);
             if (!is_set(formatSupport, FormatSupport::Texture))
                 continue;
-            auto type = (TextureType)i;
             auto validationFormat = getValidationTextureFormat(format);
             if (!validationFormat)
                 continue;

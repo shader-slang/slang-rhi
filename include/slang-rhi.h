@@ -405,9 +405,12 @@ enum class NativeHandleType
 
     CUdevice = 0x00050001,
     CUdeviceptr = 0x00050002,
-    CUtexObject = 0x00050003,
-    CUstream = 0x00050004,
-    CUmodule = 0x00050005,
+    CUstream = 0x00050003,
+    CUmodule = 0x00050004,
+    CUarray = 0x00050005,
+    CUmipmappedArray = 0x00050006,
+    CUtexObject = 0x00050007,
+    CUsurfaceObject = 0x00050008,
 
     OptixDeviceContext = 0x00060001,
     OptixTraversableHandle = 0x00060002,
@@ -590,10 +593,15 @@ SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 
 enum class TextureType
 {
-    Texture1D,   ///< A 1d texture
-    Texture2D,   ///< A 2d texture
-    Texture3D,   ///< A 3d texture
-    TextureCube, ///< A cubemap consists of 6 Texture2D like faces
+    Texture1D,
+    Texture1DArray,
+    Texture2D,
+    Texture2DArray,
+    Texture2DMS,
+    Texture2DMSArray,
+    Texture3D,
+    TextureCube,
+    TextureCubeArray,
 };
 
 enum class TextureAspect : uint32_t
@@ -712,6 +720,8 @@ struct SubresourceLayout
     Size sizeInBytes;
 };
 
+static const uint32_t kAllMipLevels = 0xffffffff;
+
 struct TextureDesc
 {
     StructType structType = StructType::TextureDesc;
@@ -719,29 +729,38 @@ struct TextureDesc
 
     TextureType type = TextureType::Texture2D;
 
-    MemoryType memoryType = MemoryType::DeviceLocal;
-
-    TextureUsage usage = TextureUsage::None;
-    ResourceState defaultState = ResourceState::Undefined;
-
-    Extents size;
+    /// Size of the texture.
+    Extents size = {1, 1, 1};
     /// Array length.
-    uint32_t arrayLength = 0;
-    /// Number of mip levels - if 0 will create all mip levels.
-    uint32_t mipLevelCount = 0;
+    uint32_t arrayLength = 1;
+    /// Number of mip levels.
+    /// Set to kAllMipLevels to create all mip levels.
+    uint32_t mipLevelCount = 1;
+
     /// The resources format.
     Format format;
+
     /// Number of samples per pixel.
     uint32_t sampleCount = 1;
     /// The quality measure for the samples.
     uint32_t sampleQuality = 0;
+
+    MemoryType memoryType = MemoryType::DeviceLocal;
+
+    TextureUsage usage = TextureUsage::None;
+    ResourceState defaultState = ResourceState::Undefined;
 
     ClearValue* optimalClearValue = nullptr;
 
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
 
-    uint32_t getLayerCount() const { return type == TextureType::TextureCube ? 6 * arrayLength : arrayLength; }
+    uint32_t getLayerCount() const
+    {
+        return (type == TextureType::TextureCube || type == TextureType::TextureCubeArray) ? arrayLength * 6
+                                                                                           : arrayLength;
+    }
+    uint32_t getSubresourceCount() const { return mipLevelCount * getLayerCount(); }
 };
 
 struct TextureViewDesc
@@ -2613,6 +2632,8 @@ public:
 
     /// Get information about the device.
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const = 0;
+
+    inline DeviceType getDeviceType() const { return getDeviceInfo().deviceType; }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;
 

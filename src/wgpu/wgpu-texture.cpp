@@ -51,29 +51,48 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
     WGPUTextureDescriptor textureDesc = {};
+
     textureDesc.size.width = desc.size.width;
     textureDesc.size.height = desc.size.height;
-    if (desc.type == TextureType::Texture3D)
-    {
-        textureDesc.size.depthOrArrayLayers = desc.size.depth;
-    }
-    else
-    {
-        uint32_t arrayLayers = max(1u, desc.arrayLength);
-        if (desc.type == TextureType::TextureCube)
-            arrayLayers *= 6U;
-        textureDesc.size.depthOrArrayLayers = arrayLayers;
-    }
+    textureDesc.size.depthOrArrayLayers = desc.getLayerCount();
+    textureDesc.mipLevelCount = desc.mipLevelCount;
+    textureDesc.sampleCount = desc.sampleCount;
+    textureDesc.format = translateTextureFormat(desc.format);
+    textureDesc.label = desc.label;
     textureDesc.usage = translateTextureUsage(desc.usage);
     if (initData)
     {
         textureDesc.usage |= WGPUTextureUsage_CopyDst;
     }
-    textureDesc.dimension = translateTextureDimension(desc.type);
-    textureDesc.format = translateTextureFormat(desc.format);
-    textureDesc.mipLevelCount = desc.mipLevelCount;
-    textureDesc.sampleCount = desc.sampleCount;
-    textureDesc.label = desc.label;
+
+    switch (desc.type)
+    {
+    case TextureType::Texture1D:
+        // 1D texture with mip levels is not supported in WebGPU.
+        if (desc.mipLevelCount > 1)
+        {
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        textureDesc.dimension = WGPUTextureDimension_1D;
+        break;
+    case TextureType::Texture1DArray:
+        // 1D texture array is not supported in WebGPU.
+        return SLANG_E_NOT_AVAILABLE;
+        break;
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        textureDesc.dimension = WGPUTextureDimension_2D;
+        break;
+    case TextureType::Texture3D:
+        textureDesc.dimension = WGPUTextureDimension_3D;
+        textureDesc.size.depthOrArrayLayers = desc.size.depth;
+        break;
+    }
+
     texture->m_texture = m_ctx.api.wgpuDeviceCreateTexture(m_ctx.device, &textureDesc);
     if (!texture->m_texture)
     {
@@ -87,20 +106,20 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
         SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
         uint32_t mipLevelCount = desc.mipLevelCount;
-        uint32_t arrayLayerCount = desc.getLayerCount();
+        uint32_t layerCount = desc.getLayerCount();
 
-        for (uint32_t arrayLayer = 0; arrayLayer < arrayLayerCount; ++arrayLayer)
+        for (uint32_t layer = 0; layer < layerCount; ++layer)
         {
             for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; ++mipLevel)
             {
                 Extents mipSize = calcMipSize(desc.size, mipLevel);
-                uint32_t subresourceIndex = arrayLayer * mipLevelCount + mipLevel;
+                uint32_t subresourceIndex = layer * mipLevelCount + mipLevel;
                 const SubresourceData& data = initData[subresourceIndex];
 
                 WGPUImageCopyTexture imageCopyTexture = {};
                 imageCopyTexture.texture = texture->m_texture;
                 imageCopyTexture.mipLevel = mipLevel;
-                imageCopyTexture.origin = {0, 0, arrayLayer};
+                imageCopyTexture.origin = {0, 0, layer};
                 imageCopyTexture.aspect = WGPUTextureAspect_All;
 
                 WGPUExtent3D writeSize = {};

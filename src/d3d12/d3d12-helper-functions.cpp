@@ -49,17 +49,19 @@ D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type)
     switch (type)
     {
     case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
         return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-    case TextureType::TextureCube:
     case TextureType::Texture2D:
-    {
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
         return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    }
     case TextureType::Texture3D:
         return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
-    default:
-        return D3D12_RESOURCE_DIMENSION_UNKNOWN;
     }
+    return D3D12_RESOURCE_DIMENSION_UNKNOWN;
 }
 
 DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format)
@@ -200,7 +202,7 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
     }
     else
     {
-        resourceDesc.DepthOrArraySize = srcDesc.arrayLength * (srcDesc.type == TextureType::TextureCube ? 6 : 1);
+        resourceDesc.DepthOrArraySize = srcDesc.getLayerCount();
     }
 
     resourceDesc.MipLevels = srcDesc.mipLevelCount;

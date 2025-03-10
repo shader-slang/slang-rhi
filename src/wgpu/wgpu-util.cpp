@@ -329,23 +329,6 @@ WGPUTextureUsage translateTextureUsage(TextureUsage usage)
     return result;
 }
 
-WGPUTextureDimension translateTextureDimension(TextureType type)
-{
-    switch (type)
-    {
-    case TextureType::Texture1D:
-        return WGPUTextureDimension_1D;
-    case TextureType::Texture2D:
-        return WGPUTextureDimension_2D;
-    case TextureType::Texture3D:
-        return WGPUTextureDimension_3D;
-    case TextureType::TextureCube:
-        return WGPUTextureDimension_2D;
-    default:
-        return WGPUTextureDimension_Undefined;
-    }
-}
-
 WGPUTextureViewDimension translateTextureViewDimension(TextureType type, bool array)
 {
     switch (type)

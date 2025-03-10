@@ -107,7 +107,6 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     if (view.imageView)
         return view;
 
-    bool isArray = m_desc.arrayLength > 1;
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;
@@ -122,16 +121,27 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     switch (m_desc.type)
     {
     case TextureType::Texture1D:
-        createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_1D;
+        break;
+    case TextureType::Texture1DArray:
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
         break;
     case TextureType::Texture2D:
-        createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+    case TextureType::Texture2DMS:
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        break;
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMSArray:
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         break;
     case TextureType::Texture3D:
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
         break;
     case TextureType::TextureCube:
-        createInfo.viewType = isArray ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+        break;
+    case TextureType::TextureCubeArray:
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
         break;
     }
 
@@ -176,44 +186,42 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     switch (desc.type)
     {
     case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
         break;
     }
     case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         break;
     }
+    case TextureType::Texture3D:
+    {
+        imageInfo.imageType = VK_IMAGE_TYPE_3D;
+        imageInfo.extent =
+            VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
+        break;
+    }
     case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
-    case TextureType::Texture3D:
-    {
-        // Can't have an array and 3d texture
-        SLANG_RHI_ASSERT(desc.arrayLength <= 1);
-        imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent =
-            VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
-        break;
-    }
-    default:
-    {
-        SLANG_RHI_ASSERT_FAILURE("Unhandled type");
-        return SLANG_FAIL;
-    }
     }
 
-    uint32_t arrayLayerCount = desc.arrayLength * (desc.type == TextureType::TextureCube ? 6 : 1);
+    uint32_t layerCount = desc.getLayerCount();
 
     imageInfo.mipLevels = desc.mipLevelCount;
-    imageInfo.arrayLayers = arrayLayerCount;
+    imageInfo.arrayLayers = layerCount;
 
     imageInfo.format = format;
 
@@ -301,7 +309,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         }
 
         // Calculate the total size taking into account the array
-        bufferSize *= arrayLayerCount;
+        bufferSize *= layerCount;
 
         SLANG_RETURN_ON_FAIL(uploadBuffer.init(
             m_api,
@@ -320,7 +328,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
             m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, (void**)&dstData);
 
             uint64_t dstSubresourceOffset = 0;
-            for (uint32_t i = 0; i < arrayLayerCount; ++i)
+            for (uint32_t i = 0; i < layerCount; ++i)
             {
                 for (uint32_t j = 0; j < mipSizes.size(); ++j)
                 {
@@ -464,7 +472,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         else
         {
             uint64_t srcOffset = 0;
-            for (int i = 0; i < arrayLayerCount; ++i)
+            for (int i = 0; i < layerCount; ++i)
             {
                 for (size_t j = 0; j < mipSizes.size(); ++j)
                 {

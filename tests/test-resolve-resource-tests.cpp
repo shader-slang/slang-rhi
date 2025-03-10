@@ -87,7 +87,7 @@ struct BaseResolveResourceTest
         };
 
         TextureDesc msaaTexDesc = {};
-        msaaTexDesc.type = TextureType::Texture2D;
+        msaaTexDesc.type = TextureType::Texture2DMS;
         msaaTexDesc.mipLevelCount = dstTextureInfo.mipLevelCount;
         msaaTexDesc.arrayLength = dstTextureInfo.arrayLength;
         msaaTexDesc.size = dstTextureInfo.extent;
