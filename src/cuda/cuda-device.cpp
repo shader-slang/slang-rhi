@@ -524,27 +524,48 @@ Result DeviceImpl::readTexture(
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
     const TextureDesc& desc = textureImpl->m_desc;
-    auto width = desc.size.width;
-    auto height = desc.size.height;
+    Extents mipSize = calcMipSize(desc.size, mipLevel);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    size_t rowPitch = width * pixelSize;
-    size_t size = height * rowPitch;
+    size_t rowPitch = mipSize.width * pixelSize;
+    size_t size = mipSize.depth * mipSize.height * rowPitch;
 
     auto blob = OwnedBlob::create(size);
 
-    CUDA_MEMCPY2D copyParam;
-    memset(&copyParam, 0, sizeof(copyParam));
+    CUarray srcArray = textureImpl->m_cudaArray;
+    if (textureImpl->m_cudaMipMappedArray)
+    {
+        SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, textureImpl->m_cudaMipMappedArray, mipLevel));
+    }
 
-    copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
-    copyParam.srcArray = textureImpl->m_cudaArray;
-
-    copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
-    copyParam.dstHost = (void*)blob->getBufferPointer();
-    copyParam.dstPitch = rowPitch;
-    copyParam.WidthInBytes = copyParam.dstPitch;
-    copyParam.Height = height;
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy2D(&copyParam));
+    if ((desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D))
+    {
+        // Use 2D copy.
+        CUDA_MEMCPY2D copyParam = {};
+        copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
+        copyParam.dstHost = (void*)blob->getBufferPointer();
+        copyParam.dstPitch = rowPitch;
+        copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
+        copyParam.srcArray = srcArray;
+        copyParam.WidthInBytes = rowPitch;
+        copyParam.Height = mipSize.height;
+        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy2D(&copyParam));
+    }
+    else
+    {
+        // Use 3D copy.
+        CUDA_MEMCPY3D copyParam = {};
+        copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
+        copyParam.dstHost = (void*)blob->getBufferPointer();
+        copyParam.dstPitch = rowPitch;
+        copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
+        copyParam.srcArray = srcArray;
+        copyParam.srcZ = layer;
+        copyParam.WidthInBytes = rowPitch;
+        copyParam.Height = mipSize.height;
+        copyParam.Depth = mipSize.depth;
+        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
+    }
 
     *outRowPitch = rowPitch;
     *outPixelSize = pixelSize;

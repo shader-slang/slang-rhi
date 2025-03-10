@@ -604,6 +604,36 @@ enum class TextureType
     TextureCubeArray,
 };
 
+enum class TextureDimension
+{
+    Texture1D,
+    Texture2D,
+    Texture3D,
+    TextureCube,
+};
+
+inline TextureDimension getTextureDimension(TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
+        return TextureDimension::Texture1D;
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        return TextureDimension::Texture2D;
+    case TextureType::Texture3D:
+        return TextureDimension::Texture3D;
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        return TextureDimension::TextureCube;
+    default:
+        return TextureDimension::Texture2D;
+    }
+}
+
 enum class TextureAspect : uint32_t
 {
     All = 0,
