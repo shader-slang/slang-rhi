@@ -675,7 +675,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.indexBuffer.buffer);
             VkDeviceSize offset = state.indexBuffer.offset;
             VkIndexType indexType =
-                state.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+                state.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
 
             api.vkCmdBindIndexBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, offset, indexType);
         }

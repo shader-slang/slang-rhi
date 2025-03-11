@@ -159,7 +159,7 @@ struct BaseRayTracingTest
             buildInput.triangles.vertexCount = kVertexCount;
             buildInput.triangles.vertexStride = sizeof(Vertex);
             buildInput.triangles.indexBuffer = indexBuffer;
-            buildInput.triangles.indexFormat = IndexFormat::UInt32;
+            buildInput.triangles.indexFormat = IndexFormat::Uint32;
             buildInput.triangles.indexCount = kIndexCount;
             buildInput.triangles.preTransformBuffer = transformBuffer;
             buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;

@@ -172,8 +172,8 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
             {
                 switch (triangles.indexFormat)
                 {
-                case IndexFormat::UInt16:
-                case IndexFormat::UInt32:
+                case IndexFormat::Uint16:
+                case IndexFormat::Uint32:
                     break;
                 default:
                     RHI_VALIDATION_ERROR("Unsupported indexFormat. Valid values are Uint16 and Uint32.");

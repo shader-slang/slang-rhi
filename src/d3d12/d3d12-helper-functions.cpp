@@ -422,25 +422,25 @@ NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE translateCooperativeVectorComponentType(
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT32;
     case CooperativeVectorComponentType::Float64:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT64;
-    case CooperativeVectorComponentType::SInt8:
+    case CooperativeVectorComponentType::Sint8:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8;
-    case CooperativeVectorComponentType::SInt16:
+    case CooperativeVectorComponentType::Sint16:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT16;
-    case CooperativeVectorComponentType::SInt32:
+    case CooperativeVectorComponentType::Sint32:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT32;
-    case CooperativeVectorComponentType::SInt64:
+    case CooperativeVectorComponentType::Sint64:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT64;
-    case CooperativeVectorComponentType::UInt8:
+    case CooperativeVectorComponentType::Uint8:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8;
-    case CooperativeVectorComponentType::UInt16:
+    case CooperativeVectorComponentType::Uint16:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT16;
-    case CooperativeVectorComponentType::UInt32:
+    case CooperativeVectorComponentType::Uint32:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT32;
-    case CooperativeVectorComponentType::UInt64:
+    case CooperativeVectorComponentType::Uint64:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT64;
-    case CooperativeVectorComponentType::SInt8Packed:
+    case CooperativeVectorComponentType::Sint8Packed:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8_PACKED;
-    case CooperativeVectorComponentType::UInt8Packed:
+    case CooperativeVectorComponentType::Uint8Packed:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8_PACKED;
     case CooperativeVectorComponentType::FloatE4M3:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E4M3;
@@ -462,25 +462,25 @@ CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COO
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT64:
         return CooperativeVectorComponentType::Float64;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8:
-        return CooperativeVectorComponentType::SInt8;
+        return CooperativeVectorComponentType::Sint8;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT16:
-        return CooperativeVectorComponentType::SInt16;
+        return CooperativeVectorComponentType::Sint16;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT32:
-        return CooperativeVectorComponentType::SInt32;
+        return CooperativeVectorComponentType::Sint32;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT64:
-        return CooperativeVectorComponentType::SInt64;
+        return CooperativeVectorComponentType::Sint64;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8:
-        return CooperativeVectorComponentType::UInt8;
+        return CooperativeVectorComponentType::Uint8;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT16:
-        return CooperativeVectorComponentType::UInt16;
+        return CooperativeVectorComponentType::Uint16;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT32:
-        return CooperativeVectorComponentType::UInt32;
+        return CooperativeVectorComponentType::Uint32;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT64:
-        return CooperativeVectorComponentType::UInt64;
+        return CooperativeVectorComponentType::Uint64;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8_PACKED:
-        return CooperativeVectorComponentType::SInt8Packed;
+        return CooperativeVectorComponentType::Sint8Packed;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8_PACKED:
-        return CooperativeVectorComponentType::UInt8Packed;
+        return CooperativeVectorComponentType::Uint8Packed;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E4M3:
         return CooperativeVectorComponentType::FloatE4M3;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E5M2:
