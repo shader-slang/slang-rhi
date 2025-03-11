@@ -122,7 +122,7 @@ struct TestFormats
 
         const FormatInfo& info = getFormatInfo(format);
 
-        // MESSAGE("Checking format: ", doctest::String(info.name));
+        CAPTURE(format);
 
         ComPtr<ITextureView> textureView = createTextureView(format, textureSize, textureData);
 

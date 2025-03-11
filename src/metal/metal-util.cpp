@@ -115,11 +115,11 @@ MTL::PixelFormat MetalUtil::translatePixelFormat(Format format)
         return MTL::PixelFormatInvalid;
 
     case Format::B4G4R4A4_UNORM:
-        return MTL::PixelFormatABGR4Unorm;
+        return MTL::PixelFormatInvalid;
     case Format::B5G6R5_UNORM:
         return MTL::PixelFormatB5G6R5Unorm;
     case Format::B5G5R5A1_UNORM:
-        return MTL::PixelFormatA1BGR5Unorm;
+        return MTL::PixelFormatBGR5A1Unorm;
 
     case Format::R9G9B9E5_SHAREDEXP:
         return MTL::PixelFormatRGB9E5Float;
