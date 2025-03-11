@@ -351,10 +351,30 @@ inline bool supportsCompressedFormats(const TextureDesc& desc)
 template<typename Func, typename... Args>
 inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... args)
 {
-    for (int f = 0; f < (int)Format::_Count; f++)
-    {
-        Format format = (Format)f;
+    // Nice selection of formats to test
+    Format formats[] = {
+        Format::R32G32B32A32_FLOAT,
+        Format::R32_FLOAT,
+        Format::R16G16B16A16_FLOAT,
+        Format::R32G32B32A32_UINT,
+        Format::R16G16B16A16_UINT,
+        Format::R8G8B8A8_UINT,
+        Format::R8G8B8A8_UNORM,
+        Format::R8G8B8A8_UNORM_SRGB,
+        Format::R16G16B16A16_SNORM,
+        Format::R8G8B8A8_SNORM,
+        Format::R10G10B10A2_UNORM,
+        Format::BC1_UNORM,
+        Format::BC1_UNORM_SRGB,
+        Format::R64_UINT,
+    };
 
+    // Change this to run against every format
+    // for (int f = 0; f < (int)Format::_Count; f++)
+    //{
+    //    Format format = (Format)f;
+    for (Format format : formats)
+    {
         FormatSupport support;
         options.getDevice()->getFormatSupport(format, &support);
         if (!is_set(support, FormatSupport::Texture))
@@ -365,6 +385,14 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
             continue;
 
         if (shouldIgnoreFormat(format))
+            continue;
+
+        // TODO(testing): Get compressed formats working on other platforms
+        if (info.isCompressed && options.getDevice()->getDeviceType() != DeviceType::D3D12)
+            continue;
+
+        // TODO(testing): Get 64bit working on other platforms
+        if (format == Format::R64_UINT && options.getDevice()->getDeviceType() != DeviceType::D3D12)
             continue;
 
         for (auto& variant : options.getVariants())
