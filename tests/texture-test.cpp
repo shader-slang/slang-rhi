@@ -1,4 +1,8 @@
 #include "texture-test.h"
+#include <cmath>
+#include "core/common.h"
+#include "rhi-shared.h"
+#include <random>
 
 
 namespace rhi::testing {
@@ -65,6 +69,94 @@ bool getMultisampleType(TextureType type, TextureType& outArrayType)
         return true;
     default:
         return false;
+    }
+}
+
+
+void TextureData::init(const TextureDesc& _desc, TextureInitMode _initMode, int _initSeed)
+{
+    desc = fixupTextureDesc(_desc);
+    initMode = _initMode;
+    initSeed = _initSeed;
+    formatInfo = getFormatInfo(desc.format);
+
+    desc.memoryType = MemoryType::DeviceLocal;
+    desc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource | TextureUsage::CopyDestination;
+
+    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    {
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        {
+            SubresourceLayout layout;
+            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extents::kWholeTexture, 1, &layout);
+
+            Subresource sr;
+            sr.layer = layer;
+            sr.mipLevel = mipLevel;
+            sr.layout = layout;
+            sr.data = std::unique_ptr<uint8_t[]>(new uint8_t[sr.layout.sizeInBytes]);
+
+            sr.subresourceData.data = sr.data.get();
+            sr.subresourceData.strideY = sr.layout.strideY;
+            sr.subresourceData.strideZ = sr.layout.strideZ;
+
+            switch (initMode)
+            {
+            case rhi::testing::TextureInitMode::Zeros:
+                memset(sr.data.get(), 0, sr.layout.sizeInBytes);
+                break;
+            case rhi::testing::TextureInitMode::Invalid:
+                memset(sr.data.get(), 0xcd, sr.layout.sizeInBytes);
+                break;
+            case rhi::testing::TextureInitMode::Random:
+                std::mt19937 rng(initSeed);
+                std::uniform_int_distribution<int> dist(0, 255);
+                for (size_t i = 0; i < sr.layout.sizeInBytes; ++i)
+                    sr.data[i] = (uint8_t)dist(rng);
+            }
+
+            subresourceData.push_back(sr.subresourceData);
+            subresources.push_back(std::move(sr));
+        }
+    }
+}
+
+Result TextureData::createTexture(IDevice* device, ITexture** texture) const
+{
+    return device->createTexture(desc, subresourceData.data(), texture);
+}
+
+void TextureData::checkEqual(ComPtr<ITexture> texture) const
+{
+    Texture* textureImpl = checked_cast<Texture*>(texture.get());
+
+    const TextureDesc& otherDesc = textureImpl->getDesc();
+
+    CHECK_EQ(otherDesc.type, desc.type);
+    CHECK_EQ(otherDesc.format, desc.format);
+    CHECK_EQ(otherDesc.size.width, desc.size.width);
+    CHECK_EQ(otherDesc.size.height, desc.size.height);
+    CHECK_EQ(otherDesc.size.depth, desc.size.depth);
+    CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
+    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+
+    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    {
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        {
+            const Subresource& sr = getSubresource(layer, mipLevel);
+
+            ComPtr<ISlangBlob> blob;
+            Size rowPitch;
+            textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch);
+
+            for (uint32_t row = 0; row < sr.layout.rowCount; row++)
+            {
+                const uint8_t* expectedData = sr.data.get() + row * sr.layout.strideY;
+                const uint8_t* actualData = (const uint8_t*)blob->getBufferPointer() + row * rowPitch;
+                CHECK_EQ(memcmp(expectedData, actualData, sr.layout.strideY), 0);
+            }
+        }
     }
 }
 
@@ -162,6 +254,20 @@ void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
             addVariant(newVariant);
         }
     }
+}
+
+TextureTestContext::TextureTestContext(IDevice* device)
+    : m_device(device)
+{
+}
+
+Result TextureTestContext::addTexture(TextureData&& data)
+{
+    ComPtr<ITexture> texture;
+    SLANG_RETURN_ON_FAIL(data.createTexture(m_device, texture.writeRef()));
+    m_textures.push_back(texture);
+    m_datas.push_back(std::move(data));
+    return SLANG_OK;
 }
 
 } // namespace rhi::testing

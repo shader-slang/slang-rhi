@@ -211,7 +211,7 @@ public:
         uint32_t mipLevel,
         ISlangBlob** outBlob,
         Size* outRowPitch,
-        Size* outPixelSize
+        Size* outPixelSize = nullptr
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.

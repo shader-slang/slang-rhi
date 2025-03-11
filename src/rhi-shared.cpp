@@ -114,6 +114,7 @@ Result calcSubresourceRegionLayout(
     outLayout->strideY = rowPitch;
     outLayout->strideZ = layerPitch;
     outLayout->sizeInBytes = layerPitch * extents.depth;
+    outLayout->rowCount = rowCount;
 
     return SLANG_OK;
 }

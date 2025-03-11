@@ -748,6 +748,9 @@ struct SubresourceLayout
 
     /// Overall size required to fit the subresource data (typically size.z*strideZ).
     Size sizeInBytes;
+
+    /// Number of rows (will match size.height for uncompressed formats).
+    Size rowCount;
 };
 
 static const uint32_t kAllMipLevels = 0xffffffff;
