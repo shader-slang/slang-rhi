@@ -32,8 +32,10 @@ public:
     ~DeviceImpl();
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
-    void handleError(WGPUErrorType type, const char* message);
-    WGPUErrorType getAndClearLastError();
+    void reportError(const char* func, WGPUStringView message);
+    void reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message);
+    void reportUncapturedError(WGPUErrorType type, WGPUStringView message);
+    WGPUErrorType getAndClearLastUncapturedError();
 
     // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
@@ -102,7 +104,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
 private:
-    WGPUErrorType m_lastError = WGPUErrorType_NoError;
+    WGPUErrorType m_lastUncapturedError = WGPUErrorType_NoError;
 };
 
 } // namespace rhi::wgpu
