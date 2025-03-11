@@ -7,6 +7,10 @@
 
 namespace rhi::testing {
 
+//----------------------------------------------------------
+// Helpers
+//----------------------------------------------------------
+
 bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
 {
     // WGPU does not support mip levels for 1D textures.
@@ -72,6 +76,9 @@ bool getMultisampleType(TextureType type, TextureType& outArrayType)
     }
 }
 
+//----------------------------------------------------------
+// TextureData
+//----------------------------------------------------------
 
 void TextureData::init(const TextureDesc& _desc, TextureInitMode _initMode, int _initSeed)
 {
@@ -159,6 +166,10 @@ void TextureData::checkEqual(ComPtr<ITexture> texture) const
         }
     }
 }
+
+//----------------------------------------------------------
+// TextureTestOptions
+//----------------------------------------------------------
 
 void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
 {
@@ -255,6 +266,10 @@ void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
         }
     }
 }
+
+//----------------------------------------------------------
+// TextureTestContext
+//----------------------------------------------------------
 
 TextureTestContext::TextureTestContext(IDevice* device)
     : m_device(device)

@@ -9,12 +9,7 @@
 
 namespace rhi::testing {
 
-struct TestTexture : public RefObject
-{
-    ComPtr<ITexture> texture;
-    std::vector<SubresourceLayout> layout;
-};
-
+/// How to initialize texture data.
 enum class TextureInitMode
 {
     Zeros,   // Start with 0s
@@ -22,6 +17,8 @@ enum class TextureInitMode
     Random   // Start with deterministic random data
 };
 
+/// CPU equivalent of a texture, along with helpers to create textures
+/// from it, and compare against other data.
 struct TextureData
 {
     struct Subresource
@@ -52,25 +49,14 @@ struct TextureData
     }
 };
 
-
+/// Description of a given texture in a variant (texture descriptor + how to init)
 struct TestTextureDesc
 {
     TextureDesc desc;
     TextureInitMode initMode;
 };
 
-void checkTextureEqual(RefPtr<TestTexture> a, RefPtr<TestTexture> b);
-
-void checkTextureEqual(
-    RefPtr<TestTexture> a,
-    int aLayerIdx,
-    int aMipLevel,
-    RefPtr<TestTexture> b,
-    int bLayerIdx,
-    int bMipLevel
-);
-
-
+/// Description of a given variant to test.
 struct TextureTestVariant
 {
     std::vector<TestTextureDesc> descriptors;
@@ -141,17 +127,26 @@ struct VariantGen
 class TextureTestOptions
 {
 public:
-    TextureTestOptions(IDevice* device, int numTextures, TextureInitMode* initMode = nullptr)
+    TextureTestOptions(IDevice* device, int numTextures = 1, TextureInitMode* initMode = nullptr)
         : m_device(device)
         , m_numTextures(numTextures)
         , m_initMode(initMode)
     {
     }
 
+    /// Manually add a specific variant.
     void addVariant(TextureTestVariant variant) { m_variants.push_back(variant); }
 
+    /// Get all variants to test.
     std::vector<TextureTestVariant>& getVariants() { return m_variants; }
 
+    /// Generate a full matrix of variants given a set of constraints:
+    /// - TTShape: Flags defining which texture types to test (1D/2D/3D/Cube)
+    /// - TextureType: Explicitly specify texture type to test
+    /// - TexTypes: Explicitly specify a list of texture types to test
+    /// - TTMip: Whether to test with and/or without mips (for types that support it)
+    /// - TTArray: Whether to test with and/or without arrays (for types that support it)
+    /// - TTMS: Whether to test with and/or without muilti-sample (for types that support it)
     template<typename... Args>
     void addVariants(Args... args)
     {
@@ -161,6 +156,7 @@ public:
         addProcessedVariants(variants);
     }
 
+    /// Get current device.
     IDevice* getDevice() const { return m_device; }
 
 private:
@@ -290,6 +286,9 @@ private:
     void addProcessedVariants(std::vector<VariantGen>& variants);
 };
 
+/// Context within which a given iteration of a texture test works. This
+/// is passed in to the user function with pre-allocated / initialized
+/// textures.
 class TextureTestContext
 {
 public:
@@ -297,6 +296,7 @@ public:
 
     Result addTexture(TextureData&& data);
 
+    IDevice* getDevice() const { return m_device; }
     ComPtr<ITexture> getTexture(int index) const { return m_textures[index]; }
     const TextureData& getTextureData(int index) const { return m_datas[index]; }
 
@@ -315,10 +315,15 @@ private:
 template<typename Func, typename... Args>
 inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... args)
 {
-    auto formats = {Format::R32G32B32A32_FLOAT};
-
-    for (auto& format : formats)
+    for (int f = 0; f < (int)Format::_Count; f++)
     {
+        Format format = (Format)f;
+
+        FormatSupport support;
+        options.getDevice()->getFormatSupport(format, &support);
+        if (!is_set(support, FormatSupport::Texture))
+            continue;
+
         for (auto& variant : options.getVariants())
         {
             TextureTestContext context(options.getDevice());
@@ -343,21 +348,5 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
         }
     }
 }
-
-
-/*
-void runTextureTest2(std::vector<TestTextureDesc> descriptors, TextureTest* test)
-{
-    TextureTestContext context;
-
-
-    TextureTestOptions options;
-    options.init(S1D | S2D);
-
-    //... can populate options here that tell test how to run
-    runTextureTest(options, myTestFunc, 1);
-}
-*/
-
 
 } // namespace rhi::testing
