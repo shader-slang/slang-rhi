@@ -58,7 +58,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureDesc.mipLevelCount = desc.mipLevelCount;
     textureDesc.sampleCount = desc.sampleCount;
     textureDesc.format = translateTextureFormat(desc.format);
-    textureDesc.label = desc.label;
+    textureDesc.label = translateString(desc.label);
     textureDesc.usage = translateTextureUsage(desc.usage);
     if (initData)
     {
@@ -142,13 +142,13 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         // Wait for queue to finish.
         {
-            WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
-            WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
+            WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
+            WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
             callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
             callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
             { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
             callbackInfo.userdata1 = &status;
-            WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
+            WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
             constexpr size_t futureCount = 1;
             WGPUFutureWaitInfo futures[futureCount] = {{future}};
             uint64_t timeoutNS = UINT64_MAX;
@@ -201,7 +201,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     viewDesc.baseArrayLayer = view->m_desc.subresourceRange.baseArrayLayer;
     viewDesc.arrayLayerCount = view->m_desc.subresourceRange.layerCount;
     viewDesc.aspect = translateTextureAspect(desc.aspect);
-    viewDesc.label = desc.label;
+    viewDesc.label = translateString(desc.label);
 
     view->m_textureView = m_ctx.api.wgpuTextureCreateView(textureImpl->m_texture, &viewDesc);
     if (!view->m_textureView)

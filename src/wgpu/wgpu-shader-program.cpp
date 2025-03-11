@@ -42,7 +42,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
         return SLANG_FAIL;
     }
 
-    if (m_device->getAndClearLastError() != WGPUErrorType_NoError)
+    if (m_device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
     {
         return SLANG_FAIL;
     }

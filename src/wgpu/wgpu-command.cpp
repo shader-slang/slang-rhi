@@ -653,11 +653,11 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     if (m_renderPassEncoder)
-        m_ctx.api.wgpuRenderPassEncoderPushDebugGroup(m_renderPassEncoder, cmd.name);
+        m_ctx.api.wgpuRenderPassEncoderPushDebugGroup(m_renderPassEncoder, translateString(cmd.name));
     else if (m_computePassEncoder)
-        m_ctx.api.wgpuComputePassEncoderPushDebugGroup(m_computePassEncoder, cmd.name);
+        m_ctx.api.wgpuComputePassEncoderPushDebugGroup(m_computePassEncoder, translateString(cmd.name));
     else
-        m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, cmd.name);
+        m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, translateString(cmd.name));
 }
 
 void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
@@ -673,11 +673,11 @@ void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
 {
     if (m_renderPassEncoder)
-        m_ctx.api.wgpuRenderPassEncoderInsertDebugMarker(m_renderPassEncoder, cmd.name);
+        m_ctx.api.wgpuRenderPassEncoderInsertDebugMarker(m_renderPassEncoder, translateString(cmd.name));
     else if (m_computePassEncoder)
-        m_ctx.api.wgpuComputePassEncoderInsertDebugMarker(m_computePassEncoder, cmd.name);
+        m_ctx.api.wgpuComputePassEncoderInsertDebugMarker(m_computePassEncoder, translateString(cmd.name));
     else
-        m_ctx.api.wgpuCommandEncoderInsertDebugMarker(m_commandEncoder, cmd.name);
+        m_ctx.api.wgpuCommandEncoderInsertDebugMarker(m_commandEncoder, translateString(cmd.name));
 }
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
@@ -780,13 +780,13 @@ Result CommandQueueImpl::waitOnHost()
 
     // Wait for the command buffer to finish executing
     {
-        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
-        WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
+        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
+        WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
-        WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone2(m_queue, callbackInfo);
+        WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(m_queue, callbackInfo);
         constexpr size_t futureCount = 1;
         WGPUFutureWaitInfo futures[futureCount] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;

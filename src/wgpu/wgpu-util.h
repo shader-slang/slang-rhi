@@ -4,6 +4,8 @@
 
 namespace rhi::wgpu {
 
+WGPUStringView translateString(const char* str);
+
 WGPUTextureFormat translateTextureFormat(Format format);
 WGPUVertexFormat translateVertexFormat(Format format);
 
