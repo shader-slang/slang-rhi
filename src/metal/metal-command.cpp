@@ -203,7 +203,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
         dst->m_buffer.get(),
         cmd.dstOffset,
         cmd.dstRowStride,
-        cmd.dstRowStride * extent.height
+        cmd.dstRowStride * extent.height // TODO(row-stride): Should this take into account block?
     );
 }
 

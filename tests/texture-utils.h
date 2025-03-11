@@ -196,6 +196,23 @@ struct TextureInfo : RefObject
     ~TextureInfo();
 };
 
+inline TextureType toArrayType(TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Texture1D:
+        return TextureType::Texture1DArray;
+    case TextureType::Texture2D:
+        return TextureType::Texture2DArray;
+    case TextureType::Texture2DMS:
+        return TextureType::Texture2DMSArray;
+    case TextureType::TextureCube:
+        return TextureType::TextureCubeArray;
+    default:
+        return type;
+    }
+}
+
 Size getTexelSize(Format format);
 uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t baseArrayLayer);
 RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);

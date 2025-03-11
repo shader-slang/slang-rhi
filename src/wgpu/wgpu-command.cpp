@@ -198,6 +198,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     destination.buffer = dst->m_buffer;
     destination.layout.offset = cmd.dstOffset;
     destination.layout.bytesPerRow = cmd.dstRowStride;
+
+    // TODO(row-stride): Should this take into account block?
     destination.layout.rowsPerImage = max(src->m_desc.size.height >> cmd.srcSubresource.mipLevel, 1);
 
     WGPUExtent3D copySize = {(uint32_t)cmd.extent.width, (uint32_t)cmd.extent.height, (uint32_t)cmd.extent.depth};
@@ -236,7 +238,10 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             WGPUImageCopyBuffer srcRegion;
             srcRegion.buffer = buffer->m_buffer;
             srcRegion.layout.bytesPerRow = srLayout->strideY;
+
+            // TODO(row-stride): Should this take into account block?
             srcRegion.layout.rowsPerImage = srLayout->size.height;
+
             srcRegion.layout.offset = bufferOffset;
 
             // Can't be copying multiple layers from a volume texture

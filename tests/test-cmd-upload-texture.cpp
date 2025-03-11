@@ -21,7 +21,7 @@ inline int32_t heightFromWidth(TextureType type, int32_t width)
     }
 }
 
-struct BaseReadTextureTest
+struct BaseUploadTextureTest
 {
     IDevice* device;
 
@@ -58,11 +58,11 @@ struct BaseReadTextureTest
         srcTexDesc.mipLevelCount = srcTextureInfo->mipLevelCount;
         srcTexDesc.arrayLength = srcTextureInfo->arrayLength;
         srcTexDesc.size = srcTextureInfo->extents;
-        srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
+        srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource | TextureUsage::CopyDestination;
         srcTexDesc.defaultState = ResourceState::ShaderResource;
         srcTexDesc.format = srcTextureInfo->format;
 
-        REQUIRE_CALL(device->createTexture(srcTexDesc, srcTextureInfo->subresourceDatas.data(), srcTexture.writeRef()));
+        REQUIRE_CALL(device->createTexture(srcTexDesc, nullptr, srcTexture.writeRef()));
     }
 
     void validateTestResults(ValidationTextureData actual, ValidationTextureData expectedCopied)
@@ -91,6 +91,22 @@ struct BaseReadTextureTest
         TextureDesc desc = srcTexture->getDesc();
 
         uint32_t layerCount = desc.getLayerCount();
+
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+
+        commandEncoder->uploadTextureData(
+            srcTexture,
+            {0, desc.mipLevelCount, 0, layerCount},
+            {0, 0, 0},
+            Extents::kWholeTexture,
+            srcTextureInfo->subresourceDatas.data(),
+            srcTextureInfo->subresourceDatas.size()
+        );
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+
         for (uint32_t layerIndex = 0; layerIndex < layerCount; layerIndex++)
         {
             for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; mipLevel++)
@@ -127,7 +143,7 @@ struct BaseReadTextureTest
     }
 };
 
-struct SimpleReadTexture : BaseReadTextureTest
+struct SimpleUploadTexture : BaseUploadTextureTest
 {
     void run()
     {
@@ -140,7 +156,7 @@ struct SimpleReadTexture : BaseReadTextureTest
     }
 };
 
-struct ArrayReadTexture : BaseReadTextureTest
+struct ArrayUploadTexture : BaseUploadTextureTest
 {
     void run()
     {
@@ -158,15 +174,13 @@ struct ArrayReadTexture : BaseReadTextureTest
     }
 };
 
-struct MipsReadTexture : BaseReadTextureTest
+struct MipsUploadTexture : BaseUploadTextureTest
 {
     void run()
     {
         auto textureType = srcTextureInfo->textureType;
 
         if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
-            return;
-        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::Metal)
             return;
 
         srcTextureInfo->mipLevelCount = 2;
@@ -176,7 +190,7 @@ struct MipsReadTexture : BaseReadTextureTest
     }
 };
 
-struct ArrayMipsReadTexture : BaseReadTextureTest
+struct ArrayMipsUploadTexture : BaseUploadTextureTest
 {
     void run()
     {
@@ -185,8 +199,6 @@ struct ArrayMipsReadTexture : BaseReadTextureTest
         if (textureType == TextureType::Texture3D)
             return;
         if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
-            return;
-        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::Metal)
             return;
 
         srcTextureInfo->mipLevelCount = 2;
@@ -197,7 +209,7 @@ struct ArrayMipsReadTexture : BaseReadTextureTest
 };
 
 template<typename T>
-void testReadTexture(IDevice* device)
+void testUploadTexture(IDevice* device)
 {
     Format formats[] = {
         Format::R8G8B8A8_UNORM,
@@ -207,7 +219,7 @@ void testReadTexture(IDevice* device)
         Format::B5G5R5A1_UNORM,
         Format::R32G32B32A32_FLOAT
     };
-    for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D, TextureType::TextureCube})
+    for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D})
     {
         for (auto format : formats)
         {
@@ -226,19 +238,19 @@ void testReadTexture(IDevice* device)
     }
 }
 
-GPU_TEST_CASE("read-texture-simple", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | WGPU)
 {
-    testReadTexture<SimpleReadTexture>(device);
+    testUploadTexture<SimpleUploadTexture>(device);
 }
-GPU_TEST_CASE("read-texture-array", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-array", D3D12 | Vulkan | WGPU)
 {
-    testReadTexture<ArrayReadTexture>(device);
+    testUploadTexture<ArrayUploadTexture>(device);
 }
-GPU_TEST_CASE("read-texture-mips", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-mips", D3D12 | Vulkan | WGPU)
 {
-    testReadTexture<MipsReadTexture>(device);
+    testUploadTexture<MipsUploadTexture>(device);
 }
-GPU_TEST_CASE("read-texture-arraymips", D3D12 | Vulkan | WGPU | Metal)
+GPU_TEST_CASE("cmd-upload-texture-arraymips", D3D12 | Vulkan | WGPU)
 {
-    testReadTexture<ArrayMipsReadTexture>(device);
+    testUploadTexture<ArrayMipsUploadTexture>(device);
 }
