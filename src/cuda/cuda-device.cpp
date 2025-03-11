@@ -397,6 +397,48 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
     }
 }
 
+Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
+{
+    SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
+    switch (format)
+    {
+    case Format::R32G32B32A32_FLOAT:
+    case Format::R32G32B32_FLOAT:
+    case Format::R32G32_FLOAT:
+    case Format::R32_FLOAT:
+    case Format::D32_FLOAT:
+    case Format::R16G16B16A16_FLOAT:
+    case Format::R16G16_FLOAT:
+    case Format::R16_FLOAT:
+    case Format::R32G32B32A32_UINT:
+    case Format::R32G32B32_UINT:
+    case Format::R32G32_UINT:
+    case Format::R32_UINT:
+    case Format::R16G16B16A16_UINT:
+    case Format::R16G16_UINT:
+    case Format::R16_UINT:
+    case Format::R8G8B8A8_UINT:
+    case Format::R8G8_UINT:
+    case Format::R8_UINT:
+    case Format::R8G8B8A8_UNORM:
+    case Format::R32G32B32A32_SINT:
+    case Format::R32G32B32_SINT:
+    case Format::R32G32_SINT:
+    case Format::R32_SINT:
+    case Format::R16G16B16A16_SINT:
+    case Format::R16G16_SINT:
+    case Format::R16_SINT:
+    case Format::R8G8B8A8_SINT:
+    case Format::R8G8_SINT:
+    case Format::R8_SINT:
+        break;
+    default:
+        *outFormatSupport = (FormatSupport)0;
+        break;
+    }
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     switch (desc.type)
@@ -548,8 +590,10 @@ Result DeviceImpl::readTexture(
     copyParam.Depth = mipSize.depth;
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
 
-    *outRowPitch = rowPitch;
-    *outPixelSize = pixelSize;
+    if (outRowPitch)
+        *outRowPitch = rowPitch;
+    if (outPixelSize)
+        *outPixelSize = pixelSize;
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;
