@@ -103,7 +103,7 @@ set(SLANG_RHI_FETCH_OPTIX_URL "https://developer.download.nvidia.com/redist/opti
 
 # Fetch Dawn options
 option(SLANG_RHI_FETCH_DAWN "Fetch Dawn" ON)
-set(SLANG_RHI_FETCH_DAWN_VERSION "131.0.6738.0" CACHE STRING "Dawn version to fetch")
+set(SLANG_RHI_FETCH_DAWN_VERSION "134.0.6998.39" CACHE STRING "Dawn version to fetch")
 
 
 if(SLANG_RHI_BUILD_SHARED)
