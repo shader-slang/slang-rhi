@@ -353,10 +353,10 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
 {
     // Nice selection of formats to test
     Format formats[] = {
+        Format::R32G32B32A32_UINT,
         Format::R32G32B32A32_FLOAT,
         Format::R32_FLOAT,
         Format::R16G16B16A16_FLOAT,
-        Format::R32G32B32A32_UINT,
         Format::R16G16B16A16_UINT,
         Format::R8G8B8A8_UINT,
         Format::R8G8B8A8_UNORM,

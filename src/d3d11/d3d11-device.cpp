@@ -368,6 +368,7 @@ Result DeviceImpl::readTexture(
         *outPixelSize = bytesPerPixel;
 
     D3D11_TEXTURE2D_DESC textureDesc;
+    memset(&textureDesc, 0, sizeof(textureDesc));
     auto d3d11Texture = ((ID3D11Texture2D*)textureImpl->m_resource.get());
     d3d11Texture->GetDesc(&textureDesc);
 
