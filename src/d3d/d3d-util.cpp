@@ -122,7 +122,7 @@ D3D12_DEPTH_STENCILOP_DESC D3DUtil::translateStencilOpDesc(DepthStencilOpDesc de
 
 const D3DUtil::FormatMapping& D3DUtil::getFormatMapping(Format format)
 {
-    FormatMapping mappings[] = {
+    static const FormatMapping mappings[] = {
         // clang-format off
         { Format::Undefined,            DXGI_FORMAT_UNKNOWN,                DXGI_FORMAT_UNKNOWN,                    DXGI_FORMAT_UNKNOWN                 },
 
