@@ -247,7 +247,12 @@ void CommandExecutor::cmdEndRenderPass(const commands::EndRenderPass& cmd)
         {
             TextureViewImpl* srcView = m_renderTargetViews[i].get();
             TextureViewImpl* dstView = m_resolveTargetViews[i].get();
-            DXGI_FORMAT format = D3DUtil::getMapFormat(srcView->m_texture->m_desc.format);
+            // https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-resolvesubresource
+            DXGI_FORMAT format = srcView->m_texture->m_format;
+            if (!dstView->m_texture->m_isTypeless)
+            {
+                format = dstView->m_texture->m_format;
+            }
             m_immediateContext->ResolveSubresource(
                 dstView->m_texture->m_resource,
                 0, // TODO iterate subresources

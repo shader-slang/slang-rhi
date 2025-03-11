@@ -11,6 +11,8 @@ public:
     ~TextureImpl();
 
     D3D12Resource m_resource;
+    DXGI_FORMAT m_format;
+    bool m_isTypeless;
     D3D12_RESOURCE_STATES m_defaultState;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

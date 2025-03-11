@@ -208,6 +208,8 @@ const char* enumToString(TextureUsage value)
         return S_TextureUsage_ResolveSource;
     case TextureUsage::ResolveDestination:
         return S_TextureUsage_ResolveDestination;
+    case TextureUsage::Typeless:
+        return S_TextureUsage_Typeless;
     case TextureUsage::Shared:
         return S_TextureUsage_Shared;
     }
