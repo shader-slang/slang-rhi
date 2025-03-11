@@ -29,26 +29,6 @@ namespace rhi {
 class D3DUtil
 {
 public:
-    enum UsageType
-    {
-        /// Generally used to mark an error.
-        USAGE_UNKNOWN,
-        /// Format should be used when written as target.
-        USAGE_TARGET,
-        /// Format should be used when written as depth stencil.
-        USAGE_DEPTH_STENCIL,
-        /// Format if being read as srv.
-        USAGE_SRV,
-        USAGE_COUNT_OF,
-    };
-    enum UsageFlag
-    {
-        /// If set will be used form multi sampling (such as MSAA).
-        USAGE_FLAG_MULTI_SAMPLE = 0x1,
-        /// If set means will be used as a shader resource view (SRV).
-        USAGE_FLAG_SRV = 0x2,
-    };
-
     /// Get primitive topology as D3D primitive topology
     static D3D_PRIMITIVE_TOPOLOGY getPrimitiveTopology(PrimitiveTopology prim);
 
@@ -83,12 +63,6 @@ public:
 
     static DXGI_FORMAT getVertexFormat(Format format);
     static DXGI_FORMAT getIndexFormat(IndexFormat indexFormat);
-
-    /// Given the usage, flags, and format will return the most suitable format. Will return DXGI_UNKNOWN if combination
-    /// is not possible
-    static DXGI_FORMAT calcFormat(UsageType usage, DXGI_FORMAT format);
-    /// Calculate appropriate format for creating a buffer for usage and flags
-    static DXGI_FORMAT calcResourceFormat(UsageType usage, uint32_t usageFlags, DXGI_FORMAT format);
 
     static Result createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory);
 
