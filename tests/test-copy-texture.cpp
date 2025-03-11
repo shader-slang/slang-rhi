@@ -68,7 +68,7 @@ struct BaseCopyTextureTest
         srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
         if (srcTextureInfo->format == Format::D32_FLOAT || srcTextureInfo->format == Format::D16_UNORM)
         {
-            srcTexDesc.usage |= (TextureUsage::DepthWrite | TextureUsage::DepthRead);
+            srcTexDesc.usage |= TextureUsage::DepthStencil;
         }
         srcTexDesc.defaultState = ResourceState::ShaderResource;
         srcTexDesc.format = srcTextureInfo->format;
@@ -83,7 +83,7 @@ struct BaseCopyTextureTest
         dstTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;
         if (dstTextureInfo->format == Format::D32_FLOAT || dstTextureInfo->format == Format::D16_UNORM)
         {
-            dstTexDesc.usage |= (TextureUsage::DepthWrite | TextureUsage::DepthRead);
+            dstTexDesc.usage |= TextureUsage::DepthStencil;
         }
         dstTexDesc.defaultState = ResourceState::CopyDestination;
         dstTexDesc.format = dstTextureInfo->format;

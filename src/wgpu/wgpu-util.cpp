@@ -280,9 +280,7 @@ WGPUTextureUsage translateTextureUsage(TextureUsage usage)
         result |= WGPUTextureUsage_StorageBinding;
     if (is_set(usage, TextureUsage::RenderTarget))
         result |= WGPUTextureUsage_RenderAttachment;
-    if (is_set(usage, TextureUsage::DepthRead))
-        result |= WGPUTextureUsage_RenderAttachment;
-    if (is_set(usage, TextureUsage::DepthWrite))
+    if (is_set(usage, TextureUsage::DepthStencil))
         result |= WGPUTextureUsage_RenderAttachment;
     if (is_set(usage, TextureUsage::CopySource))
         result |= WGPUTextureUsage_CopySrc;

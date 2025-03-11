@@ -295,9 +295,7 @@ VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage)
         flags |= VK_IMAGE_USAGE_STORAGE_BIT;
     if (is_set(usage, TextureUsage::RenderTarget))
         flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    if (is_set(usage, TextureUsage::DepthRead))
-        flags |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-    if (is_set(usage, TextureUsage::DepthWrite))
+    if (is_set(usage, TextureUsage::DepthStencil))
         flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     if (is_set(usage, TextureUsage::Present))
         flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;

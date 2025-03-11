@@ -194,10 +194,8 @@ const char* enumToString(TextureUsage value)
         return S_TextureUsage_UnorderedAccess;
     case TextureUsage::RenderTarget:
         return S_TextureUsage_RenderTarget;
-    case TextureUsage::DepthRead:
-        return S_TextureUsage_DepthRead;
-    case TextureUsage::DepthWrite:
-        return S_TextureUsage_DepthWrite;
+    case TextureUsage::DepthStencil:
+        return S_TextureUsage_DepthStencil;
     case TextureUsage::Present:
         return S_TextureUsage_Present;
     case TextureUsage::CopySource:

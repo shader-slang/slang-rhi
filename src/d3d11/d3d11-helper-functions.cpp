@@ -39,9 +39,7 @@ UINT _calcResourceBindFlags(TextureUsage usage)
     UINT flags = 0;
     if (is_set(usage, TextureUsage::RenderTarget))
         flags |= D3D11_BIND_RENDER_TARGET;
-    if (is_set(usage, TextureUsage::DepthRead))
-        flags |= D3D11_BIND_DEPTH_STENCIL;
-    if (is_set(usage, TextureUsage::DepthWrite))
+    if (is_set(usage, TextureUsage::DepthStencil))
         flags |= D3D11_BIND_DEPTH_STENCIL;
     if (is_set(usage, TextureUsage::ShaderResource))
         flags |= D3D11_BIND_SHADER_RESOURCE;
