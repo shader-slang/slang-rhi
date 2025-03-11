@@ -8,7 +8,7 @@ namespace rhi::metal {
 
 const MetalUtil::FormatMapping& MetalUtil::getFormatMapping(Format format)
 {
-    FormatMapping mappings[] = {
+    static const FormatMapping mappings[] = {
         // clang-format off
         // format                       pixelFormat                             vertexFormat                            attributeFormat
         { Format::Undefined,            MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
