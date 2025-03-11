@@ -2,11 +2,13 @@
 
 #include "core/assert.h"
 
+#include <cstring>
+
 namespace rhi::wgpu {
 
 WGPUStringView translateString(const char* str)
 {
-    return str ? WGPUStringView{str, strlen(str)} : WGPUStringView{nullptr, 0};
+    return str ? WGPUStringView{str, ::strlen(str)} : WGPUStringView{nullptr, 0};
 }
 
 WGPUTextureFormat translateTextureFormat(Format format)
