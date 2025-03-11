@@ -1997,12 +1997,19 @@ public:
 
     inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size) { clearBuffer(buffer, {offset, size}); }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL clearTexture(
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4]) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    clearTextureUInt(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4]) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureDepthStencil(
         ITexture* texture,
-        const ClearValue& clearValue = ClearValue(),
-        const SubresourceRange* subresourceRange = nullptr,
-        bool clearDepth = true,
-        bool clearStencil = true
+        SubresourceRange subresourceRange,
+        bool clearDepth,
+        float depthValue,
+        bool clearStencil,
+        uint8_t stencilValue
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL

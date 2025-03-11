@@ -421,18 +421,35 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
     baseObject->clearBuffer(buffer, range);
 }
 
-void DebugCommandEncoder::clearTexture(
+void DebugCommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4])
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    baseObject->clearTextureFloat(texture, subresourceRange, clearValue);
+}
+
+void DebugCommandEncoder::clearTextureUInt(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    baseObject->clearTextureUInt(texture, subresourceRange, clearValue);
+}
+
+void DebugCommandEncoder::clearTextureDepthStencil(
     ITexture* texture,
-    const ClearValue& clearValue,
-    const SubresourceRange* subresourceRange,
+    SubresourceRange subresourceRange,
     bool clearDepth,
-    bool clearStencil
+    float depthValue,
+    bool clearStencil,
+    uint8_t stencilValue
 )
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-    baseObject->clearTexture(texture, clearValue, subresourceRange, clearDepth, clearStencil);
+    baseObject->clearTextureDepthStencil(texture, subresourceRange, clearDepth, depthValue, clearStencil, stencilValue);
 }
 
 void DebugCommandEncoder::resolveQuery(

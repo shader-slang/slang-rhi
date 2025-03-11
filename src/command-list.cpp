@@ -42,7 +42,19 @@ void CommandList::write(commands::ClearBuffer&& cmd)
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::ClearTexture&& cmd)
+void CommandList::write(commands::ClearTextureFloat&& cmd)
+{
+    retainResource<Texture>(cmd.texture);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::ClearTextureUInt&& cmd)
+{
+    retainResource<Texture>(cmd.texture);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::ClearTextureDepthStencil&& cmd)
 {
     retainResource<Texture>(cmd.texture);
     writeCommand(std::move(cmd));

@@ -73,7 +73,9 @@ public:
     void cmdCopyTexture(const commands::CopyTexture& cmd);
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
-    void cmdClearTexture(const commands::ClearTexture& cmd);
+    void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
+    void cmdClearTextureUInt(const commands::ClearTextureUInt& cmd);
+    void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -293,7 +295,7 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     m_api.vkCmdFillBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, cmd.range.offset, cmd.range.size, 0);
 }
 
-void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
+void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
 
@@ -302,46 +304,83 @@ void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
 
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresourceRange.baseArrayLayer = cmd.subresourceRange.baseArrayLayer;
     subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
+    subresourceRange.levelCount = cmd.subresourceRange.mipLevelCount;
+    subresourceRange.baseArrayLayer = cmd.subresourceRange.baseArrayLayer;
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
-    subresourceRange.levelCount = 1;
 
-    if (isDepthFormat(texture->m_desc.format))
-    {
-        VkClearDepthStencilValue vkClearValue = {};
-        vkClearValue.depth = cmd.clearValue.depthStencil.depth;
-        vkClearValue.stencil = cmd.clearValue.depthStencil.stencil;
+    VkClearColorValue vkClearColor = {};
+    std::memcpy(vkClearColor.float32, cmd.clearValue, sizeof(float) * 4);
 
-        subresourceRange.aspectMask = 0;
-        if (cmd.clearDepth)
-            subresourceRange.aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
-        if (cmd.clearStencil)
-            subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    m_api.vkCmdClearColorImage(
+        m_cmdBuffer,
+        texture->m_image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        &vkClearColor,
+        1,
+        &subresourceRange
+    );
+}
 
-        m_api.vkCmdClearDepthStencilImage(
-            m_cmdBuffer,
-            texture->m_image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            &vkClearValue,
-            1,
-            &subresourceRange
-        );
-    }
-    else
-    {
-        VkClearColorValue vkClearColor = {};
-        std::memcpy(vkClearColor.float32, cmd.clearValue.color.floatValues, sizeof(float) * 4);
+void CommandRecorder::cmdClearTextureUInt(const commands::ClearTextureUInt& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
 
-        m_api.vkCmdClearColorImage(
-            m_cmdBuffer,
-            texture->m_image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            &vkClearColor,
-            1,
-            &subresourceRange
-        );
-    }
+    requireTextureState(texture, cmd.subresourceRange, ResourceState::CopyDestination);
+    commitBarriers();
+
+    VkImageSubresourceRange subresourceRange = {};
+    subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
+    subresourceRange.levelCount = cmd.subresourceRange.mipLevelCount;
+    subresourceRange.baseArrayLayer = cmd.subresourceRange.baseArrayLayer;
+    subresourceRange.layerCount = cmd.subresourceRange.layerCount;
+
+    VkClearColorValue vkClearColor = {};
+    std::memcpy(vkClearColor.uint32, cmd.clearValue, sizeof(uint32_t) * 4);
+
+    m_api.vkCmdClearColorImage(
+        m_cmdBuffer,
+        texture->m_image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        &vkClearColor,
+        1,
+        &subresourceRange
+    );
+}
+
+void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+
+    requireTextureState(texture, cmd.subresourceRange, ResourceState::CopyDestination);
+    commitBarriers();
+
+    VkImageSubresourceRange subresourceRange = {};
+    subresourceRange.aspectMask = 0;
+    subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
+    subresourceRange.levelCount = cmd.subresourceRange.mipLevelCount;
+    subresourceRange.baseArrayLayer = cmd.subresourceRange.baseArrayLayer;
+    subresourceRange.layerCount = cmd.subresourceRange.layerCount;
+
+    VkClearDepthStencilValue vkClearValue = {};
+    vkClearValue.depth = cmd.depthValue;
+    vkClearValue.stencil = cmd.stencilValue;
+
+    subresourceRange.aspectMask = 0;
+    if (cmd.clearDepth)
+        subresourceRange.aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
+    if (cmd.clearStencil)
+        subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    m_api.vkCmdClearDepthStencilImage(
+        m_cmdBuffer,
+        texture->m_image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        &vkClearValue,
+        1,
+        &subresourceRange
+    );
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
