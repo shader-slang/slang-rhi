@@ -10,108 +10,35 @@ MTL::PixelFormat MetalUtil::translatePixelFormat(Format format)
 {
     switch (format)
     {
-    case Format::R32G32B32A32_TYPELESS:
-        return MTL::PixelFormatRGBA32Float;
-    case Format::R32G32B32_TYPELESS:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_TYPELESS:
-        return MTL::PixelFormatRG32Float;
-    case Format::R32_TYPELESS:
-        return MTL::PixelFormatR32Float;
-
-    case Format::R16G16B16A16_TYPELESS:
-        return MTL::PixelFormatRGBA16Float;
-    case Format::R16G16_TYPELESS:
-        return MTL::PixelFormatRG16Float;
-    case Format::R16_TYPELESS:
-        return MTL::PixelFormatR16Float;
-
-    case Format::R8G8B8A8_TYPELESS:
-        return MTL::PixelFormatRGBA8Unorm;
-    case Format::R8G8_TYPELESS:
-        return MTL::PixelFormatRG8Unorm;
-    case Format::R8_TYPELESS:
+    case Format::R8_UINT:
+        return MTL::PixelFormatR8Uint;
+    case Format::R8_SINT:
+        return MTL::PixelFormatR8Sint;
+    case Format::R8_UNORM:
         return MTL::PixelFormatR8Unorm;
-    case Format::B8G8R8A8_TYPELESS:
-        return MTL::PixelFormatBGRA8Unorm;
+    case Format::R8_SNORM:
+        return MTL::PixelFormatR8Snorm;
 
-    case Format::R32G32B32A32_FLOAT:
-        return MTL::PixelFormatRGBA32Float;
-    case Format::R32G32B32_FLOAT:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_FLOAT:
-        return MTL::PixelFormatRG32Float;
-    case Format::R32_FLOAT:
-        return MTL::PixelFormatR32Float;
-
-    case Format::R16G16B16A16_FLOAT:
-        return MTL::PixelFormatRGBA16Float;
-    case Format::R16G16_FLOAT:
-        return MTL::PixelFormatRG16Float;
-    case Format::R16_FLOAT:
-        return MTL::PixelFormatR16Float;
-
-    case Format::R32G32B32A32_UINT:
-        return MTL::PixelFormatRGBA32Uint;
-    case Format::R32G32B32_UINT:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_UINT:
-        return MTL::PixelFormatRG32Uint;
-    case Format::R32_UINT:
-        return MTL::PixelFormatR32Uint;
-
-    case Format::R16G16B16A16_UINT:
-        return MTL::PixelFormatRGBA16Uint;
-    case Format::R16G16_UINT:
-        return MTL::PixelFormatRG16Uint;
-    case Format::R16_UINT:
-        return MTL::PixelFormatR16Uint;
+    case Format::R8G8_UINT:
+        return MTL::PixelFormatRG8Uint;
+    case Format::R8G8_SINT:
+        return MTL::PixelFormatRG8Sint;
+    case Format::R8G8_UNORM:
+        return MTL::PixelFormatRG8Unorm;
+    case Format::R8G8_SNORM:
+        return MTL::PixelFormatRG8Snorm;
 
     case Format::R8G8B8A8_UINT:
         return MTL::PixelFormatRGBA8Uint;
-    case Format::R8G8_UINT:
-        return MTL::PixelFormatRG8Uint;
-    case Format::R8_UINT:
-        return MTL::PixelFormatR8Uint;
-
-    case Format::R32G32B32A32_SINT:
-        return MTL::PixelFormatRGBA32Sint;
-    case Format::R32G32B32_SINT:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_SINT:
-        return MTL::PixelFormatRG32Sint;
-    case Format::R32_SINT:
-        return MTL::PixelFormatR32Sint;
-
-    case Format::R16G16B16A16_SINT:
-        return MTL::PixelFormatRGBA16Sint;
-    case Format::R16G16_SINT:
-        return MTL::PixelFormatRG16Sint;
-    case Format::R16_SINT:
-        return MTL::PixelFormatR16Sint;
-
     case Format::R8G8B8A8_SINT:
         return MTL::PixelFormatRGBA8Sint;
-    case Format::R8G8_SINT:
-        return MTL::PixelFormatRG8Sint;
-    case Format::R8_SINT:
-        return MTL::PixelFormatR8Sint;
-
-    case Format::R16G16B16A16_UNORM:
-        return MTL::PixelFormatRGBA16Unorm;
-    case Format::R16G16_UNORM:
-        return MTL::PixelFormatRG16Unorm;
-    case Format::R16_UNORM:
-        return MTL::PixelFormatR16Unorm;
-
     case Format::R8G8B8A8_UNORM:
         return MTL::PixelFormatRGBA8Unorm;
     case Format::R8G8B8A8_UNORM_SRGB:
         return MTL::PixelFormatRGBA8Unorm_sRGB;
-    case Format::R8G8_UNORM:
-        return MTL::PixelFormatRG8Unorm;
-    case Format::R8_UNORM:
-        return MTL::PixelFormatR8Unorm;
+    case Format::R8G8B8A8_SNORM:
+        return MTL::PixelFormatRGBA8Snorm;
+
     case Format::B8G8R8A8_UNORM:
         return MTL::PixelFormatBGRA8Unorm;
     case Format::B8G8R8A8_UNORM_SRGB:
@@ -121,27 +48,70 @@ MTL::PixelFormat MetalUtil::translatePixelFormat(Format format)
     case Format::B8G8R8X8_UNORM_SRGB:
         return MTL::PixelFormatInvalid;
 
-    case Format::R16G16B16A16_SNORM:
-        return MTL::PixelFormatRGBA16Snorm;
-    case Format::R16G16_SNORM:
-        return MTL::PixelFormatRG16Snorm;
+    case Format::R16_UINT:
+        return MTL::PixelFormatR16Uint;
+    case Format::R16_SINT:
+        return MTL::PixelFormatR16Sint;
+    case Format::R16_UNORM:
+        return MTL::PixelFormatR16Unorm;
     case Format::R16_SNORM:
         return MTL::PixelFormatR16Snorm;
+    case Format::R16_FLOAT:
+        return MTL::PixelFormatR16Float;
 
-    case Format::R8G8B8A8_SNORM:
-        return MTL::PixelFormatRGBA8Snorm;
-    case Format::R8G8_SNORM:
-        return MTL::PixelFormatRG8Snorm;
-    case Format::R8_SNORM:
-        return MTL::PixelFormatR8Snorm;
+    case Format::R16G16_UINT:
+        return MTL::PixelFormatRG16Uint;
+    case Format::R16G16_SINT:
+        return MTL::PixelFormatRG16Sint;
+    case Format::R16G16_UNORM:
+        return MTL::PixelFormatRG16Unorm;
+    case Format::R16G16_SNORM:
+        return MTL::PixelFormatRG16Snorm;
+    case Format::R16G16_FLOAT:
+        return MTL::PixelFormatRG16Float;
 
-    case Format::D32_FLOAT:
-        return MTL::PixelFormatDepth32Float;
-    case Format::D16_UNORM:
-        return MTL::PixelFormatDepth16Unorm;
-    case Format::D32_FLOAT_S8_UINT:
-        return MTL::PixelFormatDepth32Float_Stencil8;
-    case Format::R32_FLOAT_X32_TYPELESS:
+    case Format::R16G16B16A16_UINT:
+        return MTL::PixelFormatRGBA16Uint;
+    case Format::R16G16B16A16_SINT:
+        return MTL::PixelFormatRGBA16Sint;
+    case Format::R16G16B16A16_UNORM:
+        return MTL::PixelFormatRGBA16Unorm;
+    case Format::R16G16B16A16_SNORM:
+        return MTL::PixelFormatRGBA16Snorm;
+    case Format::R16G16B16A16_FLOAT:
+        return MTL::PixelFormatRGBA16Float;
+
+    case Format::R32_UINT:
+        return MTL::PixelFormatR32Uint;
+    case Format::R32_SINT:
+        return MTL::PixelFormatR32Sint;
+    case Format::R32_FLOAT:
+        return MTL::PixelFormatR32Float;
+
+    case Format::R32G32_UINT:
+        return MTL::PixelFormatRG32Uint;
+    case Format::R32G32_SINT:
+        return MTL::PixelFormatRG32Sint;
+    case Format::R32G32_FLOAT:
+        return MTL::PixelFormatRG32Float;
+
+    case Format::R32G32B32_UINT:
+        return MTL::PixelFormatInvalid;
+    case Format::R32G32B32_SINT:
+        return MTL::PixelFormatInvalid;
+    case Format::R32G32B32_FLOAT:
+        return MTL::PixelFormatInvalid;
+
+    case Format::R32G32B32A32_UINT:
+        return MTL::PixelFormatRGBA32Uint;
+    case Format::R32G32B32A32_SINT:
+        return MTL::PixelFormatRGBA32Sint;
+    case Format::R32G32B32A32_FLOAT:
+        return MTL::PixelFormatRGBA32Float;
+
+    case Format::R64_UINT:
+        return MTL::PixelFormatInvalid;
+    case Format::R64_SINT:
         return MTL::PixelFormatInvalid;
 
     case Format::B4G4R4A4_UNORM:
@@ -153,14 +123,19 @@ MTL::PixelFormat MetalUtil::translatePixelFormat(Format format)
 
     case Format::R9G9B9E5_SHAREDEXP:
         return MTL::PixelFormatRGB9E5Float;
-    case Format::R10G10B10A2_TYPELESS:
-        return MTL::PixelFormatInvalid;
     case Format::R10G10B10A2_UINT:
         return MTL::PixelFormatRGB10A2Uint;
     case Format::R10G10B10A2_UNORM:
         return MTL::PixelFormatRGB10A2Unorm;
     case Format::R11G11B10_FLOAT:
         return MTL::PixelFormatRG11B10Float;
+
+    case Format::D32_FLOAT:
+        return MTL::PixelFormatDepth32Float;
+    case Format::D16_UNORM:
+        return MTL::PixelFormatDepth16Unorm;
+    case Format::D32_FLOAT_S8_UINT:
+        return MTL::PixelFormatDepth32Float_Stencil8;
 
     case Format::BC1_UNORM:
         return MTL::PixelFormatBC1_RGBA;
@@ -200,80 +175,6 @@ MTL::VertexFormat MetalUtil::translateVertexFormat(Format format)
 {
     switch (format)
     {
-    case Format::R8G8_UINT:
-        return MTL::VertexFormatUChar2;
-    // VertexFormatUChar3
-    case Format::R8G8B8A8_UINT:
-        return MTL::VertexFormatUChar4;
-    case Format::R8G8_SINT:
-        return MTL::VertexFormatChar2;
-    // return VertexFormatChar3
-    case Format::R8G8B8A8_SINT:
-        return MTL::VertexFormatChar4;
-    case Format::R8G8_UNORM:
-        return MTL::VertexFormatUChar2Normalized;
-    // return VertexFormatUChar3Normalized;
-    case Format::R8G8B8A8_UNORM:
-        return MTL::VertexFormatUChar4Normalized;
-    case Format::R8G8_SNORM:
-        return MTL::VertexFormatChar2Normalized;
-    // return VertexFormatChar3Normalized
-    case Format::R8G8B8A8_SNORM:
-        return MTL::VertexFormatChar4Normalized;
-    case Format::R16G16_UINT:
-        return MTL::VertexFormatUShort2;
-    // return VertexFormatUShort3;
-    case Format::R16G16B16A16_UINT:
-        return MTL::VertexFormatUShort4;
-    case Format::R16G16_SINT:
-        return MTL::VertexFormatShort2;
-    // return VertexFormatShort3;
-    case Format::R16G16B16A16_SINT:
-        return MTL::VertexFormatShort4;
-    case Format::R16G16_UNORM:
-        return MTL::VertexFormatUShort2Normalized;
-    // return VertexFormatUShort3Normalized;
-    case Format::R16G16B16A16_UNORM:
-        return MTL::VertexFormatUShort4Normalized;
-    case Format::R16G16_SNORM:
-        return MTL::VertexFormatShort2Normalized;
-    // return VertexFormatShort3Normalized;
-    case Format::R16G16B16A16_SNORM:
-        return MTL::VertexFormatShort4Normalized;
-    case Format::R16G16_FLOAT:
-        return MTL::VertexFormatHalf2;
-    // return VertexFormatHalf3;
-    case Format::R16G16B16A16_FLOAT:
-        return MTL::VertexFormatHalf4;
-    case Format::R32_FLOAT:
-        return MTL::VertexFormatFloat;
-    case Format::R32G32_FLOAT:
-        return MTL::VertexFormatFloat2;
-    case Format::R32G32B32_FLOAT:
-        return MTL::VertexFormatFloat3;
-    case Format::R32G32B32A32_FLOAT:
-        return MTL::VertexFormatFloat4;
-    case Format::R32_SINT:
-        return MTL::VertexFormatInt;
-    case Format::R32G32_SINT:
-        return MTL::VertexFormatInt2;
-    case Format::R32G32B32_SINT:
-        return MTL::VertexFormatInt3;
-    case Format::R32G32B32A32_SINT:
-        return MTL::VertexFormatInt4;
-    case Format::R32_UINT:
-        return MTL::VertexFormatUInt;
-    case Format::R32G32_UINT:
-        return MTL::VertexFormatUInt2;
-    case Format::R32G32B32_UINT:
-        return MTL::VertexFormatUInt3;
-    case Format::R32G32B32A32_UINT:
-        return MTL::VertexFormatUInt4;
-    // return VertexFormatInt1010102Normalized;
-    case Format::R10G10B10A2_UNORM:
-        return MTL::VertexFormatUInt1010102Normalized;
-    case Format::B4G4R4A4_UNORM:
-        return MTL::VertexFormatUChar4Normalized_BGRA;
     case Format::R8_UINT:
         return MTL::VertexFormatUChar;
     case Format::R8_SINT:
@@ -282,6 +183,25 @@ MTL::VertexFormat MetalUtil::translateVertexFormat(Format format)
         return MTL::VertexFormatUCharNormalized;
     case Format::R8_SNORM:
         return MTL::VertexFormatCharNormalized;
+
+    case Format::R8G8_UINT:
+        return MTL::VertexFormatUChar2;
+    case Format::R8G8_SINT:
+        return MTL::VertexFormatChar2;
+    case Format::R8G8_UNORM:
+        return MTL::VertexFormatUChar2Normalized;
+    case Format::R8G8_SNORM:
+        return MTL::VertexFormatChar2Normalized;
+
+    case Format::R8G8B8A8_UINT:
+        return MTL::VertexFormatUChar4;
+    case Format::R8G8B8A8_SINT:
+        return MTL::VertexFormatChar4;
+    case Format::R8G8B8A8_UNORM:
+        return MTL::VertexFormatUChar4Normalized;
+    case Format::R8G8B8A8_SNORM:
+        return MTL::VertexFormatChar4Normalized;
+
     case Format::R16_UINT:
         return MTL::VertexFormatUShort;
     case Format::R16_SINT:
@@ -292,10 +212,78 @@ MTL::VertexFormat MetalUtil::translateVertexFormat(Format format)
         return MTL::VertexFormatShortNormalized;
     case Format::R16_FLOAT:
         return MTL::VertexFormatHalf;
-    case Format::R11G11B10_FLOAT:
-        return MTL::VertexFormatFloatRG11B10;
+
+    case Format::R16G16_UINT:
+        return MTL::VertexFormatUShort2;
+    case Format::R16G16_SINT:
+        return MTL::VertexFormatShort2;
+    case Format::R16G16_UNORM:
+        return MTL::VertexFormatUShort2Normalized;
+    case Format::R16G16_SNORM:
+        return MTL::VertexFormatShort2Normalized;
+    case Format::R16G16_FLOAT:
+        return MTL::VertexFormatHalf2;
+
+    case Format::R16G16B16A16_UINT:
+        return MTL::VertexFormatUShort4;
+    case Format::R16G16B16A16_SINT:
+        return MTL::VertexFormatShort4;
+    case Format::R16G16B16A16_UNORM:
+        return MTL::VertexFormatUShort4Normalized;
+    case Format::R16G16B16A16_SNORM:
+        return MTL::VertexFormatShort4Normalized;
+    case Format::R16G16B16A16_FLOAT:
+        return MTL::VertexFormatHalf4;
+
+    case Format::R32_UINT:
+        return MTL::VertexFormatUInt;
+    case Format::R32_SINT:
+        return MTL::VertexFormatInt;
+    case Format::R32_FLOAT:
+        return MTL::VertexFormatFloat;
+
+    case Format::R32G32_UINT:
+        return MTL::VertexFormatUInt2;
+    case Format::R32G32_SINT:
+        return MTL::VertexFormatInt2;
+    case Format::R32G32_FLOAT:
+        return MTL::VertexFormatFloat2;
+
+    case Format::R32G32B32_UINT:
+        return MTL::VertexFormatUInt3;
+    case Format::R32G32B32_SINT:
+        return MTL::VertexFormatInt3;
+    case Format::R32G32B32_FLOAT:
+        return MTL::VertexFormatFloat3;
+
+    case Format::R32G32B32A32_UINT:
+        return MTL::VertexFormatUInt4;
+    case Format::R32G32B32A32_SINT:
+        return MTL::VertexFormatInt4;
+    case Format::R32G32B32A32_FLOAT:
+        return MTL::VertexFormatFloat4;
+
+    case Format::B4G4R4A4_UNORM:
+        return MTL::VertexFormatUChar4Normalized_BGRA;
+
     case Format::R9G9B9E5_SHAREDEXP:
         return MTL::VertexFormatFloatRGB9E5;
+    case Format::R10G10B10A2_UNORM:
+        return MTL::VertexFormatUInt1010102Normalized;
+    case Format::R11G11B10_FLOAT:
+        return MTL::VertexFormatFloatRG11B10;
+
+    // Unsupported vertex formats:
+    // - VertexFormatUChar3
+    // - VertexFormatChar3
+    // - VertexFormatUChar3Normalized
+    // - VertexFormatChar3Normalized
+    // - VertexFormatUShort3
+    // - VertexFormatShort3
+    // - VertexFormatUShort3Normalized
+    // - VertexFormatShort3Normalized
+    // - VertexFormatHalf3
+    // - VertexFormatInt1010102Normalized
     default:
         return MTL::VertexFormatInvalid;
     }
@@ -305,80 +293,6 @@ MTL::AttributeFormat MetalUtil::translateAttributeFormat(Format format)
 {
     switch (format)
     {
-    case Format::R8G8_UINT:
-        return MTL::AttributeFormatUChar2;
-    // AttributeFormatUChar3
-    case Format::R8G8B8A8_UINT:
-        return MTL::AttributeFormatUChar4;
-    case Format::R8G8_SINT:
-        return MTL::AttributeFormatChar2;
-    // return AttributeFormatChar3
-    case Format::R8G8B8A8_SINT:
-        return MTL::AttributeFormatChar4;
-    case Format::R8G8_UNORM:
-        return MTL::AttributeFormatUChar2Normalized;
-    // return AttributeFormatUChar3Normalized;
-    case Format::R8G8B8A8_UNORM:
-        return MTL::AttributeFormatUChar4Normalized;
-    case Format::R8G8_SNORM:
-        return MTL::AttributeFormatChar2Normalized;
-    // return AttributeFormatChar3Normalized
-    case Format::R8G8B8A8_SNORM:
-        return MTL::AttributeFormatChar4Normalized;
-    case Format::R16G16_UINT:
-        return MTL::AttributeFormatUShort2;
-    // return AttributeFormatUShort3;
-    case Format::R16G16B16A16_UINT:
-        return MTL::AttributeFormatUShort4;
-    case Format::R16G16_SINT:
-        return MTL::AttributeFormatShort2;
-    // return AttributeFormatShort3;
-    case Format::R16G16B16A16_SINT:
-        return MTL::AttributeFormatShort4;
-    case Format::R16G16_UNORM:
-        return MTL::AttributeFormatUShort2Normalized;
-    // return AttributeFormatUShort3Normalized;
-    case Format::R16G16B16A16_UNORM:
-        return MTL::AttributeFormatUShort4Normalized;
-    case Format::R16G16_SNORM:
-        return MTL::AttributeFormatShort2Normalized;
-    // return AttributeFormatShort3Normalized;
-    case Format::R16G16B16A16_SNORM:
-        return MTL::AttributeFormatShort4Normalized;
-    case Format::R16G16_FLOAT:
-        return MTL::AttributeFormatHalf2;
-    // return AttributeFormatHalf3;
-    case Format::R16G16B16A16_FLOAT:
-        return MTL::AttributeFormatHalf4;
-    case Format::R32_FLOAT:
-        return MTL::AttributeFormatFloat;
-    case Format::R32G32_FLOAT:
-        return MTL::AttributeFormatFloat2;
-    case Format::R32G32B32_FLOAT:
-        return MTL::AttributeFormatFloat3;
-    case Format::R32G32B32A32_FLOAT:
-        return MTL::AttributeFormatFloat4;
-    case Format::R32_SINT:
-        return MTL::AttributeFormatInt;
-    case Format::R32G32_SINT:
-        return MTL::AttributeFormatInt2;
-    case Format::R32G32B32_SINT:
-        return MTL::AttributeFormatInt3;
-    case Format::R32G32B32A32_SINT:
-        return MTL::AttributeFormatInt4;
-    case Format::R32_UINT:
-        return MTL::AttributeFormatUInt;
-    case Format::R32G32_UINT:
-        return MTL::AttributeFormatUInt2;
-    case Format::R32G32B32_UINT:
-        return MTL::AttributeFormatUInt3;
-    case Format::R32G32B32A32_UINT:
-        return MTL::AttributeFormatUInt4;
-    // return AttributeFormatInt1010102Normalized;
-    case Format::R10G10B10A2_UNORM:
-        return MTL::AttributeFormatUInt1010102Normalized;
-    case Format::B4G4R4A4_UNORM:
-        return MTL::AttributeFormatUChar4Normalized_BGRA;
     case Format::R8_UINT:
         return MTL::AttributeFormatUChar;
     case Format::R8_SINT:
@@ -387,6 +301,25 @@ MTL::AttributeFormat MetalUtil::translateAttributeFormat(Format format)
         return MTL::AttributeFormatUCharNormalized;
     case Format::R8_SNORM:
         return MTL::AttributeFormatCharNormalized;
+
+    case Format::R8G8_UINT:
+        return MTL::AttributeFormatUChar2;
+    case Format::R8G8_SINT:
+        return MTL::AttributeFormatChar2;
+    case Format::R8G8_UNORM:
+        return MTL::AttributeFormatUChar2Normalized;
+    case Format::R8G8_SNORM:
+        return MTL::AttributeFormatChar2Normalized;
+
+    case Format::R8G8B8A8_UINT:
+        return MTL::AttributeFormatUChar4;
+    case Format::R8G8B8A8_SINT:
+        return MTL::AttributeFormatChar4;
+    case Format::R8G8B8A8_UNORM:
+        return MTL::AttributeFormatUChar4Normalized;
+    case Format::R8G8B8A8_SNORM:
+        return MTL::AttributeFormatChar4Normalized;
+
     case Format::R16_UINT:
         return MTL::AttributeFormatUShort;
     case Format::R16_SINT:
@@ -397,10 +330,78 @@ MTL::AttributeFormat MetalUtil::translateAttributeFormat(Format format)
         return MTL::AttributeFormatShortNormalized;
     case Format::R16_FLOAT:
         return MTL::AttributeFormatHalf;
-    case Format::R11G11B10_FLOAT:
-        return MTL::AttributeFormatFloatRG11B10;
+
+    case Format::R16G16_UINT:
+        return MTL::AttributeFormatUShort2;
+    case Format::R16G16_SINT:
+        return MTL::AttributeFormatShort2;
+    case Format::R16G16_UNORM:
+        return MTL::AttributeFormatUShort2Normalized;
+    case Format::R16G16_SNORM:
+        return MTL::AttributeFormatShort2Normalized;
+    case Format::R16G16_FLOAT:
+        return MTL::AttributeFormatHalf2;
+
+    case Format::R16G16B16A16_UINT:
+        return MTL::AttributeFormatUShort4;
+    case Format::R16G16B16A16_SINT:
+        return MTL::AttributeFormatShort4;
+    case Format::R16G16B16A16_UNORM:
+        return MTL::AttributeFormatUShort4Normalized;
+    case Format::R16G16B16A16_SNORM:
+        return MTL::AttributeFormatShort4Normalized;
+    case Format::R16G16B16A16_FLOAT:
+        return MTL::AttributeFormatHalf4;
+
+    case Format::R32_UINT:
+        return MTL::AttributeFormatUInt;
+    case Format::R32_SINT:
+        return MTL::AttributeFormatInt;
+    case Format::R32_FLOAT:
+        return MTL::AttributeFormatFloat;
+
+    case Format::R32G32_UINT:
+        return MTL::AttributeFormatUInt2;
+    case Format::R32G32_SINT:
+        return MTL::AttributeFormatInt2;
+    case Format::R32G32_FLOAT:
+        return MTL::AttributeFormatFloat2;
+
+    case Format::R32G32B32_SINT:
+        return MTL::AttributeFormatInt3;
+    case Format::R32G32B32_UINT:
+        return MTL::AttributeFormatUInt3;
+    case Format::R32G32B32_FLOAT:
+        return MTL::AttributeFormatFloat3;
+
+    case Format::R32G32B32A32_UINT:
+        return MTL::AttributeFormatUInt4;
+    case Format::R32G32B32A32_SINT:
+        return MTL::AttributeFormatInt4;
+    case Format::R32G32B32A32_FLOAT:
+        return MTL::AttributeFormatFloat4;
+
+    case Format::B4G4R4A4_UNORM:
+        return MTL::AttributeFormatUChar4Normalized_BGRA;
+
     case Format::R9G9B9E5_SHAREDEXP:
         return MTL::AttributeFormatFloatRGB9E5;
+    case Format::R10G10B10A2_UNORM:
+        return MTL::AttributeFormatUInt1010102Normalized;
+    case Format::R11G11B10_FLOAT:
+        return MTL::AttributeFormatFloatRG11B10;
+
+    // Unsupported attribute formats:
+    // - AttributeFormatUChar3
+    // - AttributeFormatChar3
+    // - AttributeFormatUChar3Normalized
+    // - AttributeFormatChar3Normalized
+    // - AttributeFormatUShort3
+    // - AttributeFormatShort3
+    // - AttributeFormatUShort3Normalized
+    // - AttributeFormatShort3Normalized
+    // - AttributeFormatHalf3
+    // - AttributeFormatInt1010102Normalized
     default:
         return MTL::AttributeFormatInvalid;
     }

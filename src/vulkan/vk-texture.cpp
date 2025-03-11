@@ -110,7 +110,7 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;
-    createInfo.format = getFormatInfo(format).isTypeless ? VulkanUtil::getVkFormat(format) : m_vkformat;
+    createInfo.format = VulkanUtil::getVkFormat(format);
     createInfo.image = m_image;
     createInfo.components = VkComponentMapping{
         VK_COMPONENT_SWIZZLE_R,
@@ -215,6 +215,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
+    }
+
+    if (is_set(desc.usage, TextureUsage::Typeless))
+    {
+        imageInfo.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
     }
 
     uint32_t layerCount = desc.getLayerCount();

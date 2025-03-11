@@ -171,8 +171,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         return allocation.cpuHandle;
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
-    viewDesc.Format =
-        getFormatInfo(m_desc.format).isTypeless ? D3DUtil::getMapFormat(m_desc.format) : D3DUtil::getMapFormat(format);
+    viewDesc.Format = D3DUtil::getMapFormat(format);
     switch (type)
     {
     case TextureType::Texture1D:
