@@ -302,7 +302,7 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
 
     FormatSupport support = FormatSupport::None;
 
-    if (translatePixelFormat(format) != MTL::PixelFormatInvalid)
+    if (MetalUtil::translatePixelFormat(format) != MTL::PixelFormatInvalid)
     {
         // TODO - add table based on https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
         support |= FormatSupport::Buffer;
@@ -317,7 +317,7 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
         support |= FormatSupport::ShaderUavStore;
         support |= FormatSupport::ShaderAtomic;
     }
-    if (translateVertexFormat(format) != MTL::VertexFormatInvalid)
+    if (MetalUtil::translateVertexFormat(format) != MTL::VertexFormatInvalid)
     {
         support |= FormatSupport::VertexBuffer;
     }
