@@ -167,12 +167,10 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
-    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
-        desc.slang,
-        SLANG_PTX,
-        "sm_5_1",
-        std::array{slang::PreprocessorMacroDesc{"__CUDA_COMPUTE__", "1"}}
-    ));
+    SLANG_RETURN_ON_FAIL(
+        m_slangContext
+            .initialize(desc.slang, SLANG_PTX, "sm_5_1", std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}})
+    );
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 

@@ -317,24 +317,33 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
         // Bind constant buffers, shader resource views, and samplers.
-        m_immediateContext->VSSetConstantBuffers1(
-            0,
-            m_bindingData->uavCount,
-            m_bindingData->cbvsBuffer,
-            m_bindingData->cbvsFirst,
-            m_bindingData->cbvsCount
-        );
-        m_immediateContext->PSSetConstantBuffers1(
-            0,
-            m_bindingData->cbvCount,
-            m_bindingData->cbvsBuffer,
-            m_bindingData->cbvsFirst,
-            m_bindingData->cbvsCount
-        );
-        m_immediateContext->VSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
-        m_immediateContext->PSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
-        m_immediateContext->VSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
-        m_immediateContext->PSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
+        if (m_bindingData->cbvsCount > 0)
+        {
+            m_immediateContext->VSSetConstantBuffers1(
+                0,
+                m_bindingData->uavCount,
+                m_bindingData->cbvsBuffer,
+                m_bindingData->cbvsFirst,
+                m_bindingData->cbvsCount
+            );
+            m_immediateContext->PSSetConstantBuffers1(
+                0,
+                m_bindingData->cbvCount,
+                m_bindingData->cbvsBuffer,
+                m_bindingData->cbvsFirst,
+                m_bindingData->cbvsCount
+            );
+        }
+        if (m_bindingData->srvCount > 0)
+        {
+            m_immediateContext->VSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
+            m_immediateContext->PSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
+        }
+        if (m_bindingData->samplerCount > 0)
+        {
+            m_immediateContext->VSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
+            m_immediateContext->PSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
+        }
 
         // Bind unordered access views.
         //
@@ -535,16 +544,28 @@ void CommandExecutor::cmdSetComputeState(const commands::SetComputeState& cmd)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
-        m_immediateContext->CSSetConstantBuffers1(
-            0,
-            m_bindingData->cbvCount,
-            m_bindingData->cbvsBuffer,
-            m_bindingData->cbvsFirst,
-            m_bindingData->cbvsCount
-        );
-        m_immediateContext->CSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
-        m_immediateContext->CSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
-        m_immediateContext->CSSetUnorderedAccessViews(0, m_bindingData->uavCount, m_bindingData->uavs, nullptr);
+        if (m_bindingData->cbvsCount > 0)
+        {
+            m_immediateContext->CSSetConstantBuffers1(
+                0,
+                m_bindingData->cbvCount,
+                m_bindingData->cbvsBuffer,
+                m_bindingData->cbvsFirst,
+                m_bindingData->cbvsCount
+            );
+        }
+        if (m_bindingData->srvCount > 0)
+        {
+            m_immediateContext->CSSetShaderResources(0, m_bindingData->srvCount, m_bindingData->srvs);
+        }
+        if (m_bindingData->samplerCount)
+        {
+            m_immediateContext->CSSetSamplers(0, m_bindingData->samplerCount, m_bindingData->samplers);
+        }
+        if (m_bindingData->uavCount > 0)
+        {
+            m_immediateContext->CSSetUnorderedAccessViews(0, m_bindingData->uavCount, m_bindingData->uavs, nullptr);
+        }
     }
 
     m_computeStateValid = true;
