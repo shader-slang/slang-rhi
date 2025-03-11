@@ -587,7 +587,8 @@ enum class TextureUsage
     CopyDestination = (1 << 7),
     ResolveSource = (1 << 8),
     ResolveDestination = (1 << 9),
-    Shared = (1 << 10),
+    Typeless = (1 << 10),
+    Shared = (1 << 11),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 

@@ -81,6 +81,7 @@
 #define S_TextureUsage_CopyDestination "CopyDestination"
 #define S_TextureUsage_ResolveSource "ResolveSource"
 #define S_TextureUsage_ResolveDestination "ResolveDestination"
+#define S_TextureUsage_Typeless "Typeless"
 #define S_TextureUsage_Shared "Shared"
 
 // ResourceState
