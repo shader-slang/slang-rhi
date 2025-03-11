@@ -164,6 +164,7 @@ struct FormatInfoMap
         case Format::R8_TYPELESS:
         case Format::B8G8R8A8_TYPELESS:
         case Format::R10G10B10A2_TYPELESS:
+        case Format::R32_FLOAT_X32_TYPELESS:
             return true;
         default:
             return false;

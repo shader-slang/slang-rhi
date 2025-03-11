@@ -306,6 +306,42 @@ private:
     std::vector<TextureData> m_datas;
 };
 
+/// Formats not currently handled
+/// TODO(testing): Format selection should be part of test variant generation.
+inline bool shouldIgnoreFormat(Format format)
+{
+    switch (format)
+    {
+    case Format::D16_UNORM:
+    case Format::D32_FLOAT_S8_UINT:
+    case Format::D32_FLOAT:
+        return true;
+    default:
+        break;
+    }
+
+    const FormatInfo& info = getFormatInfo(format);
+    if (info.isTypeless)
+        return true;
+
+    return false;
+}
+
+/// Texture types that can support compressed data
+inline bool supportsCompressedFormats(const TextureDesc& desc)
+{
+    switch (desc.type)
+    {
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        // case TextureType::Texture3D: //TODO: Potentially Re-enable for D3D - it highlighted some bugs!
+        return true;
+    default:
+        return false;
+    }
+}
 
 /// Run a texture test.
 /// - func: should be a callable of the form void(TextureTestContext*, Args...)
@@ -324,25 +360,39 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
         if (!is_set(support, FormatSupport::Texture))
             continue;
 
+        const FormatInfo& info = getFormatInfo(format);
+        if (info.isTypeless)
+            continue;
+
+        if (shouldIgnoreFormat(format))
+            continue;
+
         for (auto& variant : options.getVariants())
         {
+            TextureDesc& td = variant.descriptors[0].desc;
+            CAPTURE(td.type);
+            CAPTURE(td.size.width);
+            CAPTURE(td.size.height);
+            CAPTURE(td.size.depth);
+            CAPTURE(td.mipLevelCount);
+            CAPTURE(td.arrayLength);
+            CAPTURE(td.format);
+
+            if (info.isCompressed)
+            {
+                if (!supportsCompressedFormats(td))
+                    continue;
+            }
+
             TextureTestContext context(options.getDevice());
             for (auto& desc : variant.descriptors)
             {
                 TextureData data;
                 desc.desc.format = format;
                 data.init(desc.desc, desc.initMode);
-                context.addTexture(std::move(data));
+                REQUIRE_CALL(context.addTexture(std::move(data)));
             }
 
-            TextureDesc firstTextureDesc = context.getTexture(0)->getDesc();
-            CAPTURE(firstTextureDesc.type);
-            CAPTURE(firstTextureDesc.size.width);
-            CAPTURE(firstTextureDesc.size.height);
-            CAPTURE(firstTextureDesc.size.depth);
-            CAPTURE(firstTextureDesc.mipLevelCount);
-            CAPTURE(firstTextureDesc.arrayLength);
-            CAPTURE(firstTextureDesc.format);
 
             func(&context, std::forward<Args>(args)...);
         }

@@ -155,7 +155,8 @@ void TextureData::checkEqual(ComPtr<ITexture> texture) const
 
             ComPtr<ISlangBlob> blob;
             Size rowPitch;
-            textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch);
+            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
+            );
 
             for (uint32_t row = 0; row < sr.layout.rowCount; row++)
             {

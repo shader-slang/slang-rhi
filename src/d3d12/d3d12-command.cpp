@@ -270,6 +270,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.arrayLength;
 
+    const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
+
     for (uint32_t layer = 0; layer < srcSubresource.layerCount; layer++)
     {
         // Get the footprint
@@ -293,14 +295,17 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
         footprint.Offset = dstOffset;
         footprint.Footprint.Format = texDesc.Format;
+
         uint32_t mipLevel = srcSubresource.mipLevel;
+        Extents mipSize = calcMipSize(textureSize, mipLevel);
+
         if (extent.width != 0xFFFFFFFF)
         {
             footprint.Footprint.Width = extent.width;
         }
         else
         {
-            footprint.Footprint.Width = max(1, (textureSize.width >> mipLevel)) - srcOffset.x;
+            footprint.Footprint.Width = mipSize.width - srcOffset.x;
         }
         if (extent.height != 0xFFFFFFFF)
         {
@@ -308,7 +313,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
         }
         else
         {
-            footprint.Footprint.Height = max(1, (textureSize.height >> mipLevel)) - srcOffset.y;
+            footprint.Footprint.Height = mipSize.height - srcOffset.y;
         }
         if (extent.depth != 0xFFFFFFFF)
         {
@@ -316,20 +321,36 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
         }
         else
         {
-            footprint.Footprint.Depth = max(1, (textureSize.depth >> mipLevel)) - srcOffset.z;
+            footprint.Footprint.Depth = mipSize.depth - srcOffset.z;
         }
+
+        footprint.Footprint.Width =
+            (footprint.Footprint.Width + formatInfo.blockWidth - 1) & ~(formatInfo.blockWidth - 1);
+
+        footprint.Footprint.Height =
+            (footprint.Footprint.Height + formatInfo.blockHeight - 1) & ~(formatInfo.blockHeight - 1);
 
         SLANG_RHI_ASSERT(dstRowStride % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
         footprint.Footprint.RowPitch = (UINT)dstRowStride;
 
-        D3D12_BOX srcBox = {};
-        srcBox.left = srcOffset.x;
-        srcBox.top = srcOffset.y;
-        srcBox.front = srcOffset.z;
-        srcBox.right = srcOffset.x + extent.width;
-        srcBox.bottom = srcOffset.y + extent.height;
-        srcBox.back = srcOffset.z + extent.depth;
-        m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, &srcBox);
+        if (srcOffset.isZero() && extent == mipSize)
+        {
+            // If copying whole texture region, pass nullptr. This is required for
+            // copying certain resources such as depth-stencil or multisampled textures.
+            m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, nullptr);
+        }
+        else
+        {
+            // Not copying whole extent so pass offsets in
+            D3D12_BOX srcBox = {};
+            srcBox.left = srcOffset.x;
+            srcBox.top = srcOffset.y;
+            srcBox.front = srcOffset.z;
+            srcBox.right = srcOffset.x + extent.width;
+            srcBox.bottom = srcOffset.y + extent.height;
+            srcBox.back = srcOffset.z + extent.depth;
+            m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, &srcBox);
+        }
     }
 }
 
