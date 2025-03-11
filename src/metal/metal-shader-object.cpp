@@ -20,13 +20,13 @@ Result BindingDataBuilder::bindAsRoot(
 
     // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
     uint32_t bufferCount = 100;
+    uint32_t textureCount = 100;
     m_bindingData->bufferCount = 0;
     m_bindingData->buffers = m_allocator->allocate<MTL::Buffer*>(bufferCount);
     ::memset(m_bindingData->buffers, 0, sizeof(MTL::Buffer*) * bufferCount);
     m_bindingData->bufferOffsets = m_allocator->allocate<NS::UInteger>(bufferCount);
     ::memset(m_bindingData->bufferOffsets, 0, sizeof(NS::UInteger) * bufferCount);
-    uint32_t textureCount = specializedLayout->getTotalTextureCount();
-    m_bindingData->textureCount = textureCount;
+    m_bindingData->textureCount = 0;
     m_bindingData->textures = m_allocator->allocate<MTL::Texture*>(textureCount);
     ::memset(m_bindingData->textures, 0, sizeof(MTL::Texture*) * textureCount);
     uint32_t samplerCount = specializedLayout->getTotalSamplerCount();
@@ -168,7 +168,7 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
-                SLANG_RHI_ASSERT(registerIndex < m_bindingData->textureCount);
+                m_bindingData->textureCount = max(m_bindingData->textureCount, registerIndex + 1);
                 m_bindingData->textures[registerIndex] = textureView ? textureView->m_textureView.get() : nullptr;
             }
             break;

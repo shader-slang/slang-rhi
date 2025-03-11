@@ -37,7 +37,8 @@ RWStructuredBuffer<float> result;
 [numthreads(1, 1, 1)]
 void compute_main()
 {
-#ifndef __CUDA__
+    // TODO: CUDA/Metal don't fully support typed buffers yet
+#if !(defined(__CUDA__) || defined(__METAL__))
     result[0] = buffer2[0];
     result[1] = rwBuffer2[0];
 #else
@@ -46,7 +47,7 @@ void compute_main()
 #endif
     result[2] = structuredBuffer2[0];
     result[3] = rwStructuredBuffer2[0];
-#ifndef __CUDA__
+#if !defined(__CUDA__)
     result[4] = texture2.Load(int3(0));
     result[5] = rwTexture2.Load(int2(0));
     result[6] = textureArray2.Load(int4(0));
