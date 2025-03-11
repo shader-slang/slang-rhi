@@ -46,7 +46,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         {
             if (desc.depthStencil.format != Format::Undefined)
             {
-                psoDesc.DSVFormat = D3DUtil::getMapFormat(desc.depthStencil.format);
+                psoDesc.DSVFormat = D3DUtil::getFormatMapping(desc.depthStencil.format).rtvFormat;
             }
             else
             {
@@ -55,7 +55,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             psoDesc.NumRenderTargets = numRenderTargets;
             for (uint32_t i = 0; i < numRenderTargets; i++)
             {
-                psoDesc.RTVFormats[i] = D3DUtil::getMapFormat(desc.targets[i].format);
+                psoDesc.RTVFormats[i] = D3DUtil::getFormatMapping(desc.targets[i].format).rtvFormat;
             }
 
             psoDesc.SampleDesc.Count = desc.multisample.sampleCount;

@@ -958,8 +958,9 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
 {
     TextureDesc desc = fixupTextureDesc(desc_);
+    bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureDesc(resourceDesc, desc);
+    initTextureDesc(resourceDesc, desc, isTypeless);
     auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
     *outSize = (Size)allocInfo.SizeInBytes;
     *outAlignment = (Size)allocInfo.Alignment;
@@ -981,10 +982,19 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
 
+    bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
+    if (isDepthFormat(desc.format) &&
+        (is_set(desc.usage, TextureUsage::ShaderResource) || is_set(desc.usage, TextureUsage::UnorderedAccess)))
+    {
+        isTypeless = true;
+    }
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureDesc(resourceDesc, desc);
+    SLANG_RETURN_ON_FAIL(initTextureDesc(resourceDesc, desc, isTypeless));
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+
+    texture->m_format = resourceDesc.Format;
+    texture->m_isTypeless = isTypeless;
 
     // Create the target resource
     {

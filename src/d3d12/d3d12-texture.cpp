@@ -92,7 +92,7 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
         return allocation.cpuHandle;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
-    viewDesc.Format = D3DUtil::getMapFormat(format);
+    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).srvFormat : m_format;
     viewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
     switch (type)
@@ -171,7 +171,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         return allocation.cpuHandle;
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
-    viewDesc.Format = D3DUtil::getMapFormat(format);
+    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).srvFormat : m_format;
     switch (type)
     {
     case TextureType::Texture1D:
@@ -235,7 +235,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
         return allocation.cpuHandle;
 
     D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
-    viewDesc.Format = D3DUtil::getMapFormat(format);
+    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).rtvFormat : m_format;
     switch (type)
     {
     case TextureType::Texture1D:
@@ -299,7 +299,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
         return allocation.cpuHandle;
 
     D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc = {};
-    viewDesc.Format = D3DUtil::getMapFormat(format);
+    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).rtvFormat : m_format;
     switch (type)
     {
     case TextureType::Texture1D:
