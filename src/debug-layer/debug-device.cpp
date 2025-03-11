@@ -151,7 +151,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         break;
     }
 
-    TextureDesc patchedDesc = fixupTextureDesc(desc);
+    TextureDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
     {
