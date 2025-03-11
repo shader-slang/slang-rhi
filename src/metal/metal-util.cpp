@@ -6,7 +6,7 @@
 
 namespace rhi::metal {
 
-const FormatMapping& MetalUtil::getFormatMapping(Format format)
+const MetalUtil::FormatMapping& MetalUtil::getFormatMapping(Format format)
 {
     FormatMapping mappings[] = {
         // clang-format off
