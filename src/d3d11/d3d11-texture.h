@@ -10,6 +10,8 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
 
     ComPtr<ID3D11Resource> m_resource;
+    DXGI_FORMAT m_format;
+    bool m_isTypeless;
 
     struct ViewKey
     {
