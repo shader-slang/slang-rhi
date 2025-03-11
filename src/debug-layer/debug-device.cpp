@@ -151,7 +151,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         break;
     }
 
-    TextureDesc patchedDesc = desc;
+    TextureDesc patchedDesc = fixupTextureDesc(desc);
     std::string label;
     if (!patchedDesc.label)
     {
@@ -184,7 +184,7 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
 {
     SLANG_RHI_API_FUNC;
 
-    BufferDesc patchedDesc = desc;
+    BufferDesc patchedDesc = fixupBufferDesc(desc);
     std::string label;
     if (!patchedDesc.label)
     {
