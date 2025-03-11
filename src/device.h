@@ -142,20 +142,17 @@ public:
     IDevice* getInterface(const Guid& guid);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
-        NativeHandle handle,
-        const TextureDesc& srcDesc,
-        const Size size,
-        ITexture** outTexture
-    ) override;
+    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+    createTextureFromSharedHandle(NativeHandle handle, const TextureDesc& desc, const Size size, ITexture** outTexture)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;

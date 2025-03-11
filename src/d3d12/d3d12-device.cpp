@@ -494,6 +494,24 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Set the device
     m_device = m_deviceInfo.m_device;
 
+    // Disable noisy debug layer messages.
+    if (isDebugLayersEnabled())
+    {
+        ComPtr<ID3D12InfoQueue> infoQueue;
+        m_device->QueryInterface(infoQueue.writeRef());
+        if (infoQueue)
+        {
+            D3D12_MESSAGE_ID hideMessages[] = {
+                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+                D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+            };
+            D3D12_INFO_QUEUE_FILTER f = {};
+            f.DenyList.NumIDs = (UINT)std::size(hideMessages);
+            f.DenyList.pIDList = hideMessages;
+            infoQueue->AddStorageFilterEntries(&f);
+        }
+    }
+
     // Initialize DXR interface.
 #if SLANG_RHI_DXR
     m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
@@ -937,11 +955,11 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
     return SLANG_OK;
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
 {
-    TextureDesc srcDesc = fixupTextureDesc(desc);
+    TextureDesc desc = fixupTextureDesc(desc_);
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureDesc(resourceDesc, srcDesc);
+    initTextureDesc(resourceDesc, desc);
     auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
     *outSize = (Size)allocInfo.SizeInBytes;
     *outAlignment = (Size)allocInfo.Alignment;
@@ -954,19 +972,19 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     // Description of uploading on Dx12
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899215%28v=vs.85%29.aspx
 
-    TextureDesc srcDesc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(desc_);
 
-    const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
 
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureDesc(resourceDesc, srcDesc);
+    initTextureDesc(resourceDesc, desc);
 
-    RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
 
     // Create the target resource
     {
@@ -979,17 +997,17 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         heapProps.VisibleNodeMask = 1;
 
         D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
-        if (is_set(descIn.usage, TextureUsage::Shared))
+        if (is_set(desc.usage, TextureUsage::Shared))
             flags |= D3D12_HEAP_FLAG_SHARED;
 
         D3D12_CLEAR_VALUE clearValue;
         D3D12_CLEAR_VALUE* clearValuePtr = nullptr;
         clearValue.Format = resourceDesc.Format;
-        if (descIn.optimalClearValue)
+        if (desc.optimalClearValue)
         {
-            memcpy(clearValue.Color, &descIn.optimalClearValue->color, sizeof(clearValue.Color));
-            clearValue.DepthStencil.Depth = descIn.optimalClearValue->depthStencil.depth;
-            clearValue.DepthStencil.Stencil = descIn.optimalClearValue->depthStencil.stencil;
+            memcpy(clearValue.Color, &desc.optimalClearValue->color, sizeof(clearValue.Color));
+            clearValue.DepthStencil.Depth = desc.optimalClearValue->depthStencil.depth;
+            clearValue.DepthStencil.Stencil = desc.optimalClearValue->depthStencil.stencil;
             clearValuePtr = &clearValue;
         }
         if ((resourceDesc.Flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
@@ -1006,26 +1024,26 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
                 .initCommitted(m_device, heapProps, flags, resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, clearValuePtr)
         );
 
-        if (srcDesc.label)
+        if (desc.label)
         {
-            texture->m_resource.setDebugName(srcDesc.label);
+            texture->m_resource.setDebugName(desc.label);
         }
     }
 
     // Calculate the layout
     std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
-    layouts.resize(srcDesc.mipLevelCount);
+    layouts.resize(desc.mipLevelCount);
     std::vector<uint64_t> mipRowSizeInBytes;
-    mipRowSizeInBytes.resize(srcDesc.mipLevelCount);
+    mipRowSizeInBytes.resize(desc.mipLevelCount);
     std::vector<uint32_t> mipNumRows;
-    mipNumRows.resize(srcDesc.mipLevelCount);
+    mipNumRows.resize(desc.mipLevelCount);
 
     // NOTE! This is just the size for one array upload -> not for the whole texture
     uint64_t requiredSize = 0;
     m_device->GetCopyableFootprints(
         &resourceDesc,
         0,
-        srcDesc.mipLevelCount,
+        desc.mipLevelCount,
         0,
         layouts.data(),
         mipNumRows.data(),
@@ -1078,20 +1096,20 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
         ID3D12Resource* uploadResource = uploadTexture;
 
         uint32_t subresourceIndex = 0;
-        uint32_t layerCount = srcDesc.getLayerCount();
+        uint32_t layerCount = desc.getLayerCount();
         for (uint32_t layer = 0; layer < layerCount; layer++)
         {
             uint8_t* p;
             uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));
 
-            for (uint32_t j = 0; j < srcDesc.mipLevelCount; ++j)
+            for (uint32_t j = 0; j < desc.mipLevelCount; ++j)
             {
                 auto srcSubresource = initData[subresourceIndex + j];
 
                 const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[j];
                 const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
 
-                Extents mipSize = calcMipSize(srcDesc.size, j);
+                Extents mipSize = calcMipSize(desc.size, j);
                 if (formatInfo.isCompressed)
                 {
                     mipSize.width = (int32_t)math::calcAligned(mipSize.width, 4);
@@ -1141,7 +1159,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 
             ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
-            for (uint32_t mipIndex = 0; mipIndex < srcDesc.mipLevelCount; ++mipIndex)
+            for (uint32_t mipIndex = 0; mipIndex < desc.mipLevelCount; ++mipIndex)
             {
                 // https://msdn.microsoft.com/en-us/library/windows/desktop/dn903862(v=vs.85).aspx
 
@@ -1176,9 +1194,9 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture)
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
 {
-    RefPtr<TextureImpl> texture(new TextureImpl(this, srcDesc));
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
 
     if (handle.type == NativeHandleType::D3D12Resource)
     {
@@ -1193,40 +1211,40 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
-    BufferDesc srcDesc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(desc_);
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
 
     D3D12_RESOURCE_DESC bufferDesc;
-    initBufferDesc(descIn.size, bufferDesc);
+    initBufferDesc(desc.size, bufferDesc);
 
-    bufferDesc.Flags |= calcResourceFlags(srcDesc.usage);
+    bufferDesc.Flags |= calcResourceFlags(desc.usage);
 
     const D3D12_RESOURCE_STATES initialState = buffer->m_defaultState;
     SLANG_RETURN_ON_FAIL(createBuffer(
         bufferDesc,
         initData,
-        srcDesc.size,
+        desc.size,
         initialState,
         buffer->m_resource,
-        is_set(descIn.usage, BufferUsage::Shared),
-        descIn.memoryType
+        is_set(desc.usage, BufferUsage::Shared),
+        desc.memoryType
     ));
 
-    if (srcDesc.label)
+    if (desc.label)
     {
-        buffer->m_resource.setDebugName(srcDesc.label);
+        buffer->m_resource.setDebugName(desc.label);
     }
 
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
 
     if (handle.type == NativeHandleType::D3D12Resource)
     {
@@ -1562,6 +1580,44 @@ void DeviceImpl::flushValidationMessages()
 #endif
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullDescriptor(
+    slang::BindingType bindingType,
+    SlangResourceShape resourceShape
+)
+{
+    std::lock_guard<std::mutex> lock(m_nullDescriptorsMutex);
+    NullDescriptorKey key = {bindingType, resourceShape};
+    auto it = m_nullDescriptors.find(key);
+    if (it != m_nullDescriptors.end())
+    {
+        return it->second.cpuHandle;
+    }
+    CPUDescriptorAllocation allocation = m_cpuCbvSrvUavHeap->allocate();
+    Result result = createNullDescriptor(m_device, allocation.cpuHandle, bindingType, resourceShape);
+    if (!SLANG_SUCCEEDED(result))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to create null descriptor");
+    }
+    m_nullDescriptors[key] = allocation;
+    return allocation.cpuHandle;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullSamplerDescriptor()
+{
+    std::lock_guard<std::mutex> lock(m_nullDescriptorsMutex);
+    if (m_nullSamplerDescriptor)
+    {
+        return m_nullSamplerDescriptor.cpuHandle;
+    }
+    m_nullSamplerDescriptor = m_cpuSamplerHeap->allocate();
+    D3D12_SAMPLER_DESC desc = {};
+    desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    m_device->CreateSampler(&desc, m_nullSamplerDescriptor.cpuHandle);
+    return m_nullSamplerDescriptor.cpuHandle;
+}
+
 void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* inDesc)
 {
     typedef HRESULT(WINAPI * PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
@@ -1811,6 +1867,15 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_queue.setNull();
+
+    for (const auto& [_, allocation] : m_nullDescriptors)
+    {
+        m_cpuCbvSrvUavHeap->free(allocation);
+    }
+    if (m_nullSamplerDescriptor)
+    {
+        m_cpuSamplerHeap->free(m_nullSamplerDescriptor);
+    }
 }
 
 } // namespace rhi::d3d12

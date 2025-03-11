@@ -604,25 +604,25 @@ VkComponentTypeKHR VulkanUtil::translateCooperativeVectorComponentType(Cooperati
         return VK_COMPONENT_TYPE_FLOAT32_KHR;
     case CooperativeVectorComponentType::Float64:
         return VK_COMPONENT_TYPE_FLOAT64_KHR;
-    case CooperativeVectorComponentType::SInt8:
+    case CooperativeVectorComponentType::Sint8:
         return VK_COMPONENT_TYPE_SINT8_KHR;
-    case CooperativeVectorComponentType::SInt16:
+    case CooperativeVectorComponentType::Sint16:
         return VK_COMPONENT_TYPE_SINT16_KHR;
-    case CooperativeVectorComponentType::SInt32:
+    case CooperativeVectorComponentType::Sint32:
         return VK_COMPONENT_TYPE_SINT32_KHR;
-    case CooperativeVectorComponentType::SInt64:
+    case CooperativeVectorComponentType::Sint64:
         return VK_COMPONENT_TYPE_SINT64_KHR;
-    case CooperativeVectorComponentType::UInt8:
+    case CooperativeVectorComponentType::Uint8:
         return VK_COMPONENT_TYPE_UINT8_KHR;
-    case CooperativeVectorComponentType::UInt16:
+    case CooperativeVectorComponentType::Uint16:
         return VK_COMPONENT_TYPE_UINT16_KHR;
-    case CooperativeVectorComponentType::UInt32:
+    case CooperativeVectorComponentType::Uint32:
         return VK_COMPONENT_TYPE_UINT32_KHR;
-    case CooperativeVectorComponentType::UInt64:
+    case CooperativeVectorComponentType::Uint64:
         return VK_COMPONENT_TYPE_UINT64_KHR;
-    case CooperativeVectorComponentType::SInt8Packed:
+    case CooperativeVectorComponentType::Sint8Packed:
         return VK_COMPONENT_TYPE_SINT8_PACKED_NV;
-    case CooperativeVectorComponentType::UInt8Packed:
+    case CooperativeVectorComponentType::Uint8Packed:
         return VK_COMPONENT_TYPE_UINT8_PACKED_NV;
     case CooperativeVectorComponentType::FloatE4M3:
         return VK_COMPONENT_TYPE_FLOAT_E4M3_NV;
@@ -644,25 +644,25 @@ CooperativeVectorComponentType VulkanUtil::translateCooperativeVectorComponentTy
     case VK_COMPONENT_TYPE_FLOAT64_KHR:
         return CooperativeVectorComponentType::Float64;
     case VK_COMPONENT_TYPE_SINT8_KHR:
-        return CooperativeVectorComponentType::SInt8;
+        return CooperativeVectorComponentType::Sint8;
     case VK_COMPONENT_TYPE_SINT16_KHR:
-        return CooperativeVectorComponentType::SInt16;
+        return CooperativeVectorComponentType::Sint16;
     case VK_COMPONENT_TYPE_SINT32_KHR:
-        return CooperativeVectorComponentType::SInt32;
+        return CooperativeVectorComponentType::Sint32;
     case VK_COMPONENT_TYPE_SINT64_KHR:
-        return CooperativeVectorComponentType::SInt64;
+        return CooperativeVectorComponentType::Sint64;
     case VK_COMPONENT_TYPE_UINT8_KHR:
-        return CooperativeVectorComponentType::UInt8;
+        return CooperativeVectorComponentType::Uint8;
     case VK_COMPONENT_TYPE_UINT16_KHR:
-        return CooperativeVectorComponentType::UInt16;
+        return CooperativeVectorComponentType::Uint16;
     case VK_COMPONENT_TYPE_UINT32_KHR:
-        return CooperativeVectorComponentType::UInt32;
+        return CooperativeVectorComponentType::Uint32;
     case VK_COMPONENT_TYPE_UINT64_KHR:
-        return CooperativeVectorComponentType::UInt64;
+        return CooperativeVectorComponentType::Uint64;
     case VK_COMPONENT_TYPE_SINT8_PACKED_NV:
-        return CooperativeVectorComponentType::SInt8Packed;
+        return CooperativeVectorComponentType::Sint8Packed;
     case VK_COMPONENT_TYPE_UINT8_PACKED_NV:
-        return CooperativeVectorComponentType::UInt8Packed;
+        return CooperativeVectorComponentType::Uint8Packed;
     case VK_COMPONENT_TYPE_FLOAT_E4M3_NV:
         return CooperativeVectorComponentType::FloatE4M3;
     case VK_COMPONENT_TYPE_FLOAT_E5M2_NV:

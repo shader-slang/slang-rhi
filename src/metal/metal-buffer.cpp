@@ -29,11 +29,11 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 
-    BufferDesc desc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(desc_);
 
     const Size bufferSize = desc.size;
 
@@ -82,7 +82,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer)
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL
 

@@ -117,7 +117,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             if (triangles.indexBuffer)
             {
                 geometry.geometry.triangles.indexType =
-                    triangles.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+                    triangles.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
                 geometry.geometry.triangles.indexData.deviceAddress = triangles.indexBuffer.getDeviceAddress();
             }
             else
@@ -182,9 +182,9 @@ Result AccelerationStructureBuildDescConverter::convert(
             if (spheres.indexBuffer)
             {
                 spheresData.indexType =
-                    spheres.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+                    spheres.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
                 spheresData.indexData.deviceAddress = spheres.indexBuffer.getDeviceAddress();
-                spheresData.indexStride = spheres.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+                spheresData.indexStride = spheres.indexFormat == IndexFormat::Uint32 ? 4 : 2;
             }
             else
             {
@@ -228,9 +228,9 @@ Result AccelerationStructureBuildDescConverter::convert(
             if (lss.indexBuffer)
             {
                 lssData.indexType =
-                    lss.indexFormat == IndexFormat::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+                    lss.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
                 lssData.indexData.deviceAddress = lss.indexBuffer.getDeviceAddress();
-                lssData.indexStride = lss.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+                lssData.indexStride = lss.indexFormat == IndexFormat::Uint32 ? 4 : 2;
             }
             else
             {

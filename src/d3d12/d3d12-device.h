@@ -108,11 +108,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) override;
+    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) override;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
 
@@ -216,6 +216,14 @@ public:
     void endImmediateCommandList();
 
     void flushValidationMessages();
+
+
+    using NullDescriptorKey = std::pair<slang::BindingType, SlangResourceShape>;
+    std::map<NullDescriptorKey, CPUDescriptorAllocation> m_nullDescriptors;
+    CPUDescriptorAllocation m_nullSamplerDescriptor;
+    std::mutex m_nullDescriptorsMutex;
+    D3D12_CPU_DESCRIPTOR_HANDLE getNullDescriptor(slang::BindingType bindingType, SlangResourceShape resourceShape);
+    D3D12_CPU_DESCRIPTOR_HANDLE getNullSamplerDescriptor();
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* desc);

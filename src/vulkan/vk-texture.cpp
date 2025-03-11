@@ -167,9 +167,9 @@ TextureSubresourceView TextureViewImpl::getView()
     return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange);
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureDesc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(desc_);
 
     const VkFormat format = VulkanUtil::getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
@@ -189,7 +189,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     case TextureType::Texture1DArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
-        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), 1, 1};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), 1, 1};
         break;
     }
     case TextureType::Texture2D:
@@ -198,21 +198,20 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     case TextureType::Texture2DMSArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), 1};
         break;
     }
     case TextureType::Texture3D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent =
-            VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), uint32_t(descIn.size.depth)};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), uint32_t(desc.size.depth)};
         break;
     }
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{uint32_t(descIn.size.width), uint32_t(descIn.size.height), 1};
+        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
@@ -239,7 +238,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
 #else
         VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-    if (is_set(descIn.usage, TextureUsage::Shared))
+    if (is_set(desc.usage, TextureUsage::Shared))
     {
         externalMemoryImageCreateInfo.pNext = nullptr;
         externalMemoryImageCreateInfo.handleTypes = extMemoryHandleType;
@@ -264,7 +263,7 @@ Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceDat
     };
 #endif
     VkExportMemoryAllocateInfoKHR exportMemoryAllocateInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    if (is_set(descIn.usage, TextureUsage::Shared))
+    if (is_set(desc.usage, TextureUsage::Shared))
     {
 #if SLANG_WINDOWS_FAMILY
         exportMemoryWin32HandleInfo.pNext = nullptr;

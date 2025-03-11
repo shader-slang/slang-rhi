@@ -265,8 +265,8 @@ enum class Format
 
 enum class IndexFormat
 {
-    UInt16,
-    UInt32,
+    Uint16,
+    Uint32,
 };
 
 // TODO: Aspect = Color, Depth, Stencil, etc.
@@ -603,6 +603,36 @@ enum class TextureType
     TextureCube,
     TextureCubeArray,
 };
+
+enum class TextureDimension
+{
+    Texture1D,
+    Texture2D,
+    Texture3D,
+    TextureCube,
+};
+
+inline TextureDimension getTextureDimension(TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
+        return TextureDimension::Texture1D;
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        return TextureDimension::Texture2D;
+    case TextureType::Texture3D:
+        return TextureDimension::Texture3D;
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        return TextureDimension::TextureCube;
+    default:
+        return TextureDimension::Texture2D;
+    }
+}
 
 enum class TextureAspect : uint32_t
 {
@@ -1017,7 +1047,7 @@ struct AccelerationStructureBuildInputTriangles
     uint32_t vertexStride = 0;
 
     BufferOffsetPair indexBuffer;
-    IndexFormat indexFormat = IndexFormat::UInt32;
+    IndexFormat indexFormat = IndexFormat::Uint32;
     uint32_t indexCount = 0;
 
     /// Optional buffer containing 3x4 transform matrix applied to each vertex.
@@ -1051,7 +1081,7 @@ struct AccelerationStructureBuildInputSpheres
     uint32_t vertexRadiusStride = 0;
 
     BufferOffsetPair indexBuffer;
-    IndexFormat indexFormat = IndexFormat::UInt32;
+    IndexFormat indexFormat = IndexFormat::Uint32;
     uint32_t indexCount = 0;
 
     AccelerationStructureGeometryFlags flags;
@@ -1084,7 +1114,7 @@ struct AccelerationStructureBuildInputLinearSweptSpheres
     uint32_t vertexRadiusStride = 0;
 
     BufferOffsetPair indexBuffer;
-    IndexFormat indexFormat = IndexFormat::UInt32;
+    IndexFormat indexFormat = IndexFormat::Uint32;
     uint32_t indexCount = 0;
 
     LinearSweptSpheresIndexingMode indexingMode = LinearSweptSpheresIndexingMode::List;
@@ -1782,7 +1812,7 @@ struct RenderState
     BufferOffsetPair vertexBuffers[16];
     uint32_t vertexBufferCount = 0;
     BufferOffsetPair indexBuffer;
-    IndexFormat indexFormat = IndexFormat::UInt32;
+    IndexFormat indexFormat = IndexFormat::Uint32;
 };
 
 enum class AccelerationStructureCopyMode
@@ -1817,16 +1847,16 @@ enum class CooperativeVectorComponentType
     Float16 = 0,
     Float32 = 1,
     Float64 = 2,
-    SInt8 = 3,
-    SInt16 = 4,
-    SInt32 = 5,
-    SInt64 = 6,
-    UInt8 = 7,
-    UInt16 = 8,
-    UInt32 = 9,
-    UInt64 = 10,
-    SInt8Packed = 11,
-    UInt8Packed = 12,
+    Sint8 = 3,
+    Sint16 = 4,
+    Sint32 = 5,
+    Sint64 = 6,
+    Uint8 = 7,
+    Uint16 = 8,
+    Uint32 = 9,
+    Uint64 = 10,
+    Sint8Packed = 11,
+    Uint8Packed = 12,
     FloatE4M3 = 13,
     FloatE5M2 = 14,
 };
@@ -2402,11 +2432,11 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& srcDesc, ITexture** outTexture) = 0;
+    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         NativeHandle handle,
-        const TextureDesc& srcDesc,
+        const TextureDesc& desc,
         const Size size,
         ITexture** outTexture
     ) = 0;
@@ -2423,10 +2453,10 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& srcDesc, IBuffer** outBuffer) = 0;
+    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) = 0;

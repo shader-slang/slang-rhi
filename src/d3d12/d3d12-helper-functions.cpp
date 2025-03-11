@@ -178,15 +178,15 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
     }
 }
 
-Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& srcDesc)
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc)
 {
-    const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(srcDesc.format);
+    const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(textureDesc.format);
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;
     }
 
-    const D3D12_RESOURCE_DIMENSION dimension = calcResourceDimension(srcDesc.type);
+    const D3D12_RESOURCE_DIMENSION dimension = calcResourceDimension(textureDesc.type);
     if (dimension == D3D12_RESOURCE_DIMENSION_UNKNOWN)
     {
         return SLANG_FAIL;
@@ -194,32 +194,32 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& src
 
     resourceDesc.Dimension = dimension;
     resourceDesc.Format = pixelFormat;
-    resourceDesc.Width = srcDesc.size.width;
-    resourceDesc.Height = srcDesc.size.height;
-    if (srcDesc.type == TextureType::Texture3D)
+    resourceDesc.Width = textureDesc.size.width;
+    resourceDesc.Height = textureDesc.size.height;
+    if (textureDesc.type == TextureType::Texture3D)
     {
-        resourceDesc.DepthOrArraySize = srcDesc.size.depth;
+        resourceDesc.DepthOrArraySize = textureDesc.size.depth;
     }
     else
     {
-        resourceDesc.DepthOrArraySize = srcDesc.getLayerCount();
+        resourceDesc.DepthOrArraySize = textureDesc.getLayerCount();
     }
 
-    resourceDesc.MipLevels = srcDesc.mipLevelCount;
-    resourceDesc.SampleDesc.Count = srcDesc.sampleCount;
-    resourceDesc.SampleDesc.Quality = srcDesc.sampleQuality;
+    resourceDesc.MipLevels = textureDesc.mipLevelCount;
+    resourceDesc.SampleDesc.Count = textureDesc.sampleCount;
+    resourceDesc.SampleDesc.Quality = textureDesc.sampleQuality;
 
     resourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
     resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
-    resourceDesc.Flags |= calcResourceFlags(srcDesc.usage);
+    resourceDesc.Flags |= calcResourceFlags(textureDesc.usage);
 
     resourceDesc.Alignment = 0;
 
-    if (isDepthFormat(srcDesc.format) &&
-        (is_set(srcDesc.usage, TextureUsage::ShaderResource) || is_set(srcDesc.usage, TextureUsage::UnorderedAccess)))
+    if (isDepthFormat(textureDesc.format) && (is_set(textureDesc.usage, TextureUsage::ShaderResource) ||
+                                              is_set(textureDesc.usage, TextureUsage::UnorderedAccess)))
     {
-        resourceDesc.Format = getTypelessFormatFromDepthFormat(srcDesc.format);
+        resourceDesc.Format = getTypelessFormatFromDepthFormat(textureDesc.format);
     }
 
     return SLANG_OK;
@@ -422,25 +422,25 @@ NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE translateCooperativeVectorComponentType(
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT32;
     case CooperativeVectorComponentType::Float64:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT64;
-    case CooperativeVectorComponentType::SInt8:
+    case CooperativeVectorComponentType::Sint8:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8;
-    case CooperativeVectorComponentType::SInt16:
+    case CooperativeVectorComponentType::Sint16:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT16;
-    case CooperativeVectorComponentType::SInt32:
+    case CooperativeVectorComponentType::Sint32:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT32;
-    case CooperativeVectorComponentType::SInt64:
+    case CooperativeVectorComponentType::Sint64:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT64;
-    case CooperativeVectorComponentType::UInt8:
+    case CooperativeVectorComponentType::Uint8:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8;
-    case CooperativeVectorComponentType::UInt16:
+    case CooperativeVectorComponentType::Uint16:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT16;
-    case CooperativeVectorComponentType::UInt32:
+    case CooperativeVectorComponentType::Uint32:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT32;
-    case CooperativeVectorComponentType::UInt64:
+    case CooperativeVectorComponentType::Uint64:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT64;
-    case CooperativeVectorComponentType::SInt8Packed:
+    case CooperativeVectorComponentType::Sint8Packed:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8_PACKED;
-    case CooperativeVectorComponentType::UInt8Packed:
+    case CooperativeVectorComponentType::Uint8Packed:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8_PACKED;
     case CooperativeVectorComponentType::FloatE4M3:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E4M3;
@@ -462,25 +462,25 @@ CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COO
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT64:
         return CooperativeVectorComponentType::Float64;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8:
-        return CooperativeVectorComponentType::SInt8;
+        return CooperativeVectorComponentType::Sint8;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT16:
-        return CooperativeVectorComponentType::SInt16;
+        return CooperativeVectorComponentType::Sint16;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT32:
-        return CooperativeVectorComponentType::SInt32;
+        return CooperativeVectorComponentType::Sint32;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT64:
-        return CooperativeVectorComponentType::SInt64;
+        return CooperativeVectorComponentType::Sint64;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8:
-        return CooperativeVectorComponentType::UInt8;
+        return CooperativeVectorComponentType::Uint8;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT16:
-        return CooperativeVectorComponentType::UInt16;
+        return CooperativeVectorComponentType::Uint16;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT32:
-        return CooperativeVectorComponentType::UInt32;
+        return CooperativeVectorComponentType::Uint32;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT64:
-        return CooperativeVectorComponentType::UInt64;
+        return CooperativeVectorComponentType::Uint64;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_SINT8_PACKED:
-        return CooperativeVectorComponentType::SInt8Packed;
+        return CooperativeVectorComponentType::Sint8Packed;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_UINT8_PACKED:
-        return CooperativeVectorComponentType::UInt8Packed;
+        return CooperativeVectorComponentType::Uint8Packed;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E4M3:
         return CooperativeVectorComponentType::FloatE4M3;
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E5M2:

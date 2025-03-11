@@ -408,7 +408,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             m_ctx.api.wgpuRenderPassEncoderSetIndexBuffer(
                 m_renderPassEncoder,
                 buffer->m_buffer,
-                state.indexFormat == IndexFormat::UInt32 ? WGPUIndexFormat_Uint32 : WGPUIndexFormat_Uint16,
+                state.indexFormat == IndexFormat::Uint32 ? WGPUIndexFormat_Uint32 : WGPUIndexFormat_Uint16,
                 offset,
                 buffer->m_desc.size - offset
             );

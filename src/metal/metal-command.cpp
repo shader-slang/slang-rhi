@@ -424,11 +424,11 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             m_indexBufferOffset = state.indexBuffer.offset;
             switch (state.indexFormat)
             {
-            case IndexFormat::UInt16:
+            case IndexFormat::Uint16:
                 m_indexType = MTL::IndexTypeUInt16;
                 m_indexSize = 2;
                 break;
-            case IndexFormat::UInt32:
+            case IndexFormat::Uint32:
                 m_indexType = MTL::IndexTypeUInt32;
                 m_indexSize = 4;
                 break;

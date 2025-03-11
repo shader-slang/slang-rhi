@@ -379,9 +379,9 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
     return (uint8_t*)texture->m_data + texelOffset;
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureDesc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(desc_);
     RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
     SLANG_RETURN_ON_FAIL(texture->init(initData));
     returnComPtr(outTexture, texture);

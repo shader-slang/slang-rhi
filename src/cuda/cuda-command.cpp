@@ -150,8 +150,39 @@ void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
+    auto dst = checked_cast<TextureImpl*>(cmd.dst);
+    SubresourceRange subresourceRange = cmd.subresourceRange;
+
+    SubresourceLayout* srLayout = cmd.layouts;
+    Offset bufferOffset = cmd.srcOffset;
+    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
+    {
+        uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        {
+            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+
+            CUarray dstArray = dst->m_cudaArray;
+            if (dst->m_cudaMipMappedArray)
+            {
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, mipLevel));
+            }
+
+            CUDA_MEMCPY3D copyParam = {};
+            copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
+            copyParam.dstArray = dstArray;
+            copyParam.dstZ = layer;
+            copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+            copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
+            copyParam.srcPitch = srLayout->strideY;
+            copyParam.WidthInBytes = srLayout->strideY;
+            copyParam.Height = srLayout->size.height;
+            copyParam.Depth = srLayout->size.depth;
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+        }
+    }
 }
 
 void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)

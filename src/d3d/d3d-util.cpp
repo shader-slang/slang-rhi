@@ -320,9 +320,9 @@ DXGI_FORMAT D3DUtil::getIndexFormat(IndexFormat indexFormat)
 {
     switch (indexFormat)
     {
-    case IndexFormat::UInt16:
+    case IndexFormat::Uint16:
         return DXGI_FORMAT_R16_UINT;
-    case IndexFormat::UInt32:
+    case IndexFormat::Uint32:
         return DXGI_FORMAT_R32_UINT;
     default:
         return DXGI_FORMAT_UNKNOWN;

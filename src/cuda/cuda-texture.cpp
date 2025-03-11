@@ -46,13 +46,11 @@ Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_FAIL;
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
-    TextureDesc srcDesc = fixupTextureDesc(desc);
+    TextureDesc desc = fixupTextureDesc(desc_);
 
-    RefPtr<TextureImpl> tex = new TextureImpl(this, srcDesc);
-
-    // CUresourcetype resourceType = CU_RESOURCE_TYPE_ARRAY;
+    RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
 
     // The size of the element/texel in bytes
     size_t elementSize = 0;
@@ -212,169 +210,42 @@ Result DeviceImpl::createTexture(const TextureDesc& desc, const SubresourceData*
     }
     }
 
-    // Work space for holding data for uploading if it needs to be rearranged
     if (initData)
     {
-        std::vector<uint8_t> workspace;
-        for (int mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        uint32_t mipLevelCount = desc.mipLevelCount;
+        uint32_t layerCount = desc.getLayerCount();
+        uint32_t subresourceIndex = 0;
+
+        for (uint32_t layer = 0; layer < layerCount; ++layer)
         {
-            int mipWidth = desc.size.width >> mipLevel;
-            int mipHeight = desc.size.height >> mipLevel;
-            int mipDepth = desc.size.depth >> mipLevel;
-
-            mipWidth = (mipWidth == 0) ? 1 : mipWidth;
-            mipHeight = (mipHeight == 0) ? 1 : mipHeight;
-            mipDepth = (mipDepth == 0) ? 1 : mipDepth;
-
-            // If it's a cubemap then the depth is always 6
-            if (desc.type == TextureType::TextureCube)
+            for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; ++mipLevel)
             {
-                mipDepth = 6;
-            }
+                const SubresourceData& subresourceData = initData[subresourceIndex++];
 
-            auto dstArray = tex->m_cudaArray;
-            if (tex->m_cudaMipMappedArray)
-            {
-                // Get the array for the mip level
-                SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, tex->m_cudaMipMappedArray, mipLevel));
-            }
-            SLANG_RHI_ASSERT(dstArray);
+                Extents mipSize = calcMipSize(desc.size, mipLevel);
 
-            // Check using the desc to see if it's plausible
-            {
-                CUDA_ARRAY_DESCRIPTOR arrayDesc;
-                SLANG_CUDA_RETURN_ON_FAIL(cuArrayGetDescriptor(&arrayDesc, dstArray));
-
-                SLANG_RHI_ASSERT(mipWidth == arrayDesc.Width);
-                SLANG_RHI_ASSERT(mipHeight == arrayDesc.Height || (mipHeight == 1 && arrayDesc.Height == 0));
-            }
-
-            const void* srcDataPtr = nullptr;
-
-            if (desc.arrayLength > 1)
-            {
-                SLANG_RHI_ASSERT(
-                    desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
-                    desc.type == TextureType::TextureCube
-                );
-
-                // TODO(JS): Here I assume that arrays are just held contiguously within a
-                // 'face' This seems reasonable and works with the Copy3D.
-                const size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
-
-                uint32_t faceCount = desc.arrayLength;
-                if (desc.type == TextureType::TextureCube)
+                CUarray dstArray = tex->m_cudaArray;
+                if (tex->m_cudaMipMappedArray)
                 {
-                    faceCount *= 6;
+                    SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, tex->m_cudaMipMappedArray, mipLevel));
                 }
-
-                const size_t mipSizeInBytes = faceSizeInBytes * faceCount;
-                workspace.resize(mipSizeInBytes);
-
-                // We need to add the face data from each mip
-                // We iterate over face count so we copy all of the cubemap faces
-                for (uint32_t j = 0; j < faceCount; j++)
-                {
-                    const auto srcData = initData[mipLevel + j * desc.mipLevelCount].data;
-                    // Copy over to the workspace to make contiguous
-                    ::memcpy(workspace.data() + faceSizeInBytes * j, srcData, faceSizeInBytes);
-                }
-
-                srcDataPtr = workspace.data();
-            }
-            else
-            {
-                if (desc.type == TextureType::TextureCube)
-                {
-                    size_t faceSizeInBytes = elementSize * mipWidth * mipHeight;
-
-                    workspace.resize(faceSizeInBytes * 6);
-                    // Copy the data over to make contiguous
-                    for (uint32_t j = 0; j < 6; j++)
-                    {
-                        const auto srcData = initData[mipLevel + j * desc.mipLevelCount].data;
-                        ::memcpy(workspace.data() + faceSizeInBytes * j, srcData, faceSizeInBytes);
-                    }
-                    srcDataPtr = workspace.data();
-                }
-                else
-                {
-                    const auto srcData = initData[mipLevel].data;
-                    srcDataPtr = srcData;
-                }
-            }
-
-            if (desc.arrayLength > 1)
-            {
-                SLANG_RHI_ASSERT(
-                    desc.type == TextureType::Texture1D || desc.type == TextureType::Texture2D ||
-                    desc.type == TextureType::TextureCube
-                );
 
                 CUDA_MEMCPY3D copyParam = {};
                 copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
                 copyParam.dstArray = dstArray;
+                copyParam.dstZ = layer;
                 copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
-                copyParam.srcHost = srcDataPtr;
-                copyParam.srcPitch = mipWidth * elementSize;
-                copyParam.WidthInBytes = copyParam.srcPitch;
-                copyParam.Height = mipHeight;
-                // Set the depth to the array length
-                copyParam.Depth = desc.arrayLength;
-
-                if (desc.type == TextureType::TextureCube)
-                {
-                    copyParam.Depth *= 6;
-                }
-
+                copyParam.srcHost = subresourceData.data;
+                copyParam.srcPitch = subresourceData.strideY;
+                copyParam.WidthInBytes = mipSize.width * elementSize;
+                copyParam.Height = mipSize.height;
+                copyParam.Depth = mipSize.depth;
                 SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
-            }
-            else
-            {
-                switch (desc.type)
-                {
-                case TextureType::Texture1D:
-                case TextureType::Texture2D:
-                {
-                    CUDA_MEMCPY2D copyParam = {};
-                    copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
-                    copyParam.dstArray = dstArray;
-                    copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
-                    copyParam.srcHost = srcDataPtr;
-                    copyParam.srcPitch = mipWidth * elementSize;
-                    copyParam.WidthInBytes = copyParam.srcPitch;
-                    copyParam.Height = mipHeight;
-                    SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy2D(&copyParam));
-                    break;
-                }
-                case TextureType::Texture3D:
-                case TextureType::TextureCube:
-                {
-                    CUDA_MEMCPY3D copyParam = {};
-                    copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
-                    copyParam.dstArray = dstArray;
-                    copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
-                    copyParam.srcHost = srcDataPtr;
-                    copyParam.srcPitch = mipWidth * elementSize;
-                    copyParam.WidthInBytes = copyParam.srcPitch;
-                    copyParam.Height = mipHeight;
-                    copyParam.Depth = mipDepth;
-
-                    SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
-                    break;
-                }
-
-                default:
-                {
-                    SLANG_RHI_ASSERT_FAILURE("Not implemented");
-                    break;
-                }
-                }
             }
         }
     }
-    // Set up texture sampling parameters, and create final texture obj
 
+    // Set up texture sampling parameters, and create final texture obj
     {
         CUDA_RESOURCE_DESC resDesc = {};
 

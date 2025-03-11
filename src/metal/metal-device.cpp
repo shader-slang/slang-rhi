@@ -254,13 +254,13 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
     return m_accelerationStructures.array.get();
 }
 
-Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& descIn, Size* outSize, Size* outAlignment)
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
 {
     AUTORELEASEPOOL
 
     auto alignTo = [&](Size size, Size alignment) -> Size { return ((size + alignment - 1) / alignment) * alignment; };
 
-    TextureDesc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(desc_);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);

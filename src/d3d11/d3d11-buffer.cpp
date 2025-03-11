@@ -99,13 +99,13 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
     return uav.get();
 }
 
-Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
-    BufferDesc srcDesc = fixupBufferDesc(descIn);
+    BufferDesc desc = fixupBufferDesc(desc_);
 
-    auto d3dBindFlags = _calcResourceBindFlags(srcDesc.usage);
+    auto d3dBindFlags = _calcResourceBindFlags(desc.usage);
 
-    size_t alignedSizeInBytes = srcDesc.size;
+    size_t alignedSizeInBytes = desc.size;
 
     if (d3dBindFlags & D3D11_BIND_CONSTANT_BUFFER)
     {
@@ -115,49 +115,49 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
 
     // Hack to make the initialization never read from out of bounds memory, by copying into a buffer
     std::vector<uint8_t> initDataBuffer;
-    if (initData && alignedSizeInBytes > srcDesc.size)
+    if (initData && alignedSizeInBytes > desc.size)
     {
         initDataBuffer.resize(alignedSizeInBytes);
-        ::memcpy(initDataBuffer.data(), initData, srcDesc.size);
+        ::memcpy(initDataBuffer.data(), initData, desc.size);
         initData = initDataBuffer.data();
     }
 
     D3D11_BUFFER_DESC bufferDesc = {0};
     bufferDesc.ByteWidth = UINT(alignedSizeInBytes);
     bufferDesc.BindFlags = d3dBindFlags;
-    bufferDesc.CPUAccessFlags = _calcResourceAccessFlags(descIn.memoryType);
+    bufferDesc.CPUAccessFlags = _calcResourceAccessFlags(desc.memoryType);
     bufferDesc.Usage = D3D11_USAGE_DEFAULT;
 
     // If buffer will be used for upload, then:
     //  - if pure copying, create as a staging buffer (D3D11_USAGE_STAGING)
     //  - if not, create as a dynamic buffer (D3D11_USAGE_DYNAMIC) unless unordered access is specified
-    if (srcDesc.memoryType == MemoryType::Upload)
+    if (desc.memoryType == MemoryType::Upload)
     {
         bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_WRITE;
-        if ((srcDesc.usage & (BufferUsage::CopySource | BufferUsage::CopyDestination)) == srcDesc.usage)
+        if ((desc.usage & (BufferUsage::CopySource | BufferUsage::CopyDestination)) == desc.usage)
         {
             bufferDesc.Usage = D3D11_USAGE_STAGING;
             bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ; // Support read, so can be mapped as read/write
         }
-        else if (!is_set(srcDesc.usage, BufferUsage::UnorderedAccess))
+        else if (!is_set(desc.usage, BufferUsage::UnorderedAccess))
         {
             bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
         }
     }
 
     // If buffer will be used for read-back, then it must be staging.
-    if (srcDesc.memoryType == MemoryType::ReadBack)
+    if (desc.memoryType == MemoryType::ReadBack)
     {
         bufferDesc.CPUAccessFlags |= D3D11_CPU_ACCESS_READ;
         bufferDesc.Usage = D3D11_USAGE_STAGING;
     }
 
-    if (is_set(srcDesc.usage, BufferUsage::IndirectArgument))
+    if (is_set(desc.usage, BufferUsage::IndirectArgument))
     {
         bufferDesc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
     }
 
-    switch (descIn.defaultState)
+    switch (desc.defaultState)
     {
     case ResourceState::ConstantBuffer:
     {
@@ -172,9 +172,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     if (bufferDesc.BindFlags & (D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE))
     {
         // desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-        if (srcDesc.elementSize != 0)
+        if (desc.elementSize != 0)
         {
-            bufferDesc.StructureByteStride = (UINT)srcDesc.elementSize;
+            bufferDesc.StructureByteStride = (UINT)desc.elementSize;
             bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         }
         else
@@ -186,7 +186,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& descIn, const void* initData, 
     D3D11_SUBRESOURCE_DATA subresourceData = {0};
     subresourceData.pSysMem = initData;
 
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, srcDesc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
 
     SLANG_RETURN_ON_FAIL(
         m_device->CreateBuffer(&bufferDesc, initData ? &subresourceData : nullptr, buffer->m_buffer.writeRef())

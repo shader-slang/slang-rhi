@@ -36,11 +36,11 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& descIn, const SubresourceData* initData, ITexture** outTexture)
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     AUTORELEASEPOOL
 
-    TextureDesc desc = fixupTextureDesc(descIn);
+    TextureDesc desc = fixupTextureDesc(desc_);
 
     // Metal doesn't support mip-mapping for 1D textures
     if ((desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipLevelCount > 1)
