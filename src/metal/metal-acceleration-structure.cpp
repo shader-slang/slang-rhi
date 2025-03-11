@@ -145,7 +145,7 @@ Result AccelerationStructureBuildDescConverter::convert(
                 );
                 triangleDescriptor->setIndexBufferOffset(triangles.indexBuffer.offset);
                 triangleDescriptor->setIndexType(
-                    triangles.indexFormat == IndexFormat::UInt32 ? MTL::IndexTypeUInt32 : MTL::IndexTypeUInt16
+                    triangles.indexFormat == IndexFormat::Uint32 ? MTL::IndexTypeUInt32 : MTL::IndexTypeUInt16
                 );
             }
 

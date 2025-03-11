@@ -333,7 +333,7 @@ Result AccelerationStructureBuildDescConverterNVAPI::convert(
             {
                 geomDesc.spheres.indexCount = spheres.indexCount;
                 geomDesc.spheres.indexBuffer.StartAddress = spheres.indexBuffer.getDeviceAddress();
-                geomDesc.spheres.indexBuffer.StrideInBytes = spheres.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+                geomDesc.spheres.indexBuffer.StrideInBytes = spheres.indexFormat == IndexFormat::Uint32 ? 4 : 2;
                 geomDesc.spheres.indexFormat = D3DUtil::getIndexFormat(spheres.indexFormat);
             }
             else
@@ -374,7 +374,7 @@ Result AccelerationStructureBuildDescConverterNVAPI::convert(
             {
                 geomDesc.lss.indexCount = lss.indexCount;
                 geomDesc.lss.indexBuffer.StartAddress = lss.indexBuffer.getDeviceAddress();
-                geomDesc.lss.indexBuffer.StrideInBytes = lss.indexFormat == IndexFormat::UInt32 ? 4 : 2;
+                geomDesc.lss.indexBuffer.StrideInBytes = lss.indexFormat == IndexFormat::Uint32 ? 4 : 2;
                 geomDesc.lss.indexFormat = D3DUtil::getIndexFormat(lss.indexFormat);
             }
             else

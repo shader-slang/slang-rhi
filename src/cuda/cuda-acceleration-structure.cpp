@@ -111,7 +111,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             {
                 buildInput.triangleArray.indexBuffer = triangles.indexBuffer.getDeviceAddress();
                 buildInput.triangleArray.numIndexTriplets = triangles.indexCount / 3;
-                buildInput.triangleArray.indexFormat = triangles.indexFormat == IndexFormat::UInt32
+                buildInput.triangleArray.indexFormat = triangles.indexFormat == IndexFormat::Uint32
                                                            ? OPTIX_INDICES_FORMAT_UNSIGNED_INT3
                                                            : OPTIX_INDICES_FORMAT_UNSIGNED_SHORT3;
             }

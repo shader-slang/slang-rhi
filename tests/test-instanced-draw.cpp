@@ -281,7 +281,7 @@ struct DrawIndexedInstancedTest : BaseDrawTest
         state.vertexBuffers[1] = instanceBuffer;
         state.vertexBufferCount = 2;
         state.indexBuffer = indexBuffer;
-        state.indexFormat = IndexFormat::UInt32;
+        state.indexFormat = IndexFormat::Uint32;
         state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
@@ -443,7 +443,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         state.vertexBuffers[1] = instanceBuffer;
         state.vertexBufferCount = 2;
         state.indexBuffer = indexBuffer;
-        state.indexFormat = IndexFormat::UInt32;
+        state.indexFormat = IndexFormat::Uint32;
         state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
         state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
