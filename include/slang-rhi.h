@@ -564,15 +564,14 @@ enum class TextureUsage
     ShaderResource = (1 << 0),
     UnorderedAccess = (1 << 1),
     RenderTarget = (1 << 2),
-    DepthRead = (1 << 3),
-    DepthWrite = (1 << 4),
-    Present = (1 << 5),
-    CopySource = (1 << 6),
-    CopyDestination = (1 << 7),
-    ResolveSource = (1 << 8),
-    ResolveDestination = (1 << 9),
-    Typeless = (1 << 10),
-    Shared = (1 << 11),
+    DepthStencil = (1 << 3),
+    Present = (1 << 4),
+    CopySource = (1 << 5),
+    CopyDestination = (1 << 6),
+    ResolveSource = (1 << 7),
+    ResolveDestination = (1 << 8),
+    Typeless = (1 << 9),
+    Shared = (1 << 10),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
 

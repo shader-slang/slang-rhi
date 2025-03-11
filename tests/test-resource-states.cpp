@@ -100,7 +100,7 @@ GPU_TEST_CASE("texture-resource-states", D3D12 | Vulkan)
         }
         if (is_set(formatSupport, FormatSupport::DepthStencil))
         {
-            textureUsage |= (TextureUsage::DepthRead | TextureUsage::DepthWrite);
+            textureUsage |= (TextureUsage::DepthStencil);
             allowedStates.insert(ResourceState::DepthRead);
             allowedStates.insert(ResourceState::DepthWrite);
         }

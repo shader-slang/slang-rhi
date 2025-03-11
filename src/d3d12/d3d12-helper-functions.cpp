@@ -35,9 +35,7 @@ D3D12_RESOURCE_FLAGS calcResourceFlags(TextureUsage usage)
     int flags = D3D12_RESOURCE_FLAG_NONE;
     if (is_set(usage, TextureUsage::RenderTarget))
         flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    if (is_set(usage, TextureUsage::DepthRead))
-        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    if (is_set(usage, TextureUsage::DepthWrite))
+    if (is_set(usage, TextureUsage::DepthStencil))
         flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
     if (is_set(usage, TextureUsage::UnorderedAccess))
         flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
