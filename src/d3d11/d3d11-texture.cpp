@@ -22,7 +22,50 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
     if (rtv)
         return rtv;
 
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateRenderTargetView(m_resource, nullptr, rtv.writeRef()));
+    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format = D3DUtil::getFormatMapping(m_desc.format).rtvFormat;
+    switch (m_desc.type)
+    {
+    case TextureType::Texture1D:
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
+        rtvDesc.Texture1D.MipSlice = range.mipLevel;
+        break;
+    case TextureType::Texture1DArray:
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1DARRAY;
+        rtvDesc.Texture1DArray.MipSlice = range.mipLevel;
+        rtvDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        rtvDesc.Texture1DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2D:
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        rtvDesc.Texture2D.MipSlice = range.mipLevel;
+        break;
+    case TextureType::Texture2DArray:
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+        rtvDesc.Texture2DArray.MipSlice = range.mipLevel;
+        rtvDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        rtvDesc.Texture2DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2DMS:
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
+        break;
+    case TextureType::Texture2DMSArray:
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+        rtvDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
+        rtvDesc.Texture2DMSArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture3D:
+        rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
+        rtvDesc.Texture3D.MipSlice = range.mipLevel;
+        rtvDesc.Texture3D.FirstWSlice = 0;
+        rtvDesc.Texture3D.WSize = m_desc.size.depth;
+        break;
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        break;
+    }
+
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateRenderTargetView(m_resource, &rtvDesc, rtv.writeRef()));
 
     return rtv;
 }
@@ -40,7 +83,45 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     if (dsv)
         return dsv;
 
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateDepthStencilView(m_resource, nullptr, dsv.writeRef()));
+    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = D3DUtil::getFormatMapping(m_desc.format).rtvFormat;
+    switch (m_desc.type)
+    {
+    case TextureType::Texture1D:
+        dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE1D;
+        dsvDesc.Texture1D.MipSlice = range.mipLevel;
+        break;
+    case TextureType::Texture1DArray:
+        dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE1DARRAY;
+        dsvDesc.Texture1DArray.MipSlice = range.mipLevel;
+        dsvDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        dsvDesc.Texture1DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2D:
+        dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+        dsvDesc.Texture2D.MipSlice = range.mipLevel;
+        break;
+    case TextureType::Texture2DArray:
+        dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+        dsvDesc.Texture2DArray.MipSlice = range.mipLevel;
+        dsvDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        dsvDesc.Texture2DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2DMS:
+        dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+        break;
+    case TextureType::Texture2DMSArray:
+        dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY;
+        dsvDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
+        dsvDesc.Texture2DMSArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture3D:
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        break;
+    }
+
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateDepthStencilView(m_resource, &dsvDesc, dsv.writeRef()));
 
     return dsv;
 }
