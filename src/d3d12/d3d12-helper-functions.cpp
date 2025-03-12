@@ -66,11 +66,11 @@ DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format)
 {
     switch (format)
     {
-    case Format::D16_UNORM:
+    case Format::D16Unorm:
         return DXGI_FORMAT_R16_TYPELESS;
-    case Format::D32_FLOAT:
+    case Format::D32Float:
         return DXGI_FORMAT_R32_TYPELESS;
-    case Format::D32_FLOAT_S8_UINT:
+    case Format::D32FloatS8Uint:
         return DXGI_FORMAT_R32G8X24_TYPELESS;
     // case Format::D24_UNORM_S8_UINT:
     //     return DXGI_FORMAT_R24G8_TYPELESS;

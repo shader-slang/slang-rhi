@@ -291,8 +291,8 @@ struct RenderTargetTests : TextureTest
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
-            {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
+            {"POSITION", 0, Format::RGB32Float, offsetof(Vertex, position), 0},
+            {"COLOR", 0, Format::RGB32Float, offsetof(Vertex, color), 0},
         };
 
         TextureDesc renderTextureDesc = {};
@@ -489,7 +489,7 @@ GPU_TEST_CASE("texture-types-shader", D3D12 | Vulkan | Metal)
     {
         for (bool readWrite : {false, true})
         {
-            auto format = Format::R8G8B8A8_UINT;
+            auto format = Format::RGBA8Uint;
             auto validationFormat = getValidationTextureFormat(format);
             REQUIRE(validationFormat != nullptr);
 
@@ -512,7 +512,7 @@ GPU_TEST_CASE("texture-types-render-target", D3D12 | Vulkan)
     // TODO: Buffer and TextureCube
     for (TextureType textureType : textureTypes)
     {
-        auto format = Format::R32G32B32A32_FLOAT;
+        auto format = Format::RGBA32Float;
         auto validationFormat = getValidationTextureFormat(format);
         REQUIRE(validationFormat != nullptr);
 

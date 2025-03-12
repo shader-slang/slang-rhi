@@ -86,7 +86,7 @@ struct TestTextureData
         subresourceCount = mipLevelCount * layerCount;
         texelSize = getFormatInfo(desc.format).blockSizeInBytes;
 
-        REQUIRE(desc.format == Format::R32G32B32A32_UINT);
+        REQUIRE(desc.format == Format::RGBA32Uint);
 
         for (uint32_t layer = 0; layer < layerCount; ++layer)
         {
@@ -169,29 +169,29 @@ struct CreateTextureTestSpec
 // clang-format off
 static const CreateTextureTestSpec kCreateTextureTestSpecs[] = {
 //    type                              format                      size                mipLevelCount   arrayLength
-    { TextureType::Texture1D,           Format::R32G32B32A32_UINT,  { 128, 1, 1 },      1,              1,              },
-    { TextureType::Texture1D,           Format::R32G32B32A32_UINT,  { 128, 1, 1 },      kAllMipLevels,  1,              },
-    { TextureType::Texture1DArray,      Format::R32G32B32A32_UINT,  { 128, 1, 1 },      1,              1,              },
-    { TextureType::Texture1DArray,      Format::R32G32B32A32_UINT,  { 128, 1, 1 },      kAllMipLevels,  1,              },
-    { TextureType::Texture1DArray,      Format::R32G32B32A32_UINT,  { 128, 1, 1 },      1,              4,              },
-    { TextureType::Texture1DArray,      Format::R32G32B32A32_UINT,  { 128, 1, 1 },      kAllMipLevels,  4,              },
-    { TextureType::Texture2D,           Format::R32G32B32A32_UINT,  { 128, 64, 1 },     1,              1,              },
-    { TextureType::Texture2D,           Format::R32G32B32A32_UINT,  { 128, 64, 1 },     kAllMipLevels,  1,              },
-    { TextureType::Texture2DArray,      Format::R32G32B32A32_UINT,  { 128, 64, 1 },     1,              1,              },
-    { TextureType::Texture2DArray,      Format::R32G32B32A32_UINT,  { 128, 64, 1 },     kAllMipLevels,  1,              },
-    { TextureType::Texture2DArray,      Format::R32G32B32A32_UINT,  { 128, 64, 1 },     1,              4,              },
-    { TextureType::Texture2DArray,      Format::R32G32B32A32_UINT,  { 128, 64, 1 },     kAllMipLevels,  4,              },
-    { TextureType::Texture2DMS,         Format::R32G32B32A32_UINT,  { 128, 64, 1 },     1,              1               },
-    { TextureType::Texture2DMSArray,    Format::R32G32B32A32_UINT,  { 128, 64, 1 },     1,              1               },
-    { TextureType::Texture2DMSArray,    Format::R32G32B32A32_UINT,  { 128, 64, 1 },     1,              4               },
-    { TextureType::Texture3D,           Format::R32G32B32A32_UINT,  { 128, 64, 32 },    1,              1,              },
-    { TextureType::Texture3D,           Format::R32G32B32A32_UINT,  { 128, 64, 32 },    kAllMipLevels,  1,              },
-    { TextureType::TextureCube,         Format::R32G32B32A32_UINT,  { 128, 128, 1 },    1,              1,              },
-    { TextureType::TextureCube,         Format::R32G32B32A32_UINT,  { 128, 128, 1 },    kAllMipLevels,  1,              },
-    { TextureType::TextureCubeArray,    Format::R32G32B32A32_UINT,  { 128, 128, 1 },    1,              1,              },
-    { TextureType::TextureCubeArray,    Format::R32G32B32A32_UINT,  { 128, 128, 1 },    kAllMipLevels,  1,              },
-    { TextureType::TextureCubeArray,    Format::R32G32B32A32_UINT,  { 128, 128, 1 },    1,              4,              },
-    { TextureType::TextureCubeArray,    Format::R32G32B32A32_UINT,  { 128, 128, 1 },    kAllMipLevels,  4,              },
+    { TextureType::Texture1D,           Format::RGBA32Uint,  { 128, 1, 1 },      1,              1,              },
+    { TextureType::Texture1D,           Format::RGBA32Uint,  { 128, 1, 1 },      kAllMipLevels,  1,              },
+    { TextureType::Texture1DArray,      Format::RGBA32Uint,  { 128, 1, 1 },      1,              1,              },
+    { TextureType::Texture1DArray,      Format::RGBA32Uint,  { 128, 1, 1 },      kAllMipLevels,  1,              },
+    { TextureType::Texture1DArray,      Format::RGBA32Uint,  { 128, 1, 1 },      1,              4,              },
+    { TextureType::Texture1DArray,      Format::RGBA32Uint,  { 128, 1, 1 },      kAllMipLevels,  4,              },
+    { TextureType::Texture2D,           Format::RGBA32Uint,  { 128, 64, 1 },     1,              1,              },
+    { TextureType::Texture2D,           Format::RGBA32Uint,  { 128, 64, 1 },     kAllMipLevels,  1,              },
+    { TextureType::Texture2DArray,      Format::RGBA32Uint,  { 128, 64, 1 },     1,              1,              },
+    { TextureType::Texture2DArray,      Format::RGBA32Uint,  { 128, 64, 1 },     kAllMipLevels,  1,              },
+    { TextureType::Texture2DArray,      Format::RGBA32Uint,  { 128, 64, 1 },     1,              4,              },
+    { TextureType::Texture2DArray,      Format::RGBA32Uint,  { 128, 64, 1 },     kAllMipLevels,  4,              },
+    { TextureType::Texture2DMS,         Format::RGBA32Uint,  { 128, 64, 1 },     1,              1               },
+    { TextureType::Texture2DMSArray,    Format::RGBA32Uint,  { 128, 64, 1 },     1,              1               },
+    { TextureType::Texture2DMSArray,    Format::RGBA32Uint,  { 128, 64, 1 },     1,              4               },
+    { TextureType::Texture3D,           Format::RGBA32Uint,  { 128, 64, 32 },    1,              1,              },
+    { TextureType::Texture3D,           Format::RGBA32Uint,  { 128, 64, 32 },    kAllMipLevels,  1,              },
+    { TextureType::TextureCube,         Format::RGBA32Uint,  { 128, 128, 1 },    1,              1,              },
+    { TextureType::TextureCube,         Format::RGBA32Uint,  { 128, 128, 1 },    kAllMipLevels,  1,              },
+    { TextureType::TextureCubeArray,    Format::RGBA32Uint,  { 128, 128, 1 },    1,              1,              },
+    { TextureType::TextureCubeArray,    Format::RGBA32Uint,  { 128, 128, 1 },    kAllMipLevels,  1,              },
+    { TextureType::TextureCubeArray,    Format::RGBA32Uint,  { 128, 128, 1 },    1,              4,              },
+    { TextureType::TextureCubeArray,    Format::RGBA32Uint,  { 128, 128, 1 },    kAllMipLevels,  4,              },
 };
 // clang-format on
 

@@ -1489,7 +1489,7 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     if (props.bufferFeatures)
         support = support | FormatSupport::Buffer;
 
-    if (format == Format::R32_UINT || format == Format::R16_UINT)
+    if (format == Format::R32Uint || format == Format::R16Uint)
     {
         // There is no explicit bit in vk::FormatFeatureFlags for index buffers
         support = support | FormatSupport::IndexBuffer;

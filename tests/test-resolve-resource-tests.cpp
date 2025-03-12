@@ -38,7 +38,7 @@ static const Vertex kVertexData[kVertexCount] = {
 
 const int kWidth = 256;
 const int kHeight = 256;
-Format kFormat = Format::R32G32B32A32_FLOAT;
+Format kFormat = Format::RGBA32Float;
 
 static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
@@ -82,8 +82,8 @@ struct BaseResolveResourceTest
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
-            {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
+            {"POSITION", 0, Format::RGB32Float, offsetof(Vertex, position), 0},
+            {"COLOR", 0, Format::RGB32Float, offsetof(Vertex, color), 0},
         };
 
         TextureDesc msaaTexDesc = {};

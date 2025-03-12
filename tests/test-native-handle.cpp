@@ -70,7 +70,7 @@ GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal)
     desc.size.depth = 1;
     desc.usage = TextureUsage::UnorderedAccess;
     desc.defaultState = ResourceState::UnorderedAccess;
-    desc.format = Format::R16G16B16A16_FLOAT;
+    desc.format = Format::RGBA16Float;
 
     ComPtr<ITexture> texture;
     texture = device->createTexture(desc);

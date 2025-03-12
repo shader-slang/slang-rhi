@@ -44,7 +44,7 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
     {
         TextureDesc textureDesc = {};
         textureDesc.type = TextureType::Texture2D;
-        textureDesc.format = Format::R8G8B8A8_UNORM;
+        textureDesc.format = Format::RGBA8Unorm;
         textureDesc.size.width = 2;
         textureDesc.size.height = 2;
         textureDesc.size.depth = 1;

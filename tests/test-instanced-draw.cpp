@@ -45,7 +45,7 @@ static const uint32_t kIndexData[kIndexCount] = {
 
 const int kWidth = 256;
 const int kHeight = 256;
-const Format format = Format::R32G32B32A32_FLOAT;
+const Format format = Format::RGBA32Float;
 
 static ComPtr<IBuffer> createVertexBuffer(IDevice* device)
 {
@@ -119,11 +119,11 @@ public:
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            {"POSITIONA", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
+            {"POSITIONA", 0, Format::RGB32Float, offsetof(Vertex, position), 0},
 
             // Instance buffer data
-            {"POSITIONB", 0, Format::R32G32B32_FLOAT, offsetof(Instance, position), 1},
-            {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Instance, color), 1},
+            {"POSITIONB", 0, Format::RGB32Float, offsetof(Instance, position), 1},
+            {"COLOR", 0, Format::RGB32Float, offsetof(Instance, color), 1},
         };
         InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);

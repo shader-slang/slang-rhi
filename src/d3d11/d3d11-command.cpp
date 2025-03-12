@@ -153,7 +153,7 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
 
-    ID3D11UnorderedAccessView* uav = buffer->getUAV(Format::R32_UINT, cmd.range);
+    ID3D11UnorderedAccessView* uav = buffer->getUAV(Format::R32Uint, cmd.range);
     UINT clearValues[4] = {0, 0, 0, 0};
     m_immediateContext->ClearUnorderedAccessViewUint(uav, clearValues);
 }

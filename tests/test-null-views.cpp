@@ -21,7 +21,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
     {
         BufferDesc desc = {};
         desc.size = 4;
-        desc.format = Format::R32_FLOAT;
+        desc.format = Format::R32Float;
         desc.usage = BufferUsage::ShaderResource;
         float data = 1.f;
         REQUIRE_CALL(device->createBuffer(desc, &data, buffer.writeRef()));
@@ -31,7 +31,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
     {
         BufferDesc desc = {};
         desc.size = 4;
-        desc.format = Format::R32_FLOAT;
+        desc.format = Format::R32Float;
         desc.usage = BufferUsage::UnorderedAccess;
         float data = 2.f;
         REQUIRE_CALL(device->createBuffer(desc, &data, rwBuffer.writeRef()));
@@ -60,7 +60,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         TextureDesc desc = {};
         desc.type = TextureType::Texture2D;
         desc.size = {1, 1, 1};
-        desc.format = Format::R32_FLOAT;
+        desc.format = Format::R32Float;
         desc.usage = TextureUsage::ShaderResource;
         float data = 5.f;
         SubresourceData subresourceData[] = {{&data, 4, 0}};
@@ -72,7 +72,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         TextureDesc desc = {};
         desc.type = TextureType::Texture2D;
         desc.size = {1, 1, 1};
-        desc.format = Format::R32_FLOAT;
+        desc.format = Format::R32Float;
         desc.usage = TextureUsage::UnorderedAccess;
         float data = 6.f;
         SubresourceData subresourceData[] = {{&data, 4, 0}};
@@ -85,7 +85,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         desc.type = TextureType::Texture2DArray;
         desc.size = {1, 1, 1};
         desc.arrayLength = 2;
-        desc.format = Format::R32_FLOAT;
+        desc.format = Format::R32Float;
         desc.usage = TextureUsage::ShaderResource;
         float data = 7.f;
         SubresourceData subresourceData[] = {{&data, 4, 0}, {&data, 4, 0}};
@@ -98,7 +98,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         desc.type = TextureType::Texture2DArray;
         desc.size = {1, 1, 1};
         desc.arrayLength = 2;
-        desc.format = Format::R32_FLOAT;
+        desc.format = Format::R32Float;
         desc.usage = TextureUsage::UnorderedAccess;
         float data = 8.f;
         SubresourceData subresourceData[] = {{&data, 4, 0}, {&data, 4, 0}};
