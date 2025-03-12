@@ -1424,7 +1424,17 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
-    *outAlignment = 1;
+    switch (format)
+    {
+    case Format::D16Unorm:
+    case Format::D32Float:
+    case Format::D32FloatS8Uint:
+        *outAlignment = 4;
+        break;
+    default:
+        *outAlignment = 1;
+        break;
+    }
     return SLANG_OK;
 }
 
