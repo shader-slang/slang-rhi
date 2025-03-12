@@ -659,6 +659,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-cooperative-vector.cpp
         tests/test-copy-texture.cpp
         tests/test-create-buffer-from-handle.cpp
+        tests/test-create-texture.cpp
         tests/test-existing-device-handle.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
@@ -691,6 +692,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
+        tests/texture-test.cpp
         tests/test-task-pool.cpp
     )
     target_compile_definitions(slang-rhi-tests

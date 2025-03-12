@@ -704,6 +704,8 @@ struct Offset3D
         , z(_z)
     {
     }
+
+    bool isZero() const { return x == 0 && y == 0 && z == 0; }
 };
 
 struct Extents
@@ -716,6 +718,11 @@ struct Extents
     int32_t depth = 0;
 
     static Extents kWholeTexture;
+
+    inline bool operator==(const Extents& other) const
+    {
+        return width == other.width && height == other.height && depth == other.depth;
+    }
 };
 
 /// Layout of a single subresource in a texture. (see also SubresourceData)
@@ -732,6 +739,9 @@ struct SubresourceLayout
 
     /// Overall size required to fit the subresource data (typically size.z*strideZ).
     Size sizeInBytes;
+
+    /// Number of rows (will match size.height for uncompressed formats).
+    Size rowCount;
 };
 
 static const uint32_t kAllMipLevels = 0xffffffff;
@@ -2113,6 +2123,8 @@ public:
 
     inline Result submit(ICommandBuffer* commandBuffer)
     {
+        if (!commandBuffer)
+            return SLANG_E_INVALID_ARG;
         SubmitDesc desc = {};
         desc.commandBuffers = &commandBuffer;
         desc.commandBufferCount = 1;

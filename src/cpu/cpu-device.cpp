@@ -3,6 +3,7 @@
 #include "cpu-query.h"
 #include "cpu-shader-object.h"
 #include "cpu-shader-program.h"
+#include "cpu-texture.h"
 
 namespace rhi::cpu {
 
@@ -36,6 +37,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
+{
+    SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
+    if (!_getFormatInfo(format))
+    {
+        *outFormatSupport = FormatSupport::None;
+    }
     return SLANG_OK;
 }
 

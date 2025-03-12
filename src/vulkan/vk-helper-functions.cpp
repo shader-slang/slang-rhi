@@ -64,6 +64,8 @@ VkImageLayout translateImageLayout(ResourceState state)
     {
     case ResourceState::Undefined:
         return VK_IMAGE_LAYOUT_UNDEFINED;
+    case ResourceState::General:
+        return VK_IMAGE_LAYOUT_GENERAL;
     case ResourceState::UnorderedAccess:
         return VK_IMAGE_LAYOUT_GENERAL;
     case ResourceState::RenderTarget:
