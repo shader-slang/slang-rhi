@@ -51,6 +51,12 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     return SLANG_OK;
 }
 
+Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
+{
+    *outAlignment = 1;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createShaderObjectLayout(
     slang::ISession* session,
     slang::TypeLayoutReflection* typeLayout,

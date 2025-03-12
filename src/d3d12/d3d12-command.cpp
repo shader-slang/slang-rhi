@@ -270,7 +270,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     if (srcSubresource.mipLevelCount == 0)
         srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
-        srcSubresource.layerCount = src->m_desc.arrayLength;
+        srcSubresource.layerCount = src->m_desc.arrayLength; // TODO: This is wrong - should we be allowing
+                                                             // layerCount==0 at all anyway
 
     const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
 

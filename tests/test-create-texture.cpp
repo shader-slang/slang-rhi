@@ -18,8 +18,7 @@ GPU_TEST_CASE("texturetest-create", ALL)
         [](TextureTestContext* c)
         {
             // read-back not implemented
-            if (c->getDevice()->getDeviceType() == DeviceType::CPU ||
-                c->getDevice()->getDeviceType() == DeviceType::D3D11)
+            if (c->getDevice()->getDeviceType() == DeviceType::D3D11)
                 return;
 
             c->getTextureData(0).checkEqual(c->getTexture(0));

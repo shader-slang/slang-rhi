@@ -1,5 +1,6 @@
 #include "cpu-buffer.h"
 #include "cpu-device.h"
+#include "cpu-texture.h"
 
 namespace rhi::cpu {
 
@@ -49,6 +50,65 @@ Result DeviceImpl::unmapBuffer(IBuffer* buffer)
     SLANG_UNUSED(buffer);
     return SLANG_OK;
 }
+
+Result DeviceImpl::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mipLevel,
+    ISlangBlob** outBlob,
+    Size* outRowPitch,
+    Size* outPixelSize
+)
+{
+    auto textureImpl = checked_cast<TextureImpl*>(texture);
+
+    // Calculate layout info.
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+
+    // Create blob for result.
+    auto blob = OwnedBlob::create(layout.sizeInBytes);
+
+    // Get src + dest buffers.
+    uint8_t* srcBuffer = (uint8_t*)textureImpl->m_data;
+    uint8_t* dstBuffer = (uint8_t*)blob->getBufferPointer();
+
+    // Should be able to make assumption that subresource layout info
+    // matches those stored in the mip. If they don't match, this is a bug.
+    TextureImpl::MipLevel mipLevelInfo = textureImpl->m_mipLevels[mipLevel];
+    SLANG_RHI_ASSERT(mipLevelInfo.extents[0] == layout.size.width);
+    SLANG_RHI_ASSERT(mipLevelInfo.extents[1] == layout.size.height);
+    SLANG_RHI_ASSERT(mipLevelInfo.extents[2] == layout.size.depth);
+    SLANG_RHI_ASSERT(mipLevelInfo.strides[1] == layout.strideY);
+    SLANG_RHI_ASSERT(mipLevelInfo.strides[2] == layout.strideZ);
+
+    // Step forward to the mip data in the texture.
+    srcBuffer += mipLevelInfo.offset;
+
+    // Copy a row at a time.
+    for (int z = 0; z < layout.size.depth; z++)
+    {
+        uint8_t* srcRow = srcBuffer;
+        uint8_t* dstRow = dstBuffer;
+        for (int y = 0; y < layout.rowCount; y++)
+        {
+            std::memcpy(dstRow, srcRow, layout.strideY);
+            srcRow += layout.strideY;
+            dstRow += layout.strideY;
+        }
+        srcBuffer += layout.strideZ;
+        dstBuffer += layout.strideZ;
+    }
+
+    // Return data.
+    returnComPtr(outBlob, blob);
+    if (outRowPitch)
+        *outRowPitch = layout.strideY;
+    if (outPixelSize)
+        *outPixelSize = layout.sizeInBytes / layout.size.width;
+    return SLANG_OK;
+}
+
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
 {
