@@ -1,5 +1,7 @@
 #pragma once
 
+#include <slang-com-helper.h>
+#include <slang-com-ptr.h>
 #include <slang-rhi.h>
 
 #include "nvapi-include.h"
