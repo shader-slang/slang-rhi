@@ -372,8 +372,12 @@ Result DeviceImpl::readTexture(
     if (outPixelSize)
         *outPixelSize = bytesPerPixel;
 
-    TextureImpl* stagingTextureImpl = nullptr;
+    // Calculate layout info.
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
 
+    TextureImpl* stagingTextureImpl = nullptr;
+    uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
     if (desc.memoryType == MemoryType::ReadBack)
     {
         // The texture is already a staging texture, so we can just use it directly.
@@ -386,16 +390,61 @@ Result DeviceImpl::readTexture(
         TextureDesc copyDesc = textureImpl->getDesc();
         copyDesc.memoryType = MemoryType::ReadBack;
         copyDesc.usage = TextureUsage::CopyDestination;
+
+        // We just want to create a texture to copy the single subresource, so:
+        // - Reduce dimensions to that of the mip level
+        // - Only 1 mip level
+        // - Arrays turn into their none-array counterpart
+        // - Cube maps turn into 2D textures (as we only want 1 face)
+
+        // Adjust mips, size and array
+        copyDesc.mipLevelCount = 1;
+        copyDesc.size = layout.size;
+        copyDesc.arrayLength = 1;
+
+        // Ensure width/height of subresource are large enough to hold a block
+        // for compressed textures.
+        copyDesc.size.width = math::calcAligned2(copyDesc.size.width, formatInfo.blockWidth);
+        copyDesc.size.height = math::calcAligned2(copyDesc.size.height, formatInfo.blockHeight);
+
+        // Change type
+        switch (copyDesc.type)
+        {
+        case TextureType::Texture1DArray:
+            copyDesc.type = TextureType::Texture1D;
+            break;
+        case TextureType::Texture2DArray:
+        case TextureType::TextureCube:
+        case TextureType::TextureCubeArray:
+            copyDesc.type = TextureType::Texture2D;
+            break;
+        case TextureType::Texture2DMSArray:
+            copyDesc.type = TextureType::Texture2DMS;
+            break;
+        default:
+            break;
+        }
+
+        // Create texture + do a few checks to make sure logic is correct
         SLANG_RETURN_ON_FAIL(createTexture(copyDesc, nullptr, tempTexture.writeRef()));
         stagingTextureImpl = checked_cast<TextureImpl*>(tempTexture.get());
+        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().mipLevelCount == 1);
+        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().getLayerCount() == 1);
 
-        // Copy texture to staging
-        m_immediateContext->CopyResource(stagingTextureImpl->m_resource.get(), textureImpl->m_resource.get());
+        // Copy the source subresource to subresource 0 of the staging texture, then switch
+        // the subresource to be copied from to 0.
+        m_immediateContext->CopySubresourceRegion(
+            stagingTextureImpl->m_resource.get(),
+            0,
+            0,
+            0,
+            0,
+            textureImpl->m_resource.get(),
+            subResourceIdx,
+            nullptr
+        );
+        subResourceIdx = 0;
     }
-
-    // Calculate layout info.
-    SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
 
     // Output row size
     if (outRowPitch)
@@ -403,8 +452,6 @@ Result DeviceImpl::readTexture(
 
     // Now just read back texels from the staging textures
     {
-        uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
-
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         SLANG_RETURN_ON_FAIL(
             m_immediateContext
