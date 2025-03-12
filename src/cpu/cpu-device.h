@@ -16,6 +16,8 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
 
@@ -25,6 +27,15 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mipLevel,
+        ISlangBlob** outBlob,
+        Size* outRowPitch,
+        Size* outPixelSize
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* inTexture, const TextureViewDesc& desc, ITextureView** outView) override;
