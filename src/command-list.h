@@ -14,7 +14,9 @@
     x(CopyTexture) \
     x(CopyTextureToBuffer) \
     x(ClearBuffer) \
-    x(ClearTexture) \
+    x(ClearTextureFloat) \
+    x(ClearTextureUint) \
+    x(ClearTextureDepthStencil) \
     x(UploadTextureData) \
     x(ResolveQuery) \
     x(BeginRenderPass) \
@@ -104,13 +106,28 @@ struct ClearBuffer
     BufferRange range;
 };
 
-struct ClearTexture
+struct ClearTextureFloat
 {
     ITexture* texture;
-    ClearValue clearValue;
+    SubresourceRange subresourceRange;
+    float clearValue[4];
+};
+
+struct ClearTextureUint
+{
+    ITexture* texture;
+    SubresourceRange subresourceRange;
+    uint32_t clearValue[4];
+};
+
+struct ClearTextureDepthStencil
+{
+    ITexture* texture;
     SubresourceRange subresourceRange;
     bool clearDepth;
+    float depthValue;
     bool clearStencil;
+    uint8_t stencilValue;
 };
 
 struct UploadTextureData
@@ -374,7 +391,9 @@ public:
     void write(commands::CopyTexture&& cmd);
     void write(commands::CopyTextureToBuffer&& cmd);
     void write(commands::ClearBuffer&& cmd);
-    void write(commands::ClearTexture&& cmd);
+    void write(commands::ClearTextureFloat&& cmd);
+    void write(commands::ClearTextureUint&& cmd);
+    void write(commands::ClearTextureDepthStencil&& cmd);
     void write(commands::UploadTextureData&& cmd);
     void write(commands::ResolveQuery&& cmd);
     void write(commands::BeginRenderPass&& cmd);

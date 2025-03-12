@@ -321,7 +321,7 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     {
         support |= FormatSupport::VertexBuffer;
     }
-    if (format == Format::R32_UINT || format == Format::R16_UINT)
+    if (format == Format::R32Uint || format == Format::R16Uint)
     {
         support |= FormatSupport::IndexBuffer;
     }

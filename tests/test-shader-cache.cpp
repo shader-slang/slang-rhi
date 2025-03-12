@@ -657,7 +657,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
     static const int kWidth = 256;
     static const int kHeight = 256;
-    static const Format format = Format::R32G32B32A32_FLOAT;
+    static const Format format = Format::RGBA32Float;
 
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<ITexture> colorBuffer;
@@ -705,7 +705,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
+            {"POSITION", 0, Format::RGB32Float, offsetof(Vertex, position), 0},
         };
         InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);

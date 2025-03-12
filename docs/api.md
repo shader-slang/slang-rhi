@@ -115,8 +115,10 @@
 | `copyTextureToBuffer`                  | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 | `uploadTextureData`                    | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `uploadBufferData`                     | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
-| `clearBuffer`                          | :x: | :x:  | :x:   | :x:   | yes    | :x:   | yes  |
-| `clearTexture`                         | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
+| `clearBuffer`                          | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `clearTextureFloat`                    | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
+| `clearTextureUint`                     | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
+| `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | :x:   | :x:  |
 | `resolveQuery`                         | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 | `buildAccelerationStructure`           | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `copyAccelerationStructure`            | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |

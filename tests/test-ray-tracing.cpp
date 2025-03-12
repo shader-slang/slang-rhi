@@ -117,7 +117,7 @@ struct BaseRayTracingTest
         resultTextureDesc.size.depth = 1;
         resultTextureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
-        resultTextureDesc.format = Format::R32G32B32A32_FLOAT;
+        resultTextureDesc.format = Format::RGBA32Float;
         resultTexture = device->createTexture(resultTextureDesc);
     }
 
@@ -155,7 +155,7 @@ struct BaseRayTracingTest
             buildInput.type = AccelerationStructureBuildInputType::Triangles;
             buildInput.triangles.vertexBuffers[0] = vertexBuffer;
             buildInput.triangles.vertexBufferCount = 1;
-            buildInput.triangles.vertexFormat = Format::R32G32B32_FLOAT;
+            buildInput.triangles.vertexFormat = Format::RGB32Float;
             buildInput.triangles.vertexCount = kVertexCount;
             buildInput.triangles.vertexStride = sizeof(Vertex);
             buildInput.triangles.indexBuffer = indexBuffer;

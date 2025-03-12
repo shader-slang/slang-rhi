@@ -83,7 +83,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         Format format = translateWGPUFormat(capabilities.formats[i]);
         if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
-        if (format == Format::B8G8R8A8_UNORM)
+        if (format == Format::BGRA8Unorm)
             preferredFormat = format;
     }
     if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())

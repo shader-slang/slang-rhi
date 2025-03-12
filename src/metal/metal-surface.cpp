@@ -9,10 +9,10 @@ namespace rhi::metal {
 // Supported pixel formats
 // https://developer.apple.com/documentation/quartzcore/cametallayer/1478155-pixelformat
 static const Format kSupportedFormats[] = {
-    Format::B8G8R8A8_UNORM,
-    Format::B8G8R8A8_UNORM_SRGB,
-    Format::R16G16B16A16_FLOAT,
-    Format::R10G10B10A2_UNORM,
+    Format::BGRA8Unorm,
+    Format::BGRA8UnormSrgb,
+    Format::RGBA16Float,
+    Format::RGB10A2Unorm,
     // Additional formats
     // MTLPixelFormat.bgr10a2Unorm (macOS only)
     // MTLPixelFormat.bgra10_xr
@@ -98,7 +98,7 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
     }
     surface->m_metalLayer->setDevice(m_device.get());
 
-    surface->m_info.preferredFormat = Format::B8G8R8A8_UNORM;
+    surface->m_info.preferredFormat = Format::BGRA8Unorm;
     surface->m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::ShaderResource |
                                      TextureUsage::UnorderedAccess | TextureUsage::CopyDestination;
     surface->m_info.formats = kSupportedFormats;

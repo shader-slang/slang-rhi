@@ -155,17 +155,17 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
 
             switch (triangles.vertexFormat)
             {
-            case Format::R32G32B32_FLOAT:
-            case Format::R32G32_FLOAT:
-            case Format::R16G16B16A16_FLOAT:
-            case Format::R16G16_FLOAT:
-            case Format::R16G16B16A16_SNORM:
-            case Format::R16G16_SNORM:
+            case Format::RGB32Float:
+            case Format::RG32Float:
+            case Format::RGBA16Float:
+            case Format::RG16Float:
+            case Format::RGBA16Snorm:
+            case Format::RG16Snorm:
                 break;
             default:
                 RHI_VALIDATION_ERROR(
-                    "Unsupported vertexFormat. Valid values are R32G32B32_FLOAT, R32G32_FLOAT, R16G16B16A16_FLOAT, "
-                    "R16G16_FLOAT, R16G16B16A16_SNORM or R16G16_SNORM."
+                    "Unsupported vertexFormat. Valid values are RGB32Float, RG32Float, RGBA16Float, "
+                    "RG16Float, RGBA16Snorm or RG16Snorm."
                 );
             }
             if (triangles.indexCount)
@@ -209,40 +209,40 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
 
             switch (spheres.vertexPositionFormat)
             {
-            case Format::R32G32B32_FLOAT:
-            case Format::R32G32_FLOAT:
-            case Format::R16G16B16A16_FLOAT:
-            case Format::R16G16_FLOAT:
-            case Format::R16G16B16A16_SNORM:
-            case Format::R16G16_SNORM:
+            case Format::RGB32Float:
+            case Format::RG32Float:
+            case Format::RGBA16Float:
+            case Format::RG16Float:
+            case Format::RGBA16Snorm:
+            case Format::RG16Snorm:
                 break;
             default:
                 RHI_VALIDATION_ERROR(
-                    "Unsupported vertexPositionFormat. Valid values are R32G32B32_FLOAT, R32G32_FLOAT, "
-                    "R16G16B16A16_FLOAT, "
-                    "R16G16_FLOAT, R16G16B16A16_SNORM or R16G16_SNORM."
+                    "Unsupported vertexPositionFormat. Valid values are RGB32Float, RG32Float, "
+                    "RGBA16Float, "
+                    "RG16Float, RGBA16Snorm or RG16Snorm."
                 );
             }
 
             switch (spheres.vertexRadiusFormat)
             {
-            case Format::R32_FLOAT:
-            case Format::R16_FLOAT:
+            case Format::R32Float:
+            case Format::R16Float:
                 break;
             default:
-                RHI_VALIDATION_ERROR("Unsupported vertexRadiusFormat. Valid values are R32_FLOAT or R16_FLOAT.");
+                RHI_VALIDATION_ERROR("Unsupported vertexRadiusFormat. Valid values are R32Float or R16Float.");
             }
             break;
 
             if (ctx->deviceType == DeviceType::CUDA)
             {
-                if (spheres.vertexPositionFormat != Format::R32G32B32_FLOAT)
+                if (spheres.vertexPositionFormat != Format::RGB32Float)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires vertexPositionFormat to be R32G32B32_FLOAT.");
+                    RHI_VALIDATION_ERROR("OptiX requires vertexPositionFormat to be RGB32Float.");
                 }
-                if (spheres.vertexRadiusFormat != Format::R32_FLOAT)
+                if (spheres.vertexRadiusFormat != Format::R32Float)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires vertexRadiusFormat to be R32_FLOAT.");
+                    RHI_VALIDATION_ERROR("OptiX requires vertexRadiusFormat to be R32Float.");
                 }
                 if (spheres.indexBuffer)
                 {

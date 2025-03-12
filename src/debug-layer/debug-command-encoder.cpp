@@ -421,18 +421,69 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
     baseObject->clearBuffer(buffer, range);
 }
 
-void DebugCommandEncoder::clearTexture(
+void DebugCommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4])
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    baseObject->clearTextureFloat(texture, subresourceRange, clearValue);
+}
+
+void DebugCommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    baseObject->clearTextureUint(texture, subresourceRange, clearValue);
+}
+
+void DebugCommandEncoder::clearTextureDepthStencil(
     ITexture* texture,
-    const ClearValue& clearValue,
-    const SubresourceRange* subresourceRange,
+    SubresourceRange subresourceRange,
     bool clearDepth,
-    bool clearStencil
+    float depthValue,
+    bool clearStencil,
+    uint8_t stencilValue
 )
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-    baseObject->clearTexture(texture, clearValue, subresourceRange, clearDepth, clearStencil);
+    const FormatInfo& formatInfo = getFormatInfo(texture->getDesc().format);
+    if (!formatInfo.hasDepth && !formatInfo.hasStencil)
+    {
+        RHI_VALIDATION_ERROR("Texture format does not have depth or stencil");
+        return;
+    }
+    switch (ctx->deviceType)
+    {
+    case DeviceType::D3D11:
+    case DeviceType::D3D12:
+        if (!is_set(texture->getDesc().usage, TextureUsage::DepthStencil))
+        {
+            RHI_VALIDATION_ERROR("Texture needs to have usage flag DepthStencil");
+            return;
+        }
+        break;
+    case DeviceType::Vulkan:
+        if (!is_set(texture->getDesc().usage, TextureUsage::CopyDestination))
+        {
+            RHI_VALIDATION_ERROR("Texture needs to have usage flag CopyDestination");
+            return;
+        }
+        break;
+    case DeviceType::Metal:
+    case DeviceType::WGPU:
+        RHI_VALIDATION_ERROR("Not implemented");
+        return;
+    case DeviceType::CPU:
+    case DeviceType::CUDA:
+        RHI_VALIDATION_ERROR("Not supported");
+        return;
+    default:
+        break;
+    }
+    baseObject->clearTextureDepthStencil(texture, subresourceRange, clearDepth, depthValue, clearStencil, stencilValue);
 }
 
 void DebugCommandEncoder::resolveQuery(

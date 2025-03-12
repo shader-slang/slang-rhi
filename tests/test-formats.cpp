@@ -158,8 +158,8 @@ struct TestFormats
         bcSize.height = 4;
         bcSize.depth = 1;
 
-        // Note: D32_FLOAT and D16_UNORM are not directly tested as they are only used for raster. These
-        // are the same as R32_FLOAT and R16_UNORM, respectively, when passed to a shader.
+        // Note: D32Float and D16Unorm are not directly tested as they are only used for raster. These
+        // are the same as R32Float and R16Unorm, respectively, when passed to a shader.
 
         {
             // clang-format off
@@ -168,7 +168,7 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
             // clang-format on
 
-            testFormat(Format::R32G32B32A32_FLOAT, size, &subData, expected);
+            testFormat(Format::RGBA32Float, size, &subData, expected);
         }
 
         {
@@ -176,7 +176,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 24, 0};
             std::array expected = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.5f, 0.5f};
 
-            testFormat(Format::R32G32B32_FLOAT, size, &subData, expected);
+            testFormat(Format::RGB32Float, size, &subData, expected);
         }
 
         {
@@ -184,7 +184,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 16, 0};
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f};
 
-            testFormat(Format::R32G32_FLOAT, size, &subData, expected);
+            testFormat(Format::RG32Float, size, &subData, expected);
         }
 
         {
@@ -192,7 +192,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {1.0f, 0.0f, 0.5f, 0.25f};
 
-            testFormat(Format::R32_FLOAT, size, &subData, expected);
+            testFormat(Format::R32Float, size, &subData, expected);
         }
 
         {
@@ -202,7 +202,7 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
             // clang-format on
 
-            testFormat(Format::R16G16B16A16_FLOAT, size, &subData, expected);
+            testFormat(Format::RGBA16Float, size, &subData, expected);
         }
 
         {
@@ -210,7 +210,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f};
 
-            testFormat(Format::R16G16_FLOAT, size, &subData, expected);
+            testFormat(Format::RG16Float, size, &subData, expected);
         }
 
         {
@@ -218,7 +218,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {1.0f, 0.0f, 0.5f, 0.25f};
 
-            testFormat(Format::R16_FLOAT, size, &subData, expected);
+            testFormat(Format::R16Float, size, &subData, expected);
         }
 
         {
@@ -226,7 +226,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 32, 0};
             std::array expected = {255u, 0u, 0u, 255u, 0u, 255u, 0u, 255u, 0u, 0u, 255u, 255u, 127u, 127u, 127u, 255u};
 
-            testFormat(Format::R32G32B32A32_UINT, size, &subData, expected);
+            testFormat(Format::RGBA32Uint, size, &subData, expected);
         }
 
         {
@@ -234,7 +234,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 24, 0};
             std::array expected = {255u, 0u, 0u, 0u, 255u, 0u, 0u, 0u, 255u, 127u, 127u, 127u};
 
-            testFormat(Format::R32G32B32_UINT, size, &subData, expected);
+            testFormat(Format::RGB32Uint, size, &subData, expected);
         }
 
         {
@@ -242,7 +242,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 16, 0};
             std::array expected = {255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u};
 
-            testFormat(Format::R32G32_UINT, size, &subData, expected);
+            testFormat(Format::RG32Uint, size, &subData, expected);
         }
 
         {
@@ -250,7 +250,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {255u, 0u, 127u, 73u};
 
-            testFormat(Format::R32_UINT, size, &subData, expected);
+            testFormat(Format::R32Uint, size, &subData, expected);
         }
 
         {
@@ -258,7 +258,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 16, 0};
             std::array expected = {255u, 0u, 0u, 255u, 0u, 255u, 0u, 255u, 0u, 0u, 255u, 255u, 127u, 127u, 127u, 255u};
 
-            testFormat(Format::R16G16B16A16_UINT, size, &subData, expected);
+            testFormat(Format::RGBA16Uint, size, &subData, expected);
         }
 
         {
@@ -266,7 +266,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u};
 
-            testFormat(Format::R16G16_UINT, size, &subData, expected);
+            testFormat(Format::RG16Uint, size, &subData, expected);
         }
 
         {
@@ -274,7 +274,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {255u, 0u, 127u, 73u};
 
-            testFormat(Format::R16_UINT, size, &subData, expected);
+            testFormat(Format::R16Uint, size, &subData, expected);
         }
 
         {
@@ -282,7 +282,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {255u, 0u, 0u, 255u, 0u, 255u, 0u, 255u, 0u, 0u, 255u, 255u, 127u, 127u, 127u, 255u};
 
-            testFormat(Format::R8G8B8A8_UINT, size, &subData, expected);
+            testFormat(Format::RGBA8Uint, size, &subData, expected);
         }
 
         {
@@ -290,7 +290,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {255u, 0u, 0u, 255u, 255u, 255u, 127u, 127u};
 
-            testFormat(Format::R8G8_UINT, size, &subData, expected);
+            testFormat(Format::RG8Uint, size, &subData, expected);
         }
 
         {
@@ -298,7 +298,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 2, 0};
             std::array expected = {255u, 0u, 127u, 73u};
 
-            testFormat(Format::R8_UINT, size, &subData, expected);
+            testFormat(Format::R8Uint, size, &subData, expected);
         }
 
         {
@@ -306,7 +306,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 32, 0};
             std::array expected = {255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 127, 127, 127, 255};
 
-            testFormat(Format::R32G32B32A32_SINT, size, &subData, expected);
+            testFormat(Format::RGBA32Sint, size, &subData, expected);
         }
 
         {
@@ -314,7 +314,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 24, 0};
             std::array expected = {255, 0, 0, 0, 255, 0, 0, 0, 255, 127, 127, 127};
 
-            testFormat(Format::R32G32B32_SINT, size, &subData, expected);
+            testFormat(Format::RGB32Sint, size, &subData, expected);
         }
 
         {
@@ -322,7 +322,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 16, 0};
             std::array expected = {255, 0, 0, 255, 255, 255, 127, 127};
 
-            testFormat(Format::R32G32_SINT, size, &subData, expected);
+            testFormat(Format::RG32Sint, size, &subData, expected);
         }
 
         {
@@ -330,7 +330,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {255, 0, 127, 73};
 
-            testFormat(Format::R32_SINT, size, &subData, expected);
+            testFormat(Format::R32Sint, size, &subData, expected);
         }
 
         {
@@ -338,7 +338,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 16, 0};
             std::array expected = {255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 127, 127, 127, 255};
 
-            testFormat(Format::R16G16B16A16_SINT, size, &subData, expected);
+            testFormat(Format::RGBA16Sint, size, &subData, expected);
         }
 
         {
@@ -346,7 +346,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {255, 0, 0, 255, 255, 255, 127, 127};
 
-            testFormat(Format::R16G16_SINT, size, &subData, expected);
+            testFormat(Format::RG16Sint, size, &subData, expected);
         }
 
         {
@@ -354,7 +354,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {255, 0, 127, 73};
 
-            testFormat(Format::R16_SINT, size, &subData, expected);
+            testFormat(Format::R16Sint, size, &subData, expected);
         }
 
         {
@@ -362,7 +362,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {127, 0, 0, 127, 0, 127, 0, 127, 0, 0, 127, 127, 0, 0, 0, 127};
 
-            testFormat(Format::R8G8B8A8_SINT, size, &subData, expected);
+            testFormat(Format::RGBA8Sint, size, &subData, expected);
         }
 
         {
@@ -370,7 +370,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {127, 0, 0, 127, 127, 127, 73, 73};
 
-            testFormat(Format::R8G8_SINT, size, &subData, expected);
+            testFormat(Format::RG8Sint, size, &subData, expected);
         }
 
         {
@@ -378,7 +378,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 2, 0};
             std::array expected = {127, 0, 73, 25};
 
-            testFormat(Format::R8_SINT, size, &subData, expected);
+            testFormat(Format::R8Sint, size, &subData, expected);
         }
 
         {
@@ -388,7 +388,7 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.499992371f, 0.499992371f, 0.499992371f, 0.499992371f};
             // clang-format on
 
-            testFormat(Format::R16G16B16A16_UNORM, size, &subData, expected);
+            testFormat(Format::RGBA16Unorm, size, &subData, expected);
         }
 
         {
@@ -396,7 +396,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.499992371f, 0.499992371f};
 
-            testFormat(Format::R16G16_UNORM, size, &subData, expected);
+            testFormat(Format::RG16Unorm, size, &subData, expected);
         }
 
         {
@@ -404,7 +404,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {1.0f, 0.0f, 0.499992371f, 0.249988556f};
 
-            testFormat(Format::R16_UNORM, size, &subData, expected);
+            testFormat(Format::R16Unorm, size, &subData, expected);
         }
 
         {
@@ -415,8 +415,8 @@ struct TestFormats
             std::array expectedSRGB = {0.0f, 0.0f, 0.0f, 1.0f, 0.211914062f, 0.211914062f, 0.211914062f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
             // clang-format on
 
-            testFormat(Format::R8G8B8A8_UNORM, size, &subData, expected);
-            testFormat(Format::R8G8B8A8_UNORM_SRGB, size, &subData, expectedSRGB);
+            testFormat(Format::RGBA8Unorm, size, &subData, expected);
+            testFormat(Format::RGBA8UnormSrgb, size, &subData, expectedSRGB);
         }
 
         {
@@ -424,7 +424,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.498039216f, 0.498039216f};
 
-            testFormat(Format::R8G8_UNORM, size, &subData, expected);
+            testFormat(Format::RG8Unorm, size, &subData, expected);
         }
 
         {
@@ -432,7 +432,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 2, 0};
             std::array expected = {1.0f, 0.0f, 0.498039216f, 0.247058824f};
 
-            testFormat(Format::R8_UNORM, size, &subData, expected);
+            testFormat(Format::R8Unorm, size, &subData, expected);
         }
 
         {
@@ -443,8 +443,8 @@ struct TestFormats
             std::array expectedSRGB = {0.0f, 0.0f, 0.0f, 1.0f, 0.211914062f, 0.211914062f, 0.211914062f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
             // clang-format on
 
-            testFormat(Format::B8G8R8A8_UNORM, size, &subData, expected);
-            testFormat(Format::B8G8R8A8_UNORM_SRGB, size, &subData, expectedSRGB);
+            testFormat(Format::BGRA8Unorm, size, &subData, expected);
+            testFormat(Format::BGRA8UnormSrgb, size, &subData, expectedSRGB);
         }
 
         {
@@ -454,7 +454,7 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, -1.0f, -1.0f, 0.0f, 1.0f};
             // clang-format on
 
-            testFormat(Format::R16G16B16A16_SNORM, size, &subData, expected);
+            testFormat(Format::RGBA16Snorm, size, &subData, expected);
         }
 
         {
@@ -462,7 +462,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f};
 
-            testFormat(Format::R16G16_SNORM, size, &subData, expected);
+            testFormat(Format::RG16Snorm, size, &subData, expected);
         }
 
         {
@@ -470,7 +470,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {1.0f, 0.0f, -1.0f, 0.0f};
 
-            testFormat(Format::R16_SNORM, size, &subData, expected);
+            testFormat(Format::R16Snorm, size, &subData, expected);
         }
 
         {
@@ -480,7 +480,7 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, -1.0f, -1.0f, 0.0f, 1.0f};
             // clang-format on
 
-            testFormat(Format::R8G8B8A8_SNORM, size, &subData, expected);
+            testFormat(Format::RGBA8Snorm, size, &subData, expected);
         }
 
         {
@@ -488,7 +488,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 4, 0};
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f};
 
-            testFormat(Format::R8G8_SNORM, size, &subData, expected);
+            testFormat(Format::RG8Snorm, size, &subData, expected);
         }
 
         {
@@ -496,7 +496,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 2, 0};
             std::array expected = {1.0f, 0.0f, -1.0f, 0.0f};
 
-            testFormat(Format::R8_SNORM, size, &subData, expected);
+            testFormat(Format::R8Snorm, size, &subData, expected);
         }
 
         {
@@ -506,7 +506,7 @@ struct TestFormats
             std::array expected = {0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.466666669f, 0.466666669f, 0.466666669f, 0.466666669f};
             // clang-format on
 
-            testFormat(Format::B4G4R4A4_UNORM, size, &subData, expected);
+            testFormat(Format::BGRA4Unorm, size, &subData, expected);
         }
 
         {
@@ -516,7 +516,7 @@ struct TestFormats
             std::array expected = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.482352942f, 0.490196079f, 0.482352942f};
             // clang-format on
 
-            testFormat(Format::B5G6R5_UNORM, size, &subData, expected);
+            testFormat(Format::B5G6R5Unorm, size, &subData, expected);
         }
 
         {
@@ -526,7 +526,7 @@ struct TestFormats
             std::array expected = {0.0f, 0.0f, 1.0f, 0.0f, 0.0313725509f, 1.0f, 0.0f, 0.0f, 0.968627453f, 0.0f, 0.0f, 1.0f, 0.968627453f, 1.0f, 0.482352942f, 0.0f};
             // clang-format on
 
-            testFormat(Format::B5G5R5A1_UNORM, size, &subData, expected);
+            testFormat(Format::BGR5A1Unorm, size, &subData, expected);
         }
 
         {
@@ -536,7 +536,7 @@ struct TestFormats
             std::array expected = {63.0f, 63.0f, 63.0f, 0.0f, 0.0f, 0.0f, 127.0f, 127.0f, 127.0f, 127.0f, 127.5f, 127.75f};
             // clang-format on
 
-            testFormat(Format::R9G9B9E5_SHAREDEXP, size, &subData, expected);
+            testFormat(Format::RGB9E5Ufloat, size, &subData, expected);
         }
 
         {
@@ -544,7 +544,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {1023u, 1023u, 1023u, 3u, 0u, 0u, 0u, 0u, 511u, 511u, 511u, 2u, 455u, 796u, 113u, 1u};
 
-            testFormat(Format::R10G10B10A2_UINT, size, &subData, expected);
+            testFormat(Format::RGB10A2Uint, size, &subData, expected);
         }
 
         {
@@ -554,7 +554,7 @@ struct TestFormats
             std::array expected = {1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.499511242f, 0.499511242f, 0.499511242f, 0.66666668f, 0.444770277f, 0.778103590f, 0.110459432f, 0.333333343f};
             // clang-format on
 
-            testFormat(Format::R10G10B10A2_UNORM, size, &subData, expected);
+            testFormat(Format::RGB10A2Unorm, size, &subData, expected);
         }
 
         {
@@ -562,7 +562,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {1023u, 1023u, 1023u, 3u, 0u, 0u, 0u, 0u, 511u, 511u, 511u, 2u, 455u, 796u, 113u, 1u};
 
-            testFormat(Format::R10G10B10A2_UINT, size, &subData, expected);
+            testFormat(Format::RGB10A2Uint, size, &subData, expected);
         }
 
         {
@@ -570,7 +570,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {254.0f, 254.0f, 252.0f, 0.0f, 0.0f, 0.0f, 127.0f, 127.0f, 126.0f, 0.5f, 0.5f, 0.5f};
 
-            testFormat(Format::R11G11B10_FLOAT, size, &subData, expected);
+            testFormat(Format::R11G11B10Float, size, &subData, expected);
         }
 
 #if 0
@@ -580,8 +580,8 @@ struct TestFormats
             std::array expected = {0.0f, 0.0f, 0.517647088f, 1.0f};
             std::array expectedSRGB = {0.0f, 0.0f, 0.230468750f, 1.0f};
 
-            testFormat(Format::BC1_UNORM, bcSize, &subData, expected);
-            testFormat(Format::BC1_UNORM_SRGB, bcSize, &subData, expectedSRGB);
+            testFormat(Format::BC1Unorm, bcSize, &subData, expected);
+            testFormat(Format::BC1UnormSrgb, bcSize, &subData, expectedSRGB);
         }
 #endif
 
@@ -591,8 +591,8 @@ struct TestFormats
             std::array expected = {0.0f, 0.0f, 0.517647088f, 1.0f};
             std::array expectedSRGB = {0.0f, 0.0f, 0.230468750f, 1.0f};
 
-            testFormat(Format::BC2_UNORM, bcSize, &subData, expected);
-            testFormat(Format::BC2_UNORM_SRGB, bcSize, &subData, expectedSRGB);
+            testFormat(Format::BC2Unorm, bcSize, &subData, expected);
+            testFormat(Format::BC2UnormSrgb, bcSize, &subData, expectedSRGB);
         }
 
         {
@@ -601,8 +601,8 @@ struct TestFormats
             std::array expected = {0.0f, 0.0f, 0.517647088f, 1.0f};
             std::array expectedSRGB = {0.0f, 0.0f, 0.230468750f, 1.0f};
 
-            testFormat(Format::BC3_UNORM, bcSize, &subData, expected);
-            testFormat(Format::BC3_UNORM_SRGB, bcSize, &subData, expectedSRGB);
+            testFormat(Format::BC3Unorm, bcSize, &subData, expected);
+            testFormat(Format::BC3UnormSrgb, bcSize, &subData, expectedSRGB);
         }
 
         {
@@ -611,8 +611,8 @@ struct TestFormats
             std::array expectedUNORM = {0.498039216f};
             std::array expectedSNORM = {1.0f};
 
-            testFormat(Format::BC4_UNORM, bcSize, &subData, expectedUNORM);
-            testFormat(Format::BC4_SNORM, bcSize, &subData, expectedSNORM);
+            testFormat(Format::BC4Unorm, bcSize, &subData, expectedUNORM);
+            testFormat(Format::BC4Snorm, bcSize, &subData, expectedSNORM);
         }
 
         {
@@ -621,8 +621,8 @@ struct TestFormats
             std::array expectedUNORM = {0.498039216f, 0.498039216f, 0.498039216f, 0.498039216f};
             std::array expectedSNORM = {1.0f, 1.0f, 1.0f, 1.0f};
 
-            testFormat(Format::BC5_UNORM, bcSize, &subData, expectedUNORM);
-            testFormat(Format::BC5_SNORM, bcSize, &subData, expectedSNORM);
+            testFormat(Format::BC5Unorm, bcSize, &subData, expectedUNORM);
+            testFormat(Format::BC5Snorm, bcSize, &subData, expectedSNORM);
         }
 
         {
@@ -632,7 +632,7 @@ struct TestFormats
             std::array expected = {0.343261719f, 0.897949219f, 2.16406250f};
             // clang-format on
 
-            testFormat(Format::BC6H_UF16, bcSize, &subData, expected);
+            testFormat(Format::BC6HUfloat, bcSize, &subData, expected);
         }
 
         {
@@ -642,7 +642,7 @@ struct TestFormats
             std::array expected = {0.343261719f, 0.897949219f, 2.16406250f};
             // clang-format on
 
-            testFormat(Format::BC6H_SF16, bcSize, &subData, expected);
+            testFormat(Format::BC6HSfloat, bcSize, &subData, expected);
         }
 
         {
@@ -651,8 +651,8 @@ struct TestFormats
             std::array expected = {0.0f, 0.101960786f, 0.0f, 1.0f};
             std::array expectedSRGB = {0.0f, 0.0103149414f, 0.0f, 1.0f};
 
-            testFormat(Format::BC7_UNORM, bcSize, &subData, expected);
-            testFormat(Format::BC7_UNORM_SRGB, bcSize, &subData, expectedSRGB);
+            testFormat(Format::BC7Unorm, bcSize, &subData, expected);
+            testFormat(Format::BC7UnormSrgb, bcSize, &subData, expectedSRGB);
         }
     }
 };

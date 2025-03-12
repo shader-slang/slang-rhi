@@ -103,10 +103,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         // Request atomic access if the format allows it.
         switch (desc.format)
         {
-        case Format::R32_UINT:
-        case Format::R32_SINT:
-        case Format::R32G32_UINT:
-        case Format::R32G32_SINT:
+        case Format::R32Uint:
+        case Format::R32Sint:
+        case Format::RG32Uint:
+        case Format::RG32Sint:
             textureUsage |= MTL::TextureUsageShaderAtomic;
             break;
         default:

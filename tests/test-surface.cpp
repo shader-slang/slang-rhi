@@ -132,8 +132,8 @@ struct RenderSurfaceTest : SurfaceTest
 
         InputElementDesc inputElements[] = {
             // Vertex buffer data
-            {"POSITION", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, position), 0},
-            {"COLOR", 0, Format::R32G32B32_FLOAT, offsetof(Vertex, color), 0},
+            {"POSITION", 0, Format::RGB32Float, offsetof(Vertex, position), 0},
+            {"COLOR", 0, Format::RGB32Float, offsetof(Vertex, color), 0},
         };
         InputLayoutDesc inputLayoutDesc = {};
         inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);

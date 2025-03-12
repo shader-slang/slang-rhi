@@ -629,21 +629,42 @@ void CommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::clearTexture(
+void CommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4])
+{
+    commands::ClearTextureFloat cmd;
+    cmd.texture = texture;
+    cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
+    ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));
+    m_commandList->write(std::move(cmd));
+}
+
+void CommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
+{
+    commands::ClearTextureUint cmd;
+    cmd.texture = texture;
+    cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
+    ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));
+    m_commandList->write(std::move(cmd));
+}
+
+void CommandEncoder::clearTextureDepthStencil(
     ITexture* texture,
-    const ClearValue& clearValue,
-    const SubresourceRange* subresourceRange,
+    SubresourceRange subresourceRange,
     bool clearDepth,
-    bool clearStencil
+    float depthValue,
+    bool clearStencil,
+    uint8_t stencilValue
 )
 {
-    commands::ClearTexture cmd;
+    if (!clearDepth && !clearStencil)
+        return;
+    commands::ClearTextureDepthStencil cmd;
     cmd.texture = texture;
-    cmd.clearValue = clearValue;
-    cmd.subresourceRange =
-        subresourceRange ? *subresourceRange : checked_cast<Texture*>(texture)->resolveSubresourceRange(kEntireTexture);
+    cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
     cmd.clearDepth = clearDepth;
+    cmd.depthValue = depthValue;
     cmd.clearStencil = clearStencil;
+    cmd.stencilValue = stencilValue;
     m_commandList->write(std::move(cmd));
 }
 

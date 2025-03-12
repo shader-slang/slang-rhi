@@ -11,160 +11,160 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::Undefined:
         return WGPUTextureFormat_Undefined;
 
-    case Format::R8_UINT:
+    case Format::R8Uint:
         return WGPUTextureFormat_R8Uint;
-    case Format::R8_SINT:
+    case Format::R8Sint:
         return WGPUTextureFormat_R8Sint;
-    case Format::R8_UNORM:
+    case Format::R8Unorm:
         return WGPUTextureFormat_R8Unorm;
-    case Format::R8_SNORM:
+    case Format::R8Snorm:
         return WGPUTextureFormat_R8Snorm;
 
-    case Format::R8G8_UINT:
+    case Format::RG8Uint:
         return WGPUTextureFormat_RG8Uint;
-    case Format::R8G8_SINT:
+    case Format::RG8Sint:
         return WGPUTextureFormat_RG8Sint;
-    case Format::R8G8_UNORM:
+    case Format::RG8Unorm:
         return WGPUTextureFormat_RG8Unorm;
-    case Format::R8G8_SNORM:
+    case Format::RG8Snorm:
         return WGPUTextureFormat_RG8Snorm;
 
-    case Format::R8G8B8A8_UINT:
+    case Format::RGBA8Uint:
         return WGPUTextureFormat_RGBA8Uint;
-    case Format::R8G8B8A8_SINT:
+    case Format::RGBA8Sint:
         return WGPUTextureFormat_RGBA8Sint;
-    case Format::R8G8B8A8_UNORM:
+    case Format::RGBA8Unorm:
         return WGPUTextureFormat_RGBA8Unorm;
-    case Format::R8G8B8A8_UNORM_SRGB:
+    case Format::RGBA8UnormSrgb:
         return WGPUTextureFormat_RGBA8UnormSrgb;
-    case Format::R8G8B8A8_SNORM:
+    case Format::RGBA8Snorm:
         return WGPUTextureFormat_RGBA8Snorm;
 
-    case Format::B8G8R8A8_UNORM:
+    case Format::BGRA8Unorm:
         return WGPUTextureFormat_BGRA8Unorm;
-    case Format::B8G8R8A8_UNORM_SRGB:
+    case Format::BGRA8UnormSrgb:
         return WGPUTextureFormat_BGRA8UnormSrgb;
-    case Format::B8G8R8X8_UNORM:
+    case Format::BGRX8Unorm:
         return WGPUTextureFormat_Undefined; // not supported
-    case Format::B8G8R8X8_UNORM_SRGB:
+    case Format::BGRX8UnormSrgb:
         return WGPUTextureFormat_Undefined; // not supported
 
-    case Format::R16_UINT:
+    case Format::R16Uint:
         return WGPUTextureFormat_R16Uint;
-    case Format::R16_SINT:
+    case Format::R16Sint:
         return WGPUTextureFormat_R16Sint;
-    case Format::R16_UNORM:
+    case Format::R16Unorm:
         return WGPUTextureFormat_R16Unorm;
-    case Format::R16_SNORM:
+    case Format::R16Snorm:
         return WGPUTextureFormat_R16Snorm;
-    case Format::R16_FLOAT:
+    case Format::R16Float:
         return WGPUTextureFormat_R16Float;
 
-    case Format::R16G16_UINT:
+    case Format::RG16Uint:
         return WGPUTextureFormat_RG16Uint;
-    case Format::R16G16_SINT:
+    case Format::RG16Sint:
         return WGPUTextureFormat_RG16Sint;
-    case Format::R16G16_UNORM:
+    case Format::RG16Unorm:
         return WGPUTextureFormat_RG16Unorm;
-    case Format::R16G16_SNORM:
+    case Format::RG16Snorm:
         return WGPUTextureFormat_RG16Snorm;
-    case Format::R16G16_FLOAT:
+    case Format::RG16Float:
         return WGPUTextureFormat_RG16Float;
 
-    case Format::R16G16B16A16_UINT:
+    case Format::RGBA16Uint:
         return WGPUTextureFormat_RGBA16Uint;
-    case Format::R16G16B16A16_SINT:
+    case Format::RGBA16Sint:
         return WGPUTextureFormat_RGBA16Sint;
-    case Format::R16G16B16A16_UNORM:
+    case Format::RGBA16Unorm:
         return WGPUTextureFormat_RGBA16Unorm;
-    case Format::R16G16B16A16_SNORM:
+    case Format::RGBA16Snorm:
         return WGPUTextureFormat_RGBA16Snorm;
-    case Format::R16G16B16A16_FLOAT:
+    case Format::RGBA16Float:
         return WGPUTextureFormat_RGBA16Float;
 
-    case Format::R32_UINT:
+    case Format::R32Uint:
         return WGPUTextureFormat_R32Uint;
-    case Format::R32_SINT:
+    case Format::R32Sint:
         return WGPUTextureFormat_R32Sint;
-    case Format::R32_FLOAT:
+    case Format::R32Float:
         return WGPUTextureFormat_R32Float;
 
-    case Format::R32G32_UINT:
+    case Format::RG32Uint:
         return WGPUTextureFormat_RG32Uint;
-    case Format::R32G32_SINT:
+    case Format::RG32Sint:
         return WGPUTextureFormat_RG32Sint;
-    case Format::R32G32_FLOAT:
+    case Format::RG32Float:
         return WGPUTextureFormat_RG32Float;
 
-    case Format::R32G32B32_UINT:
+    case Format::RGB32Uint:
         return WGPUTextureFormat_Undefined; // not supported
-    case Format::R32G32B32_SINT:
+    case Format::RGB32Sint:
         return WGPUTextureFormat_Undefined; // not supported
-    case Format::R32G32B32_FLOAT:
+    case Format::RGB32Float:
         return WGPUTextureFormat_Undefined; // not supported
 
-    case Format::R32G32B32A32_UINT:
+    case Format::RGBA32Uint:
         return WGPUTextureFormat_RGBA32Uint;
-    case Format::R32G32B32A32_SINT:
+    case Format::RGBA32Sint:
         return WGPUTextureFormat_RGBA32Sint;
-    case Format::R32G32B32A32_FLOAT:
+    case Format::RGBA32Float:
         return WGPUTextureFormat_RGBA32Float;
 
-    case Format::R64_UINT:
+    case Format::R64Uint:
         return WGPUTextureFormat_Undefined; // not supported
-    case Format::R64_SINT:
-        return WGPUTextureFormat_Undefined; // not supported
-
-    case Format::B4G4R4A4_UNORM:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::B5G6R5_UNORM:
-        return WGPUTextureFormat_Undefined; // not supported
-    case Format::B5G5R5A1_UNORM:
+    case Format::R64Sint:
         return WGPUTextureFormat_Undefined; // not supported
 
-    case Format::R9G9B9E5_SHAREDEXP:
+    case Format::BGRA4Unorm:
+        return WGPUTextureFormat_Undefined; // not supported
+    case Format::B5G6R5Unorm:
+        return WGPUTextureFormat_Undefined; // not supported
+    case Format::BGR5A1Unorm:
+        return WGPUTextureFormat_Undefined; // not supported
+
+    case Format::RGB9E5Ufloat:
         return WGPUTextureFormat_RGB9E5Ufloat;
-    case Format::R10G10B10A2_UINT:
+    case Format::RGB10A2Uint:
         return WGPUTextureFormat_RGB10A2Uint;
-    case Format::R10G10B10A2_UNORM:
+    case Format::RGB10A2Unorm:
         return WGPUTextureFormat_RGB10A2Unorm;
-    case Format::R11G11B10_FLOAT:
+    case Format::R11G11B10Float:
         return WGPUTextureFormat_RG11B10Ufloat;
 
-    case Format::D32_FLOAT:
+    case Format::D32Float:
         return WGPUTextureFormat_Depth32Float;
-    case Format::D16_UNORM:
+    case Format::D16Unorm:
         return WGPUTextureFormat_Depth16Unorm;
-    case Format::D32_FLOAT_S8_UINT:
+    case Format::D32FloatS8Uint:
         return WGPUTextureFormat_Depth32FloatStencil8;
 
-    case Format::BC1_UNORM:
+    case Format::BC1Unorm:
         return WGPUTextureFormat_BC1RGBAUnorm;
-    case Format::BC1_UNORM_SRGB:
+    case Format::BC1UnormSrgb:
         return WGPUTextureFormat_BC1RGBAUnormSrgb;
-    case Format::BC2_UNORM:
+    case Format::BC2Unorm:
         return WGPUTextureFormat_BC2RGBAUnorm;
-    case Format::BC2_UNORM_SRGB:
+    case Format::BC2UnormSrgb:
         return WGPUTextureFormat_BC2RGBAUnormSrgb;
-    case Format::BC3_UNORM:
+    case Format::BC3Unorm:
         return WGPUTextureFormat_BC3RGBAUnorm;
-    case Format::BC3_UNORM_SRGB:
+    case Format::BC3UnormSrgb:
         return WGPUTextureFormat_BC3RGBAUnormSrgb;
-    case Format::BC4_UNORM:
+    case Format::BC4Unorm:
         return WGPUTextureFormat_BC4RUnorm;
-    case Format::BC4_SNORM:
+    case Format::BC4Snorm:
         return WGPUTextureFormat_BC4RSnorm;
-    case Format::BC5_UNORM:
+    case Format::BC5Unorm:
         return WGPUTextureFormat_BC5RGUnorm;
-    case Format::BC5_SNORM:
+    case Format::BC5Snorm:
         return WGPUTextureFormat_BC5RGSnorm;
-    case Format::BC6H_UF16:
+    case Format::BC6HUfloat:
         return WGPUTextureFormat_BC6HRGBUfloat;
-    case Format::BC6H_SF16:
+    case Format::BC6HSfloat:
         return WGPUTextureFormat_BC6HRGBFloat;
-    case Format::BC7_UNORM:
+    case Format::BC7Unorm:
         return WGPUTextureFormat_BC7RGBAUnorm;
-    case Format::BC7_UNORM_SRGB:
+    case Format::BC7UnormSrgb:
         return WGPUTextureFormat_BC7RGBAUnormSrgb;
 
     default:
@@ -176,72 +176,72 @@ WGPUVertexFormat translateVertexFormat(Format format)
 {
     switch (format)
     {
-    case Format::R8G8_UINT:
+    case Format::RG8Uint:
         return WGPUVertexFormat_Uint8x2;
-    case Format::R8G8_SINT:
+    case Format::RG8Sint:
         return WGPUVertexFormat_Sint8x2;
-    case Format::R8G8_UNORM:
+    case Format::RG8Unorm:
         return WGPUVertexFormat_Unorm8x2;
-    case Format::R8G8_SNORM:
+    case Format::RG8Snorm:
         return WGPUVertexFormat_Snorm8x2;
 
-    case Format::R8G8B8A8_UINT:
+    case Format::RGBA8Uint:
         return WGPUVertexFormat_Uint8x4;
-    case Format::R8G8B8A8_SINT:
+    case Format::RGBA8Sint:
         return WGPUVertexFormat_Sint8x4;
-    case Format::R8G8B8A8_UNORM:
+    case Format::RGBA8Unorm:
         return WGPUVertexFormat_Unorm8x4;
-    case Format::R8G8B8A8_SNORM:
+    case Format::RGBA8Snorm:
         return WGPUVertexFormat_Snorm8x4;
 
-    case Format::R16G16_UINT:
+    case Format::RG16Uint:
         return WGPUVertexFormat_Uint16x2;
-    case Format::R16G16_SINT:
+    case Format::RG16Sint:
         return WGPUVertexFormat_Sint16x2;
-    case Format::R16G16_UNORM:
+    case Format::RG16Unorm:
         return WGPUVertexFormat_Unorm16x2;
-    case Format::R16G16_SNORM:
+    case Format::RG16Snorm:
         return WGPUVertexFormat_Snorm16x2;
-    case Format::R16G16_FLOAT:
+    case Format::RG16Float:
         return WGPUVertexFormat_Float16x2;
 
-    case Format::R16G16B16A16_UINT:
+    case Format::RGBA16Uint:
         return WGPUVertexFormat_Uint16x4;
-    case Format::R16G16B16A16_SINT:
+    case Format::RGBA16Sint:
         return WGPUVertexFormat_Sint16x4;
-    case Format::R16G16B16A16_UNORM:
+    case Format::RGBA16Unorm:
         return WGPUVertexFormat_Unorm16x4;
-    case Format::R16G16B16A16_SNORM:
+    case Format::RGBA16Snorm:
         return WGPUVertexFormat_Snorm16x4;
-    case Format::R16G16B16A16_FLOAT:
+    case Format::RGBA16Float:
         return WGPUVertexFormat_Float16x4;
 
-    case Format::R32_UINT:
+    case Format::R32Uint:
         return WGPUVertexFormat_Uint32;
-    case Format::R32_SINT:
+    case Format::R32Sint:
         return WGPUVertexFormat_Sint32;
-    case Format::R32_FLOAT:
+    case Format::R32Float:
         return WGPUVertexFormat_Float32;
 
-    case Format::R32G32_UINT:
+    case Format::RG32Uint:
         return WGPUVertexFormat_Uint32x2;
-    case Format::R32G32_SINT:
+    case Format::RG32Sint:
         return WGPUVertexFormat_Sint32x2;
-    case Format::R32G32_FLOAT:
+    case Format::RG32Float:
         return WGPUVertexFormat_Float32x2;
 
-    case Format::R32G32B32_UINT:
+    case Format::RGB32Uint:
         return WGPUVertexFormat_Uint32x3;
-    case Format::R32G32B32_SINT:
+    case Format::RGB32Sint:
         return WGPUVertexFormat_Sint32x3;
-    case Format::R32G32B32_FLOAT:
+    case Format::RGB32Float:
         return WGPUVertexFormat_Float32x3;
 
-    case Format::R32G32B32A32_UINT:
+    case Format::RGBA32Uint:
         return WGPUVertexFormat_Uint32x4;
-    case Format::R32G32B32A32_SINT:
+    case Format::RGBA32Sint:
         return WGPUVertexFormat_Sint32x4;
-    case Format::R32G32B32A32_FLOAT:
+    case Format::RGBA32Float:
         return WGPUVertexFormat_Float32x4;
 
     default:

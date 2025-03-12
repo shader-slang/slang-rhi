@@ -73,7 +73,9 @@ public:
     void cmdCopyTexture(const commands::CopyTexture& cmd);
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
-    void cmdClearTexture(const commands::ClearTexture& cmd);
+    void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
+    void cmdClearTextureUint(const commands::ClearTextureUint& cmd);
+    void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -355,7 +357,7 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
 
-    D3D12_CPU_DESCRIPTOR_HANDLE uav = buffer->getUAV(Format::R32_UINT, 0, cmd.range);
+    D3D12_CPU_DESCRIPTOR_HANDLE uav = buffer->getUAV(Format::R32Uint, 0, cmd.range);
     GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
     m_device->m_device
         ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -370,53 +372,93 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     );
 }
 
-void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
+void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
-    TextureType type = texture->m_desc.type;
-    TextureUsage usage = texture->m_desc.usage;
-    Format format = texture->m_desc.format;
-
-    if (is_set(usage, TextureUsage::UnorderedAccess))
-    {
-        requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
-        D3D12_CPU_DESCRIPTOR_HANDLE uav = texture->getUAV(format, type, TextureAspect::All, cmd.subresourceRange);
-        GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
-        m_device->m_device
-            ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        m_cmdList->ClearUnorderedAccessViewFloat(
-            descriptor.getGpuHandle(0),
-            uav,
-            texture->m_resource.getResource(),
-            cmd.clearValue.color.floatValues,
-            0,
-            nullptr
-        );
-    }
-    else if (is_set(usage, TextureUsage::RenderTarget))
+    const TextureDesc& desc = texture->m_desc;
+    if (is_set(desc.usage, TextureUsage::RenderTarget))
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::RenderTarget);
-        if (isDepthFormat(format) || isStencilFormat(format))
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
         {
-            D3D12_CPU_DESCRIPTOR_HANDLE dsv = texture->getDSV(format, type, TextureAspect::All, cmd.subresourceRange);
-            D3D12_CLEAR_FLAGS clearFlags = (D3D12_CLEAR_FLAGS)0;
-            if (cmd.clearDepth)
-                clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
-            if (cmd.clearStencil)
-                clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
-            m_cmdList->ClearDepthStencilView(
-                dsv,
-                clearFlags,
-                cmd.clearValue.depthStencil.depth,
-                cmd.clearValue.depthStencil.stencil,
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            D3D12_CPU_DESCRIPTOR_HANDLE rtv = texture->getRTV(desc.format, desc.type, TextureAspect::All, sr);
+            m_cmdList->ClearRenderTargetView(rtv, cmd.clearValue, 0, nullptr);
+        }
+    }
+    else if (is_set(desc.usage, TextureUsage::UnorderedAccess))
+    {
+        requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        {
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            D3D12_CPU_DESCRIPTOR_HANDLE uav = texture->getUAV(desc.format, desc.type, TextureAspect::All, sr);
+            GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
+            m_device->m_device
+                ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            m_cmdList->ClearUnorderedAccessViewFloat(
+                descriptor.getGpuHandle(0),
+                descriptor.getCpuHandle(0),
+                texture->m_resource.getResource(),
+                cmd.clearValue,
                 0,
                 nullptr
             );
         }
-        else
+    }
+}
+
+void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    const TextureDesc& desc = texture->m_desc;
+    if (is_set(desc.usage, TextureUsage::UnorderedAccess))
+    {
+        requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
         {
-            D3D12_CPU_DESCRIPTOR_HANDLE rtv = texture->getRTV(format, type, TextureAspect::All, cmd.subresourceRange);
-            m_cmdList->ClearRenderTargetView(rtv, cmd.clearValue.color.floatValues, 0, nullptr);
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            D3D12_CPU_DESCRIPTOR_HANDLE uav = texture->getUAV(desc.format, desc.type, TextureAspect::All, sr);
+            GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
+            m_device->m_device
+                ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            m_cmdList->ClearUnorderedAccessViewUint(
+                descriptor.getGpuHandle(0),
+                descriptor.getCpuHandle(0),
+                texture->m_resource.getResource(),
+                cmd.clearValue,
+                0,
+                nullptr
+            );
+        }
+    }
+}
+
+void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    const TextureDesc& desc = texture->m_desc;
+    if (is_set(desc.usage, TextureUsage::DepthStencil))
+    {
+        requireTextureState(texture, cmd.subresourceRange, ResourceState::DepthWrite);
+        D3D12_CLEAR_FLAGS clearFlags = (D3D12_CLEAR_FLAGS)0;
+        if (cmd.clearDepth)
+            clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
+        if (cmd.clearStencil)
+            clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        {
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            D3D12_CPU_DESCRIPTOR_HANDLE dsv = texture->getDSV(desc.format, desc.type, TextureAspect::All, sr);
+            m_cmdList->ClearDepthStencilView(dsv, clearFlags, cmd.depthValue, cmd.stencilValue, 0, nullptr);
         }
     }
 }

@@ -23,17 +23,17 @@ public:
         m_windowHandle = (HWND)windowHandle.handleValues[0];
         m_swapEffect = swapEffect;
 
-        m_info.preferredFormat = Format::R8G8B8A8_UNORM;
+        m_info.preferredFormat = Format::RGBA8Unorm;
         m_info.supportedUsage = TextureUsage::RenderTarget | TextureUsage::CopyDestination | TextureUsage::Present;
         if (allowUnorderedAccess)
         {
             m_info.supportedUsage |= TextureUsage::UnorderedAccess;
         }
         static const Format kSupportedFormats[] = {
-            Format::R8G8B8A8_UNORM,
-            Format::R8G8B8A8_UNORM_SRGB,
-            Format::R16G16B16A16_FLOAT,
-            Format::R10G10B10A2_UNORM,
+            Format::RGBA8Unorm,
+            Format::RGBA8UnormSrgb,
+            Format::RGBA16Float,
+            Format::RGB10A2Unorm,
         };
         m_info.formats = kSupportedFormats;
         m_info.formatCount = SLANG_COUNT_OF(kSupportedFormats);

@@ -113,7 +113,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
 
         // Create a shareable texture using srcDevice, get its handle, then create a texture using the handle using
         // dstDevice. Read back the texture and check that its contents are correct.
-        auto srcTexture = createTexture(srcDevice, size, Format::R32G32B32A32_FLOAT, &subData);
+        auto srcTexture = createTexture(srcDevice, size, Format::RGBA32Float, &subData);
 
         NativeHandle sharedHandle;
         REQUIRE_CALL(srcTexture->getSharedHandle(&sharedHandle));

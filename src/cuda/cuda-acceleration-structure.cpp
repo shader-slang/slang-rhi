@@ -164,11 +164,11 @@ Result AccelerationStructureBuildDescConverter::convert(
             {
                 return SLANG_E_INVALID_ARG;
             }
-            if (spheres.vertexPositionFormat != Format::R32G32B32_FLOAT)
+            if (spheres.vertexPositionFormat != Format::RGB32Float)
             {
                 return SLANG_E_INVALID_ARG;
             }
-            if (spheres.vertexRadiusFormat != Format::R32_FLOAT)
+            if (spheres.vertexRadiusFormat != Format::R32Float)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -250,11 +250,11 @@ OptixVertexFormat AccelerationStructureBuildDescConverter::translateVertexFormat
 {
     switch (format)
     {
-    case Format::R32G32B32_FLOAT:
+    case Format::RGB32Float:
         return OPTIX_VERTEX_FORMAT_FLOAT3;
-    case Format::R32G32_FLOAT:
+    case Format::RG32Float:
         return OPTIX_VERTEX_FORMAT_FLOAT2;
-    case Format::R16G16_FLOAT:
+    case Format::RG16Float:
         return OPTIX_VERTEX_FORMAT_HALF2;
     default:
         return OPTIX_VERTEX_FORMAT_NONE;

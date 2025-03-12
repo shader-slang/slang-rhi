@@ -347,53 +347,53 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
     // NOTE: If adding to this, update getFormatSupport accordingly.
     switch (format)
     {
-    case Format::R32G32B32A32_FLOAT:
-    case Format::R32G32B32_FLOAT:
-    case Format::R32G32_FLOAT:
-    case Format::R32_FLOAT:
-    case Format::D32_FLOAT:
+    case Format::RGBA32Float:
+    case Format::RGB32Float:
+    case Format::RG32Float:
+    case Format::R32Float:
+    case Format::D32Float:
         *outFormat = CU_AD_FORMAT_FLOAT;
         return SLANG_OK;
-    case Format::R16G16B16A16_FLOAT:
-    case Format::R16G16_FLOAT:
-    case Format::R16_FLOAT:
+    case Format::RGBA16Float:
+    case Format::RG16Float:
+    case Format::R16Float:
         *outFormat = CU_AD_FORMAT_HALF;
         return SLANG_OK;
-    case Format::R32G32B32A32_UINT:
-    case Format::R32G32B32_UINT:
-    case Format::R32G32_UINT:
-    case Format::R32_UINT:
+    case Format::RGBA32Uint:
+    case Format::RGB32Uint:
+    case Format::RG32Uint:
+    case Format::R32Uint:
         *outFormat = CU_AD_FORMAT_UNSIGNED_INT32;
         return SLANG_OK;
-    case Format::R16G16B16A16_UINT:
-    case Format::R16G16_UINT:
-    case Format::R16_UINT:
+    case Format::RGBA16Uint:
+    case Format::RG16Uint:
+    case Format::R16Uint:
         *outFormat = CU_AD_FORMAT_UNSIGNED_INT16;
         return SLANG_OK;
-    case Format::R8G8B8A8_UINT:
-    case Format::R8G8_UINT:
-    case Format::R8_UINT:
-    case Format::R8G8B8A8_UNORM:
+    case Format::RGBA8Uint:
+    case Format::RG8Uint:
+    case Format::R8Uint:
+    case Format::RGBA8Unorm:
         *outFormat = CU_AD_FORMAT_UNSIGNED_INT8;
         return SLANG_OK;
-    case Format::R32G32B32A32_SINT:
-    case Format::R32G32B32_SINT:
-    case Format::R32G32_SINT:
-    case Format::R32_SINT:
+    case Format::RGBA32Sint:
+    case Format::RGB32Sint:
+    case Format::RG32Sint:
+    case Format::R32Sint:
         *outFormat = CU_AD_FORMAT_SIGNED_INT32;
         return SLANG_OK;
-    case Format::R16G16B16A16_SINT:
-    case Format::R16G16_SINT:
-    case Format::R16_SINT:
+    case Format::RGBA16Sint:
+    case Format::RG16Sint:
+    case Format::R16Sint:
         *outFormat = CU_AD_FORMAT_SIGNED_INT16;
         return SLANG_OK;
-    case Format::R8G8B8A8_SINT:
-    case Format::R8G8_SINT:
-    case Format::R8_SINT:
+    case Format::RGBA8Sint:
+    case Format::RG8Sint:
+    case Format::R8Sint:
         *outFormat = CU_AD_FORMAT_SIGNED_INT8;
         return SLANG_OK;
     default:
-        SLANG_RHI_ASSERT_FAILURE("Only support R32_FLOAT/R8G8B8A8_UNORM formats for now");
+        SLANG_RHI_ASSERT_FAILURE("Only support R32Float/RGBA8Unorm formats for now");
         return SLANG_FAIL;
     }
 }
@@ -403,35 +403,38 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
     switch (format)
     {
-    case Format::R32G32B32A32_FLOAT:
-    case Format::R32G32B32_FLOAT:
-    case Format::R32G32_FLOAT:
-    case Format::R32_FLOAT:
-    case Format::D32_FLOAT:
-    case Format::R16G16B16A16_FLOAT:
-    case Format::R16G16_FLOAT:
-    case Format::R16_FLOAT:
-    case Format::R32G32B32A32_UINT:
-    case Format::R32G32B32_UINT:
-    case Format::R32G32_UINT:
-    case Format::R32_UINT:
-    case Format::R16G16B16A16_UINT:
-    case Format::R16G16_UINT:
-    case Format::R16_UINT:
-    case Format::R8G8B8A8_UINT:
-    case Format::R8G8_UINT:
-    case Format::R8_UINT:
-    case Format::R8G8B8A8_UNORM:
-    case Format::R32G32B32A32_SINT:
-    case Format::R32G32B32_SINT:
-    case Format::R32G32_SINT:
-    case Format::R32_SINT:
-    case Format::R16G16B16A16_SINT:
-    case Format::R16G16_SINT:
-    case Format::R16_SINT:
-    case Format::R8G8B8A8_SINT:
-    case Format::R8G8_SINT:
-    case Format::R8_SINT:
+    case Format::R8Uint:
+    case Format::R8Sint:
+    case Format::RG8Uint:
+    case Format::RG8Sint:
+    case Format::RGBA8Uint:
+    case Format::RGBA8Sint:
+    case Format::RGBA8Unorm:
+
+    case Format::R16Uint:
+    case Format::R16Sint:
+    case Format::R16Float:
+    case Format::RG16Uint:
+    case Format::RG16Sint:
+    case Format::RG16Float:
+    case Format::RGBA16Uint:
+    case Format::RGBA16Sint:
+    case Format::RGBA16Float:
+
+    case Format::R32Uint:
+    case Format::R32Sint:
+    case Format::R32Float:
+    case Format::RG32Uint:
+    case Format::RG32Sint:
+    case Format::RG32Float:
+    case Format::RGB32Uint:
+    case Format::RGB32Sint:
+    case Format::RGB32Float:
+    case Format::RGBA32Uint:
+    case Format::RGBA32Sint:
+    case Format::RGBA32Float:
+
+    case Format::D32Float:
         break;
     default:
         // Disable formats not available in getCUDAFormat
