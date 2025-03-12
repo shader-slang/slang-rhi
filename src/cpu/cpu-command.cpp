@@ -29,7 +29,7 @@ public:
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
     void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
-    void cmdClearTextureUInt(const commands::ClearTextureUInt& cmd);
+    void cmdClearTextureUint(const commands::ClearTextureUint& cmd);
     void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
@@ -130,10 +130,10 @@ void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
 }
 
-void CommandExecutor::cmdClearTextureUInt(const commands::ClearTextureUInt& cmd)
+void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureUInt);
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)

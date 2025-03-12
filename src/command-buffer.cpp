@@ -638,9 +638,9 @@ void CommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange subre
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::clearTextureUInt(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
+void CommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
 {
-    commands::ClearTextureUInt cmd;
+    commands::ClearTextureUint cmd;
     cmd.texture = texture;
     cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
     ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));

@@ -48,7 +48,7 @@ void CommandList::write(commands::ClearTextureFloat&& cmd)
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::ClearTextureUInt&& cmd)
+void CommandList::write(commands::ClearTextureUint&& cmd)
 {
     retainResource<Texture>(cmd.texture);
     writeCommand(std::move(cmd));

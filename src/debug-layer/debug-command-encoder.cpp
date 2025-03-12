@@ -429,12 +429,12 @@ void DebugCommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange 
     baseObject->clearTextureFloat(texture, subresourceRange, clearValue);
 }
 
-void DebugCommandEncoder::clearTextureUInt(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
+void DebugCommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-    baseObject->clearTextureUInt(texture, subresourceRange, clearValue);
+    baseObject->clearTextureUint(texture, subresourceRange, clearValue);
 }
 
 void DebugCommandEncoder::clearTextureDepthStencil(

@@ -230,7 +230,7 @@
 #define S_CommandEncoder_copyTextureToBuffer "copyTextureToBuffer"
 #define S_CommandEncoder_clearBuffer "clearBuffer"
 #define S_CommandEncoder_clearTextureFloat "clearTextureFloat"
-#define S_CommandEncoder_clearTextureUInt "clearTextureUInt"
+#define S_CommandEncoder_clearTextureUint "clearTextureUint"
 #define S_CommandEncoder_clearTextureDepthStencil "clearTextureDepthStencil"
 #define S_CommandEncoder_uploadTextureData "uploadTextureData"
 #define S_CommandEncoder_resolveQuery "resolveQuery"

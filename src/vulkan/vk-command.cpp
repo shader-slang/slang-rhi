@@ -74,7 +74,7 @@ public:
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
     void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
-    void cmdClearTextureUInt(const commands::ClearTextureUInt& cmd);
+    void cmdClearTextureUint(const commands::ClearTextureUint& cmd);
     void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
@@ -322,7 +322,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     );
 }
 
-void CommandRecorder::cmdClearTextureUInt(const commands::ClearTextureUInt& cmd)
+void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
 
