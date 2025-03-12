@@ -381,10 +381,6 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
         if (shouldIgnoreFormat(format))
             continue;
 
-        // TODO(testing): Get compressed formats working on other platforms
-        if (info.isCompressed && options.getDevice()->getDeviceType() != DeviceType::D3D12)
-            continue;
-
         // TODO(testing): Get 64bit working on other platforms
         if (format == Format::R64_UINT && options.getDevice()->getDeviceType() != DeviceType::D3D12)
             continue;
