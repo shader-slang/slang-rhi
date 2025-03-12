@@ -110,7 +110,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     if (d3dBindFlags & D3D11_BIND_CONSTANT_BUFFER)
     {
         // Make aligned to 256 bytes... not sure why, but if you remove this the tests do fail.
-        alignedSizeInBytes = math::calcAligned(alignedSizeInBytes, 256);
+        alignedSizeInBytes = math::calcAligned2(alignedSizeInBytes, 256);
     }
 
     // Hack to make the initialization never read from out of bounds memory, by copying into a buffer

@@ -27,9 +27,9 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     m_rayGenTableOffset = 0;
     m_missTableOffset = raygenTableSize;
     m_hitGroupTableOffset =
-        (uint32_t)math::calcAligned(m_missTableOffset + missTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+        (uint32_t)math::calcAligned2(m_missTableOffset + missTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     m_callableTableOffset = (uint32_t
-    )math::calcAligned(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+    )math::calcAligned2(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     uint32_t tableSize = m_callableTableOffset + callableTableSize;
 
     auto tableData = std::make_unique<uint8_t[]>(tableSize);

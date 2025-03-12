@@ -741,7 +741,8 @@ struct SubresourceLayout
     /// Overall size required to fit the subresource data (typically size.z*strideZ).
     Size sizeInBytes;
 
-    /// Number of rows (will match size.height for uncompressed formats).
+    /// Number of rows. Will match size.height for uncompressed formats. For compressed
+    /// formats, this will be alignUp(size.height, blockHeight)/blockHeight.
     Size rowCount;
 };
 
@@ -2131,8 +2132,12 @@ public:
 
     inline Result submit(ICommandBuffer* commandBuffer)
     {
+        // TODO: Remove this check once debug layer is correctly wrapping queue.
+        // Right now, internally accessed queues aren't guaranteed to be wrapped
+        // by debug layer, so a null commandBuffer doesn't get caught.
         if (!commandBuffer)
             return SLANG_E_INVALID_ARG;
+
         SubmitDesc desc = {};
         desc.commandBuffers = &commandBuffer;
         desc.commandBufferCount = 1;

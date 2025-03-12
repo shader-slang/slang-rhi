@@ -466,6 +466,17 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
+Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
+{
+    SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
+
+    // Disable formats for which we have no mapping
+    if (D3DUtil::getFormatMapping(format).srvFormat == DXGI_FORMAT_UNKNOWN)
+        *outFormatSupport = FormatSupport::None;
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createShaderProgram(
     const ShaderProgramDesc& desc,
     IShaderProgram** outProgram,

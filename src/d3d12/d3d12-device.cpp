@@ -1122,7 +1122,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 Extents mipSize = calcMipSize(desc.size, j);
                 if (formatInfo.isCompressed)
                 {
-                    mipSize.width = (int32_t)math::calcAligned(mipSize.width, 4);
+                    mipSize.width = (int32_t)math::calcAligned(mipSize.width, 4); // TODO(alignment): is block size of 4
+                                                                                  // always correct?
                     mipSize.height = (int32_t)math::calcAligned(mipSize.height, 4);
                 }
 

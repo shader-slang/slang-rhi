@@ -103,9 +103,9 @@ Result calcSubresourceRegionLayout(
         extents.depth -= offset.z;
     }
 
-    size_t rowSize = (extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth * formatInfo.blockSizeInBytes;
-    size_t rowCount = (extents.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight;
-    size_t rowPitch = (rowSize + rowAlignment - 1) & ~(rowAlignment - 1);
+    size_t rowSize = math::divideRoundedUp(extents.width, formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
+    size_t rowCount = math::divideRoundedUp(extents.height, formatInfo.blockHeight);
+    size_t rowPitch = math::calcAligned2(rowSize, rowAlignment);
     size_t layerPitch = rowPitch * rowCount;
 
     outLayout->size = extents;

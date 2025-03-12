@@ -30,18 +30,20 @@ struct TextureData
         SubresourceLayout layout;
     };
 
+    IDevice* device;
     TextureDesc desc;
     FormatInfo formatInfo;
+    FormatSupport formatSupport;
     TextureInitMode initMode;
     int initSeed;
     std::vector<Subresource> subresources;
     std::vector<SubresourceData> subresourceData;
 
-    void init(const TextureDesc& desc, TextureInitMode initMode, int initSeed = 0);
+    void init(IDevice* device, const TextureDesc& desc, TextureInitMode initMode, int initSeed = 0);
 
-    Result createTexture(IDevice* device, ITexture** texture) const;
+    Result createTexture(ITexture** texture) const;
 
-    void checkEqual(ComPtr<ITexture> texture) const;
+    void checkEqual(ITexture* texture) const;
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
@@ -371,8 +373,10 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
     //    Format format = (Format)f;
     for (Format format : formats)
     {
+        IDevice* device = options.getDevice();
+
         FormatSupport support;
-        options.getDevice()->getFormatSupport(format, &support);
+        device->getFormatSupport(format, &support);
         if (!is_set(support, FormatSupport::Texture))
             continue;
 
@@ -381,12 +385,9 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
         if (shouldIgnoreFormat(format))
             continue;
 
-        // TODO(testing): Get compressed formats working on other platforms
-        if (info.isCompressed && options.getDevice()->getDeviceType() != DeviceType::D3D12)
-            continue;
-
-        // TODO(testing): Get 64bit working on other platforms
-        if (format == Format::R64Uint && options.getDevice()->getDeviceType() != DeviceType::D3D12)
+        // TODO: Fix compressed format test on metal. Was seeing fatal error:
+        // 'Linear textures do not support compressed pixel formats'.
+        if (device->getDeviceType() == DeviceType::Metal && info.isCompressed)
             continue;
 
         for (auto& variant : options.getVariants())
@@ -406,12 +407,12 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
                     continue;
             }
 
-            TextureTestContext context(options.getDevice());
+            TextureTestContext context(device);
             for (auto& desc : variant.descriptors)
             {
                 TextureData data;
                 desc.desc.format = format;
-                data.init(desc.desc, desc.initMode);
+                data.init(device, desc.desc, desc.initMode);
                 REQUIRE_CALL(context.addTexture(std::move(data)));
             }
 
