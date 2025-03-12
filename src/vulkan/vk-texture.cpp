@@ -290,253 +290,105 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
-    VKBufferHandleRAII uploadBuffer;
+    // Transition to default layout
+    auto defaultLayout = VulkanUtil::getImageLayoutFromState(desc.defaultState);
+    if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+    {
+        _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);
+    }
+    m_deviceQueue.flushAndWait();
+
+    // Upload init data if we have some
     if (initData)
     {
-        std::vector<Extents> mipSizes;
+        ComPtr<ICommandQueue> queue;
+        SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
 
-        VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
-        // Calculate how large the buffer has to be
-        Size bufferSize = 0;
-        // Calculate how large an array entry is
-        for (uint32_t j = 0; j < desc.mipLevelCount; ++j)
+        SubresourceRange range;
+        range.mipLevel = 0;
+        range.mipLevelCount = desc.mipLevelCount;
+        range.baseArrayLayer = 0;
+        range.layerCount = layerCount;
+
+        if (imageInfo.samples < 2)
         {
-            const Extents mipSize = calcMipSize(desc.size, j);
-
-            auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
-            auto numRows = calcNumRows(desc.format, mipSize.height);
-
-            mipSizes.push_back(mipSize);
-
-            bufferSize += (rowSizeInBytes * numRows) * mipSize.depth;
-        }
-
-        // Calculate the total size taking into account the array
-        bufferSize *= layerCount;
-
-        SLANG_RETURN_ON_FAIL(uploadBuffer.init(
-            m_api,
-            bufferSize,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        ));
-
-        SLANG_RHI_ASSERT(mipSizes.size() == desc.mipLevelCount);
-
-        // Copy into upload buffer
-        {
-            uint32_t subresourceCounter = 0;
-
-            uint8_t* dstData;
-            m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, (void**)&dstData);
-
-            uint64_t dstSubresourceOffset = 0;
-            for (uint32_t i = 0; i < layerCount; ++i)
-            {
-                for (uint32_t j = 0; j < mipSizes.size(); ++j)
-                {
-                    const auto& mipSize = mipSizes[j];
-
-                    uint32_t subresourceIndex = subresourceCounter++;
-                    auto initSubresource = initData[subresourceIndex];
-
-                    const ptrdiff_t srcRowStride = (ptrdiff_t)initSubresource.strideY;
-                    const ptrdiff_t srcLayerStride = (ptrdiff_t)initSubresource.strideZ;
-
-                    auto dstRowSizeInBytes = calcRowSize(desc.format, mipSize.width);
-                    auto numRows = calcNumRows(desc.format, mipSize.height);
-                    auto dstLayerSizeInBytes = dstRowSizeInBytes * numRows;
-
-                    const uint8_t* srcLayer = (const uint8_t*)initSubresource.data;
-                    uint8_t* dstLayer = dstData + dstSubresourceOffset;
-
-                    for (uint32_t k = 0; k < mipSize.depth; k++)
-                    {
-                        const uint8_t* srcRow = srcLayer;
-                        uint8_t* dstRow = dstLayer;
-
-                        for (uint32_t l = 0; l < numRows; l++)
-                        {
-                            ::memcpy(dstRow, srcRow, dstRowSizeInBytes);
-
-                            dstRow += dstRowSizeInBytes;
-                            srcRow += srcRowStride;
-                        }
-
-                        dstLayer += dstLayerSizeInBytes;
-                        srcLayer += srcLayerStride;
-                    }
-
-                    dstSubresourceOffset += dstLayerSizeInBytes * mipSize.depth;
-                }
-            }
-
-            m_api.vkUnmapMemory(m_device, uploadBuffer.m_memory);
-        }
-
-        _transitionImageLayout(
-            texture->m_image,
-            format,
-            texture->m_desc,
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-        );
-
-        if (desc.sampleCount > 1)
-        {
-            // Handle senario where texture is sampled. We cannot use
-            // a simple buffer copy for sampled textures. ClearColorImage
-            // is not data accurate but it is fine for testing & works.
-            const FormatInfo& formatInfo = getFormatInfo(desc.format);
-            VkClearColorValue clearColor;
-            switch (formatInfo.channelType)
-            {
-            case SLANG_SCALAR_TYPE_INT32:
-                for (int i = 0; i < 4; i++)
-                    clearColor.int32[i] = *reinterpret_cast<int32_t*>(const_cast<void*>(initData->data));
-                break;
-            case SLANG_SCALAR_TYPE_UINT32:
-                for (int i = 0; i < 4; i++)
-                    clearColor.uint32[i] = *reinterpret_cast<uint32_t*>(const_cast<void*>(initData->data));
-                break;
-            case SLANG_SCALAR_TYPE_INT64:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.int32[i] = int32_t(*reinterpret_cast<int64_t*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_UINT64:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.uint32[i] = uint32_t(*reinterpret_cast<uint64_t*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_FLOAT16:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.float32[i] =
-                        math::halfToFloat(*reinterpret_cast<uint16_t*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_FLOAT32:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.float32[i] = (*reinterpret_cast<float*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_FLOAT64:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.float32[i] = float(*reinterpret_cast<double*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_INT8:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.int32[i] = int32_t(*reinterpret_cast<int8_t*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_UINT8:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.uint32[i] = uint32_t(*reinterpret_cast<uint8_t*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_INT16:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.int32[i] = int32_t(*reinterpret_cast<int16_t*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_UINT16:
-            {
-                for (int i = 0; i < 4; i++)
-                    clearColor.uint32[i] = uint32_t(*reinterpret_cast<uint16_t*>(const_cast<void*>(initData->data)));
-                break;
-            }
-            };
-
-            VkImageSubresourceRange range{};
-            range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            range.baseMipLevel = 0;
-            range.levelCount = VK_REMAINING_MIP_LEVELS;
-            range.baseArrayLayer = 0;
-            range.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-            m_api.vkCmdClearColorImage(
-                commandBuffer,
-                texture->m_image,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                &clearColor,
-                1,
-                &range
+            commandEncoder->uploadTextureData(
+                texture,
+                range,
+                {0, 0, 0},
+                Extents::kWholeTexture,
+                initData,
+                layerCount * desc.mipLevelCount
             );
         }
         else
         {
-            uint64_t srcOffset = 0;
-            for (int i = 0; i < layerCount; ++i)
+            // Handle scenario where texture is sampled. We cannot use
+            // a simple buffer copy for sampled textures. ClearColorImage
+            // is not data accurate but it is fine for testing & works.
+            const FormatInfo& formatInfo = getFormatInfo(desc.format);
+            switch (formatInfo.channelType)
             {
-                for (size_t j = 0; j < mipSizes.size(); ++j)
-                {
-                    const auto& mipSize = mipSizes[j];
-
-                    auto rowSizeInBytes = calcRowSize(desc.format, mipSize.width);
-                    auto numRows = calcNumRows(desc.format, mipSize.height);
-
-                    // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkBufferImageCopy.html
-                    // bufferRowLength and bufferImageHeight specify the data in buffer memory as a
-                    // subregion of a larger two- or three-dimensional image, and control the
-                    // addressing calculations of data in buffer memory. If either of these values
-                    // is zero, that aspect of the buffer memory is considered to be tightly packed
-                    // according to the imageExtent.
-
-                    VkBufferImageCopy region = {};
-
-                    region.bufferOffset = srcOffset;
-                    region.bufferRowLength = 0; // rowSizeInBytes;
-                    region.bufferImageHeight = 0;
-
-                    region.imageSubresource.aspectMask = getAspectMaskFromFormat(format);
-                    region.imageSubresource.mipLevel = uint32_t(j);
-                    region.imageSubresource.baseArrayLayer = i;
-                    region.imageSubresource.layerCount = 1;
-                    region.imageOffset = {0, 0, 0};
-                    region.imageExtent = {uint32_t(mipSize.width), uint32_t(mipSize.height), uint32_t(mipSize.depth)};
-
-                    // Do the copy (do all depths in a single go)
-                    m_api.vkCmdCopyBufferToImage(
-                        commandBuffer,
-                        uploadBuffer.m_buffer,
-                        texture->m_image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        1,
-                        &region
-                    );
-
-                    // Next
-                    srcOffset += rowSizeInBytes * numRows * mipSize.depth;
-                }
+            case SLANG_SCALAR_TYPE_INT32:
+                commandEncoder->clearTextureUint(texture, range, *(const int32_t*)initData);
+                break;
+            case SLANG_SCALAR_TYPE_UINT32:
+                commandEncoder->clearTextureUint(texture, range, *(const uint32_t*)initData);
+                break;
+            case SLANG_SCALAR_TYPE_INT64:
+            {
+                commandEncoder->clearTextureUint(texture, range, *(const int64_t*)initData);
+                break;
             }
+            case SLANG_SCALAR_TYPE_UINT64:
+            {
+                commandEncoder->clearTextureUint(texture, range, *(const uint64_t*)initData);
+                break;
+            }
+            case SLANG_SCALAR_TYPE_FLOAT16:
+            {
+                commandEncoder->clearTextureFloat(texture, range, math::halfToFloat(*(const float*)initData));
+                break;
+            }
+            case SLANG_SCALAR_TYPE_FLOAT32:
+            {
+                commandEncoder->clearTextureFloat(texture, range, *(const float*)initData);
+                break;
+            }
+            case SLANG_SCALAR_TYPE_FLOAT64:
+            {
+                commandEncoder->clearTextureFloat(texture, range, *(const double*)initData);
+                break;
+            }
+            case SLANG_SCALAR_TYPE_INT8:
+            {
+                commandEncoder->clearTextureUint(texture, range, *(const int8_t*)initData);
+                break;
+            }
+            case SLANG_SCALAR_TYPE_UINT8:
+            {
+                commandEncoder->clearTextureUint(texture, range, *(const uint8_t*)initData);
+                break;
+            }
+            case SLANG_SCALAR_TYPE_INT16:
+            {
+                commandEncoder->clearTextureUint(texture, range, *(const int16_t*)initData);
+                break;
+            }
+            case SLANG_SCALAR_TYPE_UINT16:
+            {
+                commandEncoder->clearTextureUint(texture, range, *(const uint16_t*)initData);
+                break;
+            }
+            };
         }
-        auto defaultLayout = VulkanUtil::getImageLayoutFromState(desc.defaultState);
-        _transitionImageLayout(
-            texture->m_image,
-            format,
-            texture->m_desc,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            defaultLayout
-        );
+
+        SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
     }
-    else
-    {
-        auto defaultLayout = VulkanUtil::getImageLayoutFromState(desc.defaultState);
-        if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)
-        {
-            _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);
-        }
-    }
+
     m_deviceQueue.flushAndWait();
     returnComPtr(outTexture, texture);
     return SLANG_OK;
