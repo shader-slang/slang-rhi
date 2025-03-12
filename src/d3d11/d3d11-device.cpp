@@ -452,8 +452,6 @@ Result DeviceImpl::readTexture(
 
     // Now just read back texels from the staging textures
     {
-        uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
-
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         SLANG_RETURN_ON_FAIL(
             m_immediateContext
