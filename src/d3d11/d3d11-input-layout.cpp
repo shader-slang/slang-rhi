@@ -21,7 +21,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
         inputElements[i].SemanticName = inputElement.semanticName;
         inputElements[i].SemanticIndex = (UINT)inputElement.semanticIndex;
-        inputElements[i].Format = D3DUtil::getMapFormat(inputElement.format);
+        inputElements[i].Format = D3DUtil::getVertexFormat(inputElement.format);
         inputElements[i].InputSlot = (UINT)vertexStreamIndex;
         inputElements[i].AlignedByteOffset = (UINT)inputElement.offset;
         inputElements[i].InputSlotClass = (vertexStream.slotClass == InputSlotClass::PerInstance)

@@ -26,6 +26,16 @@ struct MetalUtil
         return nsString;
     }
 
+    struct FormatMapping
+    {
+        Format format;
+        MTL::PixelFormat pixelFormat;
+        MTL::VertexFormat vertexFormat;
+        MTL::AttributeFormat attributeFormat;
+    };
+
+    static const FormatMapping& getFormatMapping(Format format);
+
     static MTL::PixelFormat translatePixelFormat(Format format);
     static MTL::VertexFormat translateVertexFormat(Format format);
     static MTL::AttributeFormat translateAttributeFormat(Format format);

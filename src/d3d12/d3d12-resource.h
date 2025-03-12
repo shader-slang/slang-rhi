@@ -79,10 +79,6 @@ struct D3D12ResourceBase
     /// Coercible into ID3D12Resource
     SLANG_FORCE_INLINE operator ID3D12Resource*() const { return m_resource; }
 
-    /// Given the usage, flags, and format will return the most suitable format. Will return DXGI_UNKNOWN if combination
-    /// is not possible
-    static DXGI_FORMAT calcFormat(D3DUtil::UsageType usage, ID3D12Resource* resource);
-
     /// Ctor
     SLANG_FORCE_INLINE D3D12ResourceBase()
         : m_resource(nullptr)

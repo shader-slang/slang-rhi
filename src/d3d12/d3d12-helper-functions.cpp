@@ -35,9 +35,7 @@ D3D12_RESOURCE_FLAGS calcResourceFlags(TextureUsage usage)
     int flags = D3D12_RESOURCE_FLAG_NONE;
     if (is_set(usage, TextureUsage::RenderTarget))
         flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    if (is_set(usage, TextureUsage::DepthRead))
-        flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    if (is_set(usage, TextureUsage::DepthWrite))
+    if (is_set(usage, TextureUsage::DepthStencil))
         flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
     if (is_set(usage, TextureUsage::UnorderedAccess))
         flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -178,9 +176,10 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
     }
 }
 
-Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc)
+Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless)
 {
-    const DXGI_FORMAT pixelFormat = D3DUtil::getMapFormat(textureDesc.format);
+    const DXGI_FORMAT pixelFormat = isTypeless ? D3DUtil::getFormatMapping(textureDesc.format).typelessFormat
+                                               : D3DUtil::getFormatMapping(textureDesc.format).rtvFormat;
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;
@@ -196,15 +195,8 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& tex
     resourceDesc.Format = pixelFormat;
     resourceDesc.Width = textureDesc.size.width;
     resourceDesc.Height = textureDesc.size.height;
-    if (textureDesc.type == TextureType::Texture3D)
-    {
-        resourceDesc.DepthOrArraySize = textureDesc.size.depth;
-    }
-    else
-    {
-        resourceDesc.DepthOrArraySize = textureDesc.getLayerCount();
-    }
-
+    resourceDesc.DepthOrArraySize =
+        textureDesc.type == TextureType::Texture3D ? textureDesc.size.depth : textureDesc.getLayerCount();
     resourceDesc.MipLevels = textureDesc.mipLevelCount;
     resourceDesc.SampleDesc.Count = textureDesc.sampleCount;
     resourceDesc.SampleDesc.Quality = textureDesc.sampleQuality;
@@ -215,12 +207,6 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& tex
     resourceDesc.Flags |= calcResourceFlags(textureDesc.usage);
 
     resourceDesc.Alignment = 0;
-
-    if (isDepthFormat(textureDesc.format) && (is_set(textureDesc.usage, TextureUsage::ShaderResource) ||
-                                              is_set(textureDesc.usage, TextureUsage::UnorderedAccess)))
-    {
-        resourceDesc.Format = getTypelessFormatFromDepthFormat(textureDesc.format);
-    }
 
     return SLANG_OK;
 }

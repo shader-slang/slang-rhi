@@ -6,404 +6,142 @@
 
 namespace rhi::metal {
 
+const MetalUtil::FormatMapping& MetalUtil::getFormatMapping(Format format)
+{
+    static const FormatMapping mappings[] = {
+        // clang-format off
+        // format                       pixelFormat                             vertexFormat                            attributeFormat
+        { Format::Undefined,            MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+
+        { Format::R8_UINT,              MTL::PixelFormatR8Uint,                 MTL::VertexFormatUChar,                 MTL::AttributeFormatUChar                   },
+        { Format::R8_SINT,              MTL::PixelFormatR8Sint,                 MTL::VertexFormatChar,                  MTL::AttributeFormatChar                    },
+        { Format::R8_UNORM,             MTL::PixelFormatR8Unorm,                MTL::VertexFormatUCharNormalized,       MTL::AttributeFormatUCharNormalized         },
+        { Format::R8_SNORM,             MTL::PixelFormatR8Snorm,                MTL::VertexFormatCharNormalized,        MTL::AttributeFormatCharNormalized          },
+
+        { Format::R8G8_UINT,            MTL::PixelFormatRG8Uint,                MTL::VertexFormatUChar2,                MTL::AttributeFormatUChar2                  },
+        { Format::R8G8_SINT,            MTL::PixelFormatRG8Sint,                MTL::VertexFormatChar2,                 MTL::AttributeFormatChar2                   },
+        { Format::R8G8_UNORM,           MTL::PixelFormatRG8Unorm,               MTL::VertexFormatUChar2Normalized,      MTL::AttributeFormatUChar2Normalized        },
+        { Format::R8G8_SNORM,           MTL::PixelFormatRG8Snorm,               MTL::VertexFormatChar2Normalized,       MTL::AttributeFormatChar2Normalized         },
+
+        { Format::R8G8B8A8_UINT,        MTL::PixelFormatRGBA8Uint,              MTL::VertexFormatUChar4,                MTL::AttributeFormatUChar4                  },
+        { Format::R8G8B8A8_SINT,        MTL::PixelFormatRGBA8Sint,              MTL::VertexFormatChar4,                 MTL::AttributeFormatChar4                   },
+        { Format::R8G8B8A8_UNORM,       MTL::PixelFormatRGBA8Unorm,             MTL::VertexFormatUChar4Normalized,      MTL::AttributeFormatUChar4Normalized        },
+        { Format::R8G8B8A8_UNORM_SRGB,  MTL::PixelFormatRGBA8Unorm_sRGB,        MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::R8G8B8A8_SNORM,       MTL::PixelFormatRGBA8Snorm,             MTL::VertexFormatChar4Normalized,       MTL::AttributeFormatChar4Normalized         },
+
+        { Format::B8G8R8A8_UNORM,       MTL::PixelFormatBGRA8Unorm,             MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::B8G8R8A8_UNORM_SRGB,  MTL::PixelFormatBGRA8Unorm_sRGB,        MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::B8G8R8X8_UNORM,       MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::B8G8R8X8_UNORM_SRGB,  MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+
+        { Format::R16_UINT,             MTL::PixelFormatR16Uint,                MTL::VertexFormatUShort,                MTL::AttributeFormatUShort                  },
+        { Format::R16_SINT,             MTL::PixelFormatR16Sint,                MTL::VertexFormatShort,                 MTL::AttributeFormatShort                   },
+        { Format::R16_UNORM,            MTL::PixelFormatR16Unorm,               MTL::VertexFormatUShortNormalized,      MTL::AttributeFormatUShortNormalized        },
+        { Format::R16_SNORM,            MTL::PixelFormatR16Snorm,               MTL::VertexFormatShortNormalized,       MTL::AttributeFormatShortNormalized         },
+        { Format::R16_FLOAT,            MTL::PixelFormatR16Float,               MTL::VertexFormatHalf,                  MTL::AttributeFormatHalf                    },
+
+        { Format::R16G16_UINT,          MTL::PixelFormatRG16Uint,               MTL::VertexFormatUShort2,               MTL::AttributeFormatUShort2                 },
+        { Format::R16G16_SINT,          MTL::PixelFormatRG16Sint,               MTL::VertexFormatShort2,                MTL::AttributeFormatShort2                  },
+        { Format::R16G16_UNORM,         MTL::PixelFormatRG16Unorm,              MTL::VertexFormatUShort2Normalized,     MTL::AttributeFormatUShort2Normalized       },
+        { Format::R16G16_SNORM,         MTL::PixelFormatRG16Snorm,              MTL::VertexFormatShort2Normalized,      MTL::AttributeFormatShort2Normalized        },
+        { Format::R16G16_FLOAT,         MTL::PixelFormatRG16Float,              MTL::VertexFormatHalf2,                 MTL::AttributeFormatHalf2                   },
+
+        { Format::R16G16B16A16_UINT,    MTL::PixelFormatRGBA16Uint,             MTL::VertexFormatUShort4,               MTL::AttributeFormatUShort4                 },
+        { Format::R16G16B16A16_SINT,    MTL::PixelFormatRGBA16Sint,             MTL::VertexFormatShort4,                MTL::AttributeFormatShort4                  },
+        { Format::R16G16B16A16_UNORM,   MTL::PixelFormatRGBA16Unorm,            MTL::VertexFormatUShort4Normalized,     MTL::AttributeFormatUShort4Normalized       },
+        { Format::R16G16B16A16_SNORM,   MTL::PixelFormatRGBA16Snorm,            MTL::VertexFormatShort4Normalized,      MTL::AttributeFormatShort4Normalized        },
+        { Format::R16G16B16A16_FLOAT,   MTL::PixelFormatRGBA16Float,            MTL::VertexFormatHalf4,                 MTL::AttributeFormatHalf4                   },
+
+        { Format::R32_UINT,             MTL::PixelFormatR32Uint,                MTL::VertexFormatUInt,                  MTL::AttributeFormatUInt                    },
+        { Format::R32_SINT,             MTL::PixelFormatR32Sint,                MTL::VertexFormatInt,                   MTL::AttributeFormatInt                     },
+        { Format::R32_FLOAT,            MTL::PixelFormatR32Float,               MTL::VertexFormatFloat,                 MTL::AttributeFormatFloat                   },
+
+        { Format::R32G32_UINT,          MTL::PixelFormatRG32Uint,               MTL::VertexFormatUInt2,                 MTL::AttributeFormatUInt2                   },
+        { Format::R32G32_SINT,          MTL::PixelFormatRG32Sint,               MTL::VertexFormatInt2,                  MTL::AttributeFormatInt2                    },
+        { Format::R32G32_FLOAT,         MTL::PixelFormatRG32Float,              MTL::VertexFormatFloat2,                MTL::AttributeFormatFloat2                  },
+
+        { Format::R32G32B32_UINT,       MTL::PixelFormatInvalid,                MTL::VertexFormatUInt3,                 MTL::AttributeFormatUInt3                   },
+        { Format::R32G32B32_SINT,       MTL::PixelFormatInvalid,                MTL::VertexFormatInt3,                  MTL::AttributeFormatInt3                    },
+        { Format::R32G32B32_FLOAT,      MTL::PixelFormatInvalid,                MTL::VertexFormatFloat3,                MTL::AttributeFormatFloat3                  },
+
+        { Format::R32G32B32A32_UINT,    MTL::PixelFormatRGBA32Uint,             MTL::VertexFormatUInt4,                 MTL::AttributeFormatUInt4                   },
+        { Format::R32G32B32A32_SINT,    MTL::PixelFormatRGBA32Sint,             MTL::VertexFormatInt4,                  MTL::AttributeFormatInt4                    },
+        { Format::R32G32B32A32_FLOAT,   MTL::PixelFormatRGBA32Float,            MTL::VertexFormatFloat4,                MTL::AttributeFormatFloat4                  },
+
+        { Format::R64_UINT,             MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::R64_SINT,             MTL::PixelFormatInvalid,                MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+
+        { Format::B4G4R4A4_UNORM,       MTL::PixelFormatInvalid,                MTL::VertexFormatUChar4Normalized_BGRA, MTL::AttributeFormatUChar4Normalized_BGRA   },
+        { Format::B5G6R5_UNORM,         MTL::PixelFormatB5G6R5Unorm,            MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::B5G5R5A1_UNORM,       MTL::PixelFormatBGR5A1Unorm,            MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+
+        { Format::R9G9B9E5_SHAREDEXP,   MTL::PixelFormatRGB9E5Float,            MTL::VertexFormatFloatRGB9E5,           MTL::AttributeFormatFloatRGB9E5             },
+        { Format::R10G10B10A2_UINT,     MTL::PixelFormatRGB10A2Uint,            MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::R10G10B10A2_UNORM,    MTL::PixelFormatRGB10A2Unorm,           MTL::VertexFormatUInt1010102Normalized, MTL::AttributeFormatUInt1010102Normalized   },
+        { Format::R11G11B10_FLOAT,      MTL::PixelFormatRG11B10Float,           MTL::VertexFormatFloatRG11B10,          MTL::AttributeFormatFloatRG11B10            },
+
+        { Format::D32_FLOAT,            MTL::PixelFormatDepth32Float,           MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::D16_UNORM,            MTL::PixelFormatDepth16Unorm,           MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::D32_FLOAT_S8_UINT,    MTL::PixelFormatDepth32Float_Stencil8,  MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+
+        { Format::BC1_UNORM,            MTL::PixelFormatBC1_RGBA,               MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC1_UNORM_SRGB,       MTL::PixelFormatBC1_RGBA_sRGB,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC2_UNORM,            MTL::PixelFormatBC2_RGBA,               MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC2_UNORM_SRGB,       MTL::PixelFormatBC2_RGBA_sRGB,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC3_UNORM,            MTL::PixelFormatBC3_RGBA,               MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC3_UNORM_SRGB,       MTL::PixelFormatBC3_RGBA_sRGB,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC4_UNORM,            MTL::PixelFormatBC4_RUnorm,             MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC4_SNORM,            MTL::PixelFormatBC4_RSnorm,             MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC5_UNORM,            MTL::PixelFormatBC5_RGUnorm,            MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC5_SNORM,            MTL::PixelFormatBC5_RGSnorm,            MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC6H_UF16,            MTL::PixelFormatBC6H_RGBUfloat,         MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC6H_SF16,            MTL::PixelFormatBC6H_RGBFloat,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC7_UNORM,            MTL::PixelFormatBC7_RGBAUnorm,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::BC7_UNORM_SRGB,       MTL::PixelFormatBC7_RGBAUnorm_sRGB,     MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        // clang-format on
+    };
+
+    static_assert(SLANG_COUNT_OF(mappings) == size_t(Format::_Count), "Missing format mapping");
+    SLANG_RHI_ASSERT(uint32_t(format) < uint32_t(Format::_Count));
+    return mappings[int(format)];
+}
+
+
 MTL::PixelFormat MetalUtil::translatePixelFormat(Format format)
 {
-    switch (format)
-    {
-    case Format::R32G32B32A32_TYPELESS:
-        return MTL::PixelFormatRGBA32Float;
-    case Format::R32G32B32_TYPELESS:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_TYPELESS:
-        return MTL::PixelFormatRG32Float;
-    case Format::R32_TYPELESS:
-        return MTL::PixelFormatR32Float;
-
-    case Format::R16G16B16A16_TYPELESS:
-        return MTL::PixelFormatRGBA16Float;
-    case Format::R16G16_TYPELESS:
-        return MTL::PixelFormatRG16Float;
-    case Format::R16_TYPELESS:
-        return MTL::PixelFormatR16Float;
-
-    case Format::R8G8B8A8_TYPELESS:
-        return MTL::PixelFormatRGBA8Unorm;
-    case Format::R8G8_TYPELESS:
-        return MTL::PixelFormatRG8Unorm;
-    case Format::R8_TYPELESS:
-        return MTL::PixelFormatR8Unorm;
-    case Format::B8G8R8A8_TYPELESS:
-        return MTL::PixelFormatBGRA8Unorm;
-
-    case Format::R32G32B32A32_FLOAT:
-        return MTL::PixelFormatRGBA32Float;
-    case Format::R32G32B32_FLOAT:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_FLOAT:
-        return MTL::PixelFormatRG32Float;
-    case Format::R32_FLOAT:
-        return MTL::PixelFormatR32Float;
-
-    case Format::R16G16B16A16_FLOAT:
-        return MTL::PixelFormatRGBA16Float;
-    case Format::R16G16_FLOAT:
-        return MTL::PixelFormatRG16Float;
-    case Format::R16_FLOAT:
-        return MTL::PixelFormatR16Float;
-
-    case Format::R32G32B32A32_UINT:
-        return MTL::PixelFormatRGBA32Uint;
-    case Format::R32G32B32_UINT:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_UINT:
-        return MTL::PixelFormatRG32Uint;
-    case Format::R32_UINT:
-        return MTL::PixelFormatR32Uint;
-
-    case Format::R16G16B16A16_UINT:
-        return MTL::PixelFormatRGBA16Uint;
-    case Format::R16G16_UINT:
-        return MTL::PixelFormatRG16Uint;
-    case Format::R16_UINT:
-        return MTL::PixelFormatR16Uint;
-
-    case Format::R8G8B8A8_UINT:
-        return MTL::PixelFormatRGBA8Uint;
-    case Format::R8G8_UINT:
-        return MTL::PixelFormatRG8Uint;
-    case Format::R8_UINT:
-        return MTL::PixelFormatR8Uint;
-
-    case Format::R32G32B32A32_SINT:
-        return MTL::PixelFormatRGBA32Sint;
-    case Format::R32G32B32_SINT:
-        return MTL::PixelFormatInvalid;
-    case Format::R32G32_SINT:
-        return MTL::PixelFormatRG32Sint;
-    case Format::R32_SINT:
-        return MTL::PixelFormatR32Sint;
-
-    case Format::R16G16B16A16_SINT:
-        return MTL::PixelFormatRGBA16Sint;
-    case Format::R16G16_SINT:
-        return MTL::PixelFormatRG16Sint;
-    case Format::R16_SINT:
-        return MTL::PixelFormatR16Sint;
-
-    case Format::R8G8B8A8_SINT:
-        return MTL::PixelFormatRGBA8Sint;
-    case Format::R8G8_SINT:
-        return MTL::PixelFormatRG8Sint;
-    case Format::R8_SINT:
-        return MTL::PixelFormatR8Sint;
-
-    case Format::R16G16B16A16_UNORM:
-        return MTL::PixelFormatRGBA16Unorm;
-    case Format::R16G16_UNORM:
-        return MTL::PixelFormatRG16Unorm;
-    case Format::R16_UNORM:
-        return MTL::PixelFormatR16Unorm;
-
-    case Format::R8G8B8A8_UNORM:
-        return MTL::PixelFormatRGBA8Unorm;
-    case Format::R8G8B8A8_UNORM_SRGB:
-        return MTL::PixelFormatRGBA8Unorm_sRGB;
-    case Format::R8G8_UNORM:
-        return MTL::PixelFormatRG8Unorm;
-    case Format::R8_UNORM:
-        return MTL::PixelFormatR8Unorm;
-    case Format::B8G8R8A8_UNORM:
-        return MTL::PixelFormatBGRA8Unorm;
-    case Format::B8G8R8A8_UNORM_SRGB:
-        return MTL::PixelFormatBGRA8Unorm_sRGB;
-    case Format::B8G8R8X8_UNORM:
-        return MTL::PixelFormatInvalid;
-    case Format::B8G8R8X8_UNORM_SRGB:
-        return MTL::PixelFormatInvalid;
-
-    case Format::R16G16B16A16_SNORM:
-        return MTL::PixelFormatRGBA16Snorm;
-    case Format::R16G16_SNORM:
-        return MTL::PixelFormatRG16Snorm;
-    case Format::R16_SNORM:
-        return MTL::PixelFormatR16Snorm;
-
-    case Format::R8G8B8A8_SNORM:
-        return MTL::PixelFormatRGBA8Snorm;
-    case Format::R8G8_SNORM:
-        return MTL::PixelFormatRG8Snorm;
-    case Format::R8_SNORM:
-        return MTL::PixelFormatR8Snorm;
-
-    case Format::D32_FLOAT:
-        return MTL::PixelFormatDepth32Float;
-    case Format::D16_UNORM:
-        return MTL::PixelFormatDepth16Unorm;
-    case Format::D32_FLOAT_S8_UINT:
-        return MTL::PixelFormatDepth32Float_Stencil8;
-    case Format::R32_FLOAT_X32_TYPELESS:
-        return MTL::PixelFormatInvalid;
-
-    case Format::B4G4R4A4_UNORM:
-        return MTL::PixelFormatABGR4Unorm;
-    case Format::B5G6R5_UNORM:
-        return MTL::PixelFormatB5G6R5Unorm;
-    case Format::B5G5R5A1_UNORM:
-        return MTL::PixelFormatA1BGR5Unorm;
-
-    case Format::R9G9B9E5_SHAREDEXP:
-        return MTL::PixelFormatRGB9E5Float;
-    case Format::R10G10B10A2_TYPELESS:
-        return MTL::PixelFormatInvalid;
-    case Format::R10G10B10A2_UINT:
-        return MTL::PixelFormatRGB10A2Uint;
-    case Format::R10G10B10A2_UNORM:
-        return MTL::PixelFormatRGB10A2Unorm;
-    case Format::R11G11B10_FLOAT:
-        return MTL::PixelFormatRG11B10Float;
-
-    case Format::BC1_UNORM:
-        return MTL::PixelFormatBC1_RGBA;
-    case Format::BC1_UNORM_SRGB:
-        return MTL::PixelFormatBC1_RGBA_sRGB;
-    case Format::BC2_UNORM:
-        return MTL::PixelFormatBC2_RGBA;
-    case Format::BC2_UNORM_SRGB:
-        return MTL::PixelFormatBC2_RGBA_sRGB;
-    case Format::BC3_UNORM:
-        return MTL::PixelFormatBC3_RGBA;
-    case Format::BC3_UNORM_SRGB:
-        return MTL::PixelFormatBC3_RGBA_sRGB;
-    case Format::BC4_UNORM:
-        return MTL::PixelFormatBC4_RUnorm;
-    case Format::BC4_SNORM:
-        return MTL::PixelFormatBC4_RSnorm;
-    case Format::BC5_UNORM:
-        return MTL::PixelFormatBC5_RGUnorm;
-    case Format::BC5_SNORM:
-        return MTL::PixelFormatBC5_RGSnorm;
-    case Format::BC6H_UF16:
-        return MTL::PixelFormatBC6H_RGBUfloat;
-    case Format::BC6H_SF16:
-        return MTL::PixelFormatBC6H_RGBFloat;
-    case Format::BC7_UNORM:
-        return MTL::PixelFormatBC7_RGBAUnorm;
-    case Format::BC7_UNORM_SRGB:
-        return MTL::PixelFormatBC7_RGBAUnorm_sRGB;
-
-    default:
-        return MTL::PixelFormatInvalid;
-    }
+    return getFormatMapping(format).pixelFormat;
 }
 
 MTL::VertexFormat MetalUtil::translateVertexFormat(Format format)
 {
-    switch (format)
-    {
-    case Format::R8G8_UINT:
-        return MTL::VertexFormatUChar2;
-    // VertexFormatUChar3
-    case Format::R8G8B8A8_UINT:
-        return MTL::VertexFormatUChar4;
-    case Format::R8G8_SINT:
-        return MTL::VertexFormatChar2;
-    // return VertexFormatChar3
-    case Format::R8G8B8A8_SINT:
-        return MTL::VertexFormatChar4;
-    case Format::R8G8_UNORM:
-        return MTL::VertexFormatUChar2Normalized;
-    // return VertexFormatUChar3Normalized;
-    case Format::R8G8B8A8_UNORM:
-        return MTL::VertexFormatUChar4Normalized;
-    case Format::R8G8_SNORM:
-        return MTL::VertexFormatChar2Normalized;
-    // return VertexFormatChar3Normalized
-    case Format::R8G8B8A8_SNORM:
-        return MTL::VertexFormatChar4Normalized;
-    case Format::R16G16_UINT:
-        return MTL::VertexFormatUShort2;
-    // return VertexFormatUShort3;
-    case Format::R16G16B16A16_UINT:
-        return MTL::VertexFormatUShort4;
-    case Format::R16G16_SINT:
-        return MTL::VertexFormatShort2;
-    // return VertexFormatShort3;
-    case Format::R16G16B16A16_SINT:
-        return MTL::VertexFormatShort4;
-    case Format::R16G16_UNORM:
-        return MTL::VertexFormatUShort2Normalized;
-    // return VertexFormatUShort3Normalized;
-    case Format::R16G16B16A16_UNORM:
-        return MTL::VertexFormatUShort4Normalized;
-    case Format::R16G16_SNORM:
-        return MTL::VertexFormatShort2Normalized;
-    // return VertexFormatShort3Normalized;
-    case Format::R16G16B16A16_SNORM:
-        return MTL::VertexFormatShort4Normalized;
-    case Format::R16G16_FLOAT:
-        return MTL::VertexFormatHalf2;
-    // return VertexFormatHalf3;
-    case Format::R16G16B16A16_FLOAT:
-        return MTL::VertexFormatHalf4;
-    case Format::R32_FLOAT:
-        return MTL::VertexFormatFloat;
-    case Format::R32G32_FLOAT:
-        return MTL::VertexFormatFloat2;
-    case Format::R32G32B32_FLOAT:
-        return MTL::VertexFormatFloat3;
-    case Format::R32G32B32A32_FLOAT:
-        return MTL::VertexFormatFloat4;
-    case Format::R32_SINT:
-        return MTL::VertexFormatInt;
-    case Format::R32G32_SINT:
-        return MTL::VertexFormatInt2;
-    case Format::R32G32B32_SINT:
-        return MTL::VertexFormatInt3;
-    case Format::R32G32B32A32_SINT:
-        return MTL::VertexFormatInt4;
-    case Format::R32_UINT:
-        return MTL::VertexFormatUInt;
-    case Format::R32G32_UINT:
-        return MTL::VertexFormatUInt2;
-    case Format::R32G32B32_UINT:
-        return MTL::VertexFormatUInt3;
-    case Format::R32G32B32A32_UINT:
-        return MTL::VertexFormatUInt4;
-    // return VertexFormatInt1010102Normalized;
-    case Format::R10G10B10A2_UNORM:
-        return MTL::VertexFormatUInt1010102Normalized;
-    case Format::B4G4R4A4_UNORM:
-        return MTL::VertexFormatUChar4Normalized_BGRA;
-    case Format::R8_UINT:
-        return MTL::VertexFormatUChar;
-    case Format::R8_SINT:
-        return MTL::VertexFormatChar;
-    case Format::R8_UNORM:
-        return MTL::VertexFormatUCharNormalized;
-    case Format::R8_SNORM:
-        return MTL::VertexFormatCharNormalized;
-    case Format::R16_UINT:
-        return MTL::VertexFormatUShort;
-    case Format::R16_SINT:
-        return MTL::VertexFormatShort;
-    case Format::R16_UNORM:
-        return MTL::VertexFormatUShortNormalized;
-    case Format::R16_SNORM:
-        return MTL::VertexFormatShortNormalized;
-    case Format::R16_FLOAT:
-        return MTL::VertexFormatHalf;
-    case Format::R11G11B10_FLOAT:
-        return MTL::VertexFormatFloatRG11B10;
-    case Format::R9G9B9E5_SHAREDEXP:
-        return MTL::VertexFormatFloatRGB9E5;
-    default:
-        return MTL::VertexFormatInvalid;
-    }
+    return getFormatMapping(format).vertexFormat;
+    // Unsupported vertex formats:
+    // - VertexFormatUChar3
+    // - VertexFormatChar3
+    // - VertexFormatUChar3Normalized
+    // - VertexFormatChar3Normalized
+    // - VertexFormatUShort3
+    // - VertexFormatShort3
+    // - VertexFormatUShort3Normalized
+    // - VertexFormatShort3Normalized
+    // - VertexFormatHalf3
+    // - VertexFormatInt1010102Normalized
 }
 
 MTL::AttributeFormat MetalUtil::translateAttributeFormat(Format format)
 {
-    switch (format)
-    {
-    case Format::R8G8_UINT:
-        return MTL::AttributeFormatUChar2;
-    // AttributeFormatUChar3
-    case Format::R8G8B8A8_UINT:
-        return MTL::AttributeFormatUChar4;
-    case Format::R8G8_SINT:
-        return MTL::AttributeFormatChar2;
-    // return AttributeFormatChar3
-    case Format::R8G8B8A8_SINT:
-        return MTL::AttributeFormatChar4;
-    case Format::R8G8_UNORM:
-        return MTL::AttributeFormatUChar2Normalized;
-    // return AttributeFormatUChar3Normalized;
-    case Format::R8G8B8A8_UNORM:
-        return MTL::AttributeFormatUChar4Normalized;
-    case Format::R8G8_SNORM:
-        return MTL::AttributeFormatChar2Normalized;
-    // return AttributeFormatChar3Normalized
-    case Format::R8G8B8A8_SNORM:
-        return MTL::AttributeFormatChar4Normalized;
-    case Format::R16G16_UINT:
-        return MTL::AttributeFormatUShort2;
-    // return AttributeFormatUShort3;
-    case Format::R16G16B16A16_UINT:
-        return MTL::AttributeFormatUShort4;
-    case Format::R16G16_SINT:
-        return MTL::AttributeFormatShort2;
-    // return AttributeFormatShort3;
-    case Format::R16G16B16A16_SINT:
-        return MTL::AttributeFormatShort4;
-    case Format::R16G16_UNORM:
-        return MTL::AttributeFormatUShort2Normalized;
-    // return AttributeFormatUShort3Normalized;
-    case Format::R16G16B16A16_UNORM:
-        return MTL::AttributeFormatUShort4Normalized;
-    case Format::R16G16_SNORM:
-        return MTL::AttributeFormatShort2Normalized;
-    // return AttributeFormatShort3Normalized;
-    case Format::R16G16B16A16_SNORM:
-        return MTL::AttributeFormatShort4Normalized;
-    case Format::R16G16_FLOAT:
-        return MTL::AttributeFormatHalf2;
-    // return AttributeFormatHalf3;
-    case Format::R16G16B16A16_FLOAT:
-        return MTL::AttributeFormatHalf4;
-    case Format::R32_FLOAT:
-        return MTL::AttributeFormatFloat;
-    case Format::R32G32_FLOAT:
-        return MTL::AttributeFormatFloat2;
-    case Format::R32G32B32_FLOAT:
-        return MTL::AttributeFormatFloat3;
-    case Format::R32G32B32A32_FLOAT:
-        return MTL::AttributeFormatFloat4;
-    case Format::R32_SINT:
-        return MTL::AttributeFormatInt;
-    case Format::R32G32_SINT:
-        return MTL::AttributeFormatInt2;
-    case Format::R32G32B32_SINT:
-        return MTL::AttributeFormatInt3;
-    case Format::R32G32B32A32_SINT:
-        return MTL::AttributeFormatInt4;
-    case Format::R32_UINT:
-        return MTL::AttributeFormatUInt;
-    case Format::R32G32_UINT:
-        return MTL::AttributeFormatUInt2;
-    case Format::R32G32B32_UINT:
-        return MTL::AttributeFormatUInt3;
-    case Format::R32G32B32A32_UINT:
-        return MTL::AttributeFormatUInt4;
-    // return AttributeFormatInt1010102Normalized;
-    case Format::R10G10B10A2_UNORM:
-        return MTL::AttributeFormatUInt1010102Normalized;
-    case Format::B4G4R4A4_UNORM:
-        return MTL::AttributeFormatUChar4Normalized_BGRA;
-    case Format::R8_UINT:
-        return MTL::AttributeFormatUChar;
-    case Format::R8_SINT:
-        return MTL::AttributeFormatChar;
-    case Format::R8_UNORM:
-        return MTL::AttributeFormatUCharNormalized;
-    case Format::R8_SNORM:
-        return MTL::AttributeFormatCharNormalized;
-    case Format::R16_UINT:
-        return MTL::AttributeFormatUShort;
-    case Format::R16_SINT:
-        return MTL::AttributeFormatShort;
-    case Format::R16_UNORM:
-        return MTL::AttributeFormatUShortNormalized;
-    case Format::R16_SNORM:
-        return MTL::AttributeFormatShortNormalized;
-    case Format::R16_FLOAT:
-        return MTL::AttributeFormatHalf;
-    case Format::R11G11B10_FLOAT:
-        return MTL::AttributeFormatFloatRG11B10;
-    case Format::R9G9B9E5_SHAREDEXP:
-        return MTL::AttributeFormatFloatRGB9E5;
-    default:
-        return MTL::AttributeFormatInvalid;
-    }
+    return getFormatMapping(format).attributeFormat;
+    // Unsupported attribute formats:
+    // - AttributeFormatUChar3
+    // - AttributeFormatChar3
+    // - AttributeFormatUChar3Normalized
+    // - AttributeFormatChar3Normalized
+    // - AttributeFormatUShort3
+    // - AttributeFormatShort3
+    // - AttributeFormatUShort3Normalized
+    // - AttributeFormatShort3Normalized
+    // - AttributeFormatHalf3
+    // - AttributeFormatInt1010102Normalized
 }
 
 bool MetalUtil::isDepthFormat(MTL::PixelFormat format)

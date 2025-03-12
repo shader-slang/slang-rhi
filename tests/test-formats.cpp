@@ -7,39 +7,6 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-Format convertTypelessFormat(Format format)
-{
-    switch (format)
-    {
-    case Format::R32G32B32A32_TYPELESS:
-        return Format::R32G32B32A32_FLOAT;
-    case Format::R32G32B32_TYPELESS:
-        return Format::R32G32B32_FLOAT;
-    case Format::R32G32_TYPELESS:
-        return Format::R32G32_FLOAT;
-    case Format::R32_TYPELESS:
-        return Format::R32_FLOAT;
-    case Format::R16G16B16A16_TYPELESS:
-        return Format::R16G16B16A16_FLOAT;
-    case Format::R16G16_TYPELESS:
-        return Format::R16G16_FLOAT;
-    case Format::R16_TYPELESS:
-        return Format::R16_FLOAT;
-    case Format::R8G8B8A8_TYPELESS:
-        return Format::R8G8B8A8_UNORM;
-    case Format::R8G8_TYPELESS:
-        return Format::R8G8_UNORM;
-    case Format::R8_TYPELESS:
-        return Format::R8_UNORM;
-    case Format::B8G8R8A8_TYPELESS:
-        return Format::B8G8R8A8_UNORM;
-    case Format::R10G10B10A2_TYPELESS:
-        return Format::R10G10B10A2_UINT;
-    default:
-        return Format::Undefined;
-    }
-}
-
 struct TestFormats
 {
     ComPtr<IDevice> device;
@@ -66,16 +33,14 @@ struct TestFormats
     bool isFormatSupported(Format format)
     {
         const FormatInfo& info = getFormatInfo(format);
+        FormatSupport formatSupport;
+        REQUIRE_CALL(device->getFormatSupport(format, &formatSupport));
 
-        if (format == Format::R32G32B32_FLOAT || format == Format::R32G32B32_UINT || format == Format::R32G32B32_SINT ||
-            format == Format::R32G32B32_TYPELESS)
+        if (!is_set(formatSupport, FormatSupport::Texture))
+        {
+            MESSAGE("Skipping format ", format);
             return false;
-
-        // for WebGPU
-        if (info.isTypeless)
-            return false;
-        if (format == Format::B4G4R4A4_UNORM || format == Format::B5G6R5_UNORM || format == Format::B5G5R5A1_UNORM)
-            return false;
+        }
 
         return true;
     }
@@ -95,7 +60,7 @@ struct TestFormats
 
         ComPtr<ITextureView> view;
         TextureViewDesc viewDesc = {};
-        viewDesc.format = getFormatInfo(format).isTypeless ? convertTypelessFormat(format) : format;
+        viewDesc.format = format;
         REQUIRE_CALL(device->createTextureView(texture, viewDesc, view.writeRef()));
         return view;
     }
@@ -157,7 +122,7 @@ struct TestFormats
 
         const FormatInfo& info = getFormatInfo(format);
 
-        // MESSAGE("Checking format: ", doctest::String(info.name));
+        CAPTURE(format);
 
         ComPtr<ITextureView> textureView = createTextureView(format, textureSize, textureData);
 
@@ -204,7 +169,6 @@ struct TestFormats
             // clang-format on
 
             testFormat(Format::R32G32B32A32_FLOAT, size, &subData, expected);
-            testFormat(Format::R32G32B32A32_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -213,7 +177,6 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.5f, 0.5f};
 
             testFormat(Format::R32G32B32_FLOAT, size, &subData, expected);
-            testFormat(Format::R32G32B32_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -222,7 +185,6 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f};
 
             testFormat(Format::R32G32_FLOAT, size, &subData, expected);
-            testFormat(Format::R32G32_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -231,7 +193,6 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.5f, 0.25f};
 
             testFormat(Format::R32_FLOAT, size, &subData, expected);
-            testFormat(Format::R32_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -242,7 +203,6 @@ struct TestFormats
             // clang-format on
 
             testFormat(Format::R16G16B16A16_FLOAT, size, &subData, expected);
-            testFormat(Format::R16G16B16A16_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -251,7 +211,6 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f};
 
             testFormat(Format::R16G16_FLOAT, size, &subData, expected);
-            testFormat(Format::R16G16_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -260,7 +219,6 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.5f, 0.25f};
 
             testFormat(Format::R16_FLOAT, size, &subData, expected);
-            testFormat(Format::R16_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -458,7 +416,6 @@ struct TestFormats
             // clang-format on
 
             testFormat(Format::R8G8B8A8_UNORM, size, &subData, expected);
-            testFormat(Format::R8G8B8A8_TYPELESS, size, &subData, expected);
             testFormat(Format::R8G8B8A8_UNORM_SRGB, size, &subData, expectedSRGB);
         }
 
@@ -468,7 +425,6 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.498039216f, 0.498039216f};
 
             testFormat(Format::R8G8_UNORM, size, &subData, expected);
-            testFormat(Format::R8G8_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -477,7 +433,6 @@ struct TestFormats
             std::array expected = {1.0f, 0.0f, 0.498039216f, 0.247058824f};
 
             testFormat(Format::R8_UNORM, size, &subData, expected);
-            testFormat(Format::R8_TYPELESS, size, &subData, expected);
         }
 
         {
@@ -489,7 +444,6 @@ struct TestFormats
             // clang-format on
 
             testFormat(Format::B8G8R8A8_UNORM, size, &subData, expected);
-            testFormat(Format::B8G8R8A8_TYPELESS, size, &subData, expected);
             testFormat(Format::B8G8R8A8_UNORM_SRGB, size, &subData, expectedSRGB);
         }
 
@@ -590,7 +544,7 @@ struct TestFormats
             SubresourceData subData = {(void*)texData, 8, 0};
             std::array expected = {1023u, 1023u, 1023u, 3u, 0u, 0u, 0u, 0u, 511u, 511u, 511u, 2u, 455u, 796u, 113u, 1u};
 
-            testFormat(Format::R10G10B10A2_TYPELESS, size, &subData, expected);
+            testFormat(Format::R10G10B10A2_UINT, size, &subData, expected);
         }
 
         {

@@ -58,9 +58,60 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
     if (srv)
         return srv;
 
-
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    initSrvDesc(m_desc, D3DUtil::getMapFormat(format), srvDesc);
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(m_desc.format).srvFormat : m_format;
+    switch (m_desc.type)
+    {
+    case TextureType::Texture1D:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+        srvDesc.Texture1D.MostDetailedMip = range.mipLevel;
+        srvDesc.Texture1D.MipLevels = range.mipLevelCount;
+        break;
+    case TextureType::Texture1DArray:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
+        srvDesc.Texture1DArray.MostDetailedMip = range.mipLevel;
+        srvDesc.Texture1DArray.MipLevels = range.mipLevelCount;
+        srvDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        srvDesc.Texture1DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2D:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = range.mipLevel;
+        srvDesc.Texture2D.MipLevels = range.mipLevelCount;
+        break;
+    case TextureType::Texture2DArray:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+        srvDesc.Texture2DArray.MostDetailedMip = range.mipLevel;
+        srvDesc.Texture2DArray.MipLevels = range.mipLevelCount;
+        srvDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        srvDesc.Texture2DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2DMS:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+        break;
+    case TextureType::Texture2DMSArray:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
+        srvDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
+        srvDesc.Texture2DMSArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture3D:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+        srvDesc.Texture3D.MostDetailedMip = range.mipLevel;
+        srvDesc.Texture3D.MipLevels = range.mipLevelCount;
+        break;
+    case TextureType::TextureCube:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+        srvDesc.TextureCube.MostDetailedMip = range.mipLevel;
+        srvDesc.TextureCube.MipLevels = range.mipLevelCount;
+        break;
+    case TextureType::TextureCubeArray:
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
+        srvDesc.TextureCubeArray.MostDetailedMip = range.mipLevel;
+        srvDesc.TextureCubeArray.MipLevels = range.mipLevelCount;
+        srvDesc.TextureCubeArray.First2DArrayFace = range.baseArrayLayer;
+        srvDesc.TextureCubeArray.NumCubes = range.layerCount / 6;
+        break;
+    }
 
     SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateShaderResourceView(m_resource, &srvDesc, srv.writeRef()));
 
@@ -80,7 +131,45 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
     if (uav)
         return uav;
 
-    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateUnorderedAccessView(m_resource, nullptr, uav.writeRef()));
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(m_desc.format).srvFormat : m_format;
+    switch (m_desc.type)
+    {
+    case TextureType::Texture1D:
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
+        uavDesc.Texture1D.MipSlice = range.mipLevel;
+        break;
+    case TextureType::Texture1DArray:
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1DARRAY;
+        uavDesc.Texture1DArray.MipSlice = range.mipLevel;
+        uavDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        uavDesc.Texture1DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2D:
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        uavDesc.Texture2D.MipSlice = range.mipLevel;
+        break;
+    case TextureType::Texture2DArray:
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+        uavDesc.Texture2DArray.MipSlice = range.mipLevel;
+        uavDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        uavDesc.Texture2DArray.ArraySize = range.layerCount;
+        break;
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        break;
+    case TextureType::Texture3D:
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
+        uavDesc.Texture3D.MipSlice = range.mipLevel;
+        uavDesc.Texture3D.FirstWSlice = 0;
+        uavDesc.Texture3D.WSize = m_desc.size.depth;
+        break;
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        break;
+    }
+
+    SLANG_RETURN_NULL_ON_FAIL(device->m_device->CreateUnorderedAccessView(m_resource, &uavDesc, uav.writeRef()));
 
     return uav;
 }
@@ -94,11 +183,21 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     uint32_t mipLevelCount = desc.mipLevelCount;
     uint32_t layerCount = desc.getLayerCount();
 
-    const DXGI_FORMAT format = D3DUtil::getMapFormat(desc.format);
+    bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
+    if (isDepthFormat(desc.format) &&
+        (is_set(desc.usage, TextureUsage::ShaderResource) || is_set(desc.usage, TextureUsage::UnorderedAccess)))
+    {
+        isTypeless = true;
+    }
+    const DXGI_FORMAT format = isTypeless ? D3DUtil::getFormatMapping(desc.format).typelessFormat
+                                          : D3DUtil::getFormatMapping(desc.format).rtvFormat;
     if (format == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;
     }
+
+    texture->m_format = format;
+    texture->m_isTypeless = isTypeless;
 
     UINT bindFlags = _calcResourceBindFlags(desc.usage);
 

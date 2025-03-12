@@ -320,10 +320,6 @@ inline bool shouldIgnoreFormat(Format format)
         break;
     }
 
-    const FormatInfo& info = getFormatInfo(format);
-    if (info.isTypeless)
-        return true;
-
     return false;
 }
 
@@ -381,8 +377,6 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
             continue;
 
         const FormatInfo& info = getFormatInfo(format);
-        if (info.isTypeless)
-            continue;
 
         if (shouldIgnoreFormat(format))
             continue;

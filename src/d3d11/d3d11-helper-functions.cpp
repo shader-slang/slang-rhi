@@ -39,9 +39,7 @@ UINT _calcResourceBindFlags(TextureUsage usage)
     UINT flags = 0;
     if (is_set(usage, TextureUsage::RenderTarget))
         flags |= D3D11_BIND_RENDER_TARGET;
-    if (is_set(usage, TextureUsage::DepthRead))
-        flags |= D3D11_BIND_DEPTH_STENCIL;
-    if (is_set(usage, TextureUsage::DepthWrite))
+    if (is_set(usage, TextureUsage::DepthStencil))
         flags |= D3D11_BIND_DEPTH_STENCIL;
     if (is_set(usage, TextureUsage::ShaderResource))
         flags |= D3D11_BIND_SHADER_RESOURCE;
@@ -283,68 +281,6 @@ D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT m
     return D3D11_COLOR_WRITE_ENABLE(result);
 }
 
-void initSrvDesc(const TextureDesc& textureDesc, DXGI_FORMAT pixelFormat, D3D11_SHADER_RESOURCE_VIEW_DESC& descOut)
-{
-    // create SRV
-    descOut = D3D11_SHADER_RESOURCE_VIEW_DESC();
-
-    descOut.Format = (pixelFormat == DXGI_FORMAT_UNKNOWN)
-                         ? D3DUtil::calcFormat(D3DUtil::USAGE_SRV, D3DUtil::getMapFormat(textureDesc.format))
-                         : pixelFormat;
-
-    switch (textureDesc.type)
-    {
-    case TextureType::Texture1D:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
-        descOut.Texture1D.MostDetailedMip = 0;
-        descOut.Texture1D.MipLevels = textureDesc.mipLevelCount;
-        break;
-    case TextureType::Texture1DArray:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
-        descOut.Texture1DArray.MostDetailedMip = 0;
-        descOut.Texture1DArray.MipLevels = textureDesc.mipLevelCount;
-        descOut.Texture1DArray.FirstArraySlice = 0;
-        descOut.Texture1DArray.ArraySize = textureDesc.arrayLength;
-        break;
-    case TextureType::Texture2D:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-        descOut.Texture2D.MostDetailedMip = 0;
-        descOut.Texture2D.MipLevels = textureDesc.mipLevelCount;
-        break;
-    case TextureType::Texture2DArray:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-        descOut.Texture2DArray.MostDetailedMip = 0;
-        descOut.Texture2DArray.MipLevels = textureDesc.mipLevelCount;
-        descOut.Texture2DArray.FirstArraySlice = 0;
-        descOut.Texture2DArray.ArraySize = textureDesc.arrayLength;
-        break;
-    case TextureType::Texture2DMS:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
-        break;
-    case TextureType::Texture2DMSArray:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
-        descOut.Texture2DMSArray.FirstArraySlice = 0;
-        descOut.Texture2DMSArray.ArraySize = textureDesc.arrayLength;
-        break;
-    case TextureType::Texture3D:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-        descOut.Texture3D.MostDetailedMip = 0;
-        descOut.Texture3D.MipLevels = textureDesc.mipLevelCount;
-        break;
-    case TextureType::TextureCube:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-        descOut.TextureCube.MostDetailedMip = 0;
-        descOut.TextureCube.MipLevels = textureDesc.mipLevelCount;
-        break;
-    case TextureType::TextureCubeArray:
-        descOut.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
-        descOut.TextureCubeArray.MostDetailedMip = 0;
-        descOut.TextureCubeArray.MipLevels = textureDesc.mipLevelCount;
-        descOut.TextureCubeArray.First2DArrayFace = 0;
-        descOut.TextureCubeArray.NumCubes = textureDesc.arrayLength;
-        break;
-    }
-}
 } // namespace rhi::d3d11
 
 namespace rhi {

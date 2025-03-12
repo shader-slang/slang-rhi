@@ -201,8 +201,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
 
-    DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(dst->m_desc.format);
-    uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
+    uint32_t planeCount = D3DUtil::getPlaneSliceCount(dst->m_format);
     for (uint32_t planeIndex = 0; planeIndex < planeCount; planeIndex++)
     {
         for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
@@ -642,7 +641,12 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
             {
                 TextureViewImpl* srcView = m_renderTargetViews[i].get();
                 TextureViewImpl* dstView = m_resolveTargetViews[i].get();
-                DXGI_FORMAT format = D3DUtil::getMapFormat(srcView->m_texture->m_desc.format);
+                // https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-resolvesubresource
+                DXGI_FORMAT format = srcView->m_texture->m_format;
+                if (!dstView->m_texture->m_isTypeless)
+                {
+                    format = dstView->m_texture->m_format;
+                }
                 m_cmdList->ResolveSubresource(
                     dstView->m_texture->m_resource.getResource(),
                     0, // TODO iterate subresources
