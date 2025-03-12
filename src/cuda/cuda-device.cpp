@@ -344,6 +344,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
 {
     // TODO: Expand to cover all available formats that can be supported in CUDA
+    // NOTE: If adding to this, update getFormatSupport accordingly.
     switch (format)
     {
     case Format::R32G32B32A32_FLOAT:
@@ -433,6 +434,7 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     case Format::R8_SINT:
         break;
     default:
+        // Disable formats not available in getCUDAFormat
         *outFormatSupport = (FormatSupport)0;
         break;
     }

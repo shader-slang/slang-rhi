@@ -43,10 +43,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
     SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
+
+    // Disable formats for which we have no mapping
     if (!_getFormatInfo(format))
-    {
         *outFormatSupport = FormatSupport::None;
-    }
+
     return SLANG_OK;
 }
 

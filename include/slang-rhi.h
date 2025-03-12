@@ -740,7 +740,8 @@ struct SubresourceLayout
     /// Overall size required to fit the subresource data (typically size.z*strideZ).
     Size sizeInBytes;
 
-    /// Number of rows (will match size.height for uncompressed formats).
+    /// Number of rows. Will match size.height for uncompressed formats. For compressed
+    /// formats, this will be alignUp(size.height, blockHeight)/blockHeight.
     Size rowCount;
 };
 
