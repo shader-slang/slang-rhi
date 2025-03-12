@@ -312,9 +312,9 @@ inline bool shouldIgnoreFormat(Format format)
 {
     switch (format)
     {
-    case Format::D16_UNORM:
-    case Format::D32_FLOAT_S8_UINT:
-    case Format::D32_FLOAT:
+    case Format::D16Unorm:
+    case Format::D32FloatS8Uint:
+    case Format::D32Float:
         return true;
     default:
         break;
@@ -349,20 +349,20 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
 {
     // Nice selection of formats to test
     Format formats[] = {
-        Format::R32G32B32A32_UINT,
-        Format::R32G32B32A32_FLOAT,
-        Format::R32_FLOAT,
-        Format::R16G16B16A16_FLOAT,
-        Format::R16G16B16A16_UINT,
-        Format::R8G8B8A8_UINT,
-        Format::R8G8B8A8_UNORM,
-        Format::R8G8B8A8_UNORM_SRGB,
-        Format::R16G16B16A16_SNORM,
-        Format::R8G8B8A8_SNORM,
-        Format::R10G10B10A2_UNORM,
-        Format::BC1_UNORM,
-        Format::BC1_UNORM_SRGB,
-        Format::R64_UINT,
+        Format::RGBA32Uint,
+        Format::RGBA32Float,
+        Format::R32Float,
+        Format::RGBA16Float,
+        Format::RGBA16Uint,
+        Format::RGBA8Uint,
+        Format::RGBA8Unorm,
+        Format::RGBA8UnormSrgb,
+        Format::RGBA16Snorm,
+        Format::RGBA8Snorm,
+        Format::RGB10A2Unorm,
+        Format::BC1Unorm,
+        Format::BC1UnormSrgb,
+        Format::R64Uint,
     };
 
     // Change this to run against every format
@@ -386,7 +386,7 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
             continue;
 
         // TODO(testing): Get 64bit working on other platforms
-        if (format == Format::R64_UINT && options.getDevice()->getDeviceType() != DeviceType::D3D12)
+        if (format == Format::R64Uint && options.getDevice()->getDeviceType() != DeviceType::D3D12)
             continue;
 
         for (auto& variant : options.getVariants())

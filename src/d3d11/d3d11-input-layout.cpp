@@ -37,17 +37,17 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
         const char* typeName = "Unknown";
         switch (inputElement.format)
         {
-        case Format::R32G32B32A32_FLOAT:
-        case Format::R8G8B8A8_UNORM:
+        case Format::RGBA32Float:
+        case Format::RGBA8Unorm:
             typeName = "float4";
             break;
-        case Format::R32G32B32_FLOAT:
+        case Format::RGB32Float:
             typeName = "float3";
             break;
-        case Format::R32G32_FLOAT:
+        case Format::RG32Float:
             typeName = "float2";
             break;
-        case Format::R32_FLOAT:
+        case Format::R32Float:
             typeName = "float";
             break;
         default:

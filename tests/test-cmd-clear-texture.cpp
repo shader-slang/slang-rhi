@@ -21,7 +21,7 @@ GPU_TEST_CASE("cmd-clear-texture-float", D3D11 | D3D12 | Vulkan)
     textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
     // textureDesc.defaultState = ResourceState::RenderTarget;
     textureDesc.defaultState = ResourceState::UnorderedAccess;
-    textureDesc.format = Format::R32G32B32A32_FLOAT;
+    textureDesc.format = Format::RGBA32Float;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(textureDesc, nullptr, texture.writeRef()));
@@ -47,6 +47,4 @@ GPU_TEST_CASE("cmd-clear-texture-float", D3D11 | D3D12 | Vulkan)
     }
 }
 
-GPU_TEST_CASE("cmd-clear-texture-depth-stencil", D3D11 | D3D12 | Vulkan)
-{
-}
+GPU_TEST_CASE("cmd-clear-texture-depth-stencil", D3D11 | D3D12 | Vulkan) {}

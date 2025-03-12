@@ -359,7 +359,7 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
 
-    D3D12_CPU_DESCRIPTOR_HANDLE uav = buffer->getUAV(Format::R32_UINT, 0, cmd.range);
+    D3D12_CPU_DESCRIPTOR_HANDLE uav = buffer->getUAV(Format::R32Uint, 0, cmd.range);
     GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
     m_device->m_device
         ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

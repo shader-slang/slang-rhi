@@ -200,12 +200,12 @@ template<typename T>
 void testReadTexture(IDevice* device)
 {
     Format formats[] = {
-        Format::R8G8B8A8_UNORM,
-        Format::R16_FLOAT,
-        Format::R16G16_FLOAT,
-        Format::R10G10B10A2_UNORM,
-        Format::B5G5R5A1_UNORM,
-        Format::R32G32B32A32_FLOAT
+        Format::RGBA8Unorm,
+        Format::R16Float,
+        Format::RG16Float,
+        Format::RGB10A2Unorm,
+        Format::BGR5A1Unorm,
+        Format::RGBA32Float,
     };
     for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D, TextureType::TextureCube})
     {

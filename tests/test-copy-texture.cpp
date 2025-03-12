@@ -66,7 +66,7 @@ struct BaseCopyTextureTest
         srcTexDesc.arrayLength = srcTextureInfo->arrayLength;
         srcTexDesc.size = srcTextureInfo->extents;
         srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource;
-        if (srcTextureInfo->format == Format::D32_FLOAT || srcTextureInfo->format == Format::D16_UNORM)
+        if (srcTextureInfo->format == Format::D32Float || srcTextureInfo->format == Format::D16Unorm)
         {
             srcTexDesc.usage |= TextureUsage::DepthStencil;
         }
@@ -81,7 +81,7 @@ struct BaseCopyTextureTest
         dstTexDesc.arrayLength = dstTextureInfo->arrayLength;
         dstTexDesc.size = dstTextureInfo->extents;
         dstTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;
-        if (dstTextureInfo->format == Format::D32_FLOAT || dstTextureInfo->format == Format::D16_UNORM)
+        if (dstTextureInfo->format == Format::D32Float || dstTextureInfo->format == Format::D16Unorm)
         {
             dstTexDesc.usage |= TextureUsage::DepthStencil;
         }
@@ -730,11 +730,11 @@ void testCopyTexture(IDevice* device)
 {
     // TODO: Add support for TextureCube
     Format formats[] = {
-        Format::R8G8B8A8_UNORM,
-        Format::R16_FLOAT,
-        Format::R16G16_FLOAT,
-        Format::R10G10B10A2_UNORM,
-        Format::B5G5R5A1_UNORM
+        Format::RGBA8Unorm,
+        Format::R16Float,
+        Format::RG16Float,
+        Format::RGB10A2Unorm,
+        Format::BGR5A1Unorm,
     };
     for (TextureType type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D})
     {

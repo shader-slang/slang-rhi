@@ -58,23 +58,23 @@ struct CPUFormatInfoMap
     {
         memset(m_infos, 0, sizeof(m_infos));
 
-        set(Format::R32G32B32A32_UINT, &_unpackUInt32Texel<4>);
+        set(Format::RGBA32Uint, &_unpackUInt32Texel<4>);
 
-        set(Format::R32G32B32A32_FLOAT, &_unpackFloatTexel<4>);
-        set(Format::R32G32B32_FLOAT, &_unpackFloatTexel<3>);
+        set(Format::RGBA32Float, &_unpackFloatTexel<4>);
+        set(Format::RGB32Float, &_unpackFloatTexel<3>);
 
-        set(Format::R32G32_FLOAT, &_unpackFloatTexel<2>);
-        set(Format::R32_FLOAT, &_unpackFloatTexel<1>);
+        set(Format::RG32Float, &_unpackFloatTexel<2>);
+        set(Format::R32Float, &_unpackFloatTexel<1>);
 
-        set(Format::R16G16B16A16_FLOAT, &_unpackFloat16Texel<4>);
-        set(Format::R16G16_FLOAT, &_unpackFloat16Texel<2>);
-        set(Format::R16_FLOAT, &_unpackFloat16Texel<1>);
+        set(Format::RGBA16Float, &_unpackFloat16Texel<4>);
+        set(Format::RG16Float, &_unpackFloat16Texel<2>);
+        set(Format::R16Float, &_unpackFloat16Texel<1>);
 
-        set(Format::R8G8B8A8_UNORM, &_unpackUnorm8Texel<4>);
-        set(Format::B8G8R8A8_UNORM, &_unpackUnormBGRA8Texel);
-        set(Format::R16_UINT, &_unpackUInt16Texel<1>);
-        set(Format::R32_UINT, &_unpackUInt32Texel<1>);
-        set(Format::D32_FLOAT, &_unpackFloatTexel<1>);
+        set(Format::RGBA8Unorm, &_unpackUnorm8Texel<4>);
+        set(Format::BGRA8Unorm, &_unpackUnormBGRA8Texel);
+        set(Format::R16Uint, &_unpackUInt16Texel<1>);
+        set(Format::R32Uint, &_unpackUInt32Texel<1>);
+        set(Format::D32Float, &_unpackFloatTexel<1>);
     }
 
     void set(Format format, CPUTextureUnpackFunc func)

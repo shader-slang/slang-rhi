@@ -365,9 +365,9 @@ bool isDepthFormat(Format format)
 {
     switch (format)
     {
-    case Format::D16_UNORM:
-    case Format::D32_FLOAT:
-    case Format::D32_FLOAT_S8_UINT:
+    case Format::D16Unorm:
+    case Format::D32Float:
+    case Format::D32FloatS8Uint:
         return true;
     default:
         return false;
@@ -378,7 +378,7 @@ bool isStencilFormat(Format format)
 {
     switch (format)
     {
-    case Format::D32_FLOAT_S8_UINT:
+    case Format::D32FloatS8Uint:
         return true;
     default:
         return false;
