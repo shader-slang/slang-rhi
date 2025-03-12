@@ -24,6 +24,10 @@ void ShaderProgramImpl::comFree()
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
+    auto existingError = m_device->getAndClearLastError();
+    if (existingError != WGPUErrorType_NoError)
+        m_device->warning("Web GPU device had reported error before shader compilation.");
+
     Module module;
     module.stage = entryPointInfo->getStage();
     module.entryPointName = entryPointInfo->getNameOverride();
@@ -42,7 +46,8 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
         return SLANG_FAIL;
     }
 
-    if (m_device->getAndClearLastError() != WGPUErrorType_NoError)
+    auto lastError = m_device->getAndClearLastError();
+    if (lastError != WGPUErrorType_NoError)
     {
         return SLANG_FAIL;
     }

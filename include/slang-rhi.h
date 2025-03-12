@@ -2124,6 +2124,12 @@ public:
 
     inline Result submit(ICommandBuffer* commandBuffer)
     {
+        // TODO: Remove this check once debug layer is correctly wrapping queue.
+        // Right now, internally accessed queues aren't guaranteed to be wrapped
+        // by debug layer, so a null commandBuffer doesn't get caught.
+        if (!commandBuffer)
+            return SLANG_E_INVALID_ARG;
+
         SubmitDesc desc = {};
         desc.commandBuffers = &commandBuffer;
         desc.commandBufferCount = 1;

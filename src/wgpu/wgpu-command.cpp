@@ -95,6 +95,10 @@ public:
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
+    auto existingError = m_device->getAndClearLastError();
+    if (existingError != WGPUErrorType_NoError)
+        m_device->warning("Web GPU device had reported error before command record.");
+
     m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr);
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(m_commandEncoder); });
     if (!m_commandEncoder)
@@ -128,6 +132,12 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, nullptr);
     if (!commandBuffer->m_commandBuffer)
+    {
+        return SLANG_FAIL;
+    }
+
+    auto lastError = m_device->getAndClearLastError();
+    if (lastError != WGPUErrorType_NoError)
     {
         return SLANG_FAIL;
     }
