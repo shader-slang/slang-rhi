@@ -80,15 +80,24 @@ bool getMultisampleType(TextureType type, TextureType& outArrayType)
 // TextureData
 //----------------------------------------------------------
 
-void TextureData::init(const TextureDesc& _desc, TextureInitMode _initMode, int _initSeed)
+void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMode _initMode, int _initSeed)
 {
+    device = _device;
     desc = fixupTextureDesc(_desc);
     initMode = _initMode;
     initSeed = _initSeed;
     formatInfo = getFormatInfo(desc.format);
+    REQUIRE_CALL(device->getFormatSupport(desc.format, &formatSupport));
 
     desc.memoryType = MemoryType::DeviceLocal;
-    desc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource | TextureUsage::CopyDestination;
+
+    REQUIRE(is_set(formatSupport, FormatSupport::Texture));
+
+    desc.usage = TextureUsage::CopySource | TextureUsage::CopyDestination;
+
+    // Only add shader resource usage if format supports loading.
+    if (is_set(formatSupport, FormatSupport::ShaderLoad))
+        desc.usage |= TextureUsage::ShaderResource;
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
@@ -128,7 +137,7 @@ void TextureData::init(const TextureDesc& _desc, TextureInitMode _initMode, int 
     }
 }
 
-Result TextureData::createTexture(IDevice* device, ITexture** texture) const
+Result TextureData::createTexture(ITexture** texture) const
 {
     return device->createTexture(desc, subresourceData.data(), texture);
 }
@@ -280,7 +289,7 @@ TextureTestContext::TextureTestContext(IDevice* device)
 Result TextureTestContext::addTexture(TextureData&& data)
 {
     ComPtr<ITexture> texture;
-    SLANG_RETURN_ON_FAIL(data.createTexture(m_device, texture.writeRef()));
+    SLANG_RETURN_ON_FAIL(data.createTexture(texture.writeRef()));
     m_textures.push_back(texture);
     m_datas.push_back(std::move(data));
     return SLANG_OK;
