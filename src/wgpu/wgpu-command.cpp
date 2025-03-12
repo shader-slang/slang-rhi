@@ -194,6 +194,11 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
+    Extents textureSize = src->m_desc.size;
+    uint32_t mipLevel = cmd.srcSubresource.mipLevel;
+    Extents mipSize = calcMipSize(textureSize, mipLevel);
+    const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
+
     // z is either base array layer or z offset depending on whether this is 3D or array texture
     SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
     uint32_t z = cmd.srcOffset.z + cmd.srcSubresource.baseArrayLayer;
@@ -209,10 +214,13 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     destination.layout.offset = cmd.dstOffset;
     destination.layout.bytesPerRow = cmd.dstRowStride;
 
-    // TODO(row-stride): Should this take into account block?
-    destination.layout.rowsPerImage = max(src->m_desc.size.height >> cmd.srcSubresource.mipLevel, 1);
+    // Calculate rows per image for this mip level.
+    destination.layout.rowsPerImage = math::divideRoundedUp(mipSize.height, formatInfo.blockHeight);
 
+    // Calculate copy size and round to block alignment.
     WGPUExtent3D copySize = {(uint32_t)cmd.extent.width, (uint32_t)cmd.extent.height, (uint32_t)cmd.extent.depth};
+    copySize.width = math::calcAligned2(copySize.width, formatInfo.blockWidth);
+    copySize.height = math::calcAligned2(copySize.height, formatInfo.blockHeight);
 
     m_ctx.api.wgpuCommandEncoderCopyTextureToBuffer(m_commandEncoder, &source, &destination, &copySize);
 }
