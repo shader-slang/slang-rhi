@@ -4,6 +4,8 @@
 
 #include "core/common.h"
 
+#include <slang.h>
+
 #include <atomic>
 #include <algorithm>
 #include <string>

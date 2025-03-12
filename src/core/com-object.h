@@ -3,7 +3,7 @@
 #include "assert.h"
 #include "smart-pointer.h"
 
-#include <slang-rhi/slang-include.h>
+#include <slang.h>
 
 #include <atomic>
 
