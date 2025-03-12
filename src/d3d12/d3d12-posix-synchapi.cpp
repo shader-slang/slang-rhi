@@ -2,7 +2,7 @@
 
 #include "core/common.h"
 
-#include <slang.h>
+#include <slang-rhi/slang-include.h>
 
 #if SLANG_LINUX_FAMILY
 

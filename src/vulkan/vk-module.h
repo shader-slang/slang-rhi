@@ -1,6 +1,5 @@
 #pragma once
 
-#include <slang-com-helper.h>
 #include <slang-rhi.h>
 
 #if SLANG_WINDOWS_FAMILY

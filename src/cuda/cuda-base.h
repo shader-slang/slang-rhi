@@ -7,10 +7,6 @@
 
 #include "core/common.h"
 
-#include <slang-com-helper.h>
-#include <slang-com-ptr.h>
-#include <slang.h>
-
 namespace rhi::cuda {
 
 class BufferImpl;

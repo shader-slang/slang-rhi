@@ -2,7 +2,7 @@
 
 #include "../d3d/d3d-util.h"
 
-#include <slang-com-ptr.h>
+#include <slang-rhi/slang-include.h>
 
 #pragma push_macro("WIN32_LEAN_AND_MEAN")
 #pragma push_macro("NOMINMAX")

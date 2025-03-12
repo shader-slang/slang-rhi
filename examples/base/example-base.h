@@ -1,6 +1,6 @@
 #pragma once
 
-#include <slang.h>
+#include <slang-rhi/slang-include.h>
 
 #if SLANG_WINDOWS_FAMILY
 #define GLFW_EXPOSE_NATIVE_WIN32
