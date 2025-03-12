@@ -330,16 +330,6 @@ private:
 /// TODO(testing): Format selection should be part of test variant generation.
 inline bool shouldIgnoreFormat(Format format)
 {
-    switch (format)
-    {
-    case Format::D16Unorm:
-    case Format::D32FloatS8Uint:
-    case Format::D32Float:
-        return true;
-    default:
-        break;
-    }
-
     return false;
 }
 
@@ -359,6 +349,19 @@ inline bool supportsCompressedFormats(const TextureDesc& desc)
     }
 }
 
+/// Texture types that can support depth formats
+inline bool supportsDepthFormats(const TextureDesc& desc)
+{
+    switch (desc.type)
+    {
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+        return true;
+    default:
+        return false;
+    }
+}
+
 /// Run a texture test.
 /// - func: should be a callable of the form void(TextureTestContext*, Args...)
 /// - args: 0 or more user defined arguments that are forwarded to the function
@@ -369,7 +372,11 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
 {
     // Nice selection of formats to test
     Format formats[] = {
+        Format::D16Unorm,
+        // Format::D32FloatS8Uint,
+        Format::D32Float,
         Format::RGBA32Uint,
+        Format::RGB32Uint,
         Format::RGBA32Float,
         Format::R32Float,
         Format::RGBA16Float,
@@ -408,6 +415,10 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
         if (device->getDeviceType() == DeviceType::Metal && info.isCompressed)
             continue;
 
+        // Web gpu doesn't support writing into depth textures.
+        if (device->getDeviceType() == DeviceType::WGPU && (info.hasDepth || info.hasStencil))
+            continue;
+
         for (auto& variant : options.getVariants())
         {
             TextureDesc& td = variant.descriptors[0].desc;
@@ -422,6 +433,12 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
             if (info.isCompressed)
             {
                 if (!supportsCompressedFormats(td))
+                    continue;
+            }
+
+            if (info.hasDepth || info.hasStencil)
+            {
+                if (!supportsDepthFormats(td))
                     continue;
             }
 

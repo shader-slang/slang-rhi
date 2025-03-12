@@ -262,6 +262,17 @@ void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
             break;
         }
 
+        // Set sample count.
+        switch (baseType)
+        {
+        case rhi::TextureType::Texture2DMS:
+        case rhi::TextureType::Texture2DMSArray:
+            desc.sampleCount = 4;
+            break;
+        default:
+            break;
+        }
+
         // Set mip level count.
         desc.mipLevelCount = variant.mip ? kAllMipLevels : 1;
 
@@ -272,7 +283,8 @@ void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
             TextureTestVariant newVariant;
             for (int i = 0; i < m_numTextures; i++)
             {
-                newVariant.descriptors.push_back({desc, m_initMode[i]});
+                TextureInitMode im = m_initMode[i];
+                newVariant.descriptors.push_back({desc, im});
             }
             addVariant(newVariant);
         }
