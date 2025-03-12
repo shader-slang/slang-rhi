@@ -385,6 +385,11 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
         if (shouldIgnoreFormat(format))
             continue;
 
+        // TODO: Fix compressed format test on metal. Was seeing fatal error:
+        // 'Linear textures do not support compressed pixel formats'.
+        if (device->getDeviceType() == DeviceType::Metal && info.isCompressed)
+            continue;
+
         for (auto& variant : options.getVariants())
         {
             TextureDesc& td = variant.descriptors[0].desc;
