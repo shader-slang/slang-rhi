@@ -15,6 +15,7 @@
 #include "../strings.h"
 
 #include "core/short_vector.h"
+#include "core/common.h"
 
 namespace rhi::d3d12 {
 
@@ -323,11 +324,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
             footprint.Footprint.Depth = mipSize.depth - srcOffset.z;
         }
 
-        footprint.Footprint.Width =
-            (footprint.Footprint.Width + formatInfo.blockWidth - 1) & ~(formatInfo.blockWidth - 1);
-
-        footprint.Footprint.Height =
-            (footprint.Footprint.Height + formatInfo.blockHeight - 1) & ~(formatInfo.blockHeight - 1);
+        footprint.Footprint.Width = math::calcAligned2(footprint.Footprint.Width, formatInfo.blockWidth);
+        footprint.Footprint.Height = math::calcAligned2(footprint.Footprint.Height, formatInfo.blockHeight);
 
         SLANG_RHI_ASSERT(dstRowStride % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
         footprint.Footprint.RowPitch = (UINT)dstRowStride;

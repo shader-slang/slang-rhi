@@ -572,7 +572,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     }
 
     // Constant buffer views need to be multiple of 256 bytes.
-    uint32_t alignedSize = (size + 256 - 1) & ~(256 - 1);
+    uint32_t alignedSize = math::calcAligned2(size, 256);
 
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(alignedSize, allocation));

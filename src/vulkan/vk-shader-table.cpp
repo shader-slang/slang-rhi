@@ -28,10 +28,10 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     const auto& rtProps = api.m_rtProperties;
     uint32_t handleSize = rtProps.shaderGroupHandleSize;
     m_raygenTableSize = m_rayGenShaderCount * rtProps.shaderGroupBaseAlignment;
-    m_missTableSize = (uint32_t)math::calcAligned(m_missShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
-    m_hitTableSize = (uint32_t)math::calcAligned(m_hitGroupCount * handleSize, rtProps.shaderGroupBaseAlignment);
+    m_missTableSize = (uint32_t)math::calcAligned2(m_missShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
+    m_hitTableSize = (uint32_t)math::calcAligned2(m_hitGroupCount * handleSize, rtProps.shaderGroupBaseAlignment);
     m_callableTableSize =
-        (uint32_t)math::calcAligned(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
+        (uint32_t)math::calcAligned2(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
     auto tableData = std::make_unique<uint8_t[]>(tableSize);

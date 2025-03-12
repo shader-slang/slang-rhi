@@ -103,9 +103,27 @@ inline T getLowestBit(T val)
     return val & (-val);
 }
 
-/// Calculate size taking into account alignment. Alignment must be a power of 2
+inline bool isPowerOf2(size_t value)
+{
+    return (value != 0) && ((value & (value - 1)) == 0);
+}
+
+/// Perform integer rounded up division.
+inline size_t divideRoundedUp(size_t numerator, size_t denominator)
+{
+    return (numerator + denominator - 1) / denominator;
+}
+
+/// Calculate size taking into account alignment.
 inline size_t calcAligned(size_t size, size_t alignment)
 {
+    return divideRoundedUp(size, alignment) * alignment;
+}
+
+/// More optimal calculate size taking into account alignment that only supports power of 2.
+inline size_t calcAligned2(size_t size, size_t alignment)
+{
+    SLANG_RHI_ASSERT(isPowerOf2(alignment));
     return (size + alignment - 1) & ~(alignment - 1);
 }
 
