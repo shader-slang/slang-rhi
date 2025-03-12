@@ -1997,7 +1997,7 @@ public:
         SubresourceRange subresourceRange,
         Offset3D offset,
         Extents extent,
-        SubresourceData* subresourceData,
+        const SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) = 0;
 
@@ -2010,8 +2010,24 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4]) = 0;
 
+    inline SLANG_NO_THROW void clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue)
+    {
+        float v[4] = {clearValue, clearValue, clearValue, clearValue};
+        clearTextureFloat(texture, subresourceRange, v);
+    }
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4]) = 0;
+
+    inline SLANG_NO_THROW void clearTextureUint(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        uint32_t clearValue
+    )
+    {
+        uint32_t v[4] = {clearValue, clearValue, clearValue, clearValue};
+        clearTextureUint(texture, subresourceRange, v);
+    }
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureDepthStencil(
         ITexture* texture,
