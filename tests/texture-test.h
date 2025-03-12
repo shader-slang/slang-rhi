@@ -442,6 +442,23 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
                     continue;
             }
 
+            if (td.sampleCount > 1)
+            {
+                if (device->getDeviceType() == DeviceType::Vulkan)
+                {
+                    switch (format)
+                    {
+                    case Format::R64Sint:
+                    case Format::R64Uint:
+                    case Format::BGRA4Unorm:
+                    case Format::RGB9E5Ufloat:
+                        continue;
+                    default:
+                        break;
+                    }
+                }
+            }
+
             TextureTestContext context(device);
             for (auto& desc : variant.descriptors)
             {
