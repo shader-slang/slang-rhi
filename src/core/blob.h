@@ -2,7 +2,7 @@
 
 #include "com-object.h"
 
-#include <slang.h>
+#include <slang-rhi/slang-include.h>
 
 #include <vector>
 

@@ -1,7 +1,6 @@
 #pragma once
 
-#include <slang-com-ptr.h>
-#include <slang.h>
+#include "slang-rhi/slang-include.h"
 
 #if defined(SLANG_RHI_DYNAMIC)
 #if defined(_MSC_VER)

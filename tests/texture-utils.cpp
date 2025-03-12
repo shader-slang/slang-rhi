@@ -1,6 +1,6 @@
 #include "texture-utils.h"
 
-#include <slang-com-ptr.h>
+#include <slang-rhi/slang-include.h>
 
 #include <stdio.h>
 #include <stdlib.h>
