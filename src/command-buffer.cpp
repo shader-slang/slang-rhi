@@ -505,7 +505,7 @@ Result CommandEncoder::uploadTextureData(
     SubresourceRange subresourceRange,
     Offset3D offset,
     Extents extent,
-    SubresourceData* subresourceData,
+    const SubresourceData* subresourceData,
     uint32_t subresourceDataCount
 )
 {
@@ -546,7 +546,7 @@ Result CommandEncoder::uploadTextureData(
     {
         // Iterate over sub resources by layer and mip level
         SubresourceLayout* srLayout = layouts;
-        SubresourceData* srSrcData = subresourceData;
+        const SubresourceData* srSrcData = subresourceData;
         uint8_t* srDestData = dstData;
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
         {
@@ -564,7 +564,7 @@ Result CommandEncoder::uploadTextureData(
                 {
                     uint8_t* rowSrcData = sliceSrcData;
                     uint8_t* rowDestData = sliceDestData;
-                    for (uint32_t y = 0; y < srLayout->size.height; y++)
+                    for (uint32_t row = 0; row < srLayout->rowCount; row++)
                     {
                         // Copy the row.
                         memcpy(rowDestData, rowSrcData, rowCopyStride);
