@@ -228,6 +228,31 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     }
 
     UINT accessFlags = _calcResourceAccessFlags(desc.memoryType);
+    D3D11_USAGE d3dUsage = D3D11_USAGE_DEFAULT;
+
+    // If texture will be used for upload, then:
+    //  - if pure copying, create as a staging texture (D3D11_USAGE_STAGING)
+    //  - if not, create as a dynamic texture (D3D11_USAGE_DYNAMIC) unless unordered access is specified
+    if (desc.memoryType == MemoryType::Upload)
+    {
+        accessFlags |= D3D11_CPU_ACCESS_WRITE;
+        if ((desc.usage & (TextureUsage::CopySource | TextureUsage::CopyDestination)) == desc.usage)
+        {
+            d3dUsage = D3D11_USAGE_STAGING;
+            accessFlags |= D3D11_CPU_ACCESS_READ; // Support read, so can be mapped as read/write
+        }
+        else if (!is_set(desc.usage, TextureUsage::UnorderedAccess))
+        {
+            d3dUsage = D3D11_USAGE_DYNAMIC;
+        }
+    }
+
+    // If texture will be used for read-back, then it must be staging.
+    if (desc.memoryType == MemoryType::ReadBack)
+    {
+        accessFlags |= D3D11_CPU_ACCESS_READ;
+        d3dUsage = D3D11_USAGE_STAGING;
+    }
 
     switch (desc.type)
     {
@@ -242,7 +267,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         d3dDesc.MipLevels = mipLevelCount;
         d3dDesc.ArraySize = layerCount;
         d3dDesc.Width = desc.size.width;
-        d3dDesc.Usage = D3D11_USAGE_DEFAULT;
+        d3dDesc.Usage = d3dUsage;
 
         ComPtr<ID3D11Texture1D> texture1D;
         SLANG_RETURN_ON_FAIL(m_device->CreateTexture1D(&d3dDesc, subresourcesPtr, texture1D.writeRef()));
@@ -267,7 +292,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         d3dDesc.Width = desc.size.width;
         d3dDesc.Height = desc.size.height;
-        d3dDesc.Usage = D3D11_USAGE_DEFAULT;
+        d3dDesc.Usage = d3dUsage;
         d3dDesc.SampleDesc.Count = desc.sampleCount;
         d3dDesc.SampleDesc.Quality = desc.sampleQuality;
         if (desc.type == TextureType::TextureCube || desc.type == TextureType::TextureCubeArray)
@@ -292,7 +317,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         d3dDesc.Width = desc.size.width;
         d3dDesc.Height = desc.size.height;
         d3dDesc.Depth = desc.size.depth;
-        d3dDesc.Usage = D3D11_USAGE_DEFAULT;
+        d3dDesc.Usage = d3dUsage;
 
         ComPtr<ID3D11Texture3D> texture3D;
         SLANG_RETURN_ON_FAIL(m_device->CreateTexture3D(&d3dDesc, subresourcesPtr, texture3D.writeRef()));
