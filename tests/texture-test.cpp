@@ -124,6 +124,9 @@ void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMo
             case rhi::testing::TextureInitMode::Invalid:
                 memset(sr.data.get(), 0xcd, sr.layout.sizeInBytes);
                 break;
+            case rhi::testing::TextureInitMode::MipLevel:
+                memset(sr.data.get(), mipLevel, sr.layout.sizeInBytes);
+                break;
             case rhi::testing::TextureInitMode::Random:
                 std::mt19937 rng(initSeed);
                 std::uniform_int_distribution<int> dist(0, 255);
@@ -269,8 +272,7 @@ void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
             TextureTestVariant newVariant;
             for (int i = 0; i < m_numTextures; i++)
             {
-                auto mode = m_initMode ? m_initMode[i] : TextureInitMode::Random;
-                newVariant.descriptors.push_back({desc, mode});
+                newVariant.descriptors.push_back({desc, m_initMode[i]});
             }
             addVariant(newVariant);
         }

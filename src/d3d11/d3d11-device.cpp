@@ -366,12 +366,9 @@ Result DeviceImpl::readTexture(
     // needs to be made, it is kept alive for the duration of the function.
     ComPtr<ITexture> tempTexture;
 
+    // Output pixel size
     const FormatInfo& formatInfo = getFormatInfo(textureImpl->m_desc.format);
     size_t bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    size_t rowPitch = int(textureImpl->m_desc.size.width) * bytesPerPixel;
-    size_t bufferSize = rowPitch * int(textureImpl->m_desc.size.height);
-    if (outRowPitch)
-        *outRowPitch = rowPitch;
     if (outPixelSize)
         *outPixelSize = bytesPerPixel;
 
@@ -396,6 +393,14 @@ Result DeviceImpl::readTexture(
         m_immediateContext->CopyResource(stagingTextureImpl->m_resource.get(), textureImpl->m_resource.get());
     }
 
+    // Calculate layout info.
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+
+    // Output row size
+    if (outRowPitch)
+        *outRowPitch = layout.strideY;
+
     // Now just read back texels from the staging textures
     {
         uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
@@ -406,16 +411,28 @@ Result DeviceImpl::readTexture(
                 ->Map(stagingTextureImpl->m_resource.get(), subResourceIdx, D3D11_MAP_READ, 0, &mappedResource)
         );
 
-        auto blob = OwnedBlob::create(bufferSize);
-        /* char* buffer = (char*)blob->getBufferPointer();
-        for (size_t y = 0; y < textureDesc.Height; y++)
+        auto blob = OwnedBlob::create(layout.sizeInBytes);
+        uint8_t* srcBuffer = (uint8_t*)mappedResource.pData;
+        uint8_t* dstBuffer = (uint8_t*)blob->getBufferPointer();
+
+        // Data should be the same, but alignment may not be, so the row copy
+        // needs to be the minimum of the two row sizes.
+        uint32_t copyPitch = min(layout.strideY, (size_t)mappedResource.RowPitch);
+
+        // Copy a row at a time.
+        for (int z = 0; z < layout.size.depth; z++)
         {
-            memcpy(
-                (char*)buffer + y * (*outRowPitch),
-                (char*)mappedResource.pData + y * mappedResource.RowPitch,
-                *outRowPitch
-            );
-        }*/
+            uint8_t* srcRow = srcBuffer;
+            uint8_t* dstRow = dstBuffer;
+            for (int y = 0; y < layout.rowCount; y++)
+            {
+                std::memcpy(dstRow, srcRow, copyPitch);
+                srcRow += mappedResource.RowPitch;
+                dstRow += layout.strideY;
+            }
+            srcBuffer += mappedResource.DepthPitch;
+            dstBuffer += layout.strideZ;
+        }
 
         // Make sure to unmap
         m_immediateContext->Unmap(stagingTextureImpl->m_resource.get(), subResourceIdx);
