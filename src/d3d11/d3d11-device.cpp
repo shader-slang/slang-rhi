@@ -351,12 +351,20 @@ Result DeviceImpl::readTexture(
 )
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
+
     // Don't bother supporting MSAA for right now
     if (textureImpl->m_desc.sampleCount > 1)
     {
         fprintf(stderr, "ERROR: cannot capture multi-sample texture\n");
         return E_INVALIDARG;
     }
+
+    // Get texture descriptor.
+    TextureDesc desc = textureImpl->getDesc();
+
+    // This pointer exists at root scope to ensure that if a temp texture
+    // needs to be made, it is kept alive for the duration of the function.
+    ComPtr<ITexture> tempTexture;
 
     const FormatInfo& formatInfo = getFormatInfo(textureImpl->m_desc.format);
     size_t bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
@@ -367,43 +375,39 @@ Result DeviceImpl::readTexture(
     if (outPixelSize)
         *outPixelSize = bytesPerPixel;
 
-    D3D11_TEXTURE2D_DESC textureDesc;
-    memset(&textureDesc, 0, sizeof(textureDesc));
-    auto d3d11Texture = ((ID3D11Texture2D*)textureImpl->m_resource.get());
-    d3d11Texture->GetDesc(&textureDesc);
+    TextureImpl* stagingTextureImpl = nullptr;
 
-    HRESULT hr = S_OK;
-    ComPtr<ID3D11Texture2D> stagingTexture;
-
-    if (textureDesc.Usage == D3D11_USAGE_STAGING && (textureDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
+    if (desc.memoryType == MemoryType::ReadBack)
     {
-        stagingTexture = d3d11Texture;
+        // The texture is already a staging texture, so we can just use it directly.
+        stagingTextureImpl = textureImpl;
     }
     else
     {
-        // Modify the descriptor to give us a staging texture
-        textureDesc.BindFlags = 0;
-        textureDesc.MiscFlags &= ~D3D11_RESOURCE_MISC_TEXTURECUBE;
-        textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-        textureDesc.Usage = D3D11_USAGE_STAGING;
+        // Due to complexity of texture creation, create a full slang-rhi texture set as read-back
+        // rather than try to create a device version
+        TextureDesc copyDesc = textureImpl->getDesc();
+        copyDesc.memoryType = MemoryType::ReadBack;
+        copyDesc.usage = TextureUsage::CopyDestination;
+        SLANG_RETURN_ON_FAIL(createTexture(copyDesc, nullptr, tempTexture.writeRef()));
+        stagingTextureImpl = checked_cast<TextureImpl*>(tempTexture.get());
 
-        hr = m_device->CreateTexture2D(&textureDesc, 0, stagingTexture.writeRef());
-        if (FAILED(hr))
-        {
-            fprintf(stderr, "ERROR: failed to create staging texture\n");
-            return hr;
-        }
-
-        m_immediateContext->CopyResource(stagingTexture, d3d11Texture);
+        // Copy texture to staging
+        m_immediateContext->CopyResource(stagingTextureImpl->m_resource.get(), textureImpl->m_resource.get());
     }
 
     // Now just read back texels from the staging textures
     {
+        uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
+
         D3D11_MAPPED_SUBRESOURCE mappedResource;
-        SLANG_RETURN_ON_FAIL(m_immediateContext->Map(stagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource));
+        SLANG_RETURN_ON_FAIL(
+            m_immediateContext
+                ->Map(stagingTextureImpl->m_resource.get(), subResourceIdx, D3D11_MAP_READ, 0, &mappedResource)
+        );
 
         auto blob = OwnedBlob::create(bufferSize);
-        char* buffer = (char*)blob->getBufferPointer();
+        /* char* buffer = (char*)blob->getBufferPointer();
         for (size_t y = 0; y < textureDesc.Height; y++)
         {
             memcpy(
@@ -411,9 +415,10 @@ Result DeviceImpl::readTexture(
                 (char*)mappedResource.pData + y * mappedResource.RowPitch,
                 *outRowPitch
             );
-        }
+        }*/
+
         // Make sure to unmap
-        m_immediateContext->Unmap(stagingTexture, 0);
+        m_immediateContext->Unmap(stagingTextureImpl->m_resource.get(), subResourceIdx);
 
         returnComPtr(outBlob, blob);
         return SLANG_OK;
