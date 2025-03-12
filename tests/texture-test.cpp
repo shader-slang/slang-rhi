@@ -142,9 +142,9 @@ Result TextureData::createTexture(ITexture** texture) const
     return device->createTexture(desc, subresourceData.data(), texture);
 }
 
-void TextureData::checkEqual(ComPtr<ITexture> texture) const
+void TextureData::checkEqual(ITexture* texture) const
 {
-    Texture* textureImpl = checked_cast<Texture*>(texture.get());
+    Texture* textureImpl = checked_cast<Texture*>(texture);
 
     const TextureDesc& otherDesc = textureImpl->getDesc();
 

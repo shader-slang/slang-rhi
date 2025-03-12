@@ -43,7 +43,7 @@ struct TextureData
 
     Result createTexture(ITexture** texture) const;
 
-    void checkEqual(ComPtr<ITexture> texture) const;
+    void checkEqual(ITexture* texture) const;
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
