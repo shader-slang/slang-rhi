@@ -56,7 +56,9 @@ public:
     void cmdCopyTexture(const commands::CopyTexture& cmd);
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
-    void cmdClearTexture(const commands::ClearTexture& cmd);
+    void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
+    void cmdClearTextureUint(const commands::ClearTextureUint& cmd);
+    void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -213,9 +215,19 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, buffer->m_buffer, cmd.range.offset, cmd.range.size);
 }
 
-void CommandRecorder::cmdClearTexture(const commands::ClearTexture& cmd)
+void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+}
+
+void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
+{
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
+}
+
+void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
+{
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureDepthStencil);
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)

@@ -54,7 +54,9 @@ public:
     void cmdCopyTexture(const commands::CopyTexture& cmd);
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
-    void cmdClearTexture(const commands::ClearTexture& cmd);
+    void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
+    void cmdClearTextureUint(const commands::ClearTextureUint& cmd);
+    void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -156,10 +158,71 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
     m_immediateContext->ClearUnorderedAccessViewUint(uav, clearValues);
 }
 
-void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
+void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    const TextureDesc& desc = texture->m_desc;
+    if (is_set(desc.usage, TextureUsage::RenderTarget))
+    {
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        {
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            ID3D11RenderTargetView* rtv = texture->getRTV(desc.format, sr);
+            m_immediateContext->ClearRenderTargetView(rtv, cmd.clearValue);
+        }
+    }
+    else if (is_set(desc.usage, TextureUsage::UnorderedAccess))
+    {
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        {
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            ID3D11UnorderedAccessView* uav = texture->getUAV(desc.format, sr);
+            m_immediateContext->ClearUnorderedAccessViewFloat(uav, cmd.clearValue);
+        }
+    }
+}
+
+void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    const TextureDesc& desc = texture->m_desc;
+    if (is_set(desc.usage, TextureUsage::UnorderedAccess))
+    {
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        {
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            ID3D11UnorderedAccessView* uav = texture->getUAV(desc.format, sr);
+            m_immediateContext->ClearUnorderedAccessViewUint(uav, cmd.clearValue);
+        }
+    }
+}
+
+void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
+{
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    const TextureDesc& desc = texture->m_desc;
+    if (is_set(desc.usage, TextureUsage::DepthStencil))
+    {
+        UINT clearFlags = 0;
+        if (cmd.clearDepth)
+            clearFlags |= D3D11_CLEAR_DEPTH;
+        if (cmd.clearStencil)
+            clearFlags |= D3D11_CLEAR_STENCIL;
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        {
+            SubresourceRange sr = cmd.subresourceRange;
+            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            sr.mipLevelCount = 1;
+            ID3D11DepthStencilView* dsv = texture->getDSV(desc.format, sr);
+            m_immediateContext->ClearDepthStencilView(dsv, clearFlags, cmd.depthValue, cmd.stencilValue);
+        }
+    }
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)

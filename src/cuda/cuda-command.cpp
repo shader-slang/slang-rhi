@@ -44,7 +44,9 @@ public:
     void cmdCopyTexture(const commands::CopyTexture& cmd);
     void cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd);
     void cmdClearBuffer(const commands::ClearBuffer& cmd);
-    void cmdClearTexture(const commands::ClearTexture& cmd);
+    void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
+    void cmdClearTextureUint(const commands::ClearTextureUint& cmd);
+    void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -142,10 +144,22 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
     SLANG_CUDA_ASSERT_ON_FAIL(cuMemsetD32((CUdeviceptr)buffer->m_cudaMemory + cmd.range.offset, 0, cmd.range.size / 4));
 }
 
-void CommandExecutor::cmdClearTexture(const commands::ClearTexture& cmd)
+void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTexture);
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+}
+
+void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
+}
+
+void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_clearTextureDepthStencil);
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)
