@@ -32,6 +32,11 @@ Result DebugCommandQueue::submit(const SubmitDesc& desc)
     short_vector<IFence*> innerSignalFences;
     for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
     {
+        if (!desc.commandBuffers[i])
+        {
+            RHI_VALIDATION_INFO("Command buffer is null.");
+            return SLANG_E_INVALID_ARG;
+        }
         innerCommandBuffers.push_back(getInnerObj(desc.commandBuffers[i]));
     }
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)

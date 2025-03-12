@@ -2124,8 +2124,6 @@ public:
 
     inline Result submit(ICommandBuffer* commandBuffer)
     {
-        if (!commandBuffer)
-            return SLANG_E_INVALID_ARG;
         SubmitDesc desc = {};
         desc.commandBuffers = &commandBuffer;
         desc.commandBufferCount = 1;
