@@ -320,6 +320,7 @@ public:
     IDevice* getDevice() const { return m_device; }
     ComPtr<ITexture> getTexture(int index) const { return m_textures[index]; }
     const TextureData& getTextureData(int index) const { return m_datas[index]; }
+    TextureData& getTextureData(int index) { return m_datas[index]; }
 
 private:
     IDevice* m_device;
@@ -398,7 +399,7 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
     // Nice selection of formats to test
     Format formats[] = {
         Format::D16Unorm,
-        // Format::D32FloatS8Uint,
+        Format::D32FloatS8Uint,
         Format::D32Float,
         Format::RGBA32Uint,
         Format::RGB32Uint,

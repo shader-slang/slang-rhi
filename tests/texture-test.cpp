@@ -107,6 +107,10 @@ void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMo
     if (is_set(formatSupport, FormatSupport::ShaderLoad))
         desc.usage |= TextureUsage::ShaderResource;
 
+    // Initializing multi-aspect textures is not supported
+    if (formatInfo.hasDepth && formatInfo.hasStencil)
+        initMode = TextureInitMode::None;
+
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
         for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
@@ -297,6 +301,7 @@ void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
                 // Initializing multisampled textures is not supported.
                 if (isMultisamplingType(desc.type))
                     im = TextureInitMode::None;
+
 
                 newVariant.descriptors.push_back({desc, im});
             }

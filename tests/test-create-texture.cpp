@@ -18,11 +18,14 @@ GPU_TEST_CASE("texturetest-create", ALL)
         options,
         [](TextureTestContext* c)
         {
-            // Can't read multisampled textures.
-            if (isMultisamplingType(c->getTexture(0)->getDesc().type))
+            const TextureData& data = c->getTextureData(0);
+
+            // If texture type couldn't be initialized (eg multisampled or multi-aspect)
+            // then don't check it's contents.
+            if (data.initMode == TextureInitMode::None)
                 return;
 
-            c->getTextureData(0).checkEqual(c->getTexture(0));
+            data.checkEqual(c->getTexture(0));
         }
     );
 }
