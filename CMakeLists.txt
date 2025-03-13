@@ -668,6 +668,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-link-time-default.cpp
         tests/test-link-time-options.cpp
         tests/test-link-time-type.cpp
+        tests/test-math.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
