@@ -441,7 +441,7 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
         if (device->getDeviceType() == DeviceType::Metal && (info.isCompressed || info.hasDepth || info.hasStencil))
             continue;
 
-        // Web gpu doesn't support writing into depth textures.
+        // WebGPU doesn't support writing into depth textures.
         if (device->getDeviceType() == DeviceType::WGPU && (info.hasDepth || info.hasStencil))
             continue;
 
