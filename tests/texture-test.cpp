@@ -24,12 +24,13 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
         (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipLevelCount != 1)
         return false;
     // Metal does not support multisampled textures with 1 sample
-    if (device->getDeviceType() == DeviceType::Metal &&
-        (desc.type == TextureType::Texture2DMS || desc.type == TextureType::Texture2DMSArray) && desc.sampleCount == 1)
+    if (device->getDeviceType() == DeviceType::Metal && isMultisamplingType(desc.type) && desc.sampleCount == 1)
         return false;
     // CUDA does not support multisample textures.
-    if (device->getDeviceType() == DeviceType::CUDA &&
-        (desc.type == TextureType::Texture2DMS || desc.type == TextureType::Texture2DMSArray))
+    if (device->getDeviceType() == DeviceType::CUDA && isMultisamplingType(desc.type))
+        return false;
+    // Mip mapped multisampled textures not supported
+    if (isMultisamplingType(desc.type) && desc.mipLevelCount > 1)
         return false;
     return true;
 }
@@ -95,6 +96,10 @@ void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMo
 
     desc.usage = TextureUsage::CopySource | TextureUsage::CopyDestination;
 
+    // D3D12 needs multisampled textures to be render targets.
+    if (isMultisamplingType(_desc.type))
+        desc.usage |= TextureUsage::RenderTarget;
+
     // Only add shader resource usage if format supports loading.
     if (is_set(formatSupport, FormatSupport::ShaderLoad))
         desc.usage |= TextureUsage::ShaderResource;
@@ -142,7 +147,8 @@ void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMo
 
 Result TextureData::createTexture(ITexture** texture) const
 {
-    return device->createTexture(desc, subresourceData.data(), texture);
+    const SubresourceData* sd = initMode == TextureInitMode::None ? nullptr : subresourceData.data();
+    return device->createTexture(desc, sd, texture);
 }
 
 void TextureData::checkEqual(ITexture* texture) const
@@ -284,6 +290,11 @@ void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
             for (int i = 0; i < m_numTextures; i++)
             {
                 TextureInitMode im = m_initMode[i];
+
+                // Initializing multisampled textures is not supported.
+                if (isMultisamplingType(desc.type))
+                    im = TextureInitMode::None;
+
                 newVariant.descriptors.push_back({desc, im});
             }
             addVariant(newVariant);

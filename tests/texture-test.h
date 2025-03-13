@@ -12,6 +12,7 @@ namespace rhi::testing {
 /// How to initialize texture data.
 enum class TextureInitMode
 {
+    None,    // Don't initialize
     Zeros,   // Start with 0s
     Invalid, // Start with 0xcd
     Random,  // Start with deterministic random data
@@ -362,6 +363,30 @@ inline bool supportsDepthFormats(const TextureDesc& desc)
     }
 }
 
+inline bool isMultisamplingType(TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/// Whether a format should be used with multisampling
+inline bool formatSupportsMultisampling(Format format)
+{
+    switch (format)
+    {
+    case Format::RGBA8Unorm:
+        return true;
+    default:
+        return false;
+    }
+}
+
 /// Run a texture test.
 /// - func: should be a callable of the form void(TextureTestContext*, Args...)
 /// - args: 0 or more user defined arguments that are forwarded to the function
@@ -442,21 +467,10 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
                     continue;
             }
 
-            if (td.sampleCount > 1)
+            if (isMultisamplingType(td.type))
             {
-                if (device->getDeviceType() == DeviceType::Vulkan)
-                {
-                    switch (format)
-                    {
-                    case Format::R64Sint:
-                    case Format::R64Uint:
-                    case Format::BGRA4Unorm:
-                    case Format::RGB9E5Ufloat:
-                        continue;
-                    default:
-                        break;
-                    }
-                }
+                if (!formatSupportsMultisampling(format))
+                    continue;
             }
 
             TextureTestContext context(device);

@@ -313,78 +313,14 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         range.baseArrayLayer = 0;
         range.layerCount = layerCount;
 
-        if (imageInfo.samples < 2)
-        {
-            commandEncoder->uploadTextureData(
-                texture,
-                range,
-                {0, 0, 0},
-                Extents::kWholeTexture,
-                initData,
-                layerCount * desc.mipLevelCount
-            );
-        }
-        else
-        {
-            // Handle scenario where texture is sampled. We cannot use
-            // a simple buffer copy for sampled textures. ClearColorImage
-            // is not data accurate but it is fine for testing & works.
-            const FormatInfo& formatInfo = getFormatInfo(desc.format);
-            switch (formatInfo.channelType)
-            {
-            case SLANG_SCALAR_TYPE_INT32:
-                commandEncoder->clearTextureUint(texture, range, *(const int32_t*)initData);
-                break;
-            case SLANG_SCALAR_TYPE_UINT32:
-                commandEncoder->clearTextureUint(texture, range, *(const uint32_t*)initData);
-                break;
-            case SLANG_SCALAR_TYPE_INT64:
-            {
-                commandEncoder->clearTextureUint(texture, range, *(const int64_t*)initData);
-                break;
-            }
-            case SLANG_SCALAR_TYPE_UINT64:
-            {
-                commandEncoder->clearTextureUint(texture, range, *(const uint64_t*)initData);
-                break;
-            }
-            case SLANG_SCALAR_TYPE_FLOAT16:
-            {
-                commandEncoder->clearTextureFloat(texture, range, math::halfToFloat(*(const float*)initData));
-                break;
-            }
-            case SLANG_SCALAR_TYPE_FLOAT32:
-            {
-                commandEncoder->clearTextureFloat(texture, range, *(const float*)initData);
-                break;
-            }
-            case SLANG_SCALAR_TYPE_FLOAT64:
-            {
-                commandEncoder->clearTextureFloat(texture, range, *(const double*)initData);
-                break;
-            }
-            case SLANG_SCALAR_TYPE_INT8:
-            {
-                commandEncoder->clearTextureUint(texture, range, *(const int8_t*)initData);
-                break;
-            }
-            case SLANG_SCALAR_TYPE_UINT8:
-            {
-                commandEncoder->clearTextureUint(texture, range, *(const uint8_t*)initData);
-                break;
-            }
-            case SLANG_SCALAR_TYPE_INT16:
-            {
-                commandEncoder->clearTextureUint(texture, range, *(const int16_t*)initData);
-                break;
-            }
-            case SLANG_SCALAR_TYPE_UINT16:
-            {
-                commandEncoder->clearTextureUint(texture, range, *(const uint16_t*)initData);
-                break;
-            }
-            };
-        }
+        commandEncoder->uploadTextureData(
+            texture,
+            range,
+            {0, 0, 0},
+            Extents::kWholeTexture,
+            initData,
+            layerCount * desc.mipLevelCount
+        );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
     }
