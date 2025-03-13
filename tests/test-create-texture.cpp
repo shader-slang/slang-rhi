@@ -18,8 +18,8 @@ GPU_TEST_CASE("texturetest-create", ALL)
         options,
         [](TextureTestContext* c)
         {
-            // Vulkan can't init MS textures properly yet so no point attempting to validate contents
-            if (c->getDevice()->getDeviceType() == DeviceType::Vulkan && c->getTexture(0)->getDesc().sampleCount > 0)
+            // Can't read multisampled textures.
+            if (isMultisamplingType(c->getTexture(0)->getDesc().type))
                 return;
 
             c->getTextureData(0).checkEqual(c->getTexture(0));
