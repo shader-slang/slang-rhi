@@ -647,6 +647,15 @@ void CommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subres
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange subresourceRange, int32_t clearValue[4])
+{
+    commands::ClearTextureUint cmd;
+    cmd.texture = texture;
+    cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
+    ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));
+    m_commandList->write(std::move(cmd));
+}
+
 void CommandEncoder::clearTextureDepthStencil(
     ITexture* texture,
     SubresourceRange subresourceRange,

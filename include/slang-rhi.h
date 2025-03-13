@@ -2036,6 +2036,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4]) = 0;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    clearTextureSint(ITexture* texture, SubresourceRange subresourceRange, int32_t clearValue[4]) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureDepthStencil(
         ITexture* texture,
         SubresourceRange subresourceRange,
