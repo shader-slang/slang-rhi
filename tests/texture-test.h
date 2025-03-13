@@ -2,6 +2,8 @@
 
 #include "testing.h"
 
+#include "core/short_vector.h"
+
 #include <vector>
 #include <type_traits>
 #include <functional>
@@ -117,42 +119,19 @@ bool getArrayType(TextureType type, TextureType& outArrayType);
 /// Checks and gets corresponding multisample type for texture type
 bool getMultisampleType(TextureType type, TextureType& outArrayType);
 
-/// Intermediate structure during variant generation. Value of -1 for a field
-/// means it is yet to be defined.
-struct VariantGen
-{
-    int type{-1};
-    int mip{-1};
-    int array{-1};
-    int multisample{-1};
-};
+
+typedef std::function<void(int, TextureTestVariant)> GeneratorFunc;
+typedef std::vector<GeneratorFunc> GeneratorList;
+
 
 /// Options + variant list for running a set of texture tests.
 class TextureTestOptions
 {
 public:
-    TextureTestOptions(IDevice* device, int numTextures = 1, TextureInitMode* initMode = nullptr)
+    TextureTestOptions(IDevice* device, int numTextures = 1)
         : m_device(device)
         , m_numTextures(numTextures)
     {
-        m_initMode.resize(numTextures);
-        if (initMode)
-        {
-            for (int i = 0; i < numTextures; i++)
-                m_initMode[i] = initMode[i];
-        }
-        else
-        {
-            for (int i = 0; i < numTextures; i++)
-                m_initMode[i] = TextureInitMode::Random;
-        }
-    }
-
-    TextureTestOptions(IDevice* device, TextureInitMode initMode = TextureInitMode::Random)
-        : m_device(device)
-        , m_numTextures(1)
-    {
-        m_initMode.push_back(initMode);
     }
 
     /// Manually add a specific variant.
@@ -162,149 +141,78 @@ public:
     std::vector<TextureTestVariant>& getVariants() { return m_variants; }
 
     /// Generate a full matrix of variants given a set of constraints:
+    /// - TextureTestVariant/TestTextureDesc/TextureDesc: Explicitly specify descriptors
+    /// - Format or vector<Format>: Explicit list of formats (defaults to standard list)
     /// - TTShape: Flags defining which texture types to test (1D/2D/3D/Cube)
     /// - TextureType: Explicitly specify texture type to test
     /// - TexTypes: Explicitly specify a list of texture types to test
     /// - TTMip: Whether to test with and/or without mips (for types that support it)
     /// - TTArray: Whether to test with and/or without arrays (for types that support it)
-    /// - TTMS: Whether to test with and/or without muilti-sample (for types that support it)
+    /// - TTMS: Whether to test with and/or without multi-sample (for types that support it)
     template<typename... Args>
     void addVariants(Args... args)
     {
-        std::vector<VariantGen> variants;
-        variants.push_back(VariantGen());
-        (processVariantArg(variants, args), ...);
-        addProcessedVariants(variants);
+        // Create new list of generators for this variant set
+        m_generator_lists.push_back(GeneratorList());
+
+        // Unroll variant args, which appends a generator for each arg to the new list
+        (processVariantArg(args), ...);
+
+        // Add the post processor to generator list
+        addGenerator([this](int state, TextureTestVariant variant) { postProcessVariant(state, variant); });
+
+        // Add the filter for invalid format combinations
+        addGenerator([this](int state, TextureTestVariant variant) { filterFormat(state, variant); });
     }
 
     /// Get current device.
     IDevice* getDevice() const { return m_device; }
 
+    void run(std::function<void(const TextureTestVariant&)> func);
+
 private:
     IDevice* m_device;
     int m_numTextures;
-    std::vector<TextureInitMode> m_initMode;
     std::vector<TextureTestVariant> m_variants;
 
+    std::vector<GeneratorList> m_generator_lists;
 
-    void processVariantArg(std::vector<VariantGen>& variants, TTShape shape)
-    {
-        std::vector<VariantGen> newvariants;
-        for (VariantGen variant : variants)
-        {
-            SLANG_RHI_ASSERT(variant.type == -1);
-            if (is_set(shape, TTShape::D1))
-            {
-                variant.type = (int)TextureType::Texture1D;
-                newvariants.push_back(variant);
-            }
-            if (is_set(shape, TTShape::D2))
-            {
-                variant.type = (int)TextureType::Texture2D;
-                newvariants.push_back(variant);
-            }
-            if (is_set(shape, TTShape::D3))
-            {
-                variant.type = (int)TextureType::Texture3D;
-                newvariants.push_back(variant);
-            }
-            if (is_set(shape, TTShape::Cube))
-            {
-                variant.type = (int)TextureType::TextureCube;
-                newvariants.push_back(variant);
-            }
-        }
-        variants = newvariants;
-    }
+    int m_current_list_idx;
+    std::function<void(const TextureTestVariant&)> m_current_callback;
 
-    void processVariantArg(std::vector<VariantGen>& variants, TextureType type)
-    {
-        std::vector<VariantGen> newvariants;
-        for (VariantGen variant : variants)
-        {
-            SLANG_RHI_ASSERT(variant.type == -1);
-            variant.type = (int)type;
-            newvariants.push_back(variant);
-        }
-        variants = newvariants;
-    }
+    void executeGeneratorList(int listIdx);
 
-    void processVariantArg(std::vector<VariantGen>& variants, TexTypes& types)
-    {
-        std::vector<VariantGen> newvariants;
-        for (VariantGen variant : variants)
-        {
-            SLANG_RHI_ASSERT(variant.type == -1);
-            for (TextureType type : types.values)
-            {
-                variant.type = (int)type;
-                newvariants.push_back(variant);
-            }
-        }
-        variants = newvariants;
-    }
+    void next(int nextIndex, TextureTestVariant variant);
 
-    void processVariantArg(std::vector<VariantGen>& variants, TTMip mip)
-    {
-        std::vector<VariantGen> newvariants;
-        for (VariantGen variant : variants)
-        {
-            SLANG_RHI_ASSERT(variant.mip == -1);
-            if (is_set(mip, TTMip::Off))
-            {
-                variant.mip = 0;
-                newvariants.push_back(variant);
-            }
-            if (is_set(mip, TTMip::On))
-            {
-                variant.mip = 1;
-                newvariants.push_back(variant);
-            }
-        }
-        variants = newvariants;
-    }
+    void addGenerator(GeneratorFunc generator);
 
-    void processVariantArg(std::vector<VariantGen>& variants, TTArray array)
-    {
-        std::vector<VariantGen> newvariants;
-        for (VariantGen variant : variants)
-        {
-            SLANG_RHI_ASSERT(variant.array == -1);
-            if (is_set(array, TTArray::Off))
-            {
-                variant.array = 0;
-                newvariants.push_back(variant);
-            }
-            if (is_set(array, TTArray::On))
-            {
-                variant.array = 1;
-                newvariants.push_back(variant);
-            }
-        }
-        variants = newvariants;
-    }
+    void processVariantArg(TextureDesc baseDesc);
 
-    void processVariantArg(std::vector<VariantGen>& variants, TTMS multisample)
-    {
-        std::vector<VariantGen> newvariants;
-        for (VariantGen variant : variants)
-        {
-            SLANG_RHI_ASSERT(variant.multisample == -1);
-            if (is_set(multisample, TTMS::Off))
-            {
-                variant.multisample = 0;
-                newvariants.push_back(variant);
-            }
-            if (is_set(multisample, TTMS::On))
-            {
-                variant.multisample = 1;
-                newvariants.push_back(variant);
-            }
-        }
-        variants = newvariants;
-    }
+    void processVariantArg(TestTextureDesc baseDesc);
 
-    void addProcessedVariants(std::vector<VariantGen>& variants);
+    void processVariantArg(TextureTestVariant baseDesc);
+
+    void processVariantArg(TextureInitMode initMode);
+
+    void processVariantArg(TTShape shape);
+
+    void processVariantArg(TextureType type);
+
+    void processVariantArg(TexTypes& types);
+
+    void processVariantArg(TTMip mip);
+
+    void processVariantArg(TTArray array);
+
+    void processVariantArg(TTMS multisample);
+
+    void processVariantArg(Format format);
+
+    void processVariantArg(const std::vector<Format>& formats);
+
+    void postProcessVariant(int state, TextureTestVariant variant);
+
+    void filterFormat(int state, TextureTestVariant variant);
 };
 
 /// Context within which a given iteration of a texture test works. This
@@ -318,22 +226,15 @@ public:
     Result addTexture(TextureData&& data);
 
     IDevice* getDevice() const { return m_device; }
-    ComPtr<ITexture> getTexture(int index) const { return m_textures[index]; }
-    const TextureData& getTextureData(int index) const { return m_datas[index]; }
-    TextureData& getTextureData(int index) { return m_datas[index]; }
+    ComPtr<ITexture> getTexture(int index = 0) const { return m_textures[index]; }
+    const TextureData& getTextureData(int index = 0) const { return m_datas[index]; }
+    TextureData& getTextureData(int index = 0) { return m_datas[index]; }
 
 private:
     IDevice* m_device;
     std::vector<ComPtr<ITexture>> m_textures;
     std::vector<TextureData> m_datas;
 };
-
-/// Formats not currently handled
-/// TODO(testing): Format selection should be part of test variant generation.
-inline bool shouldIgnoreFormat(Format format)
-{
-    return false;
-}
 
 /// Texture types that can support compressed data
 inline bool supportsCompressedFormats(const TextureDesc& desc)
@@ -394,99 +295,21 @@ inline bool formatSupportsMultisampling(Format format)
 /// The test function will be called multiple times with pre-allocated and
 /// initialized textures, as per the TextureTestOptions structure.
 template<typename Func, typename... Args>
-inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... args)
+inline void runTextureTest(TextureTestOptions& options, Func&& func, Args&&... args)
 {
-    // Nice selection of formats to test
-    Format formats[] = {
-        Format::D16Unorm,
-        Format::D32FloatS8Uint,
-        Format::D32Float,
-        Format::RGBA32Uint,
-        Format::RGB32Uint,
-        Format::RGBA32Float,
-        Format::R32Float,
-        Format::RGBA16Float,
-        Format::RGBA16Uint,
-        Format::RGBA8Uint,
-        Format::RGBA8Unorm,
-        Format::RGBA8UnormSrgb,
-        Format::RGBA16Snorm,
-        Format::RGBA8Snorm,
-        Format::RGB10A2Unorm,
-        Format::BC1Unorm,
-        Format::BC1UnormSrgb,
-        Format::R64Uint,
-    };
-
-    // Change this to run against every format
-    // for (int f = 0; f < (int)Format::_Count; f++)
-    //{
-    //    Format format = (Format)f;
-    for (Format format : formats)
-    {
-        IDevice* device = options.getDevice();
-
-        FormatSupport support;
-        device->getFormatSupport(format, &support);
-        if (!is_set(support, FormatSupport::Texture))
-            continue;
-
-        const FormatInfo& info = getFormatInfo(format);
-
-        if (shouldIgnoreFormat(format))
-            continue;
-
-        // TODO: Fix compressed format test on metal. Was seeing fatal error:
-        // 'Linear textures do not support compressed pixel formats'.
-        if (device->getDeviceType() == DeviceType::Metal && (info.isCompressed || info.hasDepth || info.hasStencil))
-            continue;
-
-        // WebGPU doesn't support writing into depth textures.
-        if (device->getDeviceType() == DeviceType::WGPU && (info.hasDepth || info.hasStencil))
-            continue;
-
-        for (auto& variant : options.getVariants())
+    options.run(
+        [&func, &options, &args...](const TextureTestVariant& variant)
         {
-            TextureDesc& td = variant.descriptors[0].desc;
-            CAPTURE(td.type);
-            CAPTURE(td.size.width);
-            CAPTURE(td.size.height);
-            CAPTURE(td.size.depth);
-            CAPTURE(td.mipLevelCount);
-            CAPTURE(td.arrayLength);
-            CAPTURE(td.format);
-
-            if (info.isCompressed)
-            {
-                if (!supportsCompressedFormats(td))
-                    continue;
-            }
-
-            if (info.hasDepth || info.hasStencil)
-            {
-                if (!supportsDepthFormats(td))
-                    continue;
-            }
-
-            if (isMultisamplingType(td.type))
-            {
-                if (!formatSupportsMultisampling(format))
-                    continue;
-            }
-
-            TextureTestContext context(device);
+            TextureTestContext context(options.getDevice());
             for (auto& desc : variant.descriptors)
             {
                 TextureData data;
-                desc.desc.format = format;
-                data.init(device, desc.desc, desc.initMode);
+                data.init(options.getDevice(), desc.desc, desc.initMode);
                 REQUIRE_CALL(context.addTexture(std::move(data)));
             }
-
-
             func(&context, std::forward<Args>(args)...);
         }
-    }
+    );
 }
 
 } // namespace rhi::testing

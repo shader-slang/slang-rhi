@@ -787,7 +787,7 @@ struct TextureDesc
     uint32_t mipLevelCount = 1;
 
     /// The resources format.
-    Format format;
+    Format format = Format::Undefined;
 
     /// Number of samples per pixel.
     uint32_t sampleCount = 1;
