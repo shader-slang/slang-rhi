@@ -62,6 +62,7 @@ GPU_TEST_CASE("texture-layout-1d-nomip", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -79,6 +80,7 @@ GPU_TEST_CASE("texture-layout-1d-nomip-alignment", D3D12 | WGPU)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -96,6 +98,7 @@ GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WGPU & ~Metal)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -113,6 +116,7 @@ GPU_TEST_CASE("texture-layout-1d-region", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -130,6 +134,7 @@ GPU_TEST_CASE("texture-layout-1d-region-rts", D3D12 | WGPU)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -146,6 +151,7 @@ GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WGPU)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 4;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -164,6 +170,7 @@ GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WGPU & ~Metal)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 4;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -183,6 +190,7 @@ GPU_TEST_CASE("texture-layout-2d-nomip", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -199,6 +207,7 @@ GPU_TEST_CASE("texture-layout-2d-region", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -215,6 +224,7 @@ GPU_TEST_CASE("texture-layout-2d-mip", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -232,6 +242,7 @@ GPU_TEST_CASE("texture-layout-2d-array-nomip", ALL_TEX & ~CUDA)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 4;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -249,6 +260,7 @@ GPU_TEST_CASE("texture-layout-2d-array-mips", ALL_TEX & ~CUDA)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 4;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -268,6 +280,7 @@ GPU_TEST_CASE("texture-layout-3d-nomip", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -284,6 +297,7 @@ GPU_TEST_CASE("texture-layout-3d-region", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -301,6 +315,7 @@ GPU_TEST_CASE("texture-layout-3d-mip", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -318,6 +333,7 @@ GPU_TEST_CASE("texture-layout-cube-nomip", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -334,6 +350,7 @@ GPU_TEST_CASE("texture-layout-cube-mip", ALL_TEX)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 1;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -351,6 +368,7 @@ GPU_TEST_CASE("texture-layout-cube-array-nomip", ALL_TEX & ~CUDA)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = 1;
     desc.arrayLength = 4;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
@@ -368,6 +386,7 @@ GPU_TEST_CASE("texture-layout-cube-array-mips", ALL_TEX & ~CUDA)
     desc.format = Format::RGBA8Uint;
     desc.mipLevelCount = kAllMipLevels;
     desc.arrayLength = 4;
+    desc.usage = TextureUsage::ShaderResource;
 
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
