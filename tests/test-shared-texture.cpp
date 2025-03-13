@@ -115,6 +115,9 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
         // dstDevice. Read back the texture and check that its contents are correct.
         auto srcTexture = createTexture(srcDevice, size, Format::RGBA32Float, &subData);
 
+        // Wait for the texture to be filled in before reading it back
+        srcDevice->getQueue(QueueType::Graphics)->waitOnHost();
+
         NativeHandle sharedHandle;
         REQUIRE_CALL(srcTexture->getSharedHandle(&sharedHandle));
         ComPtr<ITexture> dstTexture;
