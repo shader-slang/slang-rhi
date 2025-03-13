@@ -18,6 +18,8 @@ GPU_TEST_CASE("texturetest-create", ALL)
         {
             const TextureData& data = c->getTextureData(0);
 
+            fprintf(stderr, "%s\n", c->getTexture(0)->getDesc().label);
+
             // If texture type couldn't be initialized (eg multisampled or multi-aspect)
             // then don't check it's contents.
             if (data.initMode == TextureInitMode::None)

@@ -196,118 +196,388 @@ void TextureData::checkEqual(ITexture* texture) const
 //----------------------------------------------------------
 // TextureTestOptions
 //----------------------------------------------------------
-
-void TextureTestOptions::addProcessedVariants(std::vector<VariantGen>& variants)
+void TextureTestOptions::run(std::function<void(const TextureTestVariant&)> func)
 {
-    // Go through all created variants, post process them and add if valid.
-    for (VariantGen variant : variants)
+    m_current_callback = func;
+
+    for (int i = 0; i < m_generator_lists.size(); i++)
     {
-        SLANG_RHI_ASSERT(variant.type != -1); // types must be specified
+        executeGeneratorList(i);
+    }
+}
 
-        // Defaults for arrays, mips and multisample are all off
-        if (variant.array == -1)
-            variant.array = 0;
-        if (variant.mip == -1)
-            variant.mip = 0;
-        if (variant.multisample == -1)
-            variant.multisample = 0;
+void TextureTestOptions::executeGeneratorList(int listIdx)
+{
+    m_current_list_idx = listIdx;
 
-        // Start with the declared type.
-        TextureType baseType = (TextureType)variant.type;
+    TestTextureDesc desc;
+    desc.desc.type = (TextureType)-1;
+    desc.desc.arrayLength = 0;
+    desc.desc.sampleCount = 0;
+    desc.desc.mipLevelCount = 0;
+    next(0, desc);
+}
 
-        // If user has explicitly made it an array, switch to array type.
-        // Note: has no effect if type already explicitly an array.
-        if (variant.array == 1)
+void TextureTestOptions::next(int nextIndex, TestTextureDesc variant)
+{
+    GeneratorList& current_list = m_generator_lists[m_current_list_idx];
+    if (nextIndex < current_list.size())
+    {
+        int idx = nextIndex++;
+        current_list[idx](nextIndex, variant);
+    }
+    else if (isValidDescriptor(m_device, variant.desc))
+    {
+        TextureTestVariant newVariant;
+        for (int i = 0; i < m_numTextures; i++)
         {
-            TextureType arrayType;
-            if (!getArrayType(baseType, arrayType))
-                continue;
-            baseType = arrayType;
+            TextureInitMode im = m_initMode[i];
+
+            // Initializing multisampled textures is not supported.
+            if (isMultisamplingType(variant.desc.type))
+                im = TextureInitMode::None;
+
+            newVariant.descriptors.push_back({variant.desc, im});
         }
+        m_current_callback(newVariant);
+    }
+}
 
-        // If user has explicitly made it multisampled, switch to multisampled type.
-        // Note: has no effect if type already explicitly multisampled.
-        if (variant.multisample == 1)
+void TextureTestOptions::addGenerator(GeneratorFunc generator)
+{
+    m_generator_lists.back().push_back(generator);
+}
+
+void TextureTestOptions::processVariantArg(TextureDesc baseDesc)
+{
+    addGenerator(
+        [this, baseDesc](int state, TestTextureDesc testTexture)
         {
-            TextureType multisampleType;
-            if (!getMultisampleType(baseType, multisampleType))
-                continue;
-            baseType = multisampleType;
+            // Explicit descriptor must be first argument
+            SLANG_RHI_ASSERT(state == 1);
+            testTexture.desc = baseDesc;
+            next(state, testTexture);
         }
+    );
+}
 
-        // Build descriptor
-        TextureDesc desc;
-        desc.type = baseType;
-
-        // Set size based on type.
-        switch (baseType)
+void TextureTestOptions::processVariantArg(TestTextureDesc baseDesc)
+{
+    addGenerator(
+        [this, baseDesc](int state, TestTextureDesc testTexture)
         {
-        case rhi::TextureType::Texture1D:
-        case rhi::TextureType::Texture1DArray:
-            desc.size = {128, 1, 1};
-            break;
-        case rhi::TextureType::Texture2D:
-        case rhi::TextureType::Texture2DArray:
-        case rhi::TextureType::Texture2DMS:
-        case rhi::TextureType::Texture2DMSArray:
-            desc.size = {128, 64, 1};
-            break;
-        case rhi::TextureType::Texture3D:
-            desc.size = {128, 64, 4};
-            break;
-        case rhi::TextureType::TextureCube:
-        case rhi::TextureType::TextureCubeArray:
-            desc.size = {128, 128, 1};
-            break;
-        default:
-            break;
+            // Explicit descriptor must be first argument
+            SLANG_RHI_ASSERT(state == 1);
+            next(state, baseDesc);
         }
+    );
+}
 
-        // Set array size for any of the array types.
-        switch (baseType)
+void TextureTestOptions::processVariantArg(TTShape shape)
+{
+    addGenerator(
+        [this, shape](int state, TestTextureDesc variant)
         {
-        case rhi::TextureType::Texture1DArray:
-        case rhi::TextureType::Texture2DArray:
-        case rhi::TextureType::Texture2DMSArray:
-        case rhi::TextureType::TextureCubeArray:
-            desc.arrayLength = 4;
-        default:
-            break;
-        }
-
-        // Set sample count.
-        switch (baseType)
-        {
-        case rhi::TextureType::Texture2DMS:
-        case rhi::TextureType::Texture2DMSArray:
-            desc.sampleCount = 4;
-            break;
-        default:
-            break;
-        }
-
-        // Set mip level count.
-        desc.mipLevelCount = variant.mip ? kAllMipLevels : 1;
-
-        // If ended up with a descriptor for a valid texture for this
-        // platform, generate variant info for it and store.
-        if (isValidDescriptor(m_device, desc))
-        {
-            TextureTestVariant newVariant;
-            for (int i = 0; i < m_numTextures; i++)
+            SLANG_RHI_ASSERT(variant.desc.type == (TextureType)-1);
+            if (is_set(shape, TTShape::D1))
             {
-                TextureInitMode im = m_initMode[i];
-
-                // Initializing multisampled textures is not supported.
-                if (isMultisamplingType(desc.type))
-                    im = TextureInitMode::None;
-
-
-                newVariant.descriptors.push_back({desc, im});
+                variant.desc.type = TextureType::Texture1D;
+                next(state, variant);
             }
-            addVariant(newVariant);
+            if (is_set(shape, TTShape::D2))
+            {
+                variant.desc.type = TextureType::Texture2D;
+                next(state, variant);
+            }
+            if (is_set(shape, TTShape::D3))
+            {
+                variant.desc.type = TextureType::Texture3D;
+                next(state, variant);
+            }
+            if (is_set(shape, TTShape::Cube))
+            {
+                variant.desc.type = TextureType::TextureCube;
+                next(state, variant);
+            }
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TextureType type)
+{
+    addGenerator(
+        [this, type](int state, TestTextureDesc testTexture)
+        {
+            SLANG_RHI_ASSERT(testTexture.desc.type == (TextureType)-1);
+            testTexture.desc.type = type;
+            next(state, testTexture);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TexTypes& types)
+{
+    addGenerator(
+        [this, types](int state, TestTextureDesc testTexture)
+        {
+            SLANG_RHI_ASSERT(testTexture.desc.type == (TextureType)-1);
+            for (TextureType type : types.values)
+            {
+                testTexture.desc.type = type;
+                next(state, testTexture);
+            }
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TTMip mip)
+{
+    addGenerator(
+        [this, mip](int state, TestTextureDesc testTexture)
+        {
+            if (is_set(mip, TTMip::Off))
+            {
+                testTexture.desc.mipLevelCount = 1;
+                next(state, testTexture);
+            }
+            if (is_set(mip, TTMip::On))
+            {
+                testTexture.desc.mipLevelCount = kAllMipLevels;
+                next(state, testTexture);
+            }
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TTArray array)
+{
+    addGenerator(
+        [this, array](int state, TestTextureDesc testTexture)
+        {
+            if (is_set(array, TTArray::Off))
+            {
+                testTexture.desc.arrayLength = 1;
+                next(state, testTexture);
+            }
+            if (is_set(array, TTArray::On))
+            {
+                testTexture.desc.arrayLength = 2;
+                next(state, testTexture);
+            }
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TTMS multisample)
+{
+    addGenerator(
+        [this, multisample](int state, TestTextureDesc testTexture)
+        {
+            if (is_set(multisample, TTMS::Off))
+            {
+                testTexture.desc.sampleCount = 1;
+                next(state, testTexture);
+            }
+            if (is_set(multisample, TTMS::On))
+            {
+                testTexture.desc.sampleCount = 4;
+                next(state, testTexture);
+            }
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(Format format)
+{
+    addGenerator(
+        [this, format](int state, TestTextureDesc testTexture)
+        {
+            testTexture.desc.format = format;
+            next(state, testTexture);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(const std::vector<Format>& formats)
+{
+    addGenerator(
+        [this, formats](int state, TestTextureDesc testTexture)
+        {
+            for (Format format : formats)
+            {
+                testTexture.desc.format = format;
+                next(state, testTexture);
+            }
+        }
+    );
+}
+
+// Nice selection of formats to test
+Format kStandardFormats[] = {
+    Format::D16Unorm,
+    Format::D32FloatS8Uint,
+    Format::D32Float,
+    Format::RGBA32Uint,
+    Format::RGB32Uint,
+    Format::RGBA32Float,
+    Format::R32Float,
+    Format::RGBA16Float,
+    Format::RGBA16Uint,
+    Format::RGBA8Uint,
+    Format::RGBA8Unorm,
+    Format::RGBA8UnormSrgb,
+    Format::RGBA16Snorm,
+    Format::RGBA8Snorm,
+    Format::RGB10A2Unorm,
+    Format::BC1Unorm,
+    Format::BC1UnormSrgb,
+    Format::R64Uint,
+};
+
+void TextureTestOptions::postProcessVariant(int state, TestTextureDesc variant)
+{
+    SLANG_RHI_ASSERT(variant.desc.type != (TextureType)-1); // types must be specified
+
+    // Defaults for arrays, mips and multisample are all off
+    TextureDesc& desc = variant.desc;
+    if (desc.arrayLength == 0)
+        desc.arrayLength = 1;
+    if (desc.mipLevelCount == 0)
+        desc.mipLevelCount = 1;
+    if (desc.sampleCount == 0)
+        desc.sampleCount = 1;
+
+    // If user has explicitly made it an array, switch to array type.
+    // Note: has no effect if type already explicitly an array.
+    if (desc.arrayLength > 1)
+    {
+        TextureType arrayType;
+        if (!getArrayType(desc.type, arrayType))
+            return;
+        desc.type = arrayType;
+    }
+
+    // If user has explicitly made it multisampled, switch to multisampled type.
+    // Note: has no effect if type already explicitly multisampled.
+    if (desc.sampleCount > 1)
+    {
+        TextureType multisampleType;
+        if (!getMultisampleType(desc.type, multisampleType))
+            return;
+        desc.type = multisampleType;
+    }
+
+
+    // Set size based on type.
+    switch (desc.type)
+    {
+    case rhi::TextureType::Texture1D:
+    case rhi::TextureType::Texture1DArray:
+        desc.size = {128, 1, 1};
+        break;
+    case rhi::TextureType::Texture2D:
+    case rhi::TextureType::Texture2DArray:
+    case rhi::TextureType::Texture2DMS:
+    case rhi::TextureType::Texture2DMSArray:
+        desc.size = {128, 64, 1};
+        break;
+    case rhi::TextureType::Texture3D:
+        desc.size = {128, 64, 4};
+        break;
+    case rhi::TextureType::TextureCube:
+    case rhi::TextureType::TextureCubeArray:
+        desc.size = {128, 128, 1};
+        break;
+    default:
+        break;
+    }
+
+    // Ensure array size greater than 1 for any of the array types.
+    switch (desc.type)
+    {
+    case rhi::TextureType::Texture1DArray:
+    case rhi::TextureType::Texture2DArray:
+    case rhi::TextureType::Texture2DMSArray:
+    case rhi::TextureType::TextureCubeArray:
+        desc.arrayLength = max(desc.arrayLength, 2U);
+    default:
+        break;
+    }
+
+    // Ensure sample count greater than 1 for any MS types
+    switch (desc.type)
+    {
+    case rhi::TextureType::Texture2DMS:
+    case rhi::TextureType::Texture2DMSArray:
+        desc.sampleCount = max(desc.sampleCount, 2U);
+        break;
+    default:
+        break;
+    }
+
+    // Can't init multisampled textures
+    if (isMultisamplingType(variant.desc.type))
+        variant.initMode = TextureInitMode::None;
+
+    if (variant.desc.format == Format::Undefined)
+    {
+        // If format not specified, add standard test formats.
+        for (Format format : kStandardFormats)
+        {
+            variant.desc.format = format;
+            next(state, variant);
         }
     }
+    else
+    {
+        // Format already specified so just pass through
+        next(state, variant);
+    }
+}
+
+void TextureTestOptions::filterFormat(int state, TestTextureDesc variant)
+{
+    Format format = variant.desc.format;
+
+    // Skip if device doesn't support format.
+    FormatSupport support;
+    m_device->getFormatSupport(format, &support);
+    if (!is_set(support, FormatSupport::Texture))
+        return;
+
+    const FormatInfo& info = getFormatInfo(format);
+
+    // TODO: Fix compressed format test on metal. Was seeing fatal error:
+    // 'Linear textures do not support compressed pixel formats'.
+    if (m_device->getDeviceType() == DeviceType::Metal && (info.isCompressed || info.hasDepth || info.hasStencil))
+        return;
+
+    // WebGPU doesn't support writing into depth textures.
+    if (m_device->getDeviceType() == DeviceType::WGPU && (info.hasDepth || info.hasStencil))
+        return;
+
+    // Skip texture types that don't support compression options.
+    if (info.isCompressed)
+    {
+        if (!supportsCompressedFormats(variant.desc))
+            return;
+    }
+
+    // Skip texture types that don't support depth/stencil options/
+    if (info.hasDepth || info.hasStencil)
+    {
+        if (!supportsDepthFormats(variant.desc))
+            return;
+    }
+
+    // Skip formats that don't support texture multisampling options/
+    if (isMultisamplingType(variant.desc.type))
+    {
+        if (!formatSupportsMultisampling(format))
+            return;
+    }
+
+    next(state, variant);
 }
 
 //----------------------------------------------------------
