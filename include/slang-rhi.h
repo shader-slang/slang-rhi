@@ -247,6 +247,14 @@ enum class Format
     _Count,
 };
 
+enum class FormatKind
+{
+    Integer,
+    Normalized,
+    Float,
+    DepthStencil,
+};
+
 enum class IndexFormat
 {
     Uint16,
@@ -260,7 +268,10 @@ enum class IndexFormat
 // TODO: Width/Height/Depth/whatever should not be used. We should use extentX, extentY, etc.
 struct FormatInfo
 {
+    Format format;
     const char* name;
+    /// The kind of format.
+    FormatKind kind;
     /// The amount of channels in the format. Only set if the channelType is set.
     uint8_t channelCount;
     /// One of SlangScalarType None if type isn't made up of elements of type. TODO: Change to uint32_t?
@@ -274,8 +285,14 @@ struct FormatInfo
     /// The height of a block in pixels.
     uint8_t blockHeight;
 
+    bool hasRed : 1;
+    bool hasGreen : 1;
+    bool hasBlue : 1;
+    bool hasAlpha : 1;
     bool hasDepth : 1;
     bool hasStencil : 1;
+    bool isSigned : 1;
+    bool isSrgb : 1;
     bool isCompressed : 1;
 };
 
