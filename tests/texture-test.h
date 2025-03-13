@@ -437,7 +437,7 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
 
         // TODO: Fix compressed format test on metal. Was seeing fatal error:
         // 'Linear textures do not support compressed pixel formats'.
-        if (device->getDeviceType() == DeviceType::Metal && info.isCompressed)
+        if (device->getDeviceType() == DeviceType::Metal && (info.isCompressed || info.hasDepth || info.hasStencil))
             continue;
 
         // Web gpu doesn't support writing into depth textures.
