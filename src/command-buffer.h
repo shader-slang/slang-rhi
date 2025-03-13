@@ -228,7 +228,7 @@ public:
         SubresourceRange subresourceRange,
         Offset3D offset,
         Extents extent,
-        SubresourceData* subresourceData,
+        const SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) override;
 

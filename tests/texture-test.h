@@ -12,6 +12,7 @@ namespace rhi::testing {
 /// How to initialize texture data.
 enum class TextureInitMode
 {
+    None,    // Don't initialize
     Zeros,   // Start with 0s
     Invalid, // Start with 0xcd
     Random,  // Start with deterministic random data
@@ -319,6 +320,7 @@ public:
     IDevice* getDevice() const { return m_device; }
     ComPtr<ITexture> getTexture(int index) const { return m_textures[index]; }
     const TextureData& getTextureData(int index) const { return m_datas[index]; }
+    TextureData& getTextureData(int index) { return m_datas[index]; }
 
 private:
     IDevice* m_device;
@@ -330,16 +332,6 @@ private:
 /// TODO(testing): Format selection should be part of test variant generation.
 inline bool shouldIgnoreFormat(Format format)
 {
-    switch (format)
-    {
-    case Format::D16Unorm:
-    case Format::D32FloatS8Uint:
-    case Format::D32Float:
-        return true;
-    default:
-        break;
-    }
-
     return false;
 }
 
@@ -359,6 +351,43 @@ inline bool supportsCompressedFormats(const TextureDesc& desc)
     }
 }
 
+/// Texture types that can support depth formats
+inline bool supportsDepthFormats(const TextureDesc& desc)
+{
+    switch (desc.type)
+    {
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+        return true;
+    default:
+        return false;
+    }
+}
+
+inline bool isMultisamplingType(TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/// Whether a format should be used with multisampling
+inline bool formatSupportsMultisampling(Format format)
+{
+    switch (format)
+    {
+    case Format::RGBA8Unorm:
+        return true;
+    default:
+        return false;
+    }
+}
+
 /// Run a texture test.
 /// - func: should be a callable of the form void(TextureTestContext*, Args...)
 /// - args: 0 or more user defined arguments that are forwarded to the function
@@ -369,7 +398,11 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
 {
     // Nice selection of formats to test
     Format formats[] = {
+        Format::D16Unorm,
+        Format::D32FloatS8Uint,
+        Format::D32Float,
         Format::RGBA32Uint,
+        Format::RGB32Uint,
         Format::RGBA32Float,
         Format::R32Float,
         Format::RGBA16Float,
@@ -405,7 +438,11 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
 
         // TODO: Fix compressed format test on metal. Was seeing fatal error:
         // 'Linear textures do not support compressed pixel formats'.
-        if (device->getDeviceType() == DeviceType::Metal && info.isCompressed)
+        if (device->getDeviceType() == DeviceType::Metal && (info.isCompressed || info.hasDepth || info.hasStencil))
+            continue;
+
+        // WebGPU doesn't support writing into depth textures.
+        if (device->getDeviceType() == DeviceType::WGPU && (info.hasDepth || info.hasStencil))
             continue;
 
         for (auto& variant : options.getVariants())
@@ -422,6 +459,18 @@ inline void runTextureTest(TextureTestOptions options, Func&& func, Args&&... ar
             if (info.isCompressed)
             {
                 if (!supportsCompressedFormats(td))
+                    continue;
+            }
+
+            if (info.hasDepth || info.hasStencil)
+            {
+                if (!supportsDepthFormats(td))
+                    continue;
+            }
+
+            if (isMultisamplingType(td.type))
+            {
+                if (!formatSupportsMultisampling(format))
                     continue;
             }
 

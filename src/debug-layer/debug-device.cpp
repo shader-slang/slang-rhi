@@ -70,6 +70,8 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
 {
     SLANG_RHI_API_FUNC;
 
+    DeviceType deviceType = getDeviceType();
+
     if (uint32_t(desc.type) > uint32_t(TextureType::TextureCubeArray))
     {
         RHI_VALIDATION_ERROR("Invalid texture type");
@@ -112,6 +114,44 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
     {
         RHI_VALIDATION_ERROR("Texture array length must be 1 for non-array textures");
         return SLANG_E_INVALID_ARG;
+    }
+
+    switch (desc.type)
+    {
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+    {
+        if (desc.sampleCount < 1)
+        {
+            RHI_VALIDATION_ERROR("Texture sample count must be at least 1");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (initData)
+        {
+            RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (desc.mipLevelCount != 1)
+        {
+            RHI_VALIDATION_ERROR("Texture with multisample type cannot have mip levels");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (deviceType == DeviceType::WGPU && desc.sampleCount != 4)
+        {
+            RHI_VALIDATION_ERROR("WebGPU only supports sample count of 4");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (deviceType == DeviceType::WGPU && desc.arrayLength != 1)
+        {
+            RHI_VALIDATION_ERROR("WebGPU doesn't support multisampled texture arrays");
+            return SLANG_E_INVALID_ARG;
+        }
+
+
+        break;
+    }
+    default:
+        break;
     }
 
     switch (desc.type)
@@ -412,6 +452,29 @@ Result DebugDevice::readTexture(
     Size* outPixelSize
 )
 {
+    const TextureDesc& desc = texture->getDesc();
+
+    if (layer > desc.getLayerCount())
+    {
+        RHI_VALIDATION_ERROR("Layer index out of bounds");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (mipLevel > desc.mipLevelCount)
+    {
+        RHI_VALIDATION_ERROR("Mip level out of bounds");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    switch (desc.type)
+    {
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        RHI_VALIDATION_ERROR("Multisample textures cannot be read");
+        return SLANG_E_INVALID_ARG;
+    default:
+        break;
+    }
+
     return baseObject->readTexture(texture, layer, mipLevel, outBlob, outRowPitch, outPixelSize);
 }
 

@@ -741,6 +741,12 @@ struct SubresourceLayout
     /// Overall size required to fit the subresource data (typically size.z*strideZ).
     Size sizeInBytes;
 
+    /// Block width in texels (1 for uncompressed formats).
+    Size blockWidth;
+
+    /// Block height in texels (1 for uncompressed formats).
+    Size blockHeight;
+
     /// Number of rows. Will match size.height for uncompressed formats. For compressed
     /// formats, this will be alignUp(size.height, blockHeight)/blockHeight.
     Size rowCount;
@@ -1997,7 +2003,7 @@ public:
         SubresourceRange subresourceRange,
         Offset3D offset,
         Extents extent,
-        SubresourceData* subresourceData,
+        const SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) = 0;
 

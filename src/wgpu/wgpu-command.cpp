@@ -268,9 +268,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             WGPUImageCopyBuffer srcRegion;
             srcRegion.buffer = buffer->m_buffer;
             srcRegion.layout.bytesPerRow = srLayout->strideY;
-
-            // TODO(row-stride): Should this take into account block?
-            srcRegion.layout.rowsPerImage = srLayout->size.height;
+            srcRegion.layout.rowsPerImage = srLayout->rowCount;
 
             srcRegion.layout.offset = bufferOffset;
 
@@ -285,8 +283,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             dstRegion.texture = dst->m_texture;
 
             WGPUExtent3D copySize;
-            copySize.width = srLayout->size.width;
-            copySize.height = srLayout->size.height;
+            copySize.width = math::calcAligned2(srLayout->size.width, srLayout->blockWidth);
+            copySize.height = math::calcAligned2(srLayout->size.height, srLayout->blockHeight);
             copySize.depthOrArrayLayers = srLayout->size.depth;
 
             m_ctx.api.wgpuCommandEncoderCopyBufferToTexture(m_commandEncoder, &srcRegion, &dstRegion, &copySize);

@@ -980,8 +980,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     TextureDesc desc = fixupTextureDesc(desc_);
 
-    const FormatInfo& formatInfo = getFormatInfo(desc.format);
-
     bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
     if (isDepthFormat(desc.format) &&
         (is_set(desc.usage, TextureUsage::ShaderResource) || is_set(desc.usage, TextureUsage::UnorderedAccess)))
@@ -1031,7 +1029,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         }
         SLANG_RETURN_ON_FAIL(
             texture->m_resource
-                .initCommitted(m_device, heapProps, flags, resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, clearValuePtr)
+                .initCommitted(m_device, heapProps, flags, resourceDesc, texture->m_defaultState, clearValuePtr)
         );
 
         if (desc.label)
@@ -1040,165 +1038,31 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         }
     }
 
-    // Calculate the layout
-    std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts;
-    layouts.resize(desc.mipLevelCount);
-    std::vector<uint64_t> mipRowSizeInBytes;
-    mipRowSizeInBytes.resize(desc.mipLevelCount);
-    std::vector<uint32_t> mipNumRows;
-    mipNumRows.resize(desc.mipLevelCount);
-
-    // NOTE! This is just the size for one array upload -> not for the whole texture
-    uint64_t requiredSize = 0;
-    m_device->GetCopyableFootprints(
-        &resourceDesc,
-        0,
-        desc.mipLevelCount,
-        0,
-        layouts.data(),
-        mipNumRows.data(),
-        mipRowSizeInBytes.data(),
-        &requiredSize
-    );
-
-    // Sub resource indexing
-    // https://msdn.microsoft.com/en-us/library/windows/desktop/dn705766(v=vs.85).aspx#subresource_indexing
+    // Upload init data if we have some
     if (initData)
     {
-        // Create the upload texture
-        D3D12Resource uploadTexture;
+        ComPtr<ICommandQueue> queue;
+        SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
 
-        {
-            D3D12_HEAP_PROPERTIES heapProps;
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
-            heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-            heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-            heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-            heapProps.CreationNodeMask = 1;
-            heapProps.VisibleNodeMask = 1;
+        SubresourceRange range;
+        range.mipLevel = 0;
+        range.mipLevelCount = desc.mipLevelCount;
+        range.baseArrayLayer = 0;
+        range.layerCount = desc.getLayerCount();
 
-            D3D12_RESOURCE_DESC uploadResourceDesc;
+        commandEncoder->uploadTextureData(
+            texture,
+            range,
+            {0, 0, 0},
+            Extents::kWholeTexture,
+            initData,
+            range.layerCount * desc.mipLevelCount
+        );
 
-            uploadResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-            uploadResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-            uploadResourceDesc.Width = requiredSize;
-            uploadResourceDesc.Height = 1;
-            uploadResourceDesc.DepthOrArraySize = 1;
-            uploadResourceDesc.MipLevels = 1;
-            uploadResourceDesc.SampleDesc.Count = 1;
-            uploadResourceDesc.SampleDesc.Quality = 0;
-            uploadResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-            uploadResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-            uploadResourceDesc.Alignment = 0;
-
-            SLANG_RETURN_ON_FAIL(uploadTexture.initCommitted(
-                m_device,
-                heapProps,
-                D3D12_HEAP_FLAG_NONE,
-                uploadResourceDesc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr
-            ));
-
-            uploadTexture.setDebugName(L"TextureUpload");
-        }
-        // Get the pointer to the upload resource
-        ID3D12Resource* uploadResource = uploadTexture;
-
-        uint32_t subresourceIndex = 0;
-        uint32_t layerCount = desc.getLayerCount();
-        for (uint32_t layer = 0; layer < layerCount; layer++)
-        {
-            uint8_t* p;
-            uploadResource->Map(0, nullptr, reinterpret_cast<void**>(&p));
-
-            for (uint32_t j = 0; j < desc.mipLevelCount; ++j)
-            {
-                auto srcSubresource = initData[subresourceIndex + j];
-
-                const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[j];
-                const D3D12_SUBRESOURCE_FOOTPRINT& footprint = layout.Footprint;
-
-                Extents mipSize = calcMipSize(desc.size, j);
-                if (formatInfo.isCompressed)
-                {
-                    mipSize.width = (int32_t)math::calcAligned(mipSize.width, 4); // TODO(alignment): is block size of 4
-                                                                                  // always correct?
-                    mipSize.height = (int32_t)math::calcAligned(mipSize.height, 4);
-                }
-
-                SLANG_RHI_ASSERT(
-                    footprint.Width == mipSize.width && footprint.Height == mipSize.height &&
-                    footprint.Depth == mipSize.depth
-                );
-
-                auto mipRowSize = mipRowSizeInBytes[j];
-
-                const ptrdiff_t dstMipRowPitch = ptrdiff_t(footprint.RowPitch);
-                const ptrdiff_t srcMipRowPitch = ptrdiff_t(srcSubresource.strideY);
-
-                const ptrdiff_t dstMipLayerPitch = ptrdiff_t(footprint.RowPitch * footprint.Height);
-                const ptrdiff_t srcMipLayerPitch = ptrdiff_t(srcSubresource.strideZ);
-
-                // Our outer loop will copy the depth layers one at a time.
-                //
-                const uint8_t* srcLayer = (const uint8_t*)srcSubresource.data;
-                uint8_t* dstLayer = p + layouts[j].Offset;
-                for (uint32_t l = 0; l < mipSize.depth; l++)
-                {
-                    // Our inner loop will copy the rows one at a time.
-                    //
-                    const uint8_t* srcRow = srcLayer;
-                    uint8_t* dstRow = dstLayer;
-                    // BC compressed formats are organized into 4x4 blocks
-                    int inc = formatInfo.isCompressed ? 4 : 1;
-                    for (uint32_t k = 0; k < mipSize.height; k += inc)
-                    {
-                        ::memcpy(dstRow, srcRow, (Size)mipRowSize);
-
-                        srcRow += srcMipRowPitch;
-                        dstRow += dstMipRowPitch;
-                    }
-
-                    srcLayer += srcMipLayerPitch;
-                    dstLayer += dstMipLayerPitch;
-                }
-
-                // SLANG_RHI_ASSERT(srcRow == (const uint8_t*)(srcMip.getBuffer() + srcMip.getCount()));
-            }
-            uploadResource->Unmap(0, nullptr);
-
-            ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
-
-            for (uint32_t mipIndex = 0; mipIndex < desc.mipLevelCount; ++mipIndex)
-            {
-                // https://msdn.microsoft.com/en-us/library/windows/desktop/dn903862(v=vs.85).aspx
-
-                D3D12_TEXTURE_COPY_LOCATION src;
-                src.pResource = uploadTexture;
-                src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-                src.PlacedFootprint = layouts[mipIndex];
-
-                D3D12_TEXTURE_COPY_LOCATION dst;
-                dst.pResource = texture->m_resource;
-                dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-                dst.SubresourceIndex = subresourceIndex;
-                commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
-
-                subresourceIndex++;
-            }
-
-            // Block - waiting for copy to complete (so can drop upload texture)
-            endImmediateCommandList();
-        }
-    }
-    {
-        ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
-        {
-            D3D12BarrierSubmitter submitter(commandList);
-            texture->m_resource.transition(D3D12_RESOURCE_STATE_COPY_DEST, texture->m_defaultState, submitter);
-        }
-        endImmediateCommandList();
+        SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
     }
 
     returnComPtr(outTexture, texture);
