@@ -99,65 +99,31 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         return SLANG_FAIL;
     }
 
+    // Upload init data if we have some
     if (initData)
     {
-        const FormatInfo& formatInfo = getFormatInfo(desc.format);
+        ComPtr<ICommandQueue> queue;
+        SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
 
-        WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
-        SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
-        uint32_t mipLevelCount = desc.mipLevelCount;
-        uint32_t layerCount = desc.getLayerCount();
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
-        for (uint32_t layer = 0; layer < layerCount; ++layer)
-        {
-            for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; ++mipLevel)
-            {
-                Extents mipSize = calcMipSize(desc.size, mipLevel);
-                uint32_t subresourceIndex = layer * mipLevelCount + mipLevel;
-                const SubresourceData& data = initData[subresourceIndex];
+        SubresourceRange range;
+        range.mipLevel = 0;
+        range.mipLevelCount = desc.mipLevelCount;
+        range.baseArrayLayer = 0;
+        range.layerCount = desc.getLayerCount();
 
-                WGPUImageCopyTexture imageCopyTexture = {};
-                imageCopyTexture.texture = texture->m_texture;
-                imageCopyTexture.mipLevel = mipLevel;
-                imageCopyTexture.origin = {0, 0, layer};
-                imageCopyTexture.aspect = WGPUTextureAspect_All;
+        commandEncoder->uploadTextureData(
+            texture,
+            range,
+            {0, 0, 0},
+            Extents::kWholeTexture,
+            initData,
+            range.layerCount * desc.mipLevelCount
+        );
 
-                WGPUExtent3D writeSize = {};
-                writeSize.width =
-                    ((mipSize.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockWidth;
-                writeSize.height =
-                    ((mipSize.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight) * formatInfo.blockHeight;
-                writeSize.depthOrArrayLayers = mipSize.depth;
-
-                WGPUTextureDataLayout dataLayout = {};
-                dataLayout.offset = 0;
-                dataLayout.bytesPerRow = data.strideY;
-                dataLayout.rowsPerImage = writeSize.height / formatInfo.blockHeight;
-
-                size_t dataSize = dataLayout.bytesPerRow * dataLayout.rowsPerImage * mipSize.depth;
-
-                m_ctx.api.wgpuQueueWriteTexture(queue, &imageCopyTexture, data.data, dataSize, &dataLayout, &writeSize);
-            }
-        }
-
-        // Wait for queue to finish.
-        {
-            WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
-            WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
-            callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-            callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-            { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
-            callbackInfo.userdata1 = &status;
-            WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
-            constexpr size_t futureCount = 1;
-            WGPUFutureWaitInfo futures[futureCount] = {{future}};
-            uint64_t timeoutNS = UINT64_MAX;
-            WGPUWaitStatus waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, futureCount, futures, timeoutNS);
-            if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
-            {
-                return SLANG_FAIL;
-            }
-        }
+        SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
     }
 
     returnComPtr(outTexture, texture);
