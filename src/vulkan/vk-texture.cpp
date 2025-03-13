@@ -325,7 +325,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
     }
 
-    m_deviceQueue.flushAndWait();
     returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
