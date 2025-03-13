@@ -14,7 +14,8 @@ enum class TextureInitMode
 {
     Zeros,   // Start with 0s
     Invalid, // Start with 0xcd
-    Random   // Start with deterministic random data
+    Random,  // Start with deterministic random data
+    MipLevel // Set each byte to its mip level
 };
 
 /// CPU equivalent of a texture, along with helpers to create textures
@@ -132,8 +133,25 @@ public:
     TextureTestOptions(IDevice* device, int numTextures = 1, TextureInitMode* initMode = nullptr)
         : m_device(device)
         , m_numTextures(numTextures)
-        , m_initMode(initMode)
     {
+        m_initMode.resize(numTextures);
+        if (initMode)
+        {
+            for (int i = 0; i < numTextures; i++)
+                m_initMode[i] = initMode[i];
+        }
+        else
+        {
+            for (int i = 0; i < numTextures; i++)
+                m_initMode[i] = TextureInitMode::Random;
+        }
+    }
+
+    TextureTestOptions(IDevice* device, TextureInitMode initMode = TextureInitMode::Random)
+        : m_device(device)
+        , m_numTextures(1)
+    {
+        m_initMode.push_back(initMode);
     }
 
     /// Manually add a specific variant.
@@ -164,7 +182,7 @@ public:
 private:
     IDevice* m_device;
     int m_numTextures;
-    TextureInitMode* m_initMode;
+    std::vector<TextureInitMode> m_initMode;
     std::vector<TextureTestVariant> m_variants;
 
 

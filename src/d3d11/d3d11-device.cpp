@@ -351,6 +351,7 @@ Result DeviceImpl::readTexture(
 )
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
+
     // Don't bother supporting MSAA for right now
     if (textureImpl->m_desc.sampleCount > 1)
     {
@@ -358,62 +359,130 @@ Result DeviceImpl::readTexture(
         return E_INVALIDARG;
     }
 
+    // Get texture descriptor.
+    TextureDesc desc = textureImpl->getDesc();
+
+    // This pointer exists at root scope to ensure that if a temp texture
+    // needs to be made, it is kept alive for the duration of the function.
+    ComPtr<ITexture> tempTexture;
+
+    // Output pixel size
     const FormatInfo& formatInfo = getFormatInfo(textureImpl->m_desc.format);
     size_t bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    size_t rowPitch = int(textureImpl->m_desc.size.width) * bytesPerPixel;
-    size_t bufferSize = rowPitch * int(textureImpl->m_desc.size.height);
-    if (outRowPitch)
-        *outRowPitch = rowPitch;
     if (outPixelSize)
         *outPixelSize = bytesPerPixel;
 
-    D3D11_TEXTURE2D_DESC textureDesc;
-    memset(&textureDesc, 0, sizeof(textureDesc));
-    auto d3d11Texture = ((ID3D11Texture2D*)textureImpl->m_resource.get());
-    d3d11Texture->GetDesc(&textureDesc);
+    // Calculate layout info.
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
 
-    HRESULT hr = S_OK;
-    ComPtr<ID3D11Texture2D> stagingTexture;
-
-    if (textureDesc.Usage == D3D11_USAGE_STAGING && (textureDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ))
+    TextureImpl* stagingTextureImpl = nullptr;
+    uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
+    if (desc.memoryType == MemoryType::ReadBack)
     {
-        stagingTexture = d3d11Texture;
+        // The texture is already a staging texture, so we can just use it directly.
+        stagingTextureImpl = textureImpl;
     }
     else
     {
-        // Modify the descriptor to give us a staging texture
-        textureDesc.BindFlags = 0;
-        textureDesc.MiscFlags &= ~D3D11_RESOURCE_MISC_TEXTURECUBE;
-        textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-        textureDesc.Usage = D3D11_USAGE_STAGING;
+        // Due to complexity of texture creation, create a full slang-rhi texture set as read-back
+        // rather than try to create a device version
+        TextureDesc copyDesc = textureImpl->getDesc();
+        copyDesc.memoryType = MemoryType::ReadBack;
+        copyDesc.usage = TextureUsage::CopyDestination;
 
-        hr = m_device->CreateTexture2D(&textureDesc, 0, stagingTexture.writeRef());
-        if (FAILED(hr))
+        // We just want to create a texture to copy the single subresource, so:
+        // - Reduce dimensions to that of the mip level
+        // - Only 1 mip level
+        // - Arrays turn into their none-array counterpart
+        // - Cube maps turn into 2D textures (as we only want 1 face)
+
+        // Adjust mips, size and array
+        copyDesc.mipLevelCount = 1;
+        copyDesc.size = layout.size;
+        copyDesc.arrayLength = 1;
+
+        // Ensure width/height of subresource are large enough to hold a block
+        // for compressed textures.
+        copyDesc.size.width = math::calcAligned2(copyDesc.size.width, formatInfo.blockWidth);
+        copyDesc.size.height = math::calcAligned2(copyDesc.size.height, formatInfo.blockHeight);
+
+        // Change type
+        switch (copyDesc.type)
         {
-            fprintf(stderr, "ERROR: failed to create staging texture\n");
-            return hr;
+        case TextureType::Texture1DArray:
+            copyDesc.type = TextureType::Texture1D;
+            break;
+        case TextureType::Texture2DArray:
+        case TextureType::TextureCube:
+        case TextureType::TextureCubeArray:
+            copyDesc.type = TextureType::Texture2D;
+            break;
+        case TextureType::Texture2DMSArray:
+            copyDesc.type = TextureType::Texture2DMS;
+            break;
+        default:
+            break;
         }
 
-        m_immediateContext->CopyResource(stagingTexture, d3d11Texture);
+        // Create texture + do a few checks to make sure logic is correct
+        SLANG_RETURN_ON_FAIL(createTexture(copyDesc, nullptr, tempTexture.writeRef()));
+        stagingTextureImpl = checked_cast<TextureImpl*>(tempTexture.get());
+        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().mipLevelCount == 1);
+        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().getLayerCount() == 1);
+
+        // Copy the source subresource to subresource 0 of the staging texture, then switch
+        // the subresource to be copied from to 0.
+        m_immediateContext->CopySubresourceRegion(
+            stagingTextureImpl->m_resource.get(),
+            0,
+            0,
+            0,
+            0,
+            textureImpl->m_resource.get(),
+            subResourceIdx,
+            nullptr
+        );
+        subResourceIdx = 0;
     }
+
+    // Output row size
+    if (outRowPitch)
+        *outRowPitch = layout.strideY;
 
     // Now just read back texels from the staging textures
     {
         D3D11_MAPPED_SUBRESOURCE mappedResource;
-        SLANG_RETURN_ON_FAIL(m_immediateContext->Map(stagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource));
+        SLANG_RETURN_ON_FAIL(
+            m_immediateContext
+                ->Map(stagingTextureImpl->m_resource.get(), subResourceIdx, D3D11_MAP_READ, 0, &mappedResource)
+        );
 
-        auto blob = OwnedBlob::create(bufferSize);
-        char* buffer = (char*)blob->getBufferPointer();
-        for (size_t y = 0; y < textureDesc.Height; y++)
+        auto blob = OwnedBlob::create(layout.sizeInBytes);
+        uint8_t* srcBuffer = (uint8_t*)mappedResource.pData;
+        uint8_t* dstBuffer = (uint8_t*)blob->getBufferPointer();
+
+        // Data should be the same, but alignment may not be, so the row copy
+        // needs to be the minimum of the two row sizes.
+        uint32_t copyPitch = min(layout.strideY, (size_t)mappedResource.RowPitch);
+
+        // Copy a row at a time.
+        for (int z = 0; z < layout.size.depth; z++)
         {
-            memcpy(
-                (char*)buffer + y * (*outRowPitch),
-                (char*)mappedResource.pData + y * mappedResource.RowPitch,
-                *outRowPitch
-            );
+            uint8_t* srcRow = srcBuffer;
+            uint8_t* dstRow = dstBuffer;
+            for (int y = 0; y < layout.rowCount; y++)
+            {
+                std::memcpy(dstRow, srcRow, copyPitch);
+                srcRow += mappedResource.RowPitch;
+                dstRow += layout.strideY;
+            }
+            srcBuffer += mappedResource.DepthPitch;
+            dstBuffer += layout.strideZ;
         }
+
         // Make sure to unmap
-        m_immediateContext->Unmap(stagingTexture, 0);
+        m_immediateContext->Unmap(stagingTextureImpl->m_resource.get(), subResourceIdx);
 
         returnComPtr(outBlob, blob);
         return SLANG_OK;

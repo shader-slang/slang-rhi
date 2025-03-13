@@ -1,5 +1,6 @@
 #include "cpu-buffer.h"
 #include "cpu-device.h"
+#include "cpu-texture.h"
 
 namespace rhi::cpu {
 

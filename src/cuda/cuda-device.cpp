@@ -348,7 +348,6 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
     switch (format)
     {
     case Format::RGBA32Float:
-    case Format::RGB32Float:
     case Format::RG32Float:
     case Format::R32Float:
     case Format::D32Float:
@@ -360,7 +359,6 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
         *outFormat = CU_AD_FORMAT_HALF;
         return SLANG_OK;
     case Format::RGBA32Uint:
-    case Format::RGB32Uint:
     case Format::RG32Uint:
     case Format::R32Uint:
         *outFormat = CU_AD_FORMAT_UNSIGNED_INT32;
@@ -377,7 +375,6 @@ Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
         *outFormat = CU_AD_FORMAT_UNSIGNED_INT8;
         return SLANG_OK;
     case Format::RGBA32Sint:
-    case Format::RGB32Sint:
     case Format::RG32Sint:
     case Format::R32Sint:
         *outFormat = CU_AD_FORMAT_SIGNED_INT32;
@@ -427,9 +424,6 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
     case Format::RG32Uint:
     case Format::RG32Sint:
     case Format::RG32Float:
-    case Format::RGB32Uint:
-    case Format::RGB32Sint:
-    case Format::RGB32Float:
     case Format::RGBA32Uint:
     case Format::RGBA32Sint:
     case Format::RGBA32Float:
