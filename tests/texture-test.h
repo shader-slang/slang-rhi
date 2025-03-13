@@ -128,28 +128,10 @@ typedef std::vector<GeneratorFunc> GeneratorList;
 class TextureTestOptions
 {
 public:
-    TextureTestOptions(IDevice* device, int numTextures = 1, TextureInitMode* initMode = nullptr)
+    TextureTestOptions(IDevice* device, int numTextures = 1)
         : m_device(device)
         , m_numTextures(numTextures)
     {
-        m_initMode.resize(numTextures);
-        if (initMode)
-        {
-            for (int i = 0; i < numTextures; i++)
-                m_initMode[i] = initMode[i];
-        }
-        else
-        {
-            for (int i = 0; i < numTextures; i++)
-                m_initMode[i] = TextureInitMode::Random;
-        }
-    }
-
-    TextureTestOptions(IDevice* device, TextureInitMode initMode = TextureInitMode::Random)
-        : m_device(device)
-        , m_numTextures(1)
-    {
-        m_initMode.push_back(initMode);
     }
 
     /// Manually add a specific variant.
@@ -159,7 +141,7 @@ public:
     std::vector<TextureTestVariant>& getVariants() { return m_variants; }
 
     /// Generate a full matrix of variants given a set of constraints:
-    /// - TestTextureDesc/TextureDesc: Explicitly specify a base texture descriptor
+    /// - TextureTestVariant/TestTextureDesc/TextureDesc: Explicitly specify descriptors
     /// - Format or vector<Format>: Explicit list of formats (defaults to standard list)
     /// - TTShape: Flags defining which texture types to test (1D/2D/3D/Cube)
     /// - TextureType: Explicitly specify texture type to test
@@ -191,7 +173,6 @@ public:
 private:
     IDevice* m_device;
     int m_numTextures;
-    std::vector<TextureInitMode> m_initMode;
     std::vector<TextureTestVariant> m_variants;
 
     std::vector<GeneratorList> m_generator_lists;
@@ -208,6 +189,10 @@ private:
     void processVariantArg(TextureDesc baseDesc);
 
     void processVariantArg(TestTextureDesc baseDesc);
+
+    void processVariantArg(TextureTestVariant baseDesc);
+
+    void processVariantArg(TextureInitMode initMode);
 
     void processVariantArg(TTShape shape);
 
@@ -241,9 +226,9 @@ public:
     Result addTexture(TextureData&& data);
 
     IDevice* getDevice() const { return m_device; }
-    ComPtr<ITexture> getTexture(int index) const { return m_textures[index]; }
-    const TextureData& getTextureData(int index) const { return m_datas[index]; }
-    TextureData& getTextureData(int index) { return m_datas[index]; }
+    ComPtr<ITexture> getTexture(int index = 0) const { return m_textures[index]; }
+    const TextureData& getTextureData(int index = 0) const { return m_datas[index]; }
+    TextureData& getTextureData(int index = 0) { return m_datas[index]; }
 
 private:
     IDevice* m_device;

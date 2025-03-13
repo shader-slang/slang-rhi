@@ -275,6 +275,30 @@ void TextureTestOptions::processVariantArg(TestTextureDesc baseDesc)
     );
 }
 
+void TextureTestOptions::processVariantArg(TextureTestVariant baseDesc)
+{
+    addGenerator(
+        [this, baseDesc](int state, TextureTestVariant variant)
+        {
+            // Explicit descriptor must be first argument
+            SLANG_RHI_ASSERT(state == 1);
+            next(state, baseDesc);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TextureInitMode initMode)
+{
+    addGenerator(
+        [this, initMode](int state, TextureTestVariant variant)
+        {
+            for (auto& testTexture : variant.descriptors)
+                testTexture.initMode = initMode;
+            next(state, variant);
+        }
+    );
+}
+
 void TextureTestOptions::processVariantArg(TTShape shape)
 {
     addGenerator(
