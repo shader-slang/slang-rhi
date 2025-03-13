@@ -2,6 +2,8 @@
 
 #include "testing.h"
 
+#include "core/short_vector.h"
+
 #include <vector>
 #include <type_traits>
 #include <functional>
@@ -117,17 +119,8 @@ bool getArrayType(TextureType type, TextureType& outArrayType);
 /// Checks and gets corresponding multisample type for texture type
 bool getMultisampleType(TextureType type, TextureType& outArrayType);
 
-/// Intermediate structure during variant generation. Value of -1 for a field
-/// means it is yet to be defined.
-struct VariantGen
-{
-    int type{-1};
-    int mip{-1};
-    int array{-1};
-    int multisample{-1};
-};
 
-typedef std::function<void(int, TestTextureDesc)> GeneratorFunc;
+typedef std::function<void(int, TextureTestVariant)> GeneratorFunc;
 typedef std::vector<GeneratorFunc> GeneratorList;
 
 
@@ -184,10 +177,10 @@ public:
         (processVariantArg(args), ...);
 
         // Add the post processor to generator list
-        addGenerator([this](int state, TestTextureDesc variant) { postProcessVariant(state, variant); });
+        addGenerator([this](int state, TextureTestVariant variant) { postProcessVariant(state, variant); });
 
         // Add the filter for invalid format combinations
-        addGenerator([this](int state, TestTextureDesc variant) { filterFormat(state, variant); });
+        addGenerator([this](int state, TextureTestVariant variant) { filterFormat(state, variant); });
     }
 
     /// Get current device.
@@ -208,7 +201,7 @@ private:
 
     void executeGeneratorList(int listIdx);
 
-    void next(int nextIndex, TestTextureDesc variant);
+    void next(int nextIndex, TextureTestVariant variant);
 
     void addGenerator(GeneratorFunc generator);
 
@@ -232,9 +225,9 @@ private:
 
     void processVariantArg(const std::vector<Format>& formats);
 
-    void postProcessVariant(int state, TestTextureDesc variant);
+    void postProcessVariant(int state, TextureTestVariant variant);
 
-    void filterFormat(int state, TestTextureDesc variant);
+    void filterFormat(int state, TextureTestVariant variant);
 };
 
 /// Context within which a given iteration of a texture test works. This
