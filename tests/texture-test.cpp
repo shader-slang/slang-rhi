@@ -32,6 +32,9 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     // Mip mapped multisampled textures not supported
     if (isMultisamplingType(desc.type) && desc.mipLevelCount > 1)
         return false;
+    // Array multisampled textures not supported on web gpu
+    if (device->getDeviceType() == DeviceType::WGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
+        return false;
     return true;
 }
 
