@@ -13,6 +13,7 @@
 #include "d3d12-helper-functions.h"
 #include "../state-tracking.h"
 #include "../strings.h"
+#include "../format-conversion.h"
 
 #include "core/short_vector.h"
 #include "core/common.h"
@@ -434,11 +435,13 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
             GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
             m_device->m_device
                 ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            uint32_t clearValue[4];
+            truncateBySintFormat(desc.format, cmd.clearValue, clearValue);
             m_cmdList->ClearUnorderedAccessViewUint(
                 descriptor.getGpuHandle(0),
                 uav,
                 texture->m_resource.getResource(),
-                cmd.clearValue,
+                clearValue,
                 0,
                 nullptr
             );
