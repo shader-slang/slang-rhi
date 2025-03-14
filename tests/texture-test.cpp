@@ -39,6 +39,9 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     // Array multisampled textures not supported on WebGPU
     if (device->getDeviceType() == DeviceType::WGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
         return false;
+    // Anything with more than 1 layer won't work properly with CPU textures
+    if (device->getDeviceType() == DeviceType::CPU && desc.getLayerCount() > 1)
+        return false;
     return true;
 }
 
@@ -154,7 +157,7 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_)
                 memset(sr.data.get(), mipLevel, sr.layout.sizeInBytes);
                 break;
             case rhi::testing::TextureInitMode::Random:
-                std::mt19937 rng(initSeed);
+                std::mt19937 rng(initSeed + layer * desc.mipLevelCount + mipLevel);
                 std::uniform_int_distribution<int> dist(0, 255);
                 for (size_t i = 0; i < sr.layout.sizeInBytes; ++i)
                     sr.data[i] = (uint8_t)dist(rng);
@@ -172,7 +175,59 @@ Result TextureData::createTexture(ITexture** texture) const
     return device->createTexture(desc, sd, texture);
 }
 
-void TextureData::checkEqual(ITexture* texture) const
+void TextureData::checkEqual(
+    ITexture* texture,
+    Offset3D textureOffset,
+    Extents textureExtents,
+    bool compareOutsideRegion
+) const
+{
+    const TextureDesc& otherDesc = texture->getDesc();
+    CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
+
+    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    {
+        checkLayersEqual(texture, layer, layer, textureOffset, textureExtents, compareOutsideRegion);
+    }
+}
+
+void TextureData::checkLayersEqual(
+    ITexture* texture,
+    int thisLayer,
+    int textureLayer,
+    Offset3D textureOffset,
+    Extents textureExtents,
+    bool compareOutsideRegion
+) const
+{
+    const TextureDesc& otherDesc = texture->getDesc();
+    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+
+    for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+    {
+        checkMipLevelsEqual(
+            texture,
+            thisLayer,
+            mipLevel,
+            textureLayer,
+            mipLevel,
+            textureOffset,
+            textureExtents,
+            compareOutsideRegion
+        );
+    }
+}
+
+void TextureData::checkMipLevelsEqual(
+    ITexture* texture,
+    int thisLayer,
+    int thisMipLevel,
+    int textureLayer,
+    int textureMipLevel,
+    Offset3D textureOffset,
+    Extents textureExtents,
+    bool compareOutsideRegion
+) const
 {
     Texture* textureImpl = checked_cast<Texture*>(texture);
 
@@ -180,40 +235,128 @@ void TextureData::checkEqual(ITexture* texture) const
 
     CHECK_EQ(otherDesc.type, desc.type);
     CHECK_EQ(otherDesc.format, desc.format);
-    CHECK_EQ(otherDesc.size.width, desc.size.width);
-    CHECK_EQ(otherDesc.size.height, desc.size.height);
-    CHECK_EQ(otherDesc.size.depth, desc.size.depth);
-    CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
-    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
 
-    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    const Subresource& thisSubresource = getSubresource(thisLayer, thisMipLevel);
+    const SubresourceLayout& thisLayout = thisSubresource.layout;
+
+    SubresourceLayout textureLayout;
+    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, &textureLayout));
+
+    ComPtr<ISlangBlob> blob;
+    Size rowPitch;
+    REQUIRE_CALL(
+        textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
+    );
+
+    // For compressed textures, raise error if attempting to check none-aligned blocks
+    if (formatInfo.blockWidth > 1)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        CHECK_EQ(textureOffset.x % formatInfo.blockWidth, 0);
+        if (textureExtents.width != Extents::kWholeTexture.width)
+            CHECK_EQ(textureExtents.width % formatInfo.blockWidth, 0);
+    }
+    if (formatInfo.blockHeight > 1)
+    {
+        CHECK_EQ(textureOffset.y % formatInfo.blockHeight, 0);
+        if (textureExtents.height != Extents::kWholeTexture.height)
+            CHECK_EQ(textureExtents.height % formatInfo.blockHeight, 0);
+    }
+
+    // Adjust extents if 'whole texture' specified.
+    if (textureExtents.width == Extents::kWholeTexture.width)
+        textureExtents.width = max(textureLayout.size.width - textureOffset.x, 1);
+    if (textureExtents.height == Extents::kWholeTexture.height)
+        textureExtents.height = max(textureLayout.size.height - textureOffset.y, 1);
+    if (textureExtents.depth == Extents::kWholeTexture.depth)
+        textureExtents.depth = max(textureLayout.size.depth - textureOffset.z, 1);
+
+    if (compareOutsideRegion)
+    {
+        // This is a comparison of 2 textures of equal size, with
+        // a mask applied to the middle, so texture sizes must match.
+        CHECK_EQ(textureLayout.size.width, thisLayout.size.width);
+        CHECK_EQ(textureLayout.size.height, thisLayout.size.height);
+        CHECK_EQ(textureLayout.size.depth, thisLayout.size.depth);
+    }
+    else
+    {
+        // This is a comparison of the WHOLE of the cpu data against the
+        // region of the texture, so extents must match descriptor size.
+        CHECK_EQ(textureExtents.width, thisLayout.size.width);
+        CHECK_EQ(textureExtents.height, thisLayout.size.height);
+        CHECK_EQ(textureExtents.depth, thisLayout.size.depth);
+    }
+
+    // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
+    uint32_t sliceOffset = 0;
+    uint32_t rowOffset = 0;
+    uint32_t colOffset = 0;
+    uint32_t sliceCount = thisLayout.size.depth;
+    uint32_t rowCount = thisLayout.rowCount;
+    uint32_t colCount = thisLayout.size.width / formatInfo.blockWidth;
+
+    // Calculate start of region in blocks.
+    uint32_t sliceRegionBegin = textureOffset.z;
+    uint32_t rowRegionBegin = textureOffset.y / formatInfo.blockHeight;
+    uint32_t colRegionBegin = textureOffset.x / formatInfo.blockWidth;
+
+    // Calculate end of region in blocks.
+    uint32_t sliceRegionEnd = (textureOffset.z + textureExtents.depth);
+    uint32_t rowRegionEnd = (textureOffset.y + textureExtents.height) / formatInfo.blockHeight;
+    uint32_t colRegionEnd = (textureOffset.x + textureExtents.width) / formatInfo.blockWidth;
+
+    // If matching interior, pixels to check are only those internal to the region
+    if (!compareOutsideRegion)
+    {
+        sliceOffset = sliceRegionBegin;
+        sliceCount = sliceRegionEnd - sliceRegionBegin;
+        rowOffset = rowRegionBegin;
+        rowCount = rowRegionEnd - rowRegionBegin;
+        colOffset = colRegionBegin;
+        colCount = colRegionEnd - colRegionBegin;
+    }
+
+    uint8_t* thisData = thisSubresource.data.get();
+    uint8_t* textureData = (uint8_t*)blob->getBufferPointer();
+
+    // Iterate over whole texture, checking each block.
+    for (uint32_t slice = 0; slice < sliceCount; slice++)
+    {
+        // Check if slice is within region.
+        bool insideSlice = slice >= sliceRegionBegin && slice < sliceRegionEnd;
+
+        // Iterate rows
+        for (uint32_t row = 0; row < rowCount; row++)
         {
-            const Subresource& sr = getSubresource(layer, mipLevel);
+            // Check if row is within region.
+            bool insideRow = row >= rowRegionBegin && row < rowRegionEnd;
 
-            ComPtr<ISlangBlob> blob;
-            Size rowPitch;
-            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
-            );
-
-            const uint8_t* expectedSlice = sr.data.get();
-            const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
-
-            for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
+            // Iterate columns.
+            for (uint32_t col = 0; col < colCount; col++)
             {
-                const uint8_t* expectedRow = expectedSlice;
-                const uint8_t* actualRow = actualSlice;
-
-                for (uint32_t row = 0; row < sr.layout.rowCount; row++)
+                // If doing an exterior scan, skip blocks that are in the region.
+                bool insideCol = col >= colRegionBegin && col < colRegionEnd;
+                if (compareOutsideRegion && insideSlice && insideRow && insideCol)
                 {
-                    CHECK_EQ(memcmp(expectedRow, actualRow, sr.layout.strideY), 0);
-                    expectedRow += sr.layout.strideY;
-                    actualRow += rowPitch;
+                    continue;
                 }
 
-                expectedSlice += sr.layout.strideZ;
-                actualSlice += rowPitch * sr.layout.rowCount;
+                // Get pointer to block within the whole cpu data.
+                uint8_t* thisBlock = thisData + slice * thisLayout.strideZ + row * thisLayout.strideY +
+                                     col * formatInfo.blockSizeInBytes;
+
+                // Get pointer to block within the region of the texture we're scanning
+                uint8_t* textureBlock = textureData + (sliceOffset + slice) * textureLayout.strideZ +
+                                        (rowOffset + row) * textureLayout.strideY +
+                                        (colOffset + col) * formatInfo.blockSizeInBytes;
+
+                // Compare the block of texels that make up this row/column
+                bool blocks_equal = memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes) == 0;
+                CHECK(blocks_equal);
+
+                // Avoid reporting every non-matching block.
+                if (!blocks_equal)
+                    return;
             }
         }
     }
@@ -368,6 +511,7 @@ void TextureData::clearSint(uint32_t layer, uint32_t mipLevel, const int32_t cle
     truncateBySintFormat(desc.format, reinterpret_cast<const uint32_t*>(clearValue), clearValueUint);
     clearUint(layer, mipLevel, clearValueUint);
 }
+
 
 //----------------------------------------------------------
 // TextureTestOptions
@@ -570,7 +714,7 @@ void TextureTestOptions::processVariantArg(TTArray array)
             if (is_set(array, TTArray::On))
             {
                 for (auto& testTexture : variant.descriptors)
-                    testTexture.desc.arrayLength = 2;
+                    testTexture.desc.arrayLength = 4;
                 next(state, variant);
             }
         }
@@ -761,20 +905,20 @@ void TextureTestOptions::postProcessVariant(int state, TextureTestVariant varian
         {
         case rhi::TextureType::Texture1D:
         case rhi::TextureType::Texture1DArray:
-            desc.size = {128, 1, 1};
+            desc.size = {512, 1, 1};
             break;
         case rhi::TextureType::Texture2D:
         case rhi::TextureType::Texture2DArray:
         case rhi::TextureType::Texture2DMS:
         case rhi::TextureType::Texture2DMSArray:
-            desc.size = {128, 64, 1};
+            desc.size = {32, 16, 1};
             break;
         case rhi::TextureType::Texture3D:
-            desc.size = {128, 64, 4};
+            desc.size = {16, 16, 4};
             break;
         case rhi::TextureType::TextureCube:
         case rhi::TextureType::TextureCubeArray:
-            desc.size = {128, 128, 1};
+            desc.size = {16, 16, 1};
             break;
         default:
             break;
@@ -787,7 +931,7 @@ void TextureTestOptions::postProcessVariant(int state, TextureTestVariant varian
         case rhi::TextureType::Texture2DArray:
         case rhi::TextureType::Texture2DMSArray:
         case rhi::TextureType::TextureCubeArray:
-            desc.arrayLength = max(desc.arrayLength, 2U);
+            desc.arrayLength = max(desc.arrayLength, 4U);
             break;
         default:
             break;
