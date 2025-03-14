@@ -153,7 +153,7 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_)
                 memset(sr.data.get(), mipLevel, sr.layout.sizeInBytes);
                 break;
             case rhi::testing::TextureInitMode::Random:
-                std::mt19937 rng(initSeed);
+                std::mt19937 rng(initSeed + layer * desc.mipLevelCount + mipLevel);
                 std::uniform_int_distribution<int> dist(0, 255);
                 for (size_t i = 0; i < sr.layout.sizeInBytes; ++i)
                     sr.data[i] = (uint8_t)dist(rng);
@@ -173,6 +173,17 @@ Result TextureData::createTexture(ITexture** texture) const
 
 void TextureData::checkEqual(ITexture* texture) const
 {
+    const TextureDesc& otherDesc = texture->getDesc();
+    CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
+
+    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    {
+        checkLayersEqual(texture, layer, layer);
+    }
+}
+
+void TextureData::checkLayersEqual(ITexture* texture, int thisLayer, int textureLayer) const
+{
     Texture* textureImpl = checked_cast<Texture*>(texture);
 
     const TextureDesc& otherDesc = textureImpl->getDesc();
@@ -182,41 +193,39 @@ void TextureData::checkEqual(ITexture* texture) const
     CHECK_EQ(otherDesc.size.width, desc.size.width);
     CHECK_EQ(otherDesc.size.height, desc.size.height);
     CHECK_EQ(otherDesc.size.depth, desc.size.depth);
-    CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
     CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
 
-    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        const Subresource& sr = getSubresource(thisLayer, mipLevel);
+
+        ComPtr<ISlangBlob> blob;
+        Size rowPitch;
+        REQUIRE_CALL(
+            textureImpl->getDevice()->readTexture(textureImpl, textureLayer, mipLevel, blob.writeRef(), &rowPitch)
+        );
+
+        uint8_t* expectedSlice = sr.data.get();
+        uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
+
+        for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
         {
-            const Subresource& sr = getSubresource(layer, mipLevel);
+            uint8_t* expectedRow = expectedSlice;
+            uint8_t* actualRow = actualSlice;
 
-            ComPtr<ISlangBlob> blob;
-            Size rowPitch;
-            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
-            );
-
-            uint8_t* expectedSlice = sr.data.get();
-            uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
-
-            for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
+            for (uint32_t row = 0; row < sr.layout.rowCount; row++)
             {
-                uint8_t* expectedRow = expectedSlice;
-                uint8_t* actualRow = actualSlice;
-
-                for (uint32_t row = 0; row < sr.layout.rowCount; row++)
-                {
-                    CHECK_EQ(memcmp(expectedRow, actualRow, sr.layout.strideY), 0);
-                    expectedRow += sr.layout.strideY;
-                    actualRow += rowPitch;
-                }
-
-                expectedSlice += sr.layout.strideZ;
-                actualSlice += rowPitch * sr.layout.rowCount;
+                CHECK_EQ(memcmp(expectedRow, actualRow, sr.layout.strideY), 0);
+                expectedRow += sr.layout.strideY;
+                actualRow += rowPitch;
             }
+
+            expectedSlice += sr.layout.strideZ;
+            actualSlice += rowPitch * sr.layout.rowCount;
         }
     }
 }
+
 
 //----------------------------------------------------------
 // TextureTestOptions
@@ -419,7 +428,7 @@ void TextureTestOptions::processVariantArg(TTArray array)
             if (is_set(array, TTArray::On))
             {
                 for (auto& testTexture : variant.descriptors)
-                    testTexture.desc.arrayLength = 2;
+                    testTexture.desc.arrayLength = 4;
                 next(state, variant);
             }
         }
@@ -598,20 +607,20 @@ void TextureTestOptions::postProcessVariant(int state, TextureTestVariant varian
         {
         case rhi::TextureType::Texture1D:
         case rhi::TextureType::Texture1DArray:
-            desc.size = {128, 1, 1};
+            desc.size = {512, 1, 1};
             break;
         case rhi::TextureType::Texture2D:
         case rhi::TextureType::Texture2DArray:
         case rhi::TextureType::Texture2DMS:
         case rhi::TextureType::Texture2DMSArray:
-            desc.size = {128, 64, 1};
+            desc.size = {32, 16, 1};
             break;
         case rhi::TextureType::Texture3D:
-            desc.size = {128, 64, 4};
+            desc.size = {16, 16, 4};
             break;
         case rhi::TextureType::TextureCube:
         case rhi::TextureType::TextureCubeArray:
-            desc.size = {128, 128, 1};
+            desc.size = {16, 16, 1};
             break;
         default:
             break;
@@ -624,7 +633,7 @@ void TextureTestOptions::postProcessVariant(int state, TextureTestVariant varian
         case rhi::TextureType::Texture2DArray:
         case rhi::TextureType::Texture2DMSArray:
         case rhi::TextureType::TextureCubeArray:
-            desc.arrayLength = max(desc.arrayLength, 2U);
+            desc.arrayLength = max(desc.arrayLength, 4U);
             break;
         default:
             break;
