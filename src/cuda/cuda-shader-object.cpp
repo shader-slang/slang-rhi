@@ -34,14 +34,14 @@ void shaderObjectSetBinding(
     case slang::BindingType::Texture:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-        uint64_t handle = textureView->m_texture->m_cudaTexObj;
+        uint64_t handle = textureView->getTexObject();
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
     case slang::BindingType::MutableTexture:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-        uint64_t handle = textureView->m_texture->m_cudaSurfObj;
+        uint64_t handle = textureView->getSurfObject();
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
@@ -140,7 +140,7 @@ Result BindingDataBuilder::writeObjectData(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint64_t handle = textureView->m_texture->m_cudaTexObj;
+                uint64_t handle = textureView->getTexObject();
                 memcpy(dst + uniformOffset + (i * uniformStride), &handle, sizeof(handle));
             }
             break;
@@ -149,7 +149,7 @@ Result BindingDataBuilder::writeObjectData(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint64_t handle = textureView->m_texture->m_cudaSurfObj;
+                uint64_t handle = textureView->getSurfObject();;
                 memcpy(dst + uniformOffset + (i * uniformStride), &handle, sizeof(handle));
             }
             break;

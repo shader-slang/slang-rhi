@@ -4,6 +4,113 @@
 
 namespace rhi::cuda {
 
+struct FormatMapping
+{
+    Format format;
+    CUarray_format arrayFormat;
+    uint32_t channelCount;
+    CUresourceViewFormat viewFormat;
+};
+
+const FormatMapping& getFormatMapping(Format format)
+{
+    static const FormatMapping mappings[] = {
+        // clang-format off
+        // format                   arrayFormat                     cc  viewFormat
+        { Format::Undefined,        CUarray_format(0),              0,  CUresourceViewFormat(0)         },
+
+        { Format::R8Uint,           CU_AD_FORMAT_UNSIGNED_INT8,     1,  CU_RES_VIEW_FORMAT_UINT_1X8     },
+        { Format::R8Sint,           CU_AD_FORMAT_SIGNED_INT8,       1,  CU_RES_VIEW_FORMAT_SINT_1X8     },
+        { Format::R8Unorm,          CU_AD_FORMAT_UNORM_INT8X1,      1,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::R8Snorm,          CU_AD_FORMAT_SNORM_INT8X1,      1,  CU_RES_VIEW_FORMAT_NONE         },
+
+        { Format::RG8Uint,          CU_AD_FORMAT_UNSIGNED_INT8,     2,  CU_RES_VIEW_FORMAT_UINT_2X8     },
+        { Format::RG8Sint,          CU_AD_FORMAT_SIGNED_INT8,       2,  CU_RES_VIEW_FORMAT_SINT_2X8     },
+        { Format::RG8Unorm,         CU_AD_FORMAT_UNORM_INT8X2,      2,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RG8Snorm,         CU_AD_FORMAT_SNORM_INT8X2,      2,  CU_RES_VIEW_FORMAT_NONE         },
+
+        { Format::RGBA8Uint,        CU_AD_FORMAT_UNSIGNED_INT8,     4,  CU_RES_VIEW_FORMAT_UINT_4X8     },
+        { Format::RGBA8Sint,        CU_AD_FORMAT_SIGNED_INT8,       4,  CU_RES_VIEW_FORMAT_SINT_4X8     },
+        { Format::RGBA8Unorm,       CU_AD_FORMAT_UNORM_INT8X4,      4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGBA8UnormSrgb,   CU_AD_FORMAT_UNORM_INT8X4,      4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGBA8Snorm,       CU_AD_FORMAT_SNORM_INT8X4,      4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::BGRA8Unorm,       CU_AD_FORMAT_UNORM_INT8X4,      4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::BGRA8UnormSrgb,   CU_AD_FORMAT_UNORM_INT8X4,      4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::BGRX8Unorm,       CU_AD_FORMAT_UNORM_INT8X4,      4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::BGRX8UnormSrgb,   CU_AD_FORMAT_UNORM_INT8X4,      4,  CU_RES_VIEW_FORMAT_NONE         },
+
+        { Format::R16Uint,          CU_AD_FORMAT_UNSIGNED_INT16,    1,  CU_RES_VIEW_FORMAT_UINT_1X16    },
+        { Format::R16Sint,          CU_AD_FORMAT_SIGNED_INT16,      1,  CU_RES_VIEW_FORMAT_SINT_1X16    },
+        { Format::R16Unorm,         CU_AD_FORMAT_UNORM_INT16X1,     1,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::R16Snorm,         CU_AD_FORMAT_SNORM_INT16X1,     1,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::R16Float,         CU_AD_FORMAT_HALF,              1,  CU_RES_VIEW_FORMAT_FLOAT_1X16   },
+
+        { Format::RG16Uint,         CU_AD_FORMAT_UNSIGNED_INT16,    2,  CU_RES_VIEW_FORMAT_UINT_2X16    },
+        { Format::RG16Sint,         CU_AD_FORMAT_SIGNED_INT16,      2,  CU_RES_VIEW_FORMAT_SINT_2X16    },
+        { Format::RG16Unorm,        CU_AD_FORMAT_UNORM_INT16X2,     2,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RG16Snorm,        CU_AD_FORMAT_SNORM_INT16X2,     2,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RG16Float,        CU_AD_FORMAT_HALF,              2,  CU_RES_VIEW_FORMAT_FLOAT_2X16   },
+
+        { Format::RGBA16Uint,       CU_AD_FORMAT_UNSIGNED_INT16,    4,  CU_RES_VIEW_FORMAT_UINT_4X16    },
+        { Format::RGBA16Sint,       CU_AD_FORMAT_SIGNED_INT16,      4,  CU_RES_VIEW_FORMAT_SINT_4X16    },
+        { Format::RGBA16Unorm,      CU_AD_FORMAT_UNORM_INT16X4,     4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGBA16Snorm,      CU_AD_FORMAT_SNORM_INT16X4,     4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGBA16Float,      CU_AD_FORMAT_HALF,              4,  CU_RES_VIEW_FORMAT_FLOAT_4X16   },
+
+        { Format::R32Uint,          CU_AD_FORMAT_UNSIGNED_INT32,    1,  CU_RES_VIEW_FORMAT_UINT_1X32    },
+        { Format::R32Sint,          CU_AD_FORMAT_SIGNED_INT32,      1,  CU_RES_VIEW_FORMAT_SINT_1X32    },
+        { Format::R32Float,         CU_AD_FORMAT_FLOAT,             1,  CU_RES_VIEW_FORMAT_FLOAT_1X32   },
+
+        { Format::RG32Uint,         CU_AD_FORMAT_UNSIGNED_INT32,    2,  CU_RES_VIEW_FORMAT_UINT_2X32    },
+        { Format::RG32Sint,         CU_AD_FORMAT_SIGNED_INT32,      2,  CU_RES_VIEW_FORMAT_SINT_2X32    },
+        { Format::RG32Float,        CU_AD_FORMAT_FLOAT,             2,  CU_RES_VIEW_FORMAT_FLOAT_2X32   },
+
+        { Format::RGB32Uint,        CU_AD_FORMAT_UNSIGNED_INT32,    3,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGB32Sint,        CU_AD_FORMAT_SIGNED_INT32,      3,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGB32Float,       CU_AD_FORMAT_FLOAT,             3,  CU_RES_VIEW_FORMAT_NONE         },
+
+        { Format::RGBA32Uint,       CU_AD_FORMAT_UNSIGNED_INT32,    4,  CU_RES_VIEW_FORMAT_UINT_4X32    },
+        { Format::RGBA32Sint,       CU_AD_FORMAT_SIGNED_INT32,      4,  CU_RES_VIEW_FORMAT_SINT_4X32    },
+        { Format::RGBA32Float,      CU_AD_FORMAT_FLOAT,             4,  CU_RES_VIEW_FORMAT_FLOAT_4X32   },
+
+        { Format::R64Uint,          CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::R64Sint,          CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+
+        { Format::BGRA4Unorm,       CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::B5G6R5Unorm,      CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::BGR5A1Unorm,      CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGB9E5Ufloat,     CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGB10A2Uint,      CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGB10A2Unorm,     CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::R11G11B10Float,   CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+
+        { Format::D32Float,         CU_AD_FORMAT_FLOAT,             1,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::D16Unorm,         CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::D32FloatS8Uint,   CUarray_format(0),              0,  CU_RES_VIEW_FORMAT_NONE         },
+
+        { Format::BC1Unorm,         CU_AD_FORMAT_BC1_UNORM,         0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC1 },
+        { Format::BC1UnormSrgb,     CU_AD_FORMAT_BC1_UNORM_SRGB,    0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC1 },
+        { Format::BC2Unorm,         CU_AD_FORMAT_BC2_UNORM,         0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC2 },
+        { Format::BC2UnormSrgb,     CU_AD_FORMAT_BC2_UNORM_SRGB,    0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC2 },
+        { Format::BC3Unorm,         CU_AD_FORMAT_BC3_UNORM,         0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC3 },
+        { Format::BC3UnormSrgb,     CU_AD_FORMAT_BC3_UNORM_SRGB,    0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC3 },
+        { Format::BC4Unorm,         CU_AD_FORMAT_BC4_UNORM,         0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC4 },
+        { Format::BC4Snorm,         CU_AD_FORMAT_BC4_SNORM,         0,  CU_RES_VIEW_FORMAT_SIGNED_BC4   },
+        { Format::BC5Unorm,         CU_AD_FORMAT_BC5_UNORM,         0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC5 },
+        { Format::BC5Snorm,         CU_AD_FORMAT_BC5_SNORM,         0,  CU_RES_VIEW_FORMAT_SIGNED_BC5   },
+        { Format::BC6HUfloat,       CU_AD_FORMAT_BC6H_UF16,         0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC6H},
+        { Format::BC6HSfloat,       CU_AD_FORMAT_BC6H_SF16,         0,  CU_RES_VIEW_FORMAT_SIGNED_BC6H  },
+        { Format::BC7Unorm,         CU_AD_FORMAT_BC7_UNORM,         0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC7 },
+        { Format::BC7UnormSrgb,     CU_AD_FORMAT_BC7_UNORM_SRGB,    0,  CU_RES_VIEW_FORMAT_UNSIGNED_BC7 },
+        // clang-format on
+    };
+
+    static_assert(SLANG_COUNT_OF(mappings) == size_t(Format::_Count), "Missing format mapping");
+    SLANG_RHI_ASSERT(uint32_t(format) < uint32_t(Format::_Count));
+    return mappings[int(format)];
+}
+
+
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
     : Texture(device, desc)
 {
@@ -11,13 +118,13 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
-    if (m_cudaSurfObj)
+    for (auto& pair : m_texObjects)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuSurfObjectDestroy(m_cudaSurfObj));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuTexObjectDestroy(pair.second));
     }
-    if (m_cudaTexObj)
+    for (auto& pair : m_surfObjects)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuTexObjectDestroy(m_cudaTexObj));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuSurfObjectDestroy(pair.second));
     }
     if (m_cudaArray)
     {
@@ -44,6 +151,74 @@ Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
         return SLANG_OK;
     }
     return SLANG_FAIL;
+}
+
+CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& range)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    ViewKey key = {format, range};
+    CUtexObject& texObject = m_texObjects[key];
+    if (texObject)
+        return texObject;
+
+    SLANG_RHI_ASSERT(m_cudaArray || m_cudaMipMappedArray);
+    CUDA_RESOURCE_DESC resDesc = {};
+    if (m_cudaArray)
+    {
+        resDesc.resType = CU_RESOURCE_TYPE_ARRAY;
+        resDesc.res.array.hArray = m_cudaArray;
+    }
+    else
+    {
+        resDesc.resType = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
+        resDesc.res.mipmap.hMipmappedArray = m_cudaMipMappedArray;
+    }
+
+    // TODO provide a way to set these parameters
+    CUDA_TEXTURE_DESC texDesc = {};
+    texDesc.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
+    texDesc.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
+    texDesc.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
+    texDesc.filterMode = CU_TR_FILTER_MODE_LINEAR;
+    texDesc.flags = CU_TRSF_NORMALIZED_COORDINATES;
+
+    CUDA_RESOURCE_VIEW_DESC viewDesc = {};
+    viewDesc.format = CU_RES_VIEW_FORMAT_NONE; // Use underlaying format
+    viewDesc.width = m_desc.size.width;
+    viewDesc.height = m_desc.size.height;
+    viewDesc.depth = m_desc.size.depth;
+    viewDesc.firstMipmapLevel = range.mipLevel;
+    viewDesc.lastMipmapLevel = range.mipLevel + range.mipLevelCount - 1;
+    viewDesc.firstLayer = range.baseArrayLayer;
+    viewDesc.lastLayer = range.baseArrayLayer + range.layerCount - 1;
+
+    SLANG_CUDA_ASSERT_ON_FAIL(
+        cuTexObjectCreate(&texObject, &resDesc, &texDesc, isEntireTexture(range) ? nullptr : &viewDesc)
+    );
+    return texObject;
+}
+
+CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    CUsurfObject& surfObject = m_surfObjects[range];
+    if (surfObject)
+        return surfObject;
+
+    CUarray array = m_cudaArray;
+    if (!array)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&array, m_cudaMipMappedArray, range.mipLevel));
+    }
+
+    CUDA_RESOURCE_DESC resDesc = {};
+    resDesc.resType = CU_RESOURCE_TYPE_ARRAY;
+    resDesc.res.array.hArray = array;
+
+    SLANG_CUDA_ASSERT_ON_FAIL(cuSurfObjectCreate(&surfObject, &resDesc));
+    return surfObject;
 }
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
@@ -245,52 +420,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         }
     }
 
-    // Set up texture sampling parameters, and create final texture obj
-    {
-        CUDA_RESOURCE_DESC resDesc = {};
-
-        if (tex->m_cudaArray)
-        {
-            resDesc.resType = CU_RESOURCE_TYPE_ARRAY;
-            resDesc.res.array.hArray = tex->m_cudaArray;
-        }
-        if (tex->m_cudaMipMappedArray)
-        {
-            resDesc.resType = CU_RESOURCE_TYPE_MIPMAPPED_ARRAY;
-            resDesc.res.mipmap.hMipmappedArray = tex->m_cudaMipMappedArray;
-        }
-
-        // If the texture might be used as a UAV, then we need to allocate
-        // a CUDA "surface" for it.
-        //
-        // Note: We cannot do this unconditionally, because it will fail
-        // on surfaces that are not usable as UAVs (e.g., those with
-        // mipmaps).
-        //
-        // TODO: We should really only be allocating the array at the
-        // time we create a resource, and then allocate the surface or
-        // texture objects as part of view creation.
-        //
-        if (is_set(desc.usage, TextureUsage::UnorderedAccess))
-        {
-            // On CUDA surfaces only support a single MIP map
-            SLANG_RHI_ASSERT(desc.mipLevelCount == 1);
-
-            SLANG_CUDA_RETURN_ON_FAIL(cuSurfObjectCreate(&tex->m_cudaSurfObj, &resDesc));
-        }
-
-        // Create handle for sampling.
-        CUDA_TEXTURE_DESC texDesc;
-        memset(&texDesc, 0, sizeof(CUDA_TEXTURE_DESC));
-        texDesc.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
-        texDesc.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
-        texDesc.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
-        texDesc.filterMode = CU_TR_FILTER_MODE_LINEAR;
-        texDesc.flags = CU_TRSF_NORMALIZED_COORDINATES;
-
-        SLANG_CUDA_RETURN_ON_FAIL(cuTexObjectCreate(&tex->m_cudaTexObj, &resDesc, &texDesc, nullptr));
-    }
-
     returnComPtr(outTexture, tex);
     return SLANG_OK;
 }
@@ -354,30 +483,6 @@ Result DeviceImpl::createTextureFromSharedHandle(
     SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedMipmappedArray(&mipArray, externalMemory, &externalMemoryMipDesc)
     );
     texture->m_cudaMipMappedArray = mipArray;
-
-    CUarray cuArray;
-    SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&cuArray, mipArray, 0));
-    texture->m_cudaArray = cuArray;
-
-    CUDA_RESOURCE_DESC surfDesc;
-    memset(&surfDesc, 0, sizeof(surfDesc));
-    surfDesc.resType = CU_RESOURCE_TYPE_ARRAY;
-    surfDesc.res.array.hArray = cuArray;
-
-    CUsurfObject surface;
-    SLANG_CUDA_RETURN_ON_FAIL(cuSurfObjectCreate(&surface, &surfDesc));
-    texture->m_cudaSurfObj = surface;
-
-    // Create handle for sampling.
-    CUDA_TEXTURE_DESC texDesc;
-    memset(&texDesc, 0, sizeof(CUDA_TEXTURE_DESC));
-    texDesc.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
-    texDesc.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
-    texDesc.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
-    texDesc.filterMode = CU_TR_FILTER_MODE_LINEAR;
-    texDesc.flags = CU_TRSF_NORMALIZED_COORDINATES;
-
-    SLANG_CUDA_RETURN_ON_FAIL(cuTexObjectCreate(&texture->m_cudaTexObj, &surfDesc, &texDesc, nullptr));
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;
