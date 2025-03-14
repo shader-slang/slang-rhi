@@ -1,247 +1,110 @@
 #include "testing.h"
 
 #include "texture-utils.h"
+#include "texture-test.h"
 
 using namespace rhi;
 using namespace rhi::testing;
 
-inline int32_t heightFromWidth(TextureType type, int32_t width)
-{
-    switch (type)
-    {
-    case TextureType::Texture1D:
-        return 1; // 1D is always 1 high.
-    case TextureType::Texture2D:
-    case TextureType::Texture3D:
-        return width / 2; // Height is half width (so not a square!)
-    case TextureType::TextureCube:
-        return width; // Cube map dimensions match
-    default:
-        return 0;
-    }
-}
-
-struct BaseUploadTextureTest
-{
-    IDevice* device;
-
-    RefPtr<TextureInfo> srcTextureInfo;
-    ComPtr<ITexture> srcTexture;
-
-    RefPtr<ValidationTextureFormatBase> validationFormat;
-
-    void init(
-        IDevice* _device,
-        Format _format,
-        RefPtr<ValidationTextureFormatBase> _validationFormat,
-        TextureType _type
-    )
-    {
-        device = _device;
-        validationFormat = _validationFormat;
-
-        srcTextureInfo = new TextureInfo();
-        srcTextureInfo->format = _format;
-        srcTextureInfo->textureType = _type;
-        srcTextureInfo->extents.width = 8;
-        srcTextureInfo->extents.height = heightFromWidth(_type, srcTextureInfo->extents.width);
-        srcTextureInfo->extents.depth = (_type == TextureType::Texture3D) ? 2 : 1;
-    }
-
-    void createRequiredResources()
-    {
-        if (srcTextureInfo->arrayLength > 1)
-            srcTextureInfo->textureType = toArrayType(srcTextureInfo->textureType);
-
-        TextureDesc srcTexDesc = {};
-        srcTexDesc.type = srcTextureInfo->textureType;
-        srcTexDesc.mipLevelCount = srcTextureInfo->mipLevelCount;
-        srcTexDesc.arrayLength = srcTextureInfo->arrayLength;
-        srcTexDesc.size = srcTextureInfo->extents;
-        srcTexDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource | TextureUsage::CopyDestination;
-        srcTexDesc.defaultState = ResourceState::ShaderResource;
-        srcTexDesc.format = srcTextureInfo->format;
-
-        REQUIRE_CALL(device->createTexture(srcTexDesc, nullptr, srcTexture.writeRef()));
-    }
-
-    void validateTestResults(ValidationTextureData actual, ValidationTextureData expectedCopied)
-    {
-        auto actualExtents = actual.extents;
-        for (uint32_t x = 0; x < actualExtents.width; ++x)
-        {
-            for (uint32_t y = 0; y < actualExtents.height; ++y)
-            {
-                for (uint32_t z = 0; z < actualExtents.depth; ++z)
-                {
-                    auto actualBlock = actual.getBlockAt(x, y, z);
-                    auto expectedBlock = expectedCopied.getBlockAt(x, y, z);
-                    validationFormat->validateBlocksEqual(actualBlock, expectedBlock);
-                }
-            }
-        }
-    }
-
-    void checkTestResults()
-    {
-        generateTextureData(srcTextureInfo, validationFormat);
-
-        createRequiredResources();
-
-        TextureDesc desc = srcTexture->getDesc();
-
-        uint32_t layerCount = desc.getLayerCount();
-
-        auto queue = device->getQueue(QueueType::Graphics);
-        auto commandEncoder = queue->createCommandEncoder();
-
-        commandEncoder->uploadTextureData(
-            srcTexture,
-            {0, desc.mipLevelCount, 0, layerCount},
-            {0, 0, 0},
-            Extents::kWholeTexture,
-            srcTextureInfo->subresourceDatas.data(),
-            srcTextureInfo->subresourceDatas.size()
-        );
-
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
-
-        for (uint32_t layerIndex = 0; layerIndex < layerCount; layerIndex++)
-        {
-            for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; mipLevel++)
-            {
-                uint32_t subresourceIndex = getSubresourceIndex(mipLevel, desc.mipLevelCount, layerIndex);
-
-                SubresourceLayout layout;
-                REQUIRE_CALL(srcTexture->getSubresourceLayout(mipLevel, &layout));
-
-                SubresourceData subresourceData = srcTextureInfo->subresourceDatas[subresourceIndex];
-
-                ValidationTextureData expectedCopied;
-                expectedCopied.extents = layout.size;
-                expectedCopied.textureData = subresourceData.data;
-                expectedCopied.strides.x = getTexelSize(desc.format);
-                expectedCopied.strides.y = subresourceData.strideY;
-                expectedCopied.strides.z = subresourceData.strideZ;
-
-                ComPtr<ISlangBlob> readBlob;
-                REQUIRE_CALL(
-                    device->readTexture(srcTexture, layerIndex, mipLevel, readBlob.writeRef(), nullptr, nullptr)
-                );
-
-                auto readResults = readBlob->getBufferPointer();
-
-                ValidationTextureData actual = expectedCopied;
-                actual.textureData = readResults;
-                actual.strides.y = layout.strideY;
-                actual.strides.z = layout.strideZ;
-
-                validateTestResults(actual, expectedCopied);
-            }
-        }
-    }
-};
-
-struct SimpleUploadTexture : BaseUploadTextureTest
-{
-    void run()
-    {
-        auto textureType = srcTextureInfo->textureType;
-
-        srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLength = 1;
-
-        checkTestResults();
-    }
-};
-
-struct ArrayUploadTexture : BaseUploadTextureTest
-{
-    void run()
-    {
-        auto textureType = srcTextureInfo->textureType;
-
-        if (textureType == TextureType::Texture3D)
-            return;
-        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
-            return;
-
-        srcTextureInfo->mipLevelCount = 1;
-        srcTextureInfo->arrayLength = 8;
-
-        checkTestResults();
-    }
-};
-
-struct MipsUploadTexture : BaseUploadTextureTest
-{
-    void run()
-    {
-        auto textureType = srcTextureInfo->textureType;
-
-        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
-            return;
-
-        srcTextureInfo->mipLevelCount = 2;
-        srcTextureInfo->arrayLength = 1;
-
-        checkTestResults();
-    }
-};
-
-struct ArrayMipsUploadTexture : BaseUploadTextureTest
-{
-    void run()
-    {
-        auto textureType = srcTextureInfo->textureType;
-
-        if (textureType == TextureType::Texture3D)
-            return;
-        if (textureType == TextureType::Texture1D && device->getDeviceInfo().deviceType == DeviceType::WGPU)
-            return;
-
-        srcTextureInfo->mipLevelCount = 2;
-        srcTextureInfo->arrayLength = 4;
-
-        checkTestResults();
-    }
-};
-
-template<typename T>
-void testUploadTexture(IDevice* device)
-{
-    Format formats[] = {
-        Format::RGBA8Unorm,
-        Format::R16Float,
-        Format::RG16Float,
-        Format::RGB10A2Unorm,
-        Format::BGR5A1Unorm,
-        Format::RGBA32Float
-    };
-    for (auto type : {TextureType::Texture1D, TextureType::Texture2D, TextureType::Texture3D})
-    {
-        for (auto format : formats)
-        {
-            FormatSupport formatSupport;
-            device->getFormatSupport(format, &formatSupport);
-            if (!is_set(formatSupport, FormatSupport::Texture))
-                continue;
-            auto validationFormat = getValidationTextureFormat(format);
-            if (!validationFormat)
-                continue;
-
-            T test;
-            test.init(device, format, validationFormat, type);
-            test.run();
-        }
-    }
-}
-
 GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | WGPU)
 {
-    testUploadTexture<SimpleUploadTexture>(device);
+    // Test all basic variants without initializing textures.
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TextureInitMode::None, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            // Get / re-init cpu side data with random data.
+            TextureData& data = c->getTextureData();
+            data.initData(TextureInitMode::Random);
+
+            // fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
+
+            // Create command encoder
+            auto device = c->getDevice();
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Upload new texture data + wait
+            commandEncoder->uploadTextureData(
+                c->getTexture(),
+                {0, data.desc.mipLevelCount, 0, data.desc.getLayerCount()},
+                {0, 0, 0},
+                Extents::kWholeTexture,
+                data.subresourceData.data(),
+                data.subresourceData.size()
+            );
+            queue->submit(commandEncoder->finish());
+            queue->waitOnHost();
+
+            // Verify it uploaded correctly
+            data.checkEqual(c->getTexture());
+        }
+    );
 }
+
+GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | WGPU)
+{
+    // Test all basic variants without initializing textures.
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::On, TTMip::Both, TextureInitMode::Random, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            // Get / re-init cpu side data with random data.
+            const TextureData& currentData = c->getTextureData();
+
+            TextureData newData;
+            newData.init(currentData.device, currentData.desc, TextureInitMode::Random, 1000);
+
+            // fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
+
+            // Create command encoder
+            auto device = c->getDevice();
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            uint32_t layerCount = currentData.desc.getLayerCount();
+
+            // Replace alternate layers
+            for (uint32_t layer = 0; layer < layerCount; layer++)
+            {
+                if ((layer % 2) == 1)
+                {
+                    // Copy the subresource data from inverted layer index to this layer
+                    auto srdata = newData.getLayerFirstSubresourceData(layer);
+                    commandEncoder->uploadTextureData(
+                        c->getTexture(),
+                        {0, newData.desc.mipLevelCount, layer, 1},
+                        {0, 0, 0},
+                        Extents::kWholeTexture,
+                        srdata,
+                        currentData.desc.mipLevelCount
+                    );
+                }
+            }
+
+            // Execute all operations
+            queue->submit(commandEncoder->finish());
+            queue->waitOnHost();
+
+            // Verify alternate layers from original and new data
+            for (uint32_t layer = 0; layer < layerCount; layer++)
+            {
+                if ((layer % 2) == 0)
+                    currentData.checkLayersEqual(c->getTexture(), layer, layer);
+                else
+                    newData.checkLayersEqual(c->getTexture(), layer, layer);
+            }
+        }
+    );
+}
+
+/*
 GPU_TEST_CASE("cmd-upload-texture-array", D3D12 | Vulkan | WGPU)
 {
     testUploadTexture<ArrayUploadTexture>(device);
@@ -254,3 +117,4 @@ GPU_TEST_CASE("cmd-upload-texture-arraymips", D3D12 | Vulkan | WGPU)
 {
     testUploadTexture<ArrayMipsUploadTexture>(device);
 }
+*/
