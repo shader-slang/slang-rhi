@@ -49,12 +49,48 @@ struct TextureData
 
     Result createTexture(ITexture** texture) const;
 
-    void checkEqual(ITexture* texture) const;
+    /// Compare the cpu data for this TextureData against that
+    /// of a gpu texture.
+    ///
+    /// If a region is specified and compareOutside is FALSE, the comparison will be
+    /// between the WHOLE of this TextureData and the specified region of the gpu texture.
+    ///
+    /// If a region is specified and compareOutside is TRUE, the comparison will be
+    /// between the WHOLE of this TextureData and the WHOLE of the gpu texture, with the
+    /// area inside the region ignored.
+    ///
+    /// In both cases, the resulting region size being checked should match the full
+    /// size of this TextureData.
+    void checkEqual(
+        ITexture* texture,
+        Offset3D textureOffset = {0, 0, 0},
+        Extents textureExtents = Extents::kWholeTexture,
+        bool compareOutsideRegion = false
+    ) const;
 
-    void checkLayersEqual(ITexture* texture, int thisLayer, int textureLayer) const;
+    /// Compare cpu data for a layer in this TextureData against a layer
+    /// in a gpu texture. For details of region comparison see checkEqual.
+    void checkLayersEqual(
+        ITexture* texture,
+        int thisLayer,
+        int textureLayer,
+        Offset3D textureOffset = {0, 0, 0},
+        Extents textureExtents = Extents::kWholeTexture,
+        bool compareOutsideRegion = false
+    ) const;
 
-    void checkMipLevelsEqual(ITexture* texture, int thisLayer, int thisMipLevel, int textureLayer, int textureMipLevel)
-        const;
+    /// Compare mip levels for a layer in this TextureData against a layer
+    /// in a gpu texture. For details of region comparison see checkEqual.
+    void checkMipLevelsEqual(
+        ITexture* texture,
+        int thisLayer,
+        int thisMipLevel,
+        int textureLayer,
+        int textureMipLevel,
+        Offset3D textureOffset = {0, 0, 0},
+        Extents textureExtents = Extents::kWholeTexture,
+        bool compareOutsideRegion = false
+    ) const;
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
