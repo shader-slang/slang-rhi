@@ -180,6 +180,7 @@ public:
     /// Generate a full matrix of variants given a set of constraints:
     /// - TextureTestVariant/TestTextureDesc/TextureDesc: Explicitly specify descriptors
     /// - Format or vector<Format>: Explicit list of formats (defaults to standard list)
+    /// - TextureUsage flags: Additional usage flags to set on textures
     /// - TTShape: Flags defining which texture types to test (1D/2D/3D/Cube)
     /// - TextureType: Explicitly specify texture type to test
     /// - TexTypes: Explicitly specify a list of texture types to test
@@ -252,6 +253,8 @@ private:
     void processVariantArg(TTFmtCompressed format);
 
     void processVariantArg(const std::vector<Format>& formats);
+
+    void processVariantArg(TextureUsage usage);
 
     void postProcessVariant(int state, TextureTestVariant variant);
 

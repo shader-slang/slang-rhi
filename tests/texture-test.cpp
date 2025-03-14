@@ -98,7 +98,7 @@ void TextureData::init(IDevice* device_, const TextureDesc& desc_, TextureInitMo
 
     REQUIRE(is_set(formatSupport, FormatSupport::Texture));
 
-    desc.usage = TextureUsage::CopySource | TextureUsage::CopyDestination;
+    desc.usage |= TextureUsage::CopySource | TextureUsage::CopyDestination;
 
     // D3D12 needs multisampled textures to be render targets.
     if (isMultisamplingType(desc_.type))
@@ -502,6 +502,18 @@ void TextureTestOptions::processVariantArg(TTFmtCompressed format)
         [this, format](int state, TextureTestVariant variant)
         {
             variant.formatFilter.compression = format;
+            next(state, variant);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TextureUsage usage)
+{
+    addGenerator(
+        [this, usage](int state, TextureTestVariant variant)
+        {
+            for (auto& testTexture : variant.descriptors)
+                testTexture.desc.usage |= usage;
             next(state, variant);
         }
     );
