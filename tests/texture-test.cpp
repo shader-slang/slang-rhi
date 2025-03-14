@@ -175,14 +175,19 @@ Result TextureData::createTexture(ITexture** texture) const
     return device->createTexture(desc, sd, texture);
 }
 
-void TextureData::checkEqual(ITexture* texture, Offset3D offset, Extents extents, bool invertRegion) const
+void TextureData::checkEqual(
+    ITexture* texture,
+    Offset3D textureOffset,
+    Extents textureExtents,
+    bool compareOutsideRegion
+) const
 {
     const TextureDesc& otherDesc = texture->getDesc();
     CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        checkLayersEqual(texture, layer, layer, offset, extents, invertRegion);
+        checkLayersEqual(texture, layer, layer, textureOffset, textureExtents, compareOutsideRegion);
     }
 }
 
@@ -190,9 +195,9 @@ void TextureData::checkLayersEqual(
     ITexture* texture,
     int thisLayer,
     int textureLayer,
-    Offset3D offset,
-    Extents extents,
-    bool invertRegion
+    Offset3D textureOffset,
+    Extents textureExtents,
+    bool compareOutsideRegion
 ) const
 {
     const TextureDesc& otherDesc = texture->getDesc();
@@ -200,7 +205,16 @@ void TextureData::checkLayersEqual(
 
     for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
     {
-        checkMipLevelsEqual(texture, thisLayer, mipLevel, textureLayer, mipLevel, offset, extents, invertRegion);
+        checkMipLevelsEqual(
+            texture,
+            thisLayer,
+            mipLevel,
+            textureLayer,
+            mipLevel,
+            textureOffset,
+            textureExtents,
+            compareOutsideRegion
+        );
     }
 }
 
@@ -212,7 +226,7 @@ void TextureData::checkMipLevelsEqual(
     int textureMipLevel,
     Offset3D textureOffset,
     Extents textureExtents,
-    bool invertRegion
+    bool compareOutsideRegion
 ) const
 {
     Texture* textureImpl = checked_cast<Texture*>(texture);
@@ -256,13 +270,13 @@ void TextureData::checkMipLevelsEqual(
     if (textureExtents.depth == Extents::kWholeTexture.depth)
         textureExtents.depth = max(textureLayout.size.depth - textureOffset.z, 1);
 
-    if (invertRegion)
+    if (compareOutsideRegion)
     {
         // This is a comparison of 2 textures of equal size, with
         // a mask applied to the middle, so texture sizes must match.
-        CHECK_EQ(otherDesc.size.width, thisLayout.size.width);
-        CHECK_EQ(otherDesc.size.height, thisLayout.size.height);
-        CHECK_EQ(otherDesc.size.depth, thisLayout.size.depth);
+        CHECK_EQ(textureLayout.size.width, thisLayout.size.width);
+        CHECK_EQ(textureLayout.size.height, thisLayout.size.height);
+        CHECK_EQ(textureLayout.size.depth, thisLayout.size.depth);
     }
     else
     {
@@ -292,7 +306,7 @@ void TextureData::checkMipLevelsEqual(
     uint32_t colRegionEnd = (textureOffset.x + textureExtents.width) / formatInfo.blockWidth;
 
     // If matching interior, pixels to check are only those internal to the region
-    if (!invertRegion)
+    if (!compareOutsideRegion)
     {
         sliceOffset = sliceRegionBegin;
         sliceCount = sliceRegionEnd - sliceRegionBegin;
@@ -322,7 +336,7 @@ void TextureData::checkMipLevelsEqual(
             {
                 // If doing an exterior scan, skip blocks that are in the region.
                 bool insideCol = col >= colRegionBegin && col < colRegionEnd;
-                if (invertRegion && insideSlice && insideRow && insideCol)
+                if (compareOutsideRegion && insideSlice && insideRow && insideCol)
                 {
                     continue;
                 }
@@ -340,7 +354,7 @@ void TextureData::checkMipLevelsEqual(
                 bool blocks_equal = memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes) == 0;
                 CHECK(blocks_equal);
 
-                // Avoid spamming CI with fails for every block if one doesn't match.
+                // Avoid reporting every non-matching block.
                 if (!blocks_equal)
                     return;
             }
