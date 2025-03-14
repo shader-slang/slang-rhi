@@ -245,6 +245,12 @@ private:
 
     void processVariantArg(Format format);
 
+    void processVariantArg(TTFmtDepth format);
+
+    void processVariantArg(TTFmtStencil format);
+
+    void processVariantArg(TTFmtCompressed format);
+
     void processVariantArg(const std::vector<Format>& formats);
 
     void postProcessVariant(int state, TextureTestVariant variant);

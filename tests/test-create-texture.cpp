@@ -7,7 +7,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("texturetest-create", ALL)
+GPU_TEST_CASE("texture-create", ALL)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Both);

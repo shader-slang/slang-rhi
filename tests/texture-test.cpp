@@ -4,6 +4,9 @@
 #include "rhi-shared.h"
 #include <random>
 
+/// If set to 1, the default format list to test will be all formats
+/// other than Format::Undefined.
+#define SLANG_RHI_TEST_ALL_FORMATS 0
 
 namespace rhi::testing {
 
@@ -193,11 +196,23 @@ void TextureData::checkEqual(ITexture* texture) const
             REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
             );
 
-            for (uint32_t row = 0; row < sr.layout.rowCount; row++)
+            uint8_t* expectedSlice = sr.data.get();
+            uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
+
+            for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
             {
-                const uint8_t* expectedData = sr.data.get() + row * sr.layout.strideY;
-                const uint8_t* actualData = (const uint8_t*)blob->getBufferPointer() + row * rowPitch;
-                CHECK_EQ(memcmp(expectedData, actualData, sr.layout.strideY), 0);
+                uint8_t* expectedRow = expectedSlice;
+                uint8_t* actualRow = actualSlice;
+
+                for (uint32_t row = 0; row < sr.layout.rowCount; row++)
+                {
+                    CHECK_EQ(memcmp(expectedRow, actualRow, sr.layout.strideY), 0);
+                    expectedRow += sr.layout.strideY;
+                    actualRow += rowPitch;
+                }
+
+                expectedSlice += sr.layout.strideZ;
+                actualSlice += rowPitch * sr.layout.rowCount;
             }
         }
     }
@@ -459,6 +474,39 @@ void TextureTestOptions::processVariantArg(const std::vector<Format>& formats)
     );
 }
 
+void TextureTestOptions::processVariantArg(TTFmtDepth format)
+{
+    addGenerator(
+        [this, format](int state, TextureTestVariant variant)
+        {
+            variant.formatFilter.depth = format;
+            next(state, variant);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TTFmtStencil format)
+{
+    addGenerator(
+        [this, format](int state, TextureTestVariant variant)
+        {
+            variant.formatFilter.stencil = format;
+            next(state, variant);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TTFmtCompressed format)
+{
+    addGenerator(
+        [this, format](int state, TextureTestVariant variant)
+        {
+            variant.formatFilter.compression = format;
+            next(state, variant);
+        }
+    );
+}
+
 // checks filter, where mask is a bitfield with bit 1=allow off, 2=allow on
 template<typename T>
 inline bool _checkFilter(bool value, T mask)
@@ -603,7 +651,12 @@ void TextureTestOptions::postProcessVariant(int state, TextureTestVariant varian
     if (anyUndefinedFormats)
     {
         // If format not specified, add standard test formats.
+        // With SLANG_RHI_TEST_ALL_FORMATS, all except Format::Undefined are checked.
+#if SLANG_RHI_TEST_ALL_FORMATS == 0
         for (Format format : kStandardFormats)
+#else
+        for (Format format = Format(1); format < Format::_Count; format = Format(int(format) + 1))
+#endif
         {
             TextureTestVariant formatVariant = variant;
             for (auto& testTexture : formatVariant.descriptors)
