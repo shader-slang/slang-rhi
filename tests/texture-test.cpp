@@ -474,6 +474,39 @@ void TextureTestOptions::processVariantArg(const std::vector<Format>& formats)
     );
 }
 
+void TextureTestOptions::processVariantArg(TTFmtDepth format)
+{
+    addGenerator(
+        [this, format](int state, TextureTestVariant variant)
+        {
+            variant.formatFilter.depth = format;
+            next(state, variant);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TTFmtStencil format)
+{
+    addGenerator(
+        [this, format](int state, TextureTestVariant variant)
+        {
+            variant.formatFilter.stencil = format;
+            next(state, variant);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TTFmtCompressed format)
+{
+    addGenerator(
+        [this, format](int state, TextureTestVariant variant)
+        {
+            variant.formatFilter.compression = format;
+            next(state, variant);
+        }
+    );
+}
+
 // checks filter, where mask is a bitfield with bit 1=allow off, 2=allow on
 template<typename T>
 inline bool _checkFilter(bool value, T mask)
