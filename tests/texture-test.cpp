@@ -39,6 +39,9 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     // Array multisampled textures not supported on WebGPU
     if (device->getDeviceType() == DeviceType::WGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
         return false;
+    // Arrays are barely supported on cpu
+    if (device->getDeviceType() == DeviceType::CPU && desc.arrayLength > 1)
+        return false;
     return true;
 }
 
