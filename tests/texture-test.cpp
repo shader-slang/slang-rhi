@@ -340,76 +340,6 @@ void TextureData::checkMipLevelsEqual(
     }
 }
 
-void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
-{
-    Texture* textureImpl = checked_cast<Texture*>(texture);
-
-    const TextureDesc& otherDesc = textureImpl->getDesc();
-
-    CHECK_EQ(otherDesc.type, desc.type);
-    CHECK_EQ(otherDesc.format, desc.format);
-    CHECK_EQ(otherDesc.size.width, desc.size.width);
-    CHECK_EQ(otherDesc.size.height, desc.size.height);
-    CHECK_EQ(otherDesc.size.depth, desc.size.depth);
-    CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
-    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
-
-    UnpackFloatFunc unpackFloatFunc = getFormatConversionFuncs(desc.format).unpackFloatFunc;
-    SLANG_RHI_ASSERT(unpackFloatFunc);
-    size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-
-    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
-    {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
-        {
-            const Subresource& sr = getSubresource(layer, mipLevel);
-
-            ComPtr<ISlangBlob> blob;
-            Size rowPitch;
-            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
-            );
-
-            const uint8_t* expectedSlice = sr.data.get();
-            const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
-
-            for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
-            {
-                const uint8_t* expectedRow = expectedSlice;
-                const uint8_t* actualRow = actualSlice;
-
-                for (uint32_t row = 0; row < sr.layout.rowCount; row++)
-                {
-                    const uint8_t* expectedData = expectedRow;
-                    const uint8_t* actualData = actualRow;
-                    bool isEqual = true;
-
-                    for (uint32_t x = 0; x < sr.layout.size.width; x++)
-                    {
-                        float expected[4];
-                        float actual[4];
-                        unpackFloatFunc(expectedData + x * pixelSize, expected);
-                        unpackFloatFunc(actualData + x * pixelSize, actual);
-                        for (uint32_t i = 0; i < formatInfo.channelCount; i++)
-                        {
-                            // Note: Doing a check for each pixel is slow, so we do it per row.
-                            // CHECK_EQ(std::abs(expected[i] - actual[i]) <= epsilon, true);
-                            isEqual &= std::abs(expected[i] - actual[i]) <= epsilon;
-                        }
-                    }
-
-                    CHECK(isEqual);
-
-                    expectedRow += sr.layout.strideY;
-                    actualRow += rowPitch;
-                }
-
-                expectedSlice += sr.layout.strideZ;
-                actualSlice += rowPitch * sr.layout.rowCount;
-            }
-        }
-    }
-}
-
 void TextureData::clearFloat(const float clearValue[4]) const
 {
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
@@ -775,18 +705,6 @@ void TextureTestOptions::processVariantArg(TTFmtCompressed format)
         [this, format](int state, TextureTestVariant variant)
         {
             variant.formatFilter.compression = format;
-            next(state, variant);
-        }
-    );
-}
-
-void TextureTestOptions::processVariantArg(TextureUsage usage)
-{
-    addGenerator(
-        [this, usage](int state, TextureTestVariant variant)
-        {
-            for (auto& testTexture : variant.descriptors)
-                testTexture.desc.usage |= usage;
             next(state, variant);
         }
     );
