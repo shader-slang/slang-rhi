@@ -173,6 +173,22 @@ inline void unpackUnorm8(const void* in, float out[4])
         out[i] = reinterpret_cast<const uint8_t*>(in)[i] / 255.f;
 }
 
+inline void packUnormBGRA8(const float in[4], void* out)
+{
+    reinterpret_cast<uint8_t*>(out)[0] = uint8_t(::floor(in[2] * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[1] = uint8_t(::floor(in[1] * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[2] = uint8_t(::floor(in[0] * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[3] = uint8_t(::floor(in[3] * 255.f + 0.5f));
+}
+
+inline void unpackUnormBGRA8(const void* in, float out[4])
+{
+    out[0] = reinterpret_cast<const uint8_t*>(in)[2] / 255.f;
+    out[1] = reinterpret_cast<const uint8_t*>(in)[1] / 255.f;
+    out[2] = reinterpret_cast<const uint8_t*>(in)[0] / 255.f;
+    out[3] = reinterpret_cast<const uint8_t*>(in)[3] / 255.f;
+}
+
 template<size_t N>
 inline void packUnorm16(const float in[4], void* out)
 {

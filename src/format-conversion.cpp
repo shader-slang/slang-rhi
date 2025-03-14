@@ -24,10 +24,10 @@ static const FormatConversionFuncs sFuncs[] = {
     {Format::RGBA8Snorm, packInt8<4>, unpackInt8<4>, packSnorm8<4>, unpackSnorm8<4>},
 
     // TODO flip channels
-    {Format::BGRA8Unorm, packInt8<4>, unpackInt8<4>, packUnorm8<4>, unpackUnorm8<4>},
+    {Format::BGRA8Unorm, packInt8<4>, unpackInt8<4>, packUnormBGRA8, unpackUnormBGRA8},
     {Format::BGRA8UnormSrgb, packInt8<4>, unpackInt8<4>, nullptr, nullptr},
     // TODO should we discard last channel?
-    {Format::BGRX8Unorm, packInt8<4>, unpackInt8<4>, packUnorm8<3>, unpackUnorm8<3>},
+    {Format::BGRX8Unorm, packInt8<4>, unpackInt8<4>, packUnormBGRA8, unpackUnormBGRA8},
     {Format::BGRX8UnormSrgb, packInt8<4>, unpackInt8<4>, nullptr, nullptr},
 
     {Format::R16Uint, packInt16<1>, unpackInt16<1>, nullptr, nullptr},
