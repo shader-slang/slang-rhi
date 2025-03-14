@@ -67,8 +67,6 @@ struct TextureData
         Extents textureExtents = Extents::kWholeTexture,
         bool compareOutsideRegion = false
     ) const;
-    
-    void checkEqualFloat(ITexture* texture, float epsilon = 0.f) const;
 
     /// Compare cpu data for a layer in this TextureData against a layer
     /// in a gpu texture. For details of region comparison see checkEqual.
@@ -93,6 +91,8 @@ struct TextureData
         Extents textureExtents = Extents::kWholeTexture,
         bool compareOutsideRegion = false
     ) const;
+
+    void checkEqualFloat(ITexture* texture, float epsilon = 0.f) const;
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
