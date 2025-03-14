@@ -61,8 +61,6 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | WGPU)
             TextureData newData;
             newData.init(currentData.device, currentData.desc, TextureInitMode::Random, 1000);
 
-            fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
-
             // Create command encoder
             auto device = c->getDevice();
             auto queue = device->getQueue(QueueType::Graphics);
@@ -118,8 +116,6 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | WGPU)
 
             TextureData newData;
             newData.init(currentData.device, currentData.desc, TextureInitMode::Random, 1000);
-
-            // fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
 
             // Create command encoder
             auto device = c->getDevice();
@@ -185,8 +181,6 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | WGPU)
             TextureData newData;
             newData.init(currentData.device, newDesc, TextureInitMode::Random, 1000);
 
-            fprintf(stderr, "TR %s\n", c->getTexture()->getDesc().label);
-
             // Create command encoder
             auto device = c->getDevice();
             auto queue = device->getQueue(QueueType::Graphics);
@@ -242,13 +236,10 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | WGPU)
             TextureData newData;
             newData.init(currentData.device, newDesc, TextureInitMode::Random, 1000);
 
-            fprintf(stderr, "TR %s\n", c->getTexture()->getDesc().label);
-
             // Create command encoder
             auto device = c->getDevice();
             auto queue = device->getQueue(QueueType::Graphics);
             auto commandEncoder = queue->createCommandEncoder();
-
 
             // Write an offset, still allowing remainder of texture to be written
             for (uint32_t layer = 0; layer < newDesc.getLayerCount(); layer++)
