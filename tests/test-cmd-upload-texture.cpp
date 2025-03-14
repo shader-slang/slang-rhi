@@ -38,7 +38,6 @@ GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | WGPU)
                 data.subresourceData.size()
             );
             queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
 
             // Verify it uploaded correctly
             data.checkEqual(c->getTexture());
@@ -88,7 +87,6 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | WGPU)
 
             // Execute all operations
             queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
 
             // Verify alternate layers from original and new data
             for (uint32_t layer = 0; layer < layerCount; layer++)
@@ -147,7 +145,6 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | WGPU)
 
             // Execute all operations
             queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
 
             // Verify alternate layers from original and new data
             for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
@@ -208,7 +205,6 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | WGPU)
 
             // Execute all operations
             queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
@@ -262,7 +258,6 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | WGPU)
 
             // Execute all operations
             queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
@@ -327,7 +322,6 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | WGPU)
 
             // Execute all operations
             queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
 
             // Verify top mip is untouched
             currentData.checkMipLevelsEqual(c->getTexture(), 0, 0, 0, 0);
