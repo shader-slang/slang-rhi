@@ -39,8 +39,8 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     // Array multisampled textures not supported on WebGPU
     if (device->getDeviceType() == DeviceType::WGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
         return false;
-    // Arrays are barely supported on cpu
-    if (device->getDeviceType() == DeviceType::CPU && desc.arrayLength > 1)
+    // Anything with more than 1 layer won't work properly with CPU textures
+    if (device->getDeviceType() == DeviceType::CPU && desc.getLayerCount() > 1)
         return false;
     return true;
 }
@@ -337,7 +337,12 @@ void TextureData::checkMipLevelsEqual(
                                         (colOffset + col) * formatInfo.blockSizeInBytes;
 
                 // Compare the block of texels that make up this row/column
-                CHECK_EQ(memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes), 0);
+                bool blocks_equal = memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes) == 0;
+                CHECK(blocks_equal);
+
+                // Avoid spamming CI with fails for every block if one doesn't match.
+                if (!blocks_equal)
+                    return;
             }
         }
     }
