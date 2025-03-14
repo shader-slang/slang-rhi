@@ -53,6 +53,9 @@ struct TextureData
 
     void checkLayersEqual(ITexture* texture, int thisLayer, int textureLayer) const;
 
+    void checkMipLevelsEqual(ITexture* texture, int thisLayer, int thisMipLevel, int textureLayer, int textureMipLevel)
+        const;
+
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
         return subresources[layer * desc.mipLevelCount + mipLevel];
