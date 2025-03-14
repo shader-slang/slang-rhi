@@ -50,11 +50,21 @@ struct TextureData
     Result createTexture(ITexture** texture) const;
 
     void checkEqual(ITexture* texture) const;
+    void checkEqualFloat(ITexture* texture, float epsilon = 0.f) const;
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
         return subresources[layer * desc.mipLevelCount + mipLevel];
     }
+
+    void clearFloat(const float clearValue[4]) const;
+    void clearFloat(uint32_t layer, uint32_t mipLevel, const float clearValue[4]) const;
+
+    void clearUint(const uint32_t clearValue[4]) const;
+    void clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t clearValue[4]) const;
+
+    void clearSint(const int32_t clearValue[4]) const;
+    void clearSint(uint32_t layer, uint32_t mipLevel, const int32_t clearValue[4]) const;
 };
 
 /// Description of a given texture in a variant (texture descriptor + how to init)
