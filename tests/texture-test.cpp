@@ -84,12 +84,10 @@ bool getMultisampleType(TextureType type, TextureType& outArrayType)
 // TextureData
 //----------------------------------------------------------
 
-void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMode _initMode, int _initSeed)
+void TextureData::init(IDevice* device_, const TextureDesc& desc_, TextureInitMode initMode_, int initSeed_)
 {
-    device = _device;
-    desc = fixupTextureDesc(_desc);
-    initMode = _initMode;
-    initSeed = _initSeed;
+    device = device_;
+    desc = fixupTextureDesc(desc_);
     formatInfo = getFormatInfo(desc.format);
     REQUIRE_CALL(device->getFormatSupport(desc.format, &formatSupport));
 
@@ -100,7 +98,7 @@ void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMo
     desc.usage = TextureUsage::CopySource | TextureUsage::CopyDestination;
 
     // D3D12 needs multisampled textures to be render targets.
-    if (isMultisamplingType(_desc.type))
+    if (isMultisamplingType(desc_.type))
         desc.usage |= TextureUsage::RenderTarget;
 
     // Only add shader resource usage if format supports loading.
@@ -109,7 +107,19 @@ void TextureData::init(IDevice* _device, const TextureDesc& _desc, TextureInitMo
 
     // Initializing multi-aspect textures is not supported
     if (formatInfo.hasDepth && formatInfo.hasStencil)
-        initMode = TextureInitMode::None;
+        initMode_ = TextureInitMode::None;
+
+    // Initialize subresources
+    initData(initMode_, initSeed_);
+}
+
+void TextureData::initData(TextureInitMode initMode_, int initSeed_)
+{
+    initMode = initMode_;
+    initSeed = initSeed_;
+
+    subresources.clear();
+    subresourceData.clear();
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
@@ -449,6 +459,33 @@ void TextureTestOptions::processVariantArg(const std::vector<Format>& formats)
     );
 }
 
+// checks filter, where mask is a bitfield with bit 1=allow off, 2=allow on
+template<typename T>
+inline bool _checkFilter(bool value, T mask)
+{
+    int bits = (int)mask;
+    bool allow = false;
+    if (bits & 1)
+        allow |= !value;
+    if (bits & 2)
+        allow |= value;
+    return allow;
+}
+
+bool FormatFilter::filter(Format format) const
+{
+    const FormatInfo& info = getFormatInfo(format);
+
+    if (!_checkFilter(info.isCompressed, compression))
+        return false;
+    if (!_checkFilter(info.hasDepth, depth))
+        return false;
+    if (!_checkFilter(info.hasStencil, stencil))
+        return false;
+    return true;
+}
+
+
 // Nice selection of formats to test
 Format kStandardFormats[] = {
     Format::D16Unorm,
@@ -587,6 +624,10 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
     for (auto& testTexture : variant.descriptors)
     {
         Format format = testTexture.desc.format;
+
+        // Apply format mask filter
+        if (!variant.formatFilter.filter(format))
+            return;
 
         // Skip if device doesn't support format.
         FormatSupport support;

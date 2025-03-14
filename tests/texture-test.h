@@ -45,6 +45,8 @@ struct TextureData
 
     void init(IDevice* device, const TextureDesc& desc, TextureInitMode initMode, int initSeed = 0);
 
+    void initData(TextureInitMode initMode, int initSeed = 0);
+
     Result createTexture(ITexture** texture) const;
 
     void checkEqual(ITexture* texture) const;
@@ -60,12 +62,6 @@ struct TestTextureDesc
 {
     TextureDesc desc;
     TextureInitMode initMode;
-};
-
-/// Description of a given variant to test.
-struct TextureTestVariant
-{
-    std::vector<TestTextureDesc> descriptors;
 };
 
 enum class TTShape
@@ -101,6 +97,47 @@ enum class TTMS
     Both = Off | On,
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TTMS);
+
+enum class TTFmtCompressed
+{
+    Off = 1 << 0,
+    On = 1 << 1,
+    Both = Off | On,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(TTFmtCompressed);
+
+enum class TTFmtDepth
+{
+    Off = 1 << 0,
+    On = 1 << 1,
+    Both = Off | On,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(TTFmtDepth);
+
+enum class TTFmtStencil
+{
+    Off = 1 << 0,
+    On = 1 << 1,
+    Both = Off | On,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(TTFmtStencil);
+
+struct FormatFilter
+{
+    TTFmtCompressed compression = TTFmtCompressed::Both;
+    TTFmtDepth depth = TTFmtDepth::Both;
+    TTFmtStencil stencil = TTFmtStencil::Both;
+
+    bool filter(Format format) const;
+};
+
+/// Description of a given variant to test.
+struct TextureTestVariant
+{
+    std::vector<TestTextureDesc> descriptors;
+    FormatFilter formatFilter;
+};
+
 
 struct TexTypes
 {
