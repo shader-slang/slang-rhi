@@ -61,7 +61,7 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | WGPU)
             TextureData newData;
             newData.init(currentData.device, currentData.desc, TextureInitMode::Random, 1000);
 
-            // fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
+            fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
 
             // Create command encoder
             auto device = c->getDevice();
@@ -99,6 +99,65 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | WGPU)
                     currentData.checkLayersEqual(c->getTexture(), layer, layer);
                 else
                     newData.checkLayersEqual(c->getTexture(), layer, layer);
+            }
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | WGPU)
+{
+    // Test all basic variants without initializing textures.
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Off, TTMip::On, TextureInitMode::Random, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            // Get / re-init cpu side data with random data.
+            const TextureData& currentData = c->getTextureData();
+
+            TextureData newData;
+            newData.init(currentData.device, currentData.desc, TextureInitMode::Random, 1000);
+
+            // fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
+
+            // Create command encoder
+            auto device = c->getDevice();
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            uint32_t mipLevelCount = currentData.desc.mipLevelCount;
+
+            // Replace alternate mipLevels
+            for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+            {
+                if ((mipLevel % 2) == 1)
+                {
+                    // Copy the subresource data from inverted layer index to this layer
+                    auto srdata = newData.getLayerFirstSubresourceData(0) + mipLevel;
+                    commandEncoder->uploadTextureData(
+                        c->getTexture(),
+                        {mipLevel, 1, 0, 1},
+                        {0, 0, 0},
+                        Extents::kWholeTexture,
+                        srdata,
+                        1
+                    );
+                }
+            }
+
+            // Execute all operations
+            queue->submit(commandEncoder->finish());
+            queue->waitOnHost();
+
+            // Verify alternate layers from original and new data
+            for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+            {
+                if ((mipLevel % 2) == 0)
+                    currentData.checkMipLevelsEqual(c->getTexture(), 0, mipLevel, 0, mipLevel);
+                else
+                    newData.checkMipLevelsEqual(c->getTexture(), 0, mipLevel, 0, mipLevel);
             }
         }
     );

@@ -185,6 +185,23 @@ void TextureData::checkEqual(ITexture* texture) const
 
 void TextureData::checkLayersEqual(ITexture* texture, int thisLayer, int textureLayer) const
 {
+    const TextureDesc& otherDesc = texture->getDesc();
+    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+
+    for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+    {
+        checkMipLevelsEqual(texture, thisLayer, mipLevel, textureLayer, mipLevel);
+    }
+}
+
+void TextureData::checkMipLevelsEqual(
+    ITexture* texture,
+    int thisLayer,
+    int thisMipLevel,
+    int textureLayer,
+    int textureMipLevel
+) const
+{
     Texture* textureImpl = checked_cast<Texture*>(texture);
 
     const TextureDesc& otherDesc = textureImpl->getDesc();
@@ -196,23 +213,28 @@ void TextureData::checkLayersEqual(ITexture* texture, int thisLayer, int texture
     CHECK_EQ(otherDesc.size.depth, desc.size.depth);
     CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
 
-    for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
-    {
-        const Subresource& sr = getSubresource(thisLayer, mipLevel);
+    const Subresource& sr = getSubresource(thisLayer, thisMipLevel);
 
-        ComPtr<ISlangBlob> blob;
-        Size rowPitch;
-        REQUIRE_CALL(
-            textureImpl->getDevice()->readTexture(textureImpl, textureLayer, mipLevel, blob.writeRef(), &rowPitch)
-        );
+    ComPtr<ISlangBlob> blob;
+    Size rowPitch;
+    REQUIRE_CALL(
+        textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
+    );
 
             const uint8_t* expectedSlice = sr.data.get();
             const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
 
-        for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
+    for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
+    {
+        uint8_t* expectedRow = expectedSlice;
+        uint8_t* actualRow = actualSlice;
+
+        for (uint32_t row = 0; row < sr.layout.rowCount; row++)
         {
-            uint8_t* expectedRow = expectedSlice;
-            uint8_t* actualRow = actualSlice;
+            CHECK_EQ(memcmp(expectedRow, actualRow, sr.layout.strideY), 0);
+            expectedRow += sr.layout.strideY;
+            actualRow += rowPitch;
+        }
 
             for (uint32_t row = 0; row < sr.layout.rowCount; row++)
             {
