@@ -247,36 +247,36 @@ void TextureData::checkMipLevelsEqual(
 
     // Adjust extents if 'whole texture' specified.
     if (textureExtents.width == Extents::kWholeTexture.width)
-        textureExtents.width = otherDesc.size.width - textureOffset.x;
+        textureExtents.width = max(textureLayout.size.width - textureOffset.x, 1);
     if (textureExtents.height == Extents::kWholeTexture.height)
-        textureExtents.height = otherDesc.size.height - textureOffset.y;
+        textureExtents.height = max(textureLayout.size.height - textureOffset.y, 1);
     if (textureExtents.depth == Extents::kWholeTexture.depth)
-        textureExtents.depth = otherDesc.size.depth - textureOffset.z;
+        textureExtents.depth = max(textureLayout.size.depth - textureOffset.z, 1);
 
     if (invertRegion)
     {
         // This is a comparison of 2 textures of equal size, with
         // a mask applied to the middle, so texture sizes must match.
-        CHECK_EQ(otherDesc.size.width, desc.size.width);
-        CHECK_EQ(otherDesc.size.height, desc.size.height);
-        CHECK_EQ(otherDesc.size.depth, desc.size.depth);
+        CHECK_EQ(otherDesc.size.width, thisLayout.size.width);
+        CHECK_EQ(otherDesc.size.height, thisLayout.size.height);
+        CHECK_EQ(otherDesc.size.depth, thisLayout.size.depth);
     }
     else
     {
         // This is a comparison of the WHOLE of the cpu data against the
         // region of the texture, so extents must match descriptor size.
-        CHECK_EQ(textureExtents.width, desc.size.width);
-        CHECK_EQ(textureExtents.height, desc.size.height);
-        CHECK_EQ(textureExtents.depth, desc.size.depth);
+        CHECK_EQ(textureExtents.width, thisLayout.size.width);
+        CHECK_EQ(textureExtents.height, thisLayout.size.height);
+        CHECK_EQ(textureExtents.depth, thisLayout.size.depth);
     }
 
     // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
     uint32_t sliceOffset = 0;
     uint32_t rowOffset = 0;
     uint32_t colOffset = 0;
-    uint32_t sliceCount = thisSubresource.layout.size.depth;
-    uint32_t rowCount = thisSubresource.layout.rowCount;
-    uint32_t colCount = thisSubresource.layout.size.width / formatInfo.blockWidth;
+    uint32_t sliceCount = thisLayout.size.depth;
+    uint32_t rowCount = thisLayout.rowCount;
+    uint32_t colCount = thisLayout.size.width / formatInfo.blockWidth;
 
     // Calculate start of region in blocks.
     uint32_t sliceRegionBegin = textureOffset.z;
