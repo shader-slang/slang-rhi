@@ -308,12 +308,16 @@ void TextureData::clearFloat(uint32_t layer, uint32_t mipLevel, const float clea
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     uint8_t pixelData[16];
     funcs.packFloatFunc(clearValue, pixelData);
-    for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
+    for (uint32_t depth = 0; depth < subresource.layout.size.depth; depth++)
     {
-        uint8_t* rowStart = subresource.data.get() + row * subresource.layout.strideY;
-        for (uint32_t x = 0; x < subresource.layout.size.width; x++)
+        for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
         {
-            ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);
+            uint8_t* rowStart =
+                subresource.data.get() + depth * subresource.layout.strideZ + row * subresource.layout.strideY;
+            for (uint32_t x = 0; x < subresource.layout.size.width; x++)
+            {
+                ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);
+            }
         }
     }
 }
@@ -337,12 +341,16 @@ void TextureData::clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t cl
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     uint8_t pixelData[16];
     funcs.packIntFunc(clearValue, pixelData);
-    for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
+    for (uint32_t depth = 0; depth < subresource.layout.size.depth; depth++)
     {
-        uint8_t* rowStart = subresource.data.get() + row * subresource.layout.strideY;
-        for (uint32_t x = 0; x < subresource.layout.size.width; x++)
+        for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
         {
-            ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);
+            uint8_t* rowStart =
+                subresource.data.get() + depth * subresource.layout.strideZ + row * subresource.layout.strideY;
+            for (uint32_t x = 0; x < subresource.layout.size.width; x++)
+            {
+                ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);
+            }
         }
     }
 }
