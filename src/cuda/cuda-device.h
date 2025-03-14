@@ -2,6 +2,7 @@
 
 #include "cuda-base.h"
 #include "cuda-helper-functions.h"
+#include "cuda-clear-engine.h"
 
 namespace rhi::cuda {
 
@@ -30,6 +31,7 @@ public:
     DeviceInfo m_info;
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
+    ClearEngine m_clearEngine;
 
 public:
     DeviceImpl();

@@ -137,6 +137,7 @@ DeviceImpl::~DeviceImpl()
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
+    m_clearEngine.release();
 
 #if SLANG_RHI_ENABLE_OPTIX
     if (m_ctx.optixContext)
@@ -337,6 +338,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize());
 
     return SLANG_OK;
 }

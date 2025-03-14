@@ -146,14 +146,14 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+    m_device->m_clearEngine
+        .clearTextureFloat(m_stream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
+    m_device->m_clearEngine
+        .clearTextureUint(m_stream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
