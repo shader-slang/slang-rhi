@@ -10,6 +10,7 @@
 #include "d3d11-shader-object.h"
 #include "../command-list.h"
 #include "../strings.h"
+#include "../format-conversion.h"
 
 namespace rhi::d3d11 {
 
@@ -198,7 +199,9 @@ void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
             sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
             sr.mipLevelCount = 1;
             ID3D11UnorderedAccessView* uav = texture->getUAV(desc.format, sr);
-            m_immediateContext->ClearUnorderedAccessViewUint(uav, cmd.clearValue);
+            uint32_t clearValue[4];
+            truncateBySintFormat(desc.format, cmd.clearValue, clearValue);
+            m_immediateContext->ClearUnorderedAccessViewUint(uav, clearValue);
         }
     }
 }

@@ -419,11 +419,12 @@ target_sources(slang-rhi PRIVATE
     src/device.cpp
     src/enum-strings.cpp
     src/flag-combiner.cpp
+    src/format-conversion.cpp
     src/pipeline.cpp
-    src/shader-object.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
     src/rhi.cpp
+    src/shader-object.cpp
     src/shader.cpp
     src/staging-heap.cpp
     src/core/assert.cpp

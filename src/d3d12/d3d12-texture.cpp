@@ -176,13 +176,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
     {
     case TextureType::Texture1D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
-        viewDesc.Texture1DArray.MipSlice = range.mipLevel;
-        viewDesc.Texture1DArray.ArraySize = range.layerCount;
-        viewDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        viewDesc.Texture1D.MipSlice = range.mipLevel;
         break;
     case TextureType::Texture1DArray:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
-        viewDesc.Texture1D.MipSlice = range.mipLevel;
+        viewDesc.Texture1DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture1DArray.ArraySize = range.layerCount;
+        viewDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
         break;
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
@@ -210,7 +210,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
         viewDesc.Texture3D.MipSlice = range.mipLevel;
         viewDesc.Texture3D.FirstWSlice = range.baseArrayLayer;
-        viewDesc.Texture3D.WSize = m_desc.size.depth;
+        viewDesc.Texture3D.WSize = max(m_desc.size.depth >> range.mipLevel, 1);
         break;
     }
 
@@ -274,7 +274,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
         viewDesc.Texture3D.MipSlice = range.mipLevel;
         viewDesc.Texture3D.FirstWSlice = range.baseArrayLayer;
-        viewDesc.Texture3D.WSize = m_desc.size.depth;
+        viewDesc.Texture3D.WSize = max(m_desc.size.depth >> range.mipLevel, 1);
         break;
     }
 

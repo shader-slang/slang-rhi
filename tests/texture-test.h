@@ -50,11 +50,21 @@ struct TextureData
     Result createTexture(ITexture** texture) const;
 
     void checkEqual(ITexture* texture) const;
+    void checkEqualFloat(ITexture* texture, float epsilon = 0.f) const;
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
         return subresources[layer * desc.mipLevelCount + mipLevel];
     }
+
+    void clearFloat(const float clearValue[4]) const;
+    void clearFloat(uint32_t layer, uint32_t mipLevel, const float clearValue[4]) const;
+
+    void clearUint(const uint32_t clearValue[4]) const;
+    void clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t clearValue[4]) const;
+
+    void clearSint(const int32_t clearValue[4]) const;
+    void clearSint(uint32_t layer, uint32_t mipLevel, const int32_t clearValue[4]) const;
 };
 
 /// Description of a given texture in a variant (texture descriptor + how to init)
@@ -180,6 +190,7 @@ public:
     /// Generate a full matrix of variants given a set of constraints:
     /// - TextureTestVariant/TestTextureDesc/TextureDesc: Explicitly specify descriptors
     /// - Format or vector<Format>: Explicit list of formats (defaults to standard list)
+    /// - TextureUsage flags: Additional usage flags to set on textures
     /// - TTShape: Flags defining which texture types to test (1D/2D/3D/Cube)
     /// - TextureType: Explicitly specify texture type to test
     /// - TexTypes: Explicitly specify a list of texture types to test
@@ -252,6 +263,8 @@ private:
     void processVariantArg(TTFmtCompressed format);
 
     void processVariantArg(const std::vector<Format>& formats);
+
+    void processVariantArg(TextureUsage usage);
 
     void postProcessVariant(int state, TextureTestVariant variant);
 

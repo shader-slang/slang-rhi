@@ -1,7 +1,8 @@
 #include "texture-test.h"
-#include <cmath>
 #include "core/common.h"
 #include "rhi-shared.h"
+#include "format-conversion.h"
+#include <cmath>
 #include <random>
 
 /// If set to 1, the default format list to test will be all formats
@@ -98,7 +99,7 @@ void TextureData::init(IDevice* device_, const TextureDesc& desc_, TextureInitMo
 
     REQUIRE(is_set(formatSupport, FormatSupport::Texture));
 
-    desc.usage = TextureUsage::CopySource | TextureUsage::CopyDestination;
+    desc.usage |= TextureUsage::CopySource | TextureUsage::CopyDestination;
 
     // D3D12 needs multisampled textures to be render targets.
     if (isMultisamplingType(desc_.type))
@@ -196,13 +197,13 @@ void TextureData::checkEqual(ITexture* texture) const
             REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
             );
 
-            uint8_t* expectedSlice = sr.data.get();
-            uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
+            const uint8_t* expectedSlice = sr.data.get();
+            const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
 
             for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
             {
-                uint8_t* expectedRow = expectedSlice;
-                uint8_t* actualRow = actualSlice;
+                const uint8_t* expectedRow = expectedSlice;
+                const uint8_t* actualRow = actualSlice;
 
                 for (uint32_t row = 0; row < sr.layout.rowCount; row++)
                 {
@@ -216,6 +217,156 @@ void TextureData::checkEqual(ITexture* texture) const
             }
         }
     }
+}
+
+void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
+{
+    Texture* textureImpl = checked_cast<Texture*>(texture);
+
+    const TextureDesc& otherDesc = textureImpl->getDesc();
+
+    CHECK_EQ(otherDesc.type, desc.type);
+    CHECK_EQ(otherDesc.format, desc.format);
+    CHECK_EQ(otherDesc.size.width, desc.size.width);
+    CHECK_EQ(otherDesc.size.height, desc.size.height);
+    CHECK_EQ(otherDesc.size.depth, desc.size.depth);
+    CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
+    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+
+    UnpackFloatFunc unpackFloatFunc = getFormatConversionFuncs(desc.format).unpackFloatFunc;
+    SLANG_RHI_ASSERT(unpackFloatFunc);
+    size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
+
+    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    {
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        {
+            const Subresource& sr = getSubresource(layer, mipLevel);
+
+            ComPtr<ISlangBlob> blob;
+            Size rowPitch;
+            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
+            );
+
+            const uint8_t* expectedSlice = sr.data.get();
+            const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
+
+            for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
+            {
+                const uint8_t* expectedRow = expectedSlice;
+                const uint8_t* actualRow = actualSlice;
+
+                for (uint32_t row = 0; row < sr.layout.rowCount; row++)
+                {
+                    const uint8_t* expectedData = expectedRow;
+                    const uint8_t* actualData = actualRow;
+                    bool isEqual = true;
+
+                    for (uint32_t x = 0; x < sr.layout.size.width; x++)
+                    {
+                        float expected[4];
+                        float actual[4];
+                        unpackFloatFunc(expectedData + x * pixelSize, expected);
+                        unpackFloatFunc(actualData + x * pixelSize, actual);
+                        for (uint32_t i = 0; i < formatInfo.channelCount; i++)
+                        {
+                            // Note: Doing a check for each pixel is slow, so we do it per row.
+                            // CHECK_EQ(std::abs(expected[i] - actual[i]) <= epsilon, true);
+                            isEqual &= std::abs(expected[i] - actual[i]) <= epsilon;
+                        }
+                    }
+
+                    CHECK(isEqual);
+
+                    expectedRow += sr.layout.strideY;
+                    actualRow += rowPitch;
+                }
+
+                expectedSlice += sr.layout.strideZ;
+                actualSlice += rowPitch * sr.layout.rowCount;
+            }
+        }
+    }
+}
+
+void TextureData::clearFloat(const float clearValue[4]) const
+{
+    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    {
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        {
+            clearFloat(layer, mipLevel, clearValue);
+        }
+    }
+}
+
+void TextureData::clearFloat(uint32_t layer, uint32_t mipLevel, const float clearValue[4]) const
+{
+    const Subresource& subresource = getSubresource(layer, mipLevel);
+    FormatConversionFuncs funcs = getFormatConversionFuncs(desc.format);
+    SLANG_RHI_ASSERT(funcs.packFloatFunc);
+    size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
+    uint8_t pixelData[16];
+    funcs.packFloatFunc(clearValue, pixelData);
+    for (uint32_t depth = 0; depth < subresource.layout.size.depth; depth++)
+    {
+        for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
+        {
+            uint8_t* rowStart =
+                subresource.data.get() + depth * subresource.layout.strideZ + row * subresource.layout.strideY;
+            for (uint32_t x = 0; x < subresource.layout.size.width; x++)
+            {
+                ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);
+            }
+        }
+    }
+}
+
+void TextureData::clearUint(const uint32_t clearValue[4]) const
+{
+    for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
+    {
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        {
+            clearUint(layer, mipLevel, clearValue);
+        }
+    }
+}
+
+void TextureData::clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t clearValue[4]) const
+{
+    const Subresource& subresource = getSubresource(layer, mipLevel);
+    FormatConversionFuncs funcs = getFormatConversionFuncs(desc.format);
+    SLANG_RHI_ASSERT(funcs.packIntFunc);
+    size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
+    uint8_t pixelData[16];
+    funcs.packIntFunc(clearValue, pixelData);
+    for (uint32_t depth = 0; depth < subresource.layout.size.depth; depth++)
+    {
+        for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
+        {
+            uint8_t* rowStart =
+                subresource.data.get() + depth * subresource.layout.strideZ + row * subresource.layout.strideY;
+            for (uint32_t x = 0; x < subresource.layout.size.width; x++)
+            {
+                ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);
+            }
+        }
+    }
+}
+
+void TextureData::clearSint(const int32_t clearValue[4]) const
+{
+    uint32_t clearValueUint[4];
+    truncateBySintFormat(desc.format, reinterpret_cast<const uint32_t*>(clearValue), clearValueUint);
+    clearUint(clearValueUint);
+}
+
+void TextureData::clearSint(uint32_t layer, uint32_t mipLevel, const int32_t clearValue[4]) const
+{
+    uint32_t clearValueUint[4];
+    truncateBySintFormat(desc.format, reinterpret_cast<const uint32_t*>(clearValue), clearValueUint);
+    clearUint(layer, mipLevel, clearValueUint);
 }
 
 //----------------------------------------------------------
@@ -502,6 +653,18 @@ void TextureTestOptions::processVariantArg(TTFmtCompressed format)
         [this, format](int state, TextureTestVariant variant)
         {
             variant.formatFilter.compression = format;
+            next(state, variant);
+        }
+    );
+}
+
+void TextureTestOptions::processVariantArg(TextureUsage usage)
+{
+    addGenerator(
+        [this, usage](int state, TextureTestVariant variant)
+        {
+            for (auto& testTexture : variant.descriptors)
+                testTexture.desc.usage |= usage;
             next(state, variant);
         }
     );

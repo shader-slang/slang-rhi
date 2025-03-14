@@ -13,6 +13,7 @@
 #include "d3d12-helper-functions.h"
 #include "../state-tracking.h"
 #include "../strings.h"
+#include "../format-conversion.h"
 
 #include "core/short_vector.h"
 #include "core/common.h"
@@ -357,6 +358,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
+    requireBufferState(buffer, ResourceState::UnorderedAccess);
+    commitBarriers();
 
     D3D12_CPU_DESCRIPTOR_HANDLE uav = buffer->getUAV(Format::R32Uint, 0, cmd.range);
     GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
@@ -380,6 +383,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     if (is_set(desc.usage, TextureUsage::RenderTarget))
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::RenderTarget);
+        commitBarriers();
         for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
@@ -392,6 +396,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     else if (is_set(desc.usage, TextureUsage::UnorderedAccess))
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
+        commitBarriers();
         for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
@@ -403,7 +408,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
                 ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             m_cmdList->ClearUnorderedAccessViewFloat(
                 descriptor.getGpuHandle(0),
-                descriptor.getCpuHandle(0),
+                uav,
                 texture->m_resource.getResource(),
                 cmd.clearValue,
                 0,
@@ -420,6 +425,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     if (is_set(desc.usage, TextureUsage::UnorderedAccess))
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
+        commitBarriers();
         for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
@@ -429,11 +435,13 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
             GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
             m_device->m_device
                 ->CopyDescriptorsSimple(1, descriptor.getCpuHandle(0), uav, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            uint32_t clearValue[4];
+            truncateBySintFormat(desc.format, cmd.clearValue, clearValue);
             m_cmdList->ClearUnorderedAccessViewUint(
                 descriptor.getGpuHandle(0),
-                descriptor.getCpuHandle(0),
+                uav,
                 texture->m_resource.getResource(),
-                cmd.clearValue,
+                clearValue,
                 0,
                 nullptr
             );
@@ -448,6 +456,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
     if (is_set(desc.usage, TextureUsage::DepthStencil))
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::DepthWrite);
+        commitBarriers();
         D3D12_CLEAR_FLAGS clearFlags = (D3D12_CLEAR_FLAGS)0;
         if (cmd.clearDepth)
             clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
