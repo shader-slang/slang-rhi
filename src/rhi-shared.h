@@ -282,8 +282,8 @@ public:
     ISurface* getInterface(const Guid& guid);
 
 public:
-    const SurfaceInfo& getInfo() override { return m_info; }
-    const SurfaceConfig& getConfig() override { return m_config; }
+    virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() override { return m_info; }
+    virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() override { return m_config; }
 
 public:
     void setInfo(const SurfaceInfo& info);

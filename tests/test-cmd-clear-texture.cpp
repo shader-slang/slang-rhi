@@ -103,7 +103,8 @@ static const std::vector<Format> kSintFormats = {
 GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan)
 {
     TextureTestOptions options(device, 1);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kFloatFormats, TextureUsage::UnorderedAccess);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kFloatFormats, TextureUsage::UnorderedAccess);
 
     runTextureTest(
         options,
@@ -131,7 +132,8 @@ GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan)
 GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan)
 {
     TextureTestOptions options(device, 1);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kFloatFormats, TextureUsage::UnorderedAccess);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kFloatFormats, TextureUsage::UnorderedAccess);
 
     runTextureTest(
         options,
@@ -159,7 +161,8 @@ GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan)
 GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan)
 {
     TextureTestOptions options(device, 1);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kUintFormats, TextureUsage::UnorderedAccess);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kUintFormats, TextureUsage::UnorderedAccess);
 
     runTextureTest(
         options,
@@ -187,7 +190,8 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan)
 GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan)
 {
     TextureTestOptions options(device, 1);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kUintFormats, TextureUsage::UnorderedAccess);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kUintFormats, TextureUsage::UnorderedAccess);
 
     runTextureTest(
         options,
@@ -215,7 +219,8 @@ GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan)
 GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan)
 {
     TextureTestOptions options(device, 1);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kSintFormats, TextureUsage::UnorderedAccess);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kSintFormats, TextureUsage::UnorderedAccess);
 
     runTextureTest(
         options,
@@ -243,7 +248,8 @@ GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan)
 GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan)
 {
     TextureTestOptions options(device, 1);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kSintFormats, TextureUsage::UnorderedAccess);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kSintFormats, TextureUsage::UnorderedAccess);
 
     runTextureTest(
         options,

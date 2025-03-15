@@ -147,6 +147,8 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_)
 
             switch (initMode)
             {
+            case rhi::testing::TextureInitMode::None:
+                break;
             case rhi::testing::TextureInitMode::Zeros:
                 memset(sr.data.get(), 0, sr.layout.sizeInBytes);
                 break;

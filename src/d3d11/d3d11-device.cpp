@@ -284,9 +284,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         if (featureLevel >= D3D_FEATURE_LEVEL_10_1)
             maxInputElements = 32;
 
-        uint32_t maxColorAttachments = 4;
-        if (featureLevel >= D3D_FEATURE_LEVEL_10_1)
-            maxColorAttachments = 8;
+        // uint32_t maxColorAttachments = 4;
+        // if (featureLevel >= D3D_FEATURE_LEVEL_10_1)
+        //     maxColorAttachments = 8;
 
         uint32_t maxComputeThreadGroupSizeXY = 0;
         uint32_t maxComputeThreadGroupSizeZ = 0;

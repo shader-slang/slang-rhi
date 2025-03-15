@@ -215,8 +215,8 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
 
         outCursor = fieldCursor;
         return SLANG_OK;
+        break;
     }
-    break;
 
     // In some cases the user might be trying to acess a field by name
     // from a cursor that references a constant buffer or parameter block,
@@ -231,8 +231,10 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
         //
         ShaderCursor d = getDereferenced();
         return d.getField(name, nameEnd, outCursor);
+        break;
     }
-    break;
+    default:
+        break;
     }
 
     // If a cursor is pointing at a root shader object (created for a
@@ -340,9 +342,8 @@ inline ShaderCursor ShaderCursor::getElement(uint32_t index) const
         elementCursor.m_offset.bindingArrayIndex =
             m_offset.bindingArrayIndex * (uint32_t)m_typeLayout->getElementCount() + index;
         return elementCursor;
+        break;
     }
-    break;
-
     case slang::TypeReflection::Kind::Struct:
     {
         // The logic here is similar to `getField()` except that we don't
@@ -362,9 +363,8 @@ inline ShaderCursor ShaderCursor::getElement(uint32_t index) const
         fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
 
         return fieldCursor;
+        break;
     }
-    break;
-
     case slang::TypeReflection::Kind::Vector:
     case slang::TypeReflection::Kind::Matrix:
     {
@@ -376,8 +376,10 @@ inline ShaderCursor ShaderCursor::getElement(uint32_t index) const
         fieldCursor.m_offset.bindingRangeIndex = m_offset.bindingRangeIndex;
         fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
         return fieldCursor;
+        break;
     }
-    break;
+    default:
+        break;
     }
 
     return ShaderCursor();

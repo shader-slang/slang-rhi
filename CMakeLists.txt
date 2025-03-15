@@ -66,7 +66,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 endif()
 
 set(SLANG_RHI_HAS_NVAPI OFF)
-if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64") AND MSVC)
+if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64") AND WIN32)
     set(SLANG_RHI_HAS_NVAPI ON)
 endif()
 
@@ -395,10 +395,22 @@ target_compile_options(slang-rhi PRIVATE
         /wd4389 # signed/unsigned mismatch
     >
     $<$<CXX_COMPILER_ID:GNU,Clang>:
-        -Wall -Wextra -Wpedantic -Wshadow=local -Werror
+        -Wno-unknown-warning-option
+        -Wall -Wextra -Wpedantic -Werror
+        -Wshadow
+        -Wshadow=local
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
+        -Wno-variadic-macro-arguments-omitted
+        -Wno-microsoft-exception-spec
+        -Wno-microsoft-enum-value
+        -Wno-microsoft-extra-qualification
+        -Wno-microsoft-cast
+        -Wno-nested-anon-types
+        -Wno-language-extension-token
+        -Wno-cast-function-type-mismatch
+        -Wno-unused-but-set-variable
     >
     $<$<CXX_COMPILER_ID:AppleClang>:
         -Wall -Wextra -Wpedantic -Werror
@@ -726,3 +738,6 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
+
+# target_compile_options(slang-rhi PUBLIC $<$<CXX_COMPILER_ID:GNU,Clang>:--coverage -fprofile-instr-generate -fcoverage-mapping>)
+# target_link_options(slang-rhi PUBLIC $<$<CXX_COMPILER_ID:GNU,Clang>:--coverage>)

@@ -388,7 +388,7 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
         // Bind constant buffers, shader resource views, and samplers.
-        if (m_bindingData->cbvsCount > 0)
+        // if (m_bindingData->cbvsCount > 0)
         {
             m_immediateContext->VSSetConstantBuffers1(
                 0,
@@ -615,7 +615,7 @@ void CommandExecutor::cmdSetComputeState(const commands::SetComputeState& cmd)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
-        if (m_bindingData->cbvsCount > 0)
+        // if (m_bindingData->cbvsCount > 0)
         {
             m_immediateContext->CSSetConstantBuffers1(
                 0,
