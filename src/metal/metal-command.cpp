@@ -236,7 +236,37 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_uploadTextureData);
+    auto dst = checked_cast<TextureImpl*>(cmd.dst);
+    SubresourceRange subresourceRange = cmd.subresourceRange;
+
+    SubresourceLayout* srLayout = cmd.layouts;
+    Offset bufferOffset = cmd.srcOffset;
+    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    auto encoder = getBlitCommandEncoder();
+    for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
+    {
+        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        {
+            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+
+            encoder->copyFromBuffer(
+                buffer->m_buffer.get(),
+                bufferOffset,
+                srLayout->strideY,
+                srLayout->strideZ,
+                MTL::Size(srLayout->size.width, srLayout->size.height, srLayout->size.depth),
+                dst->m_texture.get(),
+                layerIndex,
+                mipLevel,
+                MTL::Origin(cmd.offset.x, cmd.offset.y, cmd.offset.z)
+            );
+
+            bufferOffset += srLayout->sizeInBytes;
+            srLayout++;
+        }
+    }
 }
 
 void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
