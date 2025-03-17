@@ -291,8 +291,16 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     AUTORELEASEPOOL
     if (format == Format::Undefined)
         return SLANG_FAIL;
-    MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(format);
-    *outAlignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
+    const FormatInfo& formatInfo = getFormatInfo(format);
+    if (formatInfo.isCompressed)
+    {
+        *outAlignment = formatInfo.blockSizeInBytes;
+    }
+    else
+    {
+        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(format);
+        *outAlignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
+    }
     return SLANG_OK;
 }
 
