@@ -376,3 +376,71 @@ GPU_TEST_CASE("cmd-copy-texture-arrayfromslice", D3D12 | Vulkan | WGPU)
         }
     );
 }
+
+GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::D3, TTArray::Off, TTMip::Off, TTFmtDepth::Off, TextureInitMode::Invalid);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& data = c->getTextureData();
+
+            // Currently slice copies of 12B formats is disabled due to poor D3D12 support.
+            if (data.formatInfo.blockSizeInBytes == 12)
+                return;
+
+            // Create a new, random 2d texture with the
+            // same width/height.
+            TextureDesc newDesc = data.desc;
+            newDesc.type = TextureType::Texture2D;
+            newDesc.size.depth = 1;
+            TextureData newData;
+            newData.init(device, newDesc, TextureInitMode::Random, 2131);
+            ComPtr<ITexture> newTexture;
+            REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
+
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // fprintf(stderr, "Copy:\n\t%s\n\t%s\n", newTexture->getDesc().label, c->getTexture()->getDesc().label);
+
+            // Copy from the new texture into slice 1 of the texture allocated by the testing system
+            commandEncoder->copyTexture(
+                c->getTexture(),
+                {0, 1, 0, 1},
+                {0, 0, 1},
+                newTexture,
+                {0, 1, 0, 1},
+                {0, 0, 0},
+                {kRemainingTextureSize, kRemainingTextureSize, 1}
+            );
+            queue->submit(commandEncoder->finish());
+
+            // Check layers now match inside and outside of the region.
+            newData.checkLayersEqual(
+                c->getTexture(),
+                0,
+                0,
+                {0, 0, 1},
+                {kRemainingTextureSize, kRemainingTextureSize, 1},
+                false
+            );
+            data.checkLayersEqual(
+                c->getTexture(),
+                0,
+                0,
+                {0, 0, 1},
+                {kRemainingTextureSize, kRemainingTextureSize, 1},
+                true
+            );
+        }
+    );
+}
