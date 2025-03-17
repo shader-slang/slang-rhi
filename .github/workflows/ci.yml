@@ -21,6 +21,7 @@ jobs:
           - { os: macos, platform: x86_64}
           # Exclude unavailable compilers
           - { os: windows, compiler: gcc }
+          - { os: windows, platform: aarch64, compiler: clang }
           - { os: linux, compiler: msvc }
           - { os: macos, compiler: msvc }
           - { os: macos, compiler: gcc }
