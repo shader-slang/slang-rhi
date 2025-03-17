@@ -662,7 +662,6 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     m_api.vkBindImageMemory(m_device, sharedTexture.vulkanImage, sharedTexture.vulkanMemory, 0);
 
     // Create shared handle
-    NativeHandle sharedHandle;
 #if SLANG_WINDOWS_FAMILY
     VkMemoryGetWin32HandleInfoKHR getHandleInfo = {VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR};
     getHandleInfo.memory = sharedTexture.vulkanMemory;

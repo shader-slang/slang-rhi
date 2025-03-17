@@ -13,6 +13,24 @@
             "binaryDir": "${sourceDir}/build"
         },
         {
+            "name": "gcc",
+            "inherits": "default",
+            "description": "Ninja Multi-Config generator with gcc",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            }
+        },
+        {
+            "name": "clang",
+            "inherits": "default",
+            "description": "Ninja Multi-Config generator with Clang",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
             "name": "msvc-base",
             "hidden": true,
             "inherits": "default",
@@ -66,6 +84,36 @@
         {
             "name": "RelWithDebInfo",
             "configurePreset": "default",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "gcc-Debug",
+            "configurePreset": "gcc",
+            "configuration": "Debug"
+        },
+        {
+            "name": "gcc-Release",
+            "configurePreset": "gcc",
+            "configuration": "Release"
+        },
+        {
+            "name": "gcc-RelWithDebInfo",
+            "configurePreset": "gcc",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "clang-Debug",
+            "configurePreset": "clang",
+            "configuration": "Debug"
+        },
+        {
+            "name": "clang-Release",
+            "configurePreset": "clang",
+            "configuration": "Release"
+        },
+        {
+            "name": "clang-RelWithDebInfo",
+            "configurePreset": "clang",
             "configuration": "RelWithDebInfo"
         },
         {

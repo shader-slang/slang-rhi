@@ -403,21 +403,30 @@ target_compile_options(slang-rhi PRIVATE
         /wd4127 # conditional expression is constant
         /wd4389 # signed/unsigned mismatch
     >
-    $<$<CXX_COMPILER_ID:GNU,Clang>:
-        -Wall -Wextra -Wpedantic -Wshadow=local -Werror
+    $<$<CXX_COMPILER_ID:GNU>:
+        -Wall -Wextra -Wpedantic -Werror
+        -Wshadow=local
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
     >
+    $<$<CXX_COMPILER_ID:Clang>:
+        -Wall -Wextra -Wpedantic -Werror
+        -Wshadow
+        -Wno-unused-parameter
+        -Wno-missing-field-initializers
+        -Wno-sign-compare
+        -Wno-gnu-zero-variadic-macro-arguments
+    >
     $<$<CXX_COMPILER_ID:AppleClang>:
         -Wall -Wextra -Wpedantic -Werror
+        -Wshadow
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-gnu-anonymous-struct
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
-        -Wshadow
     >
 )
 

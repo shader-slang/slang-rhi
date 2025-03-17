@@ -19,6 +19,6 @@ exclude: |
   (?x)^(
       build/.*|
       external/.*|
-      src/prelude/.*|
+      src/cuda/kernels/.*|
       tools/.*|
   )$
