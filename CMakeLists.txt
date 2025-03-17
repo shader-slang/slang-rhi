@@ -376,6 +376,7 @@ cmrc_add_resource_library(
     slang-rhi-resources
     NAMESPACE resources
     src/cuda/kernels/clear-texture.ptx
+    src/metal/shaders/clear-texture.metal
 )
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
 
@@ -575,6 +576,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-acceleration-structure.cpp
         src/metal/metal-api.cpp
         src/metal/metal-buffer.cpp
+        src/metal/metal-clear-engine.cpp
         src/metal/metal-command.cpp
         src/metal/metal-device.cpp
         src/metal/metal-fence.cpp
