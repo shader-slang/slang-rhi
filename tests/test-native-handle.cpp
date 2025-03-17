@@ -54,6 +54,8 @@ GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal)
         CHECK_NE(handle.value, 0);
         break;
     }
+    default:
+        break;
     }
 }
 
@@ -104,6 +106,8 @@ GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal)
         CHECK_NE(handle.value, 0);
         break;
     }
+    default:
+        break;
     }
 }
 
@@ -142,6 +146,8 @@ GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal)
         CHECK_NE(handle.value, 0);
         break;
     }
+    default:
+        break;
     }
 }
 
@@ -182,5 +188,7 @@ GPU_TEST_CASE("native-handle-command-buffer", D3D12 | Vulkan | Metal)
         CHECK_NE(handle.value, 0);
         break;
     }
+    default:
+        break;
     }
 }

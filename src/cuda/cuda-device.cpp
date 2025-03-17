@@ -61,7 +61,6 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
     int smPerMultiproc = 0;
     int maxPerfDevice = -1;
     int deviceCount = 0;
-    int devicesProhibited = 0;
 
     uint64_t maxComputePerf = 0;
     SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
@@ -101,10 +100,6 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
                 maxComputePerf = compute_perf;
                 maxPerfDevice = currentDevice;
             }
-        }
-        else
-        {
-            devicesProhibited++;
         }
     }
 
