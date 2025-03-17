@@ -191,8 +191,9 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
 
+    // Fast path for copying whole resource.
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
-        srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount == 0 && srcOffset.isZero() && dstOffset.isZero() && extent.isWholeTexture())
     {
         requireTextureState(dst, kEntireTexture, ResourceState::CopyDestination);
         requireTextureState(src, kEntireTexture, ResourceState::CopySource);
