@@ -179,7 +179,6 @@ GPUDescriptorHeap::GPUDescriptorHeap(
     uint32_t maxAllocations
 )
     : m_device(device)
-    , m_type(type)
     , m_size(size)
     , m_allocator(size, maxAllocations)
 {

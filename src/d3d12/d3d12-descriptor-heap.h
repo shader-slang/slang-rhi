@@ -227,7 +227,6 @@ public:
 
 private:
     ID3D12Device* m_device;
-    D3D12_DESCRIPTOR_HEAP_TYPE m_type;
     uint32_t m_size;
     uint32_t m_descriptorSize;
     std::mutex m_mutex;

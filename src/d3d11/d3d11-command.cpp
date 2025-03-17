@@ -388,11 +388,11 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
         // Bind constant buffers, shader resource views, and samplers.
-        if (m_bindingData->cbvsCount > 0)
+        if (m_bindingData->cbvCount > 0)
         {
             m_immediateContext->VSSetConstantBuffers1(
                 0,
-                m_bindingData->uavCount,
+                m_bindingData->cbvCount,
                 m_bindingData->cbvsBuffer,
                 m_bindingData->cbvsFirst,
                 m_bindingData->cbvsCount
@@ -615,7 +615,7 @@ void CommandExecutor::cmdSetComputeState(const commands::SetComputeState& cmd)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
-        if (m_bindingData->cbvsCount > 0)
+        if (m_bindingData->cbvCount > 0)
         {
             m_immediateContext->CSSetConstantBuffers1(
                 0,

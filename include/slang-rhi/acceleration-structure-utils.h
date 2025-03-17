@@ -16,8 +16,9 @@ inline AccelerationStructureInstanceDescType getAccelerationStructureInstanceDes
         return AccelerationStructureInstanceDescType::Metal;
     case DeviceType::CUDA:
         return AccelerationStructureInstanceDescType::Optix;
+    default:
+        return AccelerationStructureInstanceDescType::Generic;
     }
-    return AccelerationStructureInstanceDescType::Generic;
 }
 
 inline AccelerationStructureInstanceDescType getAccelerationStructureInstanceDescType(IDevice* device)

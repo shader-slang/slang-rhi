@@ -32,7 +32,7 @@ static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int heigh
 class DebugPrinter : public IDebugCallback
 {
 public:
-    virtual void SLANG_MCALL
+    virtual SLANG_NO_THROW void SLANG_MCALL
     handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
     {
         static const char* kTypeStrings[] = {"INFO", "WARN", "ERROR"};
