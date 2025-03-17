@@ -67,7 +67,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 endif()
 
 set(SLANG_RHI_HAS_NVAPI OFF)
-if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64") AND MSVC)
+if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64") AND WIN32)
     set(SLANG_RHI_HAS_NVAPI ON)
 endif()
 
@@ -417,6 +417,13 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-gnu-zero-variadic-macro-arguments
+        -Wno-nested-anon-types
+        # Windows specific warnings
+        -Wno-microsoft-exception-spec
+        -Wno-microsoft-enum-value
+        -Wno-microsoft-cast
+        -Wno-microsoft-extra-qualification
+        -Wno-language-extension-token
     >
     $<$<CXX_COMPILER_ID:AppleClang>:
         -Wall -Wextra -Wpedantic -Werror

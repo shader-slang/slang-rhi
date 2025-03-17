@@ -43,8 +43,8 @@ struct D3D12BarrierSubmitter
 
     /// Ctor
     SLANG_FORCE_INLINE D3D12BarrierSubmitter(ID3D12GraphicsCommandList* commandList)
-        : m_numBarriers(0)
-        , m_commandList(commandList)
+        : m_commandList(commandList)
+        , m_numBarriers(0)
     {
     }
     /// Dtor
