@@ -999,9 +999,8 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
 
         const FormatInfo& info = getFormatInfo(format);
 
-        // TODO: Fix compressed format test on metal. Was seeing fatal error:
-        // 'Linear textures do not support compressed pixel formats'.
-        if (m_device->getDeviceType() == DeviceType::Metal && (info.isCompressed || info.hasDepth || info.hasStencil))
+        // WebGPU doesn't support writing into depth textures.
+        if (m_device->getDeviceType() == DeviceType::Metal && (info.hasDepth || info.hasStencil))
             return;
 
         // WebGPU doesn't support writing into depth textures.
