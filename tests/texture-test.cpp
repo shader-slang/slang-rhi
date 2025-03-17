@@ -207,6 +207,7 @@ void TextureData::checkEqual(
 ) const
 {
     const TextureDesc& otherDesc = texture->getDesc();
+    CHECK_EQ(otherDesc.type, desc.type);
     CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
@@ -257,7 +258,6 @@ void TextureData::checkMipLevelsEqual(
 
     const TextureDesc& otherDesc = textureImpl->getDesc();
 
-    CHECK_EQ(otherDesc.type, desc.type);
     CHECK_EQ(otherDesc.format, desc.format);
 
     const Subresource& thisSubresource = getSubresource(thisLayer, thisMipLevel);
@@ -347,19 +347,22 @@ void TextureData::checkMipLevelsEqual(
     for (uint32_t slice = 0; slice < sliceCount; slice++)
     {
         // Check if slice is within region.
-        bool insideSlice = slice >= sliceRegionBegin && slice < sliceRegionEnd;
+        uint32_t textureSlice = slice + sliceOffset;
+        bool insideSlice = textureSlice >= sliceRegionBegin && textureSlice < sliceRegionEnd;
 
         // Iterate rows
         for (uint32_t row = 0; row < rowCount; row++)
         {
             // Check if row is within region.
-            bool insideRow = row >= rowRegionBegin && row < rowRegionEnd;
+            uint32_t textureRow = row + rowOffset;
+            bool insideRow = textureRow >= rowRegionBegin && textureRow < rowRegionEnd;
 
             // Iterate columns.
             for (uint32_t col = 0; col < colCount; col++)
             {
                 // If doing an exterior scan, skip blocks that are in the region.
-                bool insideCol = col >= colRegionBegin && col < colRegionEnd;
+                uint32_t textureCol = col + colOffset;
+                bool insideCol = textureCol >= colRegionBegin && textureCol < colRegionEnd;
                 if (compareOutsideRegion && insideSlice && insideRow && insideCol)
                 {
                     continue;
@@ -370,9 +373,8 @@ void TextureData::checkMipLevelsEqual(
                                      col * formatInfo.blockSizeInBytes;
 
                 // Get pointer to block within the region of the texture we're scanning
-                uint8_t* textureBlock = textureData + (sliceOffset + slice) * textureLayout.strideZ +
-                                        (rowOffset + row) * textureLayout.strideY +
-                                        (colOffset + col) * formatInfo.blockSizeInBytes;
+                uint8_t* textureBlock = textureData + textureSlice * textureLayout.strideZ +
+                                        textureRow * textureLayout.strideY + textureCol * formatInfo.blockSizeInBytes;
 
                 // Compare the block of texels that make up this row/column
                 bool blocks_equal = memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes) == 0;
@@ -382,6 +384,68 @@ void TextureData::checkMipLevelsEqual(
                 if (!blocks_equal)
                     return;
             }
+        }
+    }
+}
+
+void TextureData::checkSliceEqual(
+    ITexture* texture,
+    int thisLayer,
+    int thisMipLevel,
+    int thisSlice,
+    int textureLayer,
+    int textureMipLevel
+) const
+{
+    Texture* textureImpl = checked_cast<Texture*>(texture);
+
+    const TextureDesc& otherDesc = textureImpl->getDesc();
+
+    CHECK_EQ(otherDesc.format, desc.format);
+    CHECK_EQ(desc.type, TextureType::Texture3D);
+    CHECK((otherDesc.type == TextureType::Texture2D || otherDesc.type == TextureType::Texture2DArray));
+    CHECK_EQ(otherDesc.size.width, desc.size.width);
+    CHECK_EQ(otherDesc.size.height, desc.size.height);
+
+    const Subresource& thisSubresource = getSubresource(thisLayer, thisMipLevel);
+    const SubresourceLayout& thisLayout = thisSubresource.layout;
+
+    SubresourceLayout textureLayout;
+    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, &textureLayout));
+
+    ComPtr<ISlangBlob> blob;
+    Size rowPitch;
+    REQUIRE_CALL(
+        textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
+    );
+
+    // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
+    uint32_t rowCount = thisLayout.rowCount;
+    uint32_t colCount = thisLayout.size.width / formatInfo.blockWidth;
+
+    uint8_t* thisData = thisSubresource.data.get();
+    uint8_t* textureData = (uint8_t*)blob->getBufferPointer();
+
+    // Iterate rows
+    for (uint32_t row = 0; row < rowCount; row++)
+    {
+        // Iterate columns.
+        for (uint32_t col = 0; col < colCount; col++)
+        {
+            // Get pointer to block within the whole cpu data.
+            uint8_t* thisBlock = thisData + thisSlice * thisLayout.strideZ + row * thisLayout.strideY +
+                                 col * formatInfo.blockSizeInBytes;
+
+            // Get pointer to block within the region of the texture we're scanning
+            uint8_t* textureBlock = textureData + row * textureLayout.strideY + col * formatInfo.blockSizeInBytes;
+
+            // Compare the block of texels that make up this row/column
+            bool blocks_equal = memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes) == 0;
+            CHECK(blocks_equal);
+
+            // Avoid reporting every non-matching block.
+            if (!blocks_equal)
+                return;
         }
     }
 }

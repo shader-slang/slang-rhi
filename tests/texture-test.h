@@ -92,6 +92,18 @@ struct TextureData
         bool compareOutsideRegion = false
     ) const;
 
+    /// Compare a slice of this TextureData (must be 3D) against a 2D
+    /// layer of a texture.
+    void checkSliceEqual(
+        ITexture* texture,
+        int thisLayer,
+        int thisMipLevel,
+        int thisSlice,
+        int textureLayer,
+        int textureMipLevel
+    ) const;
+
+
     void checkEqualFloat(ITexture* texture, float epsilon = 0.f) const;
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const

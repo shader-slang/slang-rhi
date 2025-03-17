@@ -426,6 +426,18 @@ void DebugCommandEncoder::copyTexture(
         }
     }
 
+    if ((srcDesc.type == TextureType::Texture3D) ^ (dstDesc.type == TextureType::Texture3D))
+    {
+        if (getFormatInfo(srcDesc.format).blockSizeInBytes == 12 ||
+            getFormatInfo(dstDesc.format).blockSizeInBytes == 12)
+        {
+            RHI_VALIDATION_ERROR(
+                "Copying individual slices of 3D textures with 12B formats is disabled due to poor D3D12 support."
+            );
+            return;
+        }
+    }
+
     baseObject->copyTexture(dst, dstSubresource, dstOffset, src, srcSubresource, srcOffset, extent);
 }
 
