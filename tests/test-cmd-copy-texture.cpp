@@ -74,7 +74,7 @@ GPU_TEST_CASE("cmd-copy-texture-arrayrange", D3D12 | Vulkan | WGPU)
 
             fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
 
-            // Create a new, uninitialized texture with same descriptor
+            // Create a new, random texture with same descriptor
             TextureData newData;
             newData.init(device, data.desc, TextureInitMode::Random, 1323);
             ComPtr<ITexture> newTexture;
@@ -126,9 +126,7 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU)
             // Get cpu side data.
             TextureData& data = c->getTextureData();
 
-            fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
-
-            // Create a new, uninitialized texture with same descriptor
+            // Create a new, random texture with same descriptor
             TextureData newData;
             newData.init(device, data.desc, TextureInitMode::Random, 1323);
             ComPtr<ITexture> newTexture;
@@ -171,6 +169,101 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU)
                     );
                 }
             }
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-copy-texture-fromarray", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::D1 | TTShape::D2, TTArray::On, TTMip::Both, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& data = c->getTextureData();
+
+            // Create a new, uninitialized texture that has the same properties
+            // but is not an array.
+            TextureDesc newDesc = data.desc;
+            newDesc.arrayLength = 1;
+            REQUIRE(getScalarType(data.desc.type, newDesc.type));
+            TextureData newData;
+            newData.init(device, data.desc, TextureInitMode::None);
+            ComPtr<ITexture> newTexture;
+            REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy from layer 2 into layer 0
+            commandEncoder->copyTexture(
+                newTexture,
+                {0, 0, 0, 1},
+                {0, 0, 0},
+                c->getTexture(),
+                {0, 0, 2, 1},
+                {0, 0, 0},
+                Extents::kWholeTexture
+            );
+            queue->submit(commandEncoder->finish());
+
+            // Check layers now match.
+            data.checkLayersEqual(newTexture, 2, 0);
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-copy-texture-toarray", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::D1 | TTShape::D2, TTArray::On, TTMip::Both, TTFmtDepth::Off, TextureInitMode::None);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& data = c->getTextureData();
+
+            // fprintf(stderr, "Uploading texture %s\n", c->getTexture()->getDesc().label);
+
+            // Create a new, random texture that has the same properties
+            // but is not an array.
+            TextureDesc newDesc = data.desc;
+            newDesc.arrayLength = 1;
+            REQUIRE(getScalarType(data.desc.type, newDesc.type));
+            TextureData newData;
+            newData.init(device, data.desc, TextureInitMode::Random);
+            ComPtr<ITexture> newTexture;
+            REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy from layer 0 of the new texture into layer 2
+            // of the one allocated by the testing system.
+            commandEncoder->copyTexture(
+                c->getTexture(),
+                {0, 0, 2, 1},
+                {0, 0, 0},
+                newTexture,
+                {0, 0, 0, 1},
+                {0, 0, 0},
+                Extents::kWholeTexture
+            );
+            queue->submit(commandEncoder->finish());
+
+            // Check layers now match.
+            newData.checkLayersEqual(c->getTexture(), 0, 2);
         }
     );
 }

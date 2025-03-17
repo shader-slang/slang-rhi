@@ -70,6 +70,28 @@ bool getArrayType(TextureType type, TextureType& outArrayType)
     }
 }
 
+bool getScalarType(TextureType type, TextureType& outScalarType)
+{
+    switch (type)
+    {
+    case TextureType::Texture1DArray:
+        outScalarType = TextureType::Texture1D;
+        return true;
+    case TextureType::Texture2DArray:
+        outScalarType = TextureType::Texture2D;
+        return true;
+    case TextureType::Texture2DMSArray:
+        outScalarType = TextureType::Texture2DMS;
+        return true;
+    case TextureType::TextureCubeArray:
+        outScalarType = TextureType::TextureCube;
+        return true;
+    default:
+        outScalarType = type;
+        return true;
+    }
+}
+
 bool getMultisampleType(TextureType type, TextureType& outArrayType)
 {
     switch (type)
