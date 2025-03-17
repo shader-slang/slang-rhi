@@ -107,7 +107,7 @@ public:
         uint32_t arrayIndex,
         uint32_t planeIndex,
         uint32_t mipLevelCount,
-        uint32_t arraySize
+        uint32_t layoutCount
     );
 
     static uint32_t getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipLevelCount);

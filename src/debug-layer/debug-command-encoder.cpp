@@ -362,6 +362,70 @@ void DebugCommandEncoder::copyTexture(
         return;
     }
 
+    if (srcSubresource.layerCount != dstSubresource.layerCount)
+    {
+        RHI_VALIDATION_ERROR("Src and dest layer count must match.");
+        return;
+    }
+
+    if (srcSubresource.mipLevelCount != dstSubresource.mipLevelCount)
+    {
+        RHI_VALIDATION_ERROR("Src and dest mip level count must match.");
+        return;
+    }
+
+    if (srcSubresource.layerCount == 0 && srcDesc.getLayerCount() != dstDesc.getLayerCount())
+    {
+        RHI_VALIDATION_ERROR("Copy layer count is 0, so src and dest texture layer count must match.");
+        return;
+    }
+
+    if (srcSubresource.mipLevelCount == 0 && srcDesc.mipLevelCount != dstDesc.mipLevelCount)
+    {
+        RHI_VALIDATION_ERROR("Copy mip level count is 0, so src and dest texture mip level count must match.");
+        return;
+    }
+
+    if (srcSubresource.mipLevelCount != 1)
+    {
+        if (!srcOffset.isZero() || !dstOffset.isZero())
+        {
+            RHI_VALIDATION_ERROR("Copying multiple mip levels at once requires offset to be 0");
+            return;
+        }
+
+        if (!extent.isWholeTexture())
+        {
+            RHI_VALIDATION_ERROR("Copying multiple mip levels at once requires extent to be Extents::WholeTexture");
+            return;
+        }
+    }
+
+    if (extent.width == kRemainingTextureSize)
+    {
+        if (srcOffset.x != dstOffset.x)
+        {
+            RHI_VALIDATION_ERROR("Copying the remaining texture requires src and dst offset to be the same");
+            return;
+        }
+    }
+    if (extent.height == kRemainingTextureSize)
+    {
+        if (srcOffset.y != dstOffset.y)
+        {
+            RHI_VALIDATION_ERROR("Copying the remaining texture requires src and dst offset to be the same");
+            return;
+        }
+    }
+    if (extent.depth == kRemainingTextureSize)
+    {
+        if (srcOffset.z != dstOffset.z)
+        {
+            RHI_VALIDATION_ERROR("Copying the remaining texture requires src and dst offset to be the same");
+            return;
+        }
+    }
+
     baseObject->copyTexture(dst, dstSubresource, dstOffset, src, srcSubresource, srcOffset, extent);
 }
 

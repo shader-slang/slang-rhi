@@ -185,9 +185,9 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
-    const SubresourceRange& dstSubresource = cmd.dstSubresource;
+    SubresourceRange dstSubresource = cmd.dstSubresource;
     const Offset3D& dstOffset = cmd.dstOffset;
-    const SubresourceRange& srcSubresource = cmd.srcSubresource;
+    SubresourceRange srcSubresource = cmd.srcSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
 
@@ -201,9 +201,21 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
         return;
     }
 
+    // If we couldn't use the fast CopyResource path, need to ensure that the subresource ranges are valid.
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.layerCount == 0)
+        dstSubresource.layerCount = dst->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.layerCount == 0)
+        srcSubresource.layerCount = src->m_desc.getLayerCount();
+
     requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
+
+    Extents srcTextureSize = src->m_desc.size;
 
     uint32_t planeCount = D3DUtil::getPlaneSliceCount(dst->m_format);
     for (uint32_t planeIndex = 0; planeIndex < planeCount; planeIndex++)
@@ -212,6 +224,27 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
         {
             for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
             {
+                // Calculate adjusted extents. Note it is required and enforced
+                // by debug layer that if 'remaining texture' is used, src and
+                // dst offsets are the same.
+                Extents srcMipSize = calcMipSize(srcTextureSize, mipLevel);
+                Extents adjustedExtent = extent;
+                if (adjustedExtent.width == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                    adjustedExtent.width = srcMipSize.width - srcOffset.x;
+                }
+                if (adjustedExtent.height == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                    adjustedExtent.height = srcMipSize.height - srcOffset.y;
+                }
+                if (adjustedExtent.depth == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                    adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+                }
+
                 D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
 
                 dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -235,15 +268,25 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                     src->m_desc.getLayerCount()
                 );
 
-                D3D12_BOX srcBox = {};
-                srcBox.left = srcOffset.x;
-                srcBox.top = srcOffset.y;
-                srcBox.front = srcOffset.z;
-                srcBox.right = srcBox.left + extent.width;
-                srcBox.bottom = srcBox.top + extent.height;
-                srcBox.back = srcBox.front + extent.depth;
+                if (srcOffset.isZero() && dstOffset.isZero() && adjustedExtent == srcMipSize)
+                {
+                    // If copying whole texture region, pass nullptr. This is required for
+                    // copying certain resources such as depth-stencil or multisampled textures.
+                    m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, nullptr);
+                }
+                else
+                {
+                    D3D12_BOX srcBox = {};
+                    srcBox.left = srcOffset.x;
+                    srcBox.top = srcOffset.y;
+                    srcBox.front = srcOffset.z;
+                    srcBox.right = srcBox.left + adjustedExtent.width;
+                    srcBox.bottom = srcBox.top + adjustedExtent.height;
+                    srcBox.back = srcBox.front + adjustedExtent.depth;
 
-                m_cmdList->CopyTextureRegion(&dstRegion, dstOffset.x, dstOffset.y, dstOffset.z, &srcRegion, &srcBox);
+                    m_cmdList
+                        ->CopyTextureRegion(&dstRegion, dstOffset.x, dstOffset.y, dstOffset.z, &srcRegion, &srcBox);
+                }
             }
         }
     }

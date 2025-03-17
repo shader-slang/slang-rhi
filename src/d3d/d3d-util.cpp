@@ -610,10 +610,10 @@ uint32_t D3DUtil::getSubresourceIndex(
     uint32_t arrayIndex,
     uint32_t planeIndex,
     uint32_t mipLevelCount,
-    uint32_t arraySize
+    uint32_t layerCount
 )
 {
-    return mipIndex + arrayIndex * mipLevelCount + planeIndex * mipLevelCount * arraySize;
+    return mipIndex + arrayIndex * mipLevelCount + planeIndex * mipLevelCount * layerCount;
 }
 
 uint32_t D3DUtil::getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipLevelCount)
