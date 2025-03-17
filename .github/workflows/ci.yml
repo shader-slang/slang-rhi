@@ -27,14 +27,15 @@ jobs:
           - { os: macos, compiler: gcc }
         include:
           # Builds running on self-hosted runners (build + tests)
-          - {os: windows, platform: "x86_64", compiler: msvc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
-          - {os: linux, platform: "x86_64", compiler: gcc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
+          - {os: windows, platform: "x86_64", compiler: msvc, preset: default, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
+          - {os: linux, platform: "x86_64", compiler: gcc, preset: gcc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           # Builds running on GitHub hosted runners (build + tests)
-          - { os: macos, platform: "aarch64", compiler: clang, flags: "unit-test", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, flags: "unit-test", runs-on: macos-latest }
           # Builds running on GitHub hosted runners (build only)
-          - { os: linux, platform: "x86_64", compiler: clang, runs-on: ubuntu-latest }
-          - { os: windows, platform: "aarch64", runs-on: windows-latest }
-          - { os: linux, platform: "aarch64", runs-on: ubuntu-24.04-arm }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, runs-on: ubuntu-latest }
+          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, runs-on: windows-latest }
+          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
+          - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -56,7 +57,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Configure
-        run: cmake --preset default -S . -B build
+        run: cmake --preset ${{matrix.preset}} -S . -B build
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
