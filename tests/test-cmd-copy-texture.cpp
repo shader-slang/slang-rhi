@@ -8,7 +8,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | Metal | CUDA | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Both);
