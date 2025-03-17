@@ -8,7 +8,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | CUDA | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TextureInitMode::None, TTFmtDepth::Off);
@@ -45,7 +45,7 @@ GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | CUDA | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::On, TTMip::Both, TextureInitMode::Random, TTFmtDepth::Off);
@@ -100,7 +100,7 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | CUDA | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::On, TTMip::On, TextureInitMode::Random, TTFmtDepth::Off);
@@ -161,7 +161,7 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | CUDA | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTMip::Off, TextureInitMode::Random, TTFmtDepth::Off);
@@ -214,7 +214,7 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | CUDA | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTMip::Off, TextureInitMode::Random, TTFmtDepth::Off);
@@ -267,7 +267,7 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | CUDA | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(

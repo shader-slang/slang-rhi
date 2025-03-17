@@ -14,6 +14,7 @@ include(CTest)
 include(CMakeDependentOption)
 include(FetchPackage)
 include(DetermineTargetArchitecture)
+include(CMakeRC)
 
 # Determine the target architecture we build for.
 # CMAKE_SYSTEM_PROCESSOR is not a reliable way to determine the target architecture.
@@ -370,6 +371,14 @@ if(SLANG_RHI_BUILD_TESTS OR SLANG_RHI_BUILD_EXAMPLES)
     FetchContent_MakeAvailable(glfw)
 endif()
 
+# Resources
+cmrc_add_resource_library(
+    slang-rhi-resources
+    NAMESPACE resources
+    src/cuda/kernels/clear-texture.ptx
+)
+target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
+
 if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
@@ -577,6 +586,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-acceleration-structure.cpp
         src/cuda/cuda-api.cpp
         src/cuda/cuda-buffer.cpp
+        src/cuda/cuda-clear-engine.cpp
         src/cuda/cuda-command.cpp
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp

@@ -146,14 +146,14 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+    m_device->m_clearEngine
+        .clearTextureFloat(m_stream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
+    m_device->m_clearEngine
+        .clearTextureUint(m_stream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
@@ -171,6 +171,8 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
     Offset bufferOffset = cmd.srcOffset;
     auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
 
+    const FormatInfo& formatInfo = getFormatInfo(dst->m_desc.format);
+
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;
@@ -187,14 +189,19 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             CUDA_MEMCPY3D copyParam = {};
             copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
             copyParam.dstArray = dstArray;
-            copyParam.dstZ = layer;
+            copyParam.dstXInBytes = cmd.offset.x * formatInfo.blockSizeInBytes;
+            copyParam.dstY = cmd.offset.y;
+            copyParam.dstZ = cmd.offset.z + layer;
             copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
             copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
             copyParam.srcPitch = srLayout->strideY;
-            copyParam.WidthInBytes = srLayout->strideY;
+            copyParam.WidthInBytes = srLayout->size.width * formatInfo.blockSizeInBytes;
             copyParam.Height = srLayout->size.height;
             copyParam.Depth = srLayout->size.depth;
             SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+
+            bufferOffset += srLayout->sizeInBytes;
+            srLayout++;
         }
     }
 }
