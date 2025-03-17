@@ -167,28 +167,95 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 {
     TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
+    SubresourceRange dstSubresource = cmd.dstSubresource;
+    Offset3D dstOffset = cmd.dstOffset;
+    SubresourceRange srcSubresource = cmd.srcSubresource;
+    Offset3D srcOffset = cmd.srcOffset;
+    Extents extent = cmd.extent;
 
-    // z is either base array layer or z offset depending on whether this is 3D or array texture
-    SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
-    SLANG_RHI_ASSERT(cmd.dstSubresource.baseArrayLayer == 0 || cmd.dstOffset.z == 0);
-    uint32_t srcZ = cmd.srcOffset.z + cmd.srcSubresource.baseArrayLayer;
-    uint32_t dstZ = cmd.dstOffset.z + cmd.dstSubresource.baseArrayLayer;
+    // Fix up sub resource ranges.
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.layerCount == 0)
+        dstSubresource.layerCount = dst->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.layerCount == 0)
+        srcSubresource.layerCount = src->m_desc.getLayerCount();
 
-    WGPUImageCopyTexture source = {};
-    source.texture = src->m_texture;
-    source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, srcZ};
-    source.mipLevel = cmd.srcSubresource.mipLevel;
-    source.aspect = WGPUTextureAspect_All;
+    const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
+    const FormatInfo& dstFormatInfo = getFormatInfo(dst->m_desc.format);
 
-    WGPUImageCopyTexture destination = {};
-    destination.texture = dst->m_texture;
-    destination.origin = {(uint32_t)cmd.dstOffset.x, (uint32_t)cmd.dstOffset.y, dstZ};
-    destination.mipLevel = cmd.dstSubresource.mipLevel;
-    destination.aspect = WGPUTextureAspect_All;
+    Extents srcTextureSize = src->m_desc.size;
+    for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
+    {
+        for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+        {
+            // Calculate adjusted extents. Note it is required and enforced
+            // by debug layer that if 'remaining texture' is used, src and
+            // dst offsets are the same.
+            Extents srcMipSize = calcMipSize(srcTextureSize, mipLevel);
+            Extents adjustedExtent = extent;
+            if (adjustedExtent.width == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                adjustedExtent.width = srcMipSize.width - srcOffset.x;
+            }
+            if (adjustedExtent.height == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                adjustedExtent.height = srcMipSize.height - srcOffset.y;
+            }
+            if (adjustedExtent.depth == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+            }
+            if (adjustedExtent.width == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                adjustedExtent.width = srcMipSize.width - srcOffset.x;
+            }
+            if (adjustedExtent.height == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                adjustedExtent.height = srcMipSize.height - srcOffset.y;
+            }
+            if (adjustedExtent.depth == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+            }
 
-    WGPUExtent3D copySize = {(uint32_t)cmd.extent.width, (uint32_t)cmd.extent.height, (uint32_t)cmd.extent.depth};
+            // z is either base array layer or z offset depending on whether this is 3D or array texture
+            SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
+            SLANG_RHI_ASSERT(cmd.dstSubresource.baseArrayLayer == 0 || cmd.dstOffset.z == 0);
+            uint32_t srcZ = cmd.srcOffset.z + cmd.srcSubresource.baseArrayLayer + layer;
+            uint32_t dstZ = cmd.dstOffset.z + cmd.dstSubresource.baseArrayLayer + layer;
 
-    m_ctx.api.wgpuCommandEncoderCopyTextureToTexture(m_commandEncoder, &source, &destination, &copySize);
+            WGPUImageCopyTexture source = {};
+            source.texture = src->m_texture;
+            source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, srcZ};
+            source.mipLevel = cmd.srcSubresource.mipLevel + mipLevel;
+            source.aspect = WGPUTextureAspect_All;
+
+            WGPUImageCopyTexture destination = {};
+            destination.texture = dst->m_texture;
+            destination.origin = {(uint32_t)cmd.dstOffset.x, (uint32_t)cmd.dstOffset.y, dstZ};
+            destination.mipLevel = cmd.dstSubresource.mipLevel + mipLevel;
+            destination.aspect = WGPUTextureAspect_All;
+
+            WGPUExtent3D copySize =
+                {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+
+            copySize.width = math::calcAligned2(copySize.width, srcFormatInfo.blockWidth);
+            copySize.height = math::calcAligned2(copySize.height, srcFormatInfo.blockHeight);
+            copySize.width = math::calcAligned2(copySize.width, dstFormatInfo.blockWidth);
+            copySize.height = math::calcAligned2(copySize.height, dstFormatInfo.blockHeight);
+
+            m_ctx.api.wgpuCommandEncoderCopyTextureToTexture(m_commandEncoder, &source, &destination, &copySize);
+        }
+    }
 }
 
 void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
