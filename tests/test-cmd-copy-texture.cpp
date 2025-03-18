@@ -450,7 +450,7 @@ GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
 GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both);
+    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
 
     runTextureTest(
         options,
@@ -461,9 +461,9 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
             // Get cpu side data.
             TextureData& data = c->getTextureData();
 
-            // Create a new, uninitialized texture with same descriptor
+            // Create a new texture with same descriptor
             TextureData newData;
-            newData.init(device, data.desc, TextureInitMode::Invalid);
+            newData.init(device, data.desc, TextureInitMode::Random, 2132);
             ComPtr<ITexture> newTexture;
             REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
 
@@ -486,12 +486,6 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
             );
             queue->submit(commandEncoder->finish());
 
-            // Can't read-back ms or depth/stencil formats
-            if (isMultisamplingType(data.desc.type))
-                return;
-            if (data.formatInfo.hasDepth && data.formatInfo.hasStencil)
-                return;
-
             // Verify it uploaded correctly
             // The original texture data should have stomped over the new texture data
             // at offset.
@@ -504,7 +498,7 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
 GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both);
+    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
 
     runTextureTest(
         options,
@@ -515,9 +509,9 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU)
             // Get cpu side data.
             TextureData& data = c->getTextureData();
 
-            // Create a new, uninitialized texture with same descriptor
+            // Create a new texture with same descriptor
             TextureData newData;
-            newData.init(device, data.desc, TextureInitMode::Invalid);
+            newData.init(device, data.desc, TextureInitMode::Random, 2132);
             ComPtr<ITexture> newTexture;
             REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
 
@@ -537,17 +531,167 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU)
 
             queue->submit(commandEncoder->finish());
 
-            // Can't read-back ms or depth/stencil formats
-            if (isMultisamplingType(data.desc.type))
-                return;
-            if (data.formatInfo.hasDepth && data.formatInfo.hasStencil)
-                return;
-
             // Verify it uploaded correctly
             // The original texture data should have stomped over the new texture data
             // at offset with given extents.
             data.checkEqual(offset, newTexture, offset, extents, false);
             newData.checkEqual(offset, newTexture, offset, extents, true);
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& smallerData = c->getTextureData();
+            ComPtr<ITexture> smallerTexture = c->getTexture();
+
+            // Create a new larger texture with same descriptor
+            TextureDesc largerDesc = smallerData.desc;
+            largerDesc.size.width *= 2;
+            if (largerDesc.size.height != 1)
+                largerDesc.size.height *= 2;
+            if (largerDesc.size.depth != 1)
+                largerDesc.size.depth *= 2;
+            TextureData largerData;
+            largerData.init(device, largerDesc, TextureInitMode::Invalid);
+            ComPtr<ITexture> largerTexture;
+            REQUIRE_CALL(largerData.createTexture(largerTexture.writeRef()));
+
+            Extents extents = smallerData.desc.size;
+            Offset3D offset = {0, 0, 0};
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
+            commandEncoder
+                ->copyTexture(largerTexture, {0, 1, 0, 0}, offset, smallerTexture, {0, 1, 0, 0}, offset, extents);
+            queue->submit(commandEncoder->finish());
+
+            // Verify it uploaded correctly
+            // The smaller texture should have overwritten the corner of
+            // the larger texture.
+            smallerData.checkEqual({0, 0, 0}, largerTexture, offset, extents, false);
+            largerData.checkEqual(offset, largerTexture, offset, extents, true);
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& smallerData = c->getTextureData();
+            ComPtr<ITexture> smallerTexture = c->getTexture();
+
+            // Create a new larger texture with same descriptor
+            TextureDesc largerDesc = smallerData.desc;
+            largerDesc.size.width *= 4;
+            if (largerDesc.size.height != 1)
+                largerDesc.size.height *= 4;
+            if (largerDesc.size.depth != 1)
+                largerDesc.size.depth *= 4;
+            TextureData largerData;
+            largerData.init(device, largerDesc, TextureInitMode::Invalid);
+            ComPtr<ITexture> largerTexture;
+            REQUIRE_CALL(largerData.createTexture(largerTexture.writeRef()));
+
+            // Going to copy an extent that is the size of the smaller texture,
+            // with an offset based on its size (accounting for 1D/2D/3D dimensions)
+            Extents extents = smallerData.desc.size;
+            Offset3D offset;
+            offset.x = smallerData.desc.size.width;
+            if (smallerData.desc.size.height != 1)
+                offset.y = smallerData.desc.size.height;
+            if (smallerData.desc.size.depth != 1)
+                offset.z = smallerData.desc.size.depth;
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
+            commandEncoder
+                ->copyTexture(largerTexture, {0, 1, 0, 0}, offset, smallerTexture, {0, 1, 0, 0}, {0, 0, 0}, extents);
+            queue->submit(commandEncoder->finish());
+
+            // Verify it uploaded correctly
+            // The smaller texture should have overwritten the corner of
+            // the larger texture.
+            smallerData.checkEqual({0, 0, 0}, largerTexture, offset, extents, false);
+            largerData.checkEqual(offset, largerTexture, offset, extents, true);
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& smallerData = c->getTextureData();
+            ComPtr<ITexture> smallerTexture = c->getTexture();
+
+            // Create a new larger texture with same descriptor
+            TextureDesc largerDesc = smallerData.desc;
+            largerDesc.size.width *= 4;
+            if (largerDesc.size.height != 1)
+                largerDesc.size.height *= 4;
+            if (largerDesc.size.depth != 1)
+                largerDesc.size.depth *= 4;
+            TextureData largerData;
+            largerData.init(device, largerDesc, TextureInitMode::Invalid);
+            ComPtr<ITexture> largerTexture;
+            REQUIRE_CALL(largerData.createTexture(largerTexture.writeRef()));
+
+            // Going to copy an extent that is the size of the smaller texture,
+            // with an offset based on its size (accounting for 1D/2D/3D dimensions)
+            Extents extents = smallerData.desc.size;
+            Offset3D offset;
+            offset.x = smallerData.desc.size.width;
+            if (smallerData.desc.size.height != 1)
+                offset.y = smallerData.desc.size.height;
+            if (smallerData.desc.size.depth != 1)
+                offset.z = smallerData.desc.size.depth;
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
+            commandEncoder
+                ->copyTexture(smallerTexture, {0, 1, 0, 0}, {0, 0, 0}, largerTexture, {0, 1, 0, 0}, offset, extents);
+            queue->submit(commandEncoder->finish());
+
+            // Verify it uploaded correctly
+            // The chunk of the larger texture we copied from should have overwritten the smaller texture
+            largerData.checkEqual(offset, smallerTexture, {0, 0, 0}, extents, false);
         }
     );
 }
