@@ -164,7 +164,8 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | Metal | CUDA | W
 GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Off, TextureInitMode::Random, TTFmtDepth::Off);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Off, TextureInitMode::Random, TTFmtDepth::Off, TTPowerOf2::On);
 
     runTextureTest(
         options,
@@ -217,7 +218,8 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
 GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Off, TextureInitMode::Random, TTFmtDepth::Off);
+    options
+        .addVariants(TTShape::All, TTArray::Both, TTMip::Off, TextureInitMode::Random, TTFmtDepth::Off, TTPowerOf2::On);
 
     runTextureTest(
         options,

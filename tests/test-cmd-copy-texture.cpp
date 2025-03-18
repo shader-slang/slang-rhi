@@ -450,7 +450,7 @@ GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
 GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
+    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off, TTPowerOf2::On);
 
     runTextureTest(
         options,
@@ -498,7 +498,7 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
 GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
+    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off, TTPowerOf2::On);
 
     runTextureTest(
         options,
@@ -644,7 +644,7 @@ GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU)
 GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::On, TTFmtDepth::Off);
+    options.addVariants(TTShape::All, TTArray::Both, TTMip::On, TTFmtDepth::Off, TTPowerOf2::On);
 
     runTextureTest(
         options,
