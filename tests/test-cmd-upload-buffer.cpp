@@ -60,6 +60,9 @@ struct UploadData
 
 void testUploadToBuffer(IDevice* device, Size size, Offset offset, int tests, bool multi_encoder = false)
 {
+    // Ensure any previous operations have finished so we can safely check heap usage.
+    device->getQueue(QueueType::Graphics)->waitOnHost();
+
     StagingHeap& heap = getSharedDevice(device)->m_uploadHeap;
     CHECK_EQ(heap.getUsed(), 0);
 
