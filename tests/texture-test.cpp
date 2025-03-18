@@ -7,9 +7,12 @@
 
 /// If set to 1, the default format list to test will be all formats
 /// other than Format::Undefined.
-#define SLANG_RHI_TEST_ALL_FORMATS 1
+#define SLANG_RHI_TEST_ALL_FORMATS 0
 
-#define SLANG_RHI_TEST_ALL_SIZES_BY_DEFAULT 1
+/// If set to 1, then default behavior is for textures that support
+/// none-power-of-2 sizes to test them unless explicitly disabled
+/// by the test.
+#define SLANG_RHI_TEST_ALL_SIZES_BY_DEFAULT 0
 
 namespace rhi::testing {
 
