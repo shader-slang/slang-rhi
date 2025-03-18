@@ -1602,10 +1602,16 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Setup wait semaphores.
     short_vector<VkSemaphore> waitSemaphores;
     short_vector<uint64_t> waitValues;
-    auto addWaitSemaphore = [&waitSemaphores, &waitValues](VkSemaphore semaphore, uint64_t value)
+    short_vector<VkPipelineStageFlags> waitStages;
+    auto addWaitSemaphore = [&waitSemaphores, &waitValues, &waitStages](
+                                VkSemaphore semaphore,
+                                uint64_t value,
+                                VkPipelineStageFlags stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+                            )
     {
         waitSemaphores.push_back(semaphore);
         waitValues.push_back(value);
+        waitStages.push_back(stage);
     };
 
     for (VkSemaphore s : m_pendingWaitSemaphores)
@@ -1639,8 +1645,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
     // Setup submit info.
     VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    VkPipelineStageFlags stageFlag[] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
-    submitInfo.pWaitDstStageMask = stageFlag;
     submitInfo.commandBufferCount = vkCommandBuffers.size();
     submitInfo.pCommandBuffers = vkCommandBuffers.data();
 
@@ -1651,6 +1655,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
         submitInfo.pWaitSemaphores = waitSemaphores.data();
+        submitInfo.pWaitDstStageMask = waitStages.data();
         timelineSubmitInfo.waitSemaphoreValueCount = (uint32_t)waitValues.size();
         timelineSubmitInfo.pWaitSemaphoreValues = waitValues.data();
     }
