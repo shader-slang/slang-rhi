@@ -256,6 +256,22 @@ void checkRegionsEqual(
     Extents extents
 )
 {
+    /*
+    fprintf(
+        stderr,
+        "    Oa: [%d,%d,%d], Ob: [%d,%d,%d], Ex: [%d,%d,%d]\n",
+        offsetA.x,
+        offsetA.y,
+        offsetA.z,
+        offsetB.x,
+        offsetB.y,
+        offsetB.z,
+        extents.width,
+        extents.height,
+        extents.depth
+    );
+    */
+
     const uint8_t* dataA = (const uint8_t*)dataA_;
     const uint8_t* dataB = (const uint8_t*)dataB_;
 
@@ -365,6 +381,8 @@ void TextureData::checkMipLevelsEqual(
 
     if (!compareOutsideRegion)
     {
+        // fprintf(stderr, "  Compare internal region\n");
+
         // Simple case - comparing the internal regions of 2 textures.
         checkRegionsEqual(
             thisSubresource.data.get(),
@@ -378,6 +396,8 @@ void TextureData::checkMipLevelsEqual(
     }
     else
     {
+        // fprintf(stderr, "  Compare external region\n");
+
         // More complex case, comparing the whole of 2 textures with the
         // region excluded. For this case the offsets must match, and the
         // offset/extents refer to the region to exclude.
