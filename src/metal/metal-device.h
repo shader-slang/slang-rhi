@@ -1,6 +1,7 @@
 #pragma once
 
 #include "metal-base.h"
+#include "metal-clear-engine.h"
 
 #include <string>
 
@@ -111,6 +112,7 @@ public:
     NS::SharedPtr<MTL::Device> m_device;
     RefPtr<CommandQueueImpl> m_queue;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
+    ClearEngine m_clearEngine;
 
     // Global registry of all acceleration structures.
     // IAccelerationStructure::getHandle will return the index into this array.

@@ -221,12 +221,16 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+    auto encoder = getComputeCommandEncoder();
+    m_device->m_clearEngine
+        .clearTextureFloat(encoder, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
+    auto encoder = getComputeCommandEncoder();
+    m_device->m_clearEngine
+        .clearTextureUint(encoder, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)

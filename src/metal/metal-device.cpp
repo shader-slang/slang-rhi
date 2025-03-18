@@ -25,6 +25,7 @@ DeviceImpl::DeviceImpl() {}
 DeviceImpl::~DeviceImpl()
 {
     m_queue.setNull();
+    m_clearEngine.release();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -108,6 +109,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             exit(1);
         }
     }
+
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_device.get()));
+
     return SLANG_OK;
 }
 
