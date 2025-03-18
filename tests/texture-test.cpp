@@ -200,6 +200,7 @@ Result TextureData::createTexture(ITexture** texture) const
 }
 
 void TextureData::checkEqual(
+    Offset3D thisOffset,
     ITexture* texture,
     Offset3D textureOffset,
     Extents textureExtents,
@@ -212,13 +213,14 @@ void TextureData::checkEqual(
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        checkLayersEqual(texture, layer, layer, textureOffset, textureExtents, compareOutsideRegion);
+        checkLayersEqual(texture, layer, thisOffset, layer, textureOffset, textureExtents, compareOutsideRegion);
     }
 }
 
 void TextureData::checkLayersEqual(
     ITexture* texture,
     int thisLayer,
+    Offset3D thisOffset,
     int textureLayer,
     Offset3D textureOffset,
     Extents textureExtents,
@@ -234,6 +236,7 @@ void TextureData::checkLayersEqual(
             texture,
             thisLayer,
             mipLevel,
+            thisOffset,
             textureLayer,
             mipLevel,
             textureOffset,
@@ -243,10 +246,76 @@ void TextureData::checkLayersEqual(
     }
 }
 
+void checkRegionsEqual(
+    const void* dataA_,
+    const SubresourceLayout& layoutA,
+    Offset3D offsetA,
+    const void* dataB_,
+    const SubresourceLayout& layoutB,
+    Offset3D offsetB,
+    Extents extents
+)
+{
+    const uint8_t* dataA = (const uint8_t*)dataA_;
+    const uint8_t* dataB = (const uint8_t*)dataB_;
+
+    // Can't compare regions with different block sizes.
+    CHECK_EQ(layoutA.blockWidth, layoutB.blockWidth);
+    CHECK_EQ(layoutA.blockHeight, layoutB.blockHeight);
+    CHECK_EQ(layoutA.strideX, layoutB.strideX);
+
+    // Check region is valid for A
+    CHECK_GE(layoutA.size.width, offsetA.x + extents.width);
+    CHECK_GE(layoutA.size.height, offsetA.y + extents.height);
+    CHECK_GE(layoutA.size.depth, offsetA.z + extents.depth);
+
+    // Check region is valid for B
+    CHECK_GE(layoutB.size.width, offsetB.x + extents.width);
+    CHECK_GE(layoutB.size.height, offsetB.y + extents.height);
+    CHECK_GE(layoutB.size.depth, offsetB.z + extents.depth);
+
+    // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
+    uint32_t sliceOffsetA = offsetA.z;
+    uint32_t rowOffsetA = math::divideRoundedUp(offsetA.y, layoutA.blockHeight);
+    uint32_t colOffsetA = math::divideRoundedUp(offsetA.x, layoutA.blockWidth);
+    uint32_t sliceOffsetB = offsetB.z;
+    uint32_t rowOffsetB = math::divideRoundedUp(offsetB.y, layoutB.blockHeight);
+    uint32_t colOffsetB = math::divideRoundedUp(offsetB.x, layoutB.blockWidth);
+    uint32_t sliceCount = extents.depth;
+    uint32_t rowCount = math::divideRoundedUp(extents.height, layoutA.blockHeight);
+    uint32_t colCount = math::divideRoundedUp(extents.width, layoutA.blockWidth);
+
+    // Iterate over whole texture, checking each block.
+    for (uint32_t slice = 0; slice < sliceCount; slice++)
+    {
+        const uint8_t* sliceA = dataA + (slice + sliceOffsetA) * layoutA.strideZ;
+        const uint8_t* sliceB = dataB + (slice + sliceOffsetB) * layoutB.strideZ;
+
+        // Iterate rows
+        for (uint32_t row = 0; row < rowCount; row++)
+        {
+            const uint8_t* rowA = sliceA + (row + rowOffsetA) * layoutA.strideY;
+            const uint8_t* rowB = sliceB + (row + rowOffsetB) * layoutB.strideY;
+
+            // Iterate columns.
+            for (uint32_t col = 0; col < colCount; col++)
+            {
+                const uint8_t* blockA = rowA + (col + colOffsetA) * layoutA.strideX;
+                const uint8_t* blockB = rowB + (col + colOffsetB) * layoutB.strideX;
+                bool areequal = memcmp(blockA, blockB, layoutA.strideX) == 0;
+                CHECK(areequal);
+                if (!areequal)
+                    return;
+            }
+        }
+    }
+}
+
 void TextureData::checkMipLevelsEqual(
     ITexture* texture,
     int thisLayer,
     int thisMipLevel,
+    Offset3D thisOffset,
     int textureLayer,
     int textureMipLevel,
     Offset3D textureOffset,
@@ -294,96 +363,68 @@ void TextureData::checkMipLevelsEqual(
     if (textureExtents.depth == Extents::kWholeTexture.depth)
         textureExtents.depth = max(textureLayout.size.depth - textureOffset.z, 1);
 
-    if (compareOutsideRegion)
+    if (!compareOutsideRegion)
     {
-        // This is a comparison of 2 textures of equal size, with
-        // a mask applied to the middle, so texture sizes must match.
-        CHECK_EQ(textureLayout.size.width, thisLayout.size.width);
-        CHECK_EQ(textureLayout.size.height, thisLayout.size.height);
-        CHECK_EQ(textureLayout.size.depth, thisLayout.size.depth);
+        // Simple case - comparing the internal regions of 2 textures.
+        checkRegionsEqual(
+            thisSubresource.data.get(),
+            thisLayout,
+            thisOffset,
+            blob->getBufferPointer(),
+            textureLayout,
+            textureOffset,
+            textureExtents
+        );
     }
     else
     {
-        // This is a comparison of the WHOLE of the cpu data against the
-        // region of the texture, so extents must match descriptor size.
-        CHECK_EQ(textureExtents.width, thisLayout.size.width);
-        CHECK_EQ(textureExtents.height, thisLayout.size.height);
-        CHECK_EQ(textureExtents.depth, thisLayout.size.depth);
-    }
+        // More complex case, comparing the whole of 2 textures with the
+        // region excluded. For this case the offsets must match, and the
+        // offset/extents refer to the region to exclude.
+        CHECK_EQ(thisOffset, textureOffset);
 
-    // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
-    uint32_t sliceOffset = 0;
-    uint32_t rowOffset = 0;
-    uint32_t colOffset = 0;
-    uint32_t sliceCount = thisLayout.size.depth;
-    uint32_t rowCount = thisLayout.rowCount;
-    uint32_t colCount = thisLayout.size.width / formatInfo.blockWidth;
+        // For simplicity, the (potentially 3D) texture is divided into 3x3x3
+        // regions, with the central region being the region to exclude.
+        // The surrounding regions are then compared.
+        int zSizes[] =
+            {textureOffset.z, textureExtents.depth, textureLayout.size.depth - textureExtents.depth - textureOffset.z};
+        int ySizes[] = {
+            textureOffset.y,
+            textureExtents.height,
+            textureLayout.size.height - textureExtents.height - textureOffset.y
+        };
+        int xSizes[] =
+            {textureOffset.x, textureExtents.width, textureLayout.size.width - textureExtents.width - textureOffset.x};
 
-    // Calculate start of region in blocks.
-    uint32_t sliceRegionBegin = textureOffset.z;
-    uint32_t rowRegionBegin = textureOffset.y / formatInfo.blockHeight;
-    uint32_t colRegionBegin = textureOffset.x / formatInfo.blockWidth;
-
-    // Calculate end of region in blocks.
-    uint32_t sliceRegionEnd = (textureOffset.z + textureExtents.depth);
-    uint32_t rowRegionEnd = (textureOffset.y + textureExtents.height) / formatInfo.blockHeight;
-    uint32_t colRegionEnd = (textureOffset.x + textureExtents.width) / formatInfo.blockWidth;
-
-    // If matching interior, pixels to check are only those internal to the region
-    if (!compareOutsideRegion)
-    {
-        sliceOffset = sliceRegionBegin;
-        sliceCount = sliceRegionEnd - sliceRegionBegin;
-        rowOffset = rowRegionBegin;
-        rowCount = rowRegionEnd - rowRegionBegin;
-        colOffset = colRegionBegin;
-        colCount = colRegionEnd - colRegionBegin;
-    }
-
-    uint8_t* thisData = thisSubresource.data.get();
-    uint8_t* textureData = (uint8_t*)blob->getBufferPointer();
-
-    // Iterate over whole texture, checking each block.
-    for (uint32_t slice = 0; slice < sliceCount; slice++)
-    {
-        // Check if slice is within region.
-        uint32_t textureSlice = slice + sliceOffset;
-        bool insideSlice = textureSlice >= sliceRegionBegin && textureSlice < sliceRegionEnd;
-
-        // Iterate rows
-        for (uint32_t row = 0; row < rowCount; row++)
+        int offsetZ = 0;
+        for (uint32_t regionZ = 0; regionZ < 3; regionZ++)
         {
-            // Check if row is within region.
-            uint32_t textureRow = row + rowOffset;
-            bool insideRow = textureRow >= rowRegionBegin && textureRow < rowRegionEnd;
-
-            // Iterate columns.
-            for (uint32_t col = 0; col < colCount; col++)
+            int sizeZ = zSizes[regionZ];
+            int offsetY = 0;
+            for (uint32_t regionY = 0; regionY < 3; regionY++)
             {
-                // If doing an exterior scan, skip blocks that are in the region.
-                uint32_t textureCol = col + colOffset;
-                bool insideCol = textureCol >= colRegionBegin && textureCol < colRegionEnd;
-                if (compareOutsideRegion && insideSlice && insideRow && insideCol)
+                int sizeY = ySizes[regionY];
+                int offsetX = 0;
+                for (uint32_t regionX = 0; regionX < 3; regionX++)
                 {
-                    continue;
+                    int sizeX = xSizes[regionX];
+                    if (regionX != 1 || regionY != 1 || regionZ != 1)
+                    {
+                        checkRegionsEqual(
+                            thisSubresource.data.get(),
+                            thisLayout,
+                            {offsetX, offsetY, offsetZ},
+                            blob->getBufferPointer(),
+                            textureLayout,
+                            {offsetX, offsetY, offsetZ},
+                            {sizeX, sizeY, sizeZ}
+                        );
+                    }
+                    offsetX += sizeX;
                 }
-
-                // Get pointer to block within the whole cpu data.
-                uint8_t* thisBlock = thisData + slice * thisLayout.strideZ + row * thisLayout.strideY +
-                                     col * formatInfo.blockSizeInBytes;
-
-                // Get pointer to block within the region of the texture we're scanning
-                uint8_t* textureBlock = textureData + textureSlice * textureLayout.strideZ +
-                                        textureRow * textureLayout.strideY + textureCol * formatInfo.blockSizeInBytes;
-
-                // Compare the block of texels that make up this row/column
-                bool blocks_equal = memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes) == 0;
-                CHECK(blocks_equal);
-
-                // Avoid reporting every non-matching block.
-                if (!blocks_equal)
-                    return;
+                offsetY += sizeY;
             }
+            offsetZ += sizeZ;
         }
     }
 }

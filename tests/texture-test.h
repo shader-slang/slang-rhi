@@ -62,22 +62,33 @@ struct TextureData
     /// In both cases, the resulting region size being checked should match the full
     /// size of this TextureData.
     void checkEqual(
+        Offset3D thisOffset,
         ITexture* texture,
         Offset3D textureOffset = {0, 0, 0},
         Extents textureExtents = Extents::kWholeTexture,
         bool compareOutsideRegion = false
     ) const;
 
+    /// Helper for checkEqual that requies no offsets/extents
+    inline void checkEqual(ITexture* texture) const { checkEqual({0, 0, 0}, texture); }
+
     /// Compare cpu data for a layer in this TextureData against a layer
     /// in a gpu texture. For details of region comparison see checkEqual.
     void checkLayersEqual(
         ITexture* texture,
         int thisLayer,
+        Offset3D thisOffset,
         int textureLayer,
-        Offset3D textureOffset = {0, 0, 0},
-        Extents textureExtents = Extents::kWholeTexture,
+        Offset3D textureOffset,
+        Extents textureExtents,
         bool compareOutsideRegion = false
     ) const;
+
+    /// Helper for checkLayersEqual that requires no offsets/extents
+    inline void checkLayersEqual(ITexture* texture, int thisLayer, int textureLayer) const
+    {
+        checkLayersEqual(texture, thisLayer, {0, 0, 0}, textureLayer, {0, 0, 0}, Extents::kWholeTexture);
+    }
 
     /// Compare mip levels for a layer in this TextureData against a layer
     /// in a gpu texture. For details of region comparison see checkEqual.
@@ -85,12 +96,34 @@ struct TextureData
         ITexture* texture,
         int thisLayer,
         int thisMipLevel,
+        Offset3D thisOffset,
         int textureLayer,
         int textureMipLevel,
-        Offset3D textureOffset = {0, 0, 0},
-        Extents textureExtents = Extents::kWholeTexture,
+        Offset3D textureOffset,
+        Extents textureExtents,
         bool compareOutsideRegion = false
     ) const;
+
+    /// Helper for checkMipLevelsEqual that requires no offsets/extents
+    inline void checkMipLevelsEqual(
+        ITexture* texture,
+        int thisLayer,
+        int thisMipLevel,
+        int textureLayer,
+        int textureMipLevel
+    ) const
+    {
+        checkMipLevelsEqual(
+            texture,
+            thisLayer,
+            thisMipLevel,
+            {0, 0, 0},
+            textureLayer,
+            textureMipLevel,
+            {0, 0, 0},
+            Extents::kWholeTexture
+        );
+    }
 
     /// Compare a slice of this TextureData (must be 3D) against a 2D
     /// layer of a texture.

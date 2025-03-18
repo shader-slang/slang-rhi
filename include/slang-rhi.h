@@ -754,6 +754,9 @@ struct SubresourceLayout
     /// Dimensions of the subresource (in texels).
     Extents size;
 
+    /// Stride in bytes between columns (i.e. blocks of pixels) of the subresource tensor.
+    Size strideX;
+
     /// Stride in bytes between rows of the subresource tensor.
     Size strideY;
 

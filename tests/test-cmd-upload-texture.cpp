@@ -208,8 +208,8 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
-            currentData.checkEqual(c->getTexture(), offset, Extents::kWholeTexture, true);
-            newData.checkEqual(c->getTexture(), offset, Extents::kWholeTexture, false);
+            currentData.checkEqual(offset, c->getTexture(), offset, Extents::kWholeTexture, true);
+            newData.checkEqual({0, 0, 0}, c->getTexture(), offset, Extents::kWholeTexture, false);
         }
     );
 }
@@ -261,8 +261,8 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | W
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
-            currentData.checkEqual(c->getTexture(), offset, extents, true);
-            newData.checkEqual(c->getTexture(), offset, extents, false);
+            currentData.checkEqual(offset, c->getTexture(), offset, extents, true);
+            newData.checkEqual({0, 0, 0}, c->getTexture(), offset, extents, false);
         }
     );
 }
@@ -328,8 +328,8 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
-            currentData.checkMipLevelsEqual(c->getTexture(), 0, 1, 0, 1, offset, extents, true);
-            newData.checkMipLevelsEqual(c->getTexture(), 0, 0, 0, 1, offset, extents, false);
+            currentData.checkMipLevelsEqual(c->getTexture(), 0, 1, offset, 0, 1, offset, extents, true);
+            newData.checkMipLevelsEqual(c->getTexture(), 0, 0, {0, 0, 0}, 0, 1, offset, extents, false);
         }
     );
 }

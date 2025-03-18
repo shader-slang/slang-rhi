@@ -428,6 +428,7 @@ GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
             newData.checkLayersEqual(
                 c->getTexture(),
                 0,
+                {0, 0, 0},
                 0,
                 {0, 0, 1},
                 {kRemainingTextureSize, kRemainingTextureSize, 1},
@@ -436,6 +437,7 @@ GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
             data.checkLayersEqual(
                 c->getTexture(),
                 0,
+                {0, 0, 1},
                 0,
                 {0, 0, 1},
                 {kRemainingTextureSize, kRemainingTextureSize, 1},
@@ -444,3 +446,57 @@ GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
         }
     );
 }
+
+#if 0
+GPU_TEST_CASE("cmd-copy-texture-region-nomip", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Both);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& data = c->getTextureData();
+
+            // Create a new, uninitialized texture with same descriptor
+            TextureData newData;
+            newData.init(device, data.desc, TextureInitMode::None);
+            ComPtr<ITexture> newTexture;
+            REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
+
+            Extents size = data.desc.size;
+            Offset3D offset = {size.width / 2, size.height / 2, size.depth / 2};
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
+            commandEncoder->copyTexture(
+                newTexture,
+                {0, 1, 0, 0},
+                offset,
+                c->getTexture(),
+                {0, 1, 0, 0},
+                offset,
+                Extents::kWholeTexture
+            );
+            queue->submit(commandEncoder->finish());
+
+            // Can't read-back ms or depth/stencil formats
+            if (isMultisamplingType(data.desc.type))
+                return;
+            if (data.formatInfo.hasDepth && data.formatInfo.hasStencil)
+                return;
+
+            // Verify it uploaded correctly
+            newData.checkEqual(newTexture, offset, Extents::kWholeTexture, false);
+            data.checkEqual(newTexture, offset, Extents::kWholeTexture, true);
+        }
+    );
+}
+#endif
