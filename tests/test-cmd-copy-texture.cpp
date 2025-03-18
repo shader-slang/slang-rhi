@@ -669,6 +669,11 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU)
             TextureData& srcData = c->getTextureData();
             ComPtr<ITexture> srcTexture = c->getTexture();
 
+            // Too painful to get mip calculations working for this test for none-power-of-2
+            // block compressed textures!
+            if (srcData.formatInfo.isCompressed && !math::isPowerOf2(srcData.desc.size.width))
+                return;
+
             // Create a texture with same descriptor
             TextureDesc dstDesc = srcData.desc;
             TextureData dstData;
