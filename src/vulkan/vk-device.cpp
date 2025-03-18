@@ -36,7 +36,10 @@ DeviceImpl::DeviceImpl() {}
 DeviceImpl::~DeviceImpl()
 {
     // Wait for all commands to finish and retire any active command buffers.
-    m_queue->waitOnHost();
+    if (m_queue)
+    {
+        m_queue->waitOnHost();
+    }
 
     // Check the device queue is valid else, we can't wait on it..
     if (m_deviceQueue.isValid())
