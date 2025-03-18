@@ -16,6 +16,15 @@ public:
 public:
     bool m_configured = false;
 
+    enum class State
+    {
+        Initial,
+        ImageAcquired,
+        ImagePresented,
+    };
+
+    State m_state = State::Initial;
+
     virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() override;
     virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
