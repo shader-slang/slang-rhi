@@ -588,61 +588,6 @@ GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU)
-{
-    TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
-
-    runTextureTest(
-        options,
-        [](TextureTestContext* c)
-        {
-            auto device = c->getDevice();
-
-            // Get cpu side data.
-            TextureData& smallerData = c->getTextureData();
-            ComPtr<ITexture> smallerTexture = c->getTexture();
-
-            // Create a new larger texture with same descriptor
-            TextureDesc largerDesc = smallerData.desc;
-            largerDesc.size.width *= 4;
-            if (largerDesc.size.height != 1)
-                largerDesc.size.height *= 4;
-            if (largerDesc.size.depth != 1)
-                largerDesc.size.depth *= 4;
-            TextureData largerData;
-            largerData.init(device, largerDesc, TextureInitMode::Invalid);
-            ComPtr<ITexture> largerTexture;
-            REQUIRE_CALL(largerData.createTexture(largerTexture.writeRef()));
-
-            // Going to copy an extent that is the size of the smaller texture,
-            // with an offset based on its size (accounting for 1D/2D/3D dimensions)
-            Extents extents = smallerData.desc.size;
-            Offset3D offset;
-            offset.x = smallerData.desc.size.width;
-            if (smallerData.desc.size.height != 1)
-                offset.y = smallerData.desc.size.height;
-            if (smallerData.desc.size.depth != 1)
-                offset.z = smallerData.desc.size.depth;
-
-            // Create command encoder
-            auto queue = device->getQueue(QueueType::Graphics);
-            auto commandEncoder = queue->createCommandEncoder();
-
-            // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
-            commandEncoder
-                ->copyTexture(largerTexture, {0, 1, 0, 0}, offset, smallerTexture, {0, 1, 0, 0}, {0, 0, 0}, extents);
-            queue->submit(commandEncoder->finish());
-
-            // Verify it uploaded correctly
-            // The smaller texture should have overwritten the corner of
-            // the larger texture.
-            smallerData.checkEqual({0, 0, 0}, largerTexture, offset, extents, false);
-            largerData.checkEqual(offset, largerTexture, offset, extents, true);
-        }
-    );
-}
-
 GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
@@ -692,6 +637,50 @@ GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU)
             // Verify it uploaded correctly
             // The chunk of the larger texture we copied from should have overwritten the smaller texture
             largerData.checkEqual(offset, smallerTexture, {0, 0, 0}, extents, false);
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTMip::On, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& srcData = c->getTextureData();
+            ComPtr<ITexture> srcTexture = c->getTexture();
+
+            // Create a texture with same descriptor
+            TextureDesc dstDesc = srcData.desc;
+            TextureData dstData;
+            dstData.init(device, dstDesc, TextureInitMode::Invalid);
+            ComPtr<ITexture> dstTexture;
+            REQUIRE_CALL(dstData.createTexture(dstTexture.writeRef()));
+
+            // Going to copy an extent that is the size of mip1 from mip0
+            SubresourceLayout srcMip1Layout;
+            srcTexture->getSubresourceLayout(1, &srcMip1Layout);
+            Extents extents = srcMip1Layout.size;
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy from mip 1 to mip 0
+            commandEncoder
+                ->copyTexture(dstTexture, {0, 1, 0, 0}, {0, 0, 0}, srcTexture, {1, 1, 0, 0}, {0, 0, 0}, extents);
+            queue->submit(commandEncoder->finish());
+
+            // Verify it uploaded correctly
+            // The corner of mip 0 of the dst texture should have been overwritten by mip 1 of the src texture
+            srcData.checkMipLevelsEqual(dstTexture, 0, 1, {0, 0, 0}, 0, 0, {0, 0, 0}, extents, false);
+            dstData.checkMipLevelsEqual(dstTexture, 0, 0, {0, 0, 0}, 0, 0, {0, 0, 0}, extents, true);
         }
     );
 }
