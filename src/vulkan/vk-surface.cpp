@@ -221,6 +221,31 @@ Result SurfaceImpl::createSwapchain()
         m_textures.push_back(texture);
     }
 
+    m_frameData.resize(swapchainImageCount);
+    for (uint32_t i = 0; i < swapchainImageCount; ++i)
+    {
+        FrameData& frameData = m_frameData[i];
+        // Create fence.
+        {
+            VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+            createInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            SLANG_VK_RETURN_ON_FAIL(api.vkCreateFence(api.m_device, &createInfo, nullptr, &frameData.fence));
+        }
+
+        // Create semaphores.
+        {
+            VkSemaphoreCreateInfo createInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+            SLANG_VK_RETURN_ON_FAIL(
+                api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.imageAvailableSemaphore)
+            );
+            SLANG_VK_RETURN_ON_FAIL(
+                api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.renderFinishedSemaphore)
+            );
+        }
+    }
+
+    m_currentFrameIndex = 0;
+
     return SLANG_OK;
 }
 
@@ -229,6 +254,13 @@ void SurfaceImpl::destroySwapchain()
     auto& api = m_device->m_api;
     api.vkQueueWaitIdle(m_device->m_queue->m_queue);
     m_textures.clear();
+    for (FrameData& frameData : m_frameData)
+    {
+        api.vkDestroyFence(api.m_device, frameData.fence, nullptr);
+        api.vkDestroySemaphore(api.m_device, frameData.imageAvailableSemaphore, nullptr);
+        api.vkDestroySemaphore(api.m_device, frameData.renderFinishedSemaphore, nullptr);
+    }
+    m_frameData.clear();
     if (m_swapchain != VK_NULL_HANDLE)
     {
         api.vkDestroySwapchainKHR(api.m_device, m_swapchain, nullptr);
@@ -268,16 +300,19 @@ Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
 
     if (m_textures.empty())
     {
-        m_device->m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
         return -1;
     }
+
+    FrameData& frameData = m_frameData[m_currentFrameIndex];
+    SLANG_VK_RETURN_ON_FAIL(api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
+    SLANG_VK_RETURN_ON_FAIL(api.vkResetFences(api.m_device, 1, &frameData.fence));
 
     m_currentTextureIndex = -1;
     VkResult result = api.vkAcquireNextImageKHR(
         api.m_device,
         m_swapchain,
         UINT64_MAX,
-        m_nextImageSemaphore,
+        frameData.imageAvailableSemaphore,
         VK_NULL_HANDLE,
         (uint32_t*)&m_currentTextureIndex
     );
@@ -291,8 +326,15 @@ Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
-    // Make the queue's next submit wait on `m_nextImageSemaphore`.
-    m_device->m_queue->m_pendingWaitSemaphores[1] = m_nextImageSemaphore;
+    // Setup queue's next submit for synchronization with the swapchain.
+    m_device->m_queue->m_surfaceSync.fence = frameData.fence;
+    m_device->m_queue->m_surfaceSync.imageAvailableSemaphore = frameData.imageAvailableSemaphore;
+    m_device->m_queue->m_surfaceSync.renderFinishedSemaphore = frameData.renderFinishedSemaphore;
+
+    // Mark texture to be in swapchain initial state.
+    // This is used by the first image barrier to transition the texture from the correct state.
+    m_textures[m_currentTextureIndex]->m_isSwapchainInitialState = true;
+
     returnComPtr(outTexture, m_textures[m_currentTextureIndex]);
     return SLANG_OK;
 }
@@ -306,26 +348,16 @@ Result SurfaceImpl::present()
         return SLANG_FAIL;
     }
 
+    FrameData& frameData = m_frameData[m_currentFrameIndex];
+    m_currentFrameIndex = (m_currentFrameIndex + 1) % m_frameData.size();
+
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &m_currentTextureIndex;
-    static_vector<VkSemaphore, 2> waitSemaphores;
-    for (auto s : m_device->m_queue->m_pendingWaitSemaphores)
-    {
-        if (s != VK_NULL_HANDLE)
-        {
-            waitSemaphores.push_back(s);
-        }
-    }
-    m_device->m_queue->m_pendingWaitSemaphores[0] = VK_NULL_HANDLE;
-    m_device->m_queue->m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
-    presentInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
-    if (presentInfo.waitSemaphoreCount)
-    {
-        presentInfo.pWaitSemaphores = waitSemaphores.data();
-    }
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &frameData.renderFinishedSemaphore;
     if (m_currentTextureIndex != -1)
     {
         api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
