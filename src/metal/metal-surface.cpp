@@ -41,7 +41,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
-Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
     m_currentDrawable = NS::RetainPtr(m_metalLayer->nextDrawable());
     if (!m_currentDrawable)

@@ -66,7 +66,7 @@ Result DebugSurface::configure(const SurfaceConfig& config)
     return result;
 }
 
-Result DebugSurface::getCurrentTexture(ITexture** outTexture)
+Result DebugSurface::acquireNextImage(ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
 
@@ -82,7 +82,7 @@ Result DebugSurface::getCurrentTexture(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
-    Result result = baseObject->getCurrentTexture(outTexture);
+    Result result = baseObject->acquireNextImage(outTexture);
 
     if (SLANG_SUCCEEDED(result))
     {

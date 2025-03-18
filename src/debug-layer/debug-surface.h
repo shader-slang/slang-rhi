@@ -28,7 +28,7 @@ public:
     virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() override;
     virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
 

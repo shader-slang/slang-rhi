@@ -93,7 +93,7 @@ struct SurfaceTest
         for (uint32_t i = 0; i < 10; ++i)
         {
             glfwPollEvents();
-            ComPtr<ITexture> texture = surface->getCurrentTexture();
+            ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
             renderFrame(texture, width, height, i);
@@ -108,7 +108,7 @@ struct SurfaceTest
         for (uint32_t i = 0; i < 10; ++i)
         {
             glfwPollEvents();
-            ComPtr<ITexture> texture = surface->getCurrentTexture();
+            ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
             renderFrame(texture, width, height, i);

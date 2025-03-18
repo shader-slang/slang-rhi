@@ -2214,13 +2214,13 @@ public:
     virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() = 0;
     virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() = 0;
 
-    ComPtr<ITexture> getCurrentTexture()
+    ComPtr<ITexture> acquireNextImage()
     {
         ComPtr<ITexture> texture;
-        SLANG_RETURN_NULL_ON_FAIL(getCurrentTexture(texture.writeRef()));
+        SLANG_RETURN_NULL_ON_FAIL(acquireNextImage(texture.writeRef()));
         return texture;
     }
 };

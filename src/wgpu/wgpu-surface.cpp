@@ -172,7 +172,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
-Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
     if (!m_configured)
     {

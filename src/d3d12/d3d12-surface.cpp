@@ -56,7 +56,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return D3DSurface::configure(config);
 }
 
-Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
     auto result = (int)m_swapChain3->GetCurrentBackBufferIndex();
     WaitForSingleObject(m_frameEvents[result], INFINITE);

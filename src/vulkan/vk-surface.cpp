@@ -290,7 +290,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
-Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
     auto& api = m_device->m_api;
 

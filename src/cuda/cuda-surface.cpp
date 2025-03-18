@@ -25,7 +25,7 @@
 // On the Vulkan side, we create a normal Vulkan based swapchain.
 // To allow passing textures to CUDA, a set of "virtual" swapchain images are created.
 // These images are allocated in Vulkan and shared with CUDA.
-// Calls to `ISurface::getCurrentTexture` return these shared textures.
+// Calls to `ISurface::acquireNextImage` return these shared textures.
 // Calls to `ISurface::present` copy the contents of the shared texture to the Vulkan swapchain image.
 
 namespace rhi::cuda {
@@ -101,7 +101,7 @@ public:
     void destroySharedTexture(SharedTexture& sharedTexture);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
 
@@ -753,7 +753,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
-Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
     if (!m_configured)
     {

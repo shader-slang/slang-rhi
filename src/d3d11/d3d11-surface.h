@@ -18,7 +18,7 @@ public:
     virtual IUnknown* getOwningDevice() override { return m_d3dDevice; }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
-    // virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) override;
+    // virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     // virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
 
