@@ -78,6 +78,8 @@ enum class StructType
 
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
+
+    VulkanDeviceExtendedDesc,
 };
 
 // TODO: Implementation or backend or something else?
@@ -2891,6 +2893,14 @@ struct D3D12DeviceExtendedDesc
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
     uint32_t highestShaderModel = 0;
+};
+
+struct VulkanDeviceExtendedDesc
+{
+    StructType structType = StructType::VulkanDeviceExtendedDesc;
+    void* next = nullptr;
+
+    bool enableDebugPrintf = false;
 };
 
 } // namespace rhi
