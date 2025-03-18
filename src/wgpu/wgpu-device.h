@@ -2,6 +2,7 @@
 
 #include "wgpu-base.h"
 #include "wgpu-command.h"
+#include "wgpu-clear-engine.h"
 
 #include <unordered_set>
 
@@ -28,6 +29,7 @@ public:
 
     Context m_ctx;
     RefPtr<CommandQueueImpl> m_queue;
+    ClearEngine m_clearEngine;
 
     ~DeviceImpl();
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;

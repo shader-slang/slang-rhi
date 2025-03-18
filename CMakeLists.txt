@@ -377,6 +377,7 @@ cmrc_add_resource_library(
     NAMESPACE resources
     src/cuda/kernels/clear-texture.ptx
     src/metal/shaders/clear-texture.metal
+    src/wgpu/shaders/clear-texture.wgsl
 )
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
 
@@ -640,6 +641,7 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-surface.cpp
         src/wgpu/wgpu-texture.cpp
         src/wgpu/wgpu-util.cpp
+        src/wgpu/wgpu-clear-engine.cpp
     )
 endif()
 

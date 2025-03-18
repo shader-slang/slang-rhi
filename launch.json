@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "rhi-tests",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/slang-rhi-tests",
+            // "program": "${workspaceFolder}/build/Debug/example-surface",
+            // "program": "${workspaceFolder}/build/Debug/binding-layout-builder",
+            "cwd": "${workspaceFolder}",
+            "args": ["-tc=cmd-clear-texture-float-zero", "-sc=wgpu"],
+            // "args": ["-tc=compute-trivial,buffer-resource-states,texture-resource-states,root-shader-parameter", "-sc=*"],
+            // "args": ["-tc=texturetest-create", "-sc=d3d12"],
+            // "console": "integratedTerminal",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "openOnSessionStart",
+            // "visualizerFile": "${workspaceFolder}/src/core.natvis",
+            "visualizerFile": "c:/src/slang/source/core/core.natvis",
+        },
+    ]
+}

@@ -221,6 +221,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+
+    // Initialize clear engine
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(&m_ctx));
+
     return SLANG_OK;
 }
 

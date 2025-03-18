@@ -23,6 +23,25 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     // WGPU does not support 1D texture arrays.
     if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1DArray)
         return false;
+    // WGPU has limited format support for storage textures
+    if (device->getDeviceType() == DeviceType::WGPU && is_set(desc.usage, TextureUsage::UnorderedAccess))
+    {
+        bool isSupported =
+            desc.format == Format::RGBA8Unorm ||
+            desc.format == Format::RGBA8Snorm ||
+            desc.format == Format::RGBA8Uint ||
+            desc.format == Format::RGBA8Sint ||
+            desc.format == Format::RGBA16Float ||
+            desc.format == Format::R32Uint ||
+            desc.format == Format::R32Sint ||
+            desc.format == Format::RG32Uint ||
+            desc.format == Format::RG32Sint ||
+            desc.format == Format::RGBA32Uint ||
+            desc.format == Format::RGBA32Sint ||
+            desc.format == Format::RGBA32Float;
+        if (!isSupported)
+            return false;
+    }
     // Metal does not support mip levels for 1D textures (and 1d texture arrays).
     if (device->getDeviceType() == DeviceType::Metal &&
         (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipLevelCount != 1)

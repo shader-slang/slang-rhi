@@ -235,12 +235,30 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+    endPassEncoder();
+    WGPUComputePassDescriptor desc = {};
+    m_computePassEncoder = m_ctx.api.wgpuCommandEncoderBeginComputePass(m_commandEncoder, &desc);
+    m_device->m_clearEngine.clearTextureFloat(
+        m_computePassEncoder,
+        checked_cast<TextureImpl*>(cmd.texture),
+        cmd.subresourceRange,
+        cmd.clearValue
+    );
+    endPassEncoder();
 }
 
 void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
+    endPassEncoder();
+    WGPUComputePassDescriptor desc = {};
+    m_computePassEncoder = m_ctx.api.wgpuCommandEncoderBeginComputePass(m_commandEncoder, &desc);
+    m_device->m_clearEngine.clearTextureUint(
+        m_computePassEncoder,
+        checked_cast<TextureImpl*>(cmd.texture),
+        cmd.subresourceRange,
+        cmd.clearValue
+    );
+    endPassEncoder();
 }
 
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)

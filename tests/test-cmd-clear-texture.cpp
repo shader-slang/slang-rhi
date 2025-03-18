@@ -100,7 +100,7 @@ static const std::vector<Format> kSintFormats = {
     // Format::R64Sint, // TODO not supported yet
 };
 
-GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -116,6 +116,26 @@ GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | C
                 (texture->getDesc().type == TextureType::TextureCube ||
                  texture->getDesc().type == TextureType::TextureCubeArray))
                 return;
+            // WebGPU has limited format support for storage textures
+            if (device->getDeviceType() == DeviceType::WGPU)
+            {
+                Format format = texture->getDesc().format;
+                bool isSupported =
+                    format == Format::RGBA8Unorm ||
+                    format == Format::RGBA8Snorm ||
+                    format == Format::RGBA8Uint ||
+                    format == Format::RGBA8Sint ||
+                    format == Format::RGBA16Float ||
+                    format == Format::R32Uint ||
+                    format == Format::R32Sint ||
+                    format == Format::RG32Uint ||
+                    format == Format::RG32Sint ||
+                    format == Format::RGBA32Uint ||
+                    format == Format::RGBA32Sint ||
+                    format == Format::RGBA32Float;
+                if (!isSupported)
+                    return;
+            }
             ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
@@ -129,7 +149,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | C
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -145,6 +165,26 @@ GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal 
                 (texture->getDesc().type == TextureType::TextureCube ||
                  texture->getDesc().type == TextureType::TextureCubeArray))
                 return;
+            // WebGPU has limited format support for storage textures
+            if (device->getDeviceType() == DeviceType::WGPU)
+            {
+                Format format = texture->getDesc().format;
+                bool isSupported =
+                    format == Format::RGBA8Unorm ||
+                    format == Format::RGBA8Snorm ||
+                    format == Format::RGBA8Uint ||
+                    format == Format::RGBA8Sint ||
+                    format == Format::RGBA16Float ||
+                    format == Format::R32Uint ||
+                    format == Format::R32Sint ||
+                    format == Format::RG32Uint ||
+                    format == Format::RG32Sint ||
+                    format == Format::RGBA32Uint ||
+                    format == Format::RGBA32Sint ||
+                    format == Format::RGBA32Float;
+                if (!isSupported)
+                    return;
+            }
             ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
@@ -158,7 +198,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal 
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -174,6 +214,26 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
                 (texture->getDesc().type == TextureType::TextureCube ||
                  texture->getDesc().type == TextureType::TextureCubeArray))
                 return;
+            // WebGPU has limited format support for storage textures
+            if (device->getDeviceType() == DeviceType::WGPU)
+            {
+                Format format = texture->getDesc().format;
+                bool isSupported =
+                    format == Format::RGBA8Unorm ||
+                    format == Format::RGBA8Snorm ||
+                    format == Format::RGBA8Uint ||
+                    format == Format::RGBA8Sint ||
+                    format == Format::RGBA16Float ||
+                    format == Format::R32Uint ||
+                    format == Format::R32Sint ||
+                    format == Format::RG32Uint ||
+                    format == Format::RG32Sint ||
+                    format == Format::RGBA32Uint ||
+                    format == Format::RGBA32Sint ||
+                    format == Format::RGBA32Float;
+                if (!isSupported)
+                    return;
+            }
             ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
@@ -187,7 +247,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -203,6 +263,26 @@ GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal |
                 (texture->getDesc().type == TextureType::TextureCube ||
                  texture->getDesc().type == TextureType::TextureCubeArray))
                 return;
+            // WebGPU has limited format support for storage textures
+            if (device->getDeviceType() == DeviceType::WGPU)
+            {
+                Format format = texture->getDesc().format;
+                bool isSupported =
+                    format == Format::RGBA8Unorm ||
+                    format == Format::RGBA8Snorm ||
+                    format == Format::RGBA8Uint ||
+                    format == Format::RGBA8Sint ||
+                    format == Format::RGBA16Float ||
+                    format == Format::R32Uint ||
+                    format == Format::R32Sint ||
+                    format == Format::RG32Uint ||
+                    format == Format::RG32Sint ||
+                    format == Format::RGBA32Uint ||
+                    format == Format::RGBA32Sint ||
+                    format == Format::RGBA32Float;
+                if (!isSupported)
+                    return;
+            }
             ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
@@ -216,7 +296,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal |
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -232,6 +312,26 @@ GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
                 (texture->getDesc().type == TextureType::TextureCube ||
                  texture->getDesc().type == TextureType::TextureCubeArray))
                 return;
+            // WebGPU has limited format support for storage textures
+            if (device->getDeviceType() == DeviceType::WGPU)
+            {
+                Format format = texture->getDesc().format;
+                bool isSupported =
+                    format == Format::RGBA8Unorm ||
+                    format == Format::RGBA8Snorm ||
+                    format == Format::RGBA8Uint ||
+                    format == Format::RGBA8Sint ||
+                    format == Format::RGBA16Float ||
+                    format == Format::R32Uint ||
+                    format == Format::R32Sint ||
+                    format == Format::RG32Uint ||
+                    format == Format::RG32Sint ||
+                    format == Format::RGBA32Uint ||
+                    format == Format::RGBA32Sint ||
+                    format == Format::RGBA32Float;
+                if (!isSupported)
+                    return;
+            }
             ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
@@ -245,7 +345,7 @@ GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -261,6 +361,26 @@ GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal |
                 (texture->getDesc().type == TextureType::TextureCube ||
                  texture->getDesc().type == TextureType::TextureCubeArray))
                 return;
+            // WebGPU has limited format support for storage textures
+            if (device->getDeviceType() == DeviceType::WGPU)
+            {
+                Format format = texture->getDesc().format;
+                bool isSupported =
+                    format == Format::RGBA8Unorm ||
+                    format == Format::RGBA8Snorm ||
+                    format == Format::RGBA8Uint ||
+                    format == Format::RGBA8Sint ||
+                    format == Format::RGBA16Float ||
+                    format == Format::R32Uint ||
+                    format == Format::R32Sint ||
+                    format == Format::RG32Uint ||
+                    format == Format::RG32Sint ||
+                    format == Format::RGBA32Uint ||
+                    format == Format::RGBA32Sint ||
+                    format == Format::RGBA32Float;
+                if (!isSupported)
+                    return;
+            }
             ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
