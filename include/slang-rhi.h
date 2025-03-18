@@ -723,6 +723,9 @@ struct Offset3D
     {
     }
 
+    bool operator==(const Offset3D& other) const { return x == other.x && y == other.y && z == other.z; }
+    bool operator!=(const Offset3D& other) const { return !(*this == other); }
+
     bool isZero() const { return x == 0 && y == 0 && z == 0; }
 };
 
@@ -741,6 +744,8 @@ struct Extents
     {
         return width == other.width && height == other.height && depth == other.depth;
     }
+
+    inline bool isWholeTexture() const { return *this == kWholeTexture; }
 };
 
 /// Layout of a single subresource in a texture. (see also SubresourceData)
@@ -748,6 +753,9 @@ struct SubresourceLayout
 {
     /// Dimensions of the subresource (in texels).
     Extents size;
+
+    /// Stride in bytes between columns (i.e. blocks of pixels) of the subresource tensor.
+    Size strideX;
 
     /// Stride in bytes between rows of the subresource tensor.
     Size strideY;

@@ -217,40 +217,84 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     Offset3D srcOffset = cmd.srcOffset;
     Extents extent = cmd.extent;
 
+    // Fix up sub resource ranges.
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.layerCount == 0)
+        dstSubresource.layerCount = dst->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.layerCount == 0)
+        srcSubresource.layerCount = src->m_desc.getLayerCount();
+
     requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
 
-    const TextureDesc& srcDesc = src->m_desc;
-    VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    const TextureDesc& dstDesc = dst->m_desc;
-    VkImageLayout dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0)
+    // TODO: Could probably optimize this to do:
+    //  - A single copy of the extents are fixed
+    //  - Batching copies at the same mip level if extents aren't fixed.
+    Extents srcTextureSize = src->m_desc.size;
+    for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
     {
-        extent = dstDesc.size;
-        dstSubresource.layerCount = dstDesc.getLayerCount();
-        dstSubresource.mipLevelCount = dstDesc.mipLevelCount;
-    }
-    if (srcSubresource.layerCount == 0 && srcSubresource.mipLevelCount == 0)
-    {
-        extent = srcDesc.size;
-        srcSubresource.layerCount = dstDesc.getLayerCount();
-        srcSubresource.mipLevelCount = dstDesc.mipLevelCount;
-    }
-    VkImageCopy region = {};
-    region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
-    region.srcSubresource.baseArrayLayer = srcSubresource.baseArrayLayer;
-    region.srcSubresource.mipLevel = srcSubresource.mipLevel;
-    region.srcSubresource.layerCount = srcSubresource.layerCount;
-    region.srcOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
-    region.dstSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, dst->m_vkformat);
-    region.dstSubresource.baseArrayLayer = dstSubresource.baseArrayLayer;
-    region.dstSubresource.mipLevel = dstSubresource.mipLevel;
-    region.dstSubresource.layerCount = dstSubresource.layerCount;
-    region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
-    region.extent = {(uint32_t)extent.width, (uint32_t)extent.height, (uint32_t)extent.depth};
+        for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+        {
+            // Calculate adjusted extents. Note it is required and enforced
+            // by debug layer that if 'remaining texture' is used, src and
+            // dst offsets are the same.
+            Extents srcMipSize = calcMipSize(srcTextureSize, mipLevel);
+            Extents adjustedExtent = extent;
+            if (adjustedExtent.width == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                adjustedExtent.width = srcMipSize.width - srcOffset.x;
+            }
+            if (adjustedExtent.height == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                adjustedExtent.height = srcMipSize.height - srcOffset.y;
+            }
+            if (adjustedExtent.depth == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+            }
+            if (adjustedExtent.width == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                adjustedExtent.width = srcMipSize.width - srcOffset.x;
+            }
+            if (adjustedExtent.height == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                adjustedExtent.height = srcMipSize.height - srcOffset.y;
+            }
+            if (adjustedExtent.depth == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+            }
 
-    m_api.vkCmdCopyImage(m_cmdBuffer, src->m_image, srcImageLayout, dst->m_image, dstImageLayout, 1, &region);
+            VkImageLayout srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            VkImageLayout dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+            VkImageCopy region = {};
+            region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
+            region.srcSubresource.baseArrayLayer = srcSubresource.baseArrayLayer + layer;
+            region.srcSubresource.mipLevel = srcSubresource.mipLevel + mipLevel;
+            region.srcSubresource.layerCount = 1;
+            region.srcOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
+            region.dstSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, dst->m_vkformat);
+            region.dstSubresource.baseArrayLayer = dstSubresource.baseArrayLayer + layer;
+            region.dstSubresource.mipLevel = dstSubresource.mipLevel + mipLevel;
+            region.dstSubresource.layerCount = 1;
+            region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
+            region.extent =
+                {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+
+            m_api.vkCmdCopyImage(m_cmdBuffer, src->m_image, srcImageLayout, dst->m_image, dstImageLayout, 1, &region);
+        }
+    }
 }
 
 void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
