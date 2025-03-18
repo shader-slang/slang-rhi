@@ -616,6 +616,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         }
     }
 
+    commitBarriers();
+
     VkRenderingInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO_KHR};
     renderingInfo.renderArea = renderArea;
     renderingInfo.layerCount = layerCount;
