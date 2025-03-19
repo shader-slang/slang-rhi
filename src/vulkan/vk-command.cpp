@@ -237,28 +237,16 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     Extents srcTextureSize = src->m_desc.size;
     for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
     {
-        for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+        for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipLevelCount; mipOffset++)
         {
+            uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
+            uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
+
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extents srcMipSize = calcMipSize(srcTextureSize, mipLevel);
+            Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
             Extents adjustedExtent = extent;
-            if (adjustedExtent.width == kRemainingTextureSize)
-            {
-                SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
-                adjustedExtent.width = srcMipSize.width - srcOffset.x;
-            }
-            if (adjustedExtent.height == kRemainingTextureSize)
-            {
-                SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
-                adjustedExtent.height = srcMipSize.height - srcOffset.y;
-            }
-            if (adjustedExtent.depth == kRemainingTextureSize)
-            {
-                SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
-                adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
-            }
             if (adjustedExtent.width == kRemainingTextureSize)
             {
                 SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
@@ -281,12 +269,12 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             VkImageCopy region = {};
             region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
             region.srcSubresource.baseArrayLayer = srcSubresource.baseArrayLayer + layer;
-            region.srcSubresource.mipLevel = srcSubresource.mipLevel + mipLevel;
+            region.srcSubresource.mipLevel = srcMipLevel;
             region.srcSubresource.layerCount = 1;
             region.srcOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
             region.dstSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, dst->m_vkformat);
             region.dstSubresource.baseArrayLayer = dstSubresource.baseArrayLayer + layer;
-            region.dstSubresource.mipLevel = dstSubresource.mipLevel + mipLevel;
+            region.dstSubresource.mipLevel = dstMipLevel;
             region.dstSubresource.layerCount = 1;
             region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
             region.extent =

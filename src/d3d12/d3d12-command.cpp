@@ -212,6 +212,16 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
 
+    // Validate subresource ranges
+    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.baseArrayLayer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
+    SLANG_RHI_ASSERT(dstSubresource.baseArrayLayer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
+
+    // Validate matching dimensions between source and destination
+    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
+
     requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
@@ -219,16 +229,22 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     Extents srcTextureSize = src->m_desc.size;
 
     uint32_t planeCount = D3DUtil::getPlaneSliceCount(dst->m_format);
+    SLANG_RHI_ASSERT(planeCount == D3DUtil::getPlaneSliceCount(src->m_format));
+    SLANG_RHI_ASSERT(planeCount > 0);
+
     for (uint32_t planeIndex = 0; planeIndex < planeCount; planeIndex++)
     {
         for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
-            for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+            for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipLevelCount; mipOffset++)
             {
+                uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
+                uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
+
                 // Calculate adjusted extents. Note it is required and enforced
                 // by debug layer that if 'remaining texture' is used, src and
                 // dst offsets are the same.
-                Extents srcMipSize = calcMipSize(srcTextureSize, mipLevel);
+                Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
                 Extents adjustedExtent = extent;
                 if (adjustedExtent.width == kRemainingTextureSize)
                 {
@@ -246,12 +262,21 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                     adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
                 }
 
+                // Validate source and destination parameters
+                SLANG_RHI_ASSERT(srcOffset.x >= 0 && srcOffset.y >= 0 && srcOffset.z >= 0);
+                SLANG_RHI_ASSERT(dstOffset.x >= 0 && dstOffset.y >= 0 && dstOffset.z >= 0);
+                SLANG_RHI_ASSERT(adjustedExtent.width > 0 && adjustedExtent.height > 0 && adjustedExtent.depth > 0);
+                SLANG_RHI_ASSERT(srcOffset.x + adjustedExtent.width <= srcMipSize.width);
+                SLANG_RHI_ASSERT(srcOffset.y + adjustedExtent.height <= srcMipSize.height);
+                SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
+                SLANG_RHI_ASSERT(srcMipLevel < src->m_desc.mipLevelCount);
+
                 D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
 
                 dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
                 dstRegion.pResource = dst->m_resource.getResource();
                 dstRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
-                    dstSubresource.mipLevel + mipLevel,
+                    dstMipLevel,
                     dstSubresource.baseArrayLayer + layer,
                     planeIndex,
                     dst->m_desc.mipLevelCount,
@@ -262,7 +287,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
                 srcRegion.pResource = src->m_resource.getResource();
                 srcRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
-                    srcSubresource.mipLevel + mipLevel,
+                    srcMipLevel,
                     srcSubresource.baseArrayLayer + layer,
                     planeIndex,
                     src->m_desc.mipLevelCount,

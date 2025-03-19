@@ -702,3 +702,62 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU | CUDA)
         }
     );
 }
+
+GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTMip::On, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& data = c->getTextureData();
+
+            // Skip non-power-of-2 block compressed textures as they're too complex for mip calculations
+            if (data.formatInfo.isCompressed && !math::isPowerOf2(data.desc.size.width))
+                return;
+
+            // Create a new texture with same descriptor
+            TextureData newData;
+            newData.init(device, data.desc, TextureInitMode::Random, 2132);
+            ComPtr<ITexture> newTexture;
+            REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
+
+            // Get the size of mip level 1
+            SubresourceLayout mip1Layout;
+            c->getTexture()->getSubresourceLayout(1, &mip1Layout);
+            Extents mip1Size = mip1Layout.size;
+
+            // Calculate offset for mip level 1 (quarter of mip1 size)
+            Offset3D offset = {mip1Size.width / 4, mip1Size.height / 4, mip1Size.depth / 4};
+            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy at the offset in mip level 1, using kWholeTexture to express 'the rest of the texture'
+            commandEncoder->copyTexture(
+                newTexture,
+                {1, 1, 0, 0}, // Target mip level 1
+                offset,
+                c->getTexture(),
+                {1, 1, 0, 0}, // Source from mip level 1
+                offset,
+                Extents::kWholeTexture
+            );
+            queue->submit(commandEncoder->finish());
+
+            // Verify it uploaded correctly at mip level 1
+            // The original texture data should have stomped over the new texture data
+            // at offset in mip level 1.
+            data.checkMipLevelsEqual(newTexture, 0, 1, offset, 0, 1, offset, Extents::kWholeTexture, false);
+            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, 0, 1, offset, Extents::kWholeTexture, true);
+        }
+    );
+}

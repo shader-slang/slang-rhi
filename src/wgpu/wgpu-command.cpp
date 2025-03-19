@@ -167,11 +167,12 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 {
     TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
+
     SubresourceRange dstSubresource = cmd.dstSubresource;
-    Offset3D dstOffset = cmd.dstOffset;
+    const Offset3D& dstOffset = cmd.dstOffset;
     SubresourceRange srcSubresource = cmd.srcSubresource;
-    Offset3D srcOffset = cmd.srcOffset;
-    Extents extent = cmd.extent;
+    const Offset3D& srcOffset = cmd.srcOffset;
+    const Extents& extent = cmd.extent;
 
     // Fix up sub resource ranges.
     if (dstSubresource.mipLevelCount == 0)
@@ -183,18 +184,31 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
 
+    // Validate subresource ranges
+    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.baseArrayLayer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
+    SLANG_RHI_ASSERT(dstSubresource.baseArrayLayer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
+
+    // Validate matching dimensions between source and destination
+    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
+
+    Extents srcTextureSize = src->m_desc.size;
     const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
     const FormatInfo& dstFormatInfo = getFormatInfo(dst->m_desc.format);
 
-    Extents srcTextureSize = src->m_desc.size;
     for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
     {
         for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
         {
+            uint32_t srcMipLevel = srcSubresource.mipLevel + mipLevel;
+            uint32_t dstMipLevel = dstSubresource.mipLevel + mipLevel;
+
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extents srcMipSize = calcMipSize(srcTextureSize, mipLevel);
+            Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
             Extents adjustedExtent = extent;
             if (adjustedExtent.width == kRemainingTextureSize)
             {
@@ -211,21 +225,14 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
                 adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
             }
-            if (adjustedExtent.width == kRemainingTextureSize)
-            {
-                SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
-                adjustedExtent.width = srcMipSize.width - srcOffset.x;
-            }
-            if (adjustedExtent.height == kRemainingTextureSize)
-            {
-                SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
-                adjustedExtent.height = srcMipSize.height - srcOffset.y;
-            }
-            if (adjustedExtent.depth == kRemainingTextureSize)
-            {
-                SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
-                adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
-            }
+
+            // Validate source and destination parameters
+            SLANG_RHI_ASSERT(srcOffset.x >= 0 && srcOffset.y >= 0 && srcOffset.z >= 0);
+            SLANG_RHI_ASSERT(dstOffset.x >= 0 && dstOffset.y >= 0 && dstOffset.z >= 0);
+            SLANG_RHI_ASSERT(adjustedExtent.width > 0 && adjustedExtent.height > 0 && adjustedExtent.depth > 0);
+            SLANG_RHI_ASSERT(srcOffset.x + adjustedExtent.width <= srcMipSize.width);
+            SLANG_RHI_ASSERT(srcOffset.y + adjustedExtent.height <= srcMipSize.height);
+            SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
 
             // z is either base array layer or z offset depending on whether this is 3D or array texture
             SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
@@ -236,18 +243,19 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             WGPUImageCopyTexture source = {};
             source.texture = src->m_texture;
             source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, srcZ};
-            source.mipLevel = cmd.srcSubresource.mipLevel + mipLevel;
+            source.mipLevel = srcMipLevel;
             source.aspect = WGPUTextureAspect_All;
 
             WGPUImageCopyTexture destination = {};
             destination.texture = dst->m_texture;
             destination.origin = {(uint32_t)cmd.dstOffset.x, (uint32_t)cmd.dstOffset.y, dstZ};
-            destination.mipLevel = cmd.dstSubresource.mipLevel + mipLevel;
+            destination.mipLevel = dstMipLevel;
             destination.aspect = WGPUTextureAspect_All;
 
             WGPUExtent3D copySize =
                 {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
 
+            // Align copy sizes to format block dimensions
             copySize.width = math::calcAligned2(copySize.width, srcFormatInfo.blockWidth);
             copySize.height = math::calcAligned2(copySize.height, srcFormatInfo.blockHeight);
             copySize.width = math::calcAligned2(copySize.width, dstFormatInfo.blockWidth);
