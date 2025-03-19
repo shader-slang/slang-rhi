@@ -45,6 +45,7 @@ struct FrameData
 {
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
+    // Fence to signal when the rendering to the swapchain image is finished.
     VkFence fence;
     // Semaphore to signal when the swapchain image is available.
     VkSemaphore imageAvailableSemaphore;

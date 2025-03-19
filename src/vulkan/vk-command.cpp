@@ -616,6 +616,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         }
     }
 
+    commitBarriers();
+
     VkRenderingInfoKHR renderingInfo = {VK_STRUCTURE_TYPE_RENDERING_INFO_KHR};
     renderingInfo.renderArea = renderArea;
     renderingInfo.layerCount = layerCount;
@@ -1375,6 +1377,15 @@ void CommandRecorder::commitBarriers()
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.image = texture->m_image;
         barrier.oldLayout = translateImageLayout(textureBarrier.stateBefore);
+        // This is a bit of a hack.
+        // When we first transition a swapchain image, it starts in VK_IMAGE_LAYOUT_UNDEFINED.
+        // The default state for swapchain images (automatically transitioned to at the end of a command encoding is
+        // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR).
+        if (texture->m_isSwapchainInitialState)
+        {
+            barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            texture->m_isSwapchainInitialState = false;
+        }
         barrier.newLayout = translateImageLayout(textureBarrier.stateAfter);
         barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(texture->m_desc.format));
         barrier.subresourceRange.baseArrayLayer = textureBarrier.entireTexture ? 0 : textureBarrier.arrayLayer;
@@ -1492,7 +1503,6 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 CommandQueueImpl::~CommandQueueImpl()
 {
     m_api.vkQueueWaitIdle(m_queue);
-    m_api.vkDestroySemaphore(m_api.m_device, m_semaphore, nullptr);
     m_api.vkDestroySemaphore(m_api.m_device, m_trackingSemaphore, nullptr);
 }
 
@@ -1500,11 +1510,6 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
 {
     m_queue = queue;
     m_queueFamilyIndex = queueFamilyIndex;
-
-    {
-        VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        m_api.vkCreateSemaphore(m_api.m_device, &semaphoreCreateInfo, nullptr, &m_semaphore);
-    }
 
     {
         VkSemaphoreTypeCreateInfo timelineCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
@@ -1602,19 +1607,24 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Setup wait semaphores.
     short_vector<VkSemaphore> waitSemaphores;
     short_vector<uint64_t> waitValues;
-    auto addWaitSemaphore = [&waitSemaphores, &waitValues](VkSemaphore semaphore, uint64_t value)
+    short_vector<VkPipelineStageFlags> waitStages;
+    auto addWaitSemaphore = [&waitSemaphores, &waitValues, &waitStages](
+                                VkSemaphore semaphore,
+                                uint64_t value,
+                                VkPipelineStageFlags stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+                            )
     {
         waitSemaphores.push_back(semaphore);
         waitValues.push_back(value);
+        waitStages.push_back(stage);
     };
 
-    for (VkSemaphore s : m_pendingWaitSemaphores)
+    if (m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
     {
-        if (s != VK_NULL_HANDLE)
-        {
-            addWaitSemaphore(s, 0);
-        }
+        addWaitSemaphore(m_surfaceSync.imageAvailableSemaphore, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        m_surfaceSync.imageAvailableSemaphore = VK_NULL_HANDLE;
     }
+
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
@@ -1629,7 +1639,13 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         signalSemaphores.push_back(semaphore);
         signalValues.push_back(value);
     };
-    addSignalSemaphore(m_semaphore, 0);
+
+    if (m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
+    {
+        addSignalSemaphore(m_surfaceSync.renderFinishedSemaphore, 0);
+        m_surfaceSync.renderFinishedSemaphore = VK_NULL_HANDLE;
+    }
+
     addSignalSemaphore(m_trackingSemaphore, m_lastSubmittedID);
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
@@ -1639,8 +1655,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
     // Setup submit info.
     VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    VkPipelineStageFlags stageFlag[] = {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT};
-    submitInfo.pWaitDstStageMask = stageFlag;
     submitInfo.commandBufferCount = vkCommandBuffers.size();
     submitInfo.pCommandBuffers = vkCommandBuffers.data();
 
@@ -1651,6 +1665,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
         submitInfo.pWaitSemaphores = waitSemaphores.data();
+        submitInfo.pWaitDstStageMask = waitStages.data();
         timelineSubmitInfo.waitSemaphoreValueCount = (uint32_t)waitValues.size();
         timelineSubmitInfo.pWaitSemaphoreValues = waitValues.data();
     }
@@ -1663,10 +1678,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
     }
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-    m_pendingWaitSemaphores[0] = m_semaphore;
-    m_pendingWaitSemaphores[1] = VK_NULL_HANDLE;
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence));
+    m_surfaceSync.fence = VK_NULL_HANDLE;
 
     retireCommandBuffers();
 

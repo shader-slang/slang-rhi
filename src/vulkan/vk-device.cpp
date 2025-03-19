@@ -228,11 +228,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 instanceCreateInfo.enabledLayerCount = SLANG_COUNT_OF(layerNames);
                 instanceCreateInfo.ppEnabledLayerNames = layerNames;
 
-                // Include support for printf
-                validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-                validationFeatures.enabledValidationFeatureCount = 1;
-                validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
-                instanceCreateInfo.pNext = &validationFeatures;
+                if (m_extendedDesc.enableDebugPrintf)
+                {
+                    // Include support for printf
+                    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+                    validationFeatures.enabledValidationFeatureCount = 1;
+                    validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
+                    instanceCreateInfo.pNext = &validationFeatures;
+                }
             }
         }
         uint32_t apiVersionsToTry[] = {VK_API_VERSION_1_3, VK_API_VERSION_1_2, VK_API_VERSION_1_1, VK_API_VERSION_1_0};
@@ -1079,6 +1082,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     m_desc = desc;
+
+    // Process chained descs
+    for (DescStructHeader* header = static_cast<DescStructHeader*>(desc.next); header; header = header->next)
+    {
+        switch (header->type)
+        {
+        case StructType::VulkanDeviceExtendedDesc:
+            memcpy(static_cast<void*>(&m_extendedDesc), header, sizeof(m_extendedDesc));
+            break;
+        default:
+            break;
+        }
+    }
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
     Result initDeviceResult = SLANG_OK;

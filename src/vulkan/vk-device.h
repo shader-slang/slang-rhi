@@ -141,7 +141,8 @@ public:
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
 public:
-    // DeviceImpl members.
+    DeviceDesc m_desc;
+    VulkanDeviceExtendedDesc m_extendedDesc;
 
     DeviceInfo m_info;
     std::string m_adapterName;
@@ -156,8 +157,6 @@ public:
     VulkanDeviceQueue m_deviceQueue;
     uint32_t m_queueFamilyIndex;
     RefPtr<CommandQueueImpl> m_queue;
-
-    DeviceDesc m_desc;
 
     DescriptorSetAllocator descriptorSetAllocator;
 

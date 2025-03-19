@@ -16,9 +16,14 @@ public:
     VkQueue m_queue;
     uint32_t m_queueFamilyIndex;
 
-    VkSemaphore m_pendingWaitSemaphores[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+    // Set by the surface for synchronization.
+    struct
+    {
+        VkFence fence = VK_NULL_HANDLE;
+        VkSemaphore imageAvailableSemaphore = VK_NULL_HANDLE;
+        VkSemaphore renderFinishedSemaphore = VK_NULL_HANDLE;
+    } m_surfaceSync;
 
-    VkSemaphore m_semaphore;
     VkSemaphore m_trackingSemaphore;
     uint64_t m_lastSubmittedID = 0;
     uint64_t m_lastFinishedID = 0;

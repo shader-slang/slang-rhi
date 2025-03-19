@@ -16,9 +16,20 @@ public:
     std::vector<Format> m_supportedFormats;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
-    /// Semaphore to signal after `acquireNextImage`.
-    VkSemaphore m_nextImageSemaphore = VK_NULL_HANDLE;
     short_vector<RefPtr<TextureImpl>> m_textures;
+
+    struct FrameData
+    {
+        // Fence to signal when the rendering to the swapchain image is finished.
+        VkFence fence;
+        // Semaphore to signal when the swapchain image is available.
+        VkSemaphore imageAvailableSemaphore;
+        // Semaphore to signal when the rendering to the swapchain image is finished.
+        VkSemaphore renderFinishedSemaphore;
+    };
+    short_vector<FrameData> m_frameData;
+
+    uint32_t m_currentFrameIndex = 0;
     uint32_t m_currentTextureIndex = -1;
 #if SLANG_APPLE_FAMILY
     void* m_metalLayer;
