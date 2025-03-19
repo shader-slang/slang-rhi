@@ -689,7 +689,6 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
         tests/test-create-buffer-from-handle.cpp
-        tests/test-create-texture.cpp
         tests/test-existing-device-handle.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
@@ -716,6 +715,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-shared-texture.cpp
         tests/test-staging-heap.cpp
         tests/test-surface.cpp
+        tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
