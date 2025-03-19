@@ -128,8 +128,93 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 
 void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_copyTexture);
+    TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
+    TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
+
+    SubresourceRange dstSubresource = cmd.dstSubresource;
+    const Offset3D& dstOffset = cmd.dstOffset;
+    SubresourceRange srcSubresource = cmd.srcSubresource;
+    const Offset3D& srcOffset = cmd.srcOffset;
+    const Extents& extent = cmd.extent;
+
+    // Fix up sub resource ranges if they are 0 (meaning use entire range)
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.layerCount == 0)
+        dstSubresource.layerCount = dst->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.layerCount == 0)
+        srcSubresource.layerCount = src->m_desc.getLayerCount();
+
+    const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
+    Extents srcTextureSize = src->m_desc.size;
+
+    // Copy each layer and mip level
+    for (uint32_t layerOffset = 0; layerOffset < srcSubresource.layerCount; layerOffset++)
+    {
+        uint32_t srcLayer = srcSubresource.baseArrayLayer + layerOffset;
+        uint32_t dstLayer = dstSubresource.baseArrayLayer + layerOffset;
+
+        for (uint32_t mipOffset = 0; mipOffset < srcSubresource.mipLevelCount; mipOffset++)
+        {
+            uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
+            uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
+
+            // Calculate adjusted extents. Note it is required and enforced
+            // by debug layer that if 'remaining texture' is used, src and
+            // dst offsets are the same.
+            Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+            Extents adjustedExtent = extent;
+            if (adjustedExtent.width == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                adjustedExtent.width = srcMipSize.width - srcOffset.x;
+            }
+            if (adjustedExtent.height == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                adjustedExtent.height = srcMipSize.height - srcOffset.y;
+            }
+            if (adjustedExtent.depth == kRemainingTextureSize)
+            {
+                SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+            }
+
+            CUarray srcArray = src->m_cudaArray;
+            CUarray dstArray = dst->m_cudaArray;
+
+            // Get the appropriate mip level if using mipmapped arrays
+            if (src->m_cudaMipMappedArray)
+            {
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMipLevel));
+            }
+            if (dst->m_cudaMipMappedArray)
+            {
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, dstMipLevel));
+            }
+
+            CUDA_MEMCPY3D copyParam = {};
+            copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
+            copyParam.srcArray = srcArray;
+            copyParam.srcXInBytes = srcOffset.x * formatInfo.blockSizeInBytes;
+            copyParam.srcY = srcOffset.y;
+            copyParam.srcZ = srcOffset.z + srcLayer;
+
+            copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
+            copyParam.dstArray = dstArray;
+            copyParam.dstXInBytes = dstOffset.x * formatInfo.blockSizeInBytes;
+            copyParam.dstY = dstOffset.y;
+            copyParam.dstZ = dstOffset.z + dstLayer;
+
+            copyParam.WidthInBytes = adjustedExtent.width * formatInfo.blockSizeInBytes;
+            copyParam.Height = adjustedExtent.height;
+            copyParam.Depth = adjustedExtent.depth;
+
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+        }
+    }
 }
 
 void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
