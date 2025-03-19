@@ -678,6 +678,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
+        tests/test-buffer-shared.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
@@ -710,7 +711,6 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-root-shader-parameter.cpp
         tests/test-sampler-array.cpp
         tests/test-shader-cache.cpp
-        tests/test-shared-buffer.cpp
         tests/test-staging-heap.cpp
         tests/test-surface.cpp
         tests/test-texture-create.cpp
