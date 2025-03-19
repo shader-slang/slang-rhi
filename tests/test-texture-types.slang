@@ -131,13 +131,12 @@ void testTexture2D(
 
     uint tmp = tid;
     uint x = tmp % width; tmp /= width;
-    uint y = tmp % height; tmp /= height;
-    uint z = tmp;
+    uint y = tmp % height;
 
-    uint3 coord = uint3(x, y, z);
+    uint2 coord = uint2(x, y);
 
     // Read from texture
-    Element elem = texture[coord.xy];
+    Element elem = texture[coord];
 
     // Write something to results
     results[tid] = elem;
@@ -156,14 +155,10 @@ void testTexture1D(
     uint tid = sv_dispatchThreadID.x;
 
     uint tmp = tid;
-    uint x = tmp % width; tmp /= width;
-    uint y = tmp % height; tmp /= height;
-    uint z = tmp;
-
-    uint3 coord = uint3(x, y, z);
+    uint x = tmp % width;
 
     // Read from texture
-    Element elem = texture[coord.x];
+    Element elem = texture[x];
 
     // Write something to results
     results[tid] = elem;
