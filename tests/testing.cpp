@@ -87,12 +87,53 @@ void writeFile(std::string_view path, const void* data, size_t size)
 class DebugCallback : public IDebugCallback
 {
 public:
+    bool shouldIgnoreError(DebugMessageType type, DebugMessageSource source, const char* message)
+    {
+        // These 2 messages pop up as the vulkan validation layer doesn't pick up on CoopVec yet
+        if (strstr(message, "VK_NV_cooperative_vector is not supported by this layer"))
+            return true;
+        if (strstr(message, "includes a structure with unknown VkStructureType (1000491000)"))
+            return true;
+
+        // Redundant warning about old architectures
+        if (strstr(message, "nvrtc 12.8: nvrtc: warning : Architectures prior to"))
+            return true;
+
+        return false;
+    }
+
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
     {
         if (!doctest::is_running_in_test)
             return;
-        MESSAGE(doctest::String(message));
+        if (type == DebugMessageType::Info)
+        {
+            INFO(doctest::String(message));
+        }
+        else if (type == DebugMessageType::Warning)
+        {
+            if (shouldIgnoreError(type, source, message))
+            {
+                INFO(doctest::String(message));
+            }
+            else
+            {
+                FAIL(doctest::String(message));
+            }
+        }
+        else if (type == DebugMessageType::Error)
+        {
+            if (shouldIgnoreError(type, source, message))
+            {
+                INFO(doctest::String(message));
+            }
+            else
+            {
+                FAIL(doctest::String(message));
+            }
+        }
     }
 };
 
@@ -428,7 +469,7 @@ ComPtr<IDevice> createTestingDevice(
         if (i < featureCount - 1)
             featureStr += " ";
     }
-    MESSAGE("Device features: ", featureStr);
+    INFO("Device features: ", featureStr);
 #endif
 
     if (useCachedDevice)
@@ -624,7 +665,7 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
     auto it = available.find(deviceType);
     if (it == available.end())
     {
-        available[deviceType] = checkDeviceTypeAvailable(deviceType);
+        available[deviceType] = checkDeviceTypeAvailable(deviceType, false);
     }
     return available[deviceType];
 }

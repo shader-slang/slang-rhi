@@ -38,7 +38,6 @@ struct TestFormats
 
         if (!is_set(formatSupport, FormatSupport::Texture))
         {
-            MESSAGE("Skipping format ", format);
             return false;
         }
 
