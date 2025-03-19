@@ -87,6 +87,22 @@ void writeFile(std::string_view path, const void* data, size_t size)
 class DebugCallback : public IDebugCallback
 {
 public:
+    bool shouldIgnoreError(DebugMessageType type, DebugMessageSource source, const char* message)
+    {
+        // These 2 messages pop up as the vulkan validation layer doesn't pick up on CoopVec yet
+        if (strstr(message, "VK_NV_cooperative_vector is not supported by this layer"))
+            return true;
+        if (strstr(message, "includes a structure with unknown VkStructureType (1000491000)"))
+            return true;
+
+        // Redundant warning about old architectures
+        if (strstr(message, "nvrtc 12.8: nvrtc: warning : Architectures prior to"))
+            return true;
+
+        return false;
+    }
+
+
     virtual SLANG_NO_THROW void SLANG_MCALL
     handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
     {
@@ -98,14 +114,18 @@ public:
         }
         else if (type == DebugMessageType::Warning)
         {
-            INFO(doctest::String(message));
+            if (shouldIgnoreError(type, source, message))
+            {
+                INFO(doctest::String(message));
+            }
+            else
+            {
+                FAIL(doctest::String(message));
+            }
         }
         else if (type == DebugMessageType::Error)
         {
-            // Don't print the Vulkan validation warning for co-op vec being initialized unless test fails.
-            // (VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV)
-            // TODO: Remove once this warning is fixed in the Vulkan SDK.
-            if (strstr(message, "includes a structure with unknown VkStructureType (1000491000)"))
+            if (shouldIgnoreError(type, source, message))
             {
                 INFO(doctest::String(message));
             }
