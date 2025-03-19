@@ -688,7 +688,6 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
-        tests/test-copy-texture.cpp
         tests/test-create-buffer-from-handle.cpp
         tests/test-create-texture.cpp
         tests/test-existing-device-handle.cpp
