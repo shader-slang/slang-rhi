@@ -207,7 +207,6 @@ enum TestFlags
 #define SKIP(msg)                                                                                                      \
     do                                                                                                                 \
     {                                                                                                                  \
-        MESSAGE("Skipping (" msg ")");                                                                                 \
         return;                                                                                                        \
     }                                                                                                                  \
     while (0)

@@ -89,7 +89,7 @@ GPU_TEST_CASE("benchmark-command", ALL)
 
     end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    MESSAGE("Duration: " << duration << " ms");
+    INFO("Duration: " << duration << " ms");
 
     queue->waitOnHost();
 

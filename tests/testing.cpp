@@ -92,7 +92,28 @@ public:
     {
         if (!doctest::is_running_in_test)
             return;
-        MESSAGE(doctest::String(message));
+        if (type == DebugMessageType::Info)
+        {
+            INFO(doctest::String(message));
+        }
+        else if (type == DebugMessageType::Warning)
+        {
+            INFO(doctest::String(message));
+        }
+        else if (type == DebugMessageType::Error)
+        {
+            // Don't print the Vulkan validation warning for co-op vec being initialized unless test fails.
+            // (VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV)
+            // TODO: Remove once this warning is fixed in the Vulkan SDK.
+            if (strstr(message, "includes a structure with unknown VkStructureType (1000491000)"))
+            {
+                INFO(doctest::String(message));
+            }
+            else
+            {
+                FAIL(doctest::String(message));
+            }
+        }
     }
 };
 
@@ -428,7 +449,7 @@ ComPtr<IDevice> createTestingDevice(
         if (i < featureCount - 1)
             featureStr += " ";
     }
-    MESSAGE("Device features: ", featureStr);
+    INFO("Device features: ", featureStr);
 #endif
 
     if (useCachedDevice)
@@ -624,7 +645,7 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
     auto it = available.find(deviceType);
     if (it == available.end())
     {
-        available[deviceType] = checkDeviceTypeAvailable(deviceType);
+        available[deviceType] = checkDeviceTypeAvailable(deviceType, false);
     }
     return available[deviceType];
 }
