@@ -367,7 +367,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         switch (header->type)
         {
         case StructType::D3D12DeviceExtendedDesc:
-            memcpy((void*)&m_extendedDesc, header, sizeof(m_extendedDesc));
+            memcpy(static_cast<void*>(&m_extendedDesc), header, sizeof(m_extendedDesc));
             break;
         case StructType::D3D12ExperimentalFeaturesDesc:
             processExperimentalFeaturesDesc(d3dModule, header);

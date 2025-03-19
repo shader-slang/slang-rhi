@@ -1083,7 +1083,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         switch (header->type)
         {
         case StructType::VulkanDeviceExtendedDesc:
-            memcpy((void*)&m_extendedDesc, header, sizeof(m_extendedDesc));
+            memcpy(static_cast<void*>(&m_extendedDesc), header, sizeof(m_extendedDesc));
             break;
         default:
             break;
