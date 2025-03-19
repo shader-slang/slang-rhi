@@ -678,22 +678,21 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
+        tests/test-buffer-from-handle.cpp
+        tests/test-buffer-shared.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
         tests/test-cmd-copy-texture.cpp
+        tests/test-cmd-draw.cpp
         tests/test-cmd-upload-buffer.cpp
         tests/test-cmd-upload-texture.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
-        tests/test-copy-texture.cpp
-        tests/test-create-buffer-from-handle.cpp
-        tests/test-create-texture.cpp
-        tests/test-existing-device-handle.cpp
+        tests/test-device-from-handle.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
-        tests/test-instanced-draw.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp
         tests/test-link-time-options.cpp
@@ -706,18 +705,17 @@ if(SLANG_RHI_BUILD_TESTS)
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
-        tests/test-read-texture.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
         tests/test-root-shader-parameter.cpp
         tests/test-sampler-array.cpp
         tests/test-shader-cache.cpp
-        tests/test-shared-buffer.cpp
-        tests/test-shared-texture.cpp
         tests/test-staging-heap.cpp
         tests/test-surface.cpp
+        tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
+        tests/test-texture-shared.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp

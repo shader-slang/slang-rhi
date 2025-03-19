@@ -139,14 +139,9 @@ public:
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection;
-        REQUIRE_CALL(loadGraphicsProgram(
-            device,
-            shaderProgram,
-            "test-instanced-draw",
-            "vertexMain",
-            "fragmentMain",
-            slangReflection
-        ));
+        REQUIRE_CALL(
+            loadGraphicsProgram(device, shaderProgram, "test-cmd-draw", "vertexMain", "fragmentMain", slangReflection)
+        );
 
         ColorTargetDesc colorTarget;
         colorTarget.format = format;
@@ -484,22 +479,22 @@ void testDraw(IDevice* device)
     test.run();
 }
 
-GPU_TEST_CASE("draw-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("cmd-draw-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     testDraw<DrawInstancedTest>(device);
 }
 
-GPU_TEST_CASE("draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("cmd-draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     testDraw<DrawIndexedInstancedTest>(device);
 }
 
-GPU_TEST_CASE("draw-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan)
 {
     testDraw<DrawIndirectTest>(device);
 }
 
-GPU_TEST_CASE("draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
 {
     testDraw<DrawIndexedIndirectTest>(device);
 }
