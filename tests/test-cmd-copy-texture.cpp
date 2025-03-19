@@ -10,7 +10,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
@@ -64,7 +64,7 @@ GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-arrayrange", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-arrayrange", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::On, TTMip::Both, TTFmtDepth::Off);
@@ -118,7 +118,7 @@ GPU_TEST_CASE("cmd-copy-texture-arrayrange", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTMip::On, TTFmtDepth::Off);
@@ -179,7 +179,7 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-fromarray", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-fromarray", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::D1 | TTShape::D2, TTArray::On, TTMip::Both, TTFmtDepth::Off);
@@ -227,7 +227,7 @@ GPU_TEST_CASE("cmd-copy-texture-fromarray", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-toarray", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-toarray", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::D1 | TTShape::D2, TTArray::On, TTMip::Both, TTFmtDepth::Off, TextureInitMode::None);
@@ -278,7 +278,7 @@ GPU_TEST_CASE("cmd-copy-texture-toarray", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-fromslice", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-fromslice", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::D3, TTArray::Off, TTMip::Both, TTFmtDepth::Off);
@@ -330,7 +330,7 @@ GPU_TEST_CASE("cmd-copy-texture-fromslice", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-arrayfromslice", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-arrayfromslice", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::D3, TTArray::Off, TTMip::Both, TTFmtDepth::Off);
@@ -383,7 +383,7 @@ GPU_TEST_CASE("cmd-copy-texture-arrayfromslice", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::D3, TTArray::Off, TTMip::Off, TTFmtDepth::Off, TextureInitMode::Invalid);
@@ -453,7 +453,7 @@ GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
@@ -503,7 +503,7 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
@@ -553,7 +553,7 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
@@ -601,7 +601,7 @@ GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTFmtDepth::Off);
@@ -654,7 +654,7 @@ GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(TTShape::All, TTArray::Both, TTMip::On, TTFmtDepth::Off);
