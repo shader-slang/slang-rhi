@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("existing-device-handle", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("device-from-handle", D3D12 | Vulkan | CUDA)
 {
     DeviceNativeHandles handles;
     CHECK_CALL(device->getNativeDeviceHandles(&handles));
