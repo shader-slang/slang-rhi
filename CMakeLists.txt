@@ -682,6 +682,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
         tests/test-cmd-copy-texture.cpp
+        tests/test-cmd-draw.cpp
         tests/test-cmd-upload-buffer.cpp
         tests/test-cmd-upload-texture.cpp
         tests/test-compute-smoke.cpp
@@ -693,7 +694,6 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-existing-device-handle.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
-        tests/test-instanced-draw.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp
         tests/test-link-time-options.cpp
