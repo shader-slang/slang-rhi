@@ -204,10 +204,9 @@ enum TestFlags
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
 
-#define SKIP(msg)                                                                                                      \
+#define SKIP(reason)                                                                                                   \
     do                                                                                                                 \
     {                                                                                                                  \
-        MESSAGE("Skipping (" msg ")");                                                                                 \
         return;                                                                                                        \
     }                                                                                                                  \
     while (0)
