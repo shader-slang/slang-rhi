@@ -13,7 +13,13 @@ using namespace rhi::testing;
 GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
-    options.addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Both);
+    options.addVariants(
+        TTShape::All,    // all shapes
+        TTArray::Both,   // array and non-array
+        TTMip::Both,     // with/without mips
+        TTMS::Both,      // with/without multisampling (when available)
+        TTPowerOf2::Both // test both power-of-2 and non-power-of-2 sizes where possible
+    );
 
     runTextureTest(
         options,
@@ -469,6 +475,8 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU)
 
             Extents size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
+            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
 
             // Create command encoder
             auto queue = device->getQueue(QueueType::Graphics);
@@ -517,7 +525,12 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU)
 
             Extents size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
+            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
+
             Extents extents = {max(size.width / 4, 1), max(size.height / 4, 1), max(size.depth / 4, 1)};
+            extents.width = math::calcAligned2(extents.width, data.formatInfo.blockWidth);
+            extents.height = math::calcAligned2(extents.height, data.formatInfo.blockHeight);
 
             // fprintf(stderr, "Copy:\n  %s\n  %s\n", newTexture->getDesc().label, c->getTexture()->getDesc().label);
 
@@ -655,6 +668,11 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU)
             // Get cpu side data.
             TextureData& srcData = c->getTextureData();
             ComPtr<ITexture> srcTexture = c->getTexture();
+
+            // Too painful to get mip calculations working for this test for non-power-of-2
+            // block compressed textures!
+            if (srcData.formatInfo.isCompressed && !math::isPowerOf2(srcData.desc.size.width))
+                return;
 
             // Create a texture with same descriptor
             TextureDesc dstDesc = srcData.desc;

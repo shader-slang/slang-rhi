@@ -223,6 +223,14 @@ enum class TTFmtStencil
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TTFmtStencil);
 
+enum class TTPowerOf2
+{
+    Off = 1 << 0,
+    On = 1 << 1,
+    Both = Off | On,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(TTPowerOf2);
+
 struct FormatFilter
 {
     TTFmtCompressed compression = TTFmtCompressed::Both;
@@ -237,6 +245,7 @@ struct TextureTestVariant
 {
     std::vector<TestTextureDesc> descriptors;
     FormatFilter formatFilter;
+    TTPowerOf2 powerOf2 = TTPowerOf2::On; // by default only test power-of-2
 };
 
 
@@ -254,7 +263,7 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc);
 /// Checks and gets corresponding array type for texture type
 bool getArrayType(TextureType type, TextureType& outArrayType);
 
-/// Checks and gets corresponding scalar (none-array) type for texture type
+/// Checks and gets corresponding scalar (non-array) type for texture type
 bool getScalarType(TextureType type, TextureType& outScalarType);
 
 /// Checks and gets corresponding multisample type for texture type
@@ -305,6 +314,9 @@ public:
 
         // Add the filter for invalid format combinations
         addGenerator([this](int state, TextureTestVariant variant) { filterFormat(state, variant); });
+
+        // Add generator that adjusts texture size after formats selected.
+        addGenerator([this](int state, TextureTestVariant variant) { applyTextureSize(state, variant); });
     }
 
     /// Get current device.
@@ -356,6 +368,8 @@ private:
 
     void processVariantArg(TTFmtCompressed format);
 
+    void processVariantArg(TTPowerOf2 format);
+
     void processVariantArg(const std::vector<Format>& formats);
 
     void processVariantArg(TextureUsage usage);
@@ -363,6 +377,8 @@ private:
     void postProcessVariant(int state, TextureTestVariant variant);
 
     void filterFormat(int state, TextureTestVariant variant);
+
+    void applyTextureSize(int state, TextureTestVariant variant);
 };
 
 /// Context within which a given iteration of a texture test works. This
@@ -451,6 +467,16 @@ inline void runTextureTest(TextureTestOptions& options, Func&& func, Args&&... a
         [&func, &options, &args...](const TextureTestVariant& variant)
         {
             TextureTestContext context(options.getDevice());
+
+            const TextureDesc& td = variant.descriptors[0].desc;
+            CAPTURE(td.type);
+            CAPTURE(td.size.width);
+            CAPTURE(td.size.height);
+            CAPTURE(td.size.depth);
+            CAPTURE(td.mipLevelCount);
+            CAPTURE(td.arrayLength);
+            CAPTURE(td.format);
+
             for (auto& desc : variant.descriptors)
             {
                 TextureData data;

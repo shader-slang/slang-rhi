@@ -175,6 +175,8 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
             Extents size = currentData.desc.size;
 
             Offset3D offset = {size.width / 2, size.height / 2, size.depth / 2};
+            offset.x = math::calcAligned2(offset.x, currentData.formatInfo.blockWidth);
+            offset.y = math::calcAligned2(offset.y, currentData.formatInfo.blockHeight);
 
             TextureDesc newDesc = currentData.desc;
             newDesc.size.width = size.width - offset.x;
@@ -228,7 +230,12 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | W
             Extents size = currentData.desc.size;
 
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
+            offset.x = math::calcAligned2(offset.x, currentData.formatInfo.blockWidth);
+            offset.y = math::calcAligned2(offset.y, currentData.formatInfo.blockHeight);
+
             Extents extents = {max(size.width / 4, 1), max(size.height / 4, 1), max(size.depth / 4, 1)};
+            extents.width = math::calcAligned2(extents.width, currentData.formatInfo.blockWidth);
+            extents.height = math::calcAligned2(extents.height, currentData.formatInfo.blockHeight);
 
             TextureDesc newDesc = currentData.desc;
             newDesc.size.width = extents.width;
