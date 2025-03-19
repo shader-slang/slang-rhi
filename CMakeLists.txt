@@ -678,6 +678,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-buffer-barrier.cpp
+        tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
@@ -689,7 +690,6 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
-        tests/test-create-buffer-from-handle.cpp
         tests/test-device-from-handle.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp

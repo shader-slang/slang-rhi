@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("create-buffer-from-handle", D3D12 | Vulkan)
+GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
