@@ -375,7 +375,7 @@ endif()
 cmrc_add_resource_library(
     slang-rhi-resources
     NAMESPACE resources
-    src/cuda/kernels/clear-texture.ptx
+    src/cuda/kernels/clear-texture.cu
     src/metal/shaders/clear-texture.metal
 )
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
