@@ -256,9 +256,18 @@ void SurfaceImpl::destroySwapchain()
     m_textures.clear();
     for (FrameData& frameData : m_frameData)
     {
-        api.vkDestroyFence(api.m_device, frameData.fence, nullptr);
-        api.vkDestroySemaphore(api.m_device, frameData.imageAvailableSemaphore, nullptr);
-        api.vkDestroySemaphore(api.m_device, frameData.renderFinishedSemaphore, nullptr);
+        if (frameData.fence != VK_NULL_HANDLE)
+        {
+            api.vkDestroyFence(api.m_device, frameData.fence, nullptr);
+        }
+        if (frameData.imageAvailableSemaphore != VK_NULL_HANDLE)
+        {
+            api.vkDestroySemaphore(api.m_device, frameData.imageAvailableSemaphore, nullptr);
+        }
+        if (frameData.renderFinishedSemaphore != VK_NULL_HANDLE)
+        {
+            api.vkDestroySemaphore(api.m_device, frameData.renderFinishedSemaphore, nullptr);
+        }
     }
     m_frameData.clear();
     if (m_swapchain != VK_NULL_HANDLE)
