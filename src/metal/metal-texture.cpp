@@ -106,8 +106,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         {
         case Format::R32Uint:
         case Format::R32Sint:
-            // case Format::RG32Uint:
-            // case Format::RG32Sint:
             textureUsage |= MTL::TextureUsageShaderAtomic;
             break;
         default:
