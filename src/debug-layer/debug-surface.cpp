@@ -56,11 +56,17 @@ Result DebugSurface::configure(const SurfaceConfig& config)
     }
 
     Result result = baseObject->configure(config);
-    m_configured = SLANG_SUCCEEDED(result);
+
+    if (SLANG_SUCCEEDED(result))
+    {
+        m_configured = true;
+        m_state = State::Initial;
+    }
+
     return result;
 }
 
-Result DebugSurface::getCurrentTexture(ITexture** outTexture)
+Result DebugSurface::acquireNextImage(ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
 
@@ -70,7 +76,20 @@ Result DebugSurface::getCurrentTexture(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
-    return baseObject->getCurrentTexture(outTexture);
+    if (m_state == State::ImageAcquired)
+    {
+        RHI_VALIDATION_ERROR("Image already aquired. Image needs to be presented before acquiring a new one.");
+        return SLANG_FAIL;
+    }
+
+    Result result = baseObject->acquireNextImage(outTexture);
+
+    if (SLANG_SUCCEEDED(result))
+    {
+        m_state = State::ImageAcquired;
+    }
+
+    return result;
 }
 
 Result DebugSurface::present()
@@ -83,7 +102,20 @@ Result DebugSurface::present()
         return SLANG_FAIL;
     }
 
-    return baseObject->present();
+    if (m_state != State::ImageAcquired)
+    {
+        RHI_VALIDATION_ERROR("No image acquired to present.");
+        return SLANG_FAIL;
+    }
+
+    Result result = baseObject->present();
+
+    if (SLANG_SUCCEEDED(result))
+    {
+        m_state = State::ImagePresented;
+    }
+
+    return result;
 }
 
 } // namespace rhi::debug

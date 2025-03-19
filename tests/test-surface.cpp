@@ -93,7 +93,7 @@ struct SurfaceTest
         for (uint32_t i = 0; i < 10; ++i)
         {
             glfwPollEvents();
-            ComPtr<ITexture> texture = surface->getCurrentTexture();
+            ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
             renderFrame(texture, width, height, i);
@@ -108,7 +108,7 @@ struct SurfaceTest
         for (uint32_t i = 0; i < 10; ++i)
         {
             glfwPollEvents();
-            ComPtr<ITexture> texture = surface->getCurrentTexture();
+            ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
             renderFrame(texture, width, height, i);
@@ -254,11 +254,24 @@ struct ComputeSurfaceTest : SurfaceTest
         if (!allowUnorderedAccess)
         {
             Offset3D offset = {0, 0, 0};
-            Extents extents = {int32_t(width), int32_t(height), 1};
-            commandEncoder->copyTexture(texture, {0, 0, 0, 0}, offset, renderTexture, {0, 0, 0, 0}, offset, extents);
+            commandEncoder->copyTexture(
+                texture,
+                {0, 0, 0, 0},
+                offset,
+                renderTexture,
+                {0, 0, 0, 0},
+                offset,
+                Extents::kWholeTexture
+            );
         }
         queue->submit(commandEncoder->finish());
     }
+};
+
+struct NoRenderSurfaceTest : SurfaceTest
+{
+    void initResources() override {}
+    void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) override {}
 };
 
 template<typename Test>
@@ -289,4 +302,10 @@ GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
     CHECK(device->hasFeature("surface"));
     testSurface<ComputeSurfaceTest>(device);
+}
+
+GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+{
+    CHECK(device->hasFeature("surface"));
+    testSurface<NoRenderSurfaceTest>(device);
 }

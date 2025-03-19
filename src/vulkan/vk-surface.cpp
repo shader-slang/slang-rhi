@@ -290,7 +290,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
-Result SurfaceImpl::getCurrentTexture(ITexture** outTexture)
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
     auto& api = m_device->m_api;
 
@@ -351,6 +351,17 @@ Result SurfaceImpl::present()
 
     FrameData& frameData = m_frameData[m_currentFrameIndex];
     m_currentFrameIndex = (m_currentFrameIndex + 1) % m_frameData.size();
+
+    // If no submit has taken place yet, then we need to submit a dummy command buffer to transition the texture to the
+    // correct state.
+    if (m_device->m_queue->m_surfaceSync.fence != VK_NULL_HANDLE)
+    {
+        ICommandQueue* queue = m_device->m_queue.get();
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(encoder.writeRef()));
+        encoder->setTextureState(m_textures[m_currentTextureIndex], ResourceState::General);
+        SLANG_RETURN_ON_FAIL(queue->submit(encoder->finish()));
+    }
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;

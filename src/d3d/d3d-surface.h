@@ -118,7 +118,7 @@ public:
         return SLANG_OK;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentTexture(ITexture** outTexture) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override
     {
         if (!m_configured)
         {
