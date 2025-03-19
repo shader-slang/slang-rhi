@@ -16,8 +16,6 @@ public:
     std::vector<Format> m_supportedFormats;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
-    /// Semaphore to signal after `acquireNextImage`.
-    VkSemaphore m_nextImageSemaphore = VK_NULL_HANDLE;
     short_vector<RefPtr<TextureImpl>> m_textures;
 
     struct FrameData

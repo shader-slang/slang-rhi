@@ -28,11 +28,6 @@ SurfaceImpl::~SurfaceImpl()
         api.vkDestroySurfaceKHR(api.m_instance, m_surface, nullptr);
     }
 
-    if (m_nextImageSemaphore)
-    {
-        api.vkDestroySemaphore(api.m_device, m_nextImageSemaphore, nullptr);
-    }
-
 #if SLANG_APPLE_FAMILY
     CocoaUtil::destroyMetalLayer(m_metalLayer);
 #endif
@@ -44,9 +39,6 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_windowHandle = windowHandle;
 
     auto& api = m_device->m_api;
-
-    VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateSemaphore(api.m_device, &semaphoreCreateInfo, nullptr, &m_nextImageSemaphore));
 
     switch (windowHandle.type)
     {
