@@ -394,7 +394,7 @@ Result DeviceImpl::readTexture(
         // We just want to create a texture to copy the single subresource, so:
         // - Reduce dimensions to that of the mip level
         // - Only 1 mip level
-        // - Arrays turn into their none-array counterpart
+        // - Arrays turn into their non-array counterpart
         // - Cube maps turn into 2D textures (as we only want 1 face)
 
         // Adjust mips, size and array

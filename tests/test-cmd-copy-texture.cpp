@@ -15,10 +15,10 @@ GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | WGPU)
     TextureTestOptions options(device);
     options.addVariants(
         TTShape::All,    // all shapes
-        TTArray::Both,   // array and none-array
+        TTArray::Both,   // array and non-array
         TTMip::Both,     // with/without mips
         TTMS::Both,      // with/without multisampling (when available)
-        TTPowerOf2::Both // test both power-of-2 and none-power-of-2 sizes where possible
+        TTPowerOf2::Both // test both power-of-2 and non-power-of-2 sizes where possible
     );
 
     runTextureTest(
@@ -669,7 +669,7 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU)
             TextureData& srcData = c->getTextureData();
             ComPtr<ITexture> srcTexture = c->getTexture();
 
-            // Too painful to get mip calculations working for this test for none-power-of-2
+            // Too painful to get mip calculations working for this test for non-power-of-2
             // block compressed textures!
             if (srcData.formatInfo.isCompressed && !math::isPowerOf2(srcData.desc.size.width))
                 return;

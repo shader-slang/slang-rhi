@@ -263,7 +263,7 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc);
 /// Checks and gets corresponding array type for texture type
 bool getArrayType(TextureType type, TextureType& outArrayType);
 
-/// Checks and gets corresponding scalar (none-array) type for texture type
+/// Checks and gets corresponding scalar (non-array) type for texture type
 bool getScalarType(TextureType type, TextureType& outScalarType);
 
 /// Checks and gets corresponding multisample type for texture type

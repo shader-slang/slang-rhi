@@ -294,7 +294,7 @@ struct FormatInfo
     bool isSigned : 1;
     bool isSrgb : 1;
     bool isCompressed : 1;
-    bool supportsNonePowerOf2 : 1;
+    bool supportsNonPowerOf2 : 1;
 };
 
 enum class FormatSupport

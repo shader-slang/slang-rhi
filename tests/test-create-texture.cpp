@@ -12,10 +12,10 @@ GPU_TEST_CASE("texture-create", ALL)
     TextureTestOptions options(device);
     options.addVariants(
         TTShape::All,    // all shapes
-        TTArray::Both,   // array and none-array
+        TTArray::Both,   // array and non-array
         TTMip::Both,     // with/without mips
         TTMS::Both,      // with/without multisampling (when available)
-        TTPowerOf2::Both // test both power-of-2 and none-power-of-2 sizes where possible
+        TTPowerOf2::Both // test both power-of-2 and non-power-of-2 sizes where possible
     );
 
     runTextureTest(

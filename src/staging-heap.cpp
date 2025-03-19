@@ -176,7 +176,7 @@ void StagingHeap::free(Allocation allocation)
     RefPtr<Page> page = m_pages[allocation.getPageId()];
     page->freeNode(allocation.node);
 
-    // Free page if now have more than 1 empty page or this is none-standard page size.
+    // Free page if now have more than 1 empty page or this is non-standard page size.
     if (page->getUsed() == 0)
     {
         if (page->getCapacity() == m_pageSize)

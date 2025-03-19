@@ -10,7 +10,7 @@
 #define SLANG_RHI_TEST_ALL_FORMATS 0
 
 /// If set to 1, then default behavior is for textures that support
-/// none-power-of-2 sizes to test them unless explicitly disabled
+/// non-power-of-2 sizes to test them unless explicitly disabled
 /// by the test.
 #define SLANG_RHI_TEST_ALL_SIZES_BY_DEFAULT 0
 
@@ -362,7 +362,7 @@ void TextureData::checkMipLevelsEqual(
         textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
     );
 
-    // For compressed textures, raise error if attempting to check none-aligned blocks
+    // For compressed textures, raise error if attempting to check non-aligned blocks
     if (formatInfo.blockWidth > 1)
     {
         CHECK_EQ(textureOffset.x % formatInfo.blockWidth, 0);
@@ -1210,12 +1210,12 @@ void TextureTestOptions::applyTextureSize(int state, TextureTestVariant variant)
     if (is_set(variant.powerOf2, TTPowerOf2::Off))
     {
         // Make adjustments for power of 2 sizes. We need to increment dimensions
-        // that aren't only 1 pixel wide until they're a none-power of 2 multiple
+        // that aren't only 1 pixel wide until they're a non-power of 2 multiple
         // of the block size.
         for (auto& testTexture : variant.descriptors)
         {
             const FormatInfo& info = getFormatInfo(testTexture.desc.format);
-            if (!info.supportsNonePowerOf2)
+            if (!info.supportsNonPowerOf2)
                 return;
 
             for (auto& testTexture : variant.descriptors)
