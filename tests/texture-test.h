@@ -72,6 +72,12 @@ struct TextureData
     /// Helper for checkEqual that requies no offsets/extents
     inline void checkEqual(ITexture* texture) const { checkEqual({0, 0, 0}, texture); }
 
+    /// Helper for checkEqual that tests the same offsets/extents
+    inline void checkEqual(ITexture* texture, Offset3D offset, Extents extents, bool compareOutsideRegion = false) const
+    {
+        checkEqual(offset, texture, offset, extents, compareOutsideRegion);
+    }
+
     /// Compare cpu data for a layer in this TextureData against a layer
     /// in a gpu texture. For details of region comparison see checkEqual.
     void checkLayersEqual(
@@ -90,6 +96,24 @@ struct TextureData
         checkLayersEqual(thisLayer, {0, 0, 0}, texture, textureLayer, {0, 0, 0}, Extents::kWholeTexture);
     }
 
+    /// Helper for checkLayersEqual that tests the same layers, offsets and extents in each texture
+    inline void checkLayersEqual(
+        ITexture* texture,
+        int layer,
+        Offset3D offset,
+        Extents extents,
+        bool compareOutsideRegion = false
+    ) const
+    {
+        checkLayersEqual(layer, offset, texture, layer, offset, extents, compareOutsideRegion);
+    }
+
+    /// Helper for checkLayersEqual that tests the same layers of the whole of each texture
+    inline void checkLayersEqual(ITexture* texture, int layer) const
+    {
+        checkLayersEqual(layer, {0, 0, 0}, texture, layer, {0, 0, 0}, Extents::kWholeTexture);
+    }
+
     /// Compare mip levels for a layer in this TextureData against a layer
     /// in a gpu texture. For details of region comparison see checkEqual.
     void checkMipLevelsEqual(
@@ -104,7 +128,7 @@ struct TextureData
         bool compareOutsideRegion = false
     ) const;
 
-    /// Helper for checkMipLevelsEqual that requires no offsets/extents
+    /// Helper for checkMipLevelsEqual that tests the whole of each texture
     inline void checkMipLevelsEqual(
         int thisLayer,
         int thisMipLevel,
@@ -123,6 +147,25 @@ struct TextureData
             {0, 0, 0},
             Extents::kWholeTexture
         );
+    }
+
+    /// Helper for checkMipLevelsEqual that tests the same layers, mip levels, offsets and extents in each texture
+    inline void checkMipLevelsEqual(
+        ITexture* texture,
+        int layer,
+        int mipLevel,
+        Offset3D offset,
+        Extents extents,
+        bool compareOutsideRegion = false
+    ) const
+    {
+        checkMipLevelsEqual(layer, mipLevel, offset, texture, layer, mipLevel, offset, extents, compareOutsideRegion);
+    }
+
+    /// Helper for checkMipLevelsEqual that tests the same layers and mip levels of the whole of each texture
+    inline void checkMipLevelsEqual(ITexture* texture, int layer, int mipLevel) const
+    {
+        checkMipLevelsEqual(layer, mipLevel, {0, 0, 0}, texture, layer, mipLevel, {0, 0, 0}, Extents::kWholeTexture);
     }
 
     /// Compare a slice of this TextureData (must be 3D) against a 2D
