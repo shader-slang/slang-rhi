@@ -75,9 +75,9 @@ struct TextureData
     /// Compare cpu data for a layer in this TextureData against a layer
     /// in a gpu texture. For details of region comparison see checkEqual.
     void checkLayersEqual(
-        ITexture* texture,
         int thisLayer,
         Offset3D thisOffset,
+        ITexture* texture,
         int textureLayer,
         Offset3D textureOffset,
         Extents textureExtents,
@@ -85,18 +85,18 @@ struct TextureData
     ) const;
 
     /// Helper for checkLayersEqual that requires no offsets/extents
-    inline void checkLayersEqual(ITexture* texture, int thisLayer, int textureLayer) const
+    inline void checkLayersEqual(int thisLayer, ITexture* texture, int textureLayer) const
     {
-        checkLayersEqual(texture, thisLayer, {0, 0, 0}, textureLayer, {0, 0, 0}, Extents::kWholeTexture);
+        checkLayersEqual(thisLayer, {0, 0, 0}, texture, textureLayer, {0, 0, 0}, Extents::kWholeTexture);
     }
 
     /// Compare mip levels for a layer in this TextureData against a layer
     /// in a gpu texture. For details of region comparison see checkEqual.
     void checkMipLevelsEqual(
-        ITexture* texture,
         int thisLayer,
         int thisMipLevel,
         Offset3D thisOffset,
+        ITexture* texture,
         int textureLayer,
         int textureMipLevel,
         Offset3D textureOffset,
@@ -106,18 +106,18 @@ struct TextureData
 
     /// Helper for checkMipLevelsEqual that requires no offsets/extents
     inline void checkMipLevelsEqual(
-        ITexture* texture,
         int thisLayer,
         int thisMipLevel,
+        ITexture* texture,
         int textureLayer,
         int textureMipLevel
     ) const
     {
         checkMipLevelsEqual(
-            texture,
             thisLayer,
             thisMipLevel,
             {0, 0, 0},
+            texture,
             textureLayer,
             textureMipLevel,
             {0, 0, 0},

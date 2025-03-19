@@ -92,9 +92,9 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | Metal | CUDA |
             for (uint32_t layer = 0; layer < layerCount; layer++)
             {
                 if ((layer % 2) == 0)
-                    currentData.checkLayersEqual(c->getTexture(), layer, layer);
+                    currentData.checkLayersEqual(layer, c->getTexture(), layer);
                 else
-                    newData.checkLayersEqual(c->getTexture(), layer, layer);
+                    newData.checkLayersEqual(layer, c->getTexture(), layer);
             }
         }
     );
@@ -152,9 +152,9 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | Metal | CUDA | W
                 for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
                 {
                     if ((mipLevel % 2) == 0)
-                        currentData.checkMipLevelsEqual(c->getTexture(), layerIdx, mipLevel, layerIdx, mipLevel);
+                        currentData.checkMipLevelsEqual(layerIdx, mipLevel, c->getTexture(), layerIdx, mipLevel);
                     else
-                        newData.checkMipLevelsEqual(c->getTexture(), layerIdx, mipLevel, layerIdx, mipLevel);
+                        newData.checkMipLevelsEqual(layerIdx, mipLevel, c->getTexture(), layerIdx, mipLevel);
                 }
             }
         }
@@ -331,12 +331,12 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
             queue->submit(commandEncoder->finish());
 
             // Verify top mip is untouched
-            currentData.checkMipLevelsEqual(c->getTexture(), 0, 0, 0, 0);
+            currentData.checkMipLevelsEqual(0, 0, c->getTexture(), 0, 0);
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
-            currentData.checkMipLevelsEqual(c->getTexture(), 0, 1, offset, 0, 1, offset, extents, true);
-            newData.checkMipLevelsEqual(c->getTexture(), 0, 0, {0, 0, 0}, 0, 1, offset, extents, false);
+            currentData.checkMipLevelsEqual(0, 0, {0, 0, 0}, c->getTexture(), 0, 0, {0, 0, 0}, Extents::kWholeTexture);
+            newData.checkMipLevelsEqual(0, 0, {0, 0, 0}, c->getTexture(), 0, 1, offset, extents, false);
         }
     );
 }

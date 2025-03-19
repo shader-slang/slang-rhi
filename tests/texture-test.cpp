@@ -218,14 +218,14 @@ void TextureData::checkEqual(
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        checkLayersEqual(texture, layer, thisOffset, layer, textureOffset, textureExtents, compareOutsideRegion);
+        checkLayersEqual(layer, thisOffset, texture, layer, textureOffset, textureExtents, compareOutsideRegion);
     }
 }
 
 void TextureData::checkLayersEqual(
-    ITexture* texture,
     int thisLayer,
     Offset3D thisOffset,
+    ITexture* texture,
     int textureLayer,
     Offset3D textureOffset,
     Extents textureExtents,
@@ -238,10 +238,10 @@ void TextureData::checkLayersEqual(
     for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
     {
         checkMipLevelsEqual(
-            texture,
             thisLayer,
             mipLevel,
             thisOffset,
+            texture,
             textureLayer,
             mipLevel,
             textureOffset,
@@ -333,10 +333,10 @@ void checkRegionsEqual(
 }
 
 void TextureData::checkMipLevelsEqual(
-    ITexture* texture,
     int thisLayer,
     int thisMipLevel,
     Offset3D thisOffset,
+    ITexture* texture,
     int textureLayer,
     int textureMipLevel,
     Offset3D textureOffset,
