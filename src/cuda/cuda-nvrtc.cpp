@@ -10,7 +10,7 @@
 #endif
 #include <windows.h>
 #include <winreg.h>
-#elif SLNAG_LINUX_FAMILY
+#elif SLANG_LINUX_FAMILY
 #include <cstdlib>
 #endif
 
