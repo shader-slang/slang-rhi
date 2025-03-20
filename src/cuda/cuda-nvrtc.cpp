@@ -4,8 +4,6 @@
 
 #include <filesystem>
 
-#include <iostream> // TODO remove
-
 #if SLANG_WINDOWS_FAMILY
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -20,51 +18,63 @@ namespace rhi::cuda {
 
 struct NVRTC::Impl
 {
-    std::filesystem::path cudaPath;
-    std::filesystem::path cudaIncludePath;
-    std::filesystem::path nvrtcLibraryPath;
     SharedLibraryHandle nvrtcLibrary = nullptr;
+    std::filesystem::path nvrtcLibraryPath;
+    std::filesystem::path cudaIncludePath;
 };
 
 #if SLANG_WINDOWS_FAMILY
-inline void findCUDAPathFromEnvironment(std::vector<std::filesystem::path>& outPaths)
+inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
 {
-    char cudaPath[MAX_PATH];
-    if (GetEnvironmentVariableA("CUDA_PATH", cudaPath, MAX_PATH))
+    // First, check for "CUDA_PATH" environment variable.
     {
-        outPaths.push_back(std::filesystem::path(cudaPath));
-    }
-}
-inline void findCUDAPathFromDefaultPaths(std::vector<std::filesystem::path>& outPaths)
-{
-    std::filesystem::path defaultPath{"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA"};
-    auto it = std::filesystem::directory_iterator(defaultPath);
-    for (const auto& entry : it)
-    {
-        if (entry.is_directory())
+        char path[MAX_PATH];
+        if (GetEnvironmentVariableA("CUDA_PATH", path, MAX_PATH))
         {
-            outPaths.push_back(defaultPath / entry.path());
+            outPaths.push_back(std::filesystem::path(path) / "bin");
+        }
+    }
+    // Next, check default installation paths.
+    {
+        std::filesystem::path defaultPath{"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA"};
+        std::vector<std::filesystem::path> versions;
+        auto it = std::filesystem::directory_iterator(defaultPath);
+        for (const auto& entry : it)
+        {
+            if (entry.is_directory())
+            {
+                versions.push_back(entry.path());
+            }
+        }
+
+        std::sort(versions.begin(), versions.end(), std::greater<>());
+        for (const auto& version : versions)
+        {
+            outPaths.push_back(version / "bin");
         }
     }
 }
 #elif SLANG_LINUX_FAMILY
-inline void findCUDAPathFromEnvironment(std::vector<std::filesystem::path>& outPaths)
+inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
 {
-    const char* cudaPath = getenv("CUDA_PATH");
-    if (cudaPath)
+    // First, check for "CUDA_PATH" environment variable.
     {
-        outPaths.push_back(std::filesystem::path(cudaPath));
-    }
-}
-inline void findCUDAPathFromDefaultPaths(std::vector<std::filesystem::path>& outPaths)
-{
-    std::filesystem::path defaultPath{"/usr/local"};
-    auto it = std::filesystem::directory_iterator(defaultPath);
-    for (const auto& entry : it)
-    {
-        if (entry.is_directory() && entry.path().filename().string().substr(0, 4) == "cuda")
+        const char* path = getenv("CUDA_PATH");
+        if (path)
         {
-            outPaths.push_back(entry.path());
+            outPaths.push_back(std::filesystem::path(path) / "lib64");
+        }
+    }
+    // Next, check default installation paths.
+    {
+        std::filesystem::path defaultPath{"/usr/local"};
+        auto it = std::filesystem::directory_iterator(defaultPath);
+        for (const auto& entry : it)
+        {
+            if (entry.is_directory() && entry.path().filename().string().substr(0, 4) == "cuda")
+            {
+                outPaths.push_back(entry.path() / "lib64");
+            }
         }
     }
 }
@@ -73,22 +83,26 @@ inline void findCUDAPathFromDefaultPaths(std::vector<std::filesystem::path>& out
 #endif
 
 inline bool findNVRTCLibrary(
-    const std::filesystem::path& cudaPath,
-    std::string_view libPath,
+    const std::filesystem::path& basePath,
     std::string_view prefix,
     std::string_view extension,
     std::filesystem::path& outPath
 )
 {
-    std::filesystem::directory_iterator it(cudaPath / libPath);
+    if (!std::filesystem::exists(basePath))
+    {
+        return false;
+    }
+    std::filesystem::directory_iterator it(basePath);
     for (const auto& entry : it)
     {
         if (entry.is_regular_file())
         {
-            if (entry.path().filename().string().substr(0, prefix.size()) == prefix &&
+            if (entry.path().stem().string().substr(0, prefix.size()) == prefix &&
+                entry.path().stem().string().find('.') == std::string::npos &&
                 entry.path().extension().string() == extension)
             {
-                outPath = cudaPath / libPath / entry.path();
+                outPath = basePath / entry.path();
                 return true;
             }
         }
@@ -113,32 +127,39 @@ NVRTC::~NVRTC()
 
 Result NVRTC::init()
 {
-    std::vector<std::filesystem::path> cudaPaths;
-    findCUDAPathFromEnvironment(cudaPaths);
-    findCUDAPathFromDefaultPaths(cudaPaths);
-
-    for (const auto& cudaPath : cudaPaths)
+    // First, try to just load "nvrtc" from the system path.
+    // This typically works on Linux, but not on Windows.
+    if (loadSharedLibrary("nvrtc", m_impl->nvrtcLibrary) != SLANG_OK)
     {
-#if SLANG_WINDOWS_FAMILY
-        if (findNVRTCLibrary(cudaPath, "bin", "nvrtc64_", ".dll", m_impl->nvrtcLibraryPath))
-#elif SLANG_LINUX_FAMILY
-        if (findNVRTCLibrary(cudaPath, "lib64", "libnvrtc", ".so", m_impl->nvrtcLibraryPath))
-#endif
+        // If not found, generate a list of possible NVRTC paths.
+        std::vector<std::filesystem::path> candidatePaths;
+        findNVRTCPaths(candidatePaths);
+
+        // Try to find & load NVRTC library.
+        for (const auto& path : candidatePaths)
         {
-            m_impl->cudaPath = cudaPath;
-            break;
+            std::filesystem::path nvrtcPath;
+#if SLANG_WINDOWS_FAMILY
+            if (findNVRTCLibrary(path, "nvrtc64_", ".dll", nvrtcPath))
+#elif SLANG_LINUX_FAMILY
+            if (findNVRTCLibrary(path, "libnvrtc", ".so", nvrtcPath))
+#else
+#error "Unsupported platform"
+#endif
+            {
+                if (loadSharedLibrary(nvrtcPath.string().c_str(), m_impl->nvrtcLibrary) == SLANG_OK)
+                    break;
+            }
         }
     }
 
-    if (!std::filesystem::exists(m_impl->nvrtcLibraryPath))
+    // Return failure if NVRTC library was not found.
+    if (!m_impl->nvrtcLibrary)
     {
         return SLANG_FAIL;
     }
 
-    m_impl->cudaIncludePath = m_impl->cudaPath / "include";
-
-    SLANG_RETURN_ON_FAIL(loadSharedLibrary(m_impl->nvrtcLibraryPath.string().c_str(), m_impl->nvrtcLibrary));
-
+    // Load NVRTC functions.
     // clang-format off
     nvrtcGetErrorString = (nvrtcGetErrorStringFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetErrorString");
     nvrtcVersion = (nvrtcVersionFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcVersion");
@@ -150,9 +171,28 @@ Result NVRTC::init()
     nvrtcGetProgramLogSize = (nvrtcGetProgramLogSizeFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetProgramLogSize");
     nvrtcGetProgramLog = (nvrtcGetProgramLogFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetProgramLog");
     // clang-format on
-
     if (!nvrtcGetErrorString || !nvrtcVersion || !nvrtcCreateProgram || !nvrtcDestroyProgram || !nvrtcCompileProgram ||
         !nvrtcGetPTXSize || !nvrtcGetPTX || !nvrtcGetProgramLogSize || !nvrtcGetProgramLog)
+    {
+        return SLANG_FAIL;
+    }
+
+    // Find CUDA include path (containing cuda_runtime.h)
+    std::vector<std::filesystem::path> candidatePaths;
+    std::filesystem::path nvrtcPath = findSharedLibraryPath(nvrtcVersion);
+    candidatePaths.push_back(nvrtcPath.parent_path().parent_path() / "include");
+#if SLANG_LINUX_FAMILY
+    candidatePaths.push_back("/usr/include");
+#endif
+    for (const auto& path : candidatePaths)
+    {
+        if (std::filesystem::exists(path / "cuda_runtime.h"))
+        {
+            m_impl->cudaIncludePath = path;
+            break;
+        }
+    }
+    if (m_impl->cudaIncludePath.empty())
     {
         return SLANG_FAIL;
     }
