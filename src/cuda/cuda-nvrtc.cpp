@@ -19,6 +19,7 @@ namespace rhi::cuda {
 struct NVRTC::Impl
 {
     SharedLibraryHandle nvrtcLibrary = nullptr;
+    std::filesystem::path nvrtcPath;
     std::filesystem::path cudaIncludePath;
 };
 
@@ -144,7 +145,10 @@ Result NVRTC::init()
 #endif
             {
                 if (loadSharedLibrary(nvrtcPath.string().c_str(), m_impl->nvrtcLibrary) == SLANG_OK)
+                {
+                    m_impl->nvrtcPath = nvrtcPath;
                     break;
+                }
             }
         }
     }
@@ -175,8 +179,7 @@ Result NVRTC::init()
 
     // Find CUDA include path (containing cuda_runtime.h)
     std::vector<std::filesystem::path> candidatePaths;
-    std::filesystem::path nvrtcPath = findSharedLibraryPath((void*)nvrtcVersion);
-    candidatePaths.push_back(nvrtcPath.parent_path().parent_path() / "include");
+    candidatePaths.push_back(m_impl->nvrtcPath.parent_path().parent_path() / "include");
 #if SLANG_LINUX_FAMILY
     candidatePaths.push_back("/usr/include");
 #endif
