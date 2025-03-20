@@ -179,7 +179,7 @@ Result NVRTC::init()
 
     // Find CUDA include path (containing cuda_runtime.h)
     std::vector<std::filesystem::path> candidatePaths;
-    std::filesystem::path nvrtcPath = findSharedLibraryPath(static_cast<void*>(nvrtcVersion));
+    std::filesystem::path nvrtcPath = findSharedLibraryPath((void*)nvrtcVersion);
     candidatePaths.push_back(nvrtcPath.parent_path().parent_path() / "include");
 #if SLANG_LINUX_FAMILY
     candidatePaths.push_back("/usr/include");
