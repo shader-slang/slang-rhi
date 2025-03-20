@@ -909,7 +909,7 @@ struct SamplerDesc
     float mipLODBias = 0.0f;
     uint32_t maxAnisotropy = 1;
     ComparisonFunc comparisonFunc = ComparisonFunc::Never;
-    float borderColor[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float borderColor[4] = {0.f, 0.f, 0.f, 0.f};
     float minLOD = 0.0f;
     float maxLOD = 1000.0f;
 
