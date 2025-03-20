@@ -19,7 +19,6 @@ namespace rhi::cuda {
 struct NVRTC::Impl
 {
     SharedLibraryHandle nvrtcLibrary = nullptr;
-    std::filesystem::path nvrtcLibraryPath;
     std::filesystem::path cudaIncludePath;
 };
 
@@ -77,6 +76,8 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
             }
         }
     }
+    // Finally, check common system paths.
+    outPaths.push_back("/usr/lib/x86_64-linux-gnu/");
 }
 #else
 #error "Unsupported platform"
@@ -127,15 +128,10 @@ NVRTC::~NVRTC()
 
 Result NVRTC::init()
 {
-    // First, try to just load "nvrtc" from the system path.
-    // This typically works on Linux, but not on Windows.
-    if (loadSharedLibrary("nvrtc", m_impl->nvrtcLibrary) != SLANG_OK)
+    // Try to find & load NVRTC library.
     {
-        // If not found, generate a list of possible NVRTC paths.
         std::vector<std::filesystem::path> candidatePaths;
         findNVRTCPaths(candidatePaths);
-
-        // Try to find & load NVRTC library.
         for (const auto& path : candidatePaths)
         {
             std::filesystem::path nvrtcPath;
