@@ -44,7 +44,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     // Determine border color.
     // First, we check for predefined border colors.
     // If no match is found, we use custom border color if supported.
-    // If custom border color is not supported, we use opaque black.
+    // If custom border color is not supported, we use transparent black.
     {
         struct BorderColor
         {
@@ -80,7 +80,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
             }
             else
             {
-                samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+                samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
             }
         }
     }

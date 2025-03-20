@@ -25,9 +25,35 @@ Result SamplerImpl::init()
 
     samplerDesc->setMaxAnisotropy(clamp(m_desc.maxAnisotropy, 1u, 16u));
 
-    // TODO: support translation of border color...
-    MTL::SamplerBorderColor borderColor = MTL::SamplerBorderColorOpaqueBlack;
-    samplerDesc->setBorderColor(borderColor);
+    // Determine border color.
+    // Check for predefined border colors.
+    // If no match is found, use transparent black.
+    {
+        struct BorderColor
+        {
+            float color[4];
+            MTL::SamplerBorderColor borderColor;
+        };
+        static const BorderColor borderColors[] = {
+            {{0.0f, 0.0f, 0.0f, 0.0f}, MTL::SamplerBorderColorTransparentBlack},
+            {{0.0f, 0.0f, 0.0f, 1.0f}, MTL::SamplerBorderColorOpaqueBlack},
+            {{1.0f, 1.0f, 1.0f, 1.0f}, MTL::SamplerBorderColorOpaqueWhite},
+        };
+        const BorderColor* borderColor = nullptr;
+        for (const auto& bc : borderColors)
+        {
+            if (::memcmp(bc.color, m_desc.borderColor, 4 * sizeof(float)) == 0)
+            {
+                borderColor = &bc;
+                samplerDesc->setBorderColor(bc.borderColor);
+                break;
+            }
+        }
+        if (!borderColor)
+        {
+            samplerDesc->setBorderColor(MTL::SamplerBorderColorTransparentBlack);
+        }
+    }
 
     samplerDesc->setNormalizedCoordinates(true);
 

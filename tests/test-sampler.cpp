@@ -150,7 +150,7 @@ static void testSampler(IDevice* device, const SamplerDesc& samplerDesc, span<Te
     test.check(sampler, testRecords);
 }
 
-GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     SamplerDesc desc = {};
     desc.minFilter = TextureFilteringMode::Point;
@@ -178,7 +178,7 @@ GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | WGPU)
     testSampler(device, desc, testRecords);
 }
 
-GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | WGPU)
+GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     SamplerDesc desc = {};
     desc.minFilter = TextureFilteringMode::Linear;
@@ -208,7 +208,7 @@ GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | WGPU)
     testSampler(device, desc, testRecords);
 }
 
-GPU_TEST_CASE("sampler-border-black-opaque", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("sampler-border-black-transparent", D3D11 | D3D12 | Vulkan | Metal)
 {
     SamplerDesc desc = {};
     desc.addressU = TextureAddressingMode::ClampToBorder;
@@ -223,7 +223,27 @@ GPU_TEST_CASE("sampler-border-black-opaque", D3D11 | D3D12 | Vulkan)
     testSampler(device, desc, testRecords);
 }
 
-GPU_TEST_CASE("sampler-border-white-opaque", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("sampler-border-black-opaque", D3D11 | D3D12 | Vulkan | Metal)
+{
+    SamplerDesc desc = {};
+    desc.addressU = TextureAddressingMode::ClampToBorder;
+    desc.addressV = TextureAddressingMode::ClampToBorder;
+    desc.addressW = TextureAddressingMode::ClampToBorder;
+    desc.borderColor[0] = 0.f;
+    desc.borderColor[1] = 0.f;
+    desc.borderColor[2] = 0.f;
+    desc.borderColor[3] = 1.f;
+
+
+    TestRecord testRecords[] = {
+        // outside of texture
+        {-0.5f, -0.5f, 0.f, {0.f, 0.f, 0.f, 1.f}},
+    };
+
+    testSampler(device, desc, testRecords);
+}
+
+GPU_TEST_CASE("sampler-border-white-opaque", D3D11 | D3D12 | Vulkan | Metal)
 {
     SamplerDesc desc = {};
     desc.addressU = TextureAddressingMode::ClampToBorder;
@@ -242,8 +262,11 @@ GPU_TEST_CASE("sampler-border-white-opaque", D3D11 | D3D12 | Vulkan)
     testSampler(device, desc, testRecords);
 }
 
-GPU_TEST_CASE("sampler-border-custom-color", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("sampler-border-custom-color", D3D11 | D3D12 | Vulkan | Metal)
 {
+    if (!device->hasFeature("custom-border-color"))
+        return;
+
     SamplerDesc desc = {};
     desc.addressU = TextureAddressingMode::ClampToBorder;
     desc.addressV = TextureAddressingMode::ClampToBorder;
