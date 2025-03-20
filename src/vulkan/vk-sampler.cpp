@@ -37,8 +37,53 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     samplerInfo.anisotropyEnable = desc.maxAnisotropy > 1;
     samplerInfo.maxAnisotropy = (float)desc.maxAnisotropy;
 
-    // TODO: support translation of border color...
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    VkSamplerCustomBorderColorCreateInfoEXT customBorderColorInfo = {
+        VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT
+    };
+
+    // Determine border color.
+    // First, we check for predefined border colors.
+    // If no match is found, we use custom border color if supported.
+    // If custom border color is not supported, we use opaque black.
+    {
+        struct BorderColor
+        {
+            float color[4];
+            VkBorderColor borderColor;
+        };
+        static const BorderColor borderColors[] = {
+            {{0.0f, 0.0f, 0.0f, 0.0f}, VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK},
+            {{0.0f, 0.0f, 0.0f, 1.0f}, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK},
+            {{1.0f, 1.0f, 1.0f, 1.0f}, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE},
+        };
+        const BorderColor* borderColor = nullptr;
+        for (const auto& bc : borderColors)
+        {
+            if (::memcmp(bc.color, desc.borderColor, 4 * sizeof(float)) == 0)
+            {
+                borderColor = &bc;
+                samplerInfo.borderColor = bc.borderColor;
+                break;
+            }
+        }
+        if (!borderColor)
+        {
+            if (m_api.m_extendedFeatures.customBorderColorFeatures.customBorderColors)
+            {
+                samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_CUSTOM_EXT;
+                customBorderColorInfo.customBorderColor.float32[0] = desc.borderColor[0];
+                customBorderColorInfo.customBorderColor.float32[1] = desc.borderColor[1];
+                customBorderColorInfo.customBorderColor.float32[2] = desc.borderColor[2];
+                customBorderColorInfo.customBorderColor.float32[3] = desc.borderColor[3];
+                customBorderColorInfo.pNext = samplerInfo.pNext;
+                samplerInfo.pNext = &customBorderColorInfo;
+            }
+            else
+            {
+                samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+            }
+        }
+    }
 
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable = desc.reductionOp == TextureReductionOp::Comparison;
@@ -49,6 +94,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 
     VkSamplerReductionModeCreateInfo reductionInfo = {VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO};
     reductionInfo.reductionMode = VulkanUtil::translateReductionOp(desc.reductionOp);
+    reductionInfo.pNext = samplerInfo.pNext;
     samplerInfo.pNext = &reductionInfo;
 
     VkSampler sampler;
