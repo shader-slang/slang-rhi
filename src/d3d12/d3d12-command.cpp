@@ -320,107 +320,96 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
 void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
 {
-    SLANG_RHI_ASSERT(cmd.srcSubresource.mipLevelCount <= 1);
-
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
+    const TextureDesc& srcDesc = src->getDesc();
+    Extents textureSize = srcDesc.size;
+    const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
+
     const uint64_t dstOffset = cmd.dstOffset;
     const Size dstRowStride = cmd.dstRowStride;
-
-    SubresourceRange srcSubresource = cmd.srcSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
+    uint32_t layerIndex = cmd.layerIndex;
+    uint32_t mipLevel = cmd.mipLevel;
 
+    if (layerIndex == kAllLayers)
+        layerIndex = srcDesc.getLayerCount();
+    if (mipLevel == kAllMipLevels)
+        mipLevel = srcDesc.mipLevelCount;
+
+    // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
-    requireTextureState(src, srcSubresource, ResourceState::CopySource);
+    requireTextureState(src, {mipLevel, 1, layerIndex, 1}, ResourceState::CopySource);
     commitBarriers();
 
-    Extents textureSize = src->m_desc.size;
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
-    if (srcSubresource.layerCount == 0)
-        srcSubresource.layerCount = src->m_desc.arrayLength; // TODO: This is wrong - should we be allowing
-                                                             // layerCount==0 at all anyway
-
-    const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
-
-    for (uint32_t layer = 0; layer < srcSubresource.layerCount; layer++)
+    // Calculate adjusted extents. Note it is required and enforced
+    // by debug layer that if 'remaining texture' is used, src and
+    // dst offsets are the same.
+    Extents srcMipSize = calcMipSize(textureSize, mipLevel);
+    Extents adjustedExtent = extent;
+    if (adjustedExtent.width == kRemainingTextureSize)
     {
-        // Get the footprint
-        D3D12_RESOURCE_DESC texDesc = src->m_resource.getResource()->GetDesc();
+        SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
+        adjustedExtent.width = srcMipSize.width - srcOffset.x;
+    }
+    if (adjustedExtent.height == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.height >= srcOffset.y);
+        adjustedExtent.height = srcMipSize.height - srcOffset.y;
+    }
+    if (adjustedExtent.depth == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.depth >= srcOffset.z);
+        adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+    }
 
-        D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
-        dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-        dstRegion.pResource = dst->m_resource.getResource();
-        D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = dstRegion.PlacedFootprint;
+    // Align extents to block size
+    adjustedExtent.width = math::calcAligned(adjustedExtent.width, formatInfo.blockWidth);
+    adjustedExtent.height = math::calcAligned(adjustedExtent.height, formatInfo.blockHeight);
 
-        D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
-        srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        srcRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
-            srcSubresource.mipLevel,
-            layer + srcSubresource.baseArrayLayer,
-            0,
-            src->m_desc.mipLevelCount,
-            src->m_desc.arrayLength
-        );
-        srcRegion.pResource = src->m_resource.getResource();
+    // Setup the source resource.
+    D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
+    srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    srcRegion.SubresourceIndex =
+        D3DUtil::getSubresourceIndex(mipLevel, layerIndex, 0, src->m_desc.mipLevelCount, src->m_desc.arrayLength);
+    srcRegion.pResource = src->m_resource.getResource();
 
-        footprint.Offset = dstOffset;
-        footprint.Footprint.Format = texDesc.Format;
+    // Setup the destination resource.
+    D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
+    dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    dstRegion.pResource = dst->m_resource.getResource();
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = dstRegion.PlacedFootprint;
+    footprint.Offset = dstOffset;
+    footprint.Footprint.Format = src->m_resource.getResource()->GetDesc().Format;
 
-        uint32_t mipLevel = srcSubresource.mipLevel;
-        Extents mipSize = calcMipSize(textureSize, mipLevel);
+    // Write adjusted extent to footprint, accounting for block size.
+    footprint.Footprint.Width = adjustedExtent.width;
+    footprint.Footprint.Height = adjustedExtent.height;
+    footprint.Footprint.Depth = adjustedExtent.depth;
 
-        if (extent.width != 0xFFFFFFFF)
-        {
-            footprint.Footprint.Width = extent.width;
-        }
-        else
-        {
-            footprint.Footprint.Width = mipSize.width - srcOffset.x;
-        }
-        if (extent.height != 0xFFFFFFFF)
-        {
-            footprint.Footprint.Height = extent.height;
-        }
-        else
-        {
-            footprint.Footprint.Height = mipSize.height - srcOffset.y;
-        }
-        if (extent.depth != 0xFFFFFFFF)
-        {
-            footprint.Footprint.Depth = extent.depth;
-        }
-        else
-        {
-            footprint.Footprint.Depth = mipSize.depth - srcOffset.z;
-        }
+    // Align row pitch to 256 bytes
+    SLANG_RHI_ASSERT(dstRowStride % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
+    footprint.Footprint.RowPitch = (UINT)dstRowStride;
 
-        footprint.Footprint.Width = math::calcAligned2(footprint.Footprint.Width, formatInfo.blockWidth);
-        footprint.Footprint.Height = math::calcAligned2(footprint.Footprint.Height, formatInfo.blockHeight);
-
-        SLANG_RHI_ASSERT(dstRowStride % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
-        footprint.Footprint.RowPitch = (UINT)dstRowStride;
-
-        if (srcOffset.isZero() && extent == mipSize)
-        {
-            // If copying whole texture region, pass nullptr. This is required for
-            // copying certain resources such as depth-stencil or multisampled textures.
-            m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, nullptr);
-        }
-        else
-        {
-            // Not copying whole extent so pass offsets in
-            D3D12_BOX srcBox = {};
-            srcBox.left = srcOffset.x;
-            srcBox.top = srcOffset.y;
-            srcBox.front = srcOffset.z;
-            srcBox.right = srcOffset.x + extent.width;
-            srcBox.bottom = srcOffset.y + extent.height;
-            srcBox.back = srcOffset.z + extent.depth;
-            m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, &srcBox);
-        }
+    if (srcOffset.isZero() && adjustedExtent == srcMipSize)
+    {
+        // If copying whole texture region, pass nullptr. This is required for
+        // copying certain resources such as depth-stencil or multisampled textures.
+        m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, nullptr);
+    }
+    else
+    {
+        // Not copying whole texture so pass offsets in
+        D3D12_BOX srcBox = {};
+        srcBox.left = srcOffset.x;
+        srcBox.top = srcOffset.y;
+        srcBox.front = srcOffset.z;
+        srcBox.right = srcOffset.x + adjustedExtent.width;
+        srcBox.bottom = srcOffset.y + adjustedExtent.height;
+        srcBox.back = srcOffset.z + adjustedExtent.depth;
+        m_cmdList->CopyTextureRegion(&dstRegion, 0, 0, 0, &srcRegion, &srcBox);
     }
 }
 

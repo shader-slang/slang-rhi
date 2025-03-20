@@ -323,10 +323,12 @@ void checkRegionsEqual(
             {
                 const uint8_t* blockA = rowA + (col + colOffsetA) * layoutA.strideX;
                 const uint8_t* blockB = rowB + (col + colOffsetB) * layoutB.strideX;
-                bool areequal = memcmp(blockA, blockB, layoutA.strideX) == 0;
-                CHECK(areequal);
-                if (!areequal)
-                    return;
+                for (uint32_t i = 0; i < layoutA.strideX; i++)
+                {
+                    CHECK_EQ(blockA[i], blockB[i]);
+                    if (blockA[i] != blockB[i])
+                        return;
+                }
             }
         }
     }

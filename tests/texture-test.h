@@ -201,6 +201,16 @@ struct TextureData
     void clearSint(uint32_t layer, uint32_t mipLevel, const int32_t clearValue[4]) const;
 };
 
+void checkRegionsEqual(
+    const void* dataA_,
+    const SubresourceLayout& layoutA,
+    Offset3D offsetA,
+    const void* dataB_,
+    const SubresourceLayout& layoutB,
+    Offset3D offsetB,
+    Extents extents
+);
+
 /// Description of a given texture in a variant (texture descriptor + how to init)
 struct TestTextureDesc
 {

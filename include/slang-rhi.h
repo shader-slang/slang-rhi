@@ -780,7 +780,9 @@ struct SubresourceLayout
     Size rowCount;
 };
 
+static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMipLevels = 0xffffffff;
+static const SubresourceRange kAllSubresources = {0, kAllMipLevels, 0, kAllLayers};
 
 struct TextureDesc
 {
@@ -2021,7 +2023,8 @@ public:
         Size dstSize,
         Size dstRowStride,
         ITexture* src,
-        SubresourceRange srcSubresource,
+        uint32_t layerIndex,
+        uint32_t mipLevel,
         Offset3D srcOffset,
         Extents extent
     ) = 0;

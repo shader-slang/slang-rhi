@@ -809,8 +809,8 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
             // Verify it uploaded correctly at mip level 1
             // The original texture data should have stomped over the new texture data
             // at offset in mip level 1.
-            data.checkMipLevelsEqual(newTexture, 0, 1, offset, 0, 1, offset, Extents::kWholeTexture, false);
-            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, 0, 1, offset, Extents::kWholeTexture, true);
+            data.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, false);
+            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, true);
         }
     );
 }

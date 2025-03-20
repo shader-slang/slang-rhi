@@ -271,33 +271,69 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
-    Extents textureSize = src->m_desc.size;
-    uint32_t mipLevel = cmd.srcSubresource.mipLevel;
-    Extents mipSize = calcMipSize(textureSize, mipLevel);
-    const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
+    const TextureDesc& srcDesc = src->getDesc();
+    Extents textureSize = srcDesc.size;
+    const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
+
+    const uint64_t dstOffset = cmd.dstOffset;
+    const Size dstRowStride = cmd.dstRowStride;
+    const Offset3D& srcOffset = cmd.srcOffset;
+    const Extents& extent = cmd.extent;
+    uint32_t layerIndex = cmd.layerIndex;
+    uint32_t mipLevel = cmd.mipLevel;
+
+    if (layerIndex == kAllLayers)
+        layerIndex = srcDesc.getLayerCount();
+    if (mipLevel == kAllMipLevels)
+        mipLevel = srcDesc.mipLevelCount;
+
+    // Calculate adjusted extents. Note it is required and enforced
+    // by debug layer that if 'remaining texture' is used, src and
+    // dst offsets are the same.
+    Extents srcMipSize = calcMipSize(textureSize, mipLevel);
+    Extents adjustedExtent = extent;
+    if (adjustedExtent.width == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
+        adjustedExtent.width = srcMipSize.width - srcOffset.x;
+    }
+    if (adjustedExtent.height == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.height >= srcOffset.y);
+        adjustedExtent.height = srcMipSize.height - srcOffset.y;
+    }
+    if (adjustedExtent.depth == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.depth >= srcOffset.z);
+        adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+    }
+
+    // Align extents to block size
+    adjustedExtent.width = math::calcAligned(adjustedExtent.width, formatInfo.blockWidth);
+    adjustedExtent.height = math::calcAligned(adjustedExtent.height, formatInfo.blockHeight);
 
     // z is either base array layer or z offset depending on whether this is 3D or array texture
-    SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
-    uint32_t z = cmd.srcOffset.z + cmd.srcSubresource.baseArrayLayer;
+    SLANG_RHI_ASSERT(layerIndex == 0 || srcOffset.z == 0);
+    uint32_t z = srcOffset.z + layerIndex;
 
     WGPUImageCopyTexture source = {};
     source.texture = src->m_texture;
-    source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, z};
-    source.mipLevel = cmd.srcSubresource.mipLevel;
+    source.origin = {(uint32_t)srcOffset.x, (uint32_t)srcOffset.y, z};
+    source.mipLevel = mipLevel;
     source.aspect = WGPUTextureAspect_All;
 
     WGPUImageCopyBuffer destination = {};
     destination.buffer = dst->m_buffer;
-    destination.layout.offset = cmd.dstOffset;
-    destination.layout.bytesPerRow = cmd.dstRowStride;
+    destination.layout.offset = dstOffset;
+    destination.layout.bytesPerRow = dstRowStride;
 
     // Calculate rows per image for this mip level.
-    destination.layout.rowsPerImage = math::divideRoundedUp(mipSize.height, formatInfo.blockHeight);
+    // TODO: Should this be based on the extent? i.e. it is destination rowsPerImage?
+    destination.layout.rowsPerImage = math::divideRoundedUp(srcMipSize.height, formatInfo.blockHeight);
 
-    // Calculate copy size and round to block alignment.
-    WGPUExtent3D copySize = {(uint32_t)cmd.extent.width, (uint32_t)cmd.extent.height, (uint32_t)cmd.extent.depth};
-    copySize.width = math::calcAligned2(copySize.width, formatInfo.blockWidth);
-    copySize.height = math::calcAligned2(copySize.height, formatInfo.blockHeight);
+    // Store copy size.
+    WGPUExtent3D copySize =
+        {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
 
     m_ctx.api.wgpuCommandEncoderCopyTextureToBuffer(m_commandEncoder, &source, &destination, &copySize);
 }

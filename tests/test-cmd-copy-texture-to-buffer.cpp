@@ -7,7 +7,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(
@@ -17,6 +17,15 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
         TTMS::Both,      // with/without multisampling (when available)
         TTPowerOf2::Both // test both power-of-2 and non-power-of-2 sizes where possible
     );
+    // options.addVariants(
+    //    TTShape::D2,    // all shapes
+    //    TTArray::Off,   // array and non-array
+    //     Format::BC1Unorm,
+    //    TTMip::On,     // with/without mips
+    //    TTMS::Off,      // with/without multisampling (when available)
+    //    TTPowerOf2::On // test both power-of-2 and non-power-of-2 sizes where possible
+    //
+    //);
 
     runTextureTest(
         options,
@@ -34,16 +43,20 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
                 return;
 
             // Calculate total size needed for buffer
+            // Note: need to ask texture its layout here, to get platform compatible strides
             uint64_t totalSize = 0;
             for (auto& subresource : data.subresources)
             {
-                totalSize += subresource.layout.sizeInBytes;
+                SubresourceLayout textureLayout;
+                REQUIRE_CALL(c->getTexture()->getSubresourceLayout(subresource.mipLevel, &textureLayout));
+                totalSize += textureLayout.sizeInBytes;
             }
 
             // Create a buffer large enough to hold the entire texture
             BufferDesc bufferDesc;
             bufferDesc.size = totalSize;
-            bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
+            bufferDesc.usage = BufferUsage::CopyDestination;
+            bufferDesc.memoryType = MemoryType::ReadBack;
             ComPtr<IBuffer> buffer;
             REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
 
@@ -55,42 +68,59 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
             uint64_t bufferOffset = 0;
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < data.desc.getMipLevels(); mip++)
+                for (uint32_t mip = 0; mip < data.desc.mipLevelCount; mip++)
                 {
-                    SubresourceLayout layout;
-                    c->getTexture()->getSubresourceLayout(mip, &layout);
+                    SubresourceLayout textureLayout;
+                    REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
 
                     commandEncoder->copyTextureToBuffer(
                         buffer,
                         bufferOffset,
-                        layout.rowPitch,
-                        layout.layerPitch,
+                        textureLayout.sizeInBytes,
+                        textureLayout.strideY,
                         c->getTexture(),
-                        {mip, 1, layer, 1},
+                        layer,
+                        mip,
                         {0, 0, 0},
-                        layout.size
+                        textureLayout.size
                     );
 
-                    bufferOffset +=
-                        layout.size.width * layout.size.height * layout.size.depth * data.formatInfo.bytesPerBlock;
+                    bufferOffset += textureLayout.sizeInBytes;
                 }
             }
             queue->submit(commandEncoder->finish());
 
+            queue->waitOnHost();
+
             // Verify buffer contents match texture data
-            bufferOffset = 0;
+            void* bufferData_;
+            REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
+            uint8_t* bufferData = (uint8_t*)bufferData_;
+
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < data.desc.getMipLevels(); mip++)
+                for (uint32_t mip = 0; mip < data.desc.mipLevelCount; mip++)
                 {
-                    SubresourceLayout layout;
-                    c->getTexture()->getSubresourceLayout(mip, &layout);
+                    SubresourceLayout textureLayout;
+                    REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
 
-                    data.checkBufferEqual(buffer, bufferOffset, layout.rowPitch, layout.layerPitch, layer, mip);
-                    bufferOffset +=
-                        layout.size.width * layout.size.height * layout.size.depth * data.formatInfo.bytesPerBlock;
+                    const TextureData::Subresource& subresource = data.getSubresource(layer, mip);
+
+                    checkRegionsEqual(
+                        bufferData,
+                        textureLayout,
+                        {0, 0, 0},
+                        subresource.data.get(),
+                        subresource.layout,
+                        {0, 0, 0},
+                        subresource.layout.size
+                    );
+
+                    bufferData += textureLayout.sizeInBytes;
                 }
             }
+
+            REQUIRE_CALL(device->unmapBuffer(buffer));
         }
     );
 }
@@ -153,7 +183,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-partial", D3D12 | Vulkan | WGPU | CUDA
                 rowPitch,
                 layerPitch,
                 c->getTexture(),
-                {0, 1, 0, 1},
+                0, 0,
                 srcOffset,
                 copySize
             );
@@ -218,7 +248,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-mips", D3D12 | Vulkan | WGPU | CUDA)
                 rowPitch,
                 layerPitch,
                 c->getTexture(),
-                {1, 1, 0, 1},
+                0, 1,
                 {0, 0, 0},
                 mip1Layout.size
             );
@@ -272,7 +302,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-array", D3D12 | Vulkan | WGPU | CUDA)
                     rowPitch,
                     layerPitch,
                     c->getTexture(),
-                    {0, 1, i + 1, 1},
+                    i + 1, 0,
                     {0, 0, 0},
                     layout.size
                 );

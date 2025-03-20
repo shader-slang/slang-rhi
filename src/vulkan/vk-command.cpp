@@ -287,25 +287,72 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
 void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
 {
-    SLANG_RHI_ASSERT(cmd.srcSubresource.mipLevelCount <= 1);
-
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
+    const TextureDesc& srcDesc = src->getDesc();
+    Extents textureSize = srcDesc.size;
+    const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
+
+    const uint64_t dstOffset = cmd.dstOffset;
+    const Size dstRowStride = cmd.dstRowStride;
+    const Offset3D& srcOffset = cmd.srcOffset;
+    const Extents& extent = cmd.extent;
+    uint32_t layerIndex = cmd.layerIndex;
+    uint32_t mipLevel = cmd.mipLevel;
+
+    if (layerIndex == kAllLayers)
+        layerIndex = srcDesc.getLayerCount();
+    if (mipLevel == kAllMipLevels)
+        mipLevel = srcDesc.mipLevelCount;
+
+    // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
-    requireTextureState(src, cmd.srcSubresource, ResourceState::CopySource);
+    requireTextureState(src, {mipLevel, 1, layerIndex, 1}, ResourceState::CopySource);
     commitBarriers();
 
+    // Calculate adjusted extents. Note it is required and enforced
+    // by debug layer that if 'remaining texture' is used, src and
+    // dst offsets are the same.
+    Extents srcMipSize = calcMipSize(textureSize, mipLevel);
+    Extents adjustedExtent = extent;
+    if (adjustedExtent.width == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
+        adjustedExtent.width = srcMipSize.width - srcOffset.x;
+    }
+    if (adjustedExtent.height == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.height >= srcOffset.y);
+        adjustedExtent.height = srcMipSize.height - srcOffset.y;
+    }
+    if (adjustedExtent.depth == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.depth >= srcOffset.z);
+        adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+    }
+
+    // Vulkan specifically doesn't require aligning to block size (and will throw errors if it makes extents
+    // too large for the smaller mip levels).
+    // adjustedExtent.width = math::calcAligned(adjustedExtent.width, formatInfo.blockWidth);
+    // adjustedExtent.height = math::calcAligned(adjustedExtent.height, formatInfo.blockHeight);
+
+    // Calculate the row length (in texels) from the supplied pitch (in bytes)
+    uint32_t rowLengthInBlocks = dstRowStride / formatInfo.blockSizeInBytes;
+    uint32_t rowLengthInTexels = rowLengthInBlocks * formatInfo.blockWidth;
+
+    // Setup region copy args.
     VkBufferImageCopy region = {};
-    region.bufferOffset = cmd.dstOffset;
-    region.bufferRowLength = 0;
+    region.bufferOffset = dstOffset;
+    region.bufferRowLength = rowLengthInTexels;
     region.bufferImageHeight = 0;
     region.imageSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
-    region.imageSubresource.mipLevel = cmd.srcSubresource.mipLevel;
-    region.imageSubresource.baseArrayLayer = cmd.srcSubresource.baseArrayLayer;
-    region.imageSubresource.layerCount = cmd.srcSubresource.layerCount;
-    region.imageOffset = {(int32_t)cmd.srcOffset.x, (int32_t)cmd.srcOffset.y, (int32_t)cmd.srcOffset.z};
-    region.imageExtent = {(uint32_t)cmd.extent.width, (uint32_t)cmd.extent.height, (uint32_t)cmd.extent.depth};
+    region.imageSubresource.mipLevel = mipLevel;
+    region.imageSubresource.baseArrayLayer = layerIndex;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
+    region.imageExtent =
+        {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
 
     m_api.vkCmdCopyImageToBuffer(
         m_cmdBuffer,
