@@ -172,7 +172,7 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
             if (debugCallback)
             {
                 const char* msg =
-                    "CUDA nvrtc could not be located. Please ensure that the CUDA Toolkit is installed.\n"
+                    "Cannot find CUDA nvrtc. Please ensure that the CUDA Toolkit is installed.\n"
                     "Default search locations:\n"
                     "- CUDA_PATH environment variable\n"
 #if SLANG_WINDOWS_FAMILY
@@ -226,7 +226,7 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
         {
             std::string msg;
             msg += "CUDA headers not found! Please ensure that the CUDA Toolkit is installed.\n";
-            msg += "Headers (cuda_runtime.h) found in the following directories:\n";
+            msg += "Searched for headers (cuda_runtime.h) in following directories:\n";
             for (const auto& path : candidatePaths)
                 msg += "- " + path.string() + "\n";
             debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, msg.c_str());
