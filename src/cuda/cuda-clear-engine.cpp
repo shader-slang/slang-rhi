@@ -10,7 +10,7 @@ CMRC_DECLARE(resources);
 
 namespace rhi::cuda {
 
-Result ClearEngine::initialize()
+Result ClearEngine::initialize(IDebugCallback* debugCallback)
 {
     // Load CUDA kernel source
     auto fs = cmrc::resources::get_filesystem();
@@ -20,7 +20,7 @@ Result ClearEngine::initialize()
     NVRTC::CompileResult compileResult;
     {
         NVRTC nvrtc;
-        SLANG_RETURN_ON_FAIL(nvrtc.init());
+        SLANG_RETURN_ON_FAIL(nvrtc.initialize(debugCallback));
         SLANG_RETURN_ON_FAIL(nvrtc.compilePTX(source.begin(), compileResult));
     }
 

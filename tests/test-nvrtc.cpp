@@ -11,7 +11,7 @@ using namespace rhi::cuda;
 TEST_CASE("nvrtc")
 {
     NVRTC nvrtc;
-    if (nvrtc.init() != SLANG_OK)
+    if (nvrtc.initialize() != SLANG_OK)
     {
         return;
     }

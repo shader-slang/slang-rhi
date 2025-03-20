@@ -50,7 +50,11 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
         std::sort(versions.begin(), versions.end(), std::greater<>());
         for (const auto& version : versions)
         {
-            outPaths.push_back(version / "bin");
+            std::filesystem::path path = version / "bin";
+            if (std::find(outPaths.begin(), outPaths.end(), path) == outPaths.end())
+            {
+                outPaths.push_back(path);
+            }
         }
     }
 }
@@ -68,12 +72,23 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
     // Next, check default installation paths.
     {
         std::filesystem::path defaultPath{"/usr/local"};
+        std::vector<std::filesystem::path> versions;
         auto it = std::filesystem::directory_iterator(defaultPath);
         for (const auto& entry : it)
         {
             if (entry.is_directory() && entry.path().filename().string().substr(0, 4) == "cuda")
             {
-                outPaths.push_back(entry.path() / "lib64");
+                version.push_back(entry.path());
+            }
+        }
+
+        std::sort(versions.begin(), versions.end(), std::greater<>());
+        for (const auto& version : versions)
+        {
+            std::filesystem::path path = version / "lib64";
+            if (std::find(outPaths.begin(), outPaths.end(), path) == outPaths.end())
+            {
+                outPaths.push_back(path);
             }
         }
     }
@@ -127,7 +142,7 @@ NVRTC::~NVRTC()
     delete m_impl;
 }
 
-Result NVRTC::init()
+Result NVRTC::initialize(IDebugCallback* debugCallback)
 {
     // Try to find & load NVRTC library.
     {
@@ -151,12 +166,26 @@ Result NVRTC::init()
                 }
             }
         }
-    }
-
-    // Return failure if NVRTC library was not found.
-    if (!m_impl->nvrtcLibrary)
-    {
-        return SLANG_FAIL;
+        // Return failure if NVRTC library was not found.
+        if (!m_impl->nvrtcLibrary)
+        {
+            if (debugCallback)
+            {
+                const char* msg =
+                    "CUDA nvrtc could not be located. Please ensure that the CUDA Toolkit is installed.\n"
+                    "Default search locations:\n"
+                    "- CUDA_PATH environment variable\n"
+#if SLANG_WINDOWS_FAMILY
+                    "- C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\vX.Y\n"
+#elif SLANG_LINUX_FAMILY
+                    "- /usr/local/cuda-x.y\n"
+                    "- /usr/lib/x86_64-linux-gnu\n"
+#endif
+                    ;
+                debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, msg);
+            }
+            return SLANG_FAIL;
+        }
     }
 
     // Load NVRTC functions.
@@ -193,6 +222,15 @@ Result NVRTC::init()
     }
     if (m_impl->cudaIncludePath.empty())
     {
+        if (debugCallback)
+        {
+            std::string msg;
+            msg += "CUDA headers not found! Please ensure that the CUDA Toolkit is installed.\n";
+            msg += "Headers (cuda_runtime.h) found in the following directories:\n";
+            for (const auto& path : candidatePaths)
+                msg += "- " + path.string() + "\n";
+            debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, msg.c_str());
+        }
         return SLANG_FAIL;
     }
 
