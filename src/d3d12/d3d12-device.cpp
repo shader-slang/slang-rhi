@@ -524,6 +524,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_features.push_back("surface");
     // Supports rasterization
     m_features.push_back("rasterization");
+    // Supports custom border color
+    m_features.push_back("custom-border-color");
 
     if (m_deviceInfo.m_isSoftware)
     {
