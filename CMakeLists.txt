@@ -710,6 +710,7 @@ if(SLANG_RHI_BUILD_TESTS)
         # tests/test-root-mutable-shader-object.cpp
         tests/test-root-shader-parameter.cpp
         tests/test-sampler-array.cpp
+        tests/test-sampler.cpp
         tests/test-shader-cache.cpp
         tests/test-staging-heap.cpp
         tests/test-surface.cpp

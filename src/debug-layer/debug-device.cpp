@@ -287,6 +287,75 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
 {
     SLANG_RHI_API_FUNC;
 
+    if (desc.minFilter > TextureFilteringMode::Linear)
+    {
+        RHI_VALIDATION_ERROR("Invalid min filter mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.magFilter > TextureFilteringMode::Linear)
+    {
+        RHI_VALIDATION_ERROR("Invalid mag filter mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.mipFilter > TextureFilteringMode::Linear)
+    {
+        RHI_VALIDATION_ERROR("Invalid mip filter mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.reductionOp > TextureReductionOp::Maximum)
+    {
+        RHI_VALIDATION_ERROR("Invalid reduction op");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.addressU > TextureAddressingMode::MirrorOnce)
+    {
+        RHI_VALIDATION_ERROR("Invalid address U mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.addressV > TextureAddressingMode::MirrorOnce)
+    {
+        RHI_VALIDATION_ERROR("Invalid address V mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.addressW > TextureAddressingMode::MirrorOnce)
+    {
+        RHI_VALIDATION_ERROR("Invalid address W mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.comparisonFunc > ComparisonFunc::Always)
+    {
+        RHI_VALIDATION_ERROR("Invalid comparison func");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (desc.addressU == TextureAddressingMode::ClampToBorder ||
+        desc.addressV == TextureAddressingMode::ClampToBorder || desc.addressW == TextureAddressingMode::ClampToBorder)
+    {
+        if (ctx->deviceType == DeviceType::WGPU)
+        {
+            RHI_VALIDATION_WARNING("WebGPU doesn't support ClampToBorder addressing mode");
+        }
+
+        const float* color = desc.borderColor;
+        if (color[0] < 0.f || color[0] > 1.f || color[1] < 0.f || color[1] > 1.f || color[2] < 0.f || color[2] > 1.f ||
+            color[3] < 0.f || color[3] > 1.f)
+        {
+            RHI_VALIDATION_ERROR("Invalid border color (must be in range [0, 1])");
+            return SLANG_E_INVALID_ARG;
+        }
+
+        if (!(color[0] == 0.f && color[1] == 0.f && color[2] == 0.f && color[3] == 0.f) &&
+            !(color[0] == 0.f && color[1] == 0.f && color[2] == 0.f && color[3] == 1.f) &&
+            !(color[0] == 1.f && color[1] == 1.f && color[2] == 1.f && color[3] == 1.f) &&
+            !baseObject->hasFeature("custom-border-color"))
+        {
+            RHI_VALIDATION_WARNING(
+                "Border color is not a predefined color and custom border color is not supported. "
+                "Using transparent black instead."
+            );
+        }
+    }
+
     SamplerDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)

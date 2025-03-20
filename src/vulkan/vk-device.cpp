@@ -519,6 +519,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.dynamicRenderingFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingFeatures;
 
+        // custom border color features
+        extendedFeatures.customBorderColorFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.customBorderColorFeatures;
+
         extendedFeatures.dynamicRenderingLocalReadFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingLocalReadFeatures;
 
@@ -662,6 +666,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedDynamicState,
             VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
             "extended-dynamic-states"
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.customBorderColorFeatures,
+            customBorderColors,
+            VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
+            "custom-border-color"
         );
 
         if (extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
