@@ -2,6 +2,7 @@
 #include "core/platform.h"
 #include "core/deferred.h"
 
+#include <algorithm>
 #include <filesystem>
 
 #if SLANG_WINDOWS_FAMILY
