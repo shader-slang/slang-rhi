@@ -1,6 +1,7 @@
 #include "cuda-clear-engine.h"
 #include "cuda-texture.h"
 #include "cuda-helper-functions.h"
+#include "cuda-nvrtc.h"
 
 #include "format-conversion.h"
 
@@ -9,12 +10,24 @@ CMRC_DECLARE(resources);
 
 namespace rhi::cuda {
 
-Result ClearEngine::initialize()
+Result ClearEngine::initialize(IDebugCallback* debugCallback)
 {
+    // Load CUDA kernel source
     auto fs = cmrc::resources::get_filesystem();
-    auto ptx = fs.open("src/cuda/kernels/clear-texture.ptx");
-    SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&m_module, ptx.begin()));
+    auto source = fs.open("src/cuda/kernels/clear-texture.cu");
 
+    // Compile CUDA kernel to PTX
+    NVRTC::CompileResult compileResult;
+    {
+        NVRTC nvrtc;
+        SLANG_RETURN_ON_FAIL(nvrtc.initialize(debugCallback));
+        SLANG_RETURN_ON_FAIL(nvrtc.compilePTX(source.begin(), compileResult));
+    }
+
+    // Load PTX module
+    SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&m_module, compileResult.ptx.data()));
+
+    // Get clear kernel functions
     for (size_t dim = 0; dim < size_t(Dimension::Count); ++dim)
     {
         for (size_t size = 0; size < size_t(Size::Count); ++size)
