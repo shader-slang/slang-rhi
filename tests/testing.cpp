@@ -576,6 +576,10 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     ComPtr<IDevice> device;
     DeviceDesc desc;
     desc.deviceType = deviceType;
+#if SLANG_RHI_DEBUG
+    desc.debugCallback = &sDebugCallback;
+#endif
+
     if (!SLANG_SUCCEEDED(rhi::getRHI()->createDevice(desc, device.writeRef())))
         RETURN_NOT_AVAILABLE("failed to create device");
 

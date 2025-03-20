@@ -334,7 +334,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 
-    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize());
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
 
     return SLANG_OK;
 }

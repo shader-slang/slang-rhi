@@ -38,7 +38,7 @@ public:
         Count,
     };
 
-    Result initialize();
+    Result initialize(IDebugCallback* debugCallback);
     void release();
 
     void clearTextureUint(

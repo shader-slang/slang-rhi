@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/common.h"
+#include "cuda-base.h"
 
 namespace rhi::cuda {
 
@@ -47,7 +47,7 @@ public:
     NVRTC();
     ~NVRTC();
 
-    Result init();
+    Result initialize(IDebugCallback* debugCallback = nullptr);
 
     struct CompileResult
     {
