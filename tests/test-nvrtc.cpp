@@ -16,18 +16,38 @@ TEST_CASE("nvrtc")
         return;
     }
 
-    const char* source = R"(
-        #include <cuda_runtime.h>
-        extern "C" __global__ void dummyKernel() {
-            int idx = threadIdx.x;
-        }
-    )";
+    SUBCASE("compile")
+    {
+        const char* source = R"(
+            #include <cuda_runtime.h>
+            extern "C" __global__ void dummyKernel() {
+                int idx = threadIdx.x;
+            }
+        )";
 
-    NVRTC::CompileResult compileResult;
-    Result result = nvrtc.compilePTX(source, compileResult);
-    CHECK(result == SLANG_OK);
-    CHECK(compileResult.result == NVRTC_SUCCESS);
-    CHECK(compileResult.ptx.size() > 0);
+        NVRTC::CompileResult compileResult;
+        Result result = nvrtc.compilePTX(source, compileResult);
+        CHECK(result == SLANG_OK);
+        CHECK(compileResult.result == NVRTC_SUCCESS);
+        CHECK(compileResult.ptx.size() > 0);
+    }
+
+    SUBCASE("compile-error")
+    {
+        const char* source = R"(
+            #include <cuda_runtime.h>
+            extern "C" __global__ void dummyKernel() {
+                int idx = threadIdx.x
+            }
+        )";
+
+        NVRTC::CompileResult compileResult;
+        Result result = nvrtc.compilePTX(source, compileResult);
+        CHECK(result == SLANG_FAIL);
+        CHECK(compileResult.result == NVRTC_ERROR_COMPILATION);
+        CHECK(compileResult.ptx.size() == 0);
+        CHECK(compileResult.log.size() > 0);
+    }
 }
 
 #endif // SLANG_RHI_ENABLE_CUDA
