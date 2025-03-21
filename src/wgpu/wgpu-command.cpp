@@ -327,9 +327,9 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     destination.layout.offset = dstOffset;
     destination.layout.bytesPerRow = dstRowStride;
 
-    // Calculate rows per image for this mip level.
-    // TODO: Should this be based on the extent? i.e. it is destination rowsPerImage?
-    destination.layout.rowsPerImage = math::divideRoundedUp(srcMipSize.height, formatInfo.blockHeight);
+    // This is the DESTINATION rows per image, so is calculated
+    // based on the extent being copied, not the the height of the image.
+    destination.layout.rowsPerImage = math::divideRoundedUp(adjustedExtent.height, formatInfo.blockHeight);
 
     // Store copy size.
     WGPUExtent3D copySize =

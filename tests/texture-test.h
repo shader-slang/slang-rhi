@@ -211,6 +211,8 @@ void checkRegionsEqual(
     Extents extents
 );
 
+void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA, Offset3D offsetA, Extents extents);
+
 /// Description of a given texture in a variant (texture descriptor + how to init)
 struct TestTextureDesc
 {

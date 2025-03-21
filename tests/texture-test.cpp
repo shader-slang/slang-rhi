@@ -334,6 +334,58 @@ void checkRegionsEqual(
     }
 }
 
+void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA, Offset3D offsetA, Extents extents)
+{
+    const uint8_t* dataA = (const uint8_t*)dataA_;
+
+    // Check region is valid for A
+    CHECK_GE(layoutA.size.width, offsetA.x + extents.width);
+    CHECK_GE(layoutA.size.height, offsetA.y + extents.height);
+    CHECK_GE(layoutA.size.depth, offsetA.z + extents.depth);
+
+    uint32_t textureSliceCount = layoutA.size.depth;
+    uint32_t textureRowCount = math::divideRoundedUp(layoutA.size.height, layoutA.blockHeight);
+    uint32_t textureColCount = math::divideRoundedUp(layoutA.size.width, layoutA.blockWidth);
+
+    // Calculate overall region dimensions in blocks rather than pixels to handle compressed textures.
+    uint32_t sliceBegin = offsetA.z;
+    uint32_t rowBegin = math::divideRoundedUp(offsetA.y, layoutA.blockHeight);
+    uint32_t colBegin = math::divideRoundedUp(offsetA.x, layoutA.blockWidth);
+    uint32_t sliceEnd = sliceBegin + extents.depth;
+    uint32_t rowEnd = rowBegin + math::divideRoundedUp(extents.height, layoutA.blockHeight);
+    uint32_t colEnd = colBegin + math::divideRoundedUp(extents.width, layoutA.blockWidth);
+
+    // Iterate over whole texture, checking each block.
+    for (uint32_t textureSlice = 0; textureSlice < textureSliceCount; textureSlice++)
+    {
+        bool insideSlice = textureSlice >= sliceBegin && textureSlice < sliceEnd;
+        const uint8_t* sliceA = dataA + textureSlice * layoutA.strideZ;
+
+        // Iterate rows
+        for (uint32_t textureRow = 0; textureRow < textureRowCount; textureRow++)
+        {
+            bool insideRow = textureRow >= rowBegin && textureRow < rowEnd;
+            const uint8_t* rowA = sliceA + textureRow * layoutA.strideY;
+
+            // Iterate columns.
+            for (uint32_t textureCol = 0; textureCol < textureColCount; textureCol++)
+            {
+                bool insideCol = textureCol >= colBegin && textureCol < colEnd;
+                if (insideSlice && insideRow && insideCol)
+                    continue;
+
+                const uint8_t* blockA = rowA + textureCol * layoutA.strideX;
+                for (uint32_t i = 0; i < layoutA.strideX; i++)
+                {
+                    CHECK_EQ(blockA[i], 0);
+                    if (blockA[i] != 0)
+                        return;
+                }
+            }
+        }
+    }
+}
+
 void TextureData::checkMipLevelsEqual(
     int thisLayer,
     int thisMipLevel,
