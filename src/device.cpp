@@ -593,7 +593,8 @@ Result Device::readTexture(
         layout.sizeInBytes,
         layout.strideY,
         texture,
-        {mipLevel, 1, layer, 1},
+        layer,
+        mipLevel,
         {0, 0, 0},
         {layout.size.width, layout.size.height, layout.size.depth}
     );

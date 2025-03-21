@@ -483,7 +483,8 @@ void CommandEncoder::copyTextureToBuffer(
     Size dstSize,
     Size dstRowStride,
     ITexture* src,
-    SubresourceRange srcSubresource,
+    uint32_t layerIndex,
+    uint32_t mipLevel,
     Offset3D srcOffset,
     Extents extent
 )
@@ -494,7 +495,8 @@ void CommandEncoder::copyTextureToBuffer(
     cmd.dstSize = dstSize;
     cmd.dstRowStride = dstRowStride;
     cmd.src = src;
-    cmd.srcSubresource = srcSubresource;
+    cmd.layerIndex = layerIndex;
+    cmd.mipLevel = mipLevel;
     cmd.srcOffset = srcOffset;
     cmd.extent = extent;
     m_commandList->write(std::move(cmd));
