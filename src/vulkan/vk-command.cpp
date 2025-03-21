@@ -301,11 +301,6 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     uint32_t layerIndex = cmd.layerIndex;
     uint32_t mipLevel = cmd.mipLevel;
 
-    if (layerIndex == kAllLayers)
-        layerIndex = srcDesc.getLayerCount();
-    if (mipLevel == kAllMipLevels)
-        mipLevel = srcDesc.mipLevelCount;
-
     // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
     requireTextureState(src, {mipLevel, 1, layerIndex, 1}, ResourceState::CopySource);

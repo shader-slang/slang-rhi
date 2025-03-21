@@ -282,11 +282,6 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     uint32_t layerIndex = cmd.layerIndex;
     uint32_t mipLevel = cmd.mipLevel;
 
-    if (layerIndex == kAllLayers)
-        layerIndex = srcDesc.getLayerCount();
-    if (mipLevel == kAllMipLevels)
-        mipLevel = srcDesc.mipLevelCount;
-
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
