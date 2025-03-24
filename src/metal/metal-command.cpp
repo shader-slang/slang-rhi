@@ -189,17 +189,14 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
 
-    const SubresourceRange& srcSubresource = cmd.srcSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
-
-    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount <= 1);
 
     auto encoder = getBlitCommandEncoder();
     encoder->copyFromTexture(
         src->m_texture.get(),
-        srcSubresource.baseArrayLayer,
-        srcSubresource.mipLevel,
+        cmd.layerIndex,
+        cmd.mipLevel,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
         MTL::Size(extent.width, extent.height, extent.depth),
         dst->m_buffer.get(),
