@@ -366,7 +366,19 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     requireBufferState(buffer, ResourceState::CopyDestination);
     commitBarriers();
 
-    m_api.vkCmdFillBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, cmd.range.offset, cmd.range.size, 0);
+    VkDeviceSize offset = cmd.range.offset;
+    VkDeviceSize size = cmd.range.size;
+
+    // Handle Vulkan buffer size requirement: If size is not equal to
+    // VK_WHOLE_SIZE, size must be a multiple of 4
+    // (https://vulkan.lunarg.com/doc/view/1.4.304.0/windows/1.4-extensions/vkspec.html#VUID-vkCmdFillBuffer-size-00028)
+    // If user explicitly requests to fill the whole buffer, automatically
+    // use the VK_WHOLE_SIZE constant to give same functionality as other
+    // targets.
+    if (offset == 0 && size == buffer->m_desc.size)
+        size = VK_WHOLE_SIZE;
+
+    m_api.vkCmdFillBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, offset, size, 0);
 }
 
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
