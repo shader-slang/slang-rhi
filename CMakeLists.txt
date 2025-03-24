@@ -683,6 +683,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
+        tests/test-cmd-copy-buffer-to-texture.cpp
         tests/test-cmd-copy-texture.cpp
         tests/test-cmd-copy-texture-to-buffer.cpp
         tests/test-cmd-draw.cpp

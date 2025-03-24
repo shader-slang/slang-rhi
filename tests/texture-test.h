@@ -43,9 +43,9 @@ struct TextureData
     std::vector<Subresource> subresources;
     std::vector<SubresourceData> subresourceData;
 
-    void init(IDevice* device, const TextureDesc& desc, TextureInitMode initMode, int initSeed = 0);
+    void init(IDevice* device, const TextureDesc& desc, TextureInitMode initMode, int initSeed = 0, int initStride = 1);
 
-    void initData(TextureInitMode initMode, int initSeed = 0);
+    void initData(TextureInitMode initMode, int initSeed = 0, int initStride = 1);
 
     Result createTexture(ITexture** texture) const;
 
