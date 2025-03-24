@@ -218,7 +218,8 @@ public:
         Size dstSize,
         Size dstRowStride,
         ITexture* src,
-        SubresourceRange srcSubresource,
+        uint32_t layerIndex,
+        uint32_t mipLevel,
         Offset3D srcOffset,
         Extents extent
     ) override;

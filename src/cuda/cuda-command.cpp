@@ -219,8 +219,73 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
 
 void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_copyTextureToBuffer);
+    BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
+    TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
+
+    const TextureDesc& srcDesc = src->getDesc();
+    Extents textureSize = srcDesc.size;
+    const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
+
+    const uint64_t dstOffset = cmd.dstOffset;
+    const Size dstRowStride = cmd.dstRowStride;
+    const Offset3D& srcOffset = cmd.srcOffset;
+    const Extents& extent = cmd.extent;
+    uint32_t layerIndex = cmd.layerIndex;
+    uint32_t mipLevel = cmd.mipLevel;
+
+    // Calculate adjusted extents. Note it is required and enforced
+    // by debug layer that if 'remaining texture' is used, src and
+    // dst offsets are the same.
+    Extents srcMipSize = calcMipSize(textureSize, mipLevel);
+    Extents adjustedExtent = extent;
+    if (adjustedExtent.width == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
+        adjustedExtent.width = srcMipSize.width - srcOffset.x;
+    }
+    if (adjustedExtent.height == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.height >= srcOffset.y);
+        adjustedExtent.height = srcMipSize.height - srcOffset.y;
+    }
+    if (adjustedExtent.depth == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.depth >= srcOffset.z);
+        adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+    }
+
+    // Align extents to block size
+    adjustedExtent.width = math::calcAligned(adjustedExtent.width, formatInfo.blockWidth);
+    adjustedExtent.height = math::calcAligned(adjustedExtent.height, formatInfo.blockHeight);
+
+    // z is either base array layer or z offset depending on whether this is 3D or array texture
+    SLANG_RHI_ASSERT(layerIndex == 0 || srcOffset.z == 0);
+    uint32_t z = srcOffset.z + layerIndex;
+
+    CUarray srcArray = src->m_cudaArray;
+
+    // Get the appropriate mip level if using mipmapped arrays
+    if (src->m_cudaMipMappedArray)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, mipLevel));
+    }
+
+    CUDA_MEMCPY3D copyParam = {};
+    copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
+    copyParam.srcArray = srcArray;
+    copyParam.srcXInBytes = srcOffset.x * formatInfo.blockSizeInBytes;
+    copyParam.srcY = srcOffset.y;
+    copyParam.srcZ = z;
+
+    copyParam.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+    copyParam.dstDevice = (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + dstOffset);
+    copyParam.dstPitch = dstRowStride;
+
+    copyParam.WidthInBytes = adjustedExtent.width * formatInfo.blockSizeInBytes;
+    copyParam.Height = adjustedExtent.height;
+    copyParam.Depth = adjustedExtent.depth;
+
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
 }
 
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)

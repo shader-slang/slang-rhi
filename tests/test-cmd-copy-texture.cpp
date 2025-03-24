@@ -109,10 +109,10 @@ GPU_TEST_CASE("cmd-copy-texture-arrayrange", D3D12 | Vulkan | WGPU | CUDA)
             for (uint32_t i = 0; i < halfLayerCount; i++)
             {
                 // 1st half should be equal to 2nd half of source
-                data.checkLayersEqual(newTexture, i + halfLayerCount, i);
+                data.checkLayersEqual(i + halfLayerCount, newTexture, i);
 
                 // 2nd half should be unchanged
-                newData.checkLayersEqual(newTexture, i + halfLayerCount, i + halfLayerCount);
+                newData.checkLayersEqual(i + halfLayerCount, newTexture, i + halfLayerCount);
             }
         }
     );
@@ -163,16 +163,10 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU | CUDA)
                 for (uint32_t mipLevel = 0; mipLevel < halfMipCount; mipLevel++)
                 {
                     // 1st half should be the copy
-                    data.checkMipLevelsEqual(newTexture, layer, mipLevel, layer, mipLevel);
+                    data.checkMipLevelsEqual(newTexture, layer, mipLevel);
 
                     // 2nd half should be unchanged
-                    newData.checkMipLevelsEqual(
-                        newTexture,
-                        layer,
-                        mipLevel + halfMipCount,
-                        layer,
-                        mipLevel + halfMipCount
-                    );
+                    newData.checkMipLevelsEqual(newTexture, layer, mipLevel + halfMipCount);
                 }
             }
         }
@@ -222,7 +216,7 @@ GPU_TEST_CASE("cmd-copy-texture-fromarray", D3D12 | Vulkan | WGPU | CUDA)
             queue->submit(commandEncoder->finish());
 
             // Check layers now match.
-            data.checkLayersEqual(newTexture, 2, 0);
+            data.checkLayersEqual(2, newTexture, 0);
         }
     );
 }
@@ -273,7 +267,7 @@ GPU_TEST_CASE("cmd-copy-texture-toarray", D3D12 | Vulkan | WGPU | CUDA)
             queue->submit(commandEncoder->finish());
 
             // Check layers now match.
-            newData.checkLayersEqual(c->getTexture(), 0, 2);
+            newData.checkLayersEqual(0, c->getTexture(), 2);
         }
     );
 }
@@ -432,18 +426,18 @@ GPU_TEST_CASE("cmd-copy-texture-toslice", D3D12 | Vulkan | WGPU | CUDA)
 
             // Check layers now match inside and outside of the region.
             newData.checkLayersEqual(
-                c->getTexture(),
                 0,
                 {0, 0, 0},
+                c->getTexture(),
                 0,
                 {0, 0, 1},
                 {kRemainingTextureSize, kRemainingTextureSize, 1},
                 false
             );
             data.checkLayersEqual(
-                c->getTexture(),
                 0,
                 {0, 0, 1},
+                c->getTexture(),
                 0,
                 {0, 0, 1},
                 {kRemainingTextureSize, kRemainingTextureSize, 1},
@@ -497,8 +491,8 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU | CUDA)
             // Verify it uploaded correctly
             // The original texture data should have stomped over the new texture data
             // at offset.
-            data.checkEqual(offset, newTexture, offset, Extents::kWholeTexture, false);
-            newData.checkEqual(offset, newTexture, offset, Extents::kWholeTexture, true);
+            data.checkEqual(newTexture, offset, Extents::kWholeTexture, false);
+            newData.checkEqual(newTexture, offset, Extents::kWholeTexture, true);
         }
     );
 }
@@ -547,8 +541,8 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU | CUDA)
             // Verify it uploaded correctly
             // The original texture data should have stomped over the new texture data
             // at offset with given extents.
-            data.checkEqual(offset, newTexture, offset, extents, false);
-            newData.checkEqual(offset, newTexture, offset, extents, true);
+            data.checkEqual(newTexture, offset, extents, false);
+            newData.checkEqual(newTexture, offset, extents, true);
         }
     );
 }
@@ -596,7 +590,7 @@ GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU | CUDA)
             // The smaller texture should have overwritten the corner of
             // the larger texture.
             smallerData.checkEqual({0, 0, 0}, largerTexture, offset, extents, false);
-            largerData.checkEqual(offset, largerTexture, offset, extents, true);
+            largerData.checkEqual(largerTexture, offset, extents, true);
         }
     );
 }
@@ -697,8 +691,8 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU | CUDA)
 
             // Verify it uploaded correctly
             // The corner of mip 0 of the dst texture should have been overwritten by mip 1 of the src texture
-            srcData.checkMipLevelsEqual(dstTexture, 0, 1, {0, 0, 0}, 0, 0, {0, 0, 0}, extents, false);
-            dstData.checkMipLevelsEqual(dstTexture, 0, 0, {0, 0, 0}, 0, 0, {0, 0, 0}, extents, true);
+            srcData.checkMipLevelsEqual(0, 1, {0, 0, 0}, dstTexture, 0, 0, {0, 0, 0}, extents, false);
+            dstData.checkMipLevelsEqual(dstTexture, 0, 0, {0, 0, 0}, extents, true);
         }
     );
 }
@@ -756,8 +750,67 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
             // Verify it uploaded correctly at mip level 1
             // The original texture data should have stomped over the new texture data
             // at offset in mip level 1.
-            data.checkMipLevelsEqual(newTexture, 0, 1, offset, 0, 1, offset, Extents::kWholeTexture, false);
-            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, 0, 1, offset, Extents::kWholeTexture, true);
+            data.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, false);
+            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, true);
+        }
+    );
+}
+
+GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::Both, TTMip::On, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            // Get cpu side data.
+            TextureData& data = c->getTextureData();
+
+            // Skip non-power-of-2 block compressed textures as they're too complex for mip calculations
+            if (data.formatInfo.isCompressed && !math::isPowerOf2(data.desc.size.width))
+                return;
+
+            // Create a new texture with same descriptor
+            TextureData newData;
+            newData.init(device, data.desc, TextureInitMode::Random, 2132);
+            ComPtr<ITexture> newTexture;
+            REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
+
+            // Get the size of mip level 1
+            SubresourceLayout mip1Layout;
+            c->getTexture()->getSubresourceLayout(1, &mip1Layout);
+            Extents mip1Size = mip1Layout.size;
+
+            // Calculate offset for mip level 1 (quarter of mip1 size)
+            Offset3D offset = {mip1Size.width / 4, mip1Size.height / 4, mip1Size.depth / 4};
+            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
+
+            // Create command encoder
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            // Copy at the offset in mip level 1, using kWholeTexture to express 'the rest of the texture'
+            commandEncoder->copyTexture(
+                newTexture,
+                {1, 1, 0, 0}, // Target mip level 1
+                offset,
+                c->getTexture(),
+                {1, 1, 0, 0}, // Source from mip level 1
+                offset,
+                Extents::kWholeTexture
+            );
+            queue->submit(commandEncoder->finish());
+
+            // Verify it uploaded correctly at mip level 1
+            // The original texture data should have stomped over the new texture data
+            // at offset in mip level 1.
+            data.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, false);
+            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, true);
         }
     );
 }
