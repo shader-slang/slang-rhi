@@ -483,10 +483,14 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             // either of these values is zero, that aspect of the buffer memory is
             // considered to be tightly packed according to the imageExtent.
 
+            // Calculate the row length (in texels) from the supplied pitch (in bytes)
+            uint32_t rowLengthInBlocks = srLayout->strideY / srLayout->strideX;
+            uint32_t rowLengthInTexels = rowLengthInBlocks * srLayout->blockWidth;
+
             VkBufferImageCopy region = {};
 
             region.bufferOffset = bufferOffset;
-            region.bufferRowLength = 0; // rowSizeInBytes;
+            region.bufferRowLength = rowLengthInTexels;
             region.bufferImageHeight = 0;
 
             region.imageSubresource.aspectMask = getAspectMaskFromFormat(dst->m_vkformat);

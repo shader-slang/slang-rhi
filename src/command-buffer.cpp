@@ -502,6 +502,43 @@ void CommandEncoder::copyTextureToBuffer(
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::copyBufferToTexture(
+    ITexture* dst,
+    uint32_t layerIndex,
+    uint32_t mipLevel,
+    Offset3D dstOffset,
+    IBuffer* src,
+    Offset srcOffset,
+    Size srcSize,
+    Size srcRowStride,
+    Extents extent
+)
+{
+    SubresourceLayout* layout = static_cast<SubresourceLayout*>(m_commandList->allocData(sizeof(SubresourceLayout)));
+
+    // Get basic layout info from the texture
+    Texture* textureImpl = checked_cast<Texture*>(dst);
+    textureImpl->getSubresourceRegionLayout(mipLevel, dstOffset, extent, layout);
+
+    // The layout that actually matters is the layout of the buffer, defined
+    // by the row stride, so recalculate it given srcRowStride.
+    layout->strideY = srcRowStride;
+    layout->strideZ = layout->rowCount * layout->strideY;
+    layout->sizeInBytes = layout->strideZ * layout->size.depth;
+    SLANG_RHI_ASSERT(srcSize >= layout->sizeInBytes)
+
+    // Add texture upload command for just this layer/mip
+    commands::UploadTextureData cmd;
+    cmd.dst = dst;
+    cmd.subresourceRange = {mipLevel, 1, layerIndex, 1};
+    cmd.offset = dstOffset;
+    cmd.extent = extent;
+    cmd.layouts = layout;
+    cmd.srcBuffer = src;
+    cmd.srcOffset = srcOffset;
+    m_commandList->write(std::move(cmd));
+}
+
 Result CommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
