@@ -176,11 +176,14 @@ Result Texture::getSubresourceRegionLayout(
     uint32_t mipLevel,
     Offset3D offset,
     Extents extents,
+    size_t rowAlignment,
     SubresourceLayout* outLayout
 )
 {
-    size_t rowAlignment;
-    SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(m_desc.format, &rowAlignment));
+    if (rowAlignment == kDefaultAlignment)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(m_desc.format, &rowAlignment));
+    }
     return calcSubresourceRegionLayout(m_desc, mipLevel, offset, extents, rowAlignment, outLayout);
 }
 

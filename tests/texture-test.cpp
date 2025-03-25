@@ -414,7 +414,7 @@ void TextureData::checkMipLevelsEqual(
     const SubresourceLayout& thisLayout = thisSubresource.layout;
 
     SubresourceLayout textureLayout;
-    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, &textureLayout));
+    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, kDefaultAlignment, &textureLayout));
 
     ComPtr<ISlangBlob> blob;
     Size rowPitch;
@@ -537,7 +537,7 @@ void TextureData::checkSliceEqual(
     const SubresourceLayout& thisLayout = thisSubresource.layout;
 
     SubresourceLayout textureLayout;
-    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, &textureLayout));
+    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, kDefaultAlignment, &textureLayout));
 
     ComPtr<ISlangBlob> blob;
     Size rowPitch;
