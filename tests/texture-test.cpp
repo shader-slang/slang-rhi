@@ -118,7 +118,13 @@ bool getMultisampleType(TextureType type, TextureType& outArrayType)
 // TextureData
 //----------------------------------------------------------
 
-void TextureData::init(IDevice* device_, const TextureDesc& desc_, TextureInitMode initMode_, int initSeed_)
+void TextureData::init(
+    IDevice* device_,
+    const TextureDesc& desc_,
+    TextureInitMode initMode_,
+    int initSeed_,
+    int initStride
+)
 {
     device = device_;
     desc = fixupTextureDesc(desc_);
@@ -144,10 +150,10 @@ void TextureData::init(IDevice* device_, const TextureDesc& desc_, TextureInitMo
         initMode_ = TextureInitMode::None;
 
     // Initialize subresources
-    initData(initMode_, initSeed_);
+    initData(initMode_, initSeed_, initStride);
 }
 
-void TextureData::initData(TextureInitMode initMode_, int initSeed_)
+void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initStride)
 {
     initMode = initMode_;
     initSeed = initSeed_;
@@ -160,7 +166,7 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_)
         for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
         {
             SubresourceLayout layout;
-            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extents::kWholeTexture, 1, &layout);
+            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extents::kWholeTexture, initStride, &layout);
 
             Subresource sr;
             sr.layer = layer;
