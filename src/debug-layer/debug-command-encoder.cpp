@@ -617,6 +617,39 @@ void DebugCommandEncoder::copyTextureToBuffer(
         ->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowStride, src, layerIndex, mipLevel, srcOffset, extent);
 }
 
+void DebugCommandEncoder::copyBufferToTexture(
+    ITexture* dst,
+    uint32_t layerIndex,
+    uint32_t mipLevel,
+    Offset3D dstOffset,
+    IBuffer* src,
+    Offset srcOffset,
+    Size srcSize,
+    Size srcRowStride,
+    Extents extent
+)
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+
+    const TextureDesc& desc = dst->getDesc();
+
+    if (layerIndex >= desc.getLayerCount())
+    {
+        RHI_VALIDATION_ERROR("The base array layer is out of bounds.");
+        return;
+    }
+    if (mipLevel >= desc.mipLevelCount)
+    {
+        RHI_VALIDATION_ERROR("Mip level is out of bounds.");
+        return;
+    }
+
+    baseObject
+        ->copyBufferToTexture(dst, layerIndex, mipLevel, dstOffset, src, srcOffset, srcSize, srcRowStride, extent);
+}
+
 void DebugCommandEncoder::buildAccelerationStructure(
     const AccelerationStructureBuildDesc& desc,
     IAccelerationStructure* dst,

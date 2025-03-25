@@ -2016,7 +2016,7 @@ public:
         Extents extent
     ) = 0;
 
-    /// Copies texture to a buffer. Each row is aligned to kTexturePitchAlignment.
+    /// Copies texture to a buffer. Each row is aligned to dstRowStride.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
         IBuffer* dst,
         Offset dstOffset,
@@ -2026,6 +2026,20 @@ public:
         uint32_t layerIndex,
         uint32_t mipLevel,
         Offset3D srcOffset,
+        Extents extent
+    ) = 0;
+
+
+    /// Copies buffer to a texture.
+    virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
+        ITexture* dst,
+        uint32_t layerIndex,
+        uint32_t mipLevel,
+        Offset3D dstOffset,
+        IBuffer* src,
+        Offset srcOffset,
+        Size srcSize,
+        Size srcRowStride,
         Extents extent
     ) = 0;
 

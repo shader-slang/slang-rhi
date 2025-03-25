@@ -224,6 +224,19 @@ public:
         Extents extent
     ) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
+        ITexture* dst,
+        uint32_t layerIndex,
+        uint32_t mipLevel,
+        Offset3D dstOffset,
+        IBuffer* src,
+        Offset srcOffset,
+        Size srcSize,
+        Size srcRowStride,
+        Extents extent
+    ) override;
+
+
     virtual SLANG_NO_THROW Result SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subresourceRange,
