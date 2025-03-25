@@ -42,7 +42,9 @@ void testTextureLayout2(
 )
 {
     SubresourceLayout layout;
-    REQUIRE_CALL(((Texture*)texture.get())->getSubresourceRegionLayout(mipLevel, offset, extents, &layout));
+    REQUIRE_CALL(
+        ((Texture*)texture.get())->getSubresourceRegionLayout(mipLevel, offset, extents, kDefaultAlignment, &layout)
+    );
 
     CHECK_EQ(layout.size.width, expectedLayout.size.width);
     CHECK_EQ(layout.size.height, expectedLayout.size.height);
