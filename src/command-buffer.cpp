@@ -518,7 +518,7 @@ void CommandEncoder::copyBufferToTexture(
 
     // Get basic layout info from the texture
     Texture* textureImpl = checked_cast<Texture*>(dst);
-    textureImpl->getSubresourceRegionLayout(mipLevel, dstOffset, extent, layout);
+    textureImpl->getSubresourceRegionLayout(mipLevel, dstOffset, extent, kDefaultAlignment, layout);
 
     // The layout that actually matters is the layout of the buffer, defined
     // by the row stride, so recalculate it given srcRowStride.
