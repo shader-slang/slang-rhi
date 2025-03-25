@@ -667,6 +667,8 @@ struct SubresourceRange
 
 static const SubresourceRange kEntireTexture = SubresourceRange{0, 0xffffffff, 0, 0xffffffff};
 
+static const size_t kDefaultAlignment = 0xffffffff;
+
 /// Data for a single subresource of a texture.
 ///
 /// Each subresource is a tensor with `1 <= rank <= 3`,
@@ -858,7 +860,16 @@ public:
         return view;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSubresourceLayout(uint32_t mipLevel, SubresourceLayout* outLayout) = 0;
+    /// Get layout of a subresource with given packing. If rowAlignment is kDefaultAlignment, uses the platform's
+    /// minimal texture row alignment for buffer upload/download.
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) = 0;
+
+    /// Helper to get layout of a subresource with platform's minimal texture row alignment.
+    inline Result getSubresourceLayout(uint32_t mipLevel, SubresourceLayout* outLayout)
+    {
+        return getSubresourceLayout(mipLevel, kDefaultAlignment, outLayout);
+    }
 };
 
 enum class ComparisonFunc : uint8_t

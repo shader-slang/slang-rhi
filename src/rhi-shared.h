@@ -131,11 +131,12 @@ public:
 
     // Get layout the target requires for a given region within a given sub resource
     // of this texture. Supply offset==0 and extents==kRemainingTextureSize to indicate whole sub resource.
-    // Default implementation uses Device::getTextureRowAlignment for alignment.
+    // If rowAlignment is kDefaultAlignment, implementation uses Device::getTextureRowAlignment for alignment.
     virtual Result getSubresourceRegionLayout(
         uint32_t mipLevel,
         Offset3D offset,
         Extents extents,
+        size_t rowAlignment,
         SubresourceLayout* outLayout
     );
 
@@ -147,9 +148,9 @@ public:
     createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mipLevel, SubresourceLayout* outLayout) override
+    getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) override
     {
-        return getSubresourceRegionLayout(mipLevel, Offset3D(), Extents::kWholeTexture, outLayout);
+        return getSubresourceRegionLayout(mipLevel, Offset3D(), Extents::kWholeTexture, rowAlignment, outLayout);
     }
 
 public:

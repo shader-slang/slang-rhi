@@ -528,7 +528,7 @@ Result CommandEncoder::uploadTextureData(
             {
                 uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 
-                textureImpl->getSubresourceRegionLayout(mipLevel, offset, extent, srLayout);
+                textureImpl->getSubresourceRegionLayout(mipLevel, offset, extent, kDefaultAlignment, srLayout);
                 totalSize += srLayout->sizeInBytes;
                 srLayout++;
             }
